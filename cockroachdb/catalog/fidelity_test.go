@@ -140,6 +140,7 @@ CREATE TABLE "Fid Mixed"."Children" (
 CREATE FUNCTION fid_a.f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
 CREATE FUNCTION fid_a.g() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.f() $$;
 CREATE FUNCTION "Fid Mixed".f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.g() $$;
+CREATE FUNCTION fid_a.f(n INT8) RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.g() + n $$;
 CREATE TABLE fid_a.uses_g (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_a.g());
 CREATE VIEW "Fid Mixed".family AS SELECT p.id, c.id AS child FROM fid_a.parents AS p JOIN "Fid Mixed"."Children" AS c ON c."Parent Id" = p.id;
 `,

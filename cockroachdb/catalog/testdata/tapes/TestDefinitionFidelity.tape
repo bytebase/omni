@@ -6869,6 +6869,9 @@
 | CREATE FUNCTION "Fid Mixed".f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.g() $$;
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_a.f(n INT8) RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.g() + n $$;
+< ok 0 -
+> exec
 | CREATE TABLE fid_a.uses_g (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_a.g());
 < ok 0 -
 > exec
@@ -7565,6 +7568,24 @@
 : string
 | fid_a
 : string
+| f
+: string
+| f(int8)
+: string
+| CREATE FUNCTION fid_a.f(n INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.g() + n;
+| $$
+< row
+: string
+| fid_a
+: string
 | g
 : string
 | g()
@@ -7751,6 +7772,18 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT fid_a.g();
+| $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_a.f(n INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.g() + n;
 | $$;
 < ok 0 -
 > exec
@@ -8461,6 +8494,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT 1;
+| $$
+< row
+: string
+| fid_a
+: string
+| f
+: string
+| f(int8)
+: string
+| CREATE FUNCTION fid_a.f(n INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.g() + n;
 | $$
 < row
 : string

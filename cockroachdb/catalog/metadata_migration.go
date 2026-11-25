@@ -3,11 +3,14 @@ package catalog
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	crparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
 	plpgsqlparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/plpgsql/parser"
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
+
+	"google.golang.org/protobuf/proto"
 
 	metadatapb "github.com/bytebase/omni/metadata"
 )
@@ -483,7 +486,8 @@ func (d *differ) diffSequences() {
 				{"MINVALUE", old.MinValue, sequence.MinValue},
 				{"MAXVALUE", old.MaxValue, sequence.MaxValue},
 				{"START WITH", old.Start, sequence.Start},
-				{"CACHE", old.CacheSize, sequence.CacheSize},
+				// CockroachDB states the default cache, 1, by leaving it out.
+				{"CACHE", cacheSize(old.CacheSize), cacheSize(sequence.CacheSize)},
 			} {
 				if c[1] != c[2] && c[2] != "" {
 					clauses = append(clauses, c[0]+" "+c[2])
@@ -502,6 +506,13 @@ func (d *differ) diffSequences() {
 			}
 		}
 	}
+}
+
+func cacheSize(size string) string {
+	if size == "" {
+		return "1"
+	}
+	return size
 }
 
 func findSequence(schema *metadatapb.SchemaMetadata, name string) *metadatapb.SequenceMetadata {
@@ -689,7 +700,7 @@ func (d *differ) diffTables() error {
 			if target == nil {
 				var calls []string
 				for _, name := range tableCalls(table) {
-					calls = append(calls, callPrefix+name)
+					calls = append(calls, callPrefix+"-1:"+name)
 				}
 				d.addDrop(getObjectID(schema.Name, table.Name), MigrationOp{Type: OpDropTable, SchemaName: schema.Name, ObjectName: table.Name,
 					SQL: fmt.Sprintf("DROP TABLE %s.%s", quoteIdent(schema.Name), quoteIdent(table.Name))}, calls)
@@ -769,7 +780,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	// A column of a primary key that changes is dropped once the new key is
 	// in place.
 	// A computed column goes before the columns its expression reads.
-	var afterKey []string
+	var afterKey, relaxAfterKey []string
 	dropOrder := slices.Clone(oldColumns)
 	slices.SortStableFunc(dropOrder, func(a, b *metadatapb.ColumnMetadata) int {
 		return boolOrder(b.Generation != nil) - boolOrder(a.Generation != nil)
@@ -803,8 +814,23 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 		}
 		if oldColumn == nil {
 			var buf strings.Builder
-			d.r.writeColumnDefinition(&buf, column)
-			alter(defaultPhase, OpAddColumn, column.Name, "ADD COLUMN "+buf.String())
+			if defaultPhase == phaseAlterTables {
+				d.r.writeColumnDefinition(&buf, column)
+				alter(phaseAlterTables, OpAddColumn, column.Name, "ADD COLUMN "+buf.String())
+				continue
+			}
+			// A default calling a routine the migration creates is set once
+			// the routine exists; the column comes first, since another new
+			// routine may read it. CockroachDB also takes no routine in an
+			// ADD COLUMN default.
+			bare := proto.CloneOf(column)
+			bare.Default, bare.Nullable = "", true
+			d.r.writeColumnDefinition(&buf, bare)
+			alter(phaseAlterTables, OpAddColumn, column.Name, "ADD COLUMN "+buf.String())
+			alter(phaseLateColumns, OpAlterColumn, column.Name, "ALTER COLUMN "+quoteIdent(column.Name)+" SET DEFAULT "+defaultExpression(column.Default))
+			if !column.Nullable {
+				alter(phaseLateColumns, OpAlterColumn, column.Name, "ALTER COLUMN "+quoteIdent(column.Name)+" SET NOT NULL")
+			}
 			continue
 		}
 		col := "ALTER COLUMN " + quoteIdent(column.Name) + " "
@@ -839,7 +865,11 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 			}
 		}
 		if oldColumn.Nullable != column.Nullable {
-			if column.Nullable {
+			if column.Nullable && oldKey != newKey && slices.Contains(oldPrimary.GetExpressions(), column.Name) {
+				// A column leaving the primary key may be NULL only once the
+				// new key is in place.
+				relaxAfterKey = append(relaxAfterKey, column.Name)
+			} else if column.Nullable {
 				alter(phaseAlterTables, OpAlterColumn, column.Name, col+"DROP NOT NULL")
 			} else {
 				alter(phaseAlterTables, OpAlterColumn, column.Name, col+"SET NOT NULL")
@@ -868,6 +898,9 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	}
 	for _, name := range afterKey {
 		alter(phaseAlterTables, OpDropColumn, name, "DROP COLUMN "+quoteIdent(name))
+	}
+	for _, name := range relaxAfterKey {
+		alter(phaseAlterTables, OpAlterColumn, name, "ALTER COLUMN "+quoteIdent(name)+" DROP NOT NULL")
 	}
 
 	for _, check := range newChecks {
@@ -1078,7 +1111,8 @@ func viewReads(query string, dependencies []*metadatapb.DependencyColumn) []stri
 }
 
 // dropNode is one view, routine or table the migration drops, with what it
-// depends on: relation IDs, and the routines it calls as callPrefix+name.
+// depends on: relation IDs, and the routines it calls as
+// callPrefix+arguments+":"+name (arguments -1 when unknown).
 type dropNode struct {
 	op    MigrationOp
 	reads []string
@@ -1112,8 +1146,10 @@ func (d *differ) orderDrops() {
 	for _, id := range sortedMapIDs(d.drops) {
 		graph.AddNode(id)
 		for _, read := range d.drops[id].reads {
-			if name, ok := strings.CutPrefix(read, callPrefix); ok {
-				for _, routine := range routines[name] {
+			if call, ok := strings.CutPrefix(read, callPrefix); ok {
+				count, name, _ := strings.Cut(call, ":")
+				args, _ := strconv.Atoi(count)
+				for _, routine := range calledOverloads(routineCall{name: name, args: args}, routines) {
 					graph.AddEdge(id, routine)
 				}
 			} else if d.drops[read] != nil {
@@ -1213,7 +1249,7 @@ func (d *differ) planRoutines() {
 					continue
 				}
 				for _, call := range routineCalls(function.Definition) {
-					if d.droppedRoutines[call] && call != function.Name && call != schema.Name+"."+function.Name {
+					if d.droppedRoutines[call.name] && call.name != function.Name && call.name != schema.Name+"."+function.Name {
 						d.recreated[id] = true
 						d.droppedRoutines[function.Name], d.droppedRoutines[schema.Name+"."+function.Name] = true, true
 						changed = true
@@ -1273,8 +1309,8 @@ func (d *differ) diffRoutines() {
 			}
 			reads := routineRelations(function.Definition)
 			for _, call := range routineCalls(function.Definition) {
-				if call != function.Name && call != schema.Name+"."+function.Name {
-					reads = append(reads, callPrefix+call)
+				if call.name != function.Name && call.name != schema.Name+"."+function.Name {
+					reads = append(reads, fmt.Sprintf("%s%d:%s", callPrefix, call.args, call.name))
 				}
 			}
 			d.addDrop(id, MigrationOp{Type: typ, SchemaName: schema.Name, ObjectName: function.Name,

@@ -18,6 +18,7 @@ package catalog
 
 import (
 	"fmt"
+	"regexp"
 
 	"slices"
 	"strings"
@@ -214,8 +215,21 @@ func (r renderer) typeName(t string) string {
 			return quoted + "[]"
 		}
 	}
+	// Rendered without its snapshot, as TableDefinition renders, a schema.name
+	// type whose parts are no plain identifiers is quoted part by part.
+	if schema, name, ok := strings.Cut(t, "."); ok && !strings.ContainsAny(t, `"()`) && !strings.Contains(name, ".") &&
+		(!plainIdentifier.MatchString(schema) || !plainIdentifier.MatchString(strings.TrimSuffix(name, "[]"))) {
+		array := ""
+		if element, ok := strings.CutSuffix(name, "[]"); ok {
+			name, array = element, "[]"
+		}
+		return quoteIdent(schema) + "." + quoteIdent(name) + array
+	}
 	return columnType(t)
 }
+
+// plainIdentifier matches a name CockroachDB reads the same unquoted.
+var plainIdentifier = regexp.MustCompile(`^[a-z_][a-z0-9_$]*$`)
 
 // writeObjects writes the functions, tables, views and materialized views of
 // schemas, each after the objects it depends on.
@@ -331,7 +345,7 @@ func orderObjects(schemas []*metadatapb.SchemaMetadata) []objectRef {
 			graph.AddEdge(relation, functionID)
 		}
 		for _, call := range routineCalls(function.Definition) {
-			for _, calledID := range functionsByName[call] {
+			for _, calledID := range calledOverloads(call, functionsByName) {
 				graph.AddEdge(calledID, functionID)
 			}
 		}

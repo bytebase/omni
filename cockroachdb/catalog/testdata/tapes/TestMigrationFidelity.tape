@@ -106,6 +106,12 @@
 > exec
 | CREATE SEQUENCE fid_m.cached_seq CACHE 8;
 < ok 0 -
+> exec
+| CREATE SEQUENCE fid_m.reset_seq;
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.rekey2 (id INT8, replacement INT8 PRIMARY KEY);
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -904,6 +910,62 @@
 : string
 | fid_m
 : string
+| rekey2
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| rekey2
+: string
+| replacement
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | tickets
 : string
 | id
@@ -1353,6 +1415,30 @@
 : string
 | fid_m
 : string
+| rekey2
+: string
+| rekey2_pkey
+: string
+| CREATE UNIQUE INDEX rekey2_pkey ON omni_testmigrationfidelity.fid_m.rekey2 USING btree (replacement ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| reset_seq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testmigrationfidelity.fid_m.reset_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | tickets
 : string
 | tickets_pkey
@@ -1624,6 +1710,13 @@
 : string
 | fid_m
 : string
+| rekey2
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | tickets
 : int64 0
 : null
@@ -1829,6 +1922,27 @@
 | b
 : string
 | CREATE SEQUENCE fid_m.owned_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1
+< row
+: string
+| fid_m
+: string
+| reset_seq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
+: null
+: null
+: string
+| CREATE SEQUENCE fid_m.reset_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -2030,6 +2144,12 @@
 < ok 0 -
 > exec
 | CREATE SEQUENCE fid_m.cached_seq CACHE 4;
+< ok 0 -
+> exec
+| CREATE SEQUENCE fid_m.reset_seq CACHE 4;
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.rekey2 (id INT8 PRIMARY KEY, replacement INT8 NOT NULL);
 < ok 0 -
 > exec
 | CREATE SCHEMA fid_gone;
@@ -2971,6 +3091,62 @@
 : string
 | fid_m
 : string
+| rekey2
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| rekey2
+: string
+| replacement
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | tickets
 : string
 | id
@@ -3330,6 +3506,30 @@
 : string
 | fid_m
 : string
+| rekey2
+: string
+| rekey2_pkey
+: string
+| CREATE UNIQUE INDEX rekey2_pkey ON omni_testmigrationfidelity.fid_m.rekey2 USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| reset_seq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testmigrationfidelity.fid_m.reset_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | ticket_seq
 : string
 | primary
@@ -3598,6 +3798,13 @@
 : string
 | fid_m
 : string
+| rekey2
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | tickets
 : int64 0
 : null
@@ -3820,6 +4027,27 @@
 : string
 | fid_m
 : string
+| reset_seq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
+: null
+: null
+: string
+| CREATE SEQUENCE fid_m.reset_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1 CACHE 4
+< row
+: string
+| fid_m
+: string
 | ticket_seq
 : string
 | INT8
@@ -4009,6 +4237,9 @@
 | ALTER SEQUENCE "fid_m"."ids" INCREMENT BY 2 CACHE 4;
 < ok 0 -
 > exec
+| ALTER SEQUENCE "fid_m"."reset_seq" CACHE 1;
+< ok 0 -
+> exec
 | ALTER TABLE "fid_m"."amounts" ALTER COLUMN "amount" SET DATA TYPE text;
 < ok 0 -
 > exec
@@ -4049,6 +4280,12 @@
 < ok 0 -
 > exec
 | ALTER TABLE "fid_m"."rekey" DROP COLUMN "id";
+< ok 0 -
+> exec
+| ALTER TABLE "fid_m"."rekey2" DROP CONSTRAINT "rekey2_pkey", ADD CONSTRAINT "rekey2_pkey" PRIMARY KEY (replacement ASC);
+< ok 0 -
+> exec
+| ALTER TABLE "fid_m"."rekey2" ALTER COLUMN "id" DROP NOT NULL;
 < ok 0 -
 > exec
 | CREATE TABLE "fid_m"."moods" (
@@ -4943,6 +5180,62 @@
 : string
 | fid_m
 : string
+| rekey2
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| rekey2
+: string
+| replacement
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | tickets
 : string
 | id
@@ -5392,6 +5685,30 @@
 : string
 | fid_m
 : string
+| rekey2
+: string
+| rekey2_pkey
+: string
+| CREATE UNIQUE INDEX rekey2_pkey ON omni_testmigrationfidelity.fid_m.rekey2 USING btree (replacement ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| reset_seq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testmigrationfidelity.fid_m.reset_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | tickets
 : string
 | tickets_pkey
@@ -5663,6 +5980,13 @@
 : string
 | fid_m
 : string
+| rekey2
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | tickets
 : int64 0
 : null
@@ -5868,6 +6192,27 @@
 | b
 : string
 | CREATE SEQUENCE fid_m.owned_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1
+< row
+: string
+| fid_m
+: string
+| reset_seq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
+: null
+: null
+: string
+| CREATE SEQUENCE fid_m.reset_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -6039,6 +6384,18 @@
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_v.read_ab() RETURNS INT8 LANGUAGE SQL AS $$ SELECT max(b) FROM fid_v.ab $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.xa() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 7 $$;
+< ok 0 -
+> exec
+| ALTER TABLE fid_v.ab ADD COLUMN x INT8;
+< ok 0 -
+> exec
+| ALTER TABLE fid_v.ab ALTER COLUMN x SET DEFAULT fid_v.xa();
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.xb() RETURNS INT8 LANGUAGE SQL AS $$ SELECT max(x) FROM fid_v.ab $$;
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_v.rt() RETURNS STRING LANGUAGE SQL AS $$ SELECT 'x' $$;
@@ -6214,6 +6571,35 @@
 : int64 0
 : int64 2
 : null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| ab
+: string
+| x
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 3
+: string
+| fid_v.xa()
 : string
 | YES
 : null
@@ -7643,6 +8029,42 @@
 | 	BEGIN
 | 	RETURN (SELECT count(*) FROM omni_testmigrationfidelity.fid_v.items);
 | 	END;
+| $$
+< row
+: string
+| fid_v
+: string
+| xa
+: string
+| xa()
+: string
+| CREATE FUNCTION fid_v.xa()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 7;
+| $$
+< row
+: string
+| fid_v
+: string
+| xb
+: string
+| xb()
+: string
+| CREATE FUNCTION fid_v.xb()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT max(x) FROM omni_testmigrationfidelity.fid_v.ab;
 | $$
 > query
 |
@@ -9844,6 +10266,9 @@
 | ALTER TABLE "fid_v"."pab" DROP COLUMN "a";
 < ok 0 -
 > exec
+| ALTER TABLE "fid_v"."ab" ADD COLUMN "x" bigint;
+< ok 0 -
+> exec
 | ALTER TABLE "fid_v"."items" ADD COLUMN "doubled" numeric AS (price * 2) VIRTUAL;
 < ok 0 -
 > exec
@@ -9991,6 +10416,33 @@
 | END;
 |
 | $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.xa()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 7;
+| $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.xb()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| SELECT max(x) FROM fid_v.ab;
+| $$;
+< ok 0 -
+> exec
+| ALTER TABLE "fid_v"."ab" ALTER COLUMN "x" SET DEFAULT fid_v.xa();
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."items" ALTER COLUMN "bonus" SET DEFAULT fid_v.bonus();
@@ -10157,6 +10609,35 @@
 : int64 0
 : int64 3
 : null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| ab
+: string
+| x
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 4
+: string
+| fid_v.xa()
 : string
 | YES
 : null
@@ -11586,6 +12067,42 @@
 | 	BEGIN
 | 	RETURN (SELECT count(*) FROM omni_testmigrationfidelity.fid_v.items);
 | 	END;
+| $$
+< row
+: string
+| fid_v
+: string
+| xa
+: string
+| xa()
+: string
+| CREATE FUNCTION fid_v.xa()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 7;
+| $$
+< row
+: string
+| fid_v
+: string
+| xb
+: string
+| xb()
+: string
+| CREATE FUNCTION fid_v.xb()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT max(x) FROM omni_testmigrationfidelity.fid_v.ab;
 | $$
 > query
 |

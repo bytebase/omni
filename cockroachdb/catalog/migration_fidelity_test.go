@@ -67,6 +67,8 @@ CREATE TABLE fid_m.calc (id INT8 PRIMARY KEY, a INT8, b INT8 AS (a + 1) STORED);
 CREATE TYPE fid_m.shade AS ENUM ('light', 'dark');
 CREATE TABLE fid_m.paints (id INT8 PRIMARY KEY, shade fid_m.shade);
 CREATE SEQUENCE fid_m.cached_seq CACHE 4;
+CREATE SEQUENCE fid_m.reset_seq CACHE 4;
+CREATE TABLE fid_m.rekey2 (id INT8 PRIMARY KEY, replacement INT8 NOT NULL);
 CREATE SCHEMA fid_gone;
 CREATE TYPE fid_gone.kind AS ENUM ('x');
 `,
@@ -115,6 +117,8 @@ CREATE SEQUENCE fid_m.owned_seq OWNED BY fid_m.owners.b;
 CREATE TABLE fid_m.calc (id INT8 PRIMARY KEY);
 CREATE TABLE fid_m.paints (id INT8 PRIMARY KEY, shade STRING);
 CREATE SEQUENCE fid_m.cached_seq CACHE 8;
+CREATE SEQUENCE fid_m.reset_seq;
+CREATE TABLE fid_m.rekey2 (id INT8, replacement INT8 PRIMARY KEY);
 `,
 		},
 		{
@@ -173,6 +177,10 @@ CREATE FUNCTION fid_v.caller() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.call
 CREATE FUNCTION fid_v.count_old_caller() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.count_old() $$;
 CREATE TABLE fid_v.ab (id INT8 PRIMARY KEY, b INT8);
 CREATE FUNCTION fid_v.read_ab() RETURNS INT8 LANGUAGE SQL AS $$ SELECT max(b) FROM fid_v.ab $$;
+CREATE FUNCTION fid_v.xa() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 7 $$;
+ALTER TABLE fid_v.ab ADD COLUMN x INT8;
+ALTER TABLE fid_v.ab ALTER COLUMN x SET DEFAULT fid_v.xa();
+CREATE FUNCTION fid_v.xb() RETURNS INT8 LANGUAGE SQL AS $$ SELECT max(x) FROM fid_v.ab $$;
 CREATE FUNCTION fid_v.rt() RETURNS STRING LANGUAGE SQL AS $$ SELECT 'x' $$;
 CREATE TABLE fid_v.pab (id INT8 PRIMARY KEY, b INT8);
 CREATE FUNCTION fid_v.pf() RETURNS INT8 LANGUAGE SQL AS $$ SELECT COALESCE(max(b), 0) FROM fid_v.pab $$;

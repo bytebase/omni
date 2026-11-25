@@ -304,24 +304,107 @@ func (v *sequenceCollector) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 
 func (*sequenceCollector) VisitPost(expr tree.Expr) tree.Expr { return expr }
 
-// routineCalls returns the routines a routine's body calls, as metadata keys
-// them: schema.name where the call names a schema, name alone where it does
-// not. Words of the body followed by "(" are calls; one that is no routine
-// matches nothing.
-func routineCalls(definition string) []string {
+// routineCall is one call a routine's body makes: the name as metadata keys
+// it (schema.name where the call names a schema, name alone where it does
+// not) and the number of arguments it passes.
+type routineCall struct {
+	name string
+	args int
+}
+
+// routineCalls returns the calls a routine's body makes. A word of the body
+// followed by "(" is a call; one that is no routine matches nothing.
+func routineCalls(definition string) []routineCall {
 	tokens, _ := crparser.Tokens(routineBody(definition))
-	var calls []string
+	var calls []routineCall
 	for i, token := range tokens {
 		if i+1 >= len(tokens) || tokens[i+1].Str != "(" {
 			continue
 		}
+		name := token.Str
 		if i >= 2 && tokens[i-1].Str == "." {
-			calls = append(calls, tokens[i-2].Str+"."+token.Str)
-			continue
+			name = tokens[i-2].Str + "." + token.Str
 		}
-		calls = append(calls, token.Str)
+		calls = append(calls, routineCall{name: name, args: argumentCount(tokens[i+1:])})
 	}
 	return calls
+}
+
+// argumentCount counts the arguments of the parenthesized list tokens opens.
+func argumentCount(tokens []crparser.TokenString) int {
+	depth, commas, any := 0, 0, false
+	for _, token := range tokens {
+		switch token.Str {
+		case "(":
+			depth++
+			if depth == 1 {
+				continue
+			}
+		case ")":
+			depth--
+			if depth == 0 {
+				if !any {
+					return 0
+				}
+				return commas + 1
+			}
+		case ",":
+			if depth == 1 {
+				commas++
+				continue
+			}
+		}
+		any = true
+	}
+	return commas + 1
+}
+
+// signatureArity counts the parameters of a synced signature, name(types).
+func signatureArity(signature string) int {
+	open := strings.Index(signature, "(")
+	if open < 0 || !strings.HasSuffix(signature, ")") {
+		return -1
+	}
+	inner := strings.TrimSpace(signature[open+1 : len(signature)-1])
+	if inner == "" {
+		return 0
+	}
+	depth, count := 0, 1
+	for _, r := range inner {
+		switch r {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		case ',':
+			if depth == 0 {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+// calledOverloads returns the routines, by object ID, a call can reach: the
+// ones of its name taking its number of arguments, or every one of its name
+// when none does (a parameter default, a variadic one) or the count is
+// unknown (-1).
+func calledOverloads(call routineCall, byName map[string][]string) []string {
+	candidates := byName[call.name]
+	if call.args < 0 {
+		return candidates
+	}
+	var matching []string
+	for _, id := range candidates {
+		_, signature, _ := strings.Cut(id, objectIDSeparator)
+		if signatureArity(signature) == call.args {
+			matching = append(matching, id)
+		}
+	}
+	if len(matching) == 0 {
+		return candidates
+	}
+	return matching
 }
 
 // calledFunctions returns the names of the functions expr calls, unquoted,
