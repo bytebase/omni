@@ -267,6 +267,15 @@ func (b *scopeBuilder) visibleIn(rest []ast.Node, preceding []*rangeItem, ctes c
 			return preceding
 		case it.Nested != nil && next == ast.Node(it.Nested):
 			return b.visibleIn(rest[1:], preceding, ctes)
+		case it.MatchRecognize != nil && next == ast.Node(it.MatchRecognize):
+			// MEASURES and DEFINE qualify the input columns by pattern
+			// symbol: a.price.
+			source := b.clauseSource(it, ctes, 0)
+			items := []*rangeItem{source}
+			for _, sym := range patternSymbols(it.MatchRecognize) {
+				items = append(items, &rangeItem{names: [][]string{{sym}}, qualifier: ast.Ident{Name: sym}, columns: source.columns})
+			}
+			return items
 		}
 		return []*rangeItem{b.clauseSource(it, ctes, 0)}
 	}
@@ -370,6 +379,29 @@ func (b *scopeBuilder) tableRef(t *ast.TableRef, ctes cteMap, depth int) *rangeI
 	return item
 }
 
+// patternWord is a symbol of a MATCH_RECOGNIZE row pattern.
+var patternWord = regexp.MustCompile(`[A-Za-z_][A-Za-z0-9_$]*`)
+
+// patternSymbols returns the symbols a MATCH_RECOGNIZE pattern and its DEFINE
+// list name, upper case.
+func patternSymbols(mr *ast.MatchRecognizeClause) []string {
+	var out []string
+	add := func(s string) {
+		if s != "" && s != "PERMUTE" && !slices.Contains(out, s) {
+			out = append(out, s)
+		}
+	}
+	if mr.Pattern != nil {
+		for _, w := range patternWord.FindAllString(mr.Pattern.Raw, -1) {
+			add(strings.ToUpper(w))
+		}
+	}
+	for _, d := range mr.Define {
+		add(d.Symbol.Normalize())
+	}
+	return out
+}
+
 // clauseSource returns the relation a table reference's PIVOT, UNPIVOT or
 // MATCH_RECOGNIZE reads: the previous link of a chain, or the reference
 // without those clauses.
@@ -458,18 +490,23 @@ func pivotColumns(p *ast.PivotClause, in []colInfo) []colInfo {
 		}
 	}
 	out := slices.DeleteFunc(slices.Clone(in), func(c colInfo) bool { return consumed[c.name] })
+	// An aggregate alias suffixes each value's column: ONE_TOTAL.
+	suffix := ""
+	if !p.AggAlias.IsEmpty() {
+		suffix = "_" + p.AggAlias.Normalize()
+	}
 	if p.In != nil && p.In.Kind == ast.PivotInValues {
 		for _, v := range p.In.Values {
 			switch {
 			case !v.Alias.IsEmpty():
-				out = append(out, colInfo{name: v.Alias.Normalize()})
+				out = append(out, colInfo{name: v.Alias.Normalize() + suffix})
 			default:
 				if lit, ok := v.Value.(*ast.Literal); ok {
 					name := lit.Value
 					if lit.Kind == ast.LitString {
 						name = "'" + name + "'"
 					}
-					out = append(out, colInfo{name: name})
+					out = append(out, colInfo{name: name + suffix})
 				}
 			}
 		}
@@ -530,6 +567,10 @@ func (b *scopeBuilder) outputs(n ast.Node, ctes cteMap, depth int) []colInfo {
 		for op, ok := first.(*ast.SetOperationStmt); ok; op, ok = first.(*ast.SetOperationStmt) {
 			chain = append(chain, op)
 			first = op.Left
+		}
+		// Every operand sees the WITH the parser keeps on the leftmost.
+		if left := leftmostSelect(q); left != nil {
+			ctes = ctes.with(left.With)
 		}
 		out := b.outputs(first, ctes, depth+1)
 		for i := len(chain) - 1; i >= 0; i-- {

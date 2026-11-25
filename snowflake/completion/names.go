@@ -88,9 +88,9 @@ func identText(t parser.Token) (string, bool) {
 
 // patchTails close a statement cut short at the caret or left incomplete
 // after it, tried in order until one parses: what may follow a name (an
-// expression's operand, a SET's value), then each unclosed bracket, then a
-// query for a statement that needs one.
-var patchTails = []string{"", " 1", " = 1", " x"}
+// expression's operand, a SET's value, the call TABLE(...) needs), then
+// each unclosed bracket, then a query for a statement that needs one.
+var patchTails = []string{"", " 1", " = 1", " x", "()"}
 
 // placeholderPath returns the AST path from the statement to the node that
 // holds the placeholder, innermost last. It tries the statement with its
