@@ -51,6 +51,10 @@ CREATE TABLE fid_m.orders (
 CREATE TABLE fid_m.gone (id INT8 PRIMARY KEY, customer_id INT8 REFERENCES fid_m.customers (id));
 CREATE TYPE fid_m."Mood" AS ENUM ('ok');
 CREATE TABLE fid_m.rekey (id INT8 PRIMARY KEY, replacement INT8 NOT NULL);
+CREATE SEQUENCE fid_m.ticket_seq;
+CREATE TABLE fid_m.tickets (id INT8 PRIMARY KEY, n INT8 DEFAULT nextval('fid_m.ticket_seq'));
+CREATE TABLE fid_m.codes (id INT8 PRIMARY KEY, code STRING NOT NULL, label STRING, UNIQUE INDEX codes_code_key (code));
+CREATE TABLE fid_m.uses (id INT8 PRIMARY KEY, code STRING REFERENCES fid_m.codes (code));
 `,
 			target: `CREATE SCHEMA fid_m;
 CREATE SCHEMA fid_new;
@@ -84,6 +88,9 @@ COMMENT ON TABLE fid_new.audit IS e'first;\n\nsecond';
 CREATE TYPE fid_m."Mood" AS ENUM ('ok');
 CREATE TABLE fid_m.moods (id INT8 PRIMARY KEY, m fid_m."Mood" DEFAULT 'ok');
 CREATE TABLE fid_m.rekey (replacement INT8 PRIMARY KEY);
+CREATE TABLE fid_m.tickets (id INT8 PRIMARY KEY, n INT8);
+CREATE TABLE fid_m.codes (id INT8 PRIMARY KEY, code STRING NOT NULL, label STRING, UNIQUE INDEX codes_code_key (code) STORING (label));
+CREATE TABLE fid_m.uses (id INT8 PRIMARY KEY, code STRING REFERENCES fid_m.codes (code));
 `,
 		},
 		{
@@ -102,6 +109,7 @@ CREATE FUNCTION fid_v.count_items() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELEC
 CREATE TABLE fid_v.tagged (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_v.gone());
 CREATE TABLE fid_v.old_items (id INT8 PRIMARY KEY);
 CREATE FUNCTION fid_v.count_old() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELECT count(*) FROM fid_v.old_items $$;
+CREATE VIEW fid_v.named (renamed) AS SELECT id FROM fid_v.items;
 `,
 			target: `CREATE SCHEMA fid_v;
 CREATE TABLE fid_v.items (id INT8 PRIMARY KEY, name STRING, price DECIMAL(10, 2), bonus INT8);
@@ -117,6 +125,8 @@ CREATE FUNCTION fid_v.bonus() RETURNS INT8 LANGUAGE SQL IMMUTABLE AS $$ SELECT 5
 ALTER TABLE fid_v.items ALTER COLUMN bonus SET DEFAULT fid_v.bonus();
 CREATE TABLE fid_v.tagged (id INT8 PRIMARY KEY, v INT8);
 CREATE FUNCTION fid_v.count_old() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELECT count(*) FROM fid_v.items $$;
+CREATE VIEW fid_v.named (other) AS SELECT id FROM fid_v.items;
+ALTER TABLE fid_v.items ADD COLUMN doubled DECIMAL AS (price * 2) VIRTUAL;
 CREATE TABLE fid_v.scored (id INT8 PRIMARY KEY, score INT8 DEFAULT fid_v.add(1, 2));
 CREATE VIEW fid_v.cheap AS SELECT p.id FROM fid_v.priced AS p JOIN fid_v.items AS i ON i.id = p.id;
 `,

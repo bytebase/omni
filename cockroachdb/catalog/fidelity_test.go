@@ -92,10 +92,13 @@ CREATE SEQUENCE fid_routines.plain;
 CREATE TABLE fid_routines.items (
     id INT8 PRIMARY KEY DEFAULT nextval('fid_routines.plain'),
     name STRING NOT NULL,
-    price DECIMAL(10, 2)
+    price DECIMAL(10, 2),
+    cents INT8 AS ((price * 100)::INT8) STORED,
+    doubled DECIMAL AS (price * 2) VIRTUAL
 );
 CREATE VIEW fid_routines.v_items AS SELECT id, name FROM fid_routines.items WHERE price > 0;
 CREATE VIEW fid_routines.v_item_names AS SELECT name FROM fid_routines.v_items;
+CREATE VIEW fid_routines.v_renamed (item_id, item_name) AS SELECT id, name FROM fid_routines.items;
 CREATE MATERIALIZED VIEW fid_routines.item_totals AS SELECT name, sum(price) AS total FROM fid_routines.items GROUP BY name;
 CREATE INDEX item_totals_name_idx ON fid_routines.item_totals (name);
 CREATE FUNCTION fid_routines.add(a INT8, b INT8) RETURNS INT8 LANGUAGE SQL IMMUTABLE AS $$ SELECT a + b $$;

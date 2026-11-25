@@ -40,6 +40,9 @@ CREATE TABLE app.orders (
     customer_id INT8 NOT NULL REFERENCES app.customer(id) ON DELETE CASCADE ON UPDATE RESTRICT,
     amount DECIMAL(10, 2) NOT NULL,
     placed_at TIMESTAMP,
+    -- Computed columns: their expression is not a default.
+    amount_cents INT8 AS ((amount * 100)::INT8) STORED,
+    doubled DECIMAL AS (amount * 2) VIRTUAL,
     CONSTRAINT orders_amount_positive CHECK (amount > 0)
 );
 COMMENT ON TABLE app.orders IS 'an order';

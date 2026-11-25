@@ -635,7 +635,9 @@ SELECT
 	cols.udt_schema,
 	cols.udt_name,
 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-	cols.is_hidden
+	cols.is_hidden,
+	cols.generation_expression,
+	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 FROM INFORMATION_SCHEMA.COLUMNS AS cols
 LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')` + fmt.Sprintf(`
@@ -656,8 +658,18 @@ func getTableColumns(txn *sql.Tx) (map[tableKey][]*metadatapb.ColumnMetadata, er
 		var characterMaxLength, defaultStr, collation, udtSchema, udtName, comment sql.NullString
 		var numericPrecision, numericScale sql.NullInt64
 		var hidden string
-		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &numericPrecision, &numericScale, &column.Position, &defaultStr, &nullable, &collation, &udtSchema, &udtName, &comment, &hidden); err != nil {
+		var generation, generated sql.NullString
+		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &numericPrecision, &numericScale, &column.Position, &defaultStr, &nullable, &collation, &udtSchema, &udtName, &comment, &hidden, &generation, &generated); err != nil {
 			return nil, err
+		}
+		// A computed column states its expression apart from its default;
+		// pg_attribute.attgenerated tells a stored one ('s') from a virtual
+		// one ('v').
+		if generation.String != "" {
+			column.Generation = &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_STORED, Expression: generation.String}
+			if generated.String == "v" {
+				column.Generation.Type = metadatapb.GenerationMetadata_TYPE_VIRTUAL
+			}
 		}
 		// A hidden column, such as the rowid CockroachDB adds to a table with
 		// no primary key, is one * leaves out.

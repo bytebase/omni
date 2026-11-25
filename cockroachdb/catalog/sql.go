@@ -214,6 +214,48 @@ func defaultExpression(expr string) string {
 	return expr
 }
 
+// usedSequences returns the sequences, schema-qualified (public when the name
+// is bare), whose nextval or currval expr calls.
+func usedSequences(expr string) []string {
+	if strings.TrimSpace(expr) == "" {
+		return nil
+	}
+	parsed, err := crparser.ParseExpr(expr)
+	if err != nil {
+		return nil
+	}
+	v := &sequenceCollector{}
+	tree.WalkExprConst(v, parsed)
+	return v.names
+}
+
+type sequenceCollector struct{ names []string }
+
+func (v *sequenceCollector) VisitPre(expr tree.Expr) (bool, tree.Expr) {
+	call, ok := expr.(*tree.FuncExpr)
+	if !ok || len(call.Exprs) == 0 {
+		return true, expr
+	}
+	name, ok := call.Func.FunctionReference.(*tree.UnresolvedName)
+	if !ok || (name.Parts[0] != "nextval" && name.Parts[0] != "currval") {
+		return true, expr
+	}
+	arg := call.Exprs[0]
+	if cast, ok := arg.(*tree.CastExpr); ok {
+		arg = cast.Expr
+	}
+	literal, ok := arg.(*tree.StrVal)
+	if !ok {
+		return true, expr
+	}
+	if sequence, err := crparser.ParseQualifiedTableName(literal.RawString()); err == nil {
+		v.names = append(v.names, schemaOf(sequence)+"."+string(sequence.ObjectName))
+	}
+	return true, expr
+}
+
+func (*sequenceCollector) VisitPost(expr tree.Expr) tree.Expr { return expr }
+
 // calledFunctions returns the names of the functions expr calls, as written:
 // qualified or not.
 func calledFunctions(expr string) []string {

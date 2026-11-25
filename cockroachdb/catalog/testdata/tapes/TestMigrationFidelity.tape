@@ -67,6 +67,15 @@
 > exec
 | CREATE TABLE fid_m.rekey (replacement INT8 PRIMARY KEY);
 < ok 0 -
+> exec
+| CREATE TABLE fid_m.tickets (id INT8 PRIMARY KEY, n INT8);
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.codes (id INT8 PRIMARY KEY, code STRING NOT NULL, label STRING, UNIQUE INDEX codes_code_key (code) STORING (label));
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.uses (id INT8 PRIMARY KEY, code STRING REFERENCES fid_m.codes (code));
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -152,7 +161,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -174,6 +185,92 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
+< row
+: string
+| fid_m
+: string
+| codes
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| codes
+: string
+| code
+: string
+| text
+: null
+: null
+: null
+: int64 2
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| codes
+: string
+| label
+: string
+| text
+: null
+: null
+: null
+: int64 3
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -198,6 +295,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -223,6 +324,10 @@
 | login
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -247,6 +352,10 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -272,6 +381,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -297,6 +410,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -321,6 +438,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -346,6 +467,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -370,6 +495,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -394,6 +523,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -419,6 +552,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -444,6 +581,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -468,6 +609,122 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| tickets
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| tickets
+: string
+| n
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| uses
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| uses
+: string
+| code
+: string
+| text
+: null
+: null
+: null
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_new
@@ -492,6 +749,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_new
@@ -516,6 +777,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_new
@@ -541,6 +806,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_new
@@ -566,6 +835,10 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -588,6 +861,29 @@
 < column "indexdef" "TEXT"
 < column "constraint_type" "TEXT"
 < column "comment" "TEXT"
+< row
+: string
+| fid_m
+: string
+| codes
+: string
+| codes_code_key
+: string
+| CREATE UNIQUE INDEX codes_code_key ON omni_testmigrationfidelity.fid_m.codes USING btree (code ASC) STORING (label)
+: null
+: null
+< row
+: string
+| fid_m
+: string
+| codes
+: string
+| codes_pkey
+: string
+| CREATE UNIQUE INDEX codes_pkey ON omni_testmigrationfidelity.fid_m.codes USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
 < row
 : string
 | fid_m
@@ -668,6 +964,30 @@
 | rekey_pkey
 : string
 | CREATE UNIQUE INDEX rekey_pkey ON omni_testmigrationfidelity.fid_m.rekey USING btree (replacement ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| tickets
+: string
+| tickets_pkey
+: string
+| CREATE UNIQUE INDEX tickets_pkey ON omni_testmigrationfidelity.fid_m.tickets USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| uses
+: string
+| uses_pkey
+: string
+| CREATE UNIQUE INDEX uses_pkey ON omni_testmigrationfidelity.fid_m.uses USING btree (id ASC)
 : string
 | PRIMARY KEY
 : null
@@ -772,6 +1092,25 @@
 | FOREIGN KEY (customer_id) REFERENCES fid_m.customers(id) ON DELETE CASCADE
 < row
 : string
+| fid_m
+: string
+| uses
+: string
+| uses_code_fkey
+: string
+| fid_m
+: string
+| codes
+: string
+| a
+: string
+| a
+: string
+| s
+: string
+| FOREIGN KEY (code) REFERENCES fid_m.codes(code)
+< row
+: string
 | fid_new
 : string
 | audit
@@ -821,6 +1160,13 @@
 : string
 | fid_m
 : string
+| codes
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | customers
 : int64 0
 : string
@@ -844,6 +1190,20 @@
 | fid_m
 : string
 | rekey
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| tickets
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| uses
 : int64 0
 : null
 < row
@@ -1119,6 +1479,18 @@
 > exec
 | CREATE TABLE fid_m.rekey (id INT8 PRIMARY KEY, replacement INT8 NOT NULL);
 < ok 0 -
+> exec
+| CREATE SEQUENCE fid_m.ticket_seq;
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.tickets (id INT8 PRIMARY KEY, n INT8 DEFAULT nextval('fid_m.ticket_seq'));
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.codes (id INT8 PRIMARY KEY, code STRING NOT NULL, label STRING, UNIQUE INDEX codes_code_key (code));
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.uses (id INT8 PRIMARY KEY, code STRING REFERENCES fid_m.codes (code));
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -1201,7 +1573,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -1223,6 +1597,92 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
+< row
+: string
+| fid_m
+: string
+| codes
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| codes
+: string
+| code
+: string
+| text
+: null
+: null
+: null
+: int64 2
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| codes
+: string
+| label
+: string
+| text
+: null
+: null
+: null
+: int64 3
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -1247,6 +1707,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -1271,6 +1735,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -1295,6 +1763,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -1320,6 +1792,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -1345,6 +1821,10 @@
 | going
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -1369,6 +1849,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -1393,6 +1877,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -1417,6 +1905,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -1441,6 +1933,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -1466,6 +1962,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -1490,6 +1990,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -1514,6 +2018,123 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| tickets
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| tickets
+: string
+| n
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| nextval('fid_m.ticket_seq'::REGCLASS)
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| uses
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| uses
+: string
+| code
+: string
+| text
+: null
+: null
+: null
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: string
+| NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -1536,6 +2157,29 @@
 < column "indexdef" "TEXT"
 < column "constraint_type" "TEXT"
 < column "comment" "TEXT"
+< row
+: string
+| fid_m
+: string
+| codes
+: string
+| codes_code_key
+: string
+| CREATE UNIQUE INDEX codes_code_key ON omni_testmigrationfidelity.fid_m.codes USING btree (code ASC)
+: null
+: null
+< row
+: string
+| fid_m
+: string
+| codes
+: string
+| codes_pkey
+: string
+| CREATE UNIQUE INDEX codes_pkey ON omni_testmigrationfidelity.fid_m.codes USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
 < row
 : string
 | fid_m
@@ -1615,6 +2259,42 @@
 | rekey_pkey
 : string
 | CREATE UNIQUE INDEX rekey_pkey ON omni_testmigrationfidelity.fid_m.rekey USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| ticket_seq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testmigrationfidelity.fid_m.ticket_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| tickets
+: string
+| tickets_pkey
+: string
+| CREATE UNIQUE INDEX tickets_pkey ON omni_testmigrationfidelity.fid_m.tickets USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| uses
+: string
+| uses_pkey
+: string
+| CREATE UNIQUE INDEX uses_pkey ON omni_testmigrationfidelity.fid_m.uses USING btree (id ASC)
 : string
 | PRIMARY KEY
 : null
@@ -1714,6 +2394,25 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES fid_m.customers(id)
+< row
+: string
+| fid_m
+: string
+| uses
+: string
+| uses_code_fkey
+: string
+| fid_m
+: string
+| codes
+: string
+| a
+: string
+| a
+: string
+| s
+: string
+| FOREIGN KEY (code) REFERENCES fid_m.codes(code)
 > query
 | SELECT
 | 		foreign_table.foreign_table_schema,
@@ -1746,6 +2445,13 @@
 : string
 | fid_m
 : string
+| codes
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | customers
 : int64 0
 : string
@@ -1769,6 +2475,20 @@
 | fid_m
 : string
 | rekey
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| tickets
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| uses
 : int64 0
 : null
 > query
@@ -1880,6 +2600,23 @@
 | 1
 : string
 | NO
+< row
+: string
+| fid_m
+: string
+| ticket_seq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -1950,10 +2687,19 @@
 > commit
 < ok
 > exec
+| ALTER TABLE "fid_m"."tickets" ALTER COLUMN "n" DROP DEFAULT;
+< ok 0 -
+> exec
 | ALTER TABLE "fid_m"."gone" DROP CONSTRAINT "gone_customer_id_fkey";
 < ok 0 -
 > exec
 | ALTER TABLE "fid_m"."orders" DROP CONSTRAINT "orders_customer_id_fkey";
+< ok 0 -
+> exec
+| ALTER TABLE "fid_m"."uses" DROP CONSTRAINT "uses_code_fkey";
+< ok 0 -
+> exec
+| DROP INDEX "fid_m"."codes"@"codes_code_key" CASCADE;
 < ok 0 -
 > exec
 | ALTER TABLE "fid_m"."customers" DROP CONSTRAINT "customers_age_check";
@@ -1969,6 +2715,9 @@
 < ok 0 -
 > exec
 | ALTER TABLE "fid_m"."customers" DROP COLUMN "legacy";
+< ok 0 -
+> exec
+| DROP SEQUENCE "fid_m"."ticket_seq";
 < ok 0 -
 > exec
 | CREATE SCHEMA "fid_new";
@@ -2036,6 +2785,9 @@
 | );
 < ok 0 -
 > exec
+| CREATE UNIQUE INDEX codes_code_key ON fid_m.codes (code ASC) STORING (label);
+< ok 0 -
+> exec
 | CREATE UNIQUE INDEX customers_joined_key ON fid_m.customers (joined ASC) STORING (email);
 < ok 0 -
 > exec
@@ -2052,6 +2804,11 @@
 |     ADD CONSTRAINT "orders_customer_fk" FOREIGN KEY ("customer_id")
 |     REFERENCES "fid_m"."customers" ("id")
 |     ON DELETE CASCADE;
+< ok 0 -
+> exec
+| ALTER TABLE "fid_m"."uses"
+|     ADD CONSTRAINT "uses_code_fkey" FOREIGN KEY ("code")
+|     REFERENCES "fid_m"."codes" ("code");
 < ok 0 -
 > exec
 | ALTER TABLE "fid_new"."audit"
@@ -2157,7 +2914,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -2179,6 +2938,92 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
+< row
+: string
+| fid_m
+: string
+| codes
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| codes
+: string
+| code
+: string
+| text
+: null
+: null
+: null
+: int64 2
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| codes
+: string
+| label
+: string
+| text
+: null
+: null
+: null
+: int64 3
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -2203,6 +3048,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -2228,6 +3077,10 @@
 | login
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -2252,6 +3105,10 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -2277,6 +3134,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -2302,6 +3163,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -2326,6 +3191,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -2351,6 +3220,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -2375,6 +3248,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -2399,6 +3276,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -2424,6 +3305,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -2449,6 +3334,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -2473,6 +3362,122 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| tickets
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| tickets
+: string
+| n
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| uses
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| uses
+: string
+| code
+: string
+| text
+: null
+: null
+: null
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_new
@@ -2497,6 +3502,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_new
@@ -2521,6 +3530,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_new
@@ -2546,6 +3559,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_new
@@ -2571,6 +3588,10 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -2593,6 +3614,29 @@
 < column "indexdef" "TEXT"
 < column "constraint_type" "TEXT"
 < column "comment" "TEXT"
+< row
+: string
+| fid_m
+: string
+| codes
+: string
+| codes_code_key
+: string
+| CREATE UNIQUE INDEX codes_code_key ON omni_testmigrationfidelity.fid_m.codes USING btree (code ASC) STORING (label)
+: null
+: null
+< row
+: string
+| fid_m
+: string
+| codes
+: string
+| codes_pkey
+: string
+| CREATE UNIQUE INDEX codes_pkey ON omni_testmigrationfidelity.fid_m.codes USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
 < row
 : string
 | fid_m
@@ -2673,6 +3717,30 @@
 | rekey_pkey
 : string
 | CREATE UNIQUE INDEX rekey_pkey ON omni_testmigrationfidelity.fid_m.rekey USING btree (replacement ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| tickets
+: string
+| tickets_pkey
+: string
+| CREATE UNIQUE INDEX tickets_pkey ON omni_testmigrationfidelity.fid_m.tickets USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| uses
+: string
+| uses_pkey
+: string
+| CREATE UNIQUE INDEX uses_pkey ON omni_testmigrationfidelity.fid_m.uses USING btree (id ASC)
 : string
 | PRIMARY KEY
 : null
@@ -2777,6 +3845,25 @@
 | FOREIGN KEY (customer_id) REFERENCES fid_m.customers(id) ON DELETE CASCADE
 < row
 : string
+| fid_m
+: string
+| uses
+: string
+| uses_code_fkey
+: string
+| fid_m
+: string
+| codes
+: string
+| a
+: string
+| a
+: string
+| s
+: string
+| FOREIGN KEY (code) REFERENCES fid_m.codes(code)
+< row
+: string
 | fid_new
 : string
 | audit
@@ -2826,6 +3913,13 @@
 : string
 | fid_m
 : string
+| codes
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | customers
 : int64 0
 : string
@@ -2849,6 +3943,20 @@
 | fid_m
 : string
 | rekey
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| tickets
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| uses
 : int64 0
 : null
 < row
@@ -3122,6 +4230,12 @@
 | CREATE FUNCTION fid_v.count_old() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELECT count(*) FROM fid_v.items $$;
 < ok 0 -
 > exec
+| CREATE VIEW fid_v.named (other) AS SELECT id FROM fid_v.items;
+< ok 0 -
+> exec
+| ALTER TABLE fid_v.items ADD COLUMN doubled DECIMAL AS (price * 2) VIRTUAL;
+< ok 0 -
+> exec
 | CREATE TABLE fid_v.scored (id INT8 PRIMARY KEY, score INT8 DEFAULT fid_v.add(1, 2));
 < ok 0 -
 > exec
@@ -3209,7 +4323,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -3231,6 +4347,8 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
 < row
 : string
 | fid_v
@@ -3255,6 +4373,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -3279,6 +4401,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -3303,6 +4429,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -3327,6 +4457,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -3352,6 +4486,66 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| items
+: string
+| doubled
+: string
+| numeric
+: null
+: null
+: null
+: int64 5
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| numeric
+: null
+: string
+| NO
+: string
+| price * 2
+: string
+| v
+< row
+: string
+| fid_v
+: string
+| named
+: string
+| other
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -3376,6 +4570,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -3400,6 +4598,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -3424,6 +4626,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -3448,6 +4654,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -3473,6 +4683,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -3497,6 +4711,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -3521,6 +4739,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -3545,6 +4767,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -3569,6 +4795,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -3594,6 +4824,10 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -3618,6 +4852,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -3851,6 +5089,14 @@
 : string
 | fid_v
 : string
+| named
+: string
+| SELECT id FROM omni_testmigrationfidelity.fid_v.items
+: null
+< row
+: string
+| fid_v
+: string
 | priced
 : string
 | SELECT id, name FROM omni_testmigrationfidelity.fid_v.items WHERE price > 1
@@ -3921,6 +5167,22 @@
 | priced
 : string
 | name
+> query ^
+: string
+| fid_v
+: string
+| named
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
+< row
+: string
+| fid_v
+: string
+| items
+: string
+| id
 > query ^
 : string
 | fid_v
@@ -4268,6 +5530,9 @@
 > exec
 | CREATE FUNCTION fid_v.count_old() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELECT count(*) FROM fid_v.old_items $$;
 < ok 0 -
+> exec
+| CREATE VIEW fid_v.named (renamed) AS SELECT id FROM fid_v.items;
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -4350,7 +5615,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -4372,6 +5639,8 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
 < row
 : string
 | fid_v
@@ -4396,6 +5665,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -4420,6 +5693,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -4444,6 +5721,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -4468,6 +5749,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -4492,6 +5777,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -4516,6 +5805,38 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| named
+: string
+| renamed
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -4540,6 +5861,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -4564,6 +5889,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -4588,6 +5917,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -4612,6 +5945,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -4636,6 +5973,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -4660,6 +6001,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -4685,6 +6030,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -4709,6 +6058,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -4733,6 +6086,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -4758,6 +6115,10 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -4782,6 +6143,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -5015,6 +6380,14 @@
 : string
 | fid_v
 : string
+| named
+: string
+| SELECT id FROM omni_testmigrationfidelity.fid_v.items
+: null
+< row
+: string
+| fid_v
+: string
 | priced
 : string
 | SELECT id, name, legacy FROM omni_testmigrationfidelity.fid_v.items WHERE price > 0
@@ -5071,6 +6444,22 @@
 | items
 : string
 | name
+> query ^
+: string
+| fid_v
+: string
+| named
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
+< row
+: string
+| fid_v
+: string
+| items
+: string
+| id
 > query ^
 : string
 | fid_v
@@ -5389,6 +6778,9 @@
 | DROP VIEW "fid_v"."priced";
 < ok 0 -
 > exec
+| DROP VIEW "fid_v"."named";
+< ok 0 -
+> exec
 | DROP VIEW "fid_v"."dropped";
 < ok 0 -
 > exec
@@ -5401,15 +6793,22 @@
 | ALTER TABLE "fid_v"."items" DROP COLUMN "legacy";
 < ok 0 -
 > exec
-| CREATE VIEW "fid_v"."priced" AS 
+| ALTER TABLE "fid_v"."items" ADD COLUMN "doubled" numeric AS (price * 2) VIRTUAL;
+< ok 0 -
+> exec
+| CREATE VIEW "fid_v"."named" ("other") AS 
+| SELECT id FROM fid_v.items;
+< ok 0 -
+> exec
+| CREATE VIEW "fid_v"."priced" ("id", "name") AS 
 | SELECT id, name FROM fid_v.items WHERE price > 1;
 < ok 0 -
 > exec
-| CREATE VIEW "fid_v"."cheap" AS 
+| CREATE VIEW "fid_v"."cheap" ("id") AS 
 | SELECT p.id FROM fid_v.priced AS p JOIN fid_v.items AS i ON i.id = p.id;
 < ok 0 -
 > exec
-| CREATE VIEW "fid_v"."priced_names" AS 
+| CREATE VIEW "fid_v"."priced_names" ("name") AS 
 | SELECT name FROM fid_v.priced;
 < ok 0 -
 > exec
@@ -5570,7 +6969,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -5592,6 +6993,8 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
 < row
 : string
 | fid_v
@@ -5616,6 +7019,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -5640,6 +7047,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -5664,6 +7075,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -5688,6 +7103,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -5713,6 +7132,66 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| items
+: string
+| doubled
+: string
+| numeric
+: null
+: null
+: null
+: int64 6
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| numeric
+: null
+: string
+| NO
+: string
+| price * 2
+: string
+| v
+< row
+: string
+| fid_v
+: string
+| named
+: string
+| other
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -5737,6 +7216,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -5761,6 +7244,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -5785,6 +7272,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -5809,6 +7300,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -5834,6 +7329,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -5858,6 +7357,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -5882,6 +7385,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -5906,6 +7413,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -5930,6 +7441,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -5955,6 +7470,10 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -5979,6 +7498,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -6212,6 +7735,14 @@
 : string
 | fid_v
 : string
+| named
+: string
+| SELECT id FROM omni_testmigrationfidelity.fid_v.items
+: null
+< row
+: string
+| fid_v
+: string
 | priced
 : string
 | SELECT id, name FROM omni_testmigrationfidelity.fid_v.items WHERE price > 1
@@ -6282,6 +7813,22 @@
 | priced
 : string
 | name
+> query ^
+: string
+| fid_v
+: string
+| named
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
+< row
+: string
+| fid_v
+: string
+| items
+: string
+| id
 > query ^
 : string
 | fid_v

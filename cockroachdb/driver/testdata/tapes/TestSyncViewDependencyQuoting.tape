@@ -84,7 +84,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -106,6 +108,8 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
 < row
 : string
 | app's
@@ -130,6 +134,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app's
@@ -154,6 +162,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app's
@@ -178,6 +190,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app's
@@ -202,6 +218,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type

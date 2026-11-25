@@ -533,7 +533,17 @@ func quoteList(names []string) string {
 }
 
 func (r renderer) writeView(buf *strings.Builder, schema string, view *metadatapb.ViewMetadata) {
-	fmt.Fprintf(buf, "CREATE VIEW %s.%s AS \n%s;\n\n", quoteIdent(schema), quoteIdent(view.Name), r.query(view.Definition))
+	// CockroachDB keeps a view's column list out of its stored query, so the
+	// synced output names are written.
+	columns := ""
+	if len(view.Columns) > 0 {
+		names := make([]string, len(view.Columns))
+		for i, column := range view.Columns {
+			names[i] = column.Name
+		}
+		columns = " (" + quoteList(names) + ")"
+	}
+	fmt.Fprintf(buf, "CREATE VIEW %s.%s%s AS \n%s;\n\n", quoteIdent(schema), quoteIdent(view.Name), columns, r.query(view.Definition))
 }
 
 func (r renderer) writeMaterializedView(buf *strings.Builder, schema string, view *metadatapb.MaterializedViewMetadata) {

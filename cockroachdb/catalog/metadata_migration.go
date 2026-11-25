@@ -193,6 +193,11 @@ type differ struct {
 	recreated map[string]bool
 	// r renders the target's objects; its types are both sides'.
 	r renderer
+	// cascaded holds the foreign keys cascadedForeignKeys returns.
+	cascaded map[string]bool
+	// droppedSequences holds the schema-qualified names of the sequences
+	// the target removes.
+	droppedSequences map[string]bool
 }
 
 func (d *differ) add(phase int, op MigrationOp) {
@@ -399,9 +404,11 @@ func (d *differ) alterEnum(schema string, old, new *metadatapb.EnumTypeMetadata)
 }
 
 func (d *differ) diffSequences() {
+	d.droppedSequences = make(map[string]bool)
 	for _, schema := range d.from.schemas {
 		for _, sequence := range schema.Sequences {
 			if findSequence(d.to.byName[schema.Name], sequence.Name) == nil {
+				d.droppedSequences[schema.Name+"."+sequence.Name] = true
 				d.add(phaseDropSequences, MigrationOp{Type: OpDropSequence, SchemaName: schema.Name, ObjectName: sequence.Name,
 					SQL: fmt.Sprintf("DROP SEQUENCE %s.%s", quoteIdent(schema.Name), quoteIdent(sequence.Name))})
 			}
@@ -427,6 +434,13 @@ func (d *differ) diffSequences() {
 			} {
 				if c[1] != c[2] && c[2] != "" {
 					clauses = append(clauses, c[0]+" "+c[2])
+				}
+			}
+			if old.Cycle != sequence.Cycle {
+				if sequence.Cycle {
+					clauses = append(clauses, "CYCLE")
+				} else {
+					clauses = append(clauses, "NO CYCLE")
 				}
 			}
 			if len(clauses) > 0 {
@@ -477,7 +491,7 @@ func (d *differ) rebuiltViews() map[string]bool {
 	for _, schema := range d.from.schemas {
 		for _, view := range schema.Views {
 			target := findView(d.to.byName[schema.Name], view.Name)
-			same := target != nil && relationQuery(target.Definition, d.to.database) == relationQuery(view.Definition, d.from.database)
+			same := target != nil && relationQuery(target.Definition, d.to.database) == relationQuery(view.Definition, d.from.database) && sameColumnNames(view.Columns, target.Columns)
 			relations = append(relations, relation{getObjectID(schema.Name, view.Name), view.DependencyColumns, same})
 			if target == nil {
 				dropped[getObjectID(schema.Name, view.Name)] = true
@@ -515,6 +529,15 @@ func (d *differ) rebuiltViews() map[string]bool {
 	return rebuilt
 }
 
+// sameColumnNames reports whether two views name the same output columns,
+// where both state them.
+func sameColumnNames(a, b []*metadatapb.ColumnMetadata) bool {
+	if len(a) == 0 || len(b) == 0 {
+		return true
+	}
+	return slices.EqualFunc(a, b, func(x, y *metadatapb.ColumnMetadata) bool { return x.Name == y.Name })
+}
+
 func findColumn(table *metadatapb.TableMetadata, name string) *metadatapb.ColumnMetadata {
 	for _, column := range table.GetColumns() {
 		if column.Name == name {
@@ -542,7 +565,55 @@ func findMaterializedView(schema *metadatapb.SchemaMetadata, name string) *metad
 	return nil
 }
 
+// cascadedForeignKeys returns the source foreign keys, by schema, table and
+// name, that reference the key columns of a unique index the migration drops.
+// The index drops with CASCADE, which takes such a key with it, so the key is
+// dropped and added again like a changed one.
+func (d *differ) cascadedForeignKeys() map[string]bool {
+	dropped := make(map[string]bool) // schema\x00table\x00sorted key columns
+	for _, schema := range d.from.schemas {
+		for _, table := range schema.Tables {
+			target := d.to.table(schema.Name, table.Name)
+			if target == nil {
+				continue
+			}
+			for _, index := range table.Indexes {
+				if !index.Unique || index.Primary {
+					continue
+				}
+				var newIndex *metadatapb.IndexMetadata
+				for _, candidate := range target.Indexes {
+					if candidate.Name == index.Name {
+						newIndex = candidate
+					}
+				}
+				if newIndex == nil || newIndex.Primary || !sameIndex(schema.Name, table.Name, newIndex, index) {
+					dropped[getObjectID(schema.Name, table.Name)+objectIDSeparator+columnSet(index.Expressions)] = true
+				}
+			}
+		}
+	}
+	cascaded := make(map[string]bool)
+	for _, schema := range d.from.schemas {
+		for _, table := range schema.Tables {
+			for _, fk := range table.ForeignKeys {
+				if dropped[getObjectID(fk.ReferencedSchema, fk.ReferencedTable)+objectIDSeparator+columnSet(fk.ReferencedColumns)] {
+					cascaded[getObjectID(schema.Name, table.Name)+objectIDSeparator+fk.Name] = true
+				}
+			}
+		}
+	}
+	return cascaded
+}
+
+func columnSet(columns []string) string {
+	sorted := slices.Clone(columns)
+	slices.Sort(sorted)
+	return strings.Join(sorted, objectIDSeparator)
+}
+
 func (d *differ) diffTables() error {
+	d.cascaded = d.cascadedForeignKeys()
 	for _, schema := range d.from.schemas {
 		for _, table := range schema.Tables {
 			target := d.to.table(schema.Name, table.Name)
@@ -551,7 +622,7 @@ func (d *differ) diffTables() error {
 				if target != nil {
 					newFK = findForeignKey(target, fk.Name)
 				}
-				if newFK == nil || foreignKeyClause(newFK) != foreignKeyClause(fk) {
+				if newFK == nil || foreignKeyClause(newFK) != foreignKeyClause(fk) || d.cascaded[getObjectID(schema.Name, table.Name)+objectIDSeparator+fk.Name] {
 					d.add(phaseDropForeignKeys, MigrationOp{Type: OpDropConstraint, SchemaName: schema.Name, ObjectName: fk.Name, ParentObject: table.Name,
 						SQL: fmt.Sprintf("ALTER TABLE %s.%s DROP CONSTRAINT %s", quoteIdent(schema.Name), quoteIdent(table.Name), quoteIdent(fk.Name))})
 				}
@@ -662,10 +733,13 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 		// A default calling a routine the migration drops is detached first.
 		detached := false
 		for _, name := range calledFunctions(oldColumn.Default) {
-			if d.droppedRoutines[name] && !detached {
-				detached = true
-				alter(phaseDetachDefaults, OpAlterColumn, column.Name, col+"DROP DEFAULT")
-			}
+			detached = detached || d.droppedRoutines[name]
+		}
+		for _, name := range usedSequences(oldColumn.Default) {
+			detached = detached || d.droppedSequences[name]
+		}
+		if detached {
+			alter(phaseDetachDefaults, OpAlterColumn, column.Name, col+"DROP DEFAULT")
 		}
 		if columnType(oldColumn.Type) != columnType(column.Type) || oldColumn.Collation != column.Collation {
 			typ := d.r.typeName(column.Type)
@@ -724,7 +798,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 		}
 	}
 	for _, fk := range new.ForeignKeys {
-		if oldFK := findForeignKey(old, fk.Name); oldFK == nil || foreignKeyClause(oldFK) != foreignKeyClause(fk) {
+		if oldFK := findForeignKey(old, fk.Name); oldFK == nil || foreignKeyClause(oldFK) != foreignKeyClause(fk) || d.cascaded[getObjectID(schema, new.Name)+objectIDSeparator+fk.Name] {
 			d.addForeignKey(schema, new.Name, fk)
 		} else if oldFK.Comment != fk.Comment {
 			d.constraintComment(schema, new.Name, fk.Name, fk.Comment)
@@ -780,6 +854,11 @@ func findCheck(checks []*metadatapb.CheckConstraintMetadata, name string) *metad
 	return nil
 }
 
+// sameIndex reports whether two indexes of schema.table are the same index.
+func sameIndex(schema, table string, a, b *metadatapb.IndexMetadata) bool {
+	return indexStatement(schema, table, a) == indexStatement(schema, table, b)
+}
+
 // diffIndexes drops the secondary indexes of a kept table or materialized view
 // that go or change, creates those that come or change, and sets index
 // comments. A primary key changes through ALTER TABLE.
@@ -797,7 +876,7 @@ func (d *differ) diffIndexes(schema, table string, oldIndexes, newIndexes []*met
 			continue
 		}
 		newIndex := find(newIndexes, index.Name)
-		if newIndex == nil || newIndex.Primary || indexStatement(schema, table, newIndex) != indexStatement(schema, table, index) {
+		if newIndex == nil || newIndex.Primary || !sameIndex(schema, table, newIndex, index) {
 			sql := fmt.Sprintf("DROP INDEX %s.%s@%s", quoteIdent(schema), quoteIdent(table), quoteIdent(index.Name))
 			if index.Unique {
 				// A unique index may back a UNIQUE constraint, which
@@ -809,7 +888,7 @@ func (d *differ) diffIndexes(schema, table string, oldIndexes, newIndexes []*met
 	}
 	for _, index := range newIndexes {
 		oldIndex := find(oldIndexes, index.Name)
-		if !index.Primary && (oldIndex == nil || oldIndex.Primary || indexStatement(schema, table, oldIndex) != indexStatement(schema, table, index)) {
+		if !index.Primary && (oldIndex == nil || oldIndex.Primary || !sameIndex(schema, table, oldIndex, index)) {
 			d.add(phaseCreateIndexes, MigrationOp{Type: OpCreateIndex, SchemaName: schema, ObjectName: index.Name, ParentObject: table, SQL: indexStatement(schema, table, index)})
 			oldIndex = nil
 		}

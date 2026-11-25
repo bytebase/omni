@@ -161,3 +161,20 @@ func TestMetadataMigrationDropsTypesDependentsFirst(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "DROP TYPE \"app\".\"c\";\nDROP TYPE \"app\".\"e\"", migration)
 }
+
+// TestMetadataMigrationSequenceCycle writes a change of CYCLE, which
+// CockroachDB v25.2 refuses, so no recording holds it.
+func TestMetadataMigrationSequenceCycle(t *testing.T) {
+	sequence := func(cycle bool) *metadata.DatabaseSchemaMetadata {
+		return &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name:      "app",
+			Sequences: []*metadata.SequenceMetadata{{Name: "s", DataType: "INT8", Start: "1", Increment: "1", MinValue: "1", MaxValue: "9", Cycle: cycle}},
+		}}}
+	}
+	migration, err := catalog.MetadataMigration(sequence(false), sequence(true), catalog.MetadataMigrationOptions{})
+	require.NoError(t, err)
+	require.Equal(t, `ALTER SEQUENCE "app"."s" CYCLE`, migration)
+	migration, err = catalog.MetadataMigration(sequence(true), sequence(false), catalog.MetadataMigrationOptions{})
+	require.NoError(t, err)
+	require.Equal(t, `ALTER SEQUENCE "app"."s" NO CYCLE`, migration)
+}

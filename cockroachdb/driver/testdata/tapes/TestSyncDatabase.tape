@@ -44,6 +44,9 @@
 |     customer_id INT8 NOT NULL REFERENCES app.customer(id) ON DELETE CASCADE ON UPDATE RESTRICT,
 |     amount DECIMAL(10, 2) NOT NULL,
 |     placed_at TIMESTAMP,
+|     -- Computed columns: their expression is not a default.
+|     amount_cents INT8 AS ((amount * 100)::INT8) STORED,
+|     doubled DECIMAL AS (amount * 2) VIRTUAL,
 |     CONSTRAINT orders_amount_positive CHECK (amount > 0)
 | );
 | COMMENT ON TABLE app.orders IS 'an order';
@@ -156,7 +159,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -178,6 +183,8 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
 < row
 : string
 | app
@@ -203,6 +210,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -227,6 +238,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -252,6 +267,10 @@
 | login
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -278,6 +297,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -303,6 +326,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -327,6 +354,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -352,6 +383,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -377,6 +412,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -401,6 +440,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -425,6 +468,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -450,6 +497,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -474,6 +525,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -499,6 +554,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -523,6 +582,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -547,6 +610,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -571,6 +638,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -595,6 +666,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -620,6 +695,10 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -644,6 +723,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -668,6 +751,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -692,6 +779,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -716,6 +807,66 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
+< row
+: string
+| app
+: string
+| orders
+: string
+| amount_cents
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 5
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+| (amount * 100)::INT8
+: string
+| s
+< row
+: string
+| app
+: string
+| orders
+: string
+| doubled
+: string
+| numeric
+: null
+: null
+: null
+: int64 6
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| numeric
+: null
+: string
+| NO
+: string
+| amount * 2
+: string
+| v
 < row
 : string
 | audit
@@ -740,6 +891,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | audit
@@ -764,6 +919,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | audit
@@ -789,6 +948,10 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type

@@ -156,6 +156,26 @@
               "position": 4,
               "nullable": true,
               "type": "timestamp without time zone"
+            },
+            {
+              "name": "amount_cents",
+              "position": 5,
+              "nullable": true,
+              "type": "bigint",
+              "generation": {
+                "type": "TYPE_STORED",
+                "expression": "(amount * 100)::INT8"
+              }
+            },
+            {
+              "name": "doubled",
+              "position": 6,
+              "nullable": true,
+              "type": "numeric",
+              "generation": {
+                "type": "TYPE_VIRTUAL",
+                "expression": "amount * 2"
+              }
             }
           ],
           "indexes": [

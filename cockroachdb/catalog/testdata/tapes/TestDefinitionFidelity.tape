@@ -162,7 +162,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -184,6 +186,8 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
 < row
 : string
 | fid_cols
@@ -209,6 +213,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -233,6 +241,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -258,6 +270,10 @@
 | login
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -284,6 +300,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -309,6 +329,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -333,6 +357,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -358,6 +386,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -383,6 +415,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -407,6 +443,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -431,6 +471,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -455,6 +499,10 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -479,6 +527,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -504,6 +556,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -528,6 +584,10 @@
 : null
 : string
 | YES
+: string
+| mod(fnv32(md5(crdb_internal.datums_to_bytes(ratio))), 8)
+: string
+| v
 < row
 : string
 | fid_cols
@@ -552,6 +612,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -576,6 +640,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -601,6 +669,10 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -625,6 +697,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -649,6 +725,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -673,6 +753,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -697,6 +781,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -721,6 +809,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -745,6 +837,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -769,6 +865,10 @@
 : null
 : string
 | YES
+: string
+| mod(fnv32(md5(crdb_internal.datums_to_bytes(id))), 4)
+: string
+| v
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -1491,7 +1591,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -1513,6 +1615,8 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
 < row
 : string
 | fid_cols
@@ -1538,6 +1642,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1562,6 +1670,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1587,6 +1699,10 @@
 | login
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1613,6 +1729,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1638,6 +1758,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1662,6 +1786,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1687,6 +1815,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1712,6 +1844,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1736,6 +1872,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1760,6 +1900,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1784,6 +1928,10 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1808,6 +1956,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1833,6 +1985,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1857,6 +2013,10 @@
 : null
 : string
 | YES
+: string
+| mod(fnv32(md5(crdb_internal.datums_to_bytes(ratio))), 8)
+: string
+| v
 < row
 : string
 | fid_cols
@@ -1881,6 +2041,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1905,6 +2069,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1930,6 +2098,10 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1954,6 +2126,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -1978,6 +2154,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -2002,6 +2182,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -2026,6 +2210,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -2050,6 +2238,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -2074,6 +2266,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -2098,6 +2294,10 @@
 : null
 : string
 | YES
+: string
+| mod(fnv32(md5(crdb_internal.datums_to_bytes(id))), 4)
+: string
+| v
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -2618,7 +2818,9 @@
 | CREATE TABLE fid_routines.items (
 |     id INT8 PRIMARY KEY DEFAULT nextval('fid_routines.plain'),
 |     name STRING NOT NULL,
-|     price DECIMAL(10, 2)
+|     price DECIMAL(10, 2),
+|     cents INT8 AS ((price * 100)::INT8) STORED,
+|     doubled DECIMAL AS (price * 2) VIRTUAL
 | );
 < ok 0 -
 > exec
@@ -2626,6 +2828,9 @@
 < ok 0 -
 > exec
 | CREATE VIEW fid_routines.v_item_names AS SELECT name FROM fid_routines.v_items;
+< ok 0 -
+> exec
+| CREATE VIEW fid_routines.v_renamed (item_id, item_name) AS SELECT id, name FROM fid_routines.items;
 < ok 0 -
 > exec
 | CREATE MATERIALIZED VIEW fid_routines.item_totals AS SELECT name, sum(price) AS total FROM fid_routines.items GROUP BY name;
@@ -2737,7 +2942,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -2759,6 +2966,8 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
 < row
 : string
 | fid_routines
@@ -2783,6 +2992,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -2807,6 +3020,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -2832,6 +3049,10 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -2857,6 +3078,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -2881,6 +3106,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -2905,6 +3134,66 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| items
+: string
+| cents
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 4
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+| (price * 100)::INT8
+: string
+| s
+< row
+: string
+| fid_routines
+: string
+| items
+: string
+| doubled
+: string
+| numeric
+: null
+: null
+: null
+: int64 5
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| numeric
+: null
+: string
+| NO
+: string
+| price * 2
+: string
+| v
 < row
 : string
 | fid_routines
@@ -2929,6 +3218,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -2954,6 +3247,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -2978,6 +3275,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -3002,6 +3303,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -3026,6 +3331,66 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| v_renamed
+: string
+| item_id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| v_renamed
+: string
+| item_name
+: string
+| text
+: null
+: null
+: null
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: string
+| NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -3268,6 +3633,14 @@
 : string
 | SELECT id, name FROM omni_testdefinitionfidelity.fid_routines.items WHERE price > 0
 : null
+< row
+: string
+| fid_routines
+: string
+| v_renamed
+: string
+| SELECT id, name FROM omni_testdefinitionfidelity.fid_routines.items
+: null
 > query
 |
 | 		SELECT source_ns.nspname as source_schema,
@@ -3341,6 +3714,29 @@
 | items
 : string
 | price
+> query ^
+: string
+| fid_routines
+: string
+| v_renamed
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
+< row
+: string
+| fid_routines
+: string
+| items
+: string
+| id
+< row
+: string
+| fid_routines
+: string
+| items
+: string
+| name
 > query
 |
 | SELECT m.schemaname, m.matviewname, m.definition, obj_description(c.oid, 'pg_class')
@@ -3666,6 +4062,8 @@
 |     "id" bigint DEFAULT nextval('fid_routines.plain'::REGCLASS) NOT NULL,
 |     "name" text NOT NULL,
 |     "price" numeric(10,2),
+|     "cents" bigint AS ((price * 100)::INT8) STORED,
+|     "doubled" numeric AS (price * 2) VIRTUAL,
 |     CONSTRAINT "items_pkey" PRIMARY KEY (id ASC)
 | );
 < ok 0 -
@@ -3677,12 +4075,16 @@
 | CREATE INDEX item_totals_name_idx ON fid_routines.item_totals (name ASC);
 < ok 0 -
 > exec
-| CREATE VIEW "fid_routines"."v_items" AS 
+| CREATE VIEW "fid_routines"."v_items" ("id", "name") AS 
 | SELECT id, name FROM fid_routines.items WHERE price > 0;
 < ok 0 -
 > exec
-| CREATE VIEW "fid_routines"."v_item_names" AS 
+| CREATE VIEW "fid_routines"."v_item_names" ("name") AS 
 | SELECT name FROM fid_routines.v_items;
+< ok 0 -
+> exec
+| CREATE VIEW "fid_routines"."v_renamed" ("item_id", "item_name") AS 
+| SELECT id, name FROM fid_routines.items;
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_routines.add(a INT8, b INT8)
@@ -3832,7 +4234,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -3854,6 +4258,8 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
 < row
 : string
 | fid_routines
@@ -3878,6 +4284,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -3902,6 +4312,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -3927,6 +4341,10 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -3952,6 +4370,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -3976,6 +4398,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -4000,6 +4426,66 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| items
+: string
+| cents
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 4
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+| (price * 100)::INT8
+: string
+| s
+< row
+: string
+| fid_routines
+: string
+| items
+: string
+| doubled
+: string
+| numeric
+: null
+: null
+: null
+: int64 5
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| numeric
+: null
+: string
+| NO
+: string
+| price * 2
+: string
+| v
 < row
 : string
 | fid_routines
@@ -4024,6 +4510,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -4049,6 +4539,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -4073,6 +4567,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -4097,6 +4595,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -4121,6 +4623,66 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| v_renamed
+: string
+| item_id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| v_renamed
+: string
+| item_name
+: string
+| text
+: null
+: null
+: null
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: string
+| NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -4363,6 +4925,14 @@
 : string
 | SELECT id, name FROM omni_testdefinitionfidelity.fid_routines.items WHERE price > 0
 : null
+< row
+: string
+| fid_routines
+: string
+| v_renamed
+: string
+| SELECT id, name FROM omni_testdefinitionfidelity.fid_routines.items
+: null
 > query
 |
 | 		SELECT source_ns.nspname as source_schema,
@@ -4436,6 +5006,29 @@
 | items
 : string
 | price
+> query ^
+: string
+| fid_routines
+: string
+| v_renamed
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
+< row
+: string
+| fid_routines
+: string
+| items
+: string
+| id
+< row
+: string
+| fid_routines
+: string
+| items
+: string
+| name
 > query
 |
 | SELECT m.schemaname, m.matviewname, m.definition, obj_description(c.oid, 'pg_class')
@@ -4809,7 +5402,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -4831,6 +5426,8 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
 < row
 : string
 | Fid Mixed
@@ -4855,6 +5452,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | Fid Mixed
@@ -4879,6 +5480,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | Fid Mixed
@@ -4904,6 +5509,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | Fid Mixed
@@ -4928,6 +5537,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | Fid Mixed
@@ -4952,6 +5565,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_a
@@ -4976,6 +5593,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -5402,7 +6023,7 @@
 | );
 < ok 0 -
 > exec
-| CREATE VIEW "Fid Mixed"."family" AS 
+| CREATE VIEW "Fid Mixed"."family" ("id", "child") AS 
 | SELECT p.id, c.id AS child FROM fid_a.parents AS p JOIN "Fid Mixed"."Children" AS c ON c."Parent Id" = p.id;
 < ok 0 -
 > exec
@@ -5495,7 +6116,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -5517,6 +6140,8 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
 < row
 : string
 | Fid Mixed
@@ -5541,6 +6166,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | Fid Mixed
@@ -5565,6 +6194,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | Fid Mixed
@@ -5590,6 +6223,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | Fid Mixed
@@ -5614,6 +6251,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | Fid Mixed
@@ -5638,6 +6279,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_a
@@ -5662,6 +6307,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
