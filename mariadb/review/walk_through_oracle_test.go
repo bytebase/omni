@@ -514,6 +514,9 @@ var walkCodes = []struct {
 		return strings.HasPrefix(m, "An event's `AT` ") || strings.HasPrefix(m, "An event's `STARTS` ")
 	}, []string{"1525"}},
 	{func(m, _ string) bool { return m == "An event can't repeat in microseconds." }, []string{"1235"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "System variable ") && strings.HasSuffix(m, " doesn't exist.")
+	}, []string{"1193"}},
 	// Triggers (walk_lower_objects.go).
 	{func(m, _ string) bool {
 		return (strings.HasPrefix(m, "`FOLLOWS` ") || strings.HasPrefix(m, "`PRECEDES` ")) && strings.HasSuffix(m, ", which doesn't exist.")

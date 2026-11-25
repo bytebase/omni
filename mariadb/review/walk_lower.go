@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/mariadb/ast"
+	"github.com/bytebase/omni/mariadb/parser"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 )
@@ -39,6 +40,12 @@ func (b *builder) statement(n ast.Node) bool {
 		b.touchTables(v.Tables...)
 	case *ast.CreateDatabaseStmt, *ast.DropDatabaseStmt, *ast.RenameTableStmt, *ast.DropSequenceStmt:
 		b.Session(func() { clear(b.w.fkTables); clear(b.w.synced) })
+	}
+	// A stored program's SET of a variable the server doesn't have is refused while MariaDB
+	// parses the program, before anything else (1193, mariadb:11.8.8).
+	if a := parser.UnknownSystemVariable(n); a != nil {
+		b.fail(rangeOf(a.Column.Loc), nil, review.ObjectNotFound, notFound("system variable", a.Column.Column, ""))
+		return true
 	}
 	switch v := n.(type) {
 	case *ast.CreateDatabaseStmt:

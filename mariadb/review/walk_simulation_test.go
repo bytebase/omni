@@ -31,13 +31,12 @@ func TestWalkSimulation(t *testing.T) {
 		// before them keep 4,208/4,340 (97.0%).
 		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 96.0, 4308},
 		// Of the 695 refusals, 180 are statements the parser refuses, which
-		// reach the review as a syntax finding. Of the other 71 the walk
+		// reach the review as a syntax finding. Of the other 67 the walk
 		// misses, 65 name a database other than the target's, whose objects
 		// the schema doesn't show, or DROP FUNCTION a name a loadable
-		// function may hold; 4 SET a variable a plugin may define (1193); one
-		// FOLLOWS a trigger of another time or event (4031); and one moves
-		// an event into the past (1589).
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 63.0, 444},
+		// function may hold; one FOLLOWS a trigger of another time or event
+		// (4031); and one moves an event into the past (1589).
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 64.4, 448},
 		// Of the 197 refusals, 20 are statements the parser refuses. The 39
 		// the walk misses call a function the target doesn't hold (1305,
 		// 1630), which a loadable function may answer to unqualified, or
