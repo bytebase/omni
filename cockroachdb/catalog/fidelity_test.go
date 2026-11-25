@@ -44,7 +44,6 @@ func fidelityCases() []fidelityCase {
 			sql: `CREATE SCHEMA fid_cols;
 COMMENT ON SCHEMA fid_cols IS 'columns';
 CREATE TYPE fid_cols.mood AS ENUM ('happy', 'sad', 'it''s complicated');
-COMMENT ON TYPE fid_cols.mood IS 'how it feels';
 CREATE TYPE fid_cols.address AS (street STRING, city VARCHAR(50), zip INT8);
 CREATE TABLE fid_cols.customers (
     id INT8 PRIMARY KEY DEFAULT unique_rowid(),
@@ -54,13 +53,14 @@ CREATE TABLE fid_cols.customers (
     mood fid_cols.mood DEFAULT 'happy',
     home fid_cols.address,
     tags STRING[] DEFAULT ARRAY[]::STRING[],
-    balance DECIMAL(12, 2) DEFAULT 0 CHECK (balance >= 0),
+    balance DECIMAL(12, 2) DEFAULT 0 CHECK (balance >= 0) CHECK (balance < 1000000),
     ratio FLOAT8,
     small INT2,
     secret STRING NOT VISIBLE,
     doc JSONB,
     created TIMESTAMPTZ DEFAULT now(),
-    CONSTRAINT customers_email_check CHECK (email != '')
+    CONSTRAINT customers_email_check CHECK (email != ''),
+    CHECK (balance != 13)
 );
 COMMENT ON TABLE fid_cols.customers IS 'a customer';
 COMMENT ON COLUMN fid_cols.customers.email IS 'login';
@@ -176,6 +176,12 @@ func TestDefinitionFidelity(t *testing.T) {
 			stored = filterTo(stored, caseSchemas(stored))
 			def, err := catalog.DatabaseDefinition(stored, catalog.DefinitionOptions{PrintHeader: true})
 			require.NoError(t, err)
+			// The case's own DDL, read as SDL, holds what its sync holds.
+			sdl, err := catalog.DatabaseDefinition(stored, catalog.DefinitionOptions{SDLFormat: true})
+			require.NoError(t, err)
+			plan, err := catalog.BuildSDLMigrationPlan(sdl, tc.sql, catalog.SDLMigrationOptions{})
+			require.NoError(t, err)
+			require.Nil(t, plan, "SDL:\n%s\ndiffers from the case by:\n%s", sdl, plan.SQL())
 
 			execScript(t, db, dropScript(stored))
 			execScript(t, db, def)

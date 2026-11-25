@@ -2,7 +2,9 @@ package catalog
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+	"sync"
 
 	crparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
 	plpgsqlparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/plpgsql/parser"
@@ -67,17 +69,146 @@ func queryRelations(query string) []string {
 	if err != nil {
 		return nil
 	}
-	ctes := cteNames(query)
 	var relations []string
+	storedRelations(stmt, func(tn *tree.TableName) {
+		relations = append(relations, getObjectID(schemaOf(tn), string(tn.ObjectName)))
+	})
+	return relations
+}
+
+// storedRelations calls visit for each relation a statement names that is
+// not a CTE in scope.
+func storedRelations(stmt tree.NodeFormatter, visit func(*tree.TableName)) {
+	refs := cteReferences(stmt)
+	i := 0
 	ctx := tree.NewFmtCtx(tree.FmtSimple, tree.FmtReformatTableNames(func(ctx *tree.FmtCtx, tn *tree.TableName) {
-		if tn.ExplicitSchema || !ctes[string(tn.ObjectName)] {
-			relations = append(relations, getObjectID(schemaOf(tn), string(tn.ObjectName)))
+		if i >= len(refs) || !refs[i] {
+			visit(tn)
 		}
+		i++
 		ctx.WithReformatTableNames(nil, func() { ctx.FormatNode(tn) })
 	}))
 	ctx.FormatNode(stmt)
 	ctx.Close()
-	return relations
+}
+
+// cteReferences reports, for each table name a statement holds in the order
+// its formatter writes them, whether it names a CTE in scope. A WITH's names
+// are in scope from the WITH to the parenthesis that closes around it, which
+// takes in nested queries; a CTE's own body sees the CTEs before it, and
+// itself only under RECURSIVE.
+func cteReferences(stmt tree.NodeFormatter) []bool {
+	// A marker stands in for each table name; its prefix is one the text
+	// holds nowhere, so no identifier the query writes can pass for one.
+	plain := tree.AsString(stmt)
+	tableMarker := "omni_table_name_"
+	for strings.Contains(plain, tableMarker) {
+		tableMarker = "x" + tableMarker
+	}
+	var names []string
+	ctx := tree.NewFmtCtx(tree.FmtSimple, tree.FmtReformatTableNames(func(ctx *tree.FmtCtx, tn *tree.TableName) {
+		ctx.WriteString(tableMarker + strconv.Itoa(len(names)))
+		name := ""
+		if !tn.ExplicitSchema {
+			name = string(tn.ObjectName)
+		}
+		names = append(names, name)
+	}))
+	ctx.FormatNode(stmt)
+	text := ctx.CloseAndGetString()
+	refs := make([]bool, len(names))
+	tokens, ok := crparser.Tokens(text)
+	if !ok {
+		return refs
+	}
+	type frame struct {
+		names     map[string]bool
+		cte       string // the CTE whose body this parenthesis holds
+		recursive bool   // the frame's WITH list is RECURSIVE
+	}
+	stack := []*frame{{names: make(map[string]bool)}}
+	is := func(i int, word string) bool { return i < len(tokens) && tokens[i].TokenID == tokenID(word) }
+	// cteHeader reads "name [(columns)] AS [[NOT] MATERIALIZED] (" at i and
+	// returns the CTE's name and the index of its body's parenthesis.
+	cteHeader := func(i int) (string, int, bool) {
+		if i >= len(tokens) {
+			return "", 0, false
+		}
+		name := tokens[i].Str
+		i++
+		if is(i, "(") {
+			for i < len(tokens) && !is(i, ")") {
+				i++
+			}
+			i++
+		}
+		if !is(i, "as") {
+			return "", 0, false
+		}
+		i++
+		if is(i, "not") {
+			i++
+		}
+		if is(i, "materialized") {
+			i++
+		}
+		if !is(i, "(") {
+			return "", 0, false
+		}
+		return name, i, true
+	}
+	openCTE := func(i int) int {
+		name, body, ok := cteHeader(i)
+		if !ok {
+			return i
+		}
+		top := stack[len(stack)-1]
+		if top.recursive {
+			top.names[name] = true
+		}
+		stack = append(stack, &frame{names: make(map[string]bool), cte: name})
+		return body + 1
+	}
+	for i := 0; i < len(tokens); {
+		t := tokens[i]
+		switch {
+		case is(i, "("):
+			stack = append(stack, &frame{names: make(map[string]bool)})
+			i++
+		case is(i, ")"):
+			closed := stack[len(stack)-1]
+			if len(stack) > 1 {
+				stack = stack[:len(stack)-1]
+			}
+			i++
+			if closed.cte != "" {
+				stack[len(stack)-1].names[closed.cte] = true
+				if is(i, ",") {
+					i = openCTE(i + 1)
+				}
+			}
+		case is(i, "with"):
+			i++
+			if is(i, "recursive") {
+				stack[len(stack)-1].recursive = true
+				i++
+			}
+			i = openCTE(i)
+		case t.TokenID == tokenID("x") && strings.HasPrefix(t.Str, tableMarker):
+			if n, err := strconv.Atoi(strings.TrimPrefix(t.Str, tableMarker)); err == nil && n >= 0 && n < len(names) && names[n] != "" {
+				for _, f := range stack {
+					if f.names[names[n]] {
+						refs[n] = true
+						break
+					}
+				}
+			}
+			i++
+		default:
+			i++
+		}
+	}
+	return refs
 }
 
 // cteNames returns the names a query's WITH clauses bind: a word followed by
@@ -89,25 +220,46 @@ func cteNames(query string) map[string]bool {
 	if !ok {
 		return nil
 	}
+	is := func(i int, word string) bool { return i < len(tokens) && tokens[i].TokenID == tokenID(word) }
 	names := make(map[string]bool)
 	for i := 1; i+1 < len(tokens); i++ {
-		before := strings.ToUpper(tokens[i-1].Str)
-		if before != "WITH" && before != "RECURSIVE" && before != "," {
+		if !is(i-1, "with") && !is(i-1, "recursive") && !is(i-1, ",") {
 			continue
 		}
 		j := i + 1
-		if tokens[j].Str == "(" {
-			for j < len(tokens) && tokens[j].Str != ")" {
+		if is(j, "(") {
+			for j < len(tokens) && !is(j, ")") {
 				j++
 			}
 			j++
 		}
-		if j+1 < len(tokens) && strings.EqualFold(tokens[j].Str, "AS") {
+		if j+1 < len(tokens) && is(j, "as") {
 			names[tokens[i].Str] = true
 		}
 	}
 	return names
 }
+
+// tokenID is the lexer's token for a keyword, a punctuation mark, or, for a
+// plain word such as x, an identifier. Comparing tokens by it keeps a string
+// literal's text, '(' or 'with', from passing for syntax.
+func tokenID(word string) int32 {
+	tokenIDsMu.Lock()
+	defer tokenIDsMu.Unlock()
+	id, ok := tokenIDs[word]
+	if !ok {
+		if tokens, ok := crparser.Tokens(word); ok && len(tokens) == 1 {
+			id = tokens[0].TokenID
+		}
+		tokenIDs[word] = id
+	}
+	return id
+}
+
+var (
+	tokenIDsMu sync.Mutex
+	tokenIDs   = make(map[string]int32)
+)
 
 // routineDefinition returns a CREATE FUNCTION or CREATE PROCEDURE with the
 // database's own name dropped from the relations its body names, SQL or
@@ -472,10 +624,14 @@ func (*funcCollector) VisitPost(expr tree.Expr) tree.Expr { return expr }
 
 // columnType returns a synced type name as CockroachDB reads it back. The
 // sync states INT4 as "integer", which CockroachDB reads as INT8 under its
-// default integer size.
+// default integer size, and a built-in array by its element type's internal
+// name ("_text"), which is written as the element type's array.
 func columnType(t string) string {
 	if t == "integer" {
 		return "INT4"
+	}
+	if element, ok := strings.CutPrefix(t, "_"); ok && element != "" && !strings.ContainsAny(element, `."`) {
+		return columnType(element) + "[]"
 	}
 	return t
 }

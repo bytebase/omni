@@ -264,3 +264,50 @@ func TestMigrationFidelity(t *testing.T) {
 		})
 	}
 }
+
+// TestSDLMigrationFidelity is TestMigrationFidelity through SDL: the source
+// is the SDL rendered from the source's sync, the target is the case's own
+// DDL as a user writes it, and after the migration the target SDL must hold
+// nothing more to change.
+func TestSDLMigrationFidelity(t *testing.T) {
+	db := testcontainer.Open(t)
+	ctx := context.Background()
+	sync := func(t *testing.T) *metadata.DatabaseSchemaMetadata {
+		t.Helper()
+		synced, err := driver.SyncDatabase(ctx, db, testcontainer.Database(t))
+		require.NoError(t, err)
+		return filterTo(synced, caseSchemas(synced))
+	}
+	render := func(t *testing.T, snapshot *metadata.DatabaseSchemaMetadata, opts catalog.DefinitionOptions) string {
+		t.Helper()
+		def, err := catalog.DatabaseDefinition(snapshot, opts)
+		require.NoError(t, err)
+		return def
+	}
+	for _, tc := range migrationCases() {
+		t.Run(tc.name, func(t *testing.T) {
+			execScript(t, db, tc.target)
+			target := sync(t)
+			execScript(t, db, dropScript(target))
+			execScript(t, db, tc.source)
+			source := sync(t)
+
+			sourceSDL := render(t, source, catalog.DefinitionOptions{SDLFormat: true})
+			same, err := catalog.BuildSDLMigrationPlan(sourceSDL, sourceSDL, catalog.SDLMigrationOptions{})
+			require.NoError(t, err)
+			require.Nil(t, same)
+			plan, err := catalog.BuildSDLMigrationPlan(sourceSDL, tc.target, catalog.SDLMigrationOptions{})
+			require.NoError(t, err)
+			migration := plan.SQL()
+			t.Logf("migration:\n%s", migration)
+			execScript(t, db, migration+";")
+			migrated := sync(t)
+			require.Equal(t, render(t, target, catalog.DefinitionOptions{}), render(t, migrated, catalog.DefinitionOptions{}), "migration:\n%s", migration)
+			rest, err := catalog.BuildSDLMigrationPlan(render(t, migrated, catalog.DefinitionOptions{SDLFormat: true}), tc.target, catalog.SDLMigrationOptions{})
+			require.NoError(t, err)
+			require.Nil(t, rest, "left over:\n%s", rest.SQL())
+			execScript(t, db, dropScript(migrated))
+			execScript(t, db, dropScript(target))
+		})
+	}
+}

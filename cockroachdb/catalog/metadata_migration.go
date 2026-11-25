@@ -539,11 +539,12 @@ func findSequence(schema *metadatapb.SchemaMetadata, name string) *metadatapb.Se
 
 // rebuiltViews returns the source views and materialized views a change drops
 // and creates again: those whose definition changes, those reading a column
-// that is dropped or changes type, and those reading a view rebuilt or
-// dropped.
+// that is dropped or changes type (any column, for a dependency that names
+// none), and those reading a view rebuilt or dropped.
 func (d *differ) rebuiltViews() map[string]bool {
 	changedColumns := make(map[string]bool) // schema\x00table\x00column
-	dropped := make(map[string]bool)        // relation IDs dropped
+	changedNames := make(map[string]map[string]bool)
+	dropped := make(map[string]bool) // relation IDs dropped
 	for _, schema := range d.from.schemas {
 		for _, table := range schema.Tables {
 			target := d.to.table(schema.Name, table.Name)
@@ -555,6 +556,13 @@ func (d *differ) rebuiltViews() map[string]bool {
 				newColumn := findColumn(target, column.Name)
 				if newColumn == nil || columnType(newColumn.Type) != columnType(column.Type) || newColumn.Collation != column.Collation {
 					changedColumns[getObjectID(schema.Name, table.Name)+objectIDSeparator+column.Name] = true
+					// A dependency loaded from SDL names no column.
+					changedColumns[getObjectID(schema.Name, table.Name)+objectIDSeparator] = true
+					id := getObjectID(schema.Name, table.Name)
+					if changedNames[id] == nil {
+						changedNames[id] = make(map[string]bool)
+					}
+					changedNames[id][column.Name] = true
 				}
 			}
 		}
@@ -569,7 +577,7 @@ func (d *differ) rebuiltViews() map[string]bool {
 	for _, schema := range d.from.schemas {
 		for _, view := range schema.Views {
 			target := findView(d.to.byName[schema.Name], view.Name)
-			same := target != nil && relationQuery(target.Definition, d.to.database) == relationQuery(view.Definition, d.from.database) && sameColumnNames(view.Columns, target.Columns)
+			same := target != nil && queryKey(target.Definition, d.to.database) == queryKey(view.Definition, d.from.database) && sameColumnNames(view.Columns, target.Columns)
 			relations = append(relations, relation{getObjectID(schema.Name, view.Name), view.DependencyColumns, same, view.Definition})
 			if target == nil {
 				dropped[getObjectID(schema.Name, view.Name)] = true
@@ -577,7 +585,7 @@ func (d *differ) rebuiltViews() map[string]bool {
 		}
 		for _, view := range schema.MaterializedViews {
 			target := findMaterializedView(d.to.byName[schema.Name], view.Name)
-			same := target != nil && relationQuery(target.Definition, d.to.database) == relationQuery(view.Definition, d.from.database) && sameColumnNames(view.Columns, target.Columns)
+			same := target != nil && queryKey(target.Definition, d.to.database) == queryKey(view.Definition, d.from.database) && sameColumnNames(view.Columns, target.Columns)
 			relations = append(relations, relation{getObjectID(schema.Name, view.Name), view.DependencyColumns, same, view.Definition})
 			if target == nil {
 				dropped[getObjectID(schema.Name, view.Name)] = true
@@ -599,8 +607,22 @@ func (d *differ) rebuiltViews() map[string]bool {
 			}
 			for _, dep := range r.deps {
 				relationID := getObjectID(dep.Schema, dep.Table)
-				if dropped[relationID] || rebuilt[relationID] || changedColumns[relationID+objectIDSeparator+dep.Column] {
+				if dropped[relationID] || rebuilt[relationID] {
 					need = true
+				}
+				if dep.Column != "" {
+					need = need || changedColumns[relationID+objectIDSeparator+dep.Column]
+					continue
+				}
+				// A dependency loaded from SDL names no column: the view
+				// is rebuilt when a changed column's name is a word of
+				// its query, or when it reads every column.
+				if changedColumns[relationID+objectIDSeparator] {
+					words, star := identifiers(r.query)
+					need = need || star
+					for column := range changedNames[relationID] {
+						need = need || words[column]
+					}
 				}
 			}
 			if need {
@@ -793,7 +815,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	// CockroachDB cannot convert under them; they are added again after.
 	retyped := retypedColumns(old, new)
 	for _, check := range oldChecks {
-		if c := findCheck(newChecks, check.Name); c == nil || c.Expression != check.Expression || textReads(check.Expression, retyped) || d.callsDropped(check.Expression) {
+		if c := findCheck(newChecks, check.Name); c == nil || exprKey(c.Expression, columnTypes(newColumns)) != exprKey(check.Expression, columnTypes(oldColumns)) || textReads(check.Expression, retyped) || d.callsDropped(check.Expression) {
 			alter(phaseDropIndexes, OpDropConstraint, check.Name, "DROP CONSTRAINT "+quoteIdent(check.Name))
 		}
 	}
@@ -900,7 +922,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 		}
 		if detached && column.Default != "" {
 			alter(defaultPhase, OpAlterColumn, column.Name, col+"SET DEFAULT "+defaultExpression(column.Default))
-		} else if !detached && oldColumn.Default != column.Default {
+		} else if !detached && defaultKey(oldColumn.Default, oldColumn.Type) != defaultKey(column.Default, column.Type) {
 			if column.Default == "" {
 				alter(phaseAlterTables, OpAlterColumn, column.Name, col+"DROP DEFAULT")
 			} else {
@@ -947,7 +969,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	}
 
 	for _, check := range newChecks {
-		if c := findCheck(oldChecks, check.Name); c == nil || c.Expression != check.Expression || textReads(c.Expression, retyped) || d.callsDropped(c.Expression) {
+		if c := findCheck(oldChecks, check.Name); c == nil || exprKey(c.Expression, columnTypes(oldColumns)) != exprKey(check.Expression, columnTypes(newColumns)) || textReads(c.Expression, retyped) || d.callsDropped(c.Expression) {
 			alter(phaseCreateIndexes, OpAddConstraint, check.Name, fmt.Sprintf("ADD CONSTRAINT %s CHECK %s", quoteIdent(check.Name), check.Expression))
 		}
 	}
@@ -973,7 +995,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	}
 	for _, check := range newChecks {
 		oldComment := ""
-		if c := findCheck(oldChecks, check.Name); c != nil && c.Expression == check.Expression && !textReads(c.Expression, retyped) && !d.callsDropped(c.Expression) {
+		if c := findCheck(oldChecks, check.Name); c != nil && exprKey(c.Expression, columnTypes(oldColumns)) == exprKey(check.Expression, columnTypes(newColumns)) && !textReads(c.Expression, retyped) && !d.callsDropped(c.Expression) {
 			oldComment = c.Comment
 		}
 		if oldComment != check.Comment {
@@ -1090,7 +1112,7 @@ func textReads(text string, columns map[string]bool) bool {
 
 // sameIndex reports whether two indexes of schema.table are the same index.
 func sameIndex(schema, table string, a, b *metadatapb.IndexMetadata) bool {
-	return indexStatement(schema, table, a) == indexStatement(schema, table, b)
+	return indexKey(schema, table, a) == indexKey(schema, table, b)
 }
 
 // diffIndexes drops the secondary indexes of a kept table or materialized view
@@ -1520,7 +1542,7 @@ func (d *differ) createObjects() {
 		}
 		for _, function := range schema.Functions {
 			oldFunction := findFunction(old, metadataFuncIdentity(function))
-			if oldFunction == nil || d.recreated[getObjectID(schema.Name, metadataFuncIdentity(function))] || routineDefinition(oldFunction.Definition, d.from.database) != routineDefinition(function.Definition, d.to.database) {
+			if oldFunction == nil || d.recreated[getObjectID(schema.Name, metadataFuncIdentity(function))] || routineKey(routineDefinition(oldFunction.Definition, d.from.database)) != routineKey(routineDefinition(function.Definition, d.to.database)) {
 				subset.Functions = append(subset.Functions, function)
 			}
 		}
