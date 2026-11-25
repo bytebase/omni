@@ -82,9 +82,9 @@ func (p *Parser) parseDefineStmt() (ast.Node, error) {
 //	  [OPTIONS options_list]
 //	  [AS query | AS ( aliased_query_list )]
 //
-// In DialectSpanner, only the shared base clauses (OR REPLACE, IF NOT EXISTS,
-// non-empty INPUT/OUTPUT, REMOTE) are accepted. In DialectDefault and
-// DialectBigQuery, all BigQuery ML clauses are accepted.
+// In Spanner, only the shared base clauses (OR REPLACE, IF NOT EXISTS,
+// non-empty INPUT/OUTPUT, REMOTE) are accepted. In the old union grammar and
+// BigQuery, all BigQuery ML clauses are accepted.
 func (p *Parser) parseCreateModel(create Token, orReplace bool, scope string) (ast.Node, error) {
 	p.advance() // MODEL
 

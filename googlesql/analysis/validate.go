@@ -9,8 +9,8 @@ import (
 // mode, and whether every statement in it returns rows:
 // (readOnly, returnsData, error).
 //
-// Decision is AST-based and parsed with the requested dialect's strict grammar
-// rules (DialectBigQuery or DialectSpanner). Every non-empty top-level
+// Decision is AST-based and parsed with the strict grammar.
+// Every non-empty top-level
 // statement in a script must be read-only (SELECT/WITH/TABLE/set-op queries,
 // read-only pipe queries, GQL graph reads, SHOW, DESCRIBE, or EXPLAIN over a
 // read-only statement). Locking reads (FOR UPDATE), writing or exporting pipe

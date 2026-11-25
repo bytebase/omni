@@ -1177,7 +1177,7 @@ func (p *Parser) parseKeyPartList(pkElement bool) ([]*ast.KeyPart, error) {
 // parseKeyPartListWithOptions parses a parenthesized key-part list. When
 // pkElement is true it follows primary_key_element_list; otherwise it follows
 // index_order_by_and_options, where allowSpannerParenExpr controls whether
-// DialectSpanner admits parenthesized `( expression )` keys (ordinary CREATE
+// Spanner admits parenthesized `( expression )` keys (ordinary CREATE
 // INDEX) versus identifier-only keys (SEARCH/VECTOR indexes).
 func (p *Parser) parseKeyPartListWithOptions(pkElement, allowSpannerParenExpr bool) ([]*ast.KeyPart, error) {
 	if _, err := p.expect(int('(')); err != nil {

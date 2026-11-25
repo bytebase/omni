@@ -579,7 +579,7 @@ func isHigherPrecThanAnd(expr ast.Node) bool {
 // `SELECT NULL QUALIFY x > 0` keeps its clause. The clause reading needs an
 // expression after QUALIFY, so anything that ends the select list — the next
 // clause's keyword included — makes the word the alias.
-// BigQuery reserves QUALIFY, so this is disabled in DialectBigQuery.
+// BigQuery reserves QUALIFY, so this is disabled in BigQuery.
 func (p *Parser) atClauseWordImplicitAlias() bool {
 	return false
 }

@@ -142,6 +142,8 @@ func TestDML_InsertOrAction(t *testing.T) {
 		"INSERT OR UPDATE INTO t (a) VALUES (1)":  "OR UPDATE",
 		"INSERT OR REPLACE INTO t (a) VALUES (1)": "OR REPLACE",
 		"INSERT IGNORE INTO t (a) VALUES (1)":     "IGNORE",
+		"INSERT REPLACE INTO t (a) VALUES (1)":    "REPLACE",
+		"INSERT UPDATE INTO t (a) VALUES (1)":     "UPDATE",
 	}
 	for sql, want := range cases {
 		t.Run(want, func(t *testing.T) {

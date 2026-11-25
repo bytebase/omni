@@ -56,7 +56,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		return p.parseDropObject(drop, ast.DropDatabase, false)
 	case kwEXTERNAL:
 		// DROP EXTERNAL SCHEMA (BigQuery) — owned here as a SCHEMA-family drop;
-		// DROP EXTERNAL TABLE is enabled in DialectBigQuery.
+		// DROP EXTERNAL TABLE is enabled in BigQuery.
 		if p.peekNext().Type == kwSCHEMA {
 			p.advance() // EXTERNAL
 			return p.parseDropObject(drop, ast.DropSchema, true /*external*/)

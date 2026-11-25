@@ -877,11 +877,11 @@ func (p *Parser) tryParseTableAlias() (string, bool, error) {
 	}
 	// Implicit alias: a bare identifier that is not a clause/join continuation.
 	// In Spanner, QUALIFY is not a clause keyword and is accepted as a bare
-	// table alias (e.g. `TABLE a() QUALIFY`). In union mode (DialectDefault),
+	// table alias (e.g. `TABLE a() QUALIFY`). In the old union grammar,
 	// QUALIFY is also accepted as a bare table alias when no QUALIFY <expr>
 	// clause can follow (EOF, ';', ')', ',', or a following clause/join
 	// keyword), while `FROM t QUALIFY <expr>` keeps the QUALIFY clause reading.
-	// BigQuery reserves QUALIFY, so DialectBigQuery disables bare QUALIFY aliases.
+	// BigQuery reserves QUALIFY, so BigQuery disables bare QUALIFY aliases.
 	isBareQualifyAlias := false
 	if ((isIdentifierStart(p.cur.Type) && !isExtraReservedIdent(p.cur)) || isBareQualifyAlias) && !p.atTableAliasStop() {
 		aliasTok := p.advance()

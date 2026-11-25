@@ -205,7 +205,7 @@ func isSpannerIndexKey(k *ast.KeyPart) bool {
 // collate_clause? asc_or_desc? null_order? opt_options_list?`. The common case
 // is a bare column reference; the expression is kept in Expr (and Name set when
 // it is a single identifier) so the query-span walker can descend.
-// In DialectSpanner, ordinary CREATE INDEX allows `{ column_name | ( expression ) }`
+// In Spanner, ordinary CREATE INDEX allows `{ column_name | ( expression ) }`
 // (allowSpannerParenExpr=true), while SEARCH/VECTOR indexes require column identifiers.
 func (p *Parser) parseIndexKeyElement(allowSpannerParenExpr bool) (*ast.KeyPart, error) {
 	start := p.cur.Loc
