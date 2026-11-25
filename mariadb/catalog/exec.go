@@ -315,6 +315,11 @@ func isDML(stmt nodes.Node) bool {
 // processUtility applies one statement. source is the text it was parsed
 // from, which its Loc offsets index into, or "" when there is none.
 func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
+	if !c.loadingSDL {
+		if err := checkProgramSystemVariables(stmt); err != nil {
+			return err
+		}
+	}
 	if err := validateExpressionSemantics(stmt); err != nil {
 		return err
 	}

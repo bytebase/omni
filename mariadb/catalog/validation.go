@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
+	mysqlparser "github.com/bytebase/omni/mariadb/parser"
 )
 
 func validateExpressionSemantics(node nodes.Node) error {
@@ -1296,4 +1297,15 @@ func checkExprRefs(expr nodes.ExprNode) map[string]bool {
 		refs[toLower(name)] = true
 	}
 	return refs
+}
+
+// checkProgramSystemVariables refuses a SET in a stored program of a bare name that neither a
+// variable of the program nor a system variable has: 1193, ER_UNKNOWN_SYSTEM_VARIABLE, which
+// MariaDB raises while it parses the program, before it looks for the program's database or
+// name (mariadb:11.8.8).
+func checkProgramSystemVariables(stmt nodes.Node) error {
+	if a := mysqlparser.UnknownSystemVariable(stmt); a != nil {
+		return &Error{Code: 1193, SQLState: "HY000", Message: fmt.Sprintf("Unknown system variable '%s'", a.Column.Column)}
+	}
+	return nil
 }
