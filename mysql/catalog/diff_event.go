@@ -31,7 +31,8 @@ import (
 //     the interval literal is canonicalized to match.
 //   - STATUS. ENABLE is the default and is always shown explicitly by SHOW CREATE EVENT; the
 //     catalog stores "" for an unspecified status, which canonicalizes to ENABLE. DISABLE ON
-//     SLAVE stays distinct from DISABLE (information_schema reports it as SLAVESIDE_DISABLED).
+//     SLAVE stays distinct from DISABLE (information_schema reports it as SLAVESIDE_DISABLED); 8.4's
+//     DISABLE ON REPLICA is the same status.
 //   - ON COMPLETION. NOT PRESERVE is the default and is always shown explicitly; "" canonicalizes
 //     to NOT PRESERVE.
 //   - DEFINER. Always resolves to the executing user (`root`@`%` on the oracle box) regardless of
@@ -161,12 +162,14 @@ func canonicalOnCompletion(v string) string {
 
 // canonicalEventStatus folds the ENABLE/DISABLE/DISABLE ON SLAVE status to its canonical stored
 // form. ENABLE is the default and is always shown explicitly by SHOW CREATE EVENT; the catalog
-// stores "" for an unspecified status, so "" and "ENABLE" compare equal.
+// stores "" for an unspecified status, so "" and "ENABLE" compare equal. DISABLE ON REPLICA, the
+// spelling MySQL 8.4 stores, is the same status and folds to DISABLE ON SLAVE, which both 8.0
+// and 8.4 accept, so a generated migration runs on either.
 func canonicalEventStatus(v string) string {
 	switch {
 	case eqFoldStr(strings.TrimSpace(v), "DISABLE"):
 		return "DISABLE"
-	case eqFoldStr(collapseSpaces(v), "DISABLE ON SLAVE"):
+	case eqFoldStr(collapseSpaces(v), "DISABLE ON SLAVE"), eqFoldStr(collapseSpaces(v), "DISABLE ON REPLICA"):
 		return "DISABLE ON SLAVE"
 	default:
 		return "ENABLE"
