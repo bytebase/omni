@@ -51,7 +51,7 @@ func TestProgramSimulationPG18(t *testing.T) {
 
 func programRows(t *testing.T) []simulate.Generated {
 	t.Helper()
-	rows := make([]simulate.Generated, 0, len(programFeatures)+len(quotedTypeFeatures)+len(quotedAliasFeatures)+len(retypeFeatures))
+	rows := make([]simulate.Generated, 0, len(programFeatures)+len(quotedTypeFeatures)+len(quotedAliasFeatures)+len(retypeFeatures)+len(generatedRetypeFeatures))
 	seen := map[string]bool{}
 	add := func(fixture string, features []struct{ kind, statement string }) {
 		for _, f := range features {
@@ -66,6 +66,7 @@ func programRows(t *testing.T) []simulate.Generated {
 	add("programs@quoted", quotedTypeFeatures)
 	add("programs@quoted", quotedAliasFeatures)
 	add("programs@retype", retypeFeatures)
+	add("programs@generated", generatedRetypeFeatures)
 	return rows
 }
 
@@ -467,4 +468,24 @@ var retypeFeatures = []struct{ kind, statement string }{
 	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE int USING $1`},
 	{"alter-using", `ALTER TABLE notes ALTER t TYPE mood USING t::mood, ALTER v TYPE mood USING v::mood`},
 	{"alter-using", `ALTER TABLE notes ALTER t TYPE mood USING t::mood, ALTER v TYPE int USING length(t)`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE int USING 'not-an-integer'`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE int USING '12'`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN n TYPE json USING JSON_ARRAYAGG(n)`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN n TYPE json USING JSON_OBJECTAGG('k' VALUE n)`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN n TYPE json USING JSON_ARRAYAGG(n) OVER ()`},
+}
+
+// generatedRetypeFeatures run ALTER COLUMN TYPE on programs@generated, whose
+// table has a generated column and columns with defaults. A generated column
+// takes no USING, and a default must cast to the new type by assignment
+// whatever USING does to the rows.
+var generatedRetypeFeatures = []struct{ kind, statement string }{
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN b TYPE int USING b::int`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN b TYPE varchar(5)`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN b TYPE int`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN d TYPE int USING length(d)`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN d TYPE varchar(5) USING upper(d)`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN d TYPE varchar(5)`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN e TYPE text USING e::text`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN e TYPE bigint`},
 }

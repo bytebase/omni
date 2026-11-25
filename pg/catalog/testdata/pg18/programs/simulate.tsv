@@ -323,3 +323,16 @@ ok:77aaefc8dbbb	ok:77aaefc8dbbb	engine	programs@retype	program:alter-using	ALTER
 42P02	42P02	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE int USING $1
 ok:6617c4ab4a0d	ok:6617c4ab4a0d	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER t TYPE mood USING t::mood, ALTER v TYPE mood USING v::mood
 ok:49e468b1ae88	ok:49e468b1ae88	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER t TYPE mood USING t::mood, ALTER v TYPE int USING length(t)
+22P02	22P02	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE int USING 'not-an-integer'
+ok:4f5e2b30325e	ok:4f5e2b30325e	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE int USING '12'
+42803	42803	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN n TYPE json USING JSON_ARRAYAGG(n)
+42803	42803	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN n TYPE json USING JSON_OBJECTAGG('k' VALUE n)
+42P20	42P20	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN n TYPE json USING JSON_ARRAYAGG(n) OVER ()
+42611	42611	engine	programs@generated	program:alter-using	ALTER TABLE gen ALTER COLUMN b TYPE int USING b::int
+ok:704582808be9	ok:704582808be9	engine	programs@generated	program:alter-using	ALTER TABLE gen ALTER COLUMN b TYPE varchar(5)
+42804	42804	engine	programs@generated	program:alter-using	ALTER TABLE gen ALTER COLUMN b TYPE int
+42804	42804	engine	programs@generated	program:alter-using	ALTER TABLE gen ALTER COLUMN d TYPE int USING length(d)
+ok:38f8367bce48	ok:38f8367bce48	engine	programs@generated	program:alter-using	ALTER TABLE gen ALTER COLUMN d TYPE varchar(5) USING upper(d)
+ok:38f8367bce48	ok:38f8367bce48	engine	programs@generated	program:alter-using	ALTER TABLE gen ALTER COLUMN d TYPE varchar(5)
+ok:7b1f59ad6c0e	ok:7b1f59ad6c0e	engine	programs@generated	program:alter-using	ALTER TABLE gen ALTER COLUMN e TYPE text USING e::text
+ok:51e3b2b7d92b	ok:51e3b2b7d92b	engine	programs@generated	program:alter-using	ALTER TABLE gen ALTER COLUMN e TYPE bigint

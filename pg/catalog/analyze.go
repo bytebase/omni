@@ -6709,6 +6709,16 @@ func (c *Catalog) analyzeAlterColumnTransform(expr nodes.Node, rel *Relation) (A
 			if proc := c.procByOID[v.FuncOID]; proc != nil && proc.RetSet {
 				refusal = &Error{Code: CodeFeatureNotSupported, Message: "set-returning functions are not allowed in transform expressions"}
 			}
+		case *JsonConstructorExprQ:
+			// JSON_ARRAYAGG and JSON_OBJECTAGG are aggregates, or window
+			// functions with OVER.
+			if v.ConstructorType == JsonConstructorArrayAgg || v.ConstructorType == JsonConstructorObjectAgg {
+				if v.HasOver {
+					refusal = &Error{Code: CodeWindowingError, Message: "window functions are not allowed in transform expressions"}
+				} else {
+					refusal = &Error{Code: CodeGroupingError, Message: "aggregate functions are not allowed in transform expressions"}
+				}
+			}
 		}
 		return refusal == nil
 	})

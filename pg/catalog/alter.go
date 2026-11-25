@@ -3194,11 +3194,16 @@ func (c *Catalog) prepAlterColumnUsing(rel *Relation, relName string, atc *nodes
 	if !ok || cd.RawDefault == nil {
 		return nil, nil
 	}
-	if _, exists := rel.colByName[atc.Name]; !exists {
+	idx, exists := rel.colByName[atc.Name]
+	if !exists {
 		return nil, nil
 	}
 	if _, _, err := c.ResolveType(convertTypeNameToInternal(cd.TypeName)); err != nil {
 		return nil, nil
+	}
+	if rel.Columns[idx].Generated != 0 {
+		return nil, &Error{Code: CodeInvalidColumnDefinition,
+			Message: "cannot specify USING when altering type of generated column"}
 	}
 	if rel.RelKind != 'r' && rel.RelKind != 'p' {
 		return nil, errWrongObjectType(relName, "a table")
@@ -3305,6 +3310,12 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 				colName, c.typeName(newOID),
 			))
 		}
+		// An untyped literal takes the new type, so it must read as one.
+		if k, ok := using.(*ConstExpr); ok && k.TypeOID == UNKNOWNOID && !k.IsNull {
+			if err := c.validateLiteralForType(k.Value, newOID); err != nil {
+				return err
+			}
+		}
 	} else if col.TypeOID != newOID && !c.CanCoerce(col.TypeOID, newOID, 'a') {
 		oldType := c.typeByOID[col.TypeOID]
 		newTyp := c.typeByOID[newOID]
@@ -3319,6 +3330,22 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 			"column %q cannot be cast automatically to type %s from %s",
 			colName, newName, oldName,
 		))
+	}
+
+	// USING rewrites the rows, not the default or generation expression,
+	// which must cast to the new type by assignment on its own.
+	// pg: src/backend/commands/tablecmds.c — ATExecAlterColumnType
+	if col.HasDefault && col.DefaultAnalyzed != nil {
+		if src := stripImplicitCoercions(col.DefaultAnalyzed).exprType(); src != newOID && src != UNKNOWNOID && !c.CanCoerce(src, newOID, 'a') {
+			what := "default"
+			if col.Generated != 0 {
+				what = "generation expression"
+			}
+			return errDatatypeMismatch(fmt.Sprintf(
+				"%s for column %q cannot be cast automatically to type %s",
+				what, colName, c.typeName(newOID),
+			))
+		}
 	}
 
 	oldTypeOID := col.TypeOID
