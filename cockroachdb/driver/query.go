@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 
 	"github.com/cockroachdb/cockroach-go/v2/crdb"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -20,9 +19,6 @@ import (
 
 	crrawanalysis "github.com/bytebase/omni/cockroachdb/analysis"
 	"github.com/bytebase/omni/driver"
-	omnipg "github.com/bytebase/omni/pg"
-	pganalysis "github.com/bytebase/omni/pg/analysis"
-	"github.com/bytebase/omni/pg/ast"
 )
 
 // Session opens one server connection held until Close, so session state
@@ -77,7 +73,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 			statement = statementWithResultLimit(statement, opts.Limit)
 		}
 
-		_, returnsData, err := validateQuery(statement)
+		returnsData, err := crrawanalysis.ReturnsRows(statement)
 		if err != nil {
 			return nil, err
 		}
@@ -173,41 +169,17 @@ func explainStatement(statement string, json bool) (string, error) {
 	return crrawanalysis.ExplainStatement(statement, json)
 }
 
-// validateQuery reports whether the statement returns rows. CockroachDB's
-// own parser decides, so its native syntax (SHOW, a cast like 1:::INT8) and a
-// SELECT over a mutating CTE are read the same way the server reads them.
-// readOnly is Bytebase's editor question and comes from the PostgreSQL
-// grammar when that grammar accepts the statement.
-func validateQuery(statement string) (readOnly, returnsData bool, err error) {
-	returnsData, err = crrawanalysis.ReturnsRows(statement)
-	if err != nil {
-		return false, false, err
-	}
-	if stmts, perr := omnipg.Parse(statement); perr == nil {
-		nodes := make([]ast.Node, 0, len(stmts))
-		for _, stmt := range stmts {
-			nodes = append(nodes, stmt.AST)
-		}
-		readOnly, _ = pganalysis.ValidateQuery(nodes)
-	}
-	return readOnly, returnsData, nil
-}
-
 // describeExplain reports a directly submitted EXPLAIN's format and whether
 // it executed the statement it plans.
 func describeExplain(statement string) (format string, executed bool, ok bool) {
 	return crrawanalysis.DescribeExplain(statement)
 }
 
+// statementWithResultLimit caps a SELECT, VALUES or TABLE at limit rows in
+// CockroachDB's grammar and leaves every other statement unchanged.
 func statementWithResultLimit(statement string, limit int) string {
-	if rewritten, err := pganalysis.RewriteResultLimit(statement, limit); err == nil {
+	if rewritten, err := crrawanalysis.RewriteResultLimit(statement, limit); err == nil {
 		return rewritten
-	}
-	// The PostgreSQL grammar cannot rewrite CockroachDB's native statements
-	// such as SHOW; a CTE wrapper would not be valid there either, so leave
-	// everything but a SELECT unchanged.
-	if crrawanalysis.IsSelectStatement(statement) {
-		return fmt.Sprintf("WITH result AS (\n%s\n) SELECT * FROM result LIMIT %d;", trimStatement(statement), limit)
 	}
 	return statement
 }
@@ -418,12 +390,6 @@ func planDiagram(result *driver.Result) (*driver.Result, error) {
 // tens of kilobytes; this is far above that and far below anything that would
 // trouble the editor.
 const maxPlanBytes = 8 << 20
-
-func trimStatement(statement string) string {
-	return strings.TrimLeftFunc(strings.TrimRightFunc(statement, func(r rune) bool {
-		return unicode.IsSpace(r) || r == ';'
-	}), unicode.IsSpace)
-}
 
 var pgLocations sync.Map
 

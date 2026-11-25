@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	crrawanalysis "github.com/bytebase/omni/cockroachdb/analysis"
 	"github.com/bytebase/omni/driver"
 )
 
@@ -276,30 +277,17 @@ func TestPadZeroes(t *testing.T) {
 	}
 }
 
-// TestValidateQueryExplainAnalyze pins the result-set decision without a
-// server: EXPLAIN ANALYZE of a mutation is not read-only, but it returns rows.
-func TestValidateQueryExplainAnalyze(t *testing.T) {
-	readOnly, returnsData, err := validateQuery("EXPLAIN ANALYZE UPDATE t SET v = v + 1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if readOnly {
-		t.Error("readOnly = true, want false")
-	}
-	if !returnsData {
-		t.Error("returnsData = false, want true")
-	}
-}
-
-// TestValidateQueryCockroachSyntax pins statements the PostgreSQL grammar
-// rejects but CockroachDB accepts and returns rows for.
-func TestValidateQueryCockroachSyntax(t *testing.T) {
+// TestReturnsRows pins the result-set decision Query reads without a server:
+// EXPLAIN ANALYZE of a mutation returns rows, and so does CockroachDB's own
+// syntax the PostgreSQL grammar rejects.
+func TestReturnsRows(t *testing.T) {
 	for _, statement := range []string{
+		"EXPLAIN ANALYZE UPDATE t SET v = v + 1",
 		"SHOW CLUSTER SETTING version",
 		"SHOW CREATE TABLE app.people",
 		"SELECT 1:::INT8",
 	} {
-		_, returnsData, err := validateQuery(statement)
+		returnsData, err := crrawanalysis.ReturnsRows(statement)
 		if err != nil {
 			t.Errorf("%s: %v", statement, err)
 			continue
