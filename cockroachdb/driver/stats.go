@@ -12,14 +12,30 @@ import (
 	"unicode/utf8"
 
 	"github.com/cockroachdb/cockroach-go/v2/crdb"
-
-	pganalysis "github.com/bytebase/omni/pg/analysis"
 )
 
+// searchPathPrefix starts the statement Bytebase puts before a DML statement
+// to set the search path the statement runs with.
+const searchPathPrefix = "SET LOCAL search_path TO "
+
+// splitSearchPath returns the SET LOCAL search_path statement put before
+// statement, or "" when there is none, and the statement after it.
+func splitSearchPath(statement string) (string, string) {
+	if !strings.HasPrefix(statement, searchPathPrefix) {
+		return "", statement
+	}
+	setup, rest, ok := strings.Cut(statement, ";\n")
+	if !ok {
+		return "", statement
+	}
+	return setup, rest
+}
+
 // CountAffectedRows returns the optimizer's estimate of the rows the statement modifies. A search
-// path that pganalysis.WithSearchPath put before the statement is set for the EXPLAIN.
+// path that Bytebase put before the statement ("SET LOCAL search_path TO ...;\n") is set for the
+// EXPLAIN.
 func (d *Driver) CountAffectedRows(ctx context.Context, statement string) (int64, error) {
-	setup, statement := pganalysis.SplitSearchPath(statement)
+	setup, statement := splitSearchPath(statement)
 	var settings []string
 	if setup != "" {
 		settings = append(settings, setup)
