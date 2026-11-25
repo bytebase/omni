@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -81,5 +82,42 @@ func TestExecQueries(t *testing.T) {
 		if len(results) != 1 || !errors.As(results[0].Error, &e) || e.Name != "INVALID_FUNCTION_ARGUMENT" {
 			t.Errorf("%s: got %+v, want INVALID_FUNCTION_ARGUMENT", bad, results)
 		}
+	}
+}
+
+// TestExecQueryShapes pins the query shapes CREATE TABLE AS and CREATE VIEW
+// type beyond a plain SELECT, and the types and defaults Exec takes.
+func TestExecQueryShapes(t *testing.T) {
+	c := New()
+	s := c.EnsureCatalog("memory").EnsureSchema("s")
+	c.SetCurrentCatalog("memory")
+	c.SetCurrentSchema("s")
+	for _, sql := range []string{
+		"CREATE TABLE l (id integer, a varchar)",
+		"CREATE TABLE r (id integer, b varchar)",
+		"CREATE TABLE j AS SELECT * FROM l JOIN r USING (id)",
+		"CREATE TABLE vals (id) AS VALUES (1), (2)",
+		"CREATE TABLE rows (payload ROW(x integer))",
+		"CREATE VIEW rv AS SELECT payload.x FROM rows",
+		"CREATE TABLE ts (a timestamp DEFAULT TIMESTAMP '2020-01-01 00:00:00', b interval day to second)",
+	} {
+		if results, err := c.Exec(sql, nil); err != nil || len(results) != 1 || results[0].Error != nil {
+			t.Fatalf("%s: got %+v, %v", sql, results, err)
+		}
+	}
+	if got := s.GetTable("j").ColumnNames(); strings.Join(got, ",") != "id,a,b" {
+		t.Errorf("j's columns = %v, want id, a, b", got)
+	}
+	if col := s.GetTable("vals").GetColumn("id"); col == nil || col.Type != "integer" {
+		t.Errorf("vals.id = %+v, want an integer", col)
+	}
+	if cols := s.GetView("rv").Columns(); len(cols) != 1 || cols[0].Name != "x" || cols[0].Type != "integer" {
+		t.Errorf("rv's columns = %+v, want x integer", cols)
+	}
+	// A single-field interval is no Trino type, and is refused, not a panic.
+	results, err := c.Exec("CREATE TABLE i (a INTERVAL DAY)", nil)
+	var e *Error
+	if err != nil || len(results) != 1 || !errors.As(results[0].Error, &e) || e.Name != "TYPE_NOT_FOUND" {
+		t.Errorf("INTERVAL DAY: got %+v, %v, want TYPE_NOT_FOUND", results, err)
 	}
 }

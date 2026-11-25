@@ -136,7 +136,13 @@ func typeName(dt *parser.DataType) (string, error) {
 		}
 		return "row(" + strings.Join(fields, ", ") + ")", nil
 	case parser.TypeInterval:
-		return "interval " + strings.ToLower(dt.IntervalFrom.String()) + " to " + strings.ToLower(dt.IntervalTo.String()), nil
+		// Trino has two interval types; a single field names neither.
+		if dt.IntervalTo != nil {
+			name := "interval " + strings.ToLower(dt.IntervalFrom.String()) + " to " + strings.ToLower(dt.IntervalTo.String())
+			if name == "interval day to second" || name == "interval year to month" {
+				return name, nil
+			}
+		}
 	}
 	return "", errUnknownType{dt.String()}
 }
@@ -183,8 +189,8 @@ func typeFamily(name string) string {
 // does when it stores one, and returns it as SHOW CREATE TABLE prints it. A
 // number, boolean or NULL may default a number; a string, one that reads as
 // a number; and a date or timestamp takes only NULL or a literal of its own
-// type (verified on Trino 482: TIMESTAMP DEFAULT '2020-01-01 00:00:00' is
-// refused).
+// type, DATE '...' for a date (verified on Trino 482: TIMESTAMP DEFAULT
+// '2020-01-01 00:00:00' is refused).
 func defaultText(e parser.Expr, colType, sql string) (string, error) {
 	text, kind := literalText(e)
 	family := typeFamily(colType)
@@ -207,8 +213,8 @@ func defaultText(e parser.Expr, colType, sql string) (string, error) {
 			_, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
 			ok = err == nil
 		}
-	case "date":
-		ok = family == "date"
+	case "date", "timestamp", "time":
+		ok = family == kind
 	}
 	if !ok {
 		return "", errorf("INVALID_DEFAULT_COLUMN_VALUE", "'%s' is not a valid %s literal", exprText(e, sql), strings.ToUpper(colType))
@@ -260,10 +266,13 @@ func literalText(e parser.Expr) (text, kind string) {
 		}
 		return "-" + inner, kind
 	case *parser.TypeConstructor:
-		if strings.EqualFold(n.Name, "DATE") {
-			return "DATE " + quoteString(n.Value), "date"
+		name := strings.ToUpper(n.Name)
+		text = name + " " + quoteString(n.Value)
+		switch name {
+		case "DATE", "TIMESTAMP", "TIME":
+			return text, strings.ToLower(name)
 		}
-		return strings.ToUpper(n.Name) + " " + quoteString(n.Value), "typed"
+		return text, "typed"
 	}
 	return "", ""
 }

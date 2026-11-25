@@ -18,6 +18,9 @@ type queryScope struct {
 type scopeRel struct {
 	alias string
 	cols  []*Column
+	// using names the columns a JOIN ... USING gave to the relation
+	// before this one, which * shows once.
+	using map[string]bool
 }
 
 // queryColumns returns the output columns of a CREATE TABLE AS or view
@@ -67,6 +70,8 @@ func (c *Catalog) typeBody(body parser.QueryNode, ctes map[string][]*Column) ([]
 		return copyColumns(cols), err
 	case *parser.QuerySpec:
 		return c.typeSpec(n, ctes)
+	case *parser.ValuesQuery:
+		return valuesColumns(n), nil
 	case *parser.SetOperation:
 		// The output takes the left side's names; a column keeps its type
 		// when both sides agree on it.
@@ -101,7 +106,11 @@ func (c *Catalog) typeSpec(spec *parser.QuerySpec, ctes map[string][]*Column) ([
 		switch item.Kind {
 		case parser.SelectAll:
 			for _, r := range scope.rels {
-				out = append(out, copyColumns(r.cols)...)
+				for _, col := range copyColumns(r.cols) {
+					if !r.using[col.Name] {
+						out = append(out, col)
+					}
+				}
 			}
 		case parser.SelectAllFrom:
 			if ref, ok := item.Expr.(*parser.ColumnRef); ok {
@@ -161,7 +170,18 @@ func (c *Catalog) addRelation(scope *queryScope, rel parser.Relation, ctes map[s
 		if err := c.addRelation(scope, n.Left, ctes); err != nil {
 			return err
 		}
-		return c.addRelation(scope, n.Right, ctes)
+		before := len(scope.rels)
+		if err := c.addRelation(scope, n.Right, ctes); err != nil {
+			return err
+		}
+		if len(n.Using) > 0 && len(scope.rels) == before+1 {
+			// A USING column is the join's once, from its left side.
+			r := &scope.rels[before]
+			r.using = map[string]bool{}
+			for _, u := range n.Using {
+				r.using[fold(u)] = true
+			}
+		}
 	case *parser.SubqueryRelation:
 		cols, err := c.typeQuery(n.Query, ctes)
 		if err != nil {
@@ -213,10 +233,23 @@ func (s *queryScope) typeExpr(e parser.Expr) (*Column, error) {
 	case *parser.ColumnRef:
 		return s.column("", fold(n.Name))
 	case *parser.Dereference:
-		if base, ok := n.Base.(*parser.ColumnRef); ok {
-			return s.column(fold(base.Name), fold(n.FieldName))
+		field := fold(n.FieldName)
+		if base, ok := n.Base.(*parser.ColumnRef); ok && s.hasRelation(fold(base.Name)) {
+			return s.column(fold(base.Name), field)
 		}
-		return &Column{Name: fold(n.FieldName), Nullable: true}, nil
+		// A field of a ROW value.
+		col, err := s.typeExpr(n.Base)
+		if err != nil {
+			return nil, err
+		}
+		if col.Type == "" {
+			return &Column{Name: field, Nullable: true}, nil
+		}
+		typ, ok := rowField(col.Type, field)
+		if !ok {
+			return nil, errorf("COLUMN_NOT_FOUND", "Column '%s' cannot be resolved", field)
+		}
+		return &Column{Name: field, Type: typ, Nullable: true}, nil
 	case *parser.Literal:
 		return &Column{Type: literalType(n), Nullable: true}, nil
 	case *parser.TypeConstructor:
@@ -225,6 +258,88 @@ func (s *queryScope) typeExpr(e parser.Expr) (*Column, error) {
 		}
 	}
 	return &Column{Nullable: true}, nil
+}
+
+// hasRelation reports whether a FROM relation goes by name.
+func (s *queryScope) hasRelation(name string) bool {
+	for _, r := range s.rels {
+		if r.alias == name {
+			return true
+		}
+	}
+	return false
+}
+
+// rowField returns the type of a field of a stored row type, row(x
+// integer, y varchar).
+func rowField(rowType, field string) (string, bool) {
+	inner, ok := strings.CutPrefix(rowType, "row(")
+	if !ok {
+		return "", false
+	}
+	inner = strings.TrimSuffix(inner, ")")
+	depth, start := 0, 0
+	for i := 0; i <= len(inner); i++ {
+		if i < len(inner) {
+			switch inner[i] {
+			case '(':
+				depth++
+				continue
+			case ')':
+				depth--
+				continue
+			case ',':
+				if depth > 0 {
+					continue
+				}
+			default:
+				continue
+			}
+		}
+		name, typ, _ := strings.Cut(strings.TrimSpace(inner[start:i]), " ")
+		if strings.Trim(name, `"`) == field {
+			return typ, true
+		}
+		start = i + 1
+	}
+	return "", false
+}
+
+// valuesColumns types the columns of a VALUES list by its rows' literals:
+// unnamed, and typed when every row agrees.
+func valuesColumns(v *parser.ValuesQuery) []*Column {
+	var out []*Column
+	for i, row := range v.Rows {
+		var elems []parser.Expr
+		switch r := row.(type) {
+		case *parser.RowConstructor:
+			elems = r.Elements
+		case *parser.ParenExpr:
+			elems = []parser.Expr{r.Expr}
+		default:
+			elems = []parser.Expr{row}
+		}
+		if i == 0 {
+			for range elems {
+				out = append(out, &Column{Nullable: true})
+			}
+		}
+		for j, e := range elems {
+			if j >= len(out) {
+				break
+			}
+			typ := ""
+			if lit, ok := e.(*parser.Literal); ok {
+				typ = literalType(lit)
+			}
+			if i == 0 {
+				out[j].Type = typ
+			} else if out[j].Type != typ {
+				out[j].Type = ""
+			}
+		}
+	}
+	return out
 }
 
 // column resolves a column reference, qualified by a relation's name or
