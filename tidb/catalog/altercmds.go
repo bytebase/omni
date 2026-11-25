@@ -35,6 +35,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
+	if db.TempTables[key] != nil {
+		return errLocalTemporaryDDL("ALTER TABLE")
+	}
 	tbl := db.Tables[key]
 	if tbl == nil {
 		if db.Views[key] != nil {
@@ -2378,7 +2381,9 @@ func (c *Catalog) checkModifyColumnFKCompatibility(tbl *Table, oldName string, n
 				if tbl.Database != nil && refDB == tbl.Database && toLower(con.RefTable) == toLower(tbl.Name) {
 					refTbl = tbl
 				} else {
-					refTbl = refDB.GetTable(con.RefTable)
+					// A foreign key references the schema's table, never a
+					// local temporary table that shadows it.
+					refTbl = refDB.Tables[toLower(con.RefTable)]
 				}
 			}
 			if refTbl == nil {

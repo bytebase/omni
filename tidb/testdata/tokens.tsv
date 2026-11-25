@@ -9,6 +9,7 @@
 IfNotExists	(every site)	IF NOT EXISTS
 IfExists	(every site)	IF EXISTS
 OrReplace	(every alternative)	parser.y:5125 OR REPLACE
+OptTemporary	(every alternative)	parser.y:5363 TEMPORARY or GLOBAL TEMPORARY
 
 # Keyword choices tried at every site that names them, and not only where
 # their own alternatives' rows reach (see grammar.EveryAlternative).

@@ -36,7 +36,7 @@ func tablesOf(c *Catalog) map[objectKey]*Table {
 	}
 	for _, db := range c.Databases() {
 		for name, tbl := range db.Tables {
-			if tbl == nil || tbl.Temporary {
+			if tbl == nil {
 				continue
 			}
 			m[objectKey{db: toLower(db.Name), name: name}] = tbl
