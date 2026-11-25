@@ -29,7 +29,7 @@ CREATE PROCEDURE pfail() LANGUAGE plpgsql AS $$ BEGIN CREATE TABLE made_fail (a 
 		stmt    string
 		code    string // "" when the statement succeeds
 		made    string // a table the statement leaves in public
-		notMade string // a table it leaves out
+		notMade string // a table it leaves out of every schema
 	}{
 		// A procedure with parameters is not run: the catalog binds no
 		// PL/pgSQL variable.
@@ -49,6 +49,9 @@ CREATE PROCEDURE pfail() LANGUAGE plpgsql AS $$ BEGIN CREATE TABLE made_fail (a 
 		{stmt: `DO $$ BEGIN SHOW search_path; CREATE TABLE made_show (a int); END $$`, notMade: "made_show"},
 		{stmt: `DO $$ BEGIN INSERT INTO flags VALUES (found); CREATE TABLE made_found (a int); END $$`, notMade: "made_found"},
 		{stmt: `DO $$ BEGIN CREATE TABLE made_copy (a int); COPY made_copy TO STDOUT; END $$`, notMade: "made_copy"},
+		// Nor is one with a utility statement that defines no object.
+		{stmt: `DO $$ BEGIN DISCARD ALL; CREATE TABLE made_discard (a int); END $$`, notMade: "made_discard"},
+		{stmt: `DO $$ BEGIN SET search_path = s2; CREATE TABLE made_set2 (a int); END $$`, notMade: "made_set2"},
 		// A user-defined operator takes the literal as its own type.
 		{stmt: `CREATE FUNCTION fo(m mood) RETURNS boolean RETURN m OPERATOR(app.=) 'arbitrary'`},
 		{stmt: `CREATE FUNCTION fe(m mood) RETURNS boolean RETURN m = 'arbitrary'`, code: "22P02"},
@@ -74,8 +77,10 @@ CREATE PROCEDURE pfail() LANGUAGE plpgsql AS $$ BEGIN CREATE TABLE made_fail (a 
 		if tc.made != "" && public.Relations[tc.made] == nil {
 			t.Errorf("%s: no table %s", tc.stmt, tc.made)
 		}
-		if tc.notMade != "" && public.Relations[tc.notMade] != nil {
-			t.Errorf("%s: table %s was made", tc.stmt, tc.notMade)
+		for _, sc := range c.schemas {
+			if tc.notMade != "" && sc.Relations[tc.notMade] != nil {
+				t.Errorf("%s: table %s.%s was made", tc.stmt, sc.Name, tc.notMade)
+			}
 		}
 	}
 }

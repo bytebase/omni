@@ -102,8 +102,11 @@ func (c *Catalog) runPLpgSQL(body string) error {
 }
 
 // plRefusedUtility is the error PostgreSQL raises for a statement a function
-// may not run, as it cannot run inside a transaction block; errNotRun for a
-// transaction statement, which PL/pgSQL handles apart.
+// may not run, as it cannot run inside a transaction block, and errNotRun
+// for a utility statement that defines no object: session state, locks,
+// notifications, maintenance and transaction control, each with its own
+// rules inside a function, which the catalog does not model. Only DDL, CALL
+// and DO run.
 //
 // pg: src/backend/tcop/utility.c — standard_ProcessUtility, ProcessUtilitySlow, ExecDropStmt (PreventInTransactionBlock)
 // pg: src/backend/commands/vacuum.c — vacuum
@@ -111,7 +114,11 @@ func (c *Catalog) runPLpgSQL(body string) error {
 func plRefusedUtility(stmt nodes.Node) error {
 	what := ""
 	switch s := stmt.(type) {
-	case *nodes.TransactionStmt:
+	case *nodes.TransactionStmt, *nodes.VariableSetStmt, *nodes.VariableShowStmt,
+		*nodes.DiscardStmt, *nodes.LockStmt, *nodes.ListenStmt, *nodes.UnlistenStmt,
+		*nodes.NotifyStmt, *nodes.LoadStmt, *nodes.ConstraintsSetStmt, *nodes.CheckPointStmt,
+		*nodes.ClusterStmt, *nodes.CopyStmt, *nodes.ExplainStmt, *nodes.PrepareStmt,
+		*nodes.ExecuteStmt, *nodes.DeallocateStmt:
 		return errNotRun
 	case *nodes.CreateTableSpaceStmt:
 		what = "CREATE TABLESPACE"
@@ -124,9 +131,10 @@ func plRefusedUtility(stmt nodes.Node) error {
 	case *nodes.AlterSystemStmt:
 		what = "ALTER SYSTEM"
 	case *nodes.VacuumStmt:
-		if s.IsVacuumCmd {
-			what = "VACUUM"
+		if !s.IsVacuumCmd {
+			return errNotRun
 		}
+		what = "VACUUM"
 	case *nodes.IndexStmt:
 		if s.Concurrent {
 			what = "CREATE INDEX CONCURRENTLY"
