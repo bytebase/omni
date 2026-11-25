@@ -43,18 +43,17 @@ func collectionReads(database, collection, method string, args []ast.Node) []Nam
 // commandReads returns what a find, count, distinct or aggregate command
 // reads: the collection its first field names, and what an aggregate's
 // pipeline reads. An aggregate of 1 runs on the database, so only its
-// pipeline names collections. runCommand runs in the statement's database;
+// pipeline names collections. runCommand runs in database, the handle's;
 // adminCommand runs in admin.
-func commandReads(s *ast.DatabaseStatement) []Namespace {
-	if len(s.Args) == 0 {
+func commandReads(method string, args []ast.Node, database string) []Namespace {
+	if len(args) == 0 {
 		return nil
 	}
-	doc, ok := s.Args[0].(*ast.Document)
+	doc, ok := args[0].(*ast.Document)
 	if !ok || len(doc.Pairs) == 0 {
 		return nil
 	}
-	database := ""
-	if s.Method == "adminCommand" {
+	if method == "adminCommand" {
 		database = "admin"
 	}
 	var reads []Namespace
@@ -76,8 +75,8 @@ func commandReads(s *ast.DatabaseStatement) []Namespace {
 
 // siblingReads returns what db.getSiblingDB("other").<collection>.<method>(...)
 // reads, in the other database; an explain() may come before the method and
-// cursor methods after it. A database-level aggregate there reads what its
-// pipeline names. Any other chain reads nothing it can name.
+// cursor methods after it. A database-level aggregate or a command there
+// reads what it would on db. Any other chain reads nothing it can name.
 func siblingReads(s *ast.DatabaseStatement) []Namespace {
 	if len(s.Args) != 1 || len(s.ChainedMethods) == 0 {
 		return nil
@@ -86,10 +85,16 @@ func siblingReads(s *ast.DatabaseStatement) []Namespace {
 	if !ok {
 		return nil
 	}
-	if first := s.ChainedMethods[0]; first.Name == "aggregate" && len(first.Args) > 0 {
+	switch first := s.ChainedMethods[0]; first.Name {
+	case "aggregate":
 		// db.getSiblingDB("other").aggregate([...]) is a database-level
 		// pipeline in the other database.
-		return pipelineReads(first.Args[0], database.Value)
+		if len(first.Args) > 0 {
+			return pipelineReads(first.Args[0], database.Value)
+		}
+		return nil
+	case "runCommand", "adminCommand":
+		return commandReads(first.Name, first.Args, database.Value)
 	}
 	if len(s.ChainedMethods) < 2 {
 		return nil
