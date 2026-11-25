@@ -46800,6 +46800,16 @@ reject	reject	engine	suite:reference	SELECT DISTINCT dummy FROM dual FOR UPDATE
 reject	reject	engine	suite:reference	SELECT dummy FROM dual FETCH FIRST 1 ROWS WITH TIES FOR UPDATE
 reject	reject	engine	suite:reference	SELECT CURSOR(SELECT 1 FROM dual) FROM dual FOR UPDATE
 reject	reject	engine	suite:reference	CREATE JSON RELATIONAL DUALITY VIEW omni_bad_dv_R1 AS SELECT JSON_OBJECT('_id' VALUE dummy) FROM dual FOR UPDATE
+accept	accept	engine	suite:reference	SELECT * FROM t@omni_lnk.example.com
+accept	accept	engine	suite:reference	SELECT * FROM t@omni_lnk@omni_inst x
+accept	accept	engine	suite:reference	SELECT * FROM t@omni_lnk.example.com@omni_inst
+accept	accept	engine	suite:reference	INSERT INTO t@omni_lnk.example.com VALUES (1)
+accept	accept	engine	suite:reference	UPDATE t@omni_lnk@omni_inst SET a = 1
+accept	accept	engine	suite:reference	DELETE FROM t@omni_lnk.example.com@omni_inst
+reject	reject	engine	suite:reference	SELECT * FROM t@omni_lnk.
+reject	reject	engine	suite:reference	SELECT * FROM t@omni_lnk@
+reject	reject	engine	suite:reference	SELECT * FROM t@omni_lnk..example
+reject	reject	engine	suite:reference	SELECT * FROM t@omni_lnk@omni_inst@omni_x
 accept	accept	engine	suite:manifest	SELECT 'x' AS c FROM dual
 accept	accept	engine	suite:manifest	SELECT DATE '2020-01-01' FROM dual
 accept	accept	engine	suite:manifest	SELECT TIMESTAMP '2020-01-01 10:20:30' FROM dual

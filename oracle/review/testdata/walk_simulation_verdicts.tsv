@@ -3050,6 +3050,9 @@ ok	one_table@missing	suite:reference	CREATE OR REPLACE TYPE omni_np_R1 AS OBJECT
 ok	one_table@missing	suite:reference	CREATE OR REPLACE TYPE omni_npc_R1 AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE
 ok	one_table@missing	suite:reference	CREATE OR REPLACE PACKAGE omni_cc_R1 AUTHID $IF TRUE $THEN DEFINER $ELSE CURRENT_USER $END AS c NUMBER; END;
 ok	one_table@missing	suite:reference	CREATE TABLE omni_numr_R1 (a NUMBER(38), b DEC(1), c NUMBER(5, -84), d NUMERIC(5, 127), e FLOAT(126), f TIMESTAMP(9), g INTERVAL DAY(9) TO SECOND(9))
+02019	one_table@missing	suite:reference	INSERT INTO t@omni_lnk.example.com VALUES (1)
+02019	one_table@missing	suite:reference	UPDATE t@omni_lnk@omni_inst SET a = 1
+02019	one_table@missing	suite:reference	DELETE FROM t@omni_lnk.example.com@omni_inst
 00904	one_table@missing	suite:manifest	INSERT INTO t (a, b) VALUES (1, 2)
 00942	one_table@missing	suite:manifest	INSERT INTO t (a) SELECT employee_id FROM employees
 01008	one_table@missing	suite:manifest	INSERT INTO t (a) VALUES (:id)
@@ -6316,6 +6319,9 @@ ok	one_table@table	suite:reference	CREATE OR REPLACE TYPE omni_np_R1 AS OBJECT (
 ok	one_table@table	suite:reference	CREATE OR REPLACE TYPE omni_npc_R1 AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE
 ok	one_table@table	suite:reference	CREATE OR REPLACE PACKAGE omni_cc_R1 AUTHID $IF TRUE $THEN DEFINER $ELSE CURRENT_USER $END AS c NUMBER; END;
 ok	one_table@table	suite:reference	CREATE TABLE omni_numr_R1 (a NUMBER(38), b DEC(1), c NUMBER(5, -84), d NUMERIC(5, 127), e FLOAT(126), f TIMESTAMP(9), g INTERVAL DAY(9) TO SECOND(9))
+02019	one_table@table	suite:reference	INSERT INTO t@omni_lnk.example.com VALUES (1)
+02019	one_table@table	suite:reference	UPDATE t@omni_lnk@omni_inst SET a = 1
+02019	one_table@table	suite:reference	DELETE FROM t@omni_lnk.example.com@omni_inst
 00904	one_table@table	suite:manifest	INSERT INTO t (a, b) VALUES (1, 2)
 00942	one_table@table	suite:manifest	INSERT INTO t (a) SELECT employee_id FROM employees
 01008	one_table@table	suite:manifest	INSERT INTO t (a) VALUES (:id)
@@ -9582,6 +9588,9 @@ ok	one_table@column	suite:reference	CREATE OR REPLACE TYPE omni_np_R1 AS OBJECT 
 ok	one_table@column	suite:reference	CREATE OR REPLACE TYPE omni_npc_R1 AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE
 ok	one_table@column	suite:reference	CREATE OR REPLACE PACKAGE omni_cc_R1 AUTHID $IF TRUE $THEN DEFINER $ELSE CURRENT_USER $END AS c NUMBER; END;
 ok	one_table@column	suite:reference	CREATE TABLE omni_numr_R1 (a NUMBER(38), b DEC(1), c NUMBER(5, -84), d NUMERIC(5, 127), e FLOAT(126), f TIMESTAMP(9), g INTERVAL DAY(9) TO SECOND(9))
+02019	one_table@column	suite:reference	INSERT INTO t@omni_lnk.example.com VALUES (1)
+02019	one_table@column	suite:reference	UPDATE t@omni_lnk@omni_inst SET a = 1
+02019	one_table@column	suite:reference	DELETE FROM t@omni_lnk.example.com@omni_inst
 00904	one_table@column	suite:manifest	INSERT INTO t (a, b) VALUES (1, 2)
 00942	one_table@column	suite:manifest	INSERT INTO t (a) SELECT employee_id FROM employees
 01008	one_table@column	suite:manifest	INSERT INTO t (a) VALUES (:id)
@@ -12848,6 +12857,9 @@ ok	objects@partitioned	suite:reference	CREATE OR REPLACE TYPE omni_np_R1 AS OBJE
 ok	objects@partitioned	suite:reference	CREATE OR REPLACE TYPE omni_npc_R1 AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE
 ok	objects@partitioned	suite:reference	CREATE OR REPLACE PACKAGE omni_cc_R1 AUTHID $IF TRUE $THEN DEFINER $ELSE CURRENT_USER $END AS c NUMBER; END;
 ok	objects@partitioned	suite:reference	CREATE TABLE omni_numr_R1 (a NUMBER(38), b DEC(1), c NUMBER(5, -84), d NUMERIC(5, 127), e FLOAT(126), f TIMESTAMP(9), g INTERVAL DAY(9) TO SECOND(9))
+02019	objects@partitioned	suite:reference	INSERT INTO t@omni_lnk.example.com VALUES (1)
+02019	objects@partitioned	suite:reference	UPDATE t@omni_lnk@omni_inst SET a = 1
+02019	objects@partitioned	suite:reference	DELETE FROM t@omni_lnk.example.com@omni_inst
 00904	objects@partitioned	suite:manifest	INSERT INTO t (a, b) VALUES (1, 2)
 00942	objects@partitioned	suite:manifest	INSERT INTO t (a) SELECT employee_id FROM employees
 01008	objects@partitioned	suite:manifest	INSERT INTO t (a) VALUES (:id)
@@ -16114,6 +16126,9 @@ ok	objects@index_trigger	suite:reference	CREATE OR REPLACE TYPE omni_np_R1 AS OB
 ok	objects@index_trigger	suite:reference	CREATE OR REPLACE TYPE omni_npc_R1 AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE
 ok	objects@index_trigger	suite:reference	CREATE OR REPLACE PACKAGE omni_cc_R1 AUTHID $IF TRUE $THEN DEFINER $ELSE CURRENT_USER $END AS c NUMBER; END;
 ok	objects@index_trigger	suite:reference	CREATE TABLE omni_numr_R1 (a NUMBER(38), b DEC(1), c NUMBER(5, -84), d NUMERIC(5, 127), e FLOAT(126), f TIMESTAMP(9), g INTERVAL DAY(9) TO SECOND(9))
+02019	objects@index_trigger	suite:reference	INSERT INTO t@omni_lnk.example.com VALUES (1)
+02019	objects@index_trigger	suite:reference	UPDATE t@omni_lnk@omni_inst SET a = 1
+02019	objects@index_trigger	suite:reference	DELETE FROM t@omni_lnk.example.com@omni_inst
 ok	objects@index_trigger	suite:manifest	INSERT INTO t (a, b) VALUES (1, 2)
 00942	objects@index_trigger	suite:manifest	INSERT INTO t (a) SELECT employee_id FROM employees
 01008	objects@index_trigger	suite:manifest	INSERT INTO t (a) VALUES (:id)
@@ -19380,6 +19395,9 @@ ok	objects@view	suite:reference	CREATE OR REPLACE TYPE omni_np_R1 AS OBJECT (x P
 ok	objects@view	suite:reference	CREATE OR REPLACE TYPE omni_npc_R1 AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE
 ok	objects@view	suite:reference	CREATE OR REPLACE PACKAGE omni_cc_R1 AUTHID $IF TRUE $THEN DEFINER $ELSE CURRENT_USER $END AS c NUMBER; END;
 ok	objects@view	suite:reference	CREATE TABLE omni_numr_R1 (a NUMBER(38), b DEC(1), c NUMBER(5, -84), d NUMERIC(5, 127), e FLOAT(126), f TIMESTAMP(9), g INTERVAL DAY(9) TO SECOND(9))
+02019	objects@view	suite:reference	INSERT INTO t@omni_lnk.example.com VALUES (1)
+02019	objects@view	suite:reference	UPDATE t@omni_lnk@omni_inst SET a = 1
+02019	objects@view	suite:reference	DELETE FROM t@omni_lnk.example.com@omni_inst
 ok	objects@view	suite:manifest	INSERT INTO t (a, b) VALUES (1, 2)
 00942	objects@view	suite:manifest	INSERT INTO t (a) SELECT employee_id FROM employees
 01008	objects@view	suite:manifest	INSERT INTO t (a) VALUES (:id)
@@ -22646,6 +22664,9 @@ ok	objects@matview	suite:reference	CREATE OR REPLACE TYPE omni_np_R1 AS OBJECT (
 ok	objects@matview	suite:reference	CREATE OR REPLACE TYPE omni_npc_R1 AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE
 ok	objects@matview	suite:reference	CREATE OR REPLACE PACKAGE omni_cc_R1 AUTHID $IF TRUE $THEN DEFINER $ELSE CURRENT_USER $END AS c NUMBER; END;
 ok	objects@matview	suite:reference	CREATE TABLE omni_numr_R1 (a NUMBER(38), b DEC(1), c NUMBER(5, -84), d NUMERIC(5, 127), e FLOAT(126), f TIMESTAMP(9), g INTERVAL DAY(9) TO SECOND(9))
+02019	objects@matview	suite:reference	INSERT INTO t@omni_lnk.example.com VALUES (1)
+02019	objects@matview	suite:reference	UPDATE t@omni_lnk@omni_inst SET a = 1
+02019	objects@matview	suite:reference	DELETE FROM t@omni_lnk.example.com@omni_inst
 ok	objects@matview	suite:manifest	INSERT INTO t (a, b) VALUES (1, 2)
 00942	objects@matview	suite:manifest	INSERT INTO t (a) SELECT employee_id FROM employees
 01008	objects@matview	suite:manifest	INSERT INTO t (a) VALUES (:id)
@@ -25912,6 +25933,9 @@ ok	objects@sequence	suite:reference	CREATE OR REPLACE TYPE omni_np_R1 AS OBJECT 
 ok	objects@sequence	suite:reference	CREATE OR REPLACE TYPE omni_npc_R1 AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE
 ok	objects@sequence	suite:reference	CREATE OR REPLACE PACKAGE omni_cc_R1 AUTHID $IF TRUE $THEN DEFINER $ELSE CURRENT_USER $END AS c NUMBER; END;
 ok	objects@sequence	suite:reference	CREATE TABLE omni_numr_R1 (a NUMBER(38), b DEC(1), c NUMBER(5, -84), d NUMERIC(5, 127), e FLOAT(126), f TIMESTAMP(9), g INTERVAL DAY(9) TO SECOND(9))
+02019	objects@sequence	suite:reference	INSERT INTO t@omni_lnk.example.com VALUES (1)
+02019	objects@sequence	suite:reference	UPDATE t@omni_lnk@omni_inst SET a = 1
+02019	objects@sequence	suite:reference	DELETE FROM t@omni_lnk.example.com@omni_inst
 00904	objects@sequence	suite:manifest	INSERT INTO t (a, b) VALUES (1, 2)
 00942	objects@sequence	suite:manifest	INSERT INTO t (a) SELECT employee_id FROM employees
 01008	objects@sequence	suite:manifest	INSERT INTO t (a) VALUES (:id)
@@ -29178,6 +29202,9 @@ ok	objects@synonym	suite:reference	CREATE OR REPLACE TYPE omni_np_R1 AS OBJECT (
 ok	objects@synonym	suite:reference	CREATE OR REPLACE TYPE omni_npc_R1 AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE
 ok	objects@synonym	suite:reference	CREATE OR REPLACE PACKAGE omni_cc_R1 AUTHID $IF TRUE $THEN DEFINER $ELSE CURRENT_USER $END AS c NUMBER; END;
 ok	objects@synonym	suite:reference	CREATE TABLE omni_numr_R1 (a NUMBER(38), b DEC(1), c NUMBER(5, -84), d NUMERIC(5, 127), e FLOAT(126), f TIMESTAMP(9), g INTERVAL DAY(9) TO SECOND(9))
+02019	objects@synonym	suite:reference	INSERT INTO t@omni_lnk.example.com VALUES (1)
+02019	objects@synonym	suite:reference	UPDATE t@omni_lnk@omni_inst SET a = 1
+02019	objects@synonym	suite:reference	DELETE FROM t@omni_lnk.example.com@omni_inst
 ok	objects@synonym	suite:manifest	INSERT INTO t (a, b) VALUES (1, 2)
 00942	objects@synonym	suite:manifest	INSERT INTO t (a) SELECT employee_id FROM employees
 01008	objects@synonym	suite:manifest	INSERT INTO t (a) VALUES (:id)
@@ -32444,6 +32471,9 @@ ok	objects@function	suite:reference	CREATE OR REPLACE TYPE omni_np_R1 AS OBJECT 
 ok	objects@function	suite:reference	CREATE OR REPLACE TYPE omni_npc_R1 AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE
 ok	objects@function	suite:reference	CREATE OR REPLACE PACKAGE omni_cc_R1 AUTHID $IF TRUE $THEN DEFINER $ELSE CURRENT_USER $END AS c NUMBER; END;
 ok	objects@function	suite:reference	CREATE TABLE omni_numr_R1 (a NUMBER(38), b DEC(1), c NUMBER(5, -84), d NUMERIC(5, 127), e FLOAT(126), f TIMESTAMP(9), g INTERVAL DAY(9) TO SECOND(9))
+02019	objects@function	suite:reference	INSERT INTO t@omni_lnk.example.com VALUES (1)
+02019	objects@function	suite:reference	UPDATE t@omni_lnk@omni_inst SET a = 1
+02019	objects@function	suite:reference	DELETE FROM t@omni_lnk.example.com@omni_inst
 00904	objects@function	suite:manifest	INSERT INTO t (a, b) VALUES (1, 2)
 00942	objects@function	suite:manifest	INSERT INTO t (a) SELECT employee_id FROM employees
 01008	objects@function	suite:manifest	INSERT INTO t (a) VALUES (:id)
@@ -35710,6 +35740,9 @@ ok	objects@type	suite:reference	CREATE OR REPLACE TYPE omni_np_R1 AS OBJECT (x P
 ok	objects@type	suite:reference	CREATE OR REPLACE TYPE omni_npc_R1 AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE
 ok	objects@type	suite:reference	CREATE OR REPLACE PACKAGE omni_cc_R1 AUTHID $IF TRUE $THEN DEFINER $ELSE CURRENT_USER $END AS c NUMBER; END;
 ok	objects@type	suite:reference	CREATE TABLE omni_numr_R1 (a NUMBER(38), b DEC(1), c NUMBER(5, -84), d NUMERIC(5, 127), e FLOAT(126), f TIMESTAMP(9), g INTERVAL DAY(9) TO SECOND(9))
+02019	objects@type	suite:reference	INSERT INTO t@omni_lnk.example.com VALUES (1)
+02019	objects@type	suite:reference	UPDATE t@omni_lnk@omni_inst SET a = 1
+02019	objects@type	suite:reference	DELETE FROM t@omni_lnk.example.com@omni_inst
 00904	objects@type	suite:manifest	INSERT INTO t (a, b) VALUES (1, 2)
 00942	objects@type	suite:manifest	INSERT INTO t (a) SELECT employee_id FROM employees
 01008	objects@type	suite:manifest	INSERT INTO t (a) VALUES (:id)

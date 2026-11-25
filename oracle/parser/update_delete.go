@@ -396,14 +396,13 @@ func (p *Parser) parseDMLTarget(mode dmlTargetMode) (nodes.TableExpr, error) {
 			return nil, parseErr1151
 		}
 	}
-	if p.cur.Type == '@' {
+	// A name's own link ends at its connection qualifier: Oracle takes no
+	// second one (t@l@q@x).
+	if p.cur.Type == '@' && target.Name.DBLink == "" {
 		p.advance()
-		target.Dblink, parseErr1151 = p.parseIdentifier()
+		target.Dblink, parseErr1151 = p.parseDBLinkName(p.parseIdentifier)
 		if parseErr1151 != nil {
 			return nil, parseErr1151
-		}
-		if target.Dblink == "" {
-			return nil, p.syntaxErrorAtCur()
 		}
 	}
 	if parseErr1151 = p.parseDMLTargetAlias(target); parseErr1151 != nil {

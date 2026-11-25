@@ -320,3 +320,13 @@ ref_318	select	reject	SELECT DISTINCT dummy FROM dual FOR UPDATE	FOR UPDATE over
 ref_319	select	reject	SELECT dummy FROM dual FETCH FIRST 1 ROWS WITH TIES FOR UPDATE	FOR UPDATE over WITH TIES (ORA-02014)
 ref_320	select	reject	SELECT CURSOR(SELECT 1 FROM dual) FROM dual FOR UPDATE	FOR UPDATE with a CURSOR expression (ORA-01786)
 ref_321	ddl	reject	CREATE JSON RELATIONAL DUALITY VIEW omni_bad_dv_{run} AS SELECT JSON_OBJECT('_id' VALUE dummy) FROM dual FOR UPDATE	FOR UPDATE in a duality view query (ORA-03048)
+ref_322	dml	accept	SELECT * FROM t@omni_lnk.example.com	a database link qualified by its domain
+ref_323	dml	accept	SELECT * FROM t@omni_lnk@omni_inst x	a database link with a connection qualifier, then an alias
+ref_324	dml	accept	SELECT * FROM t@omni_lnk.example.com@omni_inst	a database link with a domain and a connection qualifier
+ref_325	dml	accept	INSERT INTO t@omni_lnk.example.com VALUES (1)	INSERT through a domain-qualified link
+ref_326	dml	accept	UPDATE t@omni_lnk@omni_inst SET a = 1	UPDATE through a link with a connection qualifier
+ref_327	dml	accept	DELETE FROM t@omni_lnk.example.com@omni_inst	DELETE through a link with a domain and a connection qualifier
+ref_328	dml	reject	SELECT * FROM t@omni_lnk.	a link's domain missing after its dot
+ref_329	dml	reject	SELECT * FROM t@omni_lnk@	a link's connection qualifier missing after its @
+ref_330	dml	reject	SELECT * FROM t@omni_lnk..example	an empty domain in a link's name
+ref_331	dml	reject	SELECT * FROM t@omni_lnk@omni_inst@omni_x	a second connection qualifier

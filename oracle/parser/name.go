@@ -121,23 +121,60 @@ func (p *Parser) parseObjectNameWith(parseComponent func() (string, error)) (*no
 		obj.Name = name
 	}
 
-	// Check for @dblink
 	if p.cur.Type == '@' {
-		p.advance()
-		var // consume '@'
-		parseErr823 error
-		obj.DBLink, parseErr823 = parseComponent()
-		if parseErr823 != nil {
-			return nil, parseErr823
+		p.advance() // consume '@'
+		link, err := p.parseDBLinkName(parseComponent)
+		if err != nil {
+			return nil, err
 		}
-		// An '@' names its database link (ORA-01729 at the end of t@).
-		if obj.DBLink == "" {
-			return nil, p.syntaxErrorAtCur()
-		}
+		obj.DBLink = link
 	}
 
 	obj.Loc.End = p.prev.End
 	return obj, nil
+}
+
+// parseDBLinkName reads the name of a database link after its '@': a
+// database name, the domains that qualify it, and a connection qualifier
+// (t@remote.example.com@inst). A name follows the '@' (ORA-01729 at the end
+// of t@) and every '.' and '@' within it.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/Database-Object-Names-and-Qualifiers.html
+// (Referring to Objects in Remote Databases)
+//
+//	dblink ::= database [ . domain [ . domain ]... ] [ @ connection_qualifier ]
+func (p *Parser) parseDBLinkName(parseComponent func() (string, error)) (string, error) {
+	part := func() (string, error) {
+		name, err := parseComponent()
+		if err != nil {
+			return "", err
+		}
+		if name == "" {
+			return "", p.syntaxErrorAtCur()
+		}
+		return name, nil
+	}
+	link, err := part()
+	if err != nil {
+		return "", err
+	}
+	for p.cur.Type == '.' {
+		p.advance() // consume '.'
+		domain, err := part()
+		if err != nil {
+			return "", err
+		}
+		link += "." + domain
+	}
+	if p.cur.Type == '@' {
+		p.advance() // consume '@'
+		qualifier, err := part()
+		if err != nil {
+			return "", err
+		}
+		link += "@" + qualifier
+	}
+	return link, nil
 }
 
 // parseColumnRef parses a column reference which can be:
