@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/bytebase/omni/googlesql/ast"
 )
@@ -64,7 +65,7 @@ func (p *Parser) parseCreatePlacement(create Token, orReplace bool, scope string
 	if err != nil {
 		return nil, err
 	}
-	if err := checkSpannerOptions(opts, placementOptions); err != nil {
+	if err := p.checkSpannerOptions(opts, placementOptions); err != nil {
 		return nil, err
 	}
 	if !hasNonNullOption(opts, "instance_partition") {
@@ -123,7 +124,7 @@ const (
 // case-sensitively), a repeated one, and a value of the wrong type while it
 // parses: "Option: x is unknown.", "Duplicate option: x", "Unexpected value for
 // option: x. Supported option values are strings and NULL."
-func checkSpannerOptions(opts []*ast.OptionsEntry, known map[string]spannerOptionKind) error {
+func (p *Parser) checkSpannerOptions(opts []*ast.OptionsEntry, known map[string]spannerOptionKind) error {
 	seen := make(map[string]bool, len(opts))
 	for _, o := range opts {
 		kind, ok := known[o.Name]
@@ -134,11 +135,23 @@ func checkSpannerOptions(opts []*ast.OptionsEntry, known map[string]spannerOptio
 			return optionError(o, fmt.Sprintf("syntax error: duplicate option %s", o.Name))
 		}
 		seen[o.Name] = true
-		if o.Op != "=" || !spannerOptionValueIs(o.Value, kind) {
+		if o.Op != "=" || p.isBareProto(o.Value) || !spannerOptionValueIs(o.Value, kind) {
 			return optionError(o, fmt.Sprintf("syntax error: unexpected value for option %s", o.Name))
 		}
 	}
 	return nil
+}
+
+// isBareProto reports whether v is options_entry's bare PROTO keyword, which
+// parseOptionsEntry holds as the string literal "PROTO", rather than a quoted
+// string.
+func (p *Parser) isBareProto(v ast.Node) bool {
+	lit, ok := v.(*ast.Literal)
+	if !ok || lit.Kind != ast.LitString {
+		return false
+	}
+	s, e := absIndex(p, lit.Loc.Start), absIndex(p, lit.Loc.End)
+	return s < e && strings.EqualFold(p.input[s:e], "PROTO")
 }
 
 func optionError(o *ast.OptionsEntry, msg string) *ParseError {

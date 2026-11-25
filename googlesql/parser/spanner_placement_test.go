@@ -26,6 +26,11 @@ func TestCreatePlacement(t *testing.T) {
 	}
 }
 
+func TestCreatePlacementQuotedProto(t *testing.T) {
+	// A quoted 'PROTO' is a string, unlike options_entry's bare PROTO keyword.
+	parseDDL(t, "CREATE PLACEMENT p OPTIONS (instance_partition = 'PROTO')")
+}
+
 func TestDropPlacement(t *testing.T) {
 	sql := "DROP PLACEMENT IF EXISTS us_placement"
 	n := parseDDL(t, sql)
@@ -70,6 +75,8 @@ func TestSpannerOptionsRefused(t *testing.T) {
 		{"CREATE MODEL m REMOTE OPTIONS (endpoint += '//a')", "endpoint += '//a'"},
 		{"CREATE PLACEMENT p OPTIONS (instance_partition = 1)", "instance_partition = 1"},
 		{"CREATE PLACEMENT p OPTIONS (instance_partition = 'x', x = 1)", "x = 1"},
+		{"CREATE PLACEMENT p OPTIONS (instance_partition = PROTO)", "instance_partition = PROTO"},
+		{"CREATE MODEL m REMOTE OPTIONS (endpoint = proto)", "endpoint = proto"},
 	} {
 		_, err := Parse(tc.sql)
 		var pe *ParseError

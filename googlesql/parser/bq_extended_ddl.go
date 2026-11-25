@@ -155,7 +155,7 @@ func (p *Parser) parseCreateModel(create Token, orReplace bool, scope string) (a
 		if err != nil {
 			return nil, err
 		}
-		if err := checkSpannerOptions(opts, modelOptions); err != nil {
+		if err := p.checkSpannerOptions(opts, modelOptions); err != nil {
 			return nil, err
 		}
 		stmt.Options = opts
