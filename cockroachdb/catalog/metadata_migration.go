@@ -807,13 +807,18 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 		if findColumnIn(newColumns, column.Name) != nil {
 			continue
 		}
-		// A dropped column's default calling a dropped routine is detached
-		// first: routines drop before columns.
+		// A dropped column's default calling a dropped routine or sequence is
+		// detached first: routines and sequences may drop before the column,
+		// which waits for a key replacement when the key holds it.
+		detach := false
 		for _, name := range calledFunctions(column.Default) {
-			if d.droppedRoutines[name] {
-				alter(phaseDetachDefaults, OpAlterColumn, column.Name, "ALTER COLUMN "+quoteIdent(column.Name)+" DROP DEFAULT")
-				break
-			}
+			detach = detach || d.droppedRoutines[name]
+		}
+		for _, name := range usedSequences(column.Default) {
+			detach = detach || d.droppedSequences[name]
+		}
+		if detach {
+			alter(phaseDetachDefaults, OpAlterColumn, column.Name, "ALTER COLUMN "+quoteIdent(column.Name)+" DROP DEFAULT")
 		}
 		if oldKey != newKey && slices.Contains(oldPrimary.GetExpressions(), column.Name) {
 			afterKey = append(afterKey, column.Name)

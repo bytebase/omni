@@ -110,6 +110,9 @@
 | CREATE SEQUENCE fid_m.reset_seq;
 < ok 0 -
 > exec
+| CREATE TABLE fid_m.seqkey (replacement INT8 PRIMARY KEY);
+< ok 0 -
+> exec
 | CREATE TYPE fid_m.st AS ENUM ('new');
 < ok 0 -
 > exec
@@ -1090,6 +1093,34 @@
 : string
 | fid_m
 : string
+| seqkey
+: string
+| replacement
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | stt
 : string
 | id
@@ -1655,6 +1686,18 @@
 : string
 | fid_m
 : string
+| seqkey
+: string
+| seqkey_pkey
+: string
+| CREATE UNIQUE INDEX seqkey_pkey ON omni_testmigrationfidelity.fid_m.seqkey USING btree (replacement ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | stt
 : string
 | stt_pkey
@@ -1972,6 +2015,13 @@
 | fid_m
 : string
 | rekey2
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| seqkey
 : int64 0
 : null
 < row
@@ -2422,6 +2472,12 @@
 < ok 0 -
 > exec
 | CREATE SEQUENCE fid_m.reset_seq CACHE 4;
+< ok 0 -
+> exec
+| CREATE SEQUENCE fid_m.sk_seq;
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.seqkey (id INT8 PRIMARY KEY DEFAULT nextval('fid_m.sk_seq'), replacement INT8 NOT NULL);
 < ok 0 -
 > exec
 | CREATE TYPE fid_m.st AS ENUM ('old', 'new');
@@ -3546,6 +3602,63 @@
 : string
 | fid_m
 : string
+| seqkey
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: string
+| nextval('fid_m.sk_seq'::REGCLASS)
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| seqkey
+: string
+| replacement
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | stt
 : string
 | id
@@ -4010,6 +4123,30 @@
 : string
 | fid_m
 : string
+| seqkey
+: string
+| seqkey_pkey
+: string
+| CREATE UNIQUE INDEX seqkey_pkey ON omni_testmigrationfidelity.fid_m.seqkey USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| sk_seq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testmigrationfidelity.fid_m.sk_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | stt
 : string
 | stt_pkey
@@ -4330,6 +4467,13 @@
 : string
 | fid_m
 : string
+| seqkey
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | stt
 : int64 0
 : null
@@ -4580,6 +4724,27 @@
 : string
 | fid_m
 : string
+| sk_seq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
+: null
+: null
+: string
+| CREATE SEQUENCE fid_m.sk_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1
+< row
+: string
+| fid_m
+: string
 | ticket_seq
 : string
 | INT8
@@ -4705,6 +4870,9 @@
 | ALTER SEQUENCE "fid_m"."owned_seq" OWNED BY NONE;
 < ok 0 -
 > exec
+| ALTER TABLE "fid_m"."seqkey" ALTER COLUMN "id" DROP DEFAULT;
+< ok 0 -
+> exec
 | ALTER TABLE "fid_m"."tickets" ALTER COLUMN "n" DROP DEFAULT;
 < ok 0 -
 > exec
@@ -4760,6 +4928,9 @@
 < ok 0 -
 > exec
 | DROP SEQUENCE IF EXISTS "fid_m"."gone_owner_seq";
+< ok 0 -
+> exec
+| DROP SEQUENCE IF EXISTS "fid_m"."sk_seq";
 < ok 0 -
 > exec
 | DROP SEQUENCE IF EXISTS "fid_m"."ticket_seq";
@@ -4838,6 +5009,12 @@
 < ok 0 -
 > exec
 | ALTER TABLE "fid_m"."rekey2" ALTER COLUMN "id" DROP NOT NULL;
+< ok 0 -
+> exec
+| ALTER TABLE "fid_m"."seqkey" DROP CONSTRAINT "seqkey_pkey", ADD CONSTRAINT "seqkey_pkey" PRIMARY KEY (replacement ASC);
+< ok 0 -
+> exec
+| ALTER TABLE "fid_m"."seqkey" DROP COLUMN "id";
 < ok 0 -
 > exec
 | ALTER TABLE "fid_m"."stt" ALTER COLUMN "s" SET DEFAULT 'new';
@@ -5914,6 +6091,34 @@
 : string
 | fid_m
 : string
+| seqkey
+: string
+| replacement
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | stt
 : string
 | id
@@ -6479,6 +6684,18 @@
 : string
 | fid_m
 : string
+| seqkey
+: string
+| seqkey_pkey
+: string
+| CREATE UNIQUE INDEX seqkey_pkey ON omni_testmigrationfidelity.fid_m.seqkey USING btree (replacement ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | stt
 : string
 | stt_pkey
@@ -6796,6 +7013,13 @@
 | fid_m
 : string
 | rekey2
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| seqkey
 : int64 0
 : null
 < row
