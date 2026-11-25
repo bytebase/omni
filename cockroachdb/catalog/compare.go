@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"math/big"
 	"strings"
 
 	crparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
@@ -27,8 +28,23 @@ func exprKey(expr string) string {
 	if err != nil {
 		return expr
 	}
+	// CockroachDB adds COLLATE to a collated column's literal default as a
+	// whole; inside an expression a collation is the expression's own.
+	if collate, ok := unparen(parsed).(*tree.CollateExpr); ok && isLiteral(collate.Expr) {
+		parsed = collate.Expr
+	}
 	parsed, _ = tree.WalkExpr(literalCastStripper{}, parsed)
 	return groupedKey(parsed)
+}
+
+func unparen(expr tree.Expr) tree.Expr {
+	for {
+		paren, ok := expr.(*tree.ParenExpr)
+		if !ok {
+			return expr
+		}
+		expr = paren.Expr
+	}
 }
 
 type literalCastStripper struct{}
@@ -37,15 +53,7 @@ type literalCastStripper struct{}
 // stripping its inner cast would make it '01'::STRING.
 func (literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 	if cast, ok := expr.(*tree.CastExpr); ok {
-		inner := cast.Expr
-		for {
-			paren, ok := inner.(*tree.ParenExpr)
-			if !ok {
-				break
-			}
-			inner = paren.Expr
-		}
-		if _, ok := inner.(*tree.CastExpr); ok {
+		if _, ok := unparen(cast.Expr).(*tree.CastExpr); ok {
 			return false, expr
 		}
 	}
@@ -59,10 +67,6 @@ func (literalCastStripper) VisitPost(expr tree.Expr) tree.Expr {
 			return e.Expr
 		}
 	case *tree.AnnotateTypeExpr:
-		if isLiteral(e.Expr) {
-			return e.Expr
-		}
-	case *tree.CollateExpr:
 		if isLiteral(e.Expr) {
 			return e.Expr
 		}
@@ -84,8 +88,8 @@ func (literalCastStripper) VisitPost(expr tree.Expr) tree.Expr {
 
 // castRounds reports whether a cast can change its literal's value: a cast
 // to a type with a width, length, precision or scale (VARCHAR(1),
-// DECIMAL(3,1), TIMESTAMP(0)), to FLOAT4, or of a number with a fraction to
-// an integer. CockroachDB adds no such cast to what it stores, so it is kept.
+// DECIMAL(3,1), TIMESTAMP(0)), to FLOAT4, to FLOAT8 of a number it cannot
+// hold exactly, or of a number with a fraction to an integer. CockroachDB adds no such cast to what it stores, so it is kept.
 func castRounds(cast *tree.CastExpr) bool {
 	t, ok := tree.GetStaticallyKnownType(cast.Type)
 	if !ok {
@@ -96,7 +100,7 @@ func castRounds(cast *tree.CastExpr) bool {
 	}
 	switch t.Family() {
 	case types.FloatFamily:
-		return t.Width() != 64
+		return t.Width() != 64 || !exactFloat(cast.Expr)
 	case types.IntFamily:
 		fraction := false
 		tree.WalkExprConst(&numVisitor{visit: func(n *tree.NumVal) {
@@ -105,6 +109,21 @@ func castRounds(cast *tree.CastExpr) bool {
 		return fraction
 	}
 	return false
+}
+
+// exactFloat reports whether every number in a literal is a float64 exactly.
+func exactFloat(expr tree.Expr) bool {
+	exact := true
+	tree.WalkExprConst(&numVisitor{visit: func(n *tree.NumVal) {
+		r, ok := new(big.Rat).SetString(n.OrigString())
+		if !ok {
+			exact = false
+			return
+		}
+		f, _ := r.Float64()
+		exact = exact && new(big.Rat).SetFloat64(f) != nil && new(big.Rat).SetFloat64(f).Cmp(r) == 0
+	}}, expr)
+	return exact
 }
 
 type numVisitor struct{ visit func(*tree.NumVal) }

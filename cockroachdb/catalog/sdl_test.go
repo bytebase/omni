@@ -183,6 +183,14 @@ func TestSDLKeysKeepValues(t *testing.T) {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT '01'::INT8::STRING);",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT '01'::STRING);",
 		},
+		"float8 rounding": {
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 9007199254740993::FLOAT8);",
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 9007199254740993);",
+		},
+		"check collation": {
+			"CREATE TABLE t (id INT8 PRIMARY KEY, CHECK ('ä' COLLATE en < 'z' COLLATE en));",
+			"CREATE TABLE t (id INT8 PRIMARY KEY, CHECK ('ä' COLLATE sv < 'z' COLLATE sv));",
+		},
 		"grouping": {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT (1 + 2) * 3);",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT 1 + 2 * 3);",
@@ -201,7 +209,8 @@ func TestSDLKeysKeepValues(t *testing.T) {
 	for name, pair := range map[string][2]string{
 		"stored cast":           {"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT 'x'::STRING);", "CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT 'x');"},
 		"redundant parentheses": {"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8, CHECK (((a > 0) AND (a < 9))));", "CREATE TABLE t (id INT8 PRIMARY KEY, a INT8, CHECK (a > 0 AND a < 9));"},
-		"lossless cast":         {"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.25::DECIMAL, b FLOAT8 DEFAULT 1.1::FLOAT8);", "CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.25, b FLOAT8 DEFAULT 1.1);"},
+		"lossless cast":         {"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.25::DECIMAL, b FLOAT8 DEFAULT 1.5::FLOAT8);", "CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.25, b FLOAT8 DEFAULT 1.5);"},
+		"collated default":      {"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING COLLATE en DEFAULT ('x' COLLATE en));", "CREATE TABLE t (id INT8 PRIMARY KEY, a STRING COLLATE en DEFAULT 'x');"},
 		"stored annotation":     {"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5:::DECIMAL);", "CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5);"},
 		"annotated body":        {"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1:::INT8 + 2:::DECIMAL(10,2)::INT8 $$;", "CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 + 2::INT8 $$;"},
 	} {
