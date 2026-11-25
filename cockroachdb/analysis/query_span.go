@@ -52,7 +52,7 @@ type Database interface {
 // SyntaxError reports a statement CockroachDB's parser rejects.
 type SyntaxError struct {
 	Err error
-	// Position is the byte offset of the failure in the statement, or -1.
+	// Position is the byte offset of the failure in the statement.
 	Position int
 }
 

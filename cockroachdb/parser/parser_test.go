@@ -99,11 +99,18 @@ func TestParseErrorContract(t *testing.T) {
 			wantMsg:  "unimplemented",
 		},
 		{
-			name:     "help token has unknown position",
-			sql:      "??",
-			wantPos:  -1,
+			name:     "help token falls back to its statement's start",
+			sql:      "SELECT 1; ??",
+			wantPos:  10,
 			wantCode: "42601",
 			wantMsg:  "help token",
+		},
+		{
+			name:     "grammar action error falls back to its statement's start",
+			sql:      "SELECT 1;\n  DO LANGUAGE a",
+			wantPos:  12,
+			wantCode: "42601",
+			wantMsg:  "no inline code specified",
 		},
 		{
 			name:     "binary input returns ParseError without panicking",
