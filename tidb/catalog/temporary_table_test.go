@@ -109,8 +109,9 @@ func TestLocalTemporaryTableShadows(t *testing.T) {
 
 // TestLocalTemporaryTableLeavesSchemaAlone checks that a local temporary table
 // shadowing a schema table changes nothing the schema answers: TRUNCATE of it
-// is not held back by the shadowed table's foreign keys, and a view over the
-// shadowed table keeps that table's column types in the metadata.
+// is not held back by the shadowed table's foreign keys, a foreign key still
+// references the shadowed table, and a view over it keeps that table's column
+// types in the metadata.
 func TestLocalTemporaryTableLeavesSchemaAlone(t *testing.T) {
 	c := New()
 	mustExec(t, c, "CREATE DATABASE test")
@@ -121,6 +122,12 @@ CREATE VIEW v AS SELECT a FROM p;
 CREATE TEMPORARY TABLE p (a VARCHAR(20))`)
 	if got := execCode(t, c, "TRUNCATE TABLE p"); got != 0 {
 		t.Errorf("TRUNCATE TABLE of the temporary p: code %d, want 0", got)
+	}
+	if got := execCode(t, c, "ALTER TABLE ch MODIFY COLUMN a INT COMMENT 'x'"); got != 0 {
+		t.Errorf("ALTER TABLE ch MODIFY COLUMN a INT: code %d, want 0", got)
+	}
+	if got := execCode(t, c, "CREATE TABLE ch2 (a INT, FOREIGN KEY (a) REFERENCES p (a))"); got != 0 {
+		t.Errorf("CREATE TABLE ch2 REFERENCES p: code %d, want 0", got)
 	}
 	meta := c.DatabaseMetadata("test")
 	view := meta.Schemas[0].Views[0]

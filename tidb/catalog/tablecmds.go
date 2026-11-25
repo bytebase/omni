@@ -1186,7 +1186,9 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 		if toLower(con.RefTable) == toLower(tbl.Name) && refDB == db {
 			refTbl = tbl
 		} else {
-			refTbl = refDB.GetTable(con.RefTable)
+			// A foreign key references the schema's table, never a local
+			// temporary table that shadows it.
+			refTbl = refDB.Tables[toLower(con.RefTable)]
 		}
 	}
 
