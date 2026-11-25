@@ -103,6 +103,10 @@ type SpanAnswer struct {
 	Columns []SpanOutput `json:"columns,omitempty"`
 	// Tables is every relation the query reads, as database.schema.name.
 	Tables []string `json:"tables,omitempty"`
+	// TablesUnstated marks a statement no view can hold, such as one with
+	// AS OF SYSTEM TIME, an UPSERT, a SHOW or an EXPLAIN, whose relations
+	// CockroachDB therefore does not state.
+	TablesUnstated bool `json:"tablesUnstated,omitempty"`
 }
 
 // SpanOutput is one output column of a query.
@@ -349,6 +353,10 @@ func (l *spanLive) span(ctx context.Context, searchPath, sql string) (SpanAnswer
 		list = " (" + strings.Join(namesByPosition(len(sd.Fields)), ", ") + ")"
 	}
 	if _, err := l.conn.Exec(ctx, "CREATE VIEW "+view+list+" AS "+sql); err != nil {
+		if errors.As(err, &pgErr) && pgErr.Code == "42601" {
+			a.TablesUnstated = true
+			return a, nil
+		}
 		return a, fmt.Errorf("a view over the query, which reads its relations: %w", err)
 	}
 	defer l.conn.Exec(ctx, "DROP VIEW IF EXISTS "+view)
