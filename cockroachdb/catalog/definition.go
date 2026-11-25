@@ -824,13 +824,18 @@ func getSchemaNameFromID(id string) string {
 }
 
 // metadataFuncIdentity returns a function's identity, its signature where the
-// sync states one, so overloads stay apart.
+// sync states one, so overloads stay apart. It begins with routineNamespace,
+// so a routine's object ID never equals a relation's, even one quoted to read
+// like a signature ("f()").
 func metadataFuncIdentity(f *metadatapb.FunctionMetadata) string {
 	if f.Signature != "" {
-		return f.Signature
+		return routineNamespace + f.Signature
 	}
-	return f.Name
+	return routineNamespace + f.Name
 }
+
+// routineNamespace begins every routine identity; no identifier holds it.
+const routineNamespace = "\x02"
 
 func sortedMapIDs[V any](m map[string]V) []string {
 	ids := make([]string, 0, len(m))

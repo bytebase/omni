@@ -4906,13 +4906,13 @@
 | ALTER TABLE "fid_m"."prices" DROP CONSTRAINT "prices_price_check";
 < ok 0 -
 > exec
+| DROP FUNCTION "fid_m"."price_text"();
+< ok 0 -
+> exec
 | DROP TABLE "fid_m"."gone";
 < ok 0 -
 > exec
 | DROP TABLE "fid_m"."gone_owner";
-< ok 0 -
-> exec
-| DROP FUNCTION "fid_m"."price_text"();
 < ok 0 -
 > exec
 | ALTER TABLE "fid_m"."calc" DROP COLUMN "b";
@@ -12022,6 +12022,33 @@
 | DROP FUNCTION "fid_v"."count_old"();
 < ok 0 -
 > exec
+| DROP FUNCTION "fid_v"."gone"();
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."ov"(int8);
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."ov"();
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."pdef"(int8);
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."pf"();
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."rb"();
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."ra"();
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."read_ab"();
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."rt"();
+< ok 0 -
+> exec
 | DROP TABLE "fid_v"."ct2";
 < ok 0 -
 > exec
@@ -12037,9 +12064,6 @@
 | DROP VIEW "fid_v"."dropped";
 < ok 0 -
 > exec
-| DROP FUNCTION "fid_v"."gone"();
-< ok 0 -
-> exec
 | DROP MATERIALIZED VIEW "fid_v"."m_named";
 < ok 0 -
 > exec
@@ -12049,34 +12073,10 @@
 | DROP TABLE "fid_v"."old_items";
 < ok 0 -
 > exec
-| DROP FUNCTION "fid_v"."ov"(int8);
-< ok 0 -
-> exec
-| DROP FUNCTION "fid_v"."ov"();
-< ok 0 -
-> exec
-| DROP FUNCTION "fid_v"."pdef"(int8);
-< ok 0 -
-> exec
-| DROP FUNCTION "fid_v"."pf"();
-< ok 0 -
-> exec
 | DROP VIEW "fid_v"."priced_names";
 < ok 0 -
 > exec
 | DROP VIEW "fid_v"."priced";
-< ok 0 -
-> exec
-| DROP FUNCTION "fid_v"."rb"();
-< ok 0 -
-> exec
-| DROP FUNCTION "fid_v"."ra"();
-< ok 0 -
-> exec
-| DROP FUNCTION "fid_v"."read_ab"();
-< ok 0 -
-> exec
-| DROP FUNCTION "fid_v"."rt"();
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."ab" DROP COLUMN "a";
@@ -12160,38 +12160,6 @@
 | $$;
 < ok 0 -
 > exec
-| CREATE FUNCTION fid_v.count_old()
-| 	RETURNS INT8
-| 	STABLE
-| 	NOT LEAKPROOF
-| 	CALLED ON NULL INPUT
-| 	LANGUAGE SQL
-| 	SECURITY INVOKER
-| 	AS $$
-| SELECT count(*) FROM fid_v.items;
-| $$;
-< ok 0 -
-> exec
-| CREATE FUNCTION fid_v.count_old_caller()
-| 	RETURNS INT8
-| 	VOLATILE
-| 	NOT LEAKPROOF
-| 	CALLED ON NULL INPUT
-| 	LANGUAGE SQL
-| 	SECURITY INVOKER
-| 	AS $$
-| 	SELECT fid_v.count_old();
-| $$;
-< ok 0 -
-> exec
-| CREATE MATERIALIZED VIEW "fid_v"."m_named" ("after_name") AS 
-| SELECT id FROM fid_v.items;
-< ok 0 -
-> exec
-| CREATE VIEW "fid_v"."named" ("other") AS 
-| SELECT id FROM fid_v.items;
-< ok 0 -
-> exec
 | CREATE FUNCTION fid_v.next_id()
 | 	RETURNS INT8
 | 	VOLATILE
@@ -12228,7 +12196,19 @@
 | $$;
 < ok 0 -
 > exec
-| CREATE FUNCTION fid_v.pf()
+| CREATE FUNCTION fid_v.rt()
+| 	RETURNS STRING
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 'x';
+| $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.xa()
 | 	RETURNS INT8
 | 	VOLATILE
 | 	NOT LEAKPROOF
@@ -12236,32 +12216,8 @@
 | 	LANGUAGE SQL
 | 	SECURITY INVOKER
 | 	AS $$
-| SELECT COALESCE(max(b), 0) FROM fid_v.pab;
+| 	SELECT 7;
 | $$;
-< ok 0 -
-> exec
-| CREATE VIEW "fid_v"."priced" ("id", "name") AS 
-| SELECT id, name FROM fid_v.items WHERE price > 1;
-< ok 0 -
-> exec
-| CREATE VIEW "fid_v"."cheap" ("id") AS 
-| SELECT p.id FROM fid_v.priced AS p JOIN fid_v.items AS i ON i.id = p.id;
-< ok 0 -
-> exec
-| CREATE OR REPLACE FUNCTION fid_v.count_items()
-| 	RETURNS INT8
-| 	STABLE
-| 	NOT LEAKPROOF
-| 	CALLED ON NULL INPUT
-| 	LANGUAGE SQL
-| 	SECURITY INVOKER
-| 	AS $$
-| SELECT count(*) FROM fid_v.priced;
-| $$;
-< ok 0 -
-> exec
-| CREATE VIEW "fid_v"."priced_names" ("name") AS 
-| SELECT name FROM fid_v.priced;
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_v.read_ab()
@@ -12276,23 +12232,40 @@
 | $$;
 < ok 0 -
 > exec
-| CREATE FUNCTION fid_v.rt()
-| 	RETURNS STRING
+| CREATE FUNCTION fid_v.xb()
+| 	RETURNS INT8
 | 	VOLATILE
 | 	NOT LEAKPROOF
 | 	CALLED ON NULL INPUT
 | 	LANGUAGE SQL
 | 	SECURITY INVOKER
 | 	AS $$
-| 	SELECT 'x';
+| SELECT max(x) FROM fid_v.ab;
 | $$;
 < ok 0 -
 > exec
-| CREATE TABLE "fid_v"."scored" (
-|     "id" bigint NOT NULL,
-|     "score" bigint DEFAULT fid_v.add(1, 2),
-|     CONSTRAINT "scored_pkey" PRIMARY KEY (id ASC)
-| );
+| CREATE FUNCTION fid_v.count_old()
+| 	RETURNS INT8
+| 	STABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| SELECT count(*) FROM fid_v.items;
+| $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.count_old_caller()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_v.count_old();
+| $$;
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_v.touch()
@@ -12310,7 +12283,15 @@
 | $$;
 < ok 0 -
 > exec
-| CREATE FUNCTION fid_v.xa()
+| CREATE MATERIALIZED VIEW "fid_v"."m_named" ("after_name") AS 
+| SELECT id FROM fid_v.items;
+< ok 0 -
+> exec
+| CREATE VIEW "fid_v"."named" ("other") AS 
+| SELECT id FROM fid_v.items;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.pf()
 | 	RETURNS INT8
 | 	VOLATILE
 | 	NOT LEAKPROOF
@@ -12318,20 +12299,39 @@
 | 	LANGUAGE SQL
 | 	SECURITY INVOKER
 | 	AS $$
-| 	SELECT 7;
+| SELECT COALESCE(max(b), 0) FROM fid_v.pab;
 | $$;
 < ok 0 -
 > exec
-| CREATE FUNCTION fid_v.xb()
+| CREATE VIEW "fid_v"."priced" ("id", "name") AS 
+| SELECT id, name FROM fid_v.items WHERE price > 1;
+< ok 0 -
+> exec
+| CREATE OR REPLACE FUNCTION fid_v.count_items()
 | 	RETURNS INT8
-| 	VOLATILE
+| 	STABLE
 | 	NOT LEAKPROOF
 | 	CALLED ON NULL INPUT
 | 	LANGUAGE SQL
 | 	SECURITY INVOKER
 | 	AS $$
-| SELECT max(x) FROM fid_v.ab;
+| SELECT count(*) FROM fid_v.priced;
 | $$;
+< ok 0 -
+> exec
+| CREATE VIEW "fid_v"."cheap" ("id") AS 
+| SELECT p.id FROM fid_v.priced AS p JOIN fid_v.items AS i ON i.id = p.id;
+< ok 0 -
+> exec
+| CREATE VIEW "fid_v"."priced_names" ("name") AS 
+| SELECT name FROM fid_v.priced;
+< ok 0 -
+> exec
+| CREATE TABLE "fid_v"."scored" (
+|     "id" bigint NOT NULL,
+|     "score" bigint DEFAULT fid_v.add(1, 2),
+|     CONSTRAINT "scored_pkey" PRIMARY KEY (id ASC)
+| );
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."ab" ALTER COLUMN "x" SET DEFAULT fid_v.xa();

@@ -233,3 +233,26 @@ func TestMetadataMigrationRefusesCompositeUnderComposite(t *testing.T) {
 	_, err := catalog.MetadataMigration(snapshot("v"), snapshot("v", "label"), catalog.MetadataMigrationOptions{})
 	require.ErrorContains(t, err, "app.outer_t.payload")
 }
+
+// TestRoutineAndRelationIDsStayApart renders a function f() and a table
+// quoted "f()" in one schema; both must appear.
+func TestRoutineAndRelationIDsStayApart(t *testing.T) {
+	def, err := catalog.DatabaseDefinition(&metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name:      "app",
+		Tables:    []*metadata.TableMetadata{{Name: "f()", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "bigint"}}}},
+		Functions: []*metadata.FunctionMetadata{{Name: "f", Signature: "f()", Definition: "CREATE FUNCTION app.f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$"}},
+	}}}, catalog.DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, `CREATE TABLE "app"."f()"`)
+	require.Contains(t, def, "CREATE FUNCTION app.f()")
+
+	source := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name:      "app",
+		Tables:    []*metadata.TableMetadata{{Name: "f()", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "bigint"}}}},
+		Functions: []*metadata.FunctionMetadata{{Name: "f", Signature: "f()", Definition: "CREATE FUNCTION app.f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$"}},
+	}}}
+	migration, err := catalog.MetadataMigration(source, &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{Name: "app"}}}, catalog.MetadataMigrationOptions{})
+	require.NoError(t, err)
+	require.Contains(t, migration, `DROP TABLE "app"."f()"`)
+	require.Contains(t, migration, `DROP FUNCTION "app"."f"()`)
+}

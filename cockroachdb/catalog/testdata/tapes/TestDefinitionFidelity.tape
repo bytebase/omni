@@ -5135,19 +5135,34 @@
 | );
 < ok 0 -
 > exec
-| CREATE MATERIALIZED VIEW "fid_routines"."item_totals" ("name", "total") AS 
-| SELECT name, sum(price) AS total FROM fid_routines.items GROUP BY name;
-< ok 0 -
-> exec
-| CREATE INDEX item_totals_name_idx ON fid_routines.item_totals (name ASC);
-< ok 0 -
-> exec
 | CREATE PROCEDURE fid_routines.reset_prices()
 | 	LANGUAGE SQL
 | 	SECURITY INVOKER
 | 	AS $$
 | UPDATE fid_routines.items SET price = 0;
 | $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_routines.touch()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE plpgsql
+| 	SECURITY INVOKER
+| 	AS $$
+| BEGIN
+| RETURN (SELECT count(*) FROM fid_routines.items);
+| END;
+|
+| $$;
+< ok 0 -
+> exec
+| CREATE MATERIALIZED VIEW "fid_routines"."item_totals" ("name", "total") AS 
+| SELECT name, sum(price) AS total FROM fid_routines.items GROUP BY name;
+< ok 0 -
+> exec
+| CREATE INDEX item_totals_name_idx ON fid_routines.item_totals (name ASC);
 < ok 0 -
 > exec
 | CREATE TABLE "fid_routines"."scored" (
@@ -5164,6 +5179,25 @@
 | );
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_routines.z_read()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| SELECT count(*) FROM fid_routines.t1;
+| $$;
+< ok 0 -
+> exec
+| CREATE TABLE "fid_routines"."t2" (
+|     "id" bigint NOT NULL,
+|     "v" bigint DEFAULT fid_routines.z_read(),
+|     CONSTRAINT "t2_pkey" PRIMARY KEY (id ASC)
+| );
+< ok 0 -
+> exec
 | CREATE TABLE "fid_routines"."t3" (
 |     "id" bigint NOT NULL,
 |     "v" bigint DEFAULT fid_routines."Quoted"(),
@@ -5176,21 +5210,6 @@
 |     "n" bigint,
 |     CONSTRAINT "tickets_pkey" PRIMARY KEY (id ASC)
 | );
-< ok 0 -
-> exec
-| CREATE FUNCTION fid_routines.touch()
-| 	RETURNS INT8
-| 	VOLATILE
-| 	NOT LEAKPROOF
-| 	CALLED ON NULL INPUT
-| 	LANGUAGE plpgsql
-| 	SECURITY INVOKER
-| 	AS $$
-| BEGIN
-| RETURN (SELECT count(*) FROM fid_routines.items);
-| END;
-|
-| $$;
 < ok 0 -
 > exec
 | CREATE VIEW "fid_routines"."v_items" ("id", "name") AS 
@@ -5223,25 +5242,6 @@
 > exec
 | CREATE VIEW "fid_routines"."a_reads_z" ("id") AS 
 | SELECT id FROM fid_routines.z_cte;
-< ok 0 -
-> exec
-| CREATE FUNCTION fid_routines.z_read()
-| 	RETURNS INT8
-| 	VOLATILE
-| 	NOT LEAKPROOF
-| 	CALLED ON NULL INPUT
-| 	LANGUAGE SQL
-| 	SECURITY INVOKER
-| 	AS $$
-| SELECT count(*) FROM fid_routines.t1;
-| $$;
-< ok 0 -
-> exec
-| CREATE TABLE "fid_routines"."t2" (
-|     "id" bigint NOT NULL,
-|     "v" bigint DEFAULT fid_routines.z_read(),
-|     CONSTRAINT "t2_pkey" PRIMARY KEY (id ASC)
-| );
 < ok 0 -
 > exec
 | CREATE TABLE "fid_routines"."z_rel" (
@@ -8759,6 +8759,42 @@
 | $$;
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_a.z(n INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT n;
+| $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_a.a_calls_z()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.z(1:::INT8);
+| $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_a.z(s STRING)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.a_calls_z();
+| $$;
+< ok 0 -
+> exec
 | CREATE TABLE "fid_a"."parents" (
 |     "id" bigint NOT NULL,
 |     CONSTRAINT "parents_pkey" PRIMARY KEY (id ASC)
@@ -8788,6 +8824,13 @@
 | $$;
 < ok 0 -
 > exec
+| CREATE TABLE "fid_a"."uses_a" (
+|     "id" bigint NOT NULL,
+|     "v" bigint DEFAULT fid_a.a_calls_z(),
+|     CONSTRAINT "uses_a_pkey" PRIMARY KEY (id ASC)
+| );
+< ok 0 -
+> exec
 | CREATE TABLE "fid_a"."uses_b" (
 |     "id" bigint NOT NULL,
 |     "v" bigint DEFAULT fid_a.b_calls_arr(),
@@ -8807,49 +8850,6 @@
 |     "v" bigint DEFAULT fid_a.k(),
 |     CONSTRAINT "uses_k_pkey" PRIMARY KEY (id ASC)
 | );
-< ok 0 -
-> exec
-| CREATE FUNCTION fid_a.z(n INT8)
-| 	RETURNS INT8
-| 	VOLATILE
-| 	NOT LEAKPROOF
-| 	CALLED ON NULL INPUT
-| 	LANGUAGE SQL
-| 	SECURITY INVOKER
-| 	AS $$
-| 	SELECT n;
-| $$;
-< ok 0 -
-> exec
-| CREATE FUNCTION fid_a.a_calls_z()
-| 	RETURNS INT8
-| 	VOLATILE
-| 	NOT LEAKPROOF
-| 	CALLED ON NULL INPUT
-| 	LANGUAGE SQL
-| 	SECURITY INVOKER
-| 	AS $$
-| 	SELECT fid_a.z(1:::INT8);
-| $$;
-< ok 0 -
-> exec
-| CREATE TABLE "fid_a"."uses_a" (
-|     "id" bigint NOT NULL,
-|     "v" bigint DEFAULT fid_a.a_calls_z(),
-|     CONSTRAINT "uses_a_pkey" PRIMARY KEY (id ASC)
-| );
-< ok 0 -
-> exec
-| CREATE FUNCTION fid_a.z(s STRING)
-| 	RETURNS INT8
-| 	VOLATILE
-| 	NOT LEAKPROOF
-| 	CALLED ON NULL INPUT
-| 	LANGUAGE SQL
-| 	SECURITY INVOKER
-| 	AS $$
-| 	SELECT fid_a.a_calls_z();
-| $$;
 < ok 0 -
 > exec
 | ALTER TABLE "Fid Mixed"."Children"
