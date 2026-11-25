@@ -203,6 +203,10 @@ func TestSDLKeysKeepValues(t *testing.T) {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a FLOAT8 DEFAULT 9007199254740992::FLOAT8 + 1::FLOAT8 - 9007199254740992::FLOAT8);",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a FLOAT8 DEFAULT 9007199254740992::DECIMAL + 1::DECIMAL - 9007199254740992::DECIMAL);",
 		},
+		"body overload": {
+			"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT length('é':::BYTES) $$;",
+			"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT length('é':::STRING) $$;",
+		},
 		"grouping": {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT (1 + 2) * 3);",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT 1 + 2 * 3);",
@@ -225,7 +229,7 @@ func TestSDLKeysKeepValues(t *testing.T) {
 		"column comparison":     {"CREATE TABLE t (id INT8 PRIMARY KEY, s STRING, d DATE, CHECK (s > 'a'::STRING AND d > '2000-01-01'::DATE AND id > 5));", "CREATE TABLE t (id INT8 PRIMARY KEY, s STRING, d DATE, CHECK (s > 'a' AND d > '2000-01-01' AND id > 5));"},
 		"collated default":      {"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING COLLATE en DEFAULT ('x' COLLATE en));", "CREATE TABLE t (id INT8 PRIMARY KEY, a STRING COLLATE en DEFAULT 'x');"},
 		"stored annotation":     {"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5:::DECIMAL);", "CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5);"},
-		"annotated body":        {"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1:::INT8 + 2:::DECIMAL(10,2)::INT8 $$;", "CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 + 2::INT8 $$;"},
+		"annotated body":        {"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1:::INT8 + 2:::INT8::INT8, 'x':::STRING, ARRAY[1:::INT8, 2:::INT8]:::INT8[] $$;", "CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 + 2::INT8, 'x', ARRAY[1, 2] $$;"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			plan, err := catalog.BuildSDLMigrationPlan(pair[0], pair[1], catalog.SDLMigrationOptions{})
@@ -268,6 +272,10 @@ func TestSDLViewColumns(t *testing.T) {
 		"star": {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8, h INT8 NOT VISIBLE); CREATE VIEW v (id, a) AS SELECT * FROM t;",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8, h INT8 NOT VISIBLE); CREATE VIEW v AS SELECT * FROM t;",
+		},
+		"star alias": {
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); CREATE VIEW v (renamed, a) AS SELECT * FROM t AS x (renamed);",
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); CREATE VIEW v AS SELECT * FROM t AS x (renamed);",
 		},
 		"cast constant": {"CREATE VIEW v (x) AS SELECT 'x'::STRING;", "CREATE VIEW v AS SELECT 'x'::STRING;"},
 	} {

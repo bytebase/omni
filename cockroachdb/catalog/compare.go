@@ -365,23 +365,76 @@ func withoutAnnotations(sql string) string {
 		return sql
 	}
 	var b strings.Builder
+	// arrays holds, for each open bracket, the one type its elements were
+	// annotated with ("" for none yet, "?" for several or a kept one), and
+	// closed is the last closed bracket's.
+	var arrays []string
+	closed := "?"
 	for i := 0; i < len(tokens); i++ {
-		if tokens[i].TokenID == annotateToken {
-			// Skip the type's name, its modifiers and its array brackets.
-			i++
-			if i+1 < len(tokens) && tokens[i+1].Str == "(" {
-				for i+1 < len(tokens) && tokens[i].Str != ")" {
-					i++
+		t := tokens[i]
+		switch t.TokenID {
+		case tokenID("["):
+			arrays = append(arrays, "")
+		case tokenID("]"):
+			if len(arrays) > 0 {
+				closed = arrays[len(arrays)-1]
+				arrays = arrays[:len(arrays)-1]
+			}
+		case annotateToken:
+			if i == 0 || i+1 >= len(tokens) {
+				break
+			}
+			typ := strings.ToLower(tokens[i+1].Str)
+			next := func(k int) int32 {
+				if i+k < len(tokens) {
+					return tokens[i+k].TokenID
 				}
+				return 0
 			}
-			for i+2 < len(tokens) && tokens[i+1].Str == "[" && tokens[i+2].Str == "]" {
-				i += 2
+			// A literal's own type, the one CockroachDB annotates it with
+			// in a stored body, is no part of it; another type chooses an
+			// overload ('é':::BYTES) and stays.
+			if defaultAnnotation(tokens[i-1].TokenID) == typ && next(2) != tokenID("(") && next(2) != tokenID("[") {
+				if len(arrays) > 0 {
+					if top := arrays[len(arrays)-1]; top == "" || top == typ {
+						arrays[len(arrays)-1] = typ
+					} else {
+						arrays[len(arrays)-1] = "?"
+					}
+				}
+				i++
+				continue
 			}
-			continue
+			// So is an array literal's, ARRAY[1:::INT8, 2:::INT8]:::INT8[].
+			if tokens[i-1].TokenID == tokenID("]") && closed != "" && closed != "?" && closed == typ &&
+				next(2) == tokenID("[") && next(3) == tokenID("]") && next(4) != tokenID("[") {
+				i += 3
+				continue
+			}
+			if len(arrays) > 0 {
+				arrays[len(arrays)-1] = "?"
+			}
 		}
-		fmt.Fprintf(&b, "%d:%s\x00", tokens[i].TokenID, tokens[i].Str)
+		fmt.Fprintf(&b, "%d:%s\x00", t.TokenID, t.Str)
 	}
 	return b.String()
+}
+
+// defaultAnnotation is the type a literal token takes on its own: STRING for
+// a string, INT8 for an integer, DECIMAL for a number with a fraction, BOOL
+// for TRUE and FALSE.
+func defaultAnnotation(literal int32) string {
+	switch literal {
+	case tokenID("'x'"):
+		return "string"
+	case tokenID("1"):
+		return "int8"
+	case tokenID("1.5"):
+		return "decimal"
+	case tokenID("true"), tokenID("false"):
+		return "bool"
+	}
+	return ""
 }
 
 // annotateToken is the lexer's token for :::.

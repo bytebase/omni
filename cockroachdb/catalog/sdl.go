@@ -151,6 +151,12 @@ func (l *sdlLoader) starNames(query *tree.Select) []string {
 	if len(relation) == 0 {
 		return nil
 	}
+	// FROM t AS x(a, b) renames the relation's first columns.
+	for i, alias := range aliased.As.Cols {
+		if i < len(relation) {
+			relation[i] = string(alias.Name)
+		}
+	}
 	var names []string
 	for _, expr := range sel.Exprs {
 		if star(expr.Expr) && expr.As == "" {
