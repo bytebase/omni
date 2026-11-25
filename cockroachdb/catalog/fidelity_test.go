@@ -43,7 +43,6 @@ func fidelityCases() []fidelityCase {
 			name: "columns-keys-indexes",
 			sql: `CREATE SCHEMA fid_cols;
 COMMENT ON SCHEMA fid_cols IS 'columns';
-COMMENT ON SCHEMA fid_cols IS 'columns';
 CREATE TYPE fid_cols.mood AS ENUM ('happy', 'sad', 'it''s complicated');
 COMMENT ON TYPE fid_cols.mood IS 'how it feels';
 CREATE TYPE fid_cols.address AS (street STRING, city VARCHAR(50), zip INT8);

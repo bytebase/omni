@@ -7,8 +7,6 @@
 > exec
 | COMMENT ON SCHEMA fid_cols IS 'columns';
 < ok 0 -
-> exec ^
-< ok 0 -
 > exec
 | CREATE TYPE fid_cols.mood AS ENUM ('happy', 'sad', 'it''s complicated');
 < ok 0 -
