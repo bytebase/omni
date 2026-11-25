@@ -83,32 +83,6 @@ func (p *Parser) parseQuery() (*ast.QueryStmt, error) {
 		q.With = with
 	}
 
-	// BigQuery FROM-first pipe query: `[WITH ...] FROM <from_clause> [|> ...]`.
-	// Unlike SELECT-led queries, a FROM-first query cannot take trailing SQL
-	// set-ops, ORDER BY, or LIMIT directly (those must be pipe operators).
-	if !p.isSpanner() && p.cur.Type == kwFROM {
-		fromStart := p.cur.Loc.Start
-		prevFromFirst := p.inFromFirstQuery
-		p.inFromFirstQuery = true
-		from, err := p.parseFromClause()
-		p.inFromFirstQuery = prevFromFirst
-		if err != nil {
-			return nil, err
-		}
-		body := &ast.SelectStmt{From: from, Loc: ast.Loc{Start: fromStart, End: p.prev.Loc.End}}
-		q.Body = body
-		q.Loc.End = body.Loc.End
-		if p.cur.Type == tokPipe {
-			pipe, err := p.parseSubpipelineNoParens()
-			if err != nil {
-				return nil, err
-			}
-			q.Pipe = pipe
-			q.Loc.End = pipe.Loc.End
-		}
-		return q, nil
-	}
-
 	// Entering a non-FROM-first query (e.g. a subquery inside a FROM-first
 	// query): clear inFromFirstQuery for the nested query body.
 	prevFromFirst := p.inFromFirstQuery
@@ -141,12 +115,6 @@ func (p *Parser) parseQuery() (*ast.QueryStmt, error) {
 	}
 	// FOR UPDATE (Spanner row-locking; disabled in BigQuery).
 	if p.cur.Type == kwFOR && p.peekNext().Type == kwUPDATE {
-		if p.isBigQuery() {
-			return nil, &ParseError{
-				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: "syntax error: FOR UPDATE is not supported",
-			}
-		}
 		p.advance()           // FOR
 		updTok := p.advance() // UPDATE
 		q.ForUpdate = true
@@ -238,15 +206,9 @@ func (p *Parser) parseQueryPrimary() (ast.Node, error) {
 		inner.Loc = ast.Loc{Start: openTok.Loc.Start, End: closeTok.Loc.End}
 		// Optional `AS alias` (consumed, not retained — see doc comment).
 		if p.cur.Type == kwAS {
-			if p.isSpanner() {
-				return nil, &ParseError{
-					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-					Message: "syntax error: alias not allowed on parenthesized outer query",
-				}
-			}
-			p.advance()
-			if _, err := p.expectIdentifier(); err != nil {
-				return nil, err
+			return nil, &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "syntax error: alias not allowed on parenthesized outer query",
 			}
 		}
 		return inner, nil
@@ -317,18 +279,10 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	if p.cur.Type == kwQUALIFY {
 		// QUALIFY: valid BigQuery, parses in the union grammar; Spanner
 		// rejects QUALIFY as unsupported.
-		if p.isSpanner() {
-			return nil, &ParseError{
-				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: "syntax error: QUALIFY is not supported",
-			}
+		return nil, &ParseError{
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "syntax error: QUALIFY is not supported",
 		}
-		p.advance()
-		qualify, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Qualify = qualify
 	}
 	if p.cur.Type == kwWINDOW {
 		wins, err := p.parseWindowClause()
@@ -601,7 +555,7 @@ func isHigherPrecThanAnd(expr ast.Node) bool {
 // clause's keyword included — makes the word the alias.
 // BigQuery reserves QUALIFY, so this is disabled in DialectBigQuery.
 func (p *Parser) atClauseWordImplicitAlias() bool {
-	if p.isBigQuery() || p.cur.Type != kwQUALIFY {
+	if p.cur.Type != kwQUALIFY {
 		return false
 	}
 	switch p.peekNext().Type {

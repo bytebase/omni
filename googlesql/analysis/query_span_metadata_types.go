@@ -12,9 +12,6 @@ import (
 // extractors differed on; testdata/query-span and the dialect tests beside this
 // file pin them.
 type ResolveOptions struct {
-	// Dialect selects the GoogleSQL dialect (system schemas, name-part
-	// bucketing, default join type) for the structural walk.
-	Dialect Dialect
 
 	// DefaultDatabase is the database/dataset a reference without one resolves
 	// against, and the database the metadata lookup falls back to.

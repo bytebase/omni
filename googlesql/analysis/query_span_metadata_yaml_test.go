@@ -54,19 +54,9 @@ type spanCorpusColumn struct {
 	Column   string `yaml:"column"`
 }
 
-// bigqueryResolveOptions and spannerResolveOptions mirror the per-dialect flags
-// Bytebase's two engine packages register.
-func bigqueryResolveOptions() ResolveOptions {
-	return ResolveOptions{
-		Dialect:                DialectBigQuery,
-		SetStatementIsSelect:   true,
-		UppercaseStarMergeName: true,
-	}
-}
-
+// spannerResolveOptions mirrors the flags Bytebase's Spanner engine registers.
 func spannerResolveOptions() ResolveOptions {
 	return ResolveOptions{
-		Dialect:                DialectSpanner,
 		IgnoreWrittenDatabase:  true,
 		SchemaScopedMetadata:   true,
 		SystemOnlyEmptySpan:    true,
@@ -149,12 +139,6 @@ func runSpanCorpus(t *testing.T, path string, opts ResolveOptions) int {
 		})
 	}
 	return len(cases)
-}
-
-// TestQuerySpanCorpusBigQuery replays the BigQuery corpus.
-func TestQuerySpanCorpusBigQuery(t *testing.T) {
-	n := runSpanCorpus(t, "testdata/query-span/bigquery.yaml", bigqueryResolveOptions())
-	t.Logf("replayed %d BigQuery corpus cases", n)
 }
 
 // TestQuerySpanCorpusSpanner replays the Spanner corpus.

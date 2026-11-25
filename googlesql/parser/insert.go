@@ -178,15 +178,7 @@ func (p *Parser) parseInsertOrAction(pipe bool) string {
 		p.advance()
 		return "IGNORE"
 	case kwREPLACE:
-		if !pipe && !p.isBigQuery() && !p.isSpanner() {
-			p.advance()
-			return "REPLACE"
-		}
 	case kwUPDATE:
-		if !pipe && !p.isBigQuery() && !p.isSpanner() {
-			p.advance()
-			return "UPDATE"
-		}
 	}
 	return ""
 }

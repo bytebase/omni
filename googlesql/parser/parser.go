@@ -36,26 +36,6 @@ import (
 	"sort"
 )
 
-// Dialect selects dialect-specific syntax rules within GoogleSQL.
-type Dialect int
-
-const (
-	// DialectDefault is the union GoogleSQL mode used by Parse and
-	// ParseBestEffort (compatible with Cloud Spanner and shared GoogleSQL).
-	DialectDefault Dialect = iota
-	// DialectBigQuery applies BigQuery-specific syntax rules: enables
-	// FROM-first queries, BigQuery ML/external/connection/privilege DDL,
-	// untyped CREATE TABLE columns, and BigQuery reserved keywords, while
-	// rejecting Spanner-only and disabled-in-BigQuery forms.
-	DialectBigQuery
-	// DialectSpanner applies Cloud Spanner GoogleSQL dialect rules:
-	// rejects BigQuery-only procedural scripting statements, QUALIFY,
-	// IS [NOT] DISTINCT FROM, parenthesized outer query aliases, and
-	// BigQuery-only DDL statements/clauses while preserving all Spanner DDL
-	// and shared GoogleSQL syntax.
-	DialectSpanner
-)
-
 // Parser is a recursive-descent parser for GoogleSQL. It operates on a single
 // segment of input (one top-level statement produced by Split) at a time;
 // callers should use Parse or ParseBestEffort instead of constructing Parsers
@@ -69,7 +49,6 @@ type Parser struct {
 	nextBuf    Token        // buffered lookahead token
 	hasNext    bool         // whether nextBuf is valid
 	errors     []ParseError // collected errors for best-effort mode
-	dialect    Dialect      // dialect-specific syntax rules
 
 	// stopAtDotStar tells parsePostfix to leave a trailing `.*` unconsumed so
 	// parseSelectItem can turn an arbitrary expression_higher_prec_than_and
@@ -117,14 +96,6 @@ type Parser struct {
 	// sits. reparseSubquery starts its nested parser at that depth, so the
 	// nesting limit counts the levels around the body too.
 	textSubqueryDepth map[ast.Loc]int
-}
-
-func (p *Parser) isBigQuery() bool {
-	return p.dialect == DialectBigQuery
-}
-
-func (p *Parser) isSpanner() bool {
-	return p.dialect == DialectSpanner
 }
 
 // parserCheckpoint is the parser and lexer position a speculative parse
@@ -514,13 +485,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		return p.parseStmtWithSubqueries(p.parseUndropStmt)
 	case kwTRUNCATE:
 		// TRUNCATE TABLE (a BigQuery DML statement; the .g4 groups it under DDL).
-		if p.isSpanner() {
-			return nil, &ParseError{
-				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: "syntax error: TRUNCATE is not supported in Spanner",
-			}
+		return nil, &ParseError{
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "syntax error: TRUNCATE is not supported in Spanner",
 		}
-		return p.parseStmtWithSubqueries(p.parseTruncateStmt)
 	case kwDEFINE:
 		// DEFINE TABLE (DEFINE MACRO remains unsupported).
 		return p.parseDefineStmt()
@@ -551,10 +519,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if isTCLBeginFollower(p.peekNext()) {
 			return p.parseBeginStmt()
 		}
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseBeginEndBlock()
+		return nil, p.syntaxErrorAtCur()
 	case kwSTART:
 		// START TRANSACTION (begin_statement) | START BATCH (start_batch_statement).
 		return p.parseStartStmt()
@@ -642,60 +607,27 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// omni accepts them on the authority of the legacy .g4 + the BigQuery truth1
 	// corpus so a script fragment parses rather than drawing a false syntax error.
 	case kwIF:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseIfStmt()
+		return nil, p.syntaxErrorAtCur()
 	case kwCASE:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseCaseStmt()
+		return nil, p.syntaxErrorAtCur()
 	case kwWHILE:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseWhileStmt()
+		return nil, p.syntaxErrorAtCur()
 	case kwLOOP:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseLoopStmt()
+		return nil, p.syntaxErrorAtCur()
 	case kwREPEAT:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseRepeatStmt()
+		return nil, p.syntaxErrorAtCur()
 	case kwFOR:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseForInStmt()
+		return nil, p.syntaxErrorAtCur()
 	case kwDECLARE:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseDeclareStmt()
+		return nil, p.syntaxErrorAtCur()
 	case kwBREAK, kwLEAVE:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseBreakStmt()
+		return nil, p.syntaxErrorAtCur()
 	case kwCONTINUE, kwITERATE:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseContinueStmt()
+		return nil, p.syntaxErrorAtCur()
 	case kwRETURN:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseReturnStmt()
+		return nil, p.syntaxErrorAtCur()
 	case kwRAISE:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseRaiseStmt()
+		return nil, p.syntaxErrorAtCur()
 
 	default:
 		return nil, p.unknownStatementError()
@@ -853,7 +785,6 @@ func (p *Parser) reparseSubquery(raw string, textStart, depth int) ast.Node {
 		lexer:      NewLexerWithOffset(raw, base),
 		input:      raw,
 		baseOffset: base,
-		dialect:    p.dialect,
 		depth:      depth,
 	}
 	sub.advance()
@@ -920,13 +851,7 @@ type ParseResult struct {
 // segment whose statement parsed but left tokens behind is a syntax error at
 // the first leftover token and contributes no node.
 func Parse(input string) (*ast.File, error) {
-	return ParseWithDialect(input, DialectDefault)
-}
-
-// ParseWithDialect is the strict entry point configured with a specific
-// GoogleSQL dialect (e.g. DialectBigQuery).
-func ParseWithDialect(input string, dialect Dialect) (*ast.File, error) {
-	result := parseAll(input, true, dialect)
+	result := parseAll(input, true)
 	if len(result.Errors) == 0 {
 		return result.File, nil
 	}
@@ -940,13 +865,7 @@ func ParseWithDialect(input string, dialect Dialect) (*ast.File, error) {
 // type classification, and query span extraction all read Parse. Do not add
 // the strict trailing-token check here.
 func ParseBestEffort(input string) *ParseResult {
-	return ParseBestEffortWithDialect(input, DialectDefault)
-}
-
-// ParseBestEffortWithDialect is the tolerant entry point configured with a
-// specific GoogleSQL dialect.
-func ParseBestEffortWithDialect(input string, dialect Dialect) *ParseResult {
-	return parseAll(input, false, dialect)
+	return parseAll(input, false)
 }
 
 // parseAll is the shared implementation behind Parse and ParseBestEffort:
@@ -967,7 +886,7 @@ func ParseBestEffortWithDialect(input string, dialect Dialect) *ParseResult {
 // (c) whether the loop skipped the containing chunk as empty (an unterminated
 // block comment lexes to EOF, so its segment holds no statement — yet the lex
 // error must still surface). The result is in source order.
-func parseAll(input string, strictTrailing bool, dialect Dialect) *ParseResult {
+func parseAll(input string, strictTrailing bool) *ParseResult {
 	file := &ast.File{Loc: ast.Loc{Start: 0, End: len(input)}}
 	result := &ParseResult{File: file}
 
@@ -977,7 +896,7 @@ func parseAll(input string, strictTrailing bool, dialect Dialect) *ParseResult {
 			// A lone ';' or a comment holds no statement to parse.
 			continue
 		}
-		node, errs := parseSingleWithDialect(seg.Text, seg.ByteStart, strictTrailing, dialect)
+		node, errs := parseSingle(seg.Text, seg.ByteStart, strictTrailing)
 		if node != nil && strictTrailing && hasLexErrorIn(lexErrs, seg.ByteStart, seg.ByteEnd) {
 			// The segment lexed with an error (an unterminated comment after
 			// a complete statement, say), which the whole-input pass reports
@@ -1046,15 +965,10 @@ func collectLexErrors(input string) []ParseError {
 // strictTrailing selects whether a statement that parsed without consuming the
 // whole segment is rejected (node dropped) or kept as the parsed prefix.
 func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node, []ParseError) {
-	return parseSingleWithDialect(segText, baseOffset, strictTrailing, DialectDefault)
-}
-
-func parseSingleWithDialect(segText string, baseOffset int, strictTrailing bool, dialect Dialect) (ast.Node, []ParseError) {
 	p := &Parser{
 		lexer:          NewLexerWithOffset(segText, baseOffset),
 		input:          segText,
 		baseOffset:     baseOffset,
-		dialect:        dialect,
 		strictTrailing: strictTrailing,
 	}
 	p.advance() // prime cur with the first token

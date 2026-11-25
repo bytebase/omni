@@ -56,26 +56,25 @@ func parseFirstStmt(t *testing.T, sql string) ast.Node {
 // mean the classification assertion rests on invalid syntax.
 var classifyCorpus = []struct {
 	sql        string
-	dialect    Dialect
 	wantType   QueryType
 	isReadOnly bool
 }{
 	// --- read-only queries ---
-	{"SELECT a FROM t", DialectSpanner, Select, true},
-	{"SELECT * FROM t1 JOIN t2 ON t1.id = t2.id", DialectSpanner, Select, true},
-	{"WITH c AS (SELECT a FROM t) SELECT a FROM c", DialectSpanner, Select, true},
-	{"SELECT a FROM t WHERE b IN (SELECT b FROM t2)", DialectSpanner, Select, true},
-	{"SELECT a FROM t UNION ALL SELECT a2 FROM t2", DialectSpanner, Select, true},
-	{"SELECT * FROM INFORMATION_SCHEMA.TABLES", DialectSpanner, SelectInfoSchema, true},
-	{"SELECT * FROM SPANNER_SYS.QUERY_STATS_TOP_MINUTE", DialectSpanner, SelectInfoSchema, true},
+	{"SELECT a FROM t", Select, true},
+	{"SELECT * FROM t1 JOIN t2 ON t1.id = t2.id", Select, true},
+	{"WITH c AS (SELECT a FROM t) SELECT a FROM c", Select, true},
+	{"SELECT a FROM t WHERE b IN (SELECT b FROM t2)", Select, true},
+	{"SELECT a FROM t UNION ALL SELECT a2 FROM t2", Select, true},
+	{"SELECT * FROM INFORMATION_SCHEMA.TABLES", SelectInfoSchema, true},
+	{"SELECT * FROM SPANNER_SYS.QUERY_STATS_TOP_MINUTE", SelectInfoSchema, true},
 	// --- data-changing (DML) ---
-	{"INSERT INTO t (a) VALUES (1)", DialectSpanner, DML, false},
-	{"DELETE FROM t WHERE a = 1", DialectSpanner, DML, false},
-	{"UPDATE t SET a = 2 WHERE a = 1", DialectSpanner, DML, false},
+	{"INSERT INTO t (a) VALUES (1)", DML, false},
+	{"DELETE FROM t WHERE a = 1", DML, false},
+	{"UPDATE t SET a = 2 WHERE a = 1", DML, false},
 	// --- schema-changing (DDL) ---
-	{"CREATE TABLE t3 (a INT64) PRIMARY KEY (a)", DialectSpanner, DDL, false},
-	{"DROP TABLE t3", DialectSpanner, DDL, false},
-	{"ALTER TABLE t ADD COLUMN c INT64", DialectSpanner, DDL, false},
+	{"CREATE TABLE t3 (a INT64) PRIMARY KEY (a)", DDL, false},
+	{"DROP TABLE t3", DDL, false},
+	{"ALTER TABLE t ADD COLUMN c INT64", DDL, false},
 }
 
 // TestAnalysisDifferential confirms each corpus statement's grammar verdict
@@ -104,7 +103,7 @@ func TestAnalysisDifferential(t *testing.T) {
 
 			// Cross-check: the classifier puts the statement on the correct side of
 			// the read-only line, and reports the expected type.
-			gotType := Classify(parseFirstStmt(t, tc.sql), tc.dialect)
+			gotType := Classify(parseFirstStmt(t, tc.sql))
 			if gotType != tc.wantType {
 				t.Errorf("Classify(%q) = %v, want %v", tc.sql, gotType, tc.wantType)
 			}

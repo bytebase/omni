@@ -138,7 +138,7 @@ func (p *Parser) tryParseJoinSuffix(cur ast.Node, open *[]*ast.JoinExpr) (ast.No
 			*open = (*open)[:top]
 			target.Right = cur
 		} else {
-			if p.isBigQuery() || p.inFromFirstQuery {
+			if p.inFromFirstQuery {
 				break
 			}
 			j, ok := cur.(*ast.JoinExpr)
@@ -316,16 +316,6 @@ func (p *Parser) parseTablePrimary() (ast.Node, error) {
 			}
 			continue
 		}
-		if !p.isSpanner() && p.cur.Type == kwMATCH_RECOGNIZE {
-			mr, merr := p.parseMatchRecognizeClause()
-			if merr != nil {
-				return nil, merr
-			}
-			if !attachMatchRecognize(src, mr) {
-				return nil, p.syntaxErrorAtCur()
-			}
-			continue
-		}
 		break
 	}
 	return src, nil
@@ -494,36 +484,6 @@ func attachSample(src ast.Node, sc *ast.SampleClause) bool {
 	return true
 }
 
-// attachMatchRecognize stores a parsed MATCH_RECOGNIZE clause on a table
-// source (TableExpr, UnnestExpr, or parenthesized JoinExpr), updating its end
-// Loc. Returns false if the source shape is unsupported or already carries a
-// MATCH_RECOGNIZE clause so the caller never silently drops it.
-func attachMatchRecognize(src ast.Node, mr *ast.MatchRecognizeClause) bool {
-	switch s := src.(type) {
-	case *ast.TableExpr:
-		if s.MatchRecognize != nil {
-			return false
-		}
-		s.MatchRecognize = mr
-		s.Loc.End = mr.Loc.End
-	case *ast.UnnestExpr:
-		if s.MatchRecognize != nil {
-			return false
-		}
-		s.MatchRecognize = mr
-		s.Loc.End = mr.Loc.End
-	case *ast.JoinExpr:
-		if s.MatchRecognize != nil {
-			return false
-		}
-		s.MatchRecognize = mr
-		s.Loc.End = mr.Loc.End
-	default:
-		return false
-	}
-	return true
-}
-
 // parseParenTableSource parses a parenthesized table source: either a
 // parenthesized join `( join )` or a parenthesized subquery `( query )`
 // (table_subquery). The current token is '('. The disambiguator is atQueryStart:
@@ -573,7 +533,7 @@ func (p *Parser) parseParenTableSource() (ast.Node, error) {
 	// table_primary: '(' join ')' requires an actual JOIN inside the parens
 	// in BigQuery and BigQuery FROM-first queries (`FROM (a a)` without a JOIN
 	// is a syntax error in both BigQuery and Spanner).
-	if p.isBigQuery() || p.inFromFirstQuery {
+	if p.inFromFirstQuery {
 		if _, ok := inner.(*ast.JoinExpr); !ok {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -787,7 +747,7 @@ func (p *Parser) parseTableSuffixes(te *ast.TableExpr) error {
 	// FOR SYSTEM_TIME AS OF expr (opt_at_system_time). In GoogleSQL's grammar
 	// (`table_path_expression`), `as_alias` precedes `at_system_time`; BigQuery
 	// and union mode reject a table alias after `FOR SYSTEM_TIME AS OF ...`.
-	if p.isSpanner() && p.atForSystemTime() {
+	if p.atForSystemTime() {
 		if err := p.parseForSystemTime(te); err != nil {
 			return err
 		}
@@ -900,7 +860,7 @@ func (p *Parser) tryParseTableAlias() (string, bool, error) {
 	// clause can follow (EOF, ';', ')', ',', or a following clause/join
 	// keyword), while `FROM t QUALIFY <expr>` keeps the QUALIFY clause reading.
 	// BigQuery reserves QUALIFY, so DialectBigQuery disables bare QUALIFY aliases.
-	isBareQualifyAlias := p.cur.Type == kwQUALIFY && (p.isSpanner() || (!p.isBigQuery() && !p.inFromFirstQuery && p.atTableQualifyImplicitAlias()))
+	isBareQualifyAlias := p.cur.Type == kwQUALIFY
 	if ((isIdentifierStart(p.cur.Type) && !isExtraReservedIdent(p.cur)) || isBareQualifyAlias) && !p.atTableAliasStop() {
 		aliasTok := p.advance()
 		alias, err := p.identifierText(aliasTok)
@@ -910,38 +870,6 @@ func (p *Parser) tryParseTableAlias() (string, bool, error) {
 		return alias, true, nil
 	}
 	return "", false, nil
-}
-
-// atTableQualifyImplicitAlias reports whether a bare QUALIFY following a table
-// source is an implicit table alias because the next token cannot begin a
-// QUALIFY <expr> clause. Only delimiters and reserved clause/join keywords that
-// can never start an expression qualify; non-reserved words (PIVOT, UNPIVOT,
-// QUALIFY, MATCH_RECOGNIZE) and expression-starting keywords (such as WITH in
-// `WITH(x AS 1, x > 0)`) are intentionally excluded so `FROM t QUALIFY <expr>`
-// keeps its QUALIFY clause reading. LEFT and RIGHT can start either a join or
-// the LEFT(...)/RIGHT(...) string functions, so they qualify only when followed
-// by a join modifier/keyword (JOIN, OUTER, HASH, LOOKUP).
-func (p *Parser) atTableQualifyImplicitAlias() bool {
-	next := p.peekNext()
-	switch next.Type {
-	case tokEOF, int(';'), int(')'), int(','), tokPipe,
-		kwWHERE, kwGROUP, kwHAVING, kwWINDOW,
-		kwORDER, kwLIMIT, kwUNION, kwINTERSECT, kwEXCEPT, kwFOR,
-		kwJOIN, kwINNER, kwFULL, kwCROSS, kwNATURAL,
-		kwON, kwUSING, kwTABLESAMPLE:
-		return true
-	case kwLEFT, kwRIGHT:
-		endIdx := absIndex(p, next.Loc.End)
-		if endIdx < 0 || endIdx > len(p.input) {
-			return false
-		}
-		after := NewLexerWithOffset(p.input[endIdx:], 0).NextToken()
-		switch after.Type {
-		case kwJOIN, kwOUTER, kwHASH, kwLOOKUP:
-			return true
-		}
-	}
-	return false
 }
 
 // atTableAliasStop reports whether the current (identifier-start) token must NOT

@@ -38,7 +38,7 @@ jobs:
         run: |
           go generate ./pg/ast/... ./redshift/ast/... ./mysql/ast/... ./mariadb/ast/... \
             ./tidb/ast/... ./oceanbase/ast/... ./mssql/ast/... ./oracle/ast/... \
-            ./snowflake/ast/... ./googlesql/ast/...
+            ./snowflake/ast/... ./googlesql/ast/... ./bigquery/ast/...
           git add -A && git diff --cached --exit-code
 
       - name: Proto is formatted, lint-clean, generated and non-breaking

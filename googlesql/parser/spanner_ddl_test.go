@@ -471,40 +471,6 @@ func TestRevoke_RoleFromRole(t *testing.T) {
 	}
 }
 
-// Regression: the legacy ZetaSQL string-grantee GRANT must STILL parse (the
-// union parser serves both dialects). This guards the parser-dcl behavior.
-func TestGrant_LegacyStringGranteeStillWorks(t *testing.T) {
-	n := parseDDL(t, "GRANT SELECT ON TABLE foo TO 'user@google.com'")
-	g := n.(*ast.GrantStmt)
-	if len(g.Grantees) != 1 || g.Grantees[0].Kind != ast.GranteeString || g.Grantees[0].Value != "user@google.com" {
-		t.Errorf("Grantees = %+v, want [STRING user@google.com]", g.Grantees)
-	}
-}
-
-// TestGrant_PrivilegeNamedRole guards the role-grant disambiguation: `GRANT ROLE
-// ON …` is a LEGACY privilege grant whose privilege is named "ROLE"
-// (privilege_name: identifier), NOT a Spanner role-to-role grant. The union must
-// accept it (the emulator rejects it as a Spanner form — non-authoritative there).
-// Discovered by the cross-model (Codex) review.
-func TestGrant_PrivilegeNamedRole(t *testing.T) {
-	n := parseDDL(t, "GRANT ROLE ON TABLE foo TO 'x'")
-	g := n.(*ast.GrantStmt)
-	if len(g.Roles) != 0 {
-		t.Errorf("Roles = %v, want empty (this is a privilege grant, not role-to-role)", g.Roles)
-	}
-	if len(g.Privileges) != 1 || g.Privileges[0].Name != "ROLE" {
-		t.Errorf("Privileges = %+v, want [ROLE]", g.Privileges)
-	}
-	if len(g.ObjectType) != 1 || g.ObjectType[0] != "TABLE" {
-		t.Errorf("ObjectType = %v, want [TABLE]", g.ObjectType)
-	}
-	// `GRANT ROLE, SELECT ON …` (ROLE as the first privilege in a list).
-	g2 := parseDDL(t, "GRANT ROLE, SELECT ON TABLE foo TO 'x'").(*ast.GrantStmt)
-	if len(g2.Privileges) != 2 || g2.Privileges[0].Name != "ROLE" {
-		t.Errorf("Privileges = %+v, want [ROLE SELECT]", g2.Privileges)
-	}
-}
-
 // TestGrant_CommaSeparatedObjects guards the Spanner comma-separated object list
 // (`ON TABLE t1, t2 TO ROLE r`). Discovered by the cross-model (Codex) review.
 func TestGrant_CommaSeparatedObjects(t *testing.T) {
@@ -530,22 +496,6 @@ func TestGrant_CommaSeparatedObjects(t *testing.T) {
 	g3 := parseDDL(t, "GRANT SELECT ON VIEW v1, v2 TO ROLE r").(*ast.GrantStmt)
 	if len(g3.ObjectType) != 1 || g3.ObjectType[0] != "VIEW" || len(g3.Paths) != 2 {
 		t.Errorf("ObjectType=%v Paths=%v, want [VIEW] + 2 paths", g3.ObjectType, g3.Paths)
-	}
-}
-
-// TestGrant_CommaObjectsRequireType guards that a comma-separated object list is
-// the Spanner form, which REQUIRES a leading object-type keyword: `ON foo, bar`
-// (no type) is invalid in BOTH dialects (Spanner needs target_type; legacy has no
-// multi-object). A single object with no type stays valid (legacy). Surfaced while
-// verifying the Codex comma-object finding against the oracle.
-func TestGrant_CommaObjectsRequireType(t *testing.T) {
-	// No type + comma list rejects.
-	assertReject(t, "GRANT SELECT ON foo, bar TO ROLE r")
-	assertReject(t, "REVOKE SELECT ON foo, bar FROM ROLE r")
-	// Single object with no type still parses (legacy form).
-	g := parseDDL(t, "GRANT SELECT ON foo TO 'x'").(*ast.GrantStmt)
-	if len(g.ObjectType) != 0 || len(g.Paths) != 1 || g.Paths[0].String() != "foo" {
-		t.Errorf("ObjectType=%v Paths=%v, want no type + [foo]", g.ObjectType, g.Paths)
 	}
 }
 

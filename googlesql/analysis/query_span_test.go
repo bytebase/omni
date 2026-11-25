@@ -69,46 +69,24 @@ func TestGetQuerySpan_AccessTables(t *testing.T) {
 	tests := []struct {
 		name       string
 		sql        string
-		dialect    Dialect
 		wantTables []string
 	}{
-		{"single table", "SELECT a FROM t", DialectBigQuery, []string{"t"}},
-		{"qualified table bq", "SELECT a FROM ds.t", DialectBigQuery, []string{"ds.t"}},
-		{"three-part bq", "SELECT a FROM proj.ds.t", DialectBigQuery, []string{"proj.ds.t"}},
-		{"join", "SELECT * FROM a JOIN b ON a.x = b.x", DialectBigQuery, []string{"a", "b"}},
-		{"comma join", "SELECT * FROM a, b", DialectBigQuery, []string{"a", "b"}},
-		{"chained join", "SELECT * FROM a JOIN b ON a.x=b.x JOIN c ON b.y=c.y", DialectBigQuery, []string{"a", "b", "c"}},
-		{"aliased table excluded-from-name", "SELECT * FROM t AS x", DialectBigQuery, []string{"t"}},
-		{"subquery in from", "SELECT * FROM (SELECT a FROM inner_t) AS s", DialectBigQuery, []string{"inner_t"}},
-		{"scalar subquery", "SELECT (SELECT MAX(x) FROM u) AS m FROM t", DialectBigQuery, []string{"t", "u"}},
-		{"exists subquery", "SELECT * FROM t WHERE EXISTS (SELECT 1 FROM u WHERE u.id = t.id)", DialectBigQuery, []string{"t", "u"}},
-		{"in subquery", "SELECT * FROM t WHERE id IN (SELECT id FROM u)", DialectBigQuery, []string{"t", "u"}},
 		// Quantified comparison subquery RHS (`= ANY (SELECT ...)`): its table must
 		// be followed, exactly like an IN/EXISTS subquery (regression for the
 		// CompareExpr Quant* walker path).
-		{"quantified-comparison subquery", "SELECT * FROM t WHERE x = ANY (SELECT id FROM u)", DialectBigQuery, []string{"t", "u"}},
-		{"quantified-comparison all subquery", "SELECT * FROM t WHERE x > ALL (SELECT id FROM u)", DialectSpanner, []string{"t", "u"}},
-		{"set op", "SELECT a FROM t UNION ALL SELECT a FROM u", DialectBigQuery, []string{"t", "u"}},
+		{"quantified-comparison all subquery", "SELECT * FROM t WHERE x > ALL (SELECT id FROM u)", []string{"t", "u"}},
 		// The `TABLE t` query primary (table_clause_reserved) names its table, and a
 		// set operation over TABLE primaries names every arm's.
-		{"table clause", "TABLE t", DialectBigQuery, []string{"t"}},
-		{"table clause qualified", "TABLE ds.t", DialectBigQuery, []string{"ds.t"}},
-		{"table clause set op", "TABLE a UNION ALL TABLE b", DialectBigQuery, []string{"a", "b"}},
 		// A TABLE primary inside a parenthesized query or a FROM subquery.
-		{"parenthesized table clause", "SELECT * FROM (TABLE t)", DialectBigQuery, []string{"t"}},
-		{"table clause in an expression subquery", "SELECT (TABLE t)", DialectBigQuery, []string{"t"}},
 		// EXPORT TABLE METADATA reads the metadata of the table it names.
-		{"export table metadata", "EXPORT TABLE METADATA FROM ds.t", DialectBigQuery, []string{"ds.t"}},
 		// An OPTIONS value's subquery is filled, so the table it reads is recorded.
-		{"export table metadata options subquery", "EXPORT TABLE METADATA FROM ds.t OPTIONS(x = (SELECT 1 FROM secret))", DialectBigQuery, []string{"ds.t", "secret"}},
-		{"dedup same table", "SELECT * FROM t WHERE a IN (SELECT a FROM t)", DialectBigQuery, []string{"t"}},
 		// Spanner schema.table bucketing (named schema under one DB).
-		{"qualified table spanner", "SELECT a FROM myschema.t", DialectSpanner, []string{"myschema.t"}},
+		{"qualified table spanner", "SELECT a FROM myschema.t", []string{"myschema.t"}},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			span, err := GetQuerySpan(tc.sql, tc.dialect)
+			span, err := GetQuerySpan(tc.sql)
 			if err != nil {
 				t.Fatalf("GetQuerySpan(%q) error: %v", tc.sql, err)
 			}
@@ -126,14 +104,14 @@ func TestGetQuerySpan_AccessTables(t *testing.T) {
 // no columns at all (which a masking consumer would read as nothing to mask).
 func TestGetQuerySpan_TableClauseTVFFailsClosed(t *testing.T) {
 	for _, sql := range []string{"TABLE f()", "TABLE f(TABLE u)", "TABLE f(a => 1)"} {
-		if _, err := GetQuerySpan(sql, DialectBigQuery); err == nil {
+		if _, err := GetQuerySpan(sql); err == nil {
 			t.Errorf("GetQuerySpan(%q): want a fail-closed error, got none", sql)
 		}
 	}
 	// The same clause as a pipe set operation's operand still records its table
 	// argument (it resolves no projection there either, and fails closed is the
 	// surrounding statement's business).
-	if got := ClassifySQL("TABLE f(TABLE u)", DialectBigQuery); got != Select {
+	if got := ClassifySQL("TABLE f(TABLE u)"); got != Select {
 		t.Errorf("ClassifySQL = %v, want Select", got)
 	}
 }
@@ -153,7 +131,7 @@ func TestGetQuerySpan_CallTableArguments(t *testing.T) {
 		{"CALL p(INPUT TABLE)", nil},
 	} {
 		t.Run(c.sql, func(t *testing.T) {
-			span, err := GetQuerySpan(c.sql, DialectBigQuery)
+			span, err := GetQuerySpan(c.sql)
 			if err != nil {
 				t.Fatalf("GetQuerySpan(%q): %v", c.sql, err)
 			}
@@ -168,7 +146,7 @@ func TestGetQuerySpan_CallTableArguments(t *testing.T) {
 // excluded from AccessTables, while the CTE BODY's base tables are kept.
 func TestGetQuerySpan_CTEsExcluded(t *testing.T) {
 	sql := "WITH c AS (SELECT a FROM base) SELECT a FROM c"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -184,7 +162,7 @@ func TestGetQuerySpan_CTEsExcluded(t *testing.T) {
 // recorded as a base table even when a real table of the same name could exist.
 func TestGetQuerySpan_CTEShadowsTable(t *testing.T) {
 	sql := "WITH t AS (SELECT 1 AS n) SELECT n FROM t"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -202,22 +180,17 @@ func TestGetQuerySpan_SystemTables(t *testing.T) {
 	tests := []struct {
 		name         string
 		sql          string
-		dialect      Dialect
 		wantSystem   bool
 		wantSchema   string
 		wantDatabase string
 	}{
-		{"bq info schema", "SELECT * FROM INFORMATION_SCHEMA.TABLES", DialectBigQuery, true, "INFORMATION_SCHEMA", ""},
-		{"bq dataset.info_schema.view", "SELECT * FROM ds.INFORMATION_SCHEMA.COLUMNS", DialectBigQuery, true, "INFORMATION_SCHEMA", "ds"},
-		{"bq spanner_sys not system", "SELECT * FROM SPANNER_SYS.X", DialectBigQuery, false, "", "SPANNER_SYS"},
-		{"spanner info schema", "SELECT * FROM INFORMATION_SCHEMA.TABLES", DialectSpanner, true, "INFORMATION_SCHEMA", ""},
-		{"spanner spanner_sys", "SELECT * FROM SPANNER_SYS.QUERY_STATS_TOP_MINUTE", DialectSpanner, true, "SPANNER_SYS", ""},
-		{"user table bq", "SELECT * FROM ds.users", DialectBigQuery, false, "", "ds"},
+		{"spanner info schema", "SELECT * FROM INFORMATION_SCHEMA.TABLES", true, "INFORMATION_SCHEMA", ""},
+		{"spanner spanner_sys", "SELECT * FROM SPANNER_SYS.QUERY_STATS_TOP_MINUTE", true, "SPANNER_SYS", ""},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			span, err := GetQuerySpan(tc.sql, tc.dialect)
+			span, err := GetQuerySpan(tc.sql)
 			if err != nil {
 				t.Fatalf("GetQuerySpan(%q) error: %v", tc.sql, err)
 			}
@@ -226,7 +199,7 @@ func TestGetQuerySpan_SystemTables(t *testing.T) {
 			}
 			ta := span.AccessTables[0]
 			if ta.IsSystem != tc.wantSystem {
-				t.Errorf("IsSystem = %v, want %v (sql %q dialect %v)", ta.IsSystem, tc.wantSystem, tc.sql, tc.dialect)
+				t.Errorf("IsSystem = %v, want %v (sql %q)", ta.IsSystem, tc.wantSystem, tc.sql)
 			}
 			if ta.Schema != tc.wantSchema {
 				t.Errorf("Schema = %q, want %q", ta.Schema, tc.wantSchema)
@@ -243,16 +216,9 @@ func TestGetQuerySpan_SystemTables(t *testing.T) {
 // INFORMATION_SCHEMA; otherwise it is the Database (dataset). Spanner always
 // treats the 2nd-to-last identifier as Schema.
 func TestGetQuerySpan_SchemaBucketing(t *testing.T) {
-	// BigQuery: ds.t => ds is Database, Schema empty.
-	span, _ := GetQuerySpan("SELECT a FROM ds.t", DialectBigQuery)
-	ta := span.AccessTables[0]
-	if ta.Database != "ds" || ta.Schema != "" {
-		t.Errorf("BigQuery ds.t: Database=%q Schema=%q, want Database=ds Schema=\"\"", ta.Database, ta.Schema)
-	}
-
 	// Spanner: sch.t => sch is Schema.
-	span, _ = GetQuerySpan("SELECT a FROM sch.t", DialectSpanner)
-	ta = span.AccessTables[0]
+	span, _ := GetQuerySpan("SELECT a FROM sch.t")
+	ta := span.AccessTables[0]
 	if ta.Schema != "sch" {
 		t.Errorf("Spanner sch.t: Schema=%q, want sch", ta.Schema)
 	}
@@ -279,7 +245,7 @@ func TestGetQuerySpan_Results(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			span, err := GetQuerySpan(tc.sql, DialectBigQuery)
+			span, err := GetQuerySpan(tc.sql)
 			if err != nil {
 				t.Fatalf("GetQuerySpan(%q) error: %v", tc.sql, err)
 			}
@@ -303,12 +269,11 @@ func TestGetQuerySpan_PredicateColumns(t *testing.T) {
 		{"where and", "SELECT a FROM t WHERE b > 1 AND c < 2", []string{"b", "c"}},
 		{"join on", "SELECT * FROM a JOIN b ON a.x = b.y", []string{"x", "y"}},
 		{"having", "SELECT a, COUNT(*) c FROM t GROUP BY a HAVING c > 1", []string{"a", "c"}},
-		{"qualify", "SELECT a FROM t QUALIFY ROW_NUMBER() OVER (ORDER BY b) = 1", []string{"b"}},
 		{"using", "SELECT * FROM a JOIN b USING (k)", []string{"k"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			span, err := GetQuerySpan(tc.sql, DialectBigQuery)
+			span, err := GetQuerySpan(tc.sql)
 			if err != nil {
 				t.Fatalf("GetQuerySpan(%q) error: %v", tc.sql, err)
 			}
@@ -336,11 +301,10 @@ func TestGetQuerySpan_NonQuery(t *testing.T) {
 		{"update", "UPDATE t SET a = 1 WHERE b = 2", DML, []string{"t"}},
 		{"delete", "DELETE FROM t WHERE a = 1", DML, []string{"t"}},
 		{"create table", "CREATE TABLE t (a INT64) PRIMARY KEY (a)", DDL, []string{"t"}},
-		{"ctas", "CREATE TABLE t AS SELECT a FROM src", DDL, []string{"src", "t"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			span, err := GetQuerySpan(tc.sql, DialectBigQuery)
+			span, err := GetQuerySpan(tc.sql)
 			if err != nil {
 				t.Fatalf("GetQuerySpan(%q) error: %v", tc.sql, err)
 			}
@@ -356,7 +320,7 @@ func TestGetQuerySpan_NonQuery(t *testing.T) {
 }
 
 func TestGetQuerySpan_Empty(t *testing.T) {
-	span, err := GetQuerySpan("", DialectBigQuery)
+	span, err := GetQuerySpan("")
 	if err != nil {
 		t.Fatalf("GetQuerySpan(\"\") error: %v", err)
 	}
@@ -379,13 +343,13 @@ func TestGetQuerySpan_FailsClosedOnParseError(t *testing.T) {
 		"SELECT a FROM t1 WHERE EXISTS (SELECT 1 FROM t2 )))",
 		"this is not sql",
 	} {
-		if _, err := GetQuerySpan(sql, DialectBigQuery); err == nil {
+		if _, err := GetQuerySpan(sql); err == nil {
 			t.Errorf("GetQuerySpan(%q) accepted input that does not parse", sql)
 		}
 	}
 	// ClassifySQL shares the verdict: a truncated statement is Unknown, not
 	// the type of whatever prefix parsed.
-	if got := ClassifySQL("SELECT a FROM t )))", DialectBigQuery); got != Unknown {
+	if got := ClassifySQL("SELECT a FROM t )))"); got != Unknown {
 		t.Errorf("ClassifySQL(truncated) = %v, want Unknown", got)
 	}
 }
@@ -394,7 +358,7 @@ func TestGetQuerySpan_FailsClosedOnParseError(t *testing.T) {
 // contributes its own base table AND its correlation predicate columns.
 func TestGetQuerySpan_CorrelatedSubquery(t *testing.T) {
 	sql := "SELECT (SELECT x FROM u WHERE u.id = t.id) AS m FROM t"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -413,7 +377,7 @@ func TestGetQuerySpan_CorrelatedSubquery(t *testing.T) {
 func TestGetQuerySpan_NestedCTEShadowing(t *testing.T) {
 	sql := "WITH c AS (SELECT a FROM outer_base) " +
 		"SELECT a FROM (WITH c AS (SELECT a FROM inner_base) SELECT a FROM c)"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -429,7 +393,7 @@ func TestGetQuerySpan_NestedCTEShadowing(t *testing.T) {
 // across a chained set operation.
 func TestGetQuerySpan_SetOpThreeArms(t *testing.T) {
 	sql := "SELECT a AS first FROM t UNION ALL SELECT b FROM u UNION ALL SELECT c FROM v"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -445,7 +409,7 @@ func TestGetQuerySpan_SetOpThreeArms(t *testing.T) {
 // contributes its table.
 func TestGetQuerySpan_DMLSubquery(t *testing.T) {
 	sql := "DELETE FROM t WHERE id IN (SELECT id FROM staging)"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -460,7 +424,7 @@ func TestGetQuerySpan_DMLSubquery(t *testing.T) {
 // TestGetQuerySpan_SourceColumns confirms a select-item's direct source columns
 // are captured (the lineage seed the masking layer consumes).
 func TestGetQuerySpan_SourceColumns(t *testing.T) {
-	span, err := GetQuerySpan("SELECT a + b AS s, t.c FROM t", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT a + b AS s, t.c FROM t")
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -490,7 +454,7 @@ func TestGetQuerySpan_LambdaParamsExcluded(t *testing.T) {
 	// ARRAY_FILTER-style: the lambda param `e` is bound; `threshold` is a free
 	// column reference.
 	sql := "SELECT ARRAY_TRANSFORM(arr, e -> e + threshold) AS r FROM t"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -511,7 +475,7 @@ func TestGetQuerySpan_LambdaParamsExcluded(t *testing.T) {
 // two columns, so both operands resolve — as a select item's sources and as a
 // WHERE predicate's columns.
 func TestGetQuerySpan_GraphPredicateOperandsAreColumns(t *testing.T) {
-	span, err := GetQuerySpan("SELECT a IS SOURCE b FROM t", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT a IS SOURCE b FROM t")
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -526,7 +490,7 @@ func TestGetQuerySpan_GraphPredicateOperandsAreColumns(t *testing.T) {
 		t.Errorf("select-item sources = %v, want [a b]", cols)
 	}
 
-	span, err = GetQuerySpan("SELECT 1 FROM t WHERE a IS LABELED !x AND a IS DESTINATION OF b", DialectBigQuery)
+	span, err = GetQuerySpan("SELECT 1 FROM t WHERE a IS LABELED !x AND a IS DESTINATION OF b")
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -555,7 +519,7 @@ func TestGetQuerySpan_GraphVariablesAreNotColumns(t *testing.T) {
 		{"SELECT EXISTS { MATCH (n) CALL f(TABLE secret WHERE n.id > 0) RETURN 1 } FROM t", []string{"n"}},
 	}
 	for _, tc := range cases {
-		span, err := GetQuerySpan(tc.sql, DialectBigQuery)
+		span, err := GetQuerySpan(tc.sql)
 		if err != nil {
 			t.Fatalf("GetQuerySpan(%q) error: %v", tc.sql, err)
 		}
@@ -621,20 +585,18 @@ func TestGetQuerySpan_GraphSubqueryExpression(t *testing.T) {
 		{"SELECT a FROM t WHERE a IS SOURCE b", []string{"t"}, 1},
 	}
 	for _, tc := range cases {
-		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
-			span, err := GetQuerySpan(tc.sql, dialect)
-			if err != nil {
-				t.Fatalf("GetQuerySpan(%q, %v) error: %v", tc.sql, dialect, err)
-			}
-			if span.Type != Select {
-				t.Errorf("GetQuerySpan(%q, %v) Type = %v, want Select", tc.sql, dialect, span.Type)
-			}
-			if got := tableNames(span); !eqStrings(got, tc.tables) {
-				t.Errorf("GetQuerySpan(%q, %v) AccessTables = %v, want %v", tc.sql, dialect, got, tc.tables)
-			}
-			if len(span.Results) != tc.results {
-				t.Errorf("GetQuerySpan(%q, %v) Results = %v, want %d columns", tc.sql, dialect, resultNames(span), tc.results)
-			}
+		span, err := GetQuerySpan(tc.sql)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(%q) error: %v", tc.sql, err)
+		}
+		if span.Type != Select {
+			t.Errorf("GetQuerySpan(%q) Type = %v, want Select", tc.sql, span.Type)
+		}
+		if got := tableNames(span); !eqStrings(got, tc.tables) {
+			t.Errorf("GetQuerySpan(%q) AccessTables = %v, want %v", tc.sql, got, tc.tables)
+		}
+		if len(span.Results) != tc.results {
+			t.Errorf("GetQuerySpan(%q) Results = %v, want %d columns", tc.sql, resultNames(span), tc.results)
 		}
 	}
 }
@@ -656,23 +618,21 @@ func TestGetQuerySpan_GQLEmptySpan(t *testing.T) {
 		"GRAPH myproject.mydataset.g MATCH (p:Person) RETURN p.name",
 	}
 	for _, sql := range cases {
-		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
-			span, err := GetQuerySpan(sql, dialect)
-			if err != nil {
-				t.Fatalf("GetQuerySpan(%q, %v) error: %v", sql, dialect, err)
-			}
-			if span.Type != Unknown {
-				t.Errorf("GetQuerySpan(%q, %v) Type = %v, want Unknown (legacy non-Select parity)", sql, dialect, span.Type)
-			}
-			if len(span.AccessTables) != 0 {
-				t.Errorf("GetQuerySpan(%q, %v) AccessTables = %v, want empty", sql, dialect, tableNames(span))
-			}
-			if len(span.Results) != 0 {
-				t.Errorf("GetQuerySpan(%q, %v) Results = %v, want empty", sql, dialect, resultNames(span))
-			}
-			if len(span.PredicateColumns) != 0 {
-				t.Errorf("GetQuerySpan(%q, %v) PredicateColumns = %v, want empty", sql, dialect, predicateColumnNames(span))
-			}
+		span, err := GetQuerySpan(sql)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(%q) error: %v", sql, err)
+		}
+		if span.Type != Unknown {
+			t.Errorf("GetQuerySpan(%q) Type = %v, want Unknown (legacy non-Select parity)", sql, span.Type)
+		}
+		if len(span.AccessTables) != 0 {
+			t.Errorf("GetQuerySpan(%q) AccessTables = %v, want empty", sql, tableNames(span))
+		}
+		if len(span.Results) != 0 {
+			t.Errorf("GetQuerySpan(%q) Results = %v, want empty", sql, resultNames(span))
+		}
+		if len(span.PredicateColumns) != 0 {
+			t.Errorf("GetQuerySpan(%q) PredicateColumns = %v, want empty", sql, predicateColumnNames(span))
 		}
 	}
 }
@@ -738,7 +698,7 @@ func TestGetQuerySpan_SetOpMergesBothArms(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			span, err := GetQuerySpan(tc.sql, DialectBigQuery)
+			span, err := GetQuerySpan(tc.sql)
 			if err != nil {
 				t.Fatalf("GetQuerySpan(%q) error: %v", tc.sql, err)
 			}
@@ -765,7 +725,7 @@ func TestGetQuerySpan_SetOpMergesBothArms(t *testing.T) {
 // are still discovered by the walk.
 func TestGetQuerySpan_ScalarSubqueryInSelectListIsOpaque(t *testing.T) {
 	sql := "SELECT (SELECT NAME FROM people), ID FROM people"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -792,7 +752,7 @@ func TestGetQuerySpan_ScalarSubqueryInSelectListIsOpaque(t *testing.T) {
 // it against BOTH joined sides' c columns; the USING column is also a predicate.
 func TestGetQuerySpan_JoinUsingCoalesceSurfacesColumn(t *testing.T) {
 	sql := "SELECT ID, NAME, ADDRESS FROM people JOIN address ON people.ID = address.PEOPLE_ID USING (ID)"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -815,7 +775,7 @@ func TestGetQuerySpan_JoinUsingCoalesceSurfacesColumn(t *testing.T) {
 // columns and re-point a REPLACE-d column's lineage.
 func TestGetQuerySpan_StarExceptReplaceCaptured(t *testing.T) {
 	sql := "SELECT * EXCEPT (ID) REPLACE (ID/2 AS NAME) FROM people"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -868,11 +828,11 @@ func TestGetQuerySpan_TableClauseProjection(t *testing.T) {
 		{"WITH c AS (SELECT secret FROM t) TABLE c", "WITH c AS (SELECT secret FROM t) SELECT * FROM c"},
 	} {
 		t.Run(c.clause, func(t *testing.T) {
-			got, err := GetQuerySpan(c.clause, DialectBigQuery)
+			got, err := GetQuerySpan(c.clause)
 			if err != nil {
 				t.Fatalf("GetQuerySpan(%q): %v", c.clause, err)
 			}
-			want, err := GetQuerySpan(c.explicit, DialectBigQuery)
+			want, err := GetQuerySpan(c.explicit)
 			if err != nil {
 				t.Fatalf("GetQuerySpan(%q): %v", c.explicit, err)
 			}
@@ -918,7 +878,7 @@ func TestGetQuerySpan_OptionSubqueries(t *testing.T) {
 		{"UNDROP SCHEMA s FOR SYSTEM_TIME AS OF (SELECT MAX(t) FROM a)", []string{"a"}},
 	} {
 		t.Run(c.sql, func(t *testing.T) {
-			span, err := GetQuerySpan(c.sql, DialectBigQuery)
+			span, err := GetQuerySpan(c.sql)
 			if err != nil {
 				t.Fatalf("GetQuerySpan(%q): %v", c.sql, err)
 			}
@@ -939,14 +899,12 @@ func TestGetQuerySpan_ExprDotStarFailClosed(t *testing.T) {
 		"SELECT fn(a).* FROM t",
 	}
 	for _, sql := range cases {
-		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
-			if span, err := GetQuerySpan(sql, dialect); err == nil {
-				t.Errorf("GetQuerySpan(%q, %v) succeeded with results=%v, want fail-closed error", sql, dialect, span.Results)
-			}
+		if span, err := GetQuerySpan(sql); err == nil {
+			t.Errorf("GetQuerySpan(%q) succeeded with results=%v, want fail-closed error", sql, span.Results)
 		}
 	}
 	// A parenthesized FROM relation `(t).*` still resolves to t's projection.
-	span, err := GetQuerySpan("SELECT (t).* FROM t", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT (t).* FROM t")
 	if err != nil {
 		t.Fatalf("GetQuerySpan(SELECT (t).* FROM t): %v", err)
 	}
@@ -965,132 +923,17 @@ func TestGetQuerySpan_GraphTableFailClosed(t *testing.T) {
 		"SELECT * FROM t JOIN GRAPH_TABLE(g MATCH (n) COLUMNS(n.id AS id)) gt ON t.id = gt.id",
 	}
 	for _, sql := range cases {
-		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
-			if span, err := GetQuerySpan(sql, dialect); err == nil {
-				t.Errorf("GetQuerySpan(%q, %v) succeeded with tables=%v results=%v, want fail-closed error", sql, dialect, span.AccessTables, span.Results)
-			}
+		if span, err := GetQuerySpan(sql); err == nil {
+			t.Errorf("GetQuerySpan(%q) succeeded with tables=%v results=%v, want fail-closed error", sql, span.AccessTables, span.Results)
 		}
 	}
 	// Classify is best-effort and still discovers tables inside embedded SQL
 	// subqueries in GRAPH_TABLE operators and COLUMNS expressions.
-	if got := ClassifySQL("SELECT * FROM GRAPH_TABLE(g MATCH (n) WHERE n.id IN (SELECT id FROM secret) COLUMNS(n.id))", DialectSpanner); got != Select {
+	if got := ClassifySQL("SELECT * FROM GRAPH_TABLE(g MATCH (n) WHERE n.id IN (SELECT id FROM secret) COLUMNS(n.id))"); got != Select {
 		t.Errorf("ClassifySQL(GRAPH_TABLE with subquery) = %v, want Select", got)
 	}
-	if got := ClassifySQL("SELECT * FROM GRAPH_TABLE(g MATCH (n) COLUMNS((SELECT id FROM INFORMATION_SCHEMA.TABLES) AS id))", DialectSpanner); got != SelectInfoSchema {
+	if got := ClassifySQL("SELECT * FROM GRAPH_TABLE(g MATCH (n) COLUMNS((SELECT id FROM INFORMATION_SCHEMA.TABLES) AS id))"); got != SelectInfoSchema {
 		t.Errorf("ClassifySQL(GRAPH_TABLE with info_schema subquery) = %v, want SelectInfoSchema", got)
-	}
-}
-
-// TestGetQuerySpan_BigQueryDialectPropagation verifies that DialectBigQuery
-// analysis entry points parse BigQuery-specific syntax (such as FROM-first
-// pipe queries, MATCH_RECOGNIZE, and BigQuery DDL) consistently with
-// bigquery/parser.
-func TestGetQuerySpan_BigQueryDialectPropagation(t *testing.T) {
-	if got := ClassifySQL("FROM sensitive", DialectBigQuery); got != Select {
-		t.Errorf("ClassifySQL(FROM sensitive, BigQuery) = %v, want Select", got)
-	}
-	if got := ClassifySQL("FROM INFORMATION_SCHEMA.TABLES", DialectBigQuery); got != SelectInfoSchema {
-		t.Errorf("ClassifySQL(FROM INFORMATION_SCHEMA.TABLES, BigQuery) = %v, want SelectInfoSchema", got)
-	}
-	if got := ClassifySQL("FROM sensitive", DialectSpanner); got != Unknown {
-		t.Errorf("ClassifySQL(FROM sensitive, Spanner) = %v, want Unknown", got)
-	}
-	if got := ClassifySQL("CREATE EXTERNAL TABLE ds.ext OPTIONS(format='CSV', uris=['gs://b/f'])", DialectBigQuery); got != DDL {
-		t.Errorf("ClassifySQL(CREATE EXTERNAL TABLE, BigQuery) = %v, want DDL", got)
-	}
-
-	// FROM sensitive projects the same base-table star as SELECT * FROM sensitive.
-	span, err := GetQuerySpan("FROM sensitive", DialectBigQuery)
-	if err != nil {
-		t.Fatalf("GetQuerySpan(FROM sensitive, BigQuery): %v", err)
-	}
-	if got := tableNames(span); !eqStrings(got, []string{"sensitive"}) {
-		t.Errorf("FROM sensitive tables = %v, want [sensitive]", got)
-	}
-	if len(span.Results) != 1 || span.Results[0].Name != "*" {
-		t.Errorf("FROM sensitive results = %+v, want single base-table star", span.Results)
-	}
-
-	// WITH CTE + FROM-first preserves CTE column lineage.
-	span, err = GetQuerySpan("WITH c AS (SELECT secret FROM sensitive) FROM c", DialectBigQuery)
-	if err != nil {
-		t.Fatalf("GetQuerySpan(WITH c ... FROM c, BigQuery): %v", err)
-	}
-	if got := tableNames(span); !eqStrings(got, []string{"sensitive"}) {
-		t.Errorf("WITH c ... FROM c tables = %v, want [sensitive]", got)
-	}
-	if got := resultNames(span); !eqStrings(got, []string{"secret"}) {
-		t.Errorf("WITH c ... FROM c results = %v, want [secret]", got)
-	}
-
-	// Row-only pipe suffix on FROM-first keeps the projection; projection-changing
-	// suffix, unresolvable TVF FROM-first, and MATCH_RECOGNIZE fail closed.
-	if _, err := GetQuerySpan("FROM sensitive |> WHERE id > 1", DialectBigQuery); err != nil {
-		t.Errorf("GetQuerySpan(FROM sensitive |> WHERE id > 1, BigQuery): %v", err)
-	}
-	for _, sql := range []string{
-		"FROM sensitive |> SELECT secret",
-		"FROM tvf()",
-		"FROM (SELECT 1 AS public) CROSS JOIN tvf()",
-		"FROM (SELECT 1 AS public), tvf()",
-		"SELECT * FROM sensitive MATCH_RECOGNIZE (MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS x > 0)",
-		"SELECT * FROM UNNEST([1,2]) MATCH_RECOGNIZE (ORDER BY 1 MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS (SELECT x FROM secret) > 0)",
-		"SELECT * FROM (a JOIN b ON a.id = b.id) MATCH_RECOGNIZE (ORDER BY 1 MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS (SELECT x FROM secret) > 0)",
-	} {
-		if _, err := GetQuerySpan(sql, DialectBigQuery); err == nil {
-			t.Errorf("GetQuerySpan(%q, BigQuery) succeeded, want fail-closed error", sql)
-		}
-	}
-
-	// Subqueries inside MATCH_RECOGNIZE on non-TableExpr sources are still
-	// discovered by ClassifySQL (tablesOnly pass).
-	if got := ClassifySQL("SELECT * FROM UNNEST([1,2]) MATCH_RECOGNIZE (ORDER BY 1 MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS (SELECT x FROM secret) > 0)", DialectBigQuery); got != Select {
-		t.Errorf("ClassifySQL(UNNEST MATCH_RECOGNIZE with user subquery) = %v, want Select", got)
-	}
-	if got := ClassifySQL("SELECT * FROM UNNEST([1,2]) MATCH_RECOGNIZE (ORDER BY 1 MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS (SELECT x FROM INFORMATION_SCHEMA.TABLES) > 0)", DialectBigQuery); got != SelectInfoSchema {
-		t.Errorf("ClassifySQL(UNNEST MATCH_RECOGNIZE with info_schema subquery) = %v, want SelectInfoSchema", got)
-	}
-	if got := ClassifySQL("SELECT * FROM (INFORMATION_SCHEMA.TABLES JOIN INFORMATION_SCHEMA.COLUMNS ON true) MATCH_RECOGNIZE (ORDER BY 1 MEASURES COUNT(*) AS c PATTERN (A) DEFINE A AS (SELECT x FROM secret) > 0)", DialectBigQuery); got != Select {
-		t.Errorf("ClassifySQL(Join MATCH_RECOGNIZE with user subquery) = %v, want Select", got)
-	}
-
-	// Consecutive join conditions reassociate right-to-left:
-	// `a JOIN b JOIN c USING (id) ON a.id = b.id` matches
-	// `a JOIN (b JOIN c USING (id)) ON a.id = b.id` (5 columns: [ax, id, id, bx, cz]).
-	seqSQL := "WITH a AS (SELECT ax, id FROM t1), b AS (SELECT bx, id FROM t2), c AS (SELECT cz, id FROM t3) SELECT * FROM a JOIN b JOIN c USING (id) ON a.id = b.id"
-	parenSQL := "WITH a AS (SELECT ax, id FROM t1), b AS (SELECT bx, id FROM t2), c AS (SELECT cz, id FROM t3) SELECT * FROM a JOIN (b JOIN c USING (id)) ON a.id = b.id"
-	seqSpan, err := GetQuerySpan(seqSQL, DialectBigQuery)
-	if err != nil {
-		t.Fatalf("GetQuerySpan(join sequence): %v", err)
-	}
-	parenSpan, err := GetQuerySpan(parenSQL, DialectBigQuery)
-	if err != nil {
-		t.Fatalf("GetQuerySpan(parenthesized join): %v", err)
-	}
-	if !eqStrings(resultNames(seqSpan), []string{"ax", "id", "id", "bx", "cz"}) {
-		t.Errorf("join sequence results = %v, want [ax id id bx cz]", resultNames(seqSpan))
-	}
-	if !eqStrings(resultNames(seqSpan), resultNames(parenSpan)) {
-		t.Errorf("join sequence results %v != parenthesized results %v", resultNames(seqSpan), resultNames(parenSpan))
-	}
-
-	// Correlated LATERAL sources fail closed in GetQuerySpan while still
-	// discovering tables inside the LATERAL body for ClassifySQL.
-	for _, sql := range []string{
-		"SELECT t.x FROM (SELECT secret AS exposed FROM sensitive) b, LATERAL (SELECT b.exposed AS x) t",
-		"SELECT t.x FROM sensitive b, LATERAL tvf(b.id) t",
-	} {
-		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
-			if _, err := GetQuerySpan(sql, dialect); err == nil {
-				t.Errorf("GetQuerySpan(%q, %v) succeeded, want fail-closed error", sql, dialect)
-			}
-		}
-	}
-	if got := ClassifySQL("SELECT t.x FROM INFORMATION_SCHEMA.TABLES b, LATERAL (SELECT * FROM secret) t", DialectBigQuery); got != Select {
-		t.Errorf("ClassifySQL(LATERAL with user table) = %v, want Select", got)
-	}
-	if got := ClassifySQL("SELECT t.x FROM INFORMATION_SCHEMA.TABLES b, LATERAL (SELECT b.table_name AS x) t", DialectBigQuery); got != SelectInfoSchema {
-		t.Errorf("ClassifySQL(LATERAL info_schema only) = %v, want SelectInfoSchema", got)
 	}
 }
 
@@ -1099,51 +942,29 @@ func TestGetQuerySpan_BigQueryDialectPropagation(t *testing.T) {
 // DDL statements (CREATE MODEL AS query, ALTER ROW ACCESS POLICY) record
 // referenced tables.
 func TestGetQuerySpan_ExplainAndExtendedDDL(t *testing.T) {
-	for _, dialect := range []Dialect{DialectSpanner, DialectBigQuery} {
-		span, err := GetQuerySpan("EXPLAIN SELECT secret FROM sensitive", dialect)
-		if err != nil {
-			t.Fatalf("GetQuerySpan(EXPLAIN SELECT, %v): %v", dialect, err)
-		}
-		if span.Type != Explain {
-			t.Errorf("EXPLAIN Type = %v, want Explain", span.Type)
-		}
-		if got := tableNames(span); !eqStrings(got, []string{"sensitive"}) {
-			t.Errorf("EXPLAIN AccessTables = %v, want [sensitive]", got)
-		}
-		if len(span.Results) != 0 {
-			t.Errorf("EXPLAIN Results = %+v, want empty", span.Results)
-		}
-
-		span, err = GetQuerySpan("EXPLAIN INSERT INTO dst SELECT * FROM src", dialect)
-		if err != nil {
-			t.Fatalf("GetQuerySpan(EXPLAIN INSERT, %v): %v", dialect, err)
-		}
-		if got := tableNames(span); !eqStrings(got, []string{"dst", "src"}) {
-			t.Errorf("EXPLAIN INSERT AccessTables = %v, want [dst src]", got)
-		}
-
-		if _, err := GetQuerySpan("EXPLAIN SELECT * FROM GRAPH_TABLE(g MATCH (n) COLUMNS(n.secret))", dialect); err == nil {
-			t.Errorf("GetQuerySpan(EXPLAIN GRAPH_TABLE, %v) succeeded, want fail-closed error", dialect)
-		}
-	}
-
-	// Extended DDL statements referencing source/target tables.
-	span, err := GetQuerySpan("CREATE MODEL m AS SELECT secret FROM sensitive", DialectBigQuery)
+	span, err := GetQuerySpan("EXPLAIN SELECT secret FROM sensitive")
 	if err != nil {
-		t.Fatalf("GetQuerySpan(CREATE MODEL AS SELECT): %v", err)
+		t.Fatalf("GetQuerySpan(EXPLAIN SELECT): %v", err)
 	}
-	if span.Type != DDL {
-		t.Errorf("CREATE MODEL Type = %v, want DDL", span.Type)
+	if span.Type != Explain {
+		t.Errorf("EXPLAIN Type = %v, want Explain", span.Type)
 	}
 	if got := tableNames(span); !eqStrings(got, []string{"sensitive"}) {
-		t.Errorf("CREATE MODEL AccessTables = %v, want [sensitive]", got)
+		t.Errorf("EXPLAIN AccessTables = %v, want [sensitive]", got)
+	}
+	if len(span.Results) != 0 {
+		t.Errorf("EXPLAIN Results = %+v, want empty", span.Results)
 	}
 
-	span, err = GetQuerySpan("ALTER ROW ACCESS POLICY p ON sensitive FILTER USING (id IN (SELECT id FROM acl))", DialectBigQuery)
+	span, err = GetQuerySpan("EXPLAIN INSERT INTO dst SELECT * FROM src")
 	if err != nil {
-		t.Fatalf("GetQuerySpan(ALTER ROW ACCESS POLICY): %v", err)
+		t.Fatalf("GetQuerySpan(EXPLAIN INSERT): %v", err)
 	}
-	if got := tableNames(span); !eqStrings(got, []string{"acl", "sensitive"}) {
-		t.Errorf("ALTER ROW ACCESS POLICY AccessTables = %v, want [acl sensitive]", got)
+	if got := tableNames(span); !eqStrings(got, []string{"dst", "src"}) {
+		t.Errorf("EXPLAIN INSERT AccessTables = %v, want [dst src]", got)
+	}
+
+	if _, err := GetQuerySpan("EXPLAIN SELECT * FROM GRAPH_TABLE(g MATCH (n) COLUMNS(n.secret))"); err == nil {
+		t.Errorf("GetQuerySpan(EXPLAIN GRAPH_TABLE) succeeded, want fail-closed error")
 	}
 }

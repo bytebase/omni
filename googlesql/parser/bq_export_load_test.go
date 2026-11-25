@@ -203,25 +203,6 @@ func TestLoadData_PartitionColumnsInferred(t *testing.T) {
 	}
 }
 
-func TestLoadData_TempTable(t *testing.T) {
-	// maybe_dashed_path_expression_with_scope: TEMP TABLE <path> | TEMPORARY TABLE <path>.
-	s := loadDataOf(t, "LOAD DATA INTO TEMP TABLE ds.t FROM FILES (format = 'CSV', uris = ['gs://b/f.csv'])")
-	if !s.Temp {
-		t.Error("Temp = false, want true")
-	}
-	if s.TempKeyword != "TEMP" {
-		t.Errorf("TempKeyword = %q, want TEMP", s.TempKeyword)
-	}
-	if s.Name == nil || s.Name.String() != "ds.t" {
-		t.Errorf("Name = %v", s.Name)
-	}
-
-	s2 := loadDataOf(t, "LOAD DATA OVERWRITE TEMPORARY TABLE ds.t FROM FILES (format = 'CSV', uris = ['gs://b/f.csv'])")
-	if !s2.Temp || s2.TempKeyword != "TEMPORARY" {
-		t.Errorf("TempKeyword = %q (temp=%v), want TEMPORARY", s2.TempKeyword, s2.Temp)
-	}
-}
-
 func TestLoadData_ExplicitSchema(t *testing.T) {
 	// table_element_list? — an explicit column schema between the table name and
 	// the (optional) clauses.
@@ -246,18 +227,6 @@ func TestLoadData_PartitionAndClusterBy(t *testing.T) {
 	}
 	if len(s.Options) != 1 {
 		t.Errorf("Options = %d, want 1", len(s.Options))
-	}
-}
-
-func TestLoadData_PartitionsClause(t *testing.T) {
-	// load_data_partitions_clause: OVERWRITE? PARTITIONS ( expr ). It sits between
-	// the table element list and the collate clause.
-	s := loadDataOf(t, "LOAD DATA OVERWRITE ds.t OVERWRITE PARTITIONS (_PARTITIONDATE = '2024-01-01') FROM FILES (format = 'CSV', uris = ['gs://b/f.csv'])")
-	if s.Partitions == nil {
-		t.Fatal("Partitions = nil, want the partition expression")
-	}
-	if !s.PartitionsOverwrite {
-		t.Error("PartitionsOverwrite = false, want true")
 	}
 }
 

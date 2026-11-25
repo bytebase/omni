@@ -66,40 +66,15 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		// CREATE TABLE — but CREATE TABLE FUNCTION (TVF) is a BigQuery-only object
 		// owned by parser-ddl-bigquery (bq_function_procedure.go).
 		if p.peekNext().Type == kwFUNCTION {
-			if p.isSpanner() {
-				return nil, p.syntaxErrorAtCur()
-			}
-			return p.parseCreateFunction(create, orReplace, scope, false /*aggregate*/, true /*isTableFunc*/)
+			return nil, p.syntaxErrorAtCur()
 		}
 		return p.parseCreateTable(create, orReplace, scope)
 	case kwVIEW:
 		return p.parseCreateView(create, orReplace, scope, false /*recursive*/)
 	case kwRECURSIVE:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		// RECURSIVE VIEW (the plain-view alt with RECURSIVE). MATERIALIZED/APPROX
-		// RECURSIVE views are owned by parser-ddl-bigquery (bq_materialized_view.go);
-		// a bare RECURSIVE followed by VIEW is the plain recursive view this node
-		// owns.
-		if p.peekNext().Type == kwVIEW {
-			p.advance() // RECURSIVE
-			return p.parseCreateView(create, orReplace, scope, true /*recursive*/)
-		}
-		if p.peekNext().Type == kwMATERIALIZED || p.peekNext().Type == kwAPPROX {
-			// CREATE RECURSIVE MATERIALIZED|APPROX VIEW is not a grammar form (the
-			// RECURSIVE keyword follows MATERIALIZED/APPROX, not precedes it); leave
-			// it as an unknown CREATE.
-			return p.unsupported("CREATE")
-		}
-		return p.unsupported("CREATE")
+		return nil, p.syntaxErrorAtCur()
 	case kwMATERIALIZED, kwAPPROX:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		// CREATE MATERIALIZED|APPROX [RECURSIVE] VIEW — BigQuery-only
-		// (bq_materialized_view.go).
-		return p.parseCreateMaterializedView(create, orReplace, scope)
+		return nil, p.syntaxErrorAtCur()
 	case kwUNIQUE, kwNULL_FILTERED, kwINDEX:
 		// CREATE [UNIQUE] [NULL_FILTERED] INDEX. The SEARCH/VECTOR index_type
 		// variants are dialect-node territory; parseCreateIndex rejects a
@@ -113,7 +88,7 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		// (create_property_graph_statement, parser-gql node →
 		// create_property_graph.go). Spanner rejects a leading create scope,
 		// while BigQuery accepts TEMP/TEMPORARY/PUBLIC/PRIVATE.
-		if scope != "" && p.isSpanner() {
+		if scope != "" {
 			return nil, p.syntaxErrorAtCur()
 		}
 		return p.parseCreatePropertyGraph(create, orReplace)
@@ -122,68 +97,25 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	case kwDATABASE:
 		return p.parseCreateDatabase(create, orReplace, scope)
 	case kwAGGREGATE:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		// CREATE [OR REPLACE] [scope] AGGREGATE FUNCTION — BigQuery-only
-		// (bq_function_procedure.go). opt_aggregate precedes FUNCTION.
-		if p.peekNext().Type == kwFUNCTION {
-			p.advance() // AGGREGATE
-			return p.parseCreateFunction(create, orReplace, scope, true /*aggregate*/, false /*isTableFunc*/)
-		}
-		return p.unsupported("CREATE")
+		return nil, p.syntaxErrorAtCur()
 	case kwFUNCTION:
 		// CREATE [OR REPLACE] [scope] FUNCTION — BigQuery-only (bq_function_procedure.go).
 		return p.parseCreateFunction(create, orReplace, scope, false /*aggregate*/, false /*isTableFunc*/)
 	case kwPROCEDURE:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		// CREATE [OR REPLACE] [scope] PROCEDURE — BigQuery-only (bq_function_procedure.go).
-		return p.parseCreateProcedure(create, orReplace, scope)
+		return nil, p.syntaxErrorAtCur()
 	case kwSNAPSHOT:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		// CREATE [OR REPLACE] SNAPSHOT TABLE … CLONE — BigQuery-only
-		// (bq_snapshot_clone.go). create_snapshot_statement has NO opt_create_scope,
-		// so a leading TEMP/TEMPORARY/PUBLIC/PRIVATE is a syntax error.
-		if scope != "" {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseCreateSnapshot(create, orReplace)
+		return nil, p.syntaxErrorAtCur()
 	case kwROW:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		// CREATE [OR REPLACE] ROW ACCESS POLICY — BigQuery-only
-		// (bq_row_access_policy.go). create_row_access_policy_statement has NO
-		// opt_create_scope, so a leading scope is a syntax error.
-		if scope != "" {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseCreateRowAccessPolicy(create, orReplace)
+		return nil, p.syntaxErrorAtCur()
 	case kwMODEL:
 		return p.parseCreateModel(create, orReplace, scope)
 	case kwEXTERNAL:
-		if !p.isSpanner() {
-			return p.parseCreateExternal(create, orReplace, scope)
-		}
 		return p.unsupported("CREATE EXTERNAL")
 	case kwCONNECTION:
-		if !p.isSpanner() {
-			return p.parseCreateConnection(create, orReplace, scope)
-		}
 		return p.unsupported("CREATE CONNECTION")
 	case kwCONSTANT:
-		if !p.isSpanner() {
-			return p.parseCreateConstant(create, orReplace, scope)
-		}
 		return p.unsupported("CREATE CONSTANT")
 	case kwPRIVILEGE:
-		if !p.isSpanner() {
-			return p.parseCreatePrivilegeRestriction(create, orReplace, scope)
-		}
 		return p.unsupported("CREATE PRIVILEGE")
 	// --- Spanner-only object CREATEs (parser-ddl-spanner node) ---
 	case kwSEQUENCE:
@@ -205,28 +137,12 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 			return p.parseCreateChangeStream(create, orReplace, scope) // spanner_change_stream.go
 		}
 		if p.tokIsWord(p.cur, "LOCALITY") && p.tokIsWord(p.peekNext(), "GROUP") {
-			if p.isBigQuery() {
-				return nil, &ParseError{
-					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-					Message: "syntax error: CREATE LOCALITY GROUP is not supported",
-				}
-			}
 			return p.parseCreateLocalityGroup(create, orReplace, scope) // spanner_sequence.go
 		}
 		if p.curIsRoleKeyword() {
 			// CREATE ROLE name (spanner_schema_role.go). First-class — supersedes the
 			// generic-entity parse the bare `ROLE` identifier would otherwise get.
 			return p.parseCreateRole(create, orReplace, scope)
-		}
-		// A supported generic-entity object kind (CAPACITY / RESERVATION /
-		// ASSIGNMENT / PROJECT / ORGANIZATION / FOLDER) is handled by
-		// create_entity_statement (bq_capacity.go).
-		if !p.isSpanner() && isGenericEntityType(p.cur) {
-			// create_entity_statement has NO opt_create_scope; a leading scope rejects.
-			if scope != "" {
-				return nil, p.syntaxErrorAtCur()
-			}
-			return p.parseCreateEntity(create, orReplace)
 		}
 		return p.unsupported("CREATE")
 	}
@@ -270,15 +186,7 @@ func (p *Parser) parseCreateTable(create Token, orReplace bool, scope string) (a
 
 	// as_query?  — AS query (CTAS).
 	if p.cur.Type == kwAS {
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance() // AS
-		q, err := p.parseQuery()
-		if err != nil {
-			return nil, err
-		}
-		stmt.AsQuery = q
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.Loc.End
@@ -319,7 +227,7 @@ func (p *Parser) parseCreateTablePrefix(create Token, orReplace bool, scope stri
 		}
 		stmt.Columns = cols
 		stmt.Constraints = cons
-	} else if p.isSpanner() && !fromPipe {
+	} else if !fromPipe {
 		return nil, &ParseError{
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			Message: "syntax error: CREATE TABLE requires a column element list",
@@ -333,7 +241,7 @@ func (p *Parser) parseCreateTablePrefix(create Token, orReplace bool, scope stri
 	// `CREATE TABLE a PRIMARY KEY(...)`).
 	hasSpannerPK := false
 	if p.cur.Type == kwPRIMARY {
-		if p.isBigQuery() || !hasElementList {
+		if !hasElementList {
 			return nil, &ParseError{
 				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 				Message: "syntax error: PRIMARY KEY must be defined in the table element list",
@@ -361,7 +269,7 @@ func (p *Parser) parseCreateTablePrefix(create Token, orReplace bool, scope stri
 
 	// Standalone Spanner CREATE TABLE DDL requires either a table-level or
 	// column-level PRIMARY KEY.
-	if p.isSpanner() && !fromPipe && !hasSpannerPK && !hasTablePrimaryKey(stmt.Columns, stmt.Constraints) {
+	if !fromPipe && !hasSpannerPK && !hasTablePrimaryKey(stmt.Columns, stmt.Constraints) {
 		return nil, &ParseError{
 			Position: stmt.Loc.Start, End: p.prev.Loc.End,
 			Message: "syntax error: Must specify either table or column PRIMARY KEY",
@@ -370,112 +278,32 @@ func (p *Parser) parseCreateTablePrefix(create Token, orReplace bool, scope stri
 
 	// opt_like_path_expression?
 	if p.cur.Type == kwLIKE {
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		path, err := p.parseTablePath()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Like = path
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// opt_clone_table? — CLONE <data source> (path [FOR SYSTEM_TIME AS OF expr] [WHERE expr]).
 	if p.cur.Type == kwCLONE {
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		path, err := p.parseTablePath()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Clone = path
-		if !p.isSpanner() {
-			if p.atForSystemTime() {
-				ts, err := p.parseForSystemTimeExpr()
-				if err != nil {
-					return nil, err
-				}
-				stmt.CloneSystemTime = ts
-			}
-			if p.cur.Type == kwWHERE {
-				p.advance()
-				w, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				stmt.CloneWhere = w
-			}
-		}
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// opt_copy_table? — COPY <data source> (path [FOR SYSTEM_TIME AS OF expr] [WHERE expr]).
 	if p.cur.Type == kwCOPY {
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		path, err := p.parseTablePath()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Copy = path
-		if !p.isSpanner() {
-			if p.atForSystemTime() {
-				ts, err := p.parseForSystemTimeExpr()
-				if err != nil {
-					return nil, err
-				}
-				stmt.CopySystemTime = ts
-			}
-			if p.cur.Type == kwWHERE {
-				p.advance()
-				w, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				stmt.CopyWhere = w
-			}
-		}
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// opt_default_collate_clause?  — DEFAULT collate_clause.
 	if p.cur.Type == kwDEFAULT {
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance() // DEFAULT
-		coll, _, err := p.parseCollateClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.DefaultCollate = coll
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// partition_by_clause_prefix_no_hint?  — PARTITION BY expr (, expr)*.
 	if p.cur.Type == kwPARTITION {
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		exprs, err := p.parsePartitionByNoHint()
-		if err != nil {
-			return nil, err
-		}
-		stmt.PartitionBy = exprs
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// cluster_by_clause_prefix_no_hint?  — CLUSTER BY expr (, expr)*.
 	if p.cur.Type == kwCLUSTER {
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		exprs, err := p.parseClusterByNoHint()
-		if err != nil {
-			return nil, err
-		}
-		stmt.ClusterBy = exprs
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// opt_ttl_clause?  — a standalone (non-comma-led) ROW DELETION POLICY ( expr ).
@@ -486,7 +314,7 @@ func (p *Parser) parseCreateTablePrefix(create Token, orReplace bool, scope stri
 	// trailing Spanner PK (it leaves a bare ROW after a Spanner PK unconsumed,
 	// which the outer EOF check then reports as the syntax error it is).
 	if p.cur.Type == kwROW && !hasSpannerPK {
-		if p.isBigQuery() || !hasElementList {
+		if !hasElementList {
 			return nil, &ParseError{
 				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 				Message: "syntax error: ROW DELETION POLICY clause is not supported",
@@ -504,24 +332,12 @@ func (p *Parser) parseCreateTablePrefix(create Token, orReplace bool, scope stri
 	// BigQuery CREATE TABLE … WITH CONNECTION does not mis-parse, but the body is
 	// skipped to the connection path. Kept minimal: WITH CONNECTION <path>.
 	if p.cur.Type == kwWITH && p.peekNext().Type == kwCONNECTION {
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		if err := p.skipWithConnection(); err != nil {
-			return nil, err
-		}
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// opt_options_list?
 	if p.cur.Type == kwOPTIONS {
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		opts, err := p.parseOptionsList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Options = opts
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// as_query?  — AS query (CTAS).
@@ -546,12 +362,6 @@ func (p *Parser) parseTableElementList() ([]*ast.ColumnDef, []*ast.TableConstrai
 	// Empty element list `()` is legal in Spanner (`CREATE TABLE T () PRIMARY KEY ()`),
 	// but BigQuery rejects empty table element lists (`A table must define at least one column.`).
 	if p.cur.Type == int(')') {
-		if p.isBigQuery() {
-			return nil, nil, &ParseError{
-				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: "syntax error: a table must define at least one column",
-			}
-		}
 		p.advance()
 		return cols, cons, nil
 	}
@@ -631,10 +441,6 @@ func (p *Parser) parseColumnDefinition() (*ast.ColumnDef, error) {
 		if err := p.parseGeneratedColumnInfo(col); err != nil {
 			return nil, err
 		}
-	} else if !p.isSpanner() && (p.cur.Type == int(',') || p.cur.Type == int(')')) {
-		// BigQuery allows untyped column entries in CREATE TABLE element lists.
-		col.Loc.End = p.prev.Loc.End
-		return col, nil
 	} else {
 		// column_schema_inner — the column type (parseType covers
 		// simple/array/struct/range + type parameters). inArrayColumnSchema lets
@@ -1382,9 +1188,6 @@ func (p *Parser) parseKeyPartListWithOptions(pkElement, allowSpannerParenExpr bo
 	// Empty list `()` (legal for a Spanner PRIMARY KEY with no columns —
 	// oracle-confirmed `PRIMARY KEY ()` accepts; BigQuery rejects empty index key lists).
 	if p.cur.Type == int(')') {
-		if !pkElement && p.isBigQuery() {
-			return nil, p.syntaxErrorAtCur()
-		}
 		p.advance()
 		return parts, nil
 	}
@@ -1560,7 +1363,7 @@ func (p *Parser) parseDDLOptionsList() ([]*ast.OptionsEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	if p.isSpanner() && len(opts) == 0 {
+	if len(opts) == 0 {
 		return nil, &ParseError{
 			Position: p.prev.Loc.Start, End: p.prev.Loc.End,
 			Message: "syntax error: OPTIONS() requires at least one option in Spanner DDL",
@@ -1710,25 +1513,6 @@ func (p *Parser) parseRowDeletionPolicyBody() (ast.Node, error) {
 		return nil, err
 	}
 	return expr, nil
-}
-
-// skipWithConnection consumes a `WITH CONNECTION <path>` clause (BigQuery
-// with_connection_clause). The connection-clause AST is dialect-node territory;
-// the core CREATE TABLE only needs to step over it so a following OPTIONS / AS
-// query parses. cur is at WITH (with CONNECTION next).
-func (p *Parser) skipWithConnection() error {
-	p.advance() // WITH
-	p.advance() // CONNECTION
-	// connection_clause is `connection_name` (a path) or DEFAULT. Consume a path
-	// or the DEFAULT keyword.
-	if p.cur.Type == kwDEFAULT {
-		p.advance()
-		return nil
-	}
-	if _, err := p.parseTablePath(); err != nil {
-		return err
-	}
-	return nil
 }
 
 // skipBalancedParens consumes a `( … )` run with balanced nesting starting at the

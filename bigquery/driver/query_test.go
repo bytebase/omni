@@ -73,7 +73,7 @@ func TestStatements(t *testing.T) {
 }
 
 // TestReturnsRows covers the classification the driver wires its query path to:
-// a statement googlesql/analysis calls a query returns rows, and every other
+// a statement bigquery/analysis calls a query returns rows, and every other
 // statement is run as a job that reports rows affected.
 func TestReturnsRows(t *testing.T) {
 	for _, tc := range []struct {
@@ -113,7 +113,7 @@ func TestReturnsRows(t *testing.T) {
 
 // TestLimitStatement covers the rewrite the driver applies to a statement it
 // classified as a query: BigQuery's CTE wrap, which is
-// googlesql/analysis.StatementWithResultLimit's BigQuery half.
+// bigquery/analysis.StatementWithResultLimit.
 func TestLimitStatement(t *testing.T) {
 	require.Equal(t,
 		"WITH result AS (SELECT 1) SELECT * FROM result LIMIT 10;",

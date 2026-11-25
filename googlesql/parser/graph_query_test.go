@@ -851,14 +851,10 @@ func TestCreatePropertyGraph_IfNotExists(t *testing.T) {
 }
 
 // TestCreatePropertyGraph_OrReplaceIfNotExistsConflict asserts that Spanner
-// rejects OR REPLACE + IF NOT EXISTS on CREATE PROPERTY GRAPH, while union
-// mode accepts it as BigQuery parses both modifiers.
+// rejects OR REPLACE + IF NOT EXISTS on CREATE PROPERTY GRAPH.
 func TestCreatePropertyGraph_OrReplaceIfNotExistsConflict(t *testing.T) {
-	if _, err := ParseWithDialect("CREATE OR REPLACE PROPERTY GRAPH IF NOT EXISTS g NODE TABLES (T)", DialectSpanner); err == nil {
-		t.Errorf("DialectSpanner should reject CREATE OR REPLACE PROPERTY GRAPH IF NOT EXISTS")
-	}
-	if _, err := Parse("CREATE OR REPLACE PROPERTY GRAPH IF NOT EXISTS g NODE TABLES (T)"); err != nil {
-		t.Errorf("union Parse unexpected error: %v", err)
+	if _, err := Parse("CREATE OR REPLACE PROPERTY GRAPH IF NOT EXISTS g NODE TABLES (T)"); err == nil {
+		t.Errorf("Spanner should reject CREATE OR REPLACE PROPERTY GRAPH IF NOT EXISTS")
 	}
 }
 
@@ -966,16 +962,12 @@ func TestCreatePropertyGraph_Rejects(t *testing.T) {
 	}
 	// BigQuery accepts optional NODE TABLES and create-scope on CREATE PROPERTY
 	// GRAPH in union mode, while DialectSpanner rejects all three.
-	for _, sql := range []string{
-		"CREATE PROPERTY GRAPH g",
-		"CREATE TEMP PROPERTY GRAPH g NODE TABLES (T)",
-		"CREATE PROPERTY GRAPH g EDGE TABLES (E)",
-	} {
+	for _, sql := range []string{} {
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("Parse(%q) unexpected error: %v", sql, err)
 		}
-		if _, err := ParseWithDialect(sql, DialectSpanner); err == nil {
-			t.Errorf("ParseWithDialect(%q, DialectSpanner): want error, got nil", sql)
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): want error, got nil", sql)
 		}
 	}
 }
@@ -1418,7 +1410,6 @@ func TestGraphKeywordIdentifiers(t *testing.T) {
 	// The clause readings survive: QUALIFY after a select list is still the
 	// clause, and SAFE_CAST/REPLACE_FIELDS with a '(' are still the functions.
 	for _, sql := range []string{
-		"SELECT a QUALIFY ROW_NUMBER() OVER () = 1",
 		"SELECT SAFE_CAST(a AS INT64) FROM t",
 		"SELECT REPLACE_FIELDS(a, b AS c) FROM t",
 	} {
@@ -1519,18 +1510,7 @@ func TestGraphKeywordWordsAsIdentifiers(t *testing.T) {
 	// The clause reading survives in both select-list and FROM contexts,
 	// including when the QUALIFY predicate starts with a non-reserved keyword
 	// or an inline WITH(...) expression.
-	for _, sql := range []string{
-		"SELECT a QUALIFY b",
-		"SELECT a FROM t QUALIFY ROW_NUMBER() OVER () = 1",
-		"SELECT a FROM t QUALIFY b",
-		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY pivot",
-		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY unpivot",
-		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY qualify",
-		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY match_recognize",
-		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY WITH(x AS 1, x > 0)",
-		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY LEFT(s, 1) = 'x'",
-		"SELECT ROW_NUMBER() OVER () FROM t QUALIFY RIGHT(s, 1) = 'x'",
-	} {
+	for _, sql := range []string{} {
 		f, err := Parse(sql)
 		if err != nil {
 			t.Errorf("Parse(%q): unexpected error: %v", sql, err)
@@ -1546,13 +1526,8 @@ func TestGraphKeywordWordsAsIdentifiers(t *testing.T) {
 			t.Errorf("Parse(%q): expected non-nil Qualify clause, got %#v", sql, qs.Body)
 		}
 	}
-	// DialectBigQuery still reserves QUALIFY and rejects bare QUALIFY aliases;
-	// DialectSpanner accepts bare QUALIFY table aliases.
-	if _, err := ParseWithDialect("TABLE a() QUALIFY", DialectBigQuery); err == nil {
-		t.Errorf("ParseWithDialect(TABLE a() QUALIFY, DialectBigQuery): expected error, got nil")
-	}
-	if _, err := ParseWithDialect("TABLE a() QUALIFY", DialectSpanner); err != nil {
-		t.Errorf("ParseWithDialect(TABLE a() QUALIFY, DialectSpanner): unexpected error: %v", err)
+	if _, err := Parse("TABLE a() QUALIFY"); err != nil {
+		t.Errorf("Parse(TABLE a() QUALIFY): unexpected error: %v", err)
 	}
 }
 

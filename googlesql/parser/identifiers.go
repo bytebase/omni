@@ -76,9 +76,6 @@ func (p *Parser) atTmNonReservedWord() bool {
 }
 
 func (p *Parser) isTmNonReservedWord(tokenType int) bool {
-	if p.isBigQuery() && (tokenType == kwMATCH_RECOGNIZE || tokenType == kwQUALIFY) {
-		return false
-	}
 	return tmNonReservedWords[tokenType]
 }
 
