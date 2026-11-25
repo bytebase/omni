@@ -439,6 +439,10 @@ func (c *mutationCollector) statement(stmt tree.Statement) {
 		c.selectQuery(n)
 	case tree.SelectStatement:
 		c.selectStatement(n)
+	case *tree.ExplainAnalyze:
+		// A statement source may hold an EXPLAIN ANALYZE, which runs the
+		// statement it explains.
+		c.statement(n.Statement)
 	default:
 	}
 }
