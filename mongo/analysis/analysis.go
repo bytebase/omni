@@ -155,6 +155,12 @@ func analyzeDatabase(s *ast.DatabaseStatement) *StatementAnalysis {
 		a.Reads = siblingReads(s)
 	case "runCommand", "adminCommand":
 		a.Reads = commandReads(s)
+	case "aggregate":
+		// A database-level pipeline reads no target, only what its
+		// stages name.
+		if len(s.Args) > 0 {
+			a.Reads = pipelineReads(s.Args[0], "")
+		}
 	}
 	return a
 }

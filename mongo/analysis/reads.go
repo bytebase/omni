@@ -76,13 +76,22 @@ func commandReads(s *ast.DatabaseStatement) []Namespace {
 
 // siblingReads returns what db.getSiblingDB("other").<collection>.<method>(...)
 // reads, in the other database; an explain() may come before the method and
-// cursor methods after it. Any other chain reads nothing it can name.
+// cursor methods after it. A database-level aggregate there reads what its
+// pipeline names. Any other chain reads nothing it can name.
 func siblingReads(s *ast.DatabaseStatement) []Namespace {
-	if len(s.Args) != 1 || len(s.ChainedMethods) < 2 {
+	if len(s.Args) != 1 || len(s.ChainedMethods) == 0 {
 		return nil
 	}
 	database, ok := s.Args[0].(*ast.StringLiteral)
 	if !ok {
+		return nil
+	}
+	if first := s.ChainedMethods[0]; first.Name == "aggregate" && len(first.Args) > 0 {
+		// db.getSiblingDB("other").aggregate([...]) is a database-level
+		// pipeline in the other database.
+		return pipelineReads(first.Args[0], database.Value)
+	}
+	if len(s.ChainedMethods) < 2 {
 		return nil
 	}
 	target, method := s.ChainedMethods[0], s.ChainedMethods[1]

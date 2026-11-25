@@ -36,6 +36,9 @@ func TestReads(t *testing.T) {
 		{`db.runCommand({aggregate: 1, pipeline: [{$documents: [{}]}, {$lookup: {from: "orders", pipeline: [], as: "o"}}], cursor: {}})`, []analysis.Namespace{ns("", "orders")}},
 		{`db.adminCommand({find: "system.users"})`, []analysis.Namespace{ns("admin", "system.users")}},
 		{`db.runCommand({insert: "users", documents: [{}]})`, nil},
+		{`db.aggregate([{$documents: [{}]}, {$lookup: {from: "users", pipeline: [], as: "u"}}])`, []analysis.Namespace{ns("", "users")}},
+		{`db.getSiblingDB("hr").aggregate([{$documents: [{}]}, {$unionWith: "emp"}])`, []analysis.Namespace{ns("hr", "emp")}},
+		{`db.aggregate([{$currentOp: {}}])`, nil},
 		{`db.getSiblingDB("hr").emp.insertOne({a: 1})`, nil},
 	}
 	for _, tt := range tests {

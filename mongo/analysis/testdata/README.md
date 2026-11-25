@@ -28,8 +28,8 @@ How MongoDB's answers are read, in `mongo/internal/testcontainer/span.go`:
   `$graphLookup`'s `from`, `$unionWith`'s `coll`, and a lowered lookup's
   `foreignCollection`. Only the plan's structure is read (its plan stages
   and pipeline stages), never a filter, a `$match` or the `command` the plan
-  echoes, where a document is the query's data. The target of `$out` or `$merge` is written, not read, and
-  neither side names it.
+  echoes, where a document is the query's data. The target of `$out` or
+  `$merge` is written, not read, and neither side names it.
 - A view the statement targets is already resolved in the plan. A view a
   stage names is not, so it is planned in turn (`aggregate([])` over it) and
   the answer names what it reads. MongoDB's answer is therefore collections
