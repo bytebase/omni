@@ -151,6 +151,14 @@ CREATE TABLE fid_a.uses_k (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_a.k());
 CREATE FUNCTION fid_a.p() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
 CREATE TABLE fid_a.t_p (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_a.p());
 CREATE FUNCTION fid_a.p(n INT8) RETURNS INT8 LANGUAGE SQL AS $$ SELECT count(*) + n FROM fid_a.t_p $$;
+CREATE FUNCTION fid_a.z(n INT8) RETURNS INT8 LANGUAGE SQL AS $$ SELECT n $$;
+CREATE FUNCTION fid_a.a_calls_z() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.z(1:::INT8) $$;
+CREATE FUNCTION fid_a.z(s STRING) RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.a_calls_z() $$;
+CREATE TABLE fid_a.uses_a (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_a.a_calls_z());
+CREATE FUNCTION fid_a.arr(a INT8[]) RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
+CREATE FUNCTION fid_a.b_calls_arr() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.arr(ARRAY[1, 2]) $$;
+CREATE FUNCTION fid_a.arr(a INT8, b INT8) RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.b_calls_arr() $$;
+CREATE TABLE fid_a.uses_b (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_a.b_calls_arr());
 CREATE VIEW "Fid Mixed".family AS SELECT p.id, c.id AS child FROM fid_a.parents AS p JOIN "Fid Mixed"."Children" AS c ON c."Parent Id" = p.id;
 `,
 		},

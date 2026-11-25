@@ -3,6 +3,7 @@ package catalog
 import (
 	"errors"
 	"slices"
+	"strings"
 )
 
 // definitionGraph orders object IDs so that each object follows the objects it
@@ -43,22 +44,50 @@ func (g *definitionGraph) AddSoftEdge(start, end string) {
 	g.soft = append(g.soft, [2]string{start, end})
 }
 
-// Sort orders the graph with its soft edges, or without them when they make
-// a cycle.
+// Sort orders the graph with as many of its soft edges as fit: each, in a
+// stable order, is kept unless it would close a cycle, so a false edge drops
+// without taking a real one with it.
 func (g *definitionGraph) Sort() ([]string, error) {
-	if len(g.soft) > 0 {
-		full := &definitionGraph{nodes: g.nodes, edges: make(map[string][]string)}
-		for start, ends := range g.edges {
-			full.edges[start] = append([]string(nil), ends...)
+	if len(g.soft) == 0 {
+		return g.TopologicalSort()
+	}
+	full := &definitionGraph{nodes: g.nodes, edges: make(map[string][]string)}
+	for start, ends := range g.edges {
+		full.edges[start] = append([]string(nil), ends...)
+	}
+	soft := slices.Clone(g.soft)
+	slices.SortFunc(soft, func(a, b [2]string) int {
+		if c := strings.Compare(a[0], b[0]); c != 0 {
+			return c
 		}
-		for _, edge := range g.soft {
+		return strings.Compare(a[1], b[1])
+	})
+	for _, edge := range soft {
+		if !full.reaches(edge[1], edge[0]) {
 			full.edges[edge[0]] = append(full.edges[edge[0]], edge[1])
 		}
-		if ordered, err := full.TopologicalSort(); err == nil {
-			return ordered, nil
+	}
+	return full.TopologicalSort()
+}
+
+// reaches reports whether a path of edges leads from start to end.
+func (g *definitionGraph) reaches(start, end string) bool {
+	seen := map[string]bool{start: true}
+	stack := []string{start}
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if n == end {
+			return true
+		}
+		for _, next := range g.edges[n] {
+			if !seen[next] {
+				seen[next] = true
+				stack = append(stack, next)
+			}
 		}
 	}
-	return g.TopologicalSort()
+	return false
 }
 
 // TopologicalSort returns the IDs in dependency order, or an error when the

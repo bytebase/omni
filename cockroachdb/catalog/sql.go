@@ -337,9 +337,13 @@ func routineCalls(definition string) []routineCall {
 
 // argumentCount counts the arguments of the parenthesized list tokens opens.
 func argumentCount(tokens []crparser.TokenString) int {
-	depth, commas, any := 0, 0, false
+	depth, brackets, commas, any := 0, 0, 0, false
 	for _, token := range tokens {
 		switch token.Str {
+		case "[":
+			brackets++
+		case "]":
+			brackets--
 		case "(":
 			depth++
 			if depth == 1 {
@@ -354,7 +358,9 @@ func argumentCount(tokens []crparser.TokenString) int {
 				return commas + 1
 			}
 		case ",":
-			if depth == 1 {
+			// A comma inside an ARRAY[...] or a nested call separates no
+			// argument of this call.
+			if depth == 1 && brackets == 0 {
 				commas++
 				continue
 			}
