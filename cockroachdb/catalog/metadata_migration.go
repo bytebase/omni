@@ -341,8 +341,8 @@ func (d *differ) diffTypes() error {
 	return nil
 }
 
-// keptColumnOfType names a column of a table both snapshots hold whose type
-// is schema.name, or returns "".
+// keptColumnOfType names a column of a table, or an attribute of a composite
+// type, both snapshots hold whose type is schema.name, or returns "".
 func (d *differ) keptColumnOfType(schema, name string) string {
 	typeName := schema + "." + name
 	for _, s := range d.from.schemas {
@@ -353,6 +353,18 @@ func (d *differ) keptColumnOfType(schema, name string) string {
 			for _, column := range table.Columns {
 				if column.Type == typeName || column.Type == typeName+"[]" {
 					return s.Name + "." + table.Name + "." + column.Name
+				}
+			}
+		}
+		// A kept composite type over it holds it too, though CockroachDB
+		// v25.2 refuses a composite type over a user-defined type.
+		for _, composite := range s.CompositeTypes {
+			if composite.Name == name && s.Name == schema || findType(d.to.byName[s.Name], qualifiedType{composite: composite}) == nil {
+				continue
+			}
+			for _, attribute := range composite.Attributes {
+				if attribute.Type == typeName || attribute.Type == typeName+"[]" {
+					return s.Name + "." + composite.Name + "." + attribute.Name
 				}
 			}
 		}

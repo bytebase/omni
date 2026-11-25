@@ -219,3 +219,16 @@ func TestTableDefinitionQuotesUserTypes(t *testing.T) {
 	require.Contains(t, def, `"kind" "Fid Mixed"."Kind"`)
 	require.Contains(t, def, `"mood" app.mood`)
 }
+
+func TestMetadataMigrationRefusesCompositeUnderComposite(t *testing.T) {
+	snapshot := func(attributes ...string) *metadata.DatabaseSchemaMetadata {
+		inner := &metadata.CompositeTypeMetadata{Name: "inner_t"}
+		for _, name := range attributes {
+			inner.Attributes = append(inner.Attributes, &metadata.CompositeTypeAttribute{Name: name, Type: "bigint"})
+		}
+		outer := &metadata.CompositeTypeMetadata{Name: "outer_t", Attributes: []*metadata.CompositeTypeAttribute{{Name: "payload", Type: "app.inner_t"}}}
+		return &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{Name: "app", CompositeTypes: []*metadata.CompositeTypeMetadata{inner, outer}}}}
+	}
+	_, err := catalog.MetadataMigration(snapshot("v"), snapshot("v", "label"), catalog.MetadataMigrationOptions{})
+	require.ErrorContains(t, err, "app.outer_t.payload")
+}
