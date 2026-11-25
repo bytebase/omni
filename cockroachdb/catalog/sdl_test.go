@@ -26,6 +26,8 @@ func TestLoadSDLRefuses(t *testing.T) {
 		"unique no index":    "CREATE TABLE t (id INT8 PRIMARY KEY, a INT8, UNIQUE WITHOUT INDEX (a))",
 		"column no index":    "CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 UNIQUE WITHOUT INDEX)",
 		"partition":          "CREATE TABLE t (id INT8 PRIMARY KEY) PARTITION BY LIST (id) (PARTITION p VALUES IN (1))",
+		"families":           "CREATE TABLE t (id INT8 PRIMARY KEY, a STRING, b STRING, FAMILY f1 (id, a), FAMILY f2 (b))",
+		"column family":      "CREATE TABLE t (id INT8 PRIMARY KEY, a STRING, b STRING FAMILY f2, FAMILY f1 (id, a))",
 		"temporary view":     "CREATE TEMP VIEW v AS SELECT 1 AS n",
 		"schema rename":      "CREATE SCHEMA old; CREATE TABLE old.t (id INT8 PRIMARY KEY); ALTER SCHEMA old RENAME TO new",
 		"table twice":        "CREATE TABLE t (id INT8 PRIMARY KEY); CREATE TABLE t (id INT8 PRIMARY KEY)",
@@ -371,4 +373,10 @@ func TestSDLIfNotExists(t *testing.T) {
 		catalog.SDLMigrationOptions{})
 	require.NoError(t, err)
 	require.Nil(t, plan, "%v", plan)
+}
+
+// TestLoadSDLOneFamily loads a table that names its one family.
+func TestLoadSDLOneFamily(t *testing.T) {
+	_, err := catalog.LoadSDL("CREATE TABLE t (id INT8 PRIMARY KEY, a STRING, FAMILY f1 (id, a))")
+	require.NoError(t, err)
 }

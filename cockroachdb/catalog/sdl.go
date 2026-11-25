@@ -404,6 +404,21 @@ func (l *sdlLoader) createTable(n *tree.CreateTable) error {
 		// The sync reads no locality, so a migration could not keep one.
 		return fmt.Errorf("table %s: LOCALITY is not supported", n.Table.String())
 	}
+	// One column family, the default, is the only layout the sync reads.
+	families := make(map[string]bool)
+	for _, def := range n.Defs {
+		switch d := def.(type) {
+		case *tree.FamilyTableDef:
+			families[string(d.Name)] = true
+		case *tree.ColumnTableDef:
+			if d.HasColumnFamily() {
+				families[string(d.Family.Name)] = true
+			}
+		}
+	}
+	if len(families) > 1 {
+		return fmt.Errorf("table %s: more than one column family is not supported", n.Table.String())
+	}
 	if n.PartitionByTable != nil {
 		// Nor partitioning.
 		return fmt.Errorf("table %s: PARTITION BY is not supported", n.Table.String())
