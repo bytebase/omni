@@ -180,6 +180,7 @@ const (
 
 // nameKindAfter says what an unqualified name names after the tokens before.
 func nameKindAfter(before []parser.Token) nameKind {
+	before = withoutIfExists(before)
 	if len(before) == 0 {
 		return kindColumn
 	}
@@ -214,6 +215,31 @@ func nameKindAfter(before []parser.Token) nameKind {
 	return kindColumn
 }
 
+// withoutIfExists drops the IF [NOT] EXISTS the tokens end with, which
+// sits between DROP TABLE or CREATE DATABASE and the name.
+func withoutIfExists(toks []parser.Token) []parser.Token {
+	n := len(toks)
+	if n >= 2 && toks[n-1].Type == parser.KwExists && toks[n-2].Type == parser.KwIf {
+		return toks[:n-2]
+	}
+	if n >= 3 && toks[n-1].Type == parser.KwExists && toks[n-2].Type == parser.KwNot && toks[n-3].Type == parser.KwIf {
+		return toks[:n-3]
+	}
+	return toks
+}
+
+// ifExistsLength returns how many tokens at the start of toks are IF [NOT]
+// EXISTS.
+func ifExistsLength(toks []parser.Token) int {
+	if len(toks) >= 2 && toks[0].Type == parser.KwIf && toks[1].Type == parser.KwExists {
+		return 2
+	}
+	if len(toks) >= 3 && toks[0].Type == parser.KwIf && toks[1].Type == parser.KwNot && toks[2].Type == parser.KwExists {
+		return 3
+	}
+	return 0
+}
+
 // fromListCommas marks the commas that separate a FROM list's relations,
 // in one pass: a relational FROM or a JOIN starts a list in its
 // parenthesis, and a clause keyword, ON or USING ends it.
@@ -222,6 +248,12 @@ func fromListCommas(toks []parser.Token) []bool {
 	inList := []bool{false}
 	for i, tok := range toks {
 		top := len(inList) - 1
+		// A keyword that names a relation, as in system.settings or FROM
+		// settings, is no clause.
+		if tok.IsKeyword() && i > 0 && (toks[i-1].Type == parser.TokDot || commas[i-1] ||
+			toks[i-1].Type == parser.KwFrom || toks[i-1].Type == parser.KwJoin) {
+			continue
+		}
 		switch tok.Type {
 		case parser.TokLParen:
 			inList = append(inList, false)
@@ -460,6 +492,7 @@ func tableRefs(toks []parser.Token) []tableRef {
 		for j < len(toks) && toks[j].Type == parser.TokLParen && !startsQuery(toks[j:]) {
 			j++
 		}
+		j += ifExistsLength(toks[j:])
 		if ref, n := readTableRef(toks[j:]); n > 0 {
 			ref.group, ref.branch, ref.from, ref.until = group, branch, from, until
 			ref.cte = ref.database == "" && declaredIn(toks, ctes[ref.table], group)

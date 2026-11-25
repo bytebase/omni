@@ -201,6 +201,13 @@ func TestCompleteSessionNames(t *testing.T) {
 		{input: "INSERT INTO orders SELECT | FROM users", typ: CandidateColumn, want: []string{"id", "name"}},
 		{input: "INSERT INTO orders (|) SELECT id FROM users", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
 		{input: "INSERT INTO orders (|", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "SELECT | FROM system.settings, orders", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "SELECT * FROM system.settings, |", typ: CandidateTable, want: []string{"`back\\\\slash`", "`my-table`", "orders", "other", "users"}},
+		{input: "SELECT | FROM settings, orders", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "DROP TABLE IF EXISTS |", typ: CandidateTable, want: []string{"`back\\\\slash`", "`my-table`", "orders", "other", "users"}},
+		{input: "DROP DATABASE IF EXISTS |", typ: CandidateDatabase, want: []string{"db", "other"}},
+		{input: "CREATE TABLE IF NOT EXISTS |", typ: CandidateTable, want: []string{"`back\\\\slash`", "`my-table`", "orders", "other", "users"}},
+		{input: "ALTER TABLE IF EXISTS orders UPDATE amount = 0 WHERE |", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
 		{input: "ALTER TABLE orders UPDATE amount = 0 WHERE |", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
 	} {
 		t.Run(tc.input, func(t *testing.T) {
