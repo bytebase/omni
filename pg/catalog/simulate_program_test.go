@@ -473,6 +473,9 @@ var retypeFeatures = []struct{ kind, statement string }{
 	{"alter-using", `ALTER TABLE notes ALTER COLUMN n TYPE json USING JSON_ARRAYAGG(n)`},
 	{"alter-using", `ALTER TABLE notes ALTER COLUMN n TYPE json USING JSON_OBJECTAGG('k' VALUE n)`},
 	{"alter-using", `ALTER TABLE notes ALTER COLUMN n TYPE json USING JSON_ARRAYAGG(n) OVER ()`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE text USING tableoid::text`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE varchar(40) USING ctid::text`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE int USING xmin::text::int`},
 }
 
 // generatedRetypeFeatures run ALTER COLUMN TYPE on programs@generated, whose
@@ -488,4 +491,8 @@ var generatedRetypeFeatures = []struct{ kind, statement string }{
 	{"alter-using", `ALTER TABLE gen ALTER COLUMN d TYPE varchar(5)`},
 	{"alter-using", `ALTER TABLE gen ALTER COLUMN e TYPE text USING e::text`},
 	{"alter-using", `ALTER TABLE gen ALTER COLUMN e TYPE bigint`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN d DROP DEFAULT, ALTER COLUMN d TYPE int USING length(d)`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN d TYPE int USING length(d), ALTER COLUMN d DROP DEFAULT`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN d SET DEFAULT 1, ALTER COLUMN d TYPE int USING length(d)`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN d DROP DEFAULT, ALTER COLUMN d SET DEFAULT 2`},
 }

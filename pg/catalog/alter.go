@@ -62,17 +62,24 @@ func applyForeignOptionChanges(existing []string, opts *nodes.List) ([]string, e
 //	10: AT_PASS_MISC      — miscellaneous
 //
 // pg: src/backend/commands/tablecmds.c — ATRewriteTables pass ordering
-func atCmdPass(subtype nodes.AlterTableType) int {
-	switch subtype {
+func atCmdPass(cmd *nodes.AlterTableCmd) int {
+	switch subtype := nodes.AlterTableType(cmd.Subtype); subtype {
 	case nodes.AT_DropColumn, nodes.AT_DropConstraint:
 		return 0 // AT_PASS_DROP
+	case nodes.AT_ColumnDefault:
+		// pg: src/backend/commands/tablecmds.c — ATPrepCmd
+		// (pass = cmd->def ? AT_PASS_ADD_OTHERCONSTR : AT_PASS_DROP)
+		if cmd.Def == nil {
+			return 0 // AT_PASS_DROP
+		}
+		return 6
 	case nodes.AT_AlterColumnType:
 		return 1 // AT_PASS_ALTER_TYPE
 	case nodes.AT_AddColumn:
 		return 3 // AT_PASS_ADD_COL
 	case nodes.AT_AddConstraint:
 		return 5 // AT_PASS_ADD_CONSTR
-	case nodes.AT_SetNotNull, nodes.AT_DropNotNull, nodes.AT_ColumnDefault:
+	case nodes.AT_SetNotNull, nodes.AT_DropNotNull:
 		return 6 // AT_PASS_COL_ATTRS
 	case nodes.AT_AddIndexConstraint:
 		return 7 // AT_PASS_ADD_INDEXCONSTR
@@ -277,7 +284,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 			return err
 		}
 		pending = append(pending, pendingATCmd{
-			pass:            atCmdPass(nodes.AlterTableType(transformed.Subtype)),
+			pass:            atCmdPass(transformed),
 			origIdx:         i,
 			cmd:             transformed,
 			identityOptions: identityOptions,

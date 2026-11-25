@@ -53,8 +53,8 @@ func TestWalkSimulation(t *testing.T) {
 		// 42P20, 42P02, 42611 on a generated column), dependencies on a
 		// dropped table or column (2BP01), and what a catalog loaded from a
 		// snapshot does not hold: a procedure's identity, an event trigger.
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.430},
-		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.430},
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.427},
+		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.427},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{

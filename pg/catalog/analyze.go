@@ -6686,9 +6686,10 @@ func (c *Catalog) AnalyzeStandaloneExpr(expr nodes.Node, rel *Relation) (Analyze
 // pg: src/backend/parser/parse_agg.c — check_agglevels_and_constraints
 func (c *Catalog) analyzeAlterColumnTransform(expr nodes.Node, rel *Relation) (AnalyzedExpr, error) {
 	ac := &analyzeCtx{
-		catalog: c,
-		query:   &Query{RangeTable: []*RangeTableEntry{c.buildRelationRTE(rel)}},
-		opts:    AnalyzeOptions{DisallowParams: true},
+		catalog:       c,
+		query:         &Query{RangeTable: []*RangeTableEntry{c.buildRelationRTE(rel)}},
+		opts:          AnalyzeOptions{DisallowParams: true},
+		systemColumns: true,
 	}
 	analyzed, err := ac.transformExpr(expr)
 	if err != nil {
