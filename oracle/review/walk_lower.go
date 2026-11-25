@@ -877,7 +877,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 				if b.checkCreateIndexType(v, t, nil, r.rng) {
 					return true
 				}
-				if b.checkCreateIndexLocal(v, t, nil, r.rng) {
+				if b.checkCreateIndexLocal(v, t, b.syncedPartMeta(t), r.rng) {
 					return true
 				}
 			}
@@ -1767,9 +1767,9 @@ func (b *builder) alterMaterializedView(v *ast.AlterMaterializedViewStmt) bool {
 				if b.checkPartitionTextContradictions(partLoc, r, false, r.rng) {
 					return true
 				}
-				if kind == kindTable {
+				if kind == kindTable || kind == kindMView {
 					pkFact, _ := b.look(r.childKey(spacePrimary, ""))
-					if b.checkIOTPartitionClause(r, pkFact == walk.Absent || b.heapTable(r), partLoc, r.rng) {
+					if b.checkIOTPartitionClause(r, kind == kindTable && pkFact == walk.Absent || b.heapTable(r), partLoc, r.rng) {
 						return true
 					}
 					if b.checkPartitionMeta(r, b.syncedPartMeta(r), partLoc, r.rng) {
@@ -1789,6 +1789,18 @@ func (b *builder) alterMaterializedView(v *ast.AlterMaterializedViewStmt) bool {
 		if f, kind := b.look(k); f == walk.Present && kind == kindTable {
 			b.need(k, walk.Present, []string{kindMView}, r.rng, "", wrongKind(r.written, kindTable, kindWord(kindMView)))
 			return true
+		}
+		// A heap container of no partitions takes no partitioning clause,
+		// and no OVERFLOW clause, which only an index-organized one has.
+		// INCLUDING OVERFLOW with no column between is accepted (verified).
+		if b.heapTable(r) && v.Name.Loc.End > 0 && v.Name.Loc.End < v.Loc.End {
+			loc := ast.Loc{Start: v.Name.Loc.End, End: v.Loc.End}
+			if v.Action == "PARTITION" && b.checkPartitionMeta(r, b.syncedPartMeta(r), loc, r.rng) {
+				return true
+			}
+			if tokWord(tokens(b.w.sql, loc), 0, "OVERFLOW") && b.checkIOTPartitionClause(r, true, loc, r.rng) {
+				return true
+			}
 		}
 	}
 	b.exists(k, []string{kindMView}, v.IfExists, r.rng, missingKind(kindMView, r.written), wrongKind(r.written, kindTable, kindWord(kindMView)))

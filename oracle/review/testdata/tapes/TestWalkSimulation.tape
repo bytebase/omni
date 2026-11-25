@@ -2797,7 +2797,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -2825,11 +2825,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -2837,6 +2839,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -20621,7 +20627,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -20671,11 +20677,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | A
@@ -20683,6 +20691,10 @@
 | A_C_IDX
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | A
@@ -20690,6 +20702,10 @@
 | PK_A
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -20697,6 +20713,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -41046,7 +41066,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -41083,11 +41103,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -41095,6 +41117,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -60684,7 +60710,7 @@
 : string
 | NO
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -60712,11 +60738,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -60724,6 +60752,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -80741,7 +80773,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -80776,11 +80808,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -80788,6 +80822,10 @@
 | A
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -80795,6 +80833,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -101196,7 +101238,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -101224,11 +101266,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -101236,6 +101280,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -119331,7 +119379,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -119381,11 +119429,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | A
@@ -119393,6 +119443,10 @@
 | A_D_IDX
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | A
@@ -119400,6 +119454,10 @@
 | SYS_C_SNAP$_9000001PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -119407,6 +119465,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -140479,7 +140541,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -140507,11 +140569,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -140519,6 +140583,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -158479,7 +158547,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -158507,11 +158575,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -158519,6 +158589,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -176994,7 +177068,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -177022,11 +177096,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -177034,6 +177110,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -194917,7 +194997,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -194945,11 +195025,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -194957,6 +195039,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -212936,7 +213022,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -212971,11 +213057,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | A
@@ -212983,6 +213071,10 @@
 | A_D_IDX
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | A
@@ -212990,6 +213082,10 @@
 | A_PK
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -214883,7 +214979,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -214967,11 +215063,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | DEPT
@@ -214979,6 +215077,10 @@
 | DEPT_PK
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | EMP
@@ -214986,6 +215088,10 @@
 | EMP_PK
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | MISC
@@ -214993,6 +215099,10 @@
 | MISC_PK
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | MISC
@@ -215000,6 +215110,10 @@
 | SYS_IL9000000004C00001$$
 : string
 | LOB
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -219113,7 +219227,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -219173,11 +219287,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | CUSTOMERS
@@ -219185,6 +219301,10 @@
 | CUSTOMERS_PK
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | ORDERS
@@ -219192,6 +219312,10 @@
 | ORDERS_PK
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result

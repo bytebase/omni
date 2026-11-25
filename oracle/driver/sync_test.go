@@ -243,6 +243,92 @@ CREATE TABLE OMNI_APP.OT_HASHED OF OMNI_APP.TY PARTITION BY HASH (X) PARTITIONS 
 	}
 }
 
+// TestSyncMaterializedViewTablespace pins a materialized view's tablespace and
+// partitions, its container's: Oracle gives no tablespace to a partitioned or
+// index-organized container, as to such a table.
+func TestSyncMaterializedViewTablespace(t *testing.T) {
+	d := openTestDriver(t)
+	execCorpus(t, d.db, `
+CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+GRANT CREATE SESSION, CREATE TABLE, CREATE MATERIALIZED VIEW TO OMNI_APP;
+CREATE TABLE OMNI_APP.BASE (A NUMBER PRIMARY KEY);
+CREATE MATERIALIZED VIEW OMNI_APP.HEAP TABLESPACE USERS AS SELECT A FROM OMNI_APP.BASE;
+CREATE MATERIALIZED VIEW OMNI_APP.RANGED PARTITION BY RANGE (A) (PARTITION P1 VALUES LESS THAN (10), PARTITION P2 VALUES LESS THAN (MAXVALUE)) AS SELECT A FROM OMNI_APP.BASE;
+CREATE MATERIALIZED VIEW OMNI_APP.IOT ORGANIZATION INDEX AS SELECT A FROM OMNI_APP.BASE;
+CREATE TABLE OMNI_APP.PREBUILT (A NUMBER) PARTITION BY HASH (A) (PARTITION H1, PARTITION H2);
+CREATE MATERIALIZED VIEW OMNI_APP.PREBUILT ON PREBUILT TABLE AS SELECT A FROM OMNI_APP.BASE;
+`)
+	metadata, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, mv := range onlySchema(t, metadata).MaterializedViews {
+		var parts []string
+		for _, p := range mv.Partitions {
+			parts = append(parts, p.Type.String()+" "+p.Name)
+		}
+		got[mv.Name] = mv.Tablespace + " [" + strings.Join(parts, ", ") + "]"
+	}
+	want := map[string]string{
+		"HEAP":     "USERS []",
+		"RANGED":   " [RANGE P1, RANGE P2]",
+		"IOT":      " []",
+		"PREBUILT": " [HASH H1, HASH H2]",
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("materialized view tablespaces and partitions (-want +got):\n%s", diff)
+	}
+}
+
+// TestSyncOtherIndexes pins the indexes a schema owns that none of its tables
+// holds: one on another schema's table, and a cluster's. An index of the same
+// name's table in the other schema stays off the schema's own table of that
+// name, and an index another schema owns on the schema's table is not the
+// schema's.
+func TestSyncOtherIndexes(t *testing.T) {
+	d := openTestDriver(t)
+	execCorpus(t, d.db, `
+CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+CREATE USER OMNI_OTHER NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+GRANT CREATE SESSION, CREATE TABLE, CREATE CLUSTER TO OMNI_APP;
+CREATE TABLE OMNI_APP.T (A NUMBER);
+CREATE TABLE OMNI_OTHER.T (A NUMBER, B NUMBER);
+CREATE INDEX OMNI_APP.ON_OWN ON OMNI_APP.T (A);
+CREATE INDEX OMNI_APP.ON_OTHER ON OMNI_OTHER.T (B);
+CREATE INDEX OMNI_OTHER.OTHERS ON OMNI_APP.T (A DESC);
+CREATE CLUSTER OMNI_APP.CL (K NUMBER);
+CREATE INDEX OMNI_APP.CL_IDX ON CLUSTER OMNI_APP.CL;
+`)
+	metadata, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := onlySchema(t, metadata)
+	var own []string
+	for _, idx := range tableByName(t, schema, "T").Indexes {
+		own = append(own, idx.Name+" "+strings.Join(idx.Expressions, ","))
+	}
+	if diff := cmp.Diff([]string{`ON_OWN "A"`}, own); diff != "" {
+		t.Errorf("T indexes (-want +got):\n%s", diff)
+	}
+	var other []string
+	for _, o := range schema.OtherIndexes {
+		other = append(other, o.Schema+"."+o.Table+" "+o.Index.Name+" "+o.Index.Type+" "+strings.Join(o.Index.Expressions, ","))
+	}
+	want := []string{
+		`OMNI_APP.CL CL_IDX CLUSTER "K"`,
+		`OMNI_OTHER.T ON_OTHER NORMAL "B"`,
+	}
+	// ALL_INDEXES lists no cluster's index, even to its owner.
+	if got := selectOne(t, d.db, "SELECT COUNT(*) FROM all_indexes WHERE owner = 'OMNI_APP' AND index_name = 'CL_IDX'"); got != "0" {
+		t.Errorf("ALL_INDEXES lists CL_IDX %s times, want 0", got)
+	}
+	if diff := cmp.Diff(want, other); diff != "" {
+		t.Errorf("other indexes (-want +got):\n%s", diff)
+	}
+}
+
 // TestSyncInvisibleColumns pins which columns the sync lists: the invisible ones
 // and the virtual ones are listed, and the system columns an index or an unused
 // column leaves behind are not.

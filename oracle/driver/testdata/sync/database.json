@@ -795,7 +795,8 @@
               "type":  "VARCHAR2(40 BYTE)",
               "collation":  "USING_NLS_COMP"
             }
-          ]
+          ],
+          "tablespace":  "USERS"
         }
       ],
       "sequences":  [
