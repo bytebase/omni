@@ -587,8 +587,9 @@ func TestWalkThroughSweepOceanBase(t *testing.T) {
 
 // sequenceRefusals are the codes of OceanBase 4.3.5.6's sequence refusals, by
 // their text, as oceanbase/catalog's sequences/simulate.tsv recorded them. The
-// builder's, from 4317 on, refuse a CREATE SEQUENCE only once its database is
-// found (1049) and its name is free (4297).
+// builder's, 4311 and from 4317 on, refuse a statement only once its database
+// is found (1049) and, for CREATE SEQUENCE, its name is free (4297) or, for
+// ALTER SEQUENCE, the sequence exists (4298).
 var sequenceRefusals = map[string]string{
 	"duplicate MAXVALUE/NOMAXVALUE specifications":          "4301",
 	"duplicate MINVALUE/NOMINVALUE specifications":          "4302",
@@ -604,6 +605,7 @@ var sequenceRefusals = map[string]string{
 	"duplicate START WITH specifications":                   "4313",
 	"no options specified for ALTER SEQUENCE":               "4314",
 	"duplicate RESTART specified":                           "4382",
+	"cannot alter starting sequence number":                 "4311",
 	"only ALTER SEQUENCE takes RESTART":                     "1149",
 	"Invalid numeric":                                       "5114",
 	"INCREMENT must be a nonzero integer":                   "4318",
@@ -627,8 +629,8 @@ func sequenceCodes(m, stmt string) []string {
 	if code == "" {
 		return nil
 	}
-	if code >= "4317" && code <= "4330" {
-		return []string{code, "1049", "4297"}
+	if code == "4311" || code >= "4317" && code <= "4330" {
+		return []string{code, "1049", "4297", "4298"}
 	}
 	return []string{code}
 }
