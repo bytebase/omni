@@ -103,6 +103,31 @@
 | {"columns":[{"name":"name","source":"db.public.customers.name"},{"name":"id","source":"db.public.customers.id"},{"name":"name","source":"db.public.customers.name"},{"name":"email","source":"db.public.customers.email"},{"name":"region","source":"db.public.customers.region"}],"tables":["db.public.customers"]}
 > raw
 | span public
+| SELECT (ROW(id, email)).* FROM customers
+< raw
+| {"columns":[{"name":"?column?","source":"db.public.customers.id"},{"name":"?column?","source":"db.public.customers.email"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT ((id, email)).* FROM customers
+< raw
+| {"columns":[{"name":"?column?","source":"db.public.customers.id"},{"name":"?column?","source":"db.public.customers.email"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT b FROM (SELECT (ROW(id, email)).* FROM customers) AS q(a, b)
+< raw
+| {"columns":[{"name":"b","source":"db.public.customers.email"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT (((id, email) AS k, v)).* FROM customers
+< raw
+| {"columns":[{"name":"k","source":"db.public.customers.id"},{"name":"v","source":"db.public.customers.email"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT ((SELECT id, email FROM customers LIMIT 1)).*
+< raw
+| {"error":"42601"}
+> raw
+| span public
 | SELECT row_to_json(c) FROM customers c
 < raw
 | {"columns":[{"name":"row_to_json"}],"tables":["db.public.customers"]}
@@ -498,6 +523,11 @@
 | {"columns":[{"name":"name"}],"tables":["db.hr.employees"]}
 > raw
 | span public
+| WITH RECURSIVE c AS (SELECT id FROM customers UNION ALL SELECT id FROM customers LIMIT (SELECT count(*) FROM orders)) SELECT * FROM c
+< raw
+| {"columns":[{"name":"id"}],"tables":["db.public.customers","db.public.orders"]}
+> raw
+| span public
 | SELECT id, name FROM customers UNION SELECT id, status FROM orders
 < raw
 | {"columns":[{"name":"id"},{"name":"name"}],"tables":["db.public.customers","db.public.orders"]}
@@ -621,6 +651,11 @@
 | SELECT r.region, r.n, c.name FROM region_counts r JOIN customers c USING (region)
 < raw
 | {"columns":[{"name":"region","source":"db.public.region_counts.region"},{"name":"n","source":"db.public.region_counts.n"},{"name":"name","source":"db.public.customers.name"}],"tables":["db.public.customers","db.public.region_counts"]}
+> raw
+| span public
+| SELECT rowid, region FROM public.region_counts
+< raw
+| {"columns":[{"name":"rowid","source":"db.public.region_counts.rowid"},{"name":"region","source":"db.public.region_counts.region"}],"tables":["db.public.region_counts"]}
 > raw
 | span public
 | SELECT "Id", "MixedCol", lower_col FROM "Mixed"."CamelTable"
@@ -766,6 +801,106 @@
 | SELECT *, customer_id FROM orders JOIN items ON items.order_id = orders.id CROSS JOIN unnest(ARRAY['a']) AS tags
 < raw
 | {"columns":[{"name":"id","source":"db.public.orders.id"},{"name":"customer_id","source":"db.public.orders.customer_id"},{"name":"amount","source":"db.public.orders.amount"},{"name":"status","source":"db.public.orders.status"},{"name":"created_at","source":"db.public.orders.created_at"},{"name":"order_id","source":"db.public.items.order_id"},{"name":"sku","source":"db.public.items.sku"},{"name":"qty","source":"db.public.items.qty"},{"name":"price","source":"db.public.items.price"},{"name":"tags"},{"name":"customer_id","source":"db.public.orders.customer_id"}],"tables":["db.public.items","db.public.orders"]}
+> raw
+| span public
+| SELECT id, name FROM customers AS OF SYSTEM TIME '-1ms'
+< raw
+| {"columns":[{"name":"id","source":"db.public.customers.id"},{"name":"name","source":"db.public.customers.name"}],"tablesUnstated":true}
+> raw
+| span public
+| SELECT c.name, o.amount FROM customers AS c JOIN orders AS o ON o.customer_id = c.id AS OF SYSTEM TIME '-1ms'
+< raw
+| {"columns":[{"name":"name","source":"db.public.customers.name"},{"name":"amount","source":"db.public.orders.amount"}],"tablesUnstated":true}
+> raw
+| span public
+| SELECT name FROM customers@customers_pkey
+< raw
+| {"columns":[{"name":"name","source":"db.public.customers.name"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT c.email FROM customers@{FORCE_INDEX=customers_pkey} AS c WHERE c.id > 1
+< raw
+| {"columns":[{"name":"email","source":"db.public.customers.email"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT * FROM orders@{NO_FULL_SCAN} WHERE id = 1
+< raw
+| {"columns":[{"name":"id","source":"db.public.orders.id"},{"name":"customer_id","source":"db.public.orders.customer_id"},{"name":"amount","source":"db.public.orders.amount"},{"name":"status","source":"db.public.orders.status"},{"name":"created_at","source":"db.public.orders.created_at"}],"tables":["db.public.orders"]}
+> raw
+| span public
+| SELECT o.id, c.name FROM orders AS o INNER HASH JOIN customers AS c ON c.id = o.customer_id
+< raw
+| {"columns":[{"name":"id","source":"db.public.orders.id"},{"name":"name","source":"db.public.customers.name"}],"tables":["db.public.customers","db.public.orders"]}
+> raw
+| span public
+| SELECT o.id, c.name FROM orders AS o LEFT LOOKUP JOIN customers AS c ON c.id = o.customer_id
+< raw
+| {"columns":[{"name":"id","source":"db.public.orders.id"},{"name":"name","source":"db.public.customers.name"}],"tables":["db.public.customers","db.public.orders"]}
+> raw
+| span public
+| SELECT name FROM customers ORDER BY PRIMARY KEY customers
+< raw
+| {"columns":[{"name":"name","source":"db.public.customers.name"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT * FROM customers WITH ORDINALITY
+< raw
+| {"columns":[{"name":"id","source":"db.public.customers.id"},{"name":"name","source":"db.public.customers.name"},{"name":"email","source":"db.public.customers.email"},{"name":"region","source":"db.public.customers.region"},{"name":"ordinality"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT IF(amount > 10, status, 'small') AS s, IFNULL(email, status) FROM orders JOIN customers ON customers.id = orders.customer_id
+< raw
+| {"columns":[{"name":"s"},{"name":"coalesce"}],"tables":["db.public.customers","db.public.orders"]}
+> raw
+| span public
+| SELECT * FROM [SELECT id, email FROM customers] AS s
+< raw
+| {"columns":[{"name":"id"},{"name":"email"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT s.email FROM [SELECT id, email FROM customers] AS s WHERE s.id > 1
+< raw
+| {"columns":[{"name":"email"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT * FROM [SHOW TABLES]
+< raw
+| {"columns":[{"name":"schema_name"},{"name":"table_name"},{"name":"type"},{"name":"owner"},{"name":"estimated_row_count"},{"name":"locality"}]}
+> raw
+| span public
+| SELECT column_name FROM [SHOW COLUMNS FROM customers]
+< raw
+| {"columns":[{"name":"column_name"}]}
+> raw
+| span public
+| SHOW COLUMNS FROM customers
+< raw
+| {"columns":[{"name":"column_name","source":"db.information_schema.columns.column_name"},{"name":"data_type","source":"db.information_schema.columns.crdb_sql_type"},{"name":"is_nullable"},{"name":"column_default","source":"db.information_schema.columns.column_default"},{"name":"generation_expression","source":"db.information_schema.columns.generation_expression"},{"name":"indices"},{"name":"is_hidden"}],"tablesUnstated":true}
+> raw
+| span public
+| UPSERT INTO customers (id, name) VALUES (1, 'a')
+< raw
+| {"tablesUnstated":true}
+> raw
+| span public
+| UPSERT INTO customers (id, name) SELECT id, status FROM orders
+< raw
+| {"tablesUnstated":true}
+> raw
+| span public
+| EXPLAIN (OPT) SELECT name FROM customers
+< raw
+| {"columns":[{"name":"info"}],"tablesUnstated":true}
+> raw
+| span public
+| EXPLAIN (VEC) SELECT o.id FROM orders AS o JOIN customers AS c ON c.id = o.customer_id
+< raw
+| {"columns":[{"name":"info"}],"tablesUnstated":true}
+> raw
+| span public
+| EXPLAIN ANALYZE SELECT name FROM customers WHERE region = 'x'
+< raw
+| {"columns":[{"name":"info"}],"tablesUnstated":true}
 > raw
 | span sales,public
 | SELECT id, region FROM orders
