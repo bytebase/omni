@@ -364,10 +364,12 @@ func (l *sdlLoader) createTable(n *tree.CreateTable) error {
 	s := l.schema(schema)
 	table := &metadatapb.TableMetadata{Name: string(n.Table.ObjectName)}
 	s.Tables = append(s.Tables, table)
-	// CockroachDB names a table's own checks before its columns' checks.
+	// CockroachDB names a table's own checks and foreign keys before its
+	// columns' ones.
 	for _, def := range n.Defs {
-		if check, ok := def.(*tree.CheckConstraintTableDef); ok {
-			if err := l.addTableDef(schema, table, check); err != nil {
+		switch def.(type) {
+		case *tree.CheckConstraintTableDef, *tree.ForeignKeyConstraintTableDef:
+			if err := l.addTableDef(schema, table, def); err != nil {
 				return err
 			}
 		}
@@ -380,7 +382,8 @@ func (l *sdlLoader) createTable(n *tree.CreateTable) error {
 		}
 	}
 	for _, def := range n.Defs {
-		if _, ok := def.(*tree.CheckConstraintTableDef); ok {
+		switch def.(type) {
+		case *tree.CheckConstraintTableDef, *tree.ForeignKeyConstraintTableDef:
 			continue
 		}
 		if err := l.addTableDef(schema, table, def); err != nil {
@@ -544,7 +547,8 @@ func sdlIndex(schema, table string, existing []*metadatapb.IndexMetadata, n *tre
 
 // sdlCheck states a check as the sync does, parenthesized, named as
 // CockroachDB names it when the SDL does not: check_ and the columns it
-// reads, then 1, 2 and on until no other check of the table has the name.
+// reads, then 1, 2 and on until no other constraint of the table has the
+// name.
 func sdlCheck(table *metadatapb.TableMetadata, name string, expr tree.Expr) *metadatapb.CheckConstraintMetadata {
 	if name == "" {
 		var columns []string
@@ -557,11 +561,18 @@ func sdlCheck(table *metadatapb.TableMetadata, name string, expr tree.Expr) *met
 		}}, expr)
 		base := strings.Join(append([]string{"check"}, columns...), "_")
 		name = base
-		for i := 1; slices.ContainsFunc(table.CheckConstraints, func(c *metadatapb.CheckConstraintMetadata) bool { return c.Name == name }); i++ {
+		for i := 1; constraintTaken(table, name); i++ {
 			name = base + strconv.Itoa(i)
 		}
 	}
 	return &metadatapb.CheckConstraintMetadata{Name: name, Expression: "((" + sdlExpr(expr) + "))"}
+}
+
+// constraintTaken reports whether a check or a foreign key of a table has a
+// name.
+func constraintTaken(table *metadatapb.TableMetadata, name string) bool {
+	return slices.ContainsFunc(table.CheckConstraints, func(c *metadatapb.CheckConstraintMetadata) bool { return c.Name == name }) ||
+		slices.ContainsFunc(table.ForeignKeys, func(fk *metadatapb.ForeignKeyMetadata) bool { return fk.Name == name })
 }
 
 type columnCollector struct{ visit func(string) }
@@ -599,7 +610,13 @@ func (l *sdlLoader) addForeignKey(schema string, table *metadatapb.TableMetadata
 		l.keyless = append(l.keyless, fk)
 	}
 	if fk.Name == "" {
-		fk.Name = table.Name + "_" + strings.Join(fk.Columns, "_") + "_fkey"
+		// CockroachDB names it the table, its columns and _fkey, then _1,
+		// _2 and on until no constraint of the table has the name.
+		base := table.Name + "_" + strings.Join(fk.Columns, "_") + "_fkey"
+		fk.Name = base
+		for i := 1; constraintTaken(table, fk.Name); i++ {
+			fk.Name = base + "_" + strconv.Itoa(i)
+		}
 	}
 	table.ForeignKeys = append(table.ForeignKeys, fk)
 	return nil

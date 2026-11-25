@@ -215,3 +215,49 @@ func TestSDLUnqualifiedType(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, plan, "%v", plan)
 }
+
+// TestLoadSDLNamesForeignKeys names unnamed foreign keys as v25.2.3 named
+// them on this schema: a table's own before its columns', each the table, its
+// columns and _fkey, then _1, _2 and on past the constraint names taken.
+func TestLoadSDLNamesForeignKeys(t *testing.T) {
+	loaded, err := catalog.LoadSDL(`CREATE TABLE p (id INT8 PRIMARY KEY);
+CREATE TABLE q (id INT8 PRIMARY KEY);
+CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 REFERENCES p (id), FOREIGN KEY (a) REFERENCES q (id), CONSTRAINT t_a_fkey2 FOREIGN KEY (a) REFERENCES p (id), FOREIGN KEY (a) REFERENCES p (id));
+ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES q (id);`)
+	require.NoError(t, err)
+	names := make(map[string]bool)
+	for _, table := range loaded.Schemas[0].Tables {
+		if table.Name != "t" {
+			continue
+		}
+		var got []string
+		for _, fk := range table.ForeignKeys {
+			got = append(got, fk.Name+" "+fk.ReferencedTable)
+			names[fk.Name] = true
+		}
+		require.Equal(t, []string{"t_a_fkey q", "t_a_fkey2 p", "t_a_fkey_1 p", "t_a_fkey_2 p", "t_a_fkey_3 q"}, got)
+	}
+	require.Len(t, names, 5)
+}
+
+// TestSDLNaturalJoinRebuildsView rebuilds a view whose NATURAL join reads a
+// column the migration drops, though the query never names it.
+func TestSDLNaturalJoinRebuildsView(t *testing.T) {
+	plan, err := catalog.BuildSDLMigrationPlan(`CREATE TABLE p (id INT8 PRIMARY KEY, a INT8);
+CREATE TABLE q (other INT8 PRIMARY KEY, a INT8);
+CREATE VIEW v AS SELECT p.id FROM p NATURAL JOIN q;`, `CREATE TABLE p (id INT8 PRIMARY KEY);
+CREATE TABLE q (other INT8 PRIMARY KEY);
+CREATE VIEW v AS SELECT p.id FROM p NATURAL JOIN q;`, catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	sql := plan.SQL()
+	require.Contains(t, sql, `DROP VIEW "public"."v"`)
+	require.Less(t, strings.Index(sql, `DROP VIEW "public"."v"`), strings.Index(sql, `DROP COLUMN "a"`), sql)
+}
+
+// TestLoadSDLNamesForeignKeyPastCheck skips a check's name, as v25.2.3 did.
+func TestLoadSDLNamesForeignKeyPastCheck(t *testing.T) {
+	loaded, err := catalog.LoadSDL(`CREATE TABLE p (id INT8 PRIMARY KEY);
+CREATE TABLE u (id INT8 PRIMARY KEY, a INT8 CHECK (a > 0), CONSTRAINT u_a_fkey CHECK (a < 9), FOREIGN KEY (a) REFERENCES p (id));`)
+	require.NoError(t, err)
+	require.Equal(t, "u_a_fkey_1", loaded.Schemas[0].Tables[1].ForeignKeys[0].Name)
+}

@@ -239,7 +239,8 @@ var annotateToken = func() int32 {
 }()
 
 // identifiers returns the words of a query, a superset of the columns it
-// reads, and whether it reads every column through a star.
+// reads, and whether it may read columns it does not name: through a star,
+// or through a NATURAL join's shared columns.
 func identifiers(query string) (map[string]bool, bool) {
 	tokens, ok := crparser.Tokens(query)
 	if !ok {
@@ -249,7 +250,7 @@ func identifiers(query string) (map[string]bool, bool) {
 	star := false
 	for _, token := range tokens {
 		words[token.Str] = true
-		if token.Str == "*" {
+		if token.Str == "*" || strings.EqualFold(token.Str, "natural") {
 			star = true
 		}
 	}
