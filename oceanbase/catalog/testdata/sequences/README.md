@@ -28,7 +28,7 @@ compared as `../simulate.tsv` compares them. It replays from
 `oceanbase/review`'s `TestWalkSimulation` also checks every row offline
 (`sequences` subtest) with 0 false positives: Bytebase's sync reads no
 sequence, so the walk finds only the refusals that do not depend on the
-database, 280 of 460.
+database, 300 of 460.
 
 **605 rows (121 statements × 5 fixtures): 605 agree, 0 disagree (100.00%).**
 
