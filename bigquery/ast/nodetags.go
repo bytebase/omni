@@ -2,7 +2,7 @@ package ast
 
 // NodeTag identifies the concrete type of an AST node.
 //
-// Every concrete node type defined under googlesql/ast must declare a unique
+// Every concrete node type defined under bigquery/ast must declare a unique
 // NodeTag constant in this file and return it from Tag(). This enables fast
 // switch dispatch and code-generated walker support.
 //

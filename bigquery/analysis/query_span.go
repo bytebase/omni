@@ -15,7 +15,7 @@ import (
 // (which the bytebase-switch node maps onto base.QuerySpan).
 //
 // The extraction is best-effort and parser-driven: it walks the fully-connected
-// AST the googlesql/parser produces (subqueries are already parsed into real
+// AST the bigquery/parser produces (subqueries are already parsed into real
 // QueryStmt nodes by the parser, so the walk reaches them directly — no
 // re-parsing of raw text). Known best-effort boundaries (each a deliberate scope
 // decision matching the merged trino/doris/snowflake analysis peers — full

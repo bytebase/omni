@@ -10,7 +10,7 @@ import (
 
 // Dump writes the database's DDL as the server states it, one statement per
 // line, which is what Bytebase dumped. The metadata is not rendered and does not
-// narrow the dump: googlesql has no catalog that turns a synced schema back into
+// narrow the dump: spanner has no catalog that turns a synced schema back into
 // DDL, and a Spanner database's own DDL is what the server holds.
 func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.DatabaseSchemaMetadata) error {
 	statements, err := d.client.GetDatabaseDdl(ctx, d.databasePath(""))

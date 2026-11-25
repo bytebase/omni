@@ -37,7 +37,7 @@ func openDriver(t testing.TB, instance, database string) *Driver {
 // in a recording, the emulator itself with every call written down.
 func OpenTape(t testing.TB, instance, database string) *tapeClient {
 	t.Helper()
-	raw := tape.OpenRaw(t, testcontainer.Server, testcontainer.Default, func(request string) (string, error) {
+	raw := tape.OpenRaw(t, testcontainer.Server, testcontainer.Driver, func(request string) (string, error) {
 		// A recording reaches the emulator on its first call, so a test that
 		// replays starts no container.
 		return live(t, instance, database, request)

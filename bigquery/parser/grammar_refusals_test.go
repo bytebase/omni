@@ -4,8 +4,8 @@ import "regexp"
 
 // grammarRefusals match the messages GoogleSQL's grammar writes when one of
 // its parser actions refuses input the rules derive, without the "Syntax error:"
-// prefix (mirrors googlesql/spanner-oracle/grammar_refusals.go, generated from
-// googlesql/testdata/googlesql.tm, plus the lookahead-transformer refusal on
+// prefix (mirrors spanner/spanner-oracle/grammar_refusals.go, generated from
+// spanner/testdata/googlesql.tm, plus the lookahead-transformer refusal on
 // bare EXCEPT and the MergeDynamicLabelProperties action refusal on duplicate
 // DYNAMIC LABEL/PROPERTIES). Each pattern accepts both "[at 1:N]" and
 // BigQuery's "at [1:N]" position suffix.
