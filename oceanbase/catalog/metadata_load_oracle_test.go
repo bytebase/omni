@@ -26,43 +26,34 @@ type migrationGap struct {
 // metadataMigrationGaps lists the cases of testdata/metadata_migration.yaml whose plan
 // applied to OceanBase does not store what newSchema stores, and why. A case that
 // converges while listed fails, so a fix removes its entry. "sync" names what
-// Bytebase's OceanBase sync leaves out of the snapshot or reports wrongly, so no plan
+// oceanbase/driver's sync leaves out of the snapshot or reports wrongly, so no plan
 // can restore it.
 var metadataMigrationGaps = map[string]migrationGap{
 	// OceanBase refuses MODIFY COLUMN on a table that has a CHECK constraint (1235).
-	"Alter table with column additions, type changes, and constraints":                                                      {reason: "MODIFY COLUMN refused next to a CHECK", refusal: "Error 1235 (0A000): Alter column with check constraint not supported"},
-	"Drop and recreate constraints with different definitions":                                                              {reason: "MODIFY COLUMN refused next to a CHECK", refusal: "Error 1235 (0A000): Alter column with check constraint not supported"},
 	"Verify no migration generated for identical schemas (tests primary key, index, check constraints, DEFAULT NULL fixes)": {reason: "MODIFY COLUMN refused next to a CHECK", refusal: "Error 1235 (0A000): Alter column with check constraint not supported"},
-	// sync: no CHECK constraints come back.
-	"Basic table operations with columns, constraints, and indexes": {reason: "sync: CHECK constraints"},
-	"Drop indexes and constraints from tables":                      {reason: "sync: CHECK constraints"},
-	"Reverse: Basic table operations":                               {reason: "sync: CHECK constraints"},
-	"Reverse: Add indexes and constraints":                          {reason: "sync: CHECK constraints"},
-	"Reverse: Drop tables with foreign key dependencies":            {reason: "sync: CHECK constraints"},
-	// sync: no partitions come back.
-	"Operations on partitioned tables":                                                  {reason: "sync: partitions and CHECK constraints"},
-	"Re-adding a primary key and an overlapping secondary index on a partitioned table": {reason: "sync: partitions"},
-	"Recreating a partitioned table from metadata":                                      {reason: "sync: partitions"},
-	// sync: FULLTEXT, SPATIAL and functional keys name OceanBase's hidden columns, so
-	// the table stands in.
+	// sync: a SPATIAL key names OceanBase's hidden column, so the table stands in.
 	"FULLTEXT and SPATIAL indexes":               {reason: "sync: hidden key columns", refusal: "Error 1138 (22004): Invalid use of NULL value"},
 	"Reverse: Drop FULLTEXT and SPATIAL indexes": {reason: "sync: hidden key columns"},
-	"Reverse: Drop JSON columns and indexes":     {reason: "sync: hidden key columns"},
-	// sync: a trigger's body is OceanBase's ACTION_STATEMENT, which repeats the header.
-	"Reverse: Views and triggers":      {reason: "sync: trigger body", refusal: "near 'TRIGGER"},
-	"Reverse: Drop triggers and views": {reason: "sync: trigger body", refusal: "near 'TRIGGER"},
-	// sync: events come back without a definition, so the plan creates a stand-in.
-	"Reverse: Drop events and advanced features": {reason: "sync: event definition", refusal: "near 'COMPLETION"},
-	// sync: ON UPDATE CURRENT_TIMESTAMP is not read.
-	"Reverse: Alter table columns": {reason: "sync: ON UPDATE and CHECK constraints"},
 	// The plan writes count(*) as count(0) and function names in lower case;
-	// OceanBase stores view and generation text as written.
-	"Drop views and stored routines":  {reason: "count(*) written as count(0)"},
-	"Reverse: Drop generated columns": {reason: "UPPER written as upper"},
+	// OceanBase stores view, generation, CHECK and partitioning text as written.
+	"Drop views and stored routines":                                                    {reason: "count(*) written as count(0)"},
+	"Reverse: Drop generated columns":                                                   {reason: "UPPER written as upper"},
+	"Reverse: Drop JSON columns and indexes":                                            {reason: "JSON_UNQUOTE written as json_unquote"},
+	"Reverse: Basic table operations":                                                   {reason: "CHAR_LENGTH written as char_length"},
+	"Drop indexes and constraints from tables":                                          {reason: "CHAR_LENGTH written as char_length, and CHECKs added in name order"},
+	"Re-adding a primary key and an overlapping secondary index on a partitioned table": {reason: "TO_DAYS written as to_days"},
+	"Recreating a partitioned table from metadata":                                      {reason: "TO_DAYS written as to_days"},
+	// The plan adds CHECK constraints in name order, and OceanBase lists them in
+	// the order they were added.
+	"Drop and recreate constraints with different definitions": {reason: "CHECKs added in name order"},
+	// OceanBase stores a trigger's whole statement as written, and the plan's
+	// qualifies its names.
+	"Reverse: Views and triggers":      {reason: "trigger text, and READS SQL DATA stored as CONTAINS SQL"},
+	"Reverse: Drop triggers and views": {reason: "trigger text, and count(*) written as count(0)"},
 }
 
 // TestOracle_MetadataMigrationApplyCorrectness applies each fixture's plan, generated
-// from snapshots synced from MySQL, to a database set up from oldSchema, and compares
+// from snapshots synced from OceanBase, to a database set up from oldSchema, and compares
 // what MySQL then stores with what it stores for newSchema: SHOW CREATE TABLE and SHOW
 // CREATE VIEW, and the information_schema rows of routines, their parameters,
 // triggers, and events. Parameter lists are compared by their rows, since MySQL keeps

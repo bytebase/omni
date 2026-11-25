@@ -63,6 +63,7 @@
                 position: 3
                 type: varchar(100)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -87,6 +88,11 @@
                 visible: true
             name: authors
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (`price` > 0)
+                name: chk_price_positive
+              - expression: ((`published_year` >= 1000) and (`published_year` <= 2100))
+                name: chk_year_valid
             collation: utf8mb4_general_ci
             columns:
               - default: AUTO_INCREMENT
@@ -129,6 +135,7 @@
                 referencedColumns:
                   - id
                 referencedTable: authors
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -205,6 +212,7 @@
                 position: 6
                 type: tinyint(1)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -321,6 +329,7 @@
                 referencedColumns:
                   - id
                 referencedTable: users
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -366,6 +375,7 @@
                 position: 4
                 type: timestamp
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -526,6 +536,7 @@
                 referencedColumns:
                   - id
                 referencedTable: users
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -552,6 +563,9 @@
                 visible: true
             name: comments
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (CHAR_LENGTH(`title`) > 0)
+                name: chk_title_length
             collation: utf8mb4_unicode_ci
             columns:
               - default: AUTO_INCREMENT
@@ -589,6 +603,7 @@
                 referencedColumns:
                   - id
                 referencedTable: users
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -639,6 +654,7 @@
                 position: 5
                 type: tinyint(1)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -727,6 +743,7 @@
                 referencedColumns:
                   - id
                 referencedTable: users
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -772,6 +789,7 @@
                 position: 4
                 type: timestamp
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -952,6 +970,7 @@
                 referencedColumns:
                   - id
                 referencedTable: products
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -967,9 +986,6 @@
             name: orders
             triggers:
               - body: |-
-                  TRIGGER update_order_total
-                  BEFORE INSERT ON orders
-                  FOR EACH ROW
                   BEGIN
                       DECLARE product_price DECIMAL(10, 2);
                       SELECT price INTO product_price FROM products WHERE id = NEW.product_id;
@@ -1002,6 +1018,7 @@
                 position: 4
                 type: int
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -1106,6 +1123,7 @@
                 referencedColumns:
                   - id
                 referencedTable: products
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -1140,6 +1158,7 @@
                 position: 4
                 type: int
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -1299,6 +1318,7 @@
                 position: 5
                 type: date
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -1350,6 +1370,7 @@
                 position: 5
                 type: decimal(10,2)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -1402,6 +1423,7 @@
                 position: 5
                 type: date
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -1503,6 +1525,7 @@
                 position: 5
                 type: varchar(50)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -1523,6 +1546,11 @@
     schemas:
       - tables:
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (CHAR_LENGTH(`name`) >= 3)
+                name: chk_name_length
+              - expression: (`price` > 0)
+                name: chk_price_positive
             collation: utf8mb4_general_ci
             columns:
               - default: AUTO_INCREMENT
@@ -1552,6 +1580,7 @@
                 position: 5
                 type: varchar(50)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -1615,7 +1644,9 @@
     ALTER TABLE `mmdb_012`.`products` ADD KEY `idx_category` (`category`);
     ALTER TABLE `mmdb_012`.`products` ADD KEY `idx_name` (`name`);
     ALTER TABLE `mmdb_012`.`products` ADD KEY `idx_price` (`price`);
-    ALTER TABLE `mmdb_012`.`products` ADD UNIQUE KEY `uk_sku` (`sku`)
+    ALTER TABLE `mmdb_012`.`products` ADD UNIQUE KEY `uk_sku` (`sku`);
+    ALTER TABLE `mmdb_012`.`products` ADD CONSTRAINT `chk_name_length` CHECK ((char_length(`name`) >= 3));
+    ALTER TABLE `mmdb_012`.`products` ADD CONSTRAINT `chk_price_positive` CHECK ((`price` > 0))
 - description: Drop views and stored routines
   oldSchema: |
     CREATE TABLE sales (
@@ -1693,6 +1724,7 @@
                 position: 4
                 type: date
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -1759,6 +1791,7 @@
                 position: 4
                 type: date
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -1871,6 +1904,11 @@
     schemas:
       - tables:
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (`price` > 0)
+                name: chk_price_positive
+              - expression: (`stock_quantity` >= 0)
+                name: chk_stock_non_negative
             collation: utf8mb4_general_ci
             columns:
               - default: AUTO_INCREMENT
@@ -1910,6 +1948,7 @@
               - default: CURRENT_TIMESTAMP
                 name: updated_at
                 nullable: true
+                onUpdate: CURRENT_TIMESTAMP
                 position: 8
                 type: timestamp
               - default: '''0'''
@@ -1923,6 +1962,7 @@
                 position: 10
                 type: decimal(5,2)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -2017,6 +2057,7 @@
                 position: 6
                 type: tinyint(1)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -2145,6 +2186,7 @@
                 position: 3
                 type: varchar(100)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -2169,6 +2211,13 @@
                 visible: true
             name: authors
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (`price` > 0)
+                name: chk_price_positive
+              - expression: (char_length(`title`) >= 3)
+                name: chk_title_length
+              - expression: ((`published_year` >= 1000) and (`published_year` <= 2030))
+                name: chk_year_extended
             collation: utf8mb4_0900_ai_ci
             columns:
               - default: AUTO_INCREMENT
@@ -2211,6 +2260,7 @@
                 referencedColumns:
                   - id
                 referencedTable: authors
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -2278,6 +2328,7 @@
                 position: 3
                 type: varchar(100)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -2302,6 +2353,11 @@
                 visible: true
             name: authors
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (`price` > 0)
+                name: chk_price_positive
+              - expression: ((`published_year` >= 1000) and (`published_year` <= 2100))
+                name: chk_year_valid
             collation: utf8mb4_general_ci
             columns:
               - default: AUTO_INCREMENT
@@ -2344,6 +2400,7 @@
                 referencedColumns:
                   - id
                 referencedTable: authors
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -2408,6 +2465,8 @@
     ALTER TABLE `mmdb_018`.`books` ADD KEY `idx_author` (`author_id`);
     ALTER TABLE `mmdb_018`.`books` ADD KEY `idx_year` (`published_year`);
     ALTER TABLE `mmdb_018`.`books` ADD UNIQUE KEY `uk_isbn` (`isbn`);
+    ALTER TABLE `mmdb_018`.`books` ADD CONSTRAINT `chk_price_positive` CHECK ((`price` > 0));
+    ALTER TABLE `mmdb_018`.`books` ADD CONSTRAINT `chk_year_valid` CHECK (((`published_year` >= 1000) and (`published_year` <= 2100)));
     ALTER TABLE `mmdb_018`.`books` ADD CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`)
 - description: FULLTEXT and SPATIAL indexes
   oldSchema: |
@@ -2476,6 +2535,7 @@
                 position: 4
                 type: varchar(500)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -2492,8 +2552,8 @@
                   - false
                   - false
                 expressions:
-                  - __word_segment_21_1794716596445648
-                  - __doc_id_1794716596445487
+                  - title
+                  - content
                 keyLength:
                   - "-1"
                   - "-1"
@@ -2502,12 +2562,9 @@
                 visible: true
               - descending:
                   - false
-                  - false
                 expressions:
-                  - __word_segment_24_1794716596447696
-                  - __doc_id_1794716596445487
+                  - tags
                 keyLength:
-                  - "-1"
                   - "-1"
                 name: idx_fulltext_tags
                 type: FULLTEXT
@@ -2541,6 +2598,7 @@
                 position: 3
                 type: point
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -2597,6 +2655,7 @@
                 position: 4
                 type: varchar(500)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -2626,6 +2685,7 @@
                 position: 3
                 type: point
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -3082,6 +3142,7 @@
                 referencedColumns:
                   - id
                 referencedTable: orders
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -3135,6 +3196,7 @@
                 referencedColumns:
                   - id
                 referencedTable: customers
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -3189,6 +3251,7 @@
                 referencedColumns:
                   - id
                 referencedTable: orders
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -3213,8 +3276,6 @@
             name: order_items
             triggers:
               - body: |-
-                  TRIGGER `trg_update_order_total`
-                  AFTER INSERT ON `order_items` FOR EACH ROW
                   BEGIN
                       UPDATE orders
                       SET total_amount = (
@@ -3254,6 +3315,7 @@
                 position: 3
                 type: int
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -3288,6 +3350,7 @@
                 position: 4
                 type: decimal(10,2)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -3375,6 +3438,9 @@
     schemas:
       - tables:
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (`amount` > 0)
+                name: chk_amount_positive
             collation: utf8mb4_0900_ai_ci
             columns:
               - default: AUTO_INCREMENT
@@ -3399,6 +3465,7 @@
                 position: 6
                 type: varchar(50)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -3503,6 +3570,7 @@
                 position: 6
                 type: varchar(50)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -3519,6 +3587,27 @@
                 unique: true
                 visible: true
             name: sales_data
+            partitions:
+              - expression: year(`sale_date`)
+                name: p2020
+                type: RANGE
+                value: "2021"
+              - expression: year(`sale_date`)
+                name: p2021
+                type: RANGE
+                value: "2022"
+              - expression: year(`sale_date`)
+                name: p2022
+                type: RANGE
+                value: "2023"
+              - expression: year(`sale_date`)
+                name: p2023
+                type: RANGE
+                value: "2024"
+              - expression: year(`sale_date`)
+                name: p_future
+                type: RANGE
+                value: MAXVALUE
   expected: |-
     DROP TABLE `mmdb_025`.`sales_data`;
     DROP VIEW IF EXISTS `mmdb_025`.`regional_sales`;
@@ -3530,7 +3619,13 @@
       `amount` decimal(10,2) NOT NULL,
       `region` varchar(50) NOT NULL,
       PRIMARY KEY (`id`,`sale_date`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    ALTER TABLE `mmdb_026`.`sales_data` /*!50100 PARTITION BY RANGE (year(`sale_date`))
+    (PARTITION p2020 VALUES LESS THAN (2021) ENGINE = innodb,
+     PARTITION p2021 VALUES LESS THAN (2022) ENGINE = innodb,
+     PARTITION p2022 VALUES LESS THAN (2023) ENGINE = innodb,
+     PARTITION p2023 VALUES LESS THAN (2024) ENGINE = innodb,
+     PARTITION p_future VALUES LESS THAN MAXVALUE ENGINE = innodb) */
 - description: Re-adding a primary key and an overlapping secondary index on a partitioned table
   oldSchema: |+
     --
@@ -3586,6 +3681,7 @@
                 position: 4
                 type: decimal(38,10)
             engine: InnoDB
+            hasMaterializedViewLog: false
             name: ads_member_asset_by_account_channel_d
   newMetadata:
     characterSet: utf8mb4
@@ -3613,6 +3709,7 @@
                 position: 4
                 type: decimal(38,10)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -3647,6 +3744,27 @@
                 type: BTREE
                 visible: true
             name: ads_member_asset_by_account_channel_d
+            partitions:
+              - expression: TO_DAYS(`dt`)
+                name: p0
+                type: RANGE
+                value: "739000"
+              - expression: TO_DAYS(`dt`)
+                name: p1
+                type: RANGE
+                value: "739001"
+              - expression: TO_DAYS(`dt`)
+                name: p2
+                type: RANGE
+                value: "739002"
+              - expression: TO_DAYS(`dt`)
+                name: p3
+                type: RANGE
+                value: "739003"
+              - expression: TO_DAYS(`dt`)
+                name: p_future
+                type: RANGE
+                value: MAXVALUE
   expected: |-
     DROP TABLE `mmdb_027`.`ads_member_asset_by_account_channel_d`;
     CREATE TABLE `mmdb_028`.`ads_member_asset_by_account_channel_d` (
@@ -3656,7 +3774,13 @@
       `net_asset_amount` decimal(38,10) DEFAULT NULL,
       PRIMARY KEY (`dt`,`member_id`,`account_type`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    ALTER TABLE `mmdb_028`.`ads_member_asset_by_account_channel_d` ADD KEY `sindex` (`dt`,`member_id`,`account_type`)
+    ALTER TABLE `mmdb_028`.`ads_member_asset_by_account_channel_d` ADD KEY `sindex` (`dt`,`member_id`,`account_type`);
+    ALTER TABLE `mmdb_028`.`ads_member_asset_by_account_channel_d` /*!50100 PARTITION BY RANGE (to_days(`dt`))
+    (PARTITION p0 VALUES LESS THAN (739000) ENGINE = innodb,
+     PARTITION p1 VALUES LESS THAN (739001) ENGINE = innodb,
+     PARTITION p2 VALUES LESS THAN (739002) ENGINE = innodb,
+     PARTITION p3 VALUES LESS THAN (739003) ENGINE = innodb,
+     PARTITION p_future VALUES LESS THAN MAXVALUE ENGINE = innodb) */
 - description: Recreating a partitioned table from metadata
   oldSchema: ""
   newSchema: |
@@ -3707,6 +3831,7 @@
                 position: 4
                 type: decimal(38,10)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -3741,6 +3866,23 @@
                 type: BTREE
                 visible: true
             name: ads_member_asset_by_account_channel_d
+            partitions:
+              - expression: TO_DAYS(`dt`)
+                name: p0
+                type: RANGE
+                value: "739000"
+              - expression: TO_DAYS(`dt`)
+                name: p1
+                type: RANGE
+                value: "739001"
+              - expression: TO_DAYS(`dt`)
+                name: p2
+                type: RANGE
+                value: "739002"
+              - expression: TO_DAYS(`dt`)
+                name: p_future
+                type: RANGE
+                value: MAXVALUE
   expected: |-
     CREATE TABLE `mmdb_030`.`ads_member_asset_by_account_channel_d` (
       `dt` date NOT NULL,
@@ -3749,7 +3891,12 @@
       `net_asset_amount` decimal(38,10) DEFAULT NULL,
       PRIMARY KEY (`dt`,`member_id`,`account_type`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    ALTER TABLE `mmdb_030`.`ads_member_asset_by_account_channel_d` ADD KEY `sindex` (`dt`,`member_id`,`account_type`)
+    ALTER TABLE `mmdb_030`.`ads_member_asset_by_account_channel_d` ADD KEY `sindex` (`dt`,`member_id`,`account_type`);
+    ALTER TABLE `mmdb_030`.`ads_member_asset_by_account_channel_d` /*!50100 PARTITION BY RANGE (to_days(`dt`))
+    (PARTITION p0 VALUES LESS THAN (739000) ENGINE = innodb,
+     PARTITION p1 VALUES LESS THAN (739001) ENGINE = innodb,
+     PARTITION p2 VALUES LESS THAN (739002) ENGINE = innodb,
+     PARTITION p_future VALUES LESS THAN MAXVALUE ENGINE = innodb) */
 - description: Generated columns (virtual and stored)
   oldSchema: |
     CREATE TABLE products (
@@ -3807,8 +3954,7 @@
               - name: unit_price
                 position: 4
                 type: decimal(10,2)
-              - default: '''(`quantity` * `unit_price`)'''
-                generation:
+              - generation:
                   expression: (`quantity` * `unit_price`)
                   type: TYPE_STORED
                 name: total_price
@@ -3818,16 +3964,14 @@
               - name: order_date
                 position: 6
                 type: date
-              - default: '''year(`order_date`)'''
-                generation:
+              - generation:
                   expression: year(`order_date`)
                   type: TYPE_VIRTUAL
                 name: order_year
                 nullable: true
                 position: 7
                 type: int
-              - default: '''month(`order_date`)'''
-                generation:
+              - generation:
                   expression: month(`order_date`)
                   type: TYPE_VIRTUAL
                 name: order_month
@@ -3835,6 +3979,7 @@
                 position: 8
                 type: int
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -3880,8 +4025,7 @@
                 nullable: true
                 position: 4
                 type: decimal(5,2)
-              - default: '''(`price` * (1 + (`tax_rate` / 100)))'''
-                generation:
+              - generation:
                   expression: (`price` * (1 + (`tax_rate` / 100)))
                   type: TYPE_STORED
                 name: price_with_tax
@@ -3890,7 +4034,6 @@
                 type: decimal(10,2)
               - characterSet: utf8mb4
                 collation: utf8mb4_general_ci
-                default: '''UPPER(`name`)'''
                 generation:
                   expression: UPPER(`name`)
                   type: TYPE_VIRTUAL
@@ -3899,6 +4042,7 @@
                 position: 6
                 type: varchar(100)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -3957,6 +4101,7 @@
                 position: 4
                 type: decimal(5,2)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -4018,6 +4163,9 @@
     schemas:
       - tables:
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (JSON_TYPE(`details`) is not null)
+                name: chk_details_not_empty
             collation: utf8mb4_general_ci
             columns:
               - default: AUTO_INCREMENT
@@ -4039,7 +4187,6 @@
                 type: json
               - characterSet: utf8mb4
                 collation: utf8mb4_general_ci
-                default: '''JSON_UNQUOTE(JSON_EXTRACT(`details`,\''$.brand\''))'''
                 generation:
                   expression: JSON_UNQUOTE(JSON_EXTRACT(`details`,'$.brand'))
                   type: TYPE_VIRTUAL
@@ -4048,6 +4195,7 @@
                 position: 5
                 type: varchar(50)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -4072,7 +4220,7 @@
               - descending:
                   - false
                 expressions:
-                  - SYS_NC21$
+                  - (cast(JSON_UNQUOTE(JSON_EXTRACT(`details`,'$.brand')) as char(50) charset utf8mb4))
                 keyLength:
                   - "-1"
                 name: idx_product_brand
@@ -4081,7 +4229,7 @@
               - descending:
                   - false
                 expressions:
-                  - SYS_NC22$
+                  - (cast(JSON_UNQUOTE(JSON_EXTRACT(`details`,'$.price')) as number(10,2)))
                 keyLength:
                   - "-1"
                 name: idx_product_price
@@ -4116,6 +4264,7 @@
                 position: 5
                 type: json
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -4153,6 +4302,7 @@
                 position: 3
                 type: varchar(100)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -4272,9 +4422,11 @@
               - default: CURRENT_TIMESTAMP
                 name: last_updated
                 nullable: true
+                onUpdate: CURRENT_TIMESTAMP
                 position: 4
                 type: timestamp
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -4300,9 +4452,6 @@
             name: inventory
             triggers:
               - body: |-
-                  TRIGGER trg_inventory_delete
-                  BEFORE DELETE ON inventory
-                  FOR EACH ROW
                   BEGIN
                       INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
                       VALUES (OLD.product_id, OLD.quantity, NULL, 'DELETE');
@@ -4314,9 +4463,6 @@
                 sqlMode: STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER
                 timing: BEFORE
               - body: |-
-                  TRIGGER trg_inventory_insert
-                  AFTER INSERT ON inventory
-                  FOR EACH ROW
                   BEGIN
                       INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
                       VALUES (NEW.product_id, NULL, NEW.quantity, 'INSERT');
@@ -4328,9 +4474,6 @@
                 sqlMode: STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER
                 timing: AFTER
               - body: |-
-                  TRIGGER trg_inventory_update
-                  AFTER UPDATE ON inventory
-                  FOR EACH ROW
                   BEGIN
                       IF OLD.quantity != NEW.quantity THEN
                           INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
@@ -4376,6 +4519,7 @@
                 position: 6
                 type: timestamp
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -4429,9 +4573,11 @@
               - default: CURRENT_TIMESTAMP
                 name: last_updated
                 nullable: true
+                onUpdate: CURRENT_TIMESTAMP
                 position: 4
                 type: timestamp
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -4488,6 +4634,7 @@
                 position: 6
                 type: timestamp
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -4509,7 +4656,7 @@
       `id` int NOT NULL AUTO_INCREMENT,
       `product_id` int NOT NULL,
       `quantity` int NOT NULL DEFAULT '0',
-      `last_updated` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+      `last_updated` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (`id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     CREATE TABLE `mmdb_036`.`inventory_log` (
@@ -4589,6 +4736,7 @@
                 position: 4
                 type: varchar(500)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -4629,6 +4777,7 @@
                 position: 4
                 type: varchar(500)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -4670,6 +4819,7 @@
                 position: 2
                 type: text
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -4758,7 +4908,12 @@
     name: mmdb_039
     schemas:
       - events:
-          - name: evt_cleanup_old_stats
+          - definition: |-
+              CREATE EVENT `evt_cleanup_old_stats` ON SCHEDULE EVERY 1 DAY STARTS '2026-11-25 09:27:33' ON COMPLETION NOT PRESERVE DO DELETE FROM system_stats
+                  WHERE recorded_at < DATE_SUB(NOW(), INTERVAL 30 DAY)
+            name: evt_cleanup_old_stats
+            sqlMode: ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+            timeZone: SYSTEM
         functions:
           - characterSetClient: utf8mb4
             collationConnection: utf8mb4_general_ci
@@ -4829,6 +4984,7 @@
                 position: 4
                 type: timestamp
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -4871,6 +5027,7 @@
                 position: 4
                 type: timestamp
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -4973,6 +5130,7 @@
                 type: varchar(50)
             comment: Product categories for organization
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - comment: Product categories for organization
                 descending:
@@ -5026,6 +5184,7 @@
                 type: int
             comment: Product catalog table containing all product information
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - comment: Product catalog table containing all product information
                 descending:
@@ -5095,6 +5254,7 @@
                 type: timestamp
             comment: Supplier information and contact details
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - comment: Supplier information and contact details
                 descending:
@@ -5138,6 +5298,7 @@
                 position: 2
                 type: varchar(50)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -5179,6 +5340,7 @@
                 position: 5
                 type: int
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -5318,6 +5480,7 @@
                 type: text
             comment: Customer purchase orders with tracking information
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - comment: Customer purchase orders with tracking information
                 descending:
@@ -5376,6 +5539,7 @@
                 position: 5
                 type: decimal(10,2)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -5446,6 +5610,7 @@
                 type: text
             comment: Customer orders and order details
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - comment: Customer orders and order details
                 descending:
@@ -5506,6 +5671,7 @@
                 type: decimal(10,2)
             comment: Individual line items for each order
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - comment: Individual line items for each order
                 descending:
@@ -5639,6 +5805,7 @@
                 type: tinyint(1)
             comment: 'Analytics events tracking - stores user interactions & system events. Data retention: 2 years. Access level: "admin" & "analyst" roles only.'
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - comment: 'Analytics events tracking - stores user interactions & system events. Data retention: 2 years. Access level: "admin" & "analyst" roles only.'
                 descending:
@@ -5706,6 +5873,7 @@
                 type: json
             comment: Blog posts and articles - supports international content (中文, العربية, Русский, 日本語, 한국어, Français, Español, Deutsch)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - comment: Blog posts and articles - supports international content (中文, العربية, Русский, 日本語, 한국어, Français, Español, Deutsch)
                 descending:
@@ -5767,6 +5935,7 @@
                 type: json
             comment: User accounts - stores user\'s personal information and preferences
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - comment: User accounts - stores user's personal information and preferences
                 descending:
@@ -5825,6 +5994,7 @@
                 position: 5
                 type: json
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -5877,6 +6047,7 @@
                 position: 5
                 type: json
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -5993,6 +6164,7 @@
                 position: 3
                 type: varchar(100)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -6017,6 +6189,11 @@
                 visible: true
             name: authors
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (`price` > 0)
+                name: chk_price_positive
+              - expression: ((`published_year` >= 1000) and (`published_year` <= 2100))
+                name: chk_year_valid
             collation: utf8mb4_general_ci
             columns:
               - default: AUTO_INCREMENT
@@ -6059,6 +6236,7 @@
                 referencedColumns:
                   - id
                 referencedTable: authors
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -6135,6 +6313,7 @@
                 position: 6
                 type: tinyint(1)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -6197,6 +6376,8 @@
     ALTER TABLE `mmdb_048`.`books` ADD UNIQUE KEY `uk_isbn` (`isbn`);
     ALTER TABLE `mmdb_048`.`products` ADD KEY `idx_category` (`category`);
     ALTER TABLE `mmdb_048`.`products` ADD KEY `idx_price` (`price`);
+    ALTER TABLE `mmdb_048`.`books` ADD CONSTRAINT `chk_price_positive` CHECK ((`price` > 0));
+    ALTER TABLE `mmdb_048`.`books` ADD CONSTRAINT `chk_year_valid` CHECK (((`published_year` >= 1000) and (`published_year` <= 2100)));
     ALTER TABLE `mmdb_048`.`books` ADD CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`)
 - description: 'Reverse: Create tables with foreign key constraints'
   oldSchema: |
@@ -6266,6 +6447,7 @@
                 referencedColumns:
                   - id
                 referencedTable: users
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -6311,6 +6493,7 @@
                 position: 4
                 type: timestamp
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -6456,6 +6639,7 @@
                 referencedColumns:
                   - id
                 referencedTable: users
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -6501,6 +6685,7 @@
                 position: 4
                 type: timestamp
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -6582,6 +6767,7 @@
                 referencedColumns:
                   - id
                 referencedTable: users
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -6608,6 +6794,9 @@
                 visible: true
             name: comments
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (CHAR_LENGTH(`title`) > 0)
+                name: chk_title_length
             collation: utf8mb4_unicode_ci
             columns:
               - default: AUTO_INCREMENT
@@ -6645,6 +6834,7 @@
                 referencedColumns:
                   - id
                 referencedTable: users
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -6695,6 +6885,7 @@
                 position: 5
                 type: tinyint(1)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -6772,6 +6963,7 @@
     ALTER TABLE `mmdb_052`.`users` ADD KEY `idx_email_active` (`email`,`is_active`);
     ALTER TABLE `mmdb_052`.`users` ADD KEY `idx_username` (`username`);
     ALTER TABLE `mmdb_052`.`users` ADD UNIQUE KEY `uk_email` (`email`);
+    ALTER TABLE `mmdb_052`.`posts` ADD CONSTRAINT `chk_title_length` CHECK ((char_length(`title`) > 0));
     ALTER TABLE `mmdb_052`.`comments` ADD CONSTRAINT `fk_comment_post` FOREIGN KEY (`post_id`) REFERENCES `posts` (`id`) ON DELETE CASCADE;
     ALTER TABLE `mmdb_052`.`comments` ADD CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
     ALTER TABLE `mmdb_052`.`posts` ADD CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
@@ -6884,6 +7076,7 @@
                 referencedColumns:
                   - id
                 referencedTable: products
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -6918,6 +7111,7 @@
                 position: 4
                 type: int
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -6993,6 +7187,7 @@
                 referencedColumns:
                   - id
                 referencedTable: products
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -7008,9 +7203,6 @@
             name: orders
             triggers:
               - body: |-
-                  TRIGGER update_order_total
-                  BEFORE INSERT ON orders
-                  FOR EACH ROW
                   BEGIN
                       DECLARE product_price DECIMAL(10, 2);
                       SELECT price INTO product_price FROM products WHERE id = NEW.product_id;
@@ -7043,6 +7235,7 @@
                 position: 4
                 type: int
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -7135,10 +7328,7 @@
     END;
     CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `mmdb_054`.`low_stock_products` AS select `products`.`id` AS `id`,`products`.`name` AS `name`,`products`.`price` AS `price`,`products`.`stock` AS `stock` from `products` where (`products`.`stock` < 10);
     CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `mmdb_054`.`product_inventory` AS select `p`.`id` AS `id`,`p`.`name` AS `name`,`p`.`price` AS `price`,`p`.`stock` AS `stock`,coalesce(sum(`o`.`quantity`),0) AS `total_ordered` from (`products` `p` left join `orders` `o` on((`p`.`id` = `o`.`product_id`))) group by `p`.`id`,`p`.`name`,`p`.`price`,`p`.`stock`;
-    CREATE TRIGGER `mmdb_054`.`update_order_total` BEFORE INSERT ON `mmdb_054`.`orders` FOR EACH ROW TRIGGER update_order_total
-    BEFORE INSERT ON orders
-    FOR EACH ROW
-    BEGIN
+    CREATE TRIGGER `mmdb_054`.`update_order_total` BEFORE INSERT ON `mmdb_054`.`orders` FOR EACH ROW BEGIN
         DECLARE product_price DECIMAL(10, 2);
         SELECT price INTO product_price FROM products WHERE id = NEW.product_id;
         SET NEW.total = NEW.quantity * product_price;
@@ -7225,6 +7415,7 @@
                 position: 5
                 type: date
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -7308,6 +7499,7 @@
                 position: 5
                 type: date
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -7359,6 +7551,7 @@
                 position: 5
                 type: decimal(10,2)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -7457,6 +7650,11 @@
     schemas:
       - tables:
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (CHAR_LENGTH(`name`) >= 3)
+                name: chk_name_length
+              - expression: (`price` > 0)
+                name: chk_price_positive
             collation: utf8mb4_general_ci
             columns:
               - default: AUTO_INCREMENT
@@ -7486,6 +7684,7 @@
                 position: 5
                 type: varchar(50)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -7572,6 +7771,7 @@
                 position: 5
                 type: varchar(50)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -7670,6 +7870,7 @@
                 position: 6
                 type: tinyint(1)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -7708,6 +7909,11 @@
     schemas:
       - tables:
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (`price` > 0)
+                name: chk_price_positive
+              - expression: (`stock_quantity` >= 0)
+                name: chk_stock_non_negative
             collation: utf8mb4_general_ci
             columns:
               - default: AUTO_INCREMENT
@@ -7747,6 +7953,7 @@
               - default: CURRENT_TIMESTAMP
                 name: updated_at
                 nullable: true
+                onUpdate: CURRENT_TIMESTAMP
                 position: 8
                 type: timestamp
               - default: '''0'''
@@ -7760,6 +7967,7 @@
                 position: 10
                 type: decimal(5,2)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -7823,7 +8031,7 @@
       `category` varchar(50) DEFAULT NULL,
       `is_active` tinyint(1) DEFAULT '1',
       `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-      `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+      `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       `stock_quantity` int DEFAULT '0',
       `weight` decimal(5,2) DEFAULT NULL,
       PRIMARY KEY (`id`)
@@ -7831,7 +8039,9 @@
     ALTER TABLE `mmdb_060`.`products` ADD KEY `idx_category` (`category`);
     ALTER TABLE `mmdb_060`.`products` ADD KEY `idx_created_at` (`created_at`);
     ALTER TABLE `mmdb_060`.`products` ADD KEY `idx_price` (`price`);
-    ALTER TABLE `mmdb_060`.`products` ADD UNIQUE KEY `uk_name_category` (`name`,`category`)
+    ALTER TABLE `mmdb_060`.`products` ADD UNIQUE KEY `uk_name_category` (`name`,`category`);
+    ALTER TABLE `mmdb_060`.`products` ADD CONSTRAINT `chk_price_positive` CHECK ((`price` > 0));
+    ALTER TABLE `mmdb_060`.`products` ADD CONSTRAINT `chk_stock_non_negative` CHECK ((`stock_quantity` >= 0))
 - description: 'Reverse: Drop FULLTEXT and SPATIAL indexes'
   oldSchema: |
     CREATE TABLE articles (
@@ -7899,6 +8109,7 @@
                 position: 4
                 type: varchar(500)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -7928,6 +8139,7 @@
                 position: 3
                 type: point
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -7972,6 +8184,7 @@
                 position: 4
                 type: varchar(500)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -7988,8 +8201,8 @@
                   - false
                   - false
                 expressions:
-                  - __word_segment_21_1794716626227789
-                  - __doc_id_1794716626227640
+                  - title
+                  - content
                 keyLength:
                   - "-1"
                   - "-1"
@@ -7998,12 +8211,9 @@
                 visible: true
               - descending:
                   - false
-                  - false
                 expressions:
-                  - __word_segment_24_1794716626229379
-                  - __doc_id_1794716626227640
+                  - tags
                 keyLength:
-                  - "-1"
                   - "-1"
                 name: idx_fulltext_tags
                 type: FULLTEXT
@@ -8037,6 +8247,7 @@
                 position: 3
                 type: point
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -8066,16 +8277,20 @@
     DROP TABLE `mmdb_061`.`articles`;
     DROP TABLE `mmdb_061`.`locations`;
     CREATE TABLE `mmdb_062`.`articles` (
-      `id` text,
-      `title` text,
-      `content` text,
-      `tags` text
+      `id` int NOT NULL AUTO_INCREMENT,
+      `title` varchar(200) NOT NULL,
+      `content` text NOT NULL,
+      `tags` varchar(500) DEFAULT NULL,
+      PRIMARY KEY (`id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     CREATE TABLE `mmdb_062`.`locations` (
       `id` text,
       `name` text,
       `position` text
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    ALTER TABLE `mmdb_062`.`articles` ADD FULLTEXT KEY `idx_fulltext_content` (`title`,`content`);
+    ALTER TABLE `mmdb_062`.`articles` ADD FULLTEXT KEY `idx_fulltext_tags` (`tags`);
+    ALTER TABLE `mmdb_062`.`articles` ADD KEY `idx_title_tags` (`title`(50),`tags`(50))
 - description: 'Reverse: Drop generated columns'
   oldSchema: |
     CREATE TABLE products (
@@ -8138,6 +8353,7 @@
                 position: 4
                 type: decimal(5,2)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -8173,8 +8389,7 @@
               - name: unit_price
                 position: 4
                 type: decimal(10,2)
-              - default: '''(`quantity` * `unit_price`)'''
-                generation:
+              - generation:
                   expression: (`quantity` * `unit_price`)
                   type: TYPE_STORED
                 name: total_price
@@ -8184,16 +8399,14 @@
               - name: order_date
                 position: 6
                 type: date
-              - default: '''year(`order_date`)'''
-                generation:
+              - generation:
                   expression: year(`order_date`)
                   type: TYPE_VIRTUAL
                 name: order_year
                 nullable: true
                 position: 7
                 type: int
-              - default: '''month(`order_date`)'''
-                generation:
+              - generation:
                   expression: month(`order_date`)
                   type: TYPE_VIRTUAL
                 name: order_month
@@ -8201,6 +8414,7 @@
                 position: 8
                 type: int
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -8246,8 +8460,7 @@
                 nullable: true
                 position: 4
                 type: decimal(5,2)
-              - default: '''(`price` * (1 + (`tax_rate` / 100)))'''
-                generation:
+              - generation:
                   expression: (`price` * (1 + (`tax_rate` / 100)))
                   type: TYPE_STORED
                 name: price_with_tax
@@ -8256,7 +8469,6 @@
                 type: decimal(10,2)
               - characterSet: utf8mb4
                 collation: utf8mb4_general_ci
-                default: '''UPPER(`name`)'''
                 generation:
                   expression: UPPER(`name`)
                   type: TYPE_VIRTUAL
@@ -8265,6 +8477,7 @@
                 position: 6
                 type: varchar(100)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -8376,6 +8589,7 @@
                 position: 3
                 type: varchar(100)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -8396,6 +8610,9 @@
     schemas:
       - tables:
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (JSON_TYPE(`details`) is not null)
+                name: chk_details_not_empty
             collation: utf8mb4_general_ci
             columns:
               - default: AUTO_INCREMENT
@@ -8417,7 +8634,6 @@
                 type: json
               - characterSet: utf8mb4
                 collation: utf8mb4_general_ci
-                default: '''JSON_UNQUOTE(JSON_EXTRACT(`details`,\''$.brand\''))'''
                 generation:
                   expression: JSON_UNQUOTE(JSON_EXTRACT(`details`,'$.brand'))
                   type: TYPE_VIRTUAL
@@ -8426,6 +8642,7 @@
                 position: 5
                 type: varchar(50)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -8450,7 +8667,7 @@
               - descending:
                   - false
                 expressions:
-                  - SYS_NC21$
+                  - (cast(JSON_UNQUOTE(JSON_EXTRACT(`details`,'$.brand')) as char(50) charset utf8mb4))
                 keyLength:
                   - "-1"
                 name: idx_product_brand
@@ -8459,7 +8676,7 @@
               - descending:
                   - false
                 expressions:
-                  - SYS_NC22$
+                  - (cast(JSON_UNQUOTE(JSON_EXTRACT(`details`,'$.price')) as number(10,2)))
                 keyLength:
                   - "-1"
                 name: idx_product_price
@@ -8494,6 +8711,7 @@
                 position: 5
                 type: json
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -8510,11 +8728,12 @@
   expected: |-
     DROP TABLE `mmdb_065`.`users`;
     CREATE TABLE `mmdb_066`.`products` (
-      `id` text,
-      `name` text,
-      `details` text,
-      `tags` text,
-      `brand` text
+      `id` int NOT NULL AUTO_INCREMENT,
+      `name` varchar(100) NOT NULL,
+      `details` json NOT NULL,
+      `tags` json,
+      `brand` varchar(50) GENERATED ALWAYS AS (json_unquote(json_extract(`details`,_utf8mb4'$.brand'))) VIRTUAL,
+      PRIMARY KEY (`id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     CREATE TABLE `mmdb_066`.`users` (
       `id` int NOT NULL AUTO_INCREMENT,
@@ -8523,7 +8742,11 @@
       `preferences` json,
       `metadata` json,
       PRIMARY KEY (`id`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    ALTER TABLE `mmdb_066`.`products` ADD KEY `idx_brand` (`brand`);
+    ALTER TABLE `mmdb_066`.`products` ADD KEY `idx_product_brand` ((cast(json_unquote(json_extract(`details`,_utf8mb4'$.brand')) as char(50) charset utf8mb4)));
+    ALTER TABLE `mmdb_066`.`products` ADD KEY `idx_product_price` ((cast(json_unquote(json_extract(`details`,_utf8mb4'$.price')) as decimal(10,2))));
+    ALTER TABLE `mmdb_066`.`products` ADD CONSTRAINT `chk_details_not_empty` CHECK ((json_type(`details`) is not null))
 - description: 'Reverse: Drop triggers and views'
   oldSchema: |
     CREATE TABLE inventory (
@@ -8621,9 +8844,11 @@
               - default: CURRENT_TIMESTAMP
                 name: last_updated
                 nullable: true
+                onUpdate: CURRENT_TIMESTAMP
                 position: 4
                 type: timestamp
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -8680,6 +8905,7 @@
                 position: 6
                 type: timestamp
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -8716,9 +8942,11 @@
               - default: CURRENT_TIMESTAMP
                 name: last_updated
                 nullable: true
+                onUpdate: CURRENT_TIMESTAMP
                 position: 4
                 type: timestamp
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -8744,9 +8972,6 @@
             name: inventory
             triggers:
               - body: |-
-                  TRIGGER trg_inventory_delete
-                  BEFORE DELETE ON inventory
-                  FOR EACH ROW
                   BEGIN
                       INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
                       VALUES (OLD.product_id, OLD.quantity, NULL, 'DELETE');
@@ -8758,9 +8983,6 @@
                 sqlMode: STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER
                 timing: BEFORE
               - body: |-
-                  TRIGGER trg_inventory_insert
-                  AFTER INSERT ON inventory
-                  FOR EACH ROW
                   BEGIN
                       INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
                       VALUES (NEW.product_id, NULL, NEW.quantity, 'INSERT');
@@ -8772,9 +8994,6 @@
                 sqlMode: STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER
                 timing: AFTER
               - body: |-
-                  TRIGGER trg_inventory_update
-                  AFTER UPDATE ON inventory
-                  FOR EACH ROW
                   BEGIN
                       IF OLD.quantity != NEW.quantity THEN
                           INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
@@ -8820,6 +9039,7 @@
                 position: 6
                 type: timestamp
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -8857,7 +9077,7 @@
       `id` int NOT NULL AUTO_INCREMENT,
       `product_id` int NOT NULL,
       `quantity` int NOT NULL DEFAULT '0',
-      `last_updated` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+      `last_updated` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (`id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     CREATE TABLE `mmdb_068`.`inventory_log` (
@@ -8871,24 +9091,15 @@
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     ALTER TABLE `mmdb_068`.`inventory` ADD UNIQUE KEY `uk_product` (`product_id`);
     CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `mmdb_068`.`inventory_changes` AS select `inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`inventory_log`.`changed_at`) AS `last_changed` from `inventory_log` group by `inventory_log`.`product_id`;
-    CREATE TRIGGER `mmdb_068`.`trg_inventory_delete` BEFORE DELETE ON `mmdb_068`.`inventory` FOR EACH ROW TRIGGER trg_inventory_delete
-    BEFORE DELETE ON inventory
-    FOR EACH ROW
-    BEGIN
+    CREATE TRIGGER `mmdb_068`.`trg_inventory_delete` BEFORE DELETE ON `mmdb_068`.`inventory` FOR EACH ROW BEGIN
         INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
         VALUES (OLD.product_id, OLD.quantity, NULL, 'DELETE');
     END;
-    CREATE TRIGGER `mmdb_068`.`trg_inventory_insert` AFTER INSERT ON `mmdb_068`.`inventory` FOR EACH ROW TRIGGER trg_inventory_insert
-    AFTER INSERT ON inventory
-    FOR EACH ROW
-    BEGIN
+    CREATE TRIGGER `mmdb_068`.`trg_inventory_insert` AFTER INSERT ON `mmdb_068`.`inventory` FOR EACH ROW BEGIN
         INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
         VALUES (NEW.product_id, NULL, NEW.quantity, 'INSERT');
     END;
-    CREATE TRIGGER `mmdb_068`.`trg_inventory_update` AFTER UPDATE ON `mmdb_068`.`inventory` FOR EACH ROW TRIGGER trg_inventory_update
-    AFTER UPDATE ON inventory
-    FOR EACH ROW
-    BEGIN
+    CREATE TRIGGER `mmdb_068`.`trg_inventory_update` AFTER UPDATE ON `mmdb_068`.`inventory` FOR EACH ROW BEGIN
         IF OLD.quantity != NEW.quantity THEN
             INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
             VALUES (NEW.product_id, OLD.quantity, NEW.quantity, 'UPDATE');
@@ -8984,6 +9195,7 @@
                 position: 4
                 type: timestamp
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -9003,7 +9215,12 @@
     name: mmdb_070
     schemas:
       - events:
-          - name: evt_cleanup_old_stats
+          - definition: |-
+              CREATE EVENT `evt_cleanup_old_stats` ON SCHEDULE EVERY 1 DAY STARTS '2026-11-25 09:28:09' ON COMPLETION NOT PRESERVE DO DELETE FROM system_stats
+                  WHERE recorded_at < DATE_SUB(NOW(), INTERVAL 30 DAY)
+            name: evt_cleanup_old_stats
+            sqlMode: ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+            timeZone: SYSTEM
         functions:
           - characterSetClient: utf8mb4
             collationConnection: utf8mb4_general_ci
@@ -9074,6 +9291,7 @@
                 position: 4
                 type: timestamp
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -9125,7 +9343,8 @@
 
         COMMIT;
     END;
-    CREATE EVENT `evt_cleanup_old_stats` ON COMPLETION NOT PRESERVE ENABLE COMMENT ''
+    CREATE EVENT `evt_cleanup_old_stats` ON SCHEDULE EVERY 1 DAY STARTS '2026-11-25 09:28:09' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO DELETE FROM system_stats
+        WHERE recorded_at < DATE_SUB(NOW(), INTERVAL 30 DAY)
 - description: Verify no migration generated for identical schemas (tests primary key, index, check constraints, DEFAULT NULL fixes)
   oldSchema: |+
     --
@@ -9226,6 +9445,9 @@
     schemas:
       - tables:
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (`a` in (1,2,3))
+                name: some_table_chk_1
             collation: utf8mb4_0900_ai_ci
             columns:
               - name: id
@@ -9235,6 +9457,7 @@
                 position: 2
                 type: int
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -9263,6 +9486,7 @@
                 position: 2
                 type: char(255)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -9296,6 +9520,7 @@
                 position: 4
                 type: int
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -9319,6 +9544,11 @@
                 visible: true
             name: t1
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (`age` >= 18)
+                name: chk_age
+              - expression: (`status` in ('active','inactive','pending'))
+                name: chk_status
             collation: utf8mb4_0900_ai_ci
             columns:
               - default: AUTO_INCREMENT
@@ -9357,6 +9587,7 @@
                 position: 6
                 type: decimal(5,2)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -9405,6 +9636,9 @@
     schemas:
       - tables:
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (`a` in (1,2,3))
+                name: some_table_chk_1
             collation: utf8mb4_general_ci
             columns:
               - name: id
@@ -9414,6 +9648,7 @@
                 position: 2
                 type: int
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -9442,6 +9677,7 @@
                 position: 2
                 type: char(255)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -9475,6 +9711,7 @@
                 position: 4
                 type: int
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -9498,6 +9735,11 @@
                 visible: true
             name: t1
           - charset: utf8mb4
+            checkConstraints:
+              - expression: (`age` >= 18)
+                name: chk_age
+              - expression: (`status` in ('active','inactive','pending'))
+                name: chk_status
             collation: utf8mb4_general_ci
             columns:
               - default: AUTO_INCREMENT
@@ -9536,6 +9778,7 @@
                 position: 6
                 type: decimal(5,2)
             engine: InnoDB
+            hasMaterializedViewLog: false
             indexes:
               - descending:
                   - false
@@ -9611,4 +9854,7 @@
     ALTER TABLE `mmdb_072`.`t1` ADD KEY `b` (`b`) USING HASH;
     ALTER TABLE `mmdb_072`.`test_table` ADD KEY `idx_name` (`name`);
     ALTER TABLE `mmdb_072`.`test_table` ADD KEY `idx_status_hash` (`status`) USING HASH;
-    ALTER TABLE `mmdb_072`.`test_table` ADD UNIQUE KEY `uk_email` (`email`)
+    ALTER TABLE `mmdb_072`.`test_table` ADD UNIQUE KEY `uk_email` (`email`);
+    ALTER TABLE `mmdb_072`.`some_table` ADD CONSTRAINT `some_table_chk_1` CHECK ((`a` in (1,2,3)));
+    ALTER TABLE `mmdb_072`.`test_table` ADD CONSTRAINT `chk_age` CHECK ((`age` >= 18));
+    ALTER TABLE `mmdb_072`.`test_table` ADD CONSTRAINT `chk_status` CHECK ((`status` in ('active','inactive','pending')))
