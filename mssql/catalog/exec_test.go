@@ -263,7 +263,7 @@ CREATE INDEX [ix] ON [dbo].[t]([a]);
 	require.NotNil(t, pk)
 	require.True(t, pk.Primary)
 	require.True(t, pk.IsConstraint)
-	execExpectCode(t, c, `CREATE INDEX [missing_ix] ON [dbo].[t]([a]) WITH (DROP_EXISTING = ON)`, ErrIndexNotFound)
+	execExpectCode(t, c, `CREATE INDEX [missing_ix] ON [dbo].[t]([a]) WITH (DROP_EXISTING = ON)`, ErrDropExistingIndexNotFound)
 
 	// 9. Failed CREATE SCHEMA rolls back cached tables in tableByName.
 	c = New()

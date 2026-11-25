@@ -1229,7 +1229,8 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 	}
 	if dropExisting {
 		if existingIdx == nil {
-			return mssqlErr(ErrIndexNotFound, "Could not find any index named '%s' for table '%s'.", n.Name, tableName)
+			// 7999 on a table as on a view (measured on the pinned server).
+			return mssqlErr(ErrDropExistingIndexNotFound, "Could not find any index named '%s' for table '%s'.", n.Name, schemaName+"."+table.Name)
 		}
 	} else if existingIdx != nil {
 		return mssqlErr(ErrDupIndex, "The operation failed because an index or statistics with name '%s' already exists on table '%s'.", n.Name, tableName)

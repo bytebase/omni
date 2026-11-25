@@ -52,6 +52,11 @@
       - server: ""
         database: byt7974
         schema: dbo
+        table: CMS_HMNUM
+        column: ""
+      - server: ""
+        database: byt7974
+        schema: dbo
         table: v_CMS_HMNUM_FUll
         column: ""
     predicatecolumns:
@@ -143,6 +148,11 @@
       - server: ""
         database: SecondDB
         schema: dbo
+        table: TableB
+        column: ""
+      - server: ""
+        database: SecondDB
+        schema: dbo
         table: v_CrossDB_View
         column: ""
     predicatecolumns:
@@ -223,6 +233,11 @@
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
+      - server: ""
+        database: bhs
+        schema: dbo
+        table: tbl
+        column: ""
       - server: ""
         database: bhs
         schema: dbo
@@ -307,6 +322,16 @@
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
+      - server: ""
+        database: bhs
+        schema: dbo
+        table: tableA
+        column: ""
+      - server: ""
+        database: bhs
+        schema: dbo
+        table: tableB
+        column: ""
       - server: ""
         database: bhs
         schema: dbo
@@ -438,6 +463,16 @@
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
+      - server: ""
+        database: Invoice
+        schema: dbo
+        table: existing_gr_number
+        column: ""
+      - server: ""
+        database: Invoice
+        schema: dbo
+        table: gr_table
+        column: ""
       - server: ""
         database: Invoice
         schema: dbo

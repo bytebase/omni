@@ -932,6 +932,15 @@ var rankingNames = map[string]bool{"RANK": true, "DENSE_RANK": true, "PERCENT_RA
 
 func isAggregateName(name string) bool { return aggregateNames[name] || rankingNames[name] }
 
+// BuiltinFunction reports whether name, unqualified, is one of the Oracle
+// functions the query analysis knows as built in: an aggregate, analytic,
+// or ranking function, or a scalar function whose arguments it counts. A
+// name it does not list may be a user-defined function or aggregate.
+func BuiltinFunction(name string) bool {
+	_, scalar := builtinArity[name]
+	return scalar || aggregateNames[name] || rankingNames[name] || analyticOnly[name]
+}
+
 // isAggregateCall reports an aggregate function call (not analytic).
 func isAggregateCall(fc *ast.FuncCallExpr) bool {
 	if fc == nil || fc.FuncName == nil || fc.Over != nil || fc.FuncName.Schema != "" {
