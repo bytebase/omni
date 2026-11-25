@@ -469,3 +469,14 @@ func TestLoadSDLMarkerLikeNames(t *testing.T) {
 		require.NotNil(t, loaded)
 	}
 }
+
+// TestSDLCTEScopeIgnoresStrings scopes CTEs by the query's own parentheses,
+// not those a string literal holds.
+func TestSDLCTEScopeIgnoresStrings(t *testing.T) {
+	plan, err := catalog.BuildSDLMigrationPlan("", `CREATE TABLE public.t (id INT8 PRIMARY KEY);
+CREATE VIEW public.a AS SELECT z.id FROM (WITH z AS (SELECT 1 AS n) SELECT '(' AS txt, 'with y as (' AS w FROM z) AS q CROSS JOIN z;
+CREATE VIEW public.z AS SELECT id FROM public.t;`, catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	sql := plan.SQL()
+	require.Less(t, strings.Index(sql, `CREATE VIEW "public"."z"`), strings.Index(sql, `CREATE VIEW "public"."a"`), sql)
+}

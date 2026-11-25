@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	crparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
 	plpgsqlparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/plpgsql/parser"
@@ -126,7 +127,7 @@ func cteReferences(stmt tree.NodeFormatter) []bool {
 		recursive bool   // the frame's WITH list is RECURSIVE
 	}
 	stack := []*frame{{names: make(map[string]bool)}}
-	is := func(i int, word string) bool { return i < len(tokens) && strings.EqualFold(tokens[i].Str, word) }
+	is := func(i int, word string) bool { return i < len(tokens) && tokens[i].TokenID == tokenID(word) }
 	// cteHeader reads "name [(columns)] AS [[NOT] MATERIALIZED] (" at i and
 	// returns the CTE's name and the index of its body's parenthesis.
 	cteHeader := func(i int) (string, int, bool) {
@@ -171,10 +172,10 @@ func cteReferences(stmt tree.NodeFormatter) []bool {
 	for i := 0; i < len(tokens); {
 		t := tokens[i]
 		switch {
-		case t.Str == "(":
+		case is(i, "("):
 			stack = append(stack, &frame{names: make(map[string]bool)})
 			i++
-		case t.Str == ")":
+		case is(i, ")"):
 			closed := stack[len(stack)-1]
 			if len(stack) > 1 {
 				stack = stack[:len(stack)-1]
@@ -193,7 +194,7 @@ func cteReferences(stmt tree.NodeFormatter) []bool {
 				i++
 			}
 			i = openCTE(i)
-		case strings.HasPrefix(t.Str, tableMarker):
+		case t.TokenID == tokenID("x") && strings.HasPrefix(t.Str, tableMarker):
 			if n, err := strconv.Atoi(strings.TrimPrefix(t.Str, tableMarker)); err == nil && n >= 0 && n < len(names) && names[n] != "" {
 				for _, f := range stack {
 					if f.names[names[n]] {
@@ -219,25 +220,46 @@ func cteNames(query string) map[string]bool {
 	if !ok {
 		return nil
 	}
+	is := func(i int, word string) bool { return i < len(tokens) && tokens[i].TokenID == tokenID(word) }
 	names := make(map[string]bool)
 	for i := 1; i+1 < len(tokens); i++ {
-		before := strings.ToUpper(tokens[i-1].Str)
-		if before != "WITH" && before != "RECURSIVE" && before != "," {
+		if !is(i-1, "with") && !is(i-1, "recursive") && !is(i-1, ",") {
 			continue
 		}
 		j := i + 1
-		if tokens[j].Str == "(" {
-			for j < len(tokens) && tokens[j].Str != ")" {
+		if is(j, "(") {
+			for j < len(tokens) && !is(j, ")") {
 				j++
 			}
 			j++
 		}
-		if j+1 < len(tokens) && strings.EqualFold(tokens[j].Str, "AS") {
+		if j+1 < len(tokens) && is(j, "as") {
 			names[tokens[i].Str] = true
 		}
 	}
 	return names
 }
+
+// tokenID is the lexer's token for a keyword, a punctuation mark, or, for a
+// plain word such as x, an identifier. Comparing tokens by it keeps a string
+// literal's text, '(' or 'with', from passing for syntax.
+func tokenID(word string) int32 {
+	tokenIDsMu.Lock()
+	defer tokenIDsMu.Unlock()
+	id, ok := tokenIDs[word]
+	if !ok {
+		if tokens, ok := crparser.Tokens(word); ok && len(tokens) == 1 {
+			id = tokens[0].TokenID
+		}
+		tokenIDs[word] = id
+	}
+	return id
+}
+
+var (
+	tokenIDsMu sync.Mutex
+	tokenIDs   = make(map[string]int32)
+)
 
 // routineDefinition returns a CREATE FUNCTION or CREATE PROCEDURE with the
 // database's own name dropped from the relations its body names, SQL or
