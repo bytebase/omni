@@ -77,6 +77,13 @@ type StatementAnalysis struct {
 	ShapePreserving  bool     // true when all pipeline stages preserve document structure
 	UnsupportedStage string   // first non-shape-preserving, non-join stage
 	Joins            []JoinInfo
+	// Reads is every collection or view a read names: its target, the
+	// collections its pipeline joins, unions or looks up, and those of
+	// nested pipelines. A view stays a view; ExpandViews adds what it reads.
+	// It is filled for a read method whatever Operation is, so a $out
+	// aggregate or getSiblingDB chain, classified as a write, still names
+	// what it reads. A write's target is not among them.
+	Reads []Namespace
 }
 
 // JoinInfo records a join extracted from a $lookup or $graphLookup pipeline stage.
@@ -143,6 +150,7 @@ func analyzeDatabase(s *ast.DatabaseStatement) *StatementAnalysis {
 	if a.Operation != OpAdmin && hasUnsafeStatementArgs(s) {
 		a.Operation = OpWrite
 	}
+	a.Reads = siblingReads(s)
 	return a
 }
 
@@ -295,6 +303,7 @@ func analyzeCollection(s *ast.CollectionStatement) *StatementAnalysis {
 	a := &StatementAnalysis{
 		MethodName: s.Method,
 		Collection: s.Collection,
+		Reads:      collectionReads("", s.Collection, s.Method, s.Args),
 	}
 
 	switch s.Method {
@@ -348,6 +357,7 @@ func analyzeCollection(s *ast.CollectionStatement) *StatementAnalysis {
 			Operation:  OpExplain,
 			MethodName: s.Method,
 			Collection: s.Collection,
+			Reads:      a.Reads,
 		}
 	}
 

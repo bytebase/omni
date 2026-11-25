@@ -564,8 +564,11 @@ func start(ctx context.Context) (*mongo.Client, error) {
 			"MONGO_INITDB_ROOT_PASSWORD": password,
 		}),
 		testcontainers.WithExposedPorts("27017/tcp"),
+		// With a root user to create, the image first runs a mongod bound
+		// to localhost alone, which logs the same line and then stops; the
+		// server the tests reach is the second.
 		testcontainers.WithWaitStrategy(
-			wait.ForLog("Waiting for connections").WithStartupTimeout(3*time.Minute)),
+			wait.ForLog("Waiting for connections").WithOccurrence(2).WithStartupTimeout(3*time.Minute)),
 	)
 	if err != nil {
 		return nil, err
