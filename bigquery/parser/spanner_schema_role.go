@@ -37,7 +37,7 @@ import (
 //
 // The role name is a SINGLE identifier, NOT a dotted path: the emulator REJECTS
 // `CREATE ROLE a.b` ("Expecting 'EOF' but found '.'"). A backtick-quoted name
-// (`\`dotted.name\``) is one identifier token and is accepted. (DROP ROLE, by
+// (`\`dotted.name\“) is one identifier token and is accepted. (DROP ROLE, by
 // contrast, accepts a dotted path — see parseDropRole.)
 func (p *Parser) parseCreateRole(create Token, orReplace bool, scope string) (ast.Node, error) {
 	if orReplace || scope != "" {

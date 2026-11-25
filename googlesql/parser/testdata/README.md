@@ -1,40 +1,47 @@
 # GoogleSQL parser test data
 
-## `compat.tsv`: the BigQuery ∪ Spanner union judge verdicts
+`googlesql` is Spanner's grammar; BigQuery's is `bigquery/parser`, a fork
+judged by BigQuery itself (`../../../bigquery/parser/testdata/README.md`).
+
+## `compat.tsv`: pinned Spanner emulator verdicts
 
 `compat.tsv` holds a statement for each alternative of each rule in
 `../../testdata/GoogleSQL.g4`, then its near-misses, plus 626 hand-written
-`suite:` rows, with omni's union-mode verdict (`googlesql/parser.Parse`,
-`DialectDefault`) and the union judge's verdict (`../../testdata/pins.tsv`,
-`parser` role, judge revision 4: pinned Cloud Spanner emulator
-`gcr.io/cloud-spanner-emulator/emulator:1.5.54` ∪ live BigQuery dry-run
-`gcp:bigquery:bytebase-dev:US`, `bigquery` role). `GoogleSQL.g4` is converted
-by `../cmd/tm2g4` from `googlesql.tm`, the Textmapper grammar of the GoogleSQL
-release the emulator builds against, beside it as published.
-`TestCompatibility` (`../compat_test.go`) reads the file through
-`enginetest/compat` and starts no server and requires no credentials in offline
-replay. Recorded against pinned Spanner emulator `1.5.54` (through
-`googlesql/spanner-oracle`) ∪ live BigQuery dry-run (`bytebase-dev`, `US`) and
-verified end-to-end with `OMNI_RECORD=verify` with zero differences.
+`suite:` rows, with omni's verdict (`googlesql/parser.Parse`) and the pinned
+Cloud Spanner emulator's (`../../testdata/pins.tsv`, `parser` role, judge
+revision 5: `gcr.io/cloud-spanner-emulator/emulator:1.5.54`, through
+`googlesql/spanner-oracle`). `GoogleSQL.g4` is converted by `../cmd/tm2g4` from
+`googlesql.tm`, the Textmapper grammar of the GoogleSQL release the emulator
+builds against, beside it as published. `TestCompatibility`
+(`../compat_test.go`) reads the file through `enginetest/compat` and starts no
+server in offline replay.
 
-| Rows | Total | Agree | Only union accepts | Only omni accepts | Agreement |
+| Rows | Total | Agree | Only Spanner accepts | Only omni accepts | Agreement |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| One per alternative | 2,737 | 2,737 | 0 | 0 | 100.00% |
-| Near-misses | 6,503 | 6,503 | 0 | 0 | 100.00% |
-| Suites (`suite:*`) | 626 | 626 | 0 | 0 | 100.00% |
-| **All** | **9,866** | **9,866** | **0** | **0** | **100.00%** |
+| One per alternative | 2,864 | 2,864 | 0 | 0 | 100.00% |
+| Near-misses | 6,573 | 6,573 | 0 | 0 | 100.00% |
+| Suites (`suite:*`) | 626 | 624 | 0 | 2 | 99.68% |
+| **All** | **10,063** | **10,061** | **0** | **2** | **99.98%** |
+
+The two rows only omni accepts are `ALTER SEARCH INDEX idx {ADD|DROP} STORED
+COLUMN c`, a documented Spanner form (DDL-049) the emulator's DDL parser lags.
 
 The rows start from `unterminated_statement`, a statement of a script, so
-they cover GoogleSQL's scripting and BigQuery statements as well as what
-Spanner runs. `select_column_expr`'s `ATTACHED_ALIAS` alternative gets no row:
-it refuses every input (`../../testdata/tokens.tsv`).
+they cover GoogleSQL's scripting and BigQuery statements too; Spanner refuses
+them, and so does omni. `select_column_expr`'s `ATTACHED_ALIAS` alternative
+gets no row: it refuses every input (`../../testdata/tokens.tsv`).
 
-Seven optional clauses (`opt_if_not_exists`, `opt_if_exists`, `opt_or_replace`,
-`opt_create_scope`, `opt_access`, `opt_unique`, `opt_options_list`) are tried
-at every site the grammar allows them (`(every site)` in
-`../../testdata/tokens.tsv`), adding 403 rows. They found two gaps, both
-closed: Spanner refuses `CREATE VIEW IF NOT EXISTS`, and an empty LOCALITY
-GROUP `OPTIONS()`.
+### Judge revision 5
+
+Revision 4 judged the file with a BigQuery ∪ Spanner union judge, for the
+union parser `googlesql/parser` was until BigQuery forked off. Revision 5 is
+the Spanner emulator alone again, with revision 3's reading. Rejudging moved
+783 rows from `accept` to `reject`, the BigQuery forms only the union judge
+accepted; omni rejects 781 of them. It also found two Spanner gaps the old
+`DialectSpanner` mode had, both closed: bare `INSERT REPLACE` and `INSERT
+UPDATE` as statements.
+
+The sections below record the union era.
 
 ### Judge revision 4 (`PinRole: "parser"`, BigQuery ∪ Spanner union judge)
 
@@ -385,17 +392,16 @@ Offline replay (CI default, zero Docker, zero network):
 go test ./googlesql/parser/ -run '^TestCompatibility$'
 ```
 
-Live recording against pinned `gcr.io/cloud-spanner-emulator/emulator:1.5.54` ∪
-live BigQuery dry-run `gcp:bigquery:bytebase-dev:US` (~14 minutes for all 9,463
-rows; dry-run creates/mutates no BigQuery datasets):
+Live recording against pinned `gcr.io/cloud-spanner-emulator/emulator:1.5.54`
+(about a minute for all 10,063 rows):
 
 ```bash
-BIGQUERY_CREDENTIALS=default BIGQUERY_PROJECT=bytebase-dev OMNI_RECORD=1 go test -v -timeout 60m ./googlesql/parser/ -run '^TestCompatibility$'
+OMNI_RECORD=1 go test -v -timeout 60m ./googlesql/parser/ -run '^TestCompatibility$'
 ```
 
-Read-only live verification against both pinned engines (re-judges all 9,463
-rows, writes nothing, fails on any diff):
+Read-only live verification against the pinned emulator (re-judges every row,
+writes nothing, fails on any diff):
 
 ```bash
-BIGQUERY_CREDENTIALS=default BIGQUERY_PROJECT=bytebase-dev OMNI_RECORD=verify go test -v -timeout 60m ./googlesql/parser/ -run '^TestCompatibility$'
+OMNI_RECORD=verify go test -v -timeout 60m ./googlesql/parser/ -run '^TestCompatibility$'
 ```
