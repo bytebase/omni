@@ -35,17 +35,17 @@ func TestWalkSimulation(t *testing.T) {
 		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.909},
 		// The view queries the walk misses are what pg/catalog refuses with a
 		// code catalogCodes leaves out: a missing type, function, tablesample
-		// method or schema.
-		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 0.989},
-		{"pg18_queries", filepath.Join("..", "catalog", "testdata", "pg18", "queries", "simulate.tsv"), 0.989},
+		// method or schema, and a coercion a cast could allow.
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 0.988},
+		{"pg18_queries", filepath.Join("..", "catalog", "testdata", "pg18", "queries", "simulate.tsv"), 0.988},
 		// Functions, procedures, triggers, event triggers, CALL and DO on
 		// programs@objects. pg/catalog checks a routine's body; what is left
 		// is a missing name in one (42P01, 42703, 42704, 42883), dependencies
 		// on a dropped table or column (2BP01), and what a catalog loaded
 		// from a snapshot does not hold: a procedure's identity, an enum's
 		// labels, an event trigger.
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.528},
-		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.528},
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.535},
+		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.535},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{

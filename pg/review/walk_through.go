@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -58,9 +59,11 @@ func walkThrough(ctx context.Context, stmts []statement, plan *run, target revie
 		w.rangeMultirange = make(map[walk.Key]walk.Key)
 		w.pg.viewCols = nil
 	}
+	// The replay starts from the session the change starts in.
+	path, user := slices.Clone(w.path), w.user
 	v, err := walk.Run(ctx, len(plan.steps), snap, w.lower)
 	if v == nil && err == nil {
-		v = catalogRefusal(ctx, stmts, plan, target, w.path)
+		v = catalogRefusal(ctx, stmts, plan, target, path, user)
 	}
 	if v != nil {
 		v.Statement = plan.steps[v.Statement].stmt

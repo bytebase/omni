@@ -11,7 +11,7 @@ import (
 // the synced schema loads in full, and only for a code no unsynced object
 // can cause.
 func TestWalkThroughCatalogRefusals(t *testing.T) {
-	target := review.Target{Schema: &metadata.DatabaseSchemaMetadata{
+	target := review.Target{SessionUser: "u", Schema: &metadata.DatabaseSchemaMetadata{
 		Name:       "db",
 		SearchPath: `"$user", public`,
 		Schemas: []*metadata.SchemaMetadata{{
@@ -45,12 +45,24 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		"SET check_function_bodies = off;\nCREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;",
 		// After DML, which may run user code, the catalog is not asked.
 		"INSERT INTO t VALUES (1);\nCREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;",
+		// A rollback undoes what the catalog does not.
+		"BEGIN;\nCREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT 1';\nROLLBACK;\nCREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT 1';",
+		// The replay starts on the search path the change starts on.
+		"CREATE SCHEMA s;\nCREATE FUNCTION s.g() RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE FUNCTION g() RETURNS int LANGUAGE sql AS 'SELECT 1';\nSET search_path = s;",
+		// A cast the sync does not list may allow the coercion.
+		"CREATE FUNCTION f() RETURNS date LANGUAGE sql AS 'SELECT 20260101';",
 		// A refusal of another statement ends the replay.
 		"ALTER TABLE t ALTER n TYPE boolean;\nCREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;",
 	} {
 		if got := walkFindings(t, sql, target); len(got) != 0 {
 			t.Errorf("%q: findings = %+v, want none", sql, got)
 		}
+	}
+	// "$user" names a schema of a user the walk does not know.
+	unknown := target
+	unknown.SessionUser = ""
+	if got := walkFindings(t, "CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;", unknown); len(got) != 0 {
+		t.Errorf("no session user: findings = %+v, want none", got)
 	}
 	// Another spec may change the database first.
 	other := target
