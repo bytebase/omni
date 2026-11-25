@@ -3,6 +3,7 @@ package parser
 import (
 	"context"
 	"errors"
+	"maps"
 	"runtime"
 	"slices"
 	"sync"
@@ -53,7 +54,7 @@ func ExpectedKeywords(ctx context.Context, prefix string) []string {
 		case r.fits:
 			found[words[i]] = true
 		case r.lookedPast && !generic:
-			level = append(level, sequence{head: len(level), words: words[i]})
+			level = append(level, sequence{head: len(level), words: words[i], extra: r.words})
 		}
 	}
 	heads := make([]string, len(level))
@@ -68,16 +69,33 @@ func ExpectedKeywords(ctx context.Context, prefix string) []string {
 		for i, r := range pr.each(ctx, len(level), func(i int) probeResult { return pr.fits(level[i].words + " " + sentinel) }) {
 			generic[i] = r.lookedPast
 		}
-		pr.each(ctx, len(level)*len(followers), func(i int) probeResult {
-			seq := level[i/len(followers)]
+		// Each sequence is tried with every keyword and generic token, and
+		// with the words the parser matched by text after it, as OPTION
+		// after WITH GRANT.
+		type try struct {
+			seq      int
+			follower string
+		}
+		var tries []try
+		for i, seq := range level {
+			for _, f := range followers {
+				tries = append(tries, try{i, f})
+			}
+			for _, f := range seq.extra {
+				tries = append(tries, try{i, f})
+			}
+		}
+		pr.each(ctx, len(tries), func(i int) probeResult {
+			seq := level[tries[i].seq]
 			if headFits[seq.head].Load() {
 				return probeResult{}
 			}
-			longer := sequence{head: seq.head, words: seq.words + " " + followers[i%len(followers)]}
+			longer := sequence{head: seq.head, words: seq.words + " " + tries[i].follower}
 			switch r := pr.fits(longer.words); {
 			case r.fits:
 				headFits[seq.head].Store(true)
-			case r.lookedPast && !generic[i/len(followers)]:
+			case r.lookedPast && !generic[tries[i].seq]:
+				longer.extra = r.words
 				mu.Lock()
 				next = append(next, longer)
 				mu.Unlock()
@@ -118,6 +136,7 @@ var nonKeywordFollowers = []string{"(", "1", "''", "omni_name"}
 type sequence struct {
 	head  int // the keyword's index in heads
 	words string
+	extra []string // the words the parser matched by text after it
 }
 
 // prober tries words after a prefix, sharing the prefix's tokens.
@@ -163,15 +182,16 @@ func (pr *prober) parser(words string, probing bool) *parser {
 type probeResult struct {
 	fits       bool
 	lookedPast bool
+	words      []string // the words the parser matched by text at the end
 }
 
 // fits reports whether the parser reads words, a keyword and the tokens
 // tried after it, right after the prefix, the keywords as keywords, and goes
-// on past them. lookedPast reports
-// that the parser read the end of input after them, which a test of the
-// token after a keyword does.
+// on past them. lookedPast reports that the parser read the end of input
+// after them, which a test of the token after a keyword does.
 func (pr *prober) fits(words string) probeResult {
 	p := pr.parser(words, true)
+	p.wants = map[string]bool{}
 	_, err := p.parseStatement()
 	if len(p.tokens) <= len(pr.tokens) {
 		// Nothing after the prefix was lexed, or an INSERT's FORMAT data
@@ -187,6 +207,7 @@ func (pr *prober) fits(words string) probeResult {
 		// as an INDEX definition in a column list does, still read it.
 		fits:       lexed[0].IsKeyword() && (err == nil || errors.As(err, &pe) && pe.Position > len(pr.prefix) || p.furthest > len(pr.prefix)),
 		lookedPast: last.Type == TokEOF && last.Pos == len(p.src),
+		words:      slices.Sorted(maps.Keys(p.wants)),
 	}
 }
 

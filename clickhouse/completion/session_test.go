@@ -154,6 +154,13 @@ func TestCompleteSessionNames(t *testing.T) {
 		{input: "SELECT other.events.| FROM other.events", typ: CandidateColumn, want: []string{"ts"}},
 		{input: "SELECT | FROM `my-table`", typ: CandidateColumn, want: []string{"select"}},
 		{input: "SELECT * FROM orders WHERE id IN (SELECT | FROM users)", typ: CandidateColumn, want: []string{"amount", "id", "name", "user_id"}},
+		{input: "SELECT * FROM orders o WHERE id IN (SELECT o.| FROM users o)", typ: CandidateColumn, want: []string{"id", "name"}},
+		{input: "SELECT * FROM orders o WHERE id IN (SELECT o.id FROM users o) AND o.|", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "SELECT * FROM orders o WHERE id IN (SELECT id FROM users u WHERE u.id = o.|)", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "SELECT EXTRACT(DAY FROM |) FROM orders", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "SELECT EXTRACT(DAY FROM |) FROM orders", typ: CandidateTable},
+		{input: "SELECT trim(BOTH 'x' FROM |) FROM users", typ: CandidateColumn, want: []string{"id", "name"}},
+		{input: "SELECT * FROM (SELECT * FROM |)", typ: CandidateTable, want: []string{"`back\\\\slash`", "`my-table`", "orders", "other", "users"}},
 		{input: "ALTER TABLE orders UPDATE amount = 0 WHERE |", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
 	} {
 		t.Run(tc.input, func(t *testing.T) {

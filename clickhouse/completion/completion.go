@@ -74,8 +74,11 @@ func complete(ctx context.Context, stmt string, caret int, cat *catalog) []Candi
 			out = append(out, Candidate{Text: kw, Type: CandidateKeyword})
 		}
 	}
-	// The statement without the caret word, whose tables are in scope.
-	refs := tableRefs(significantTokens(stmt[:word.start] + " " + stmt[word.end:]))
+	// The tables of the statement without the caret word, innermost query
+	// first. Scope comes from the tokens, not a placeholder parse: the
+	// statement is usually still being typed, and the ClickHouse tree has no
+	// walker that would read its scopes.
+	refs := refsInScope(significantTokens(stmt[:word.start]+" "+stmt[word.end:]), word.start)
 	for _, c := range nameCandidates(before, qualifier, refs, cat) {
 		if word.quote != 0 {
 			q := string(word.quote)
@@ -175,7 +178,11 @@ func nameKindAfter(before []parser.Token) nameKind {
 	}
 	last := before[len(before)-1]
 	switch last.Type {
-	case parser.KwFrom, parser.KwJoin, parser.KwInto, parser.KwTable, parser.KwUpdate,
+	case parser.KwFrom:
+		if relationFrom(before, len(before)-1) {
+			return kindRelation
+		}
+	case parser.KwJoin, parser.KwInto, parser.KwTable, parser.KwUpdate,
 		parser.KwDescribe, parser.KwDesc, parser.KwTruncate, parser.KwExchange:
 		return kindRelation
 	case parser.KwUse, parser.KwDatabase:
@@ -196,7 +203,7 @@ func inFromList(toks []parser.Token) bool {
 	for i := len(toks) - 1; i >= 0; i-- {
 		switch {
 		case toks[i].Type == parser.KwFrom:
-			return true
+			return relationFrom(toks, i)
 		case parser.IsBareAlias(toks[i]), toks[i].Type == parser.KwAs, toks[i].Type == parser.TokDot, toks[i].Type == parser.TokComma:
 		default:
 			return false
@@ -221,9 +228,77 @@ func isName(tok parser.Token) bool {
 	return parser.IsIdentifier(tok)
 }
 
-// tableRef is a table a statement reads or writes, with its alias.
+// relationFrom reports whether the FROM at toks[i] names tables: it is not
+// inside parentheses, or a SELECT comes before it inside them. The FROM of
+// EXTRACT(DAY FROM d) or TRIM(BOTH 'x' FROM s) is part of an expression.
+func relationFrom(toks []parser.Token, i int) bool {
+	open := openParen(toks, i)
+	if open < 0 {
+		return true
+	}
+	depth := 0
+	for j := open + 1; j < i; j++ {
+		switch toks[j].Type {
+		case parser.TokLParen:
+			depth++
+		case parser.TokRParen:
+			depth--
+		case parser.KwSelect:
+			if depth == 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// openParen returns the index of the innermost parenthesis open before
+// toks[i], or -1 when none is.
+func openParen(toks []parser.Token, i int) int {
+	depth := 0
+	for j := i - 1; j >= 0; j-- {
+		switch toks[j].Type {
+		case parser.TokRParen:
+			depth++
+		case parser.TokLParen:
+			if depth == 0 {
+				return j
+			}
+			depth--
+		}
+	}
+	return -1
+}
+
+// tableRef is a table a statement reads or writes, with its alias, and the
+// parenthesis its clause is inside: the index of the open parenthesis, -1
+// at the top level.
 type tableRef struct {
 	database, table, alias string
+	group                  int
+}
+
+// refsInScope returns the tables in scope at byte offset caret: those whose
+// clause is inside a parenthesis that holds the caret, the innermost first.
+func refsInScope(toks []parser.Token, caret int) []tableRef {
+	before := 0
+	for before < len(toks) && toks[before].Pos < caret {
+		before++
+	}
+	groups := []int{-1}
+	for g := openParen(toks, before); g >= 0; g = openParen(toks, g) {
+		groups = append(groups, g)
+	}
+	all := tableRefs(toks)
+	var out []tableRef
+	for i := len(groups) - 1; i >= 0; i-- {
+		for _, ref := range all {
+			if ref.group == groups[i] {
+				out = append(out, ref)
+			}
+		}
+	}
+	return out
 }
 
 // addressedBy reports whether a qualifier names the table: its alias, or its
@@ -236,21 +311,26 @@ func (r tableRef) addressedBy(q string) bool {
 }
 
 // tableRefs reads the tables named after FROM, JOIN, INTO, TABLE and UPDATE,
-// and in a FROM list, with their aliases.
+// and in a FROM list, with their aliases and the parenthesis each is in.
 func tableRefs(toks []parser.Token) []tableRef {
 	var refs []tableRef
 	for i := 0; i < len(toks); i++ {
 		switch toks[i].Type {
-		case parser.KwFrom, parser.KwJoin, parser.KwInto, parser.KwTable, parser.KwUpdate:
+		case parser.KwFrom:
+			if !relationFrom(toks, i) {
+				continue
+			}
+		case parser.KwJoin, parser.KwInto, parser.KwTable, parser.KwUpdate:
 		default:
 			continue
 		}
-		list := toks[i].Type == parser.KwFrom
+		list, group := toks[i].Type == parser.KwFrom, openParen(toks, i)
 		for {
 			ref, n := readTableRef(toks[i+1:])
 			if n == 0 {
 				break
 			}
+			ref.group = group
 			refs = append(refs, ref)
 			i += n
 			if !list || i+1 >= len(toks) || toks[i+1].Type != parser.TokComma {

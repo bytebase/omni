@@ -29,6 +29,8 @@ func TestExpectedKeywords(t *testing.T) {
 		{prefix: "ALTER TABLE t ", has: []string{"ADD", "DROP", "MODIFY", "UPDATE", "DELETE", "ON"}},
 		{prefix: "INSERT INTO t ", has: []string{"VALUES", "FORMAT", "SELECT", "SETTINGS"}},
 		{prefix: "GRANT SELECT ON *.* TO u WITH GRANT ", has: []string{"OPTION"}},
+		{prefix: "GRANT SELECT ON *.* TO u WITH ", has: []string{"GRANT", "REPLACE", "ADMIN"}},
+		{prefix: "EXPLAIN ", has: []string{"CURRENT", "AST", "SYNTAX", "PLAN", "PIPELINE", "SELECT"}},
 		{prefix: "SYSTEM ", has: []string{"FLUSH", "RELOAD", "START", "STOP"}},
 		// No keyword is a name's continuation, and nothing follows a bad
 		// prefix or one ending inside a word, a string or a comment.
