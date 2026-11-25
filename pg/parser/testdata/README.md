@@ -19,12 +19,15 @@ shortest statement that reaches it, then its near-misses: the statement with
 one token dropped, the end cut off, a stray word inserted, or a keyword
 swapped. 13 alternatives get no row: the five `MODE_*` entry points
 `raw_parser` uses for a type name and for PL/pgSQL, and the rules only they
-reach. A rule `tokens.tsv` marks `(every site)` (`opt_drop_behavior`,
-`opt_or_replace`, `OptTemp`, `opt_if_not_exists` and the other optional
-clauses listed there) also gets a row at each alternative that names it, with
-the clause written out (`Rule/symbols+opt_drop_behavior`), whose near-misses
-drop the clause's tokens. `TestCompatibility` regenerates these rows and fails
-if the file holds others.
+reach. A rule `tokens.tsv` marks `(every site)` (`opt_or_replace`,
+`opt_if_not_exists` and the other optional clauses listed there) also gets a
+row at each alternative that names it, with the clause written out
+(`Rule/symbols+opt_or_replace`), whose near-misses drop the clause's tokens. A
+rule it marks `(every alternative)` (`opt_drop_behavior`, `OptTemp`,
+`object_type_any_name` and the other keyword choices listed there) gets a row
+for each of its forms at each such alternative
+(`Rule/symbols+opt_drop_behavior/RESTRICT`). `TestCompatibility` regenerates
+these rows and fails if the file holds others.
 
 **`suite:lexer`** is every form `scan.l` reads that a generated row does not
 write, each in a `SELECT`: strings with `''` and with a newline between
