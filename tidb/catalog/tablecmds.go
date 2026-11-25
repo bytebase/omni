@@ -1275,7 +1275,7 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 				idxCol.Name = cr.Column
 			} else {
-				idxCol.Expr = nodeToSQL(ic.Expr)
+				idxCol.Expr = generationExpr(ic.Expr)
 			}
 			result = append(result, idxCol)
 		}
@@ -1561,10 +1561,11 @@ func convertToBinaryType(col *Column, dt *nodes.DataType) *Column {
 	return col
 }
 
-// generationExpr writes a generated column's expression as TiDB stores it:
-// restored with RestoreForGeneratedColumn (pkg/ddl create_table.go), which
-// keeps the parentheses the expression was written with and gives each string
-// literal its character set.
+// generationExpr writes a generated column's expression, or an expression key
+// part's, as TiDB stores it: restored with RestoreForGeneratedColumn (pkg/ddl
+// create_table.go; index.go buildHiddenColumnInfoWithCheck for a key part, which
+// TiDB keeps as a hidden generated column), which keeps the parentheses the
+// expression was written with and gives each string literal its character set.
 func generationExpr(node nodes.ExprNode) string {
 	return deparse.RestoreWith(node, deparse.RestoreForGeneratedColumn)
 }

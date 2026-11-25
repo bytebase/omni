@@ -1304,3 +1304,33 @@ func TestExecIndexedView(t *testing.T) {
 	execExpectOK(t, c, "ALTER VIEW [dbo].[iv] WITH SCHEMABINDING AS SELECT [id], [v] FROM [dbo].[t]")
 	require.Empty(t, c.GetView("dbo", "iv").Indexes)
 }
+
+// TestExecViewEndsItsBatch holds Exec to what SQL Server 2022 answered for a
+// statement after a view in its batch: Msg 156 on a keyword, Msg 102 on
+// anything else, and nothing across GO or for a lone semicolon.
+func TestExecViewEndsItsBatch(t *testing.T) {
+	for _, tc := range []struct {
+		sql  string
+		code int
+	}{
+		{"CREATE VIEW v AS SELECT 1 a; SELECT 2", 156},
+		{"ALTER VIEW v AS SELECT 1 a; SELECT 2", 156},
+		{"CREATE VIEW v AS SELECT 1 a WITH CHECK OPTION; EXEC sp_help", 156},
+		{"CREATE VIEW v AS SELECT 1 a; CREATE VIEW w AS SELECT 1 a", 156},
+		{"CREATE VIEW v AS SELECT 1 a; (SELECT 1)", 102},
+		{"CREATE VIEW v AS SELECT 1 a; lbl: PRINT 1", 102},
+	} {
+		c := New()
+		views := 0
+		if strings.HasPrefix(tc.sql, "ALTER") {
+			execExpectOK(t, c, "CREATE VIEW v AS SELECT 1 a")
+			views = 1
+		}
+		execExpectCode(t, c, tc.sql, tc.code)
+		require.Len(t, c.GetSchema("dbo").GetViews(), views, "%q", tc.sql)
+	}
+	execExpectOK(t, New(), "CREATE VIEW v AS SELECT 1 a; ;")
+	execExpectOK(t, New(), "CREATE VIEW v AS SELECT 1 a\nGO\nCREATE VIEW w AS SELECT 1 a")
+	_, err := LoadSQL("CREATE VIEW v AS SELECT 1 a; CREATE VIEW w AS SELECT 1 a")
+	require.NoError(t, err)
+}

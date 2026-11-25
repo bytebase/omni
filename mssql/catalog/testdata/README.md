@@ -96,25 +96,29 @@ hashes the stored schema, view definition included. `TestQuerySimulation`
   table, type, partition function and database DDL that names a collation).
   Some are refused on purpose.
 
-**704 / 712 rows (98.88%) agree** (341 / 346 grammar rows, 363 / 366
-feature rows; 261 rows SQL Server accepts). The 8 that do not need something
-the catalog does not model:
+**712 / 719 rows (99.03%) agree** (349 / 353 grammar rows, 363 / 366
+feature rows; 262 rows SQL Server accepts). The 7 that do not need
+something a synced schema does not hold:
 
-- `SELECT $PARTITION.a(1)` and its three variants (Msg 208): partition
-  functions are outside the catalog, and a catalog loaded from synced
-  metadata would not know them either, so `$PARTITION` is not checked.
-- `SELECT b FROM nope.dbo.a` (Msg 208): another database's objects are not
-  checked, since a catalog holds one database.
-- `SELECT name FROM sys.nope` (Msg 208): system views are not modeled, so
-  any name in `sys` or `INFORMATION_SCHEMA` binds.
+- `SELECT $PARTITION.a(1)` and its three variants (Msg 208): Bytebase's
+  metadata has no partition functions, so a catalog loaded from it could not
+  tell a missing one from a synced one, and `$PARTITION` is not checked.
+- `SELECT b FROM nope.dbo.a` (Msg 208): a catalog holds one database, so
+  another database's objects are not checked.
+- `SELECT name FROM sys.nope` (Msg 208): the system views are the server's,
+  not the schema's, and differ by version and edition (Azure SQL Database
+  has its own, such as `sys.database_firewall_rules`), so any name in `sys`
+  or `INFORMATION_SCHEMA` binds.
 - `SELECT b FROM OPENROWSET('x', 'y', 'z')` (Msg 7222): which OLE DB
   providers a server allows is its configuration, not its catalog.
-- `SELECT * SELECT *` (Msg 156): SQL Server ends a view's batch at its
-  query; omni parses the second `SELECT` as a statement of its own, as
-  Bytebase runs a script statement by statement.
 
-`LoadSQL` does not bind a view's query, since a desired-state script may
-define a view before the objects it reads; `Exec` on a loaded catalog does.
+A view ends its batch, and Bytebase sends a script batch by batch, so `Exec`
+refuses a statement after a view before `GO` (Msg 156, or 102 when it does
+not start with a keyword), as `SELECT * SELECT *` measures.
+
+`LoadSQL` does neither: a desired-state script need not separate its views
+with `GO`, and may define a view before the objects it reads. `Exec` on a
+loaded catalog binds a view's query.
 
 Commit the rows a fix moved, or run every row on the pinned server again:
 

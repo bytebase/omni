@@ -76,6 +76,7 @@ const (
 	ErrDefaultAsValInTVC           = 3943
 	ErrOBUnknownHint               = 5063
 	ErrOBJSONPathSyntax            = 5454
+	ErrOBDistinctNotAllowed        = 5798
 	ErrOBRemoteDBNotFound          = 5835
 	ErrOBWindowNotDefined          = 5929
 )

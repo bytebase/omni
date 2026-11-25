@@ -61,6 +61,19 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"ambiguous_col_distinct_alias", "CREATE VIEW _v AS SELECT a FROM a, a zzz", 1052},
 		{"ambiguous_col_in_on", "CREATE VIEW _v AS SELECT a FROM a x JOIN a y ON a", 1052},
 
+		// DISTINCT in JSON_ARRAYAGG or PERCENTILE_CONT is 5798 before columns and windows.
+		{"distinct_json_arrayagg", "CREATE VIEW _v AS SELECT JSON_ARRAYAGG(DISTINCT a)", ErrOBDistinctNotAllowed},
+		{"unique_json_arrayagg_over", "CREATE VIEW _v AS SELECT JSON_ARRAYAGG(UNIQUE a) OVER a", ErrOBDistinctNotAllowed},
+		{"distinct_percentile_cont", "CREATE VIEW _v AS SELECT PERCENTILE_CONT(DISTINCT a, a)", ErrOBDistinctNotAllowed},
+		{"all_json_arrayagg_over", "CREATE VIEW _v AS SELECT JSON_ARRAYAGG(ALL a) OVER a", ErrOBWindowNotDefined},
+
+		// A USING character set written bare is checked before columns, a quoted one after.
+		{"convert_using_bare", "CREATE VIEW _v AS SELECT CONVERT(a USING s)", ErrUnknownCharacterSet},
+		{"convert_using_quoted", "CREATE VIEW _v AS SELECT CONVERT(a USING 's')", ErrNoSuchColumn},
+		{"char_using_quoted", "CREATE VIEW _v AS SELECT CHARACTER(a USING 's')", ErrNoSuchColumn},
+		{"convert_using_quoted_const", "CREATE VIEW _v AS SELECT CONVERT(1 USING 's')", ErrUnknownCharacterSet},
+		{"char_using_quoted_const", "CREATE VIEW _v AS SELECT CHAR(1 USING 's')", ErrUnknownCharacterSet},
+
 		// Window validation (5929, 1235, 3596, 1149).
 		{"undefined_window_bare", "CREATE VIEW _v AS SELECT RANK() OVER w", ErrOBWindowNotDefined},
 		{"undefined_window_paren", "CREATE VIEW _v AS SELECT RANK() OVER (w)", ErrOBWindowNotDefined},

@@ -11,9 +11,9 @@ OceanBase's stored `SHOW CREATE VIEW` text is the engine's own reading of each
 query and expression. `TestQuerySimulation` (`../../simulate_query_test.go`)
 replays it from `../tapes/TestQuerySimulation.tape` with no server.
 
-4,021 rows (140 engine-accepted views, 3,881 engine refusals):
+4,224 rows (141 engine-accepted views, 4,083 engine refusals):
 - **Baseline:** 3,625 / 4,022 agree (90.13%), 397 disagree (0 only engine takes, 186 only omni takes, 55 other schema, 156 other code).
-- **Final:** 4,021 / 4,021 agree (100.00%: 140 / 140 stored views matching, 3,881 / 3,881 matching refusals) and 0 disagree.
+- **Final:** 4,224 / 4,224 agree (100.00%: 141 / 141 stored views matching, 4,083 / 4,083 matching refusals) and 0 disagree.
 
 ## Commands
 

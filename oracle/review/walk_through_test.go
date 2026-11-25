@@ -404,6 +404,7 @@ func TestWalkThroughOracleHeapTable(t *testing.T) {
 	oneFinding(t, "ALTER TABLE heap ADD PARTITION p VALUES LESS THAN (10);", 0, "Table `HEAP` is not partitioned.", shop)
 	oneFinding(t, "ALTER TABLE heap MOVE PARTITION p;", 0, "Table `HEAP` is not partitioned.", shop)
 	oneFinding(t, "DELETE heap PARTITION (p);", 0, "Table `HEAP` is not partitioned.", shop)
+	oneFinding(t, "CREATE VIEW v AS SELECT * FROM heap PARTITION (p);", 0, "Oracle refuses the view's query: ORA-14501: object is not partitioned.", shop)
 	oneFinding(t, "CREATE INDEX ix_a ON heap (a) LOCAL;", 0, "A LOCAL index needs a partitioned table, not `HEAP`.", shop)
 	oneFinding(t, "ALTER TABLE heap MOVE NOMAPPING;", 0, "MAPPING TABLE / NOMAPPING is only allowed on an index-organized table, not `HEAP`.", shop)
 	oneFinding(t, "ALTER TABLE heap REJECT LIMIT 1;", 0, "This clause is only allowed on an external table, not `HEAP`.", shop)
@@ -413,10 +414,12 @@ func TestWalkThroughOracleHeapTable(t *testing.T) {
 	// Once the change partitions it, its partitions are the change's.
 	noFinding(t, "ALTER TABLE heap MODIFY PARTITION BY RANGE (a) (PARTITION p VALUES LESS THAN (10));\nALTER TABLE heap ADD PARTITION q VALUES LESS THAN (20);", shop)
 	noFinding(t, "DROP TABLE heap;\nCREATE TABLE heap (a NUMBER) PARTITION BY RANGE (a) (PARTITION p VALUES LESS THAN (10));\nALTER TABLE heap ADD PARTITION q VALUES LESS THAN (20);", shop)
+	noFinding(t, "ALTER TABLE heap MODIFY PARTITION BY RANGE (a) (PARTITION p VALUES LESS THAN (10));\nCREATE VIEW v AS SELECT * FROM heap PARTITION (p);", shop)
 	// No tablespace says nothing.
 	heap.Tablespace = ""
 	noFinding(t, "ALTER TABLE heap MOVE PARTITION p;", shop)
 	noFinding(t, "CREATE INDEX ix_a ON heap (a) LOCAL;", shop)
+	noFinding(t, "CREATE VIEW v AS SELECT * FROM heap PARTITION (p);", shop)
 }
 
 func TestWalkThroughOracleEffects(t *testing.T) {
@@ -1044,7 +1047,10 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	noFinding(t, "CREATE VIEW v AS SELECT a FROM nokey_rich, dual;", rich)
 	noFinding(t, "CREATE FORCE VIEW v AS SELECT a FROM nokey_rich, part_range;", rich)
 	noFinding(t, "CREATE VIEW v OF pair_t WITH OBJECT IDENTIFIER (x) AS SELECT 1, 2 FROM dual;", rich)
-	noFinding(t, "CREATE VIEW v AS SELECT d.*, q.a FROM nokey_rich d, (WITH nokey_rich AS (SELECT 1 a FROM dual) SELECT a FROM nokey_rich) q;", rich)
+	// A CTE hides a table of its name only where the WITH clause is in scope.
+	oneFinding(t, "CREATE VIEW v AS SELECT d.*, q.a FROM nokey_rich d, (WITH nokey_rich AS (SELECT 1 a FROM dual) SELECT a FROM nokey_rich) q;", 0, "Oracle refuses the view's query: ORA-00957: duplicate column name.", rich)
+	noFinding(t, "CREATE VIEW v AS SELECT d.b, q.a FROM nokey_rich d, (WITH nokey_rich AS (SELECT 1 a FROM dual) SELECT a FROM nokey_rich) q;", rich)
+	noFinding(t, "CREATE VIEW v AS SELECT d.*, q.a FROM nokey_rich d, (WITH dual AS (SELECT 1 a FROM sys.dual) SELECT a FROM dual) q;", rich)
 	noFinding(t, "CREATE VIEW v AS SELECT deptno FROM (SELECT 1 deptno FROM dual) GROUP BY 1;", rich)
 	// Group-function errors hold when the query calls built-in functions
 	// alone; a call the catalog does not know may be a user-defined aggregate.
@@ -1057,6 +1063,18 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	noFinding(t, "CREATE VIEW v AS SELECT val, nosuch, COUNT(*) c FROM plain GROUP BY val;", rich)
 	noFinding(t, "CREATE VIEW v AS SELECT val, USER u, SYSDATE d, COUNT(*) c FROM plain GROUP BY val;", rich)
 	noFinding(t, "CREATE VIEW v AS SELECT val v2, UPPER(name) u, COUNT(*) c FROM plain GROUP BY val, UPPER(name) ORDER BY c;", rich)
+	// A call named for a table of the schema calls no user-defined aggregate.
+	oneFinding(t, "CREATE VIEW v AS SELECT * FROM plain PIVOT (plain(1) FOR val IN (1));", 0, "Oracle refuses the view's query: ORA-56902: non-aggregate expressions inside the PIVOT clause.", rich)
+	noFinding(t, "CREATE VIEW v AS SELECT * FROM plain PIVOT (myagg(id) FOR val IN (1));", rich)
+	// An analytic view named for a table, or for itself.
+	oneFinding(t, "CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW (USING plain);", 0, "Oracle refuses the view's query: ORA-18307: analytic view \"\".\"PLAIN\" does not exist.", rich)
+	oneFinding(t, "CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW (USING plain HIERARCHIES (h));", 0, "Oracle refuses the view's query: ORA-18370: The HIERARCHIES clause may only be specified for cubes..", rich)
+	oneFinding(t, "CREATE VIEW v AS WITH x ANALYTIC VIEW AS (USING x) SELECT * FROM plain;", 0, "Oracle refuses the view's query: ORA-18385: recursive WITH clause not allowed in a derived analytic view.", rich)
+	noFinding(t, "CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW (USING sales_av);", rich)
+	noFinding(t, "CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW (USING other.plain);", rich)
+	// A CTE named for a table hides it within the WITH clause's query.
+	oneFinding(t, "CREATE VIEW v AS WITH plain AS (SELECT *) SELECT * FROM plain;", 0, "Oracle refuses the view's query: ORA-54058: '*' not allowed in SELECT expressions without FROM clause.", rich)
+	noFinding(t, "CREATE VIEW v AS WITH plain AS (SELECT 1 x FROM dual) SELECT x FROM plain;", rich)
 	// The change drops the column first: the catalog is not asked.
 	noFinding(t, "ALTER TABLE nokey_rich DROP COLUMN a;\nCREATE VIEW v AS SELECT a FROM nokey_rich, part_range;", rich)
 	noFinding(t, "CREATE INDEX IF NOT EXISTS ix_plain_val ON plain (val);", rich)
