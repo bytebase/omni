@@ -61,14 +61,9 @@ is how its references are read.
   applies.
 - PIVOT: omni refuses to trace it (`TypeNotSupportedError`), and Bytebase
   refuses the query rather than return its columns unmasked.
-- A view: omni names the view and not the tables beneath it in its own
-  database. SQL Server checks a reader's permission on the view alone when
-  its owner owns the tables, and a Bytebase grant on the view names it;
-  naming the tables too would refuse that reader. What a view reads in
-  another database omni names, since ownership chains stop at a database by
-  default. Lineage, which masking reads, names the tables' columns either
-  way.
 
 ## query-span/*.yaml
 
-Bytebase's query-span corpora; `TestQuerySpanCorpus` reproduces them.
+Bytebase's query-span corpora; `TestQuerySpanCorpus` reproduces them. Their
+view cases named only the view among the tables read; span.tsv shows SQL
+Server reads the tables beneath it too, and those were added.
