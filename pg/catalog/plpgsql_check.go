@@ -464,8 +464,8 @@ func plNameList(names []string) *nodes.List {
 	return l
 }
 
-// checkDo compiles a DO block before it would run. What the block does when
-// it runs, the objects it creates or the errors it raises, is not simulated.
+// checkDo compiles a DO block and runs it when runPLpgSQL can: a block
+// whose path depends on data is compiled only.
 //
 // pg: src/backend/commands/functioncmds.c — ExecuteDoStmt
 // pg: src/pl/plpgsql/src/pl_handler.c — plpgsql_inline_handler
@@ -487,7 +487,10 @@ func (c *Catalog) checkDo(s *nodes.DoStmt) error {
 	}
 	switch language {
 	case "plpgsql":
-		return c.checkPLpgSQL(body, &plpgsqlRoutine{kind: 'f', retType: VOIDOID})
+		if err := c.checkPLpgSQL(body, &plpgsqlRoutine{kind: 'f', retType: VOIDOID}); err != nil {
+			return err
+		}
+		return c.runPLpgSQL(body, nil)
 	case "sql", "c", "internal":
 		return &Error{Code: CodeFeatureNotSupported, Message: fmt.Sprintf("language %q does not support inline code execution", language)}
 	case "plperl", "plperlu", "pltcl", "pltclu", "plpythonu", "plpython2u", "plpython3u":

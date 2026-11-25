@@ -68,6 +68,7 @@ const (
 	CodeInvalidGrantOperation        = "0LP01"
 	CodeProgramLimitExceeded         = "54000"
 	CodeReservedName                 = "42939"
+	CodeRaiseException               = "P0001"
 	CodeInvalidCatalogName           = "3D000"
 	CodeInvalidSQLStatementName      = "26000"
 	CodeDuplicatePstatement          = "42P05"

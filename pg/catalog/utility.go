@@ -369,9 +369,20 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// SHOW: no-op for pgddl
 		return nil
 	case *nodes.CallStmt:
-		// CALL resolves its procedure; what the procedure does when it runs
-		// is not simulated.
-		return c.checkCall(newRuleBindings(0, 0), s.Funccall, &ruleEvalContext{})
+		// CALL resolves its procedure and runs a PL/pgSQL body when
+		// runPLpgSQL can.
+		// pg: src/backend/commands/functioncmds.c — ExecuteCallStmt
+		b := newRuleBindings(0, 0)
+		if err := c.checkCall(b, s.Funccall, &ruleEvalContext{}); err != nil {
+			return err
+		}
+		// checkCall records the procedure after what its arguments use.
+		if n := len(b.funcDeps); n > 0 {
+			if up := c.userProcs[b.funcDeps[n-1]]; up != nil && up.Kind == 'p' && strings.EqualFold(up.Language, "plpgsql") {
+				return c.runPLpgSQL(up.Body, procParams(up))
+			}
+		}
+		return nil
 	case *nodes.PrepareStmt:
 		if s.Name != "" && c.preparedStmts[s.Name] != nil {
 			return &Error{

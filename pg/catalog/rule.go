@@ -100,6 +100,9 @@ type ruleBindings struct {
 	// qualified.
 	fnQualify   bool
 	paramByNode map[nodes.Node]sqlFnParamRef
+	// litType is the type a SQL function body's quoted literal is coerced
+	// to, which print_function_sqlbody prints after it ('a'::text).
+	litType map[*nodes.A_Const]uint32
 
 	relDeps  []uint32
 	colDeps  []ruleColDep
@@ -233,6 +236,10 @@ func cloneRuleBindings(b *ruleBindings) *ruleBindings {
 	cp.paramByNode = make(map[nodes.Node]sqlFnParamRef, len(b.paramByNode))
 	for k, v := range b.paramByNode {
 		cp.paramByNode[k] = v
+	}
+	cp.litType = make(map[*nodes.A_Const]uint32, len(b.litType))
+	for k, v := range b.litType {
+		cp.litType[k] = v
 	}
 	return cp
 }
@@ -691,6 +698,7 @@ func newRuleBindings(ownerRelOID uint32, event nodes.CmdType) *ruleBindings {
 		stmtCtx:        make(map[*nodes.SelectStmt]*ruleEvalContext),
 		srfCalls:       make(map[*nodes.FuncCall]bool),
 		paramByNode:    make(map[nodes.Node]sqlFnParamRef),
+		litType:        make(map[*nodes.A_Const]uint32),
 		seenRel:        make(map[uint32]bool),
 		seenCol:        make(map[ruleColDep]bool),
 		seenCon:        make(map[uint32]bool),
@@ -2486,6 +2494,55 @@ func (c *Catalog) checkRuleTargetListTypes(b *ruleBindings, relOID uint32, list 
 	return nil
 }
 
+// coerceRuleLiteral coerces a quoted literal to the type it is assigned or
+// compared to, as coerce_type does at parse analysis: the type's input
+// function reads it now, so a value the type refuses fails the statement.
+// In a SQL function body the literal then prints with that type.
+//
+// pg: src/backend/parser/parse_coerce.c — coerce_type
+// pg: src/backend/utils/adt/ruleutils.c — get_const_expr
+func (c *Catalog) coerceRuleLiteral(b *ruleBindings, n nodes.Node, target uint32) error {
+	lit, ok := n.(*nodes.A_Const)
+	if !ok || lit.Isnull || target == 0 {
+		return nil
+	}
+	str, ok := lit.Val.(*nodes.String)
+	if !ok {
+		return nil
+	}
+	if err := c.validateLiteralForType(str.Str, target); err != nil {
+		return err
+	}
+	if b != nil && b.fn != nil && b.litType != nil && (target == TEXTOID || c.enumTypes[target] != nil) {
+		b.litType[lit] = target
+		if target >= FirstNormalObjectId {
+			b.addTypeDep(target)
+		}
+	}
+	return nil
+}
+
+// coerceEnumComparison coerces a quoted literal compared to an enum to that
+// enum. An enum's only operators are the anyenum comparisons, so the
+// literal takes the other side's type.
+//
+// pg: src/include/catalog/pg_operator.dat — enum_eq, enum_ne, enum_lt, enum_gt, enum_le, enum_ge
+func (c *Catalog) coerceEnumComparison(b *ruleBindings, e *nodes.A_Expr, lType, rType uint32) error {
+	if e.Lexpr == nil {
+		return nil
+	}
+	if _, name := qualifiedName(e.Name); name != "=" && name != "<>" && name != "<" && name != ">" && name != "<=" && name != ">=" {
+		return nil
+	}
+	switch {
+	case lType == UNKNOWNOID && c.enumTypes[rType] != nil:
+		return c.coerceRuleLiteral(b, e.Lexpr, rType)
+	case rType == UNKNOWNOID && c.enumTypes[lType] != nil:
+		return c.coerceRuleLiteral(b, e.Rexpr, lType)
+	}
+	return nil
+}
+
 func (c *Catalog) resolveInsertTargetCols(relOID uint32, cols *nodes.List) []*Column {
 	if relOID == 0 {
 		return nil
@@ -2916,6 +2973,20 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 			}
 			if targetOID != 0 && !c.snapshot {
 				targetColDefs := c.resolveInsertTargetCols(targetOID, s.Cols)
+				// A single VALUES row's quoted literal takes its column's
+				// type at once; several rows' are first resolved together.
+				// pg: src/backend/parser/analyze.c — transformInsertStmt, transformInsertRow
+				if sel, ok := s.SelectStmt.(*nodes.SelectStmt); ok && sel.ValuesLists != nil && len(sel.ValuesLists.Items) == 1 {
+					if row, ok := sel.ValuesLists.Items[0].(*nodes.List); ok {
+						for i, item := range row.Items {
+							if i < len(targetColDefs) && targetColDefs[i] != nil {
+								if err := c.coerceRuleLiteral(b, item, targetColDefs[i].TypeOID); err != nil {
+									return err
+								}
+							}
+						}
+					}
+				}
 				qTypes, qAny := c.extractRuleQueryColTypes(b, s.SelectStmt)
 				if !qAny {
 					for i, valType := range qTypes {
@@ -5979,6 +6050,9 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 				if err != nil {
 					return err
 				}
+				if err := c.coerceEnumComparison(b, v, lType, rType); err != nil {
+					return err
+				}
 				if resType != 0 && b != nil && b.exprTypeByNode != nil {
 					b.exprTypeByNode[v] = resType
 				}
@@ -8496,6 +8570,8 @@ func (d *ruleDeparser) deparseTargetList(list *nodes.List) string {
 		val := d.deparseExpr(rt.Val)
 		if rt.Name != "" {
 			parts = append(parts, val+" AS "+quoteIdentifier(rt.Name))
+		} else if name := d.sqlBodyTargetName(rt); name != "" {
+			parts = append(parts, val+" AS "+quoteIdentifier(name))
 		} else if d.b != nil && d.b.targetNameByRT != nil {
 			if origName, hasOrig := d.b.targetNameByRT[rt]; hasOrig && origName != "" && d.currentInferredTargetColName(rt.Val, origName) != origName {
 				parts = append(parts, val+" AS "+quoteIdentifier(origName))
@@ -8507,6 +8583,31 @@ func (d *ruleDeparser) deparseTargetList(list *nodes.List) string {
 		}
 	}
 	return strings.Join(parts, ", ")
+}
+
+// sqlBodyTargetName is the AS name a SQL function body prints for an
+// unnamed result column that is not a column: the name the column was given
+// (FigureColname's), unless that is the "?column?" fallback, as the body's
+// column names are not visible.
+//
+// pg: src/backend/utils/adt/ruleutils.c — get_target_list
+func (d *ruleDeparser) sqlBodyTargetName(rt *nodes.ResTarget) string {
+	if d.b == nil || d.b.fn == nil {
+		return ""
+	}
+	if cr, ok := rt.Val.(*nodes.ColumnRef); ok {
+		if _, param := d.b.paramByNode[cr]; !param {
+			return ""
+		}
+	}
+	name := d.b.targetNameByRT[rt]
+	if name == "" {
+		name = inferRuleTargetColName(rt.Val)
+	}
+	if name == "?column?" {
+		return ""
+	}
+	return name
 }
 
 func (d *ruleDeparser) deparseStarCol(sc ruleStarCol) string {
@@ -9403,6 +9504,9 @@ func (d *ruleDeparser) deparseExpr(n nodes.Node) string {
 		}
 		if s := d.deparseBoundRegclassLiteral(v); s != "" {
 			return s
+		}
+		if d.b != nil && d.b.litType[v] != 0 && d.cat != nil {
+			return fmt.Sprintf("(%s)::%s", deparseRawConstVal(v.Val), d.cat.FormatType(d.b.litType[v], -1))
 		}
 		return deparseRawConstVal(v.Val)
 
