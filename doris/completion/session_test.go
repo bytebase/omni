@@ -148,6 +148,11 @@ func TestCompleteSession(t *testing.T) {
 		{name: "delete where", text: "DELETE FROM orders WHERE am|", want: typed(CandidateColumn, "amount")},
 		{name: "order by", text: "SELECT * FROM orders ORDER BY am|", want: typed(CandidateColumn, "amount")},
 		{name: "subquery", text: "SELECT * FROM customers WHERE id IN (SELECT cust| FROM orders)", want: typed(CandidateColumn, "customer_id")},
+		{name: "cte body out of scope", text: "WITH recent AS (SELECT id FROM orders) SELECT am| FROM customers", want: nil},
+		{name: "other union arm out of scope", text: "SELECT id FROM orders UNION SELECT am| FROM customers", want: nil},
+		{name: "union arm in scope", text: "SELECT id FROM orders UNION SELECT na| FROM customers", want: typed(CandidateColumn, "name")},
+		{name: "unfinished nested expression", text: "SELECT * FROM orders WHERE ((am|", want: typed(CandidateColumn, "amount")},
+		{name: "catalog-qualified table", text: "SELECT o.am| FROM internal.db.orders o", want: typed(CandidateColumn, "amount")},
 		{name: "unclosed subquery keywords", text: "SELECT * FROM (SELECT id |", has: kw("FROM"), not: kw("ON")},
 		{name: "derived table", text: "SELECT * FROM (SELECT * FROM cu|", want: typed(CandidateTable, "customers")},
 

@@ -1,6 +1,7 @@
 package completion
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/doris/ast"
@@ -63,10 +64,14 @@ func nameContextAt(stmt string, word caretWord) *nameContext {
 		}
 	}
 	if root != nil {
-		nc.kind = placeholderKind(root)
-		collectScope(root, nc)
+		var block ast.Node
+		nc.kind, block = placeholderAt(root)
+		collectScope(root, block, nc)
 	} else {
 		nc.scope = lexicalScope(stmt[:qualStart])
+		if expressionStart(stmt[:qualStart]) {
+			nc.kind = kindColumn
+		}
 	}
 	// CREATE TABLE names a new table; its AS query is raw text in the AST.
 	if prev := previousKeyword(stmt[:qualStart]); nc.kind == kindNone && tableKeywords[prev] && (prev != "TABLE" || !startsWith(stmt, "CREATE")) {
@@ -75,47 +80,89 @@ func nameContextAt(stmt string, word caretWord) *nameContext {
 	return nc
 }
 
-// placeholderKind finds the placeholder in root: a FROM item's name is a
+// placeholderAt finds the placeholder in root: a FROM item's name is a
 // relation, a column reference or an UPDATE assignment's target a column.
-func placeholderKind(root ast.Node) nameKind {
-	kind := kindNone
-	ast.Inspect(root, func(n ast.Node) bool {
-		if kind != kindNone {
-			return false
+// block is the query block holding it, whose FROM items are in scope: the
+// innermost SELECT, UPDATE or DELETE around it, or root.
+func placeholderAt(root ast.Node) (kind nameKind, block ast.Node) {
+	f := &placeholderFinder{}
+	ast.Walk(f, root)
+	block = root
+	for _, n := range f.path {
+		switch n.(type) {
+		case *ast.SelectStmt, *ast.UpdateStmt, *ast.DeleteStmt:
+			block = n
 		}
-		switch n := n.(type) {
-		case *ast.TableRef:
-			if n.Func == nil && n.Subquery == nil && endsWithPlaceholder(n.Name) {
-				kind = kindRelation
-			}
-		case *ast.ColumnRef:
-			if endsWithPlaceholder(n.Name) {
-				kind = kindColumn
-			}
-		case *ast.Assignment:
-			if endsWithPlaceholder(n.Column) {
-				kind = kindColumn
-			}
+	}
+	return f.kind, block
+}
+
+// placeholderFinder walks to the node holding the placeholder, keeping the
+// path of nodes from the root to it.
+type placeholderFinder struct {
+	stack []ast.Node
+	path  []ast.Node
+	kind  nameKind
+}
+
+func (f *placeholderFinder) Visit(n ast.Node) ast.Visitor {
+	if f.path != nil {
+		return nil
+	}
+	if n == nil {
+		f.stack = f.stack[:len(f.stack)-1]
+		return nil
+	}
+	f.stack = append(f.stack, n)
+	switch n := n.(type) {
+	case *ast.TableRef:
+		if n.Func == nil && n.Subquery == nil && endsWithPlaceholder(n.Name) {
+			f.kind = kindRelation
 		}
-		return true
-	})
-	return kind
+	case *ast.ColumnRef:
+		if endsWithPlaceholder(n.Name) {
+			f.kind = kindColumn
+		}
+	case *ast.Assignment:
+		if endsWithPlaceholder(n.Column) {
+			f.kind = kindColumn
+		}
+	}
+	if f.kind != kindNone {
+		f.path = slices.Clone(f.stack)
+		return nil
+	}
+	return f
 }
 
 func endsWithPlaceholder(name *ast.ObjectName) bool {
 	return name != nil && len(name.Parts) > 0 && name.Parts[len(name.Parts)-1] == placeholder
 }
 
-// collectScope records the tables and CTEs root reads. A subquery is raw
-// text in the AST, so only the query holding the caret is collected.
-func collectScope(root ast.Node, nc *nameContext) {
+// collectScope records the tables block reads and every CTE name in root.
+// A CTE's query and another arm of a set operation are other blocks, and a
+// subquery is raw text in the AST, so only the block's own FROM items and
+// DML target are collected.
+func collectScope(root, block ast.Node, nc *nameContext) {
+	ast.Inspect(root, func(n ast.Node) bool {
+		if cte, ok := n.(*ast.CTE); ok {
+			nc.ctes = append(nc.ctes, cte.Name)
+		}
+		return true
+	})
 	add := func(name *ast.ObjectName, alias string) {
 		if name != nil && !endsWithPlaceholder(name) {
 			nc.scope = append(nc.scope, tableItem{parts: name.Parts, alias: alias})
 		}
 	}
-	ast.Inspect(root, func(n ast.Node) bool {
+	ast.Inspect(block, func(n ast.Node) bool {
 		switch n := n.(type) {
+		case *ast.CTE:
+			return false
+		case *ast.SelectStmt, *ast.SetOpStmt:
+			if n != block {
+				return false
+			}
 		case *ast.TableRef:
 			if n.Func == nil && n.Subquery == nil {
 				add(n.Name, n.Alias)
@@ -124,11 +171,37 @@ func collectScope(root ast.Node, nc *nameContext) {
 			add(n.Target, n.TargetAlias)
 		case *ast.DeleteStmt:
 			add(n.Target, n.TargetAlias)
-		case *ast.CTE:
-			nc.ctes = append(nc.ctes, n.Name)
 		}
 		return true
 	})
+}
+
+// expressionKeywords are the keywords an expression, and so a column name,
+// can follow.
+var expressionKeywords = map[string]bool{
+	"SELECT": true, "DISTINCT": true, "WHERE": true, "ON": true, "AND": true, "OR": true,
+	"NOT": true, "BY": true, "HAVING": true, "SET": true, "CASE": true, "WHEN": true,
+	"THEN": true, "ELSE": true, "IN": true, "BETWEEN": true, "LIKE": true, "IS": true,
+}
+
+// expressionStart reports whether a column name can start right after
+// text, read from its last token: an operator, '(' or ',', or a keyword an
+// expression follows. It places the caret of a statement that does not
+// parse.
+func expressionStart(text string) bool {
+	toks, _ := parser.Tokenize(text)
+	if len(toks) < 2 {
+		return false
+	}
+	last := toks[len(toks)-2]
+	if isKeyword(last) {
+		return expressionKeywords[strings.ToUpper(last.Str)]
+	}
+	switch parser.TokenName(last.Kind) {
+	case "(", ",", "=", "<", ">", "+", "-", "*", "/", "%", "<=", ">=", "<>", "<=>", "&&", "||":
+		return true
+	}
+	return false
 }
 
 // qualifierBefore returns the dotted parts written right before offset end,

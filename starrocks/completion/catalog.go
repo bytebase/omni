@@ -98,7 +98,7 @@ func (c *catalog) relations(db *metadatapb.DatabaseSchemaMetadata) []Candidate {
 }
 
 // columns returns the columns of the relation named by parts: table,
-// db.table, or internal.db.table. A name that is one of ctes is the CTE and
+// db.table, or default_catalog.db.table. A name that is one of ctes is the CTE and
 // has no columns in the catalog.
 func (c *catalog) columns(parts []string, ctes []string) []Candidate {
 	var db *metadatapb.DatabaseSchemaMetadata
@@ -113,7 +113,7 @@ func (c *catalog) columns(parts []string, ctes []string) []Candidate {
 	case 2:
 		db = c.database(parts[0])
 	case 3:
-		if !strings.EqualFold(parts[0], "internal") {
+		if !strings.EqualFold(parts[0], "default_catalog") {
 			return nil
 		}
 		db = c.database(parts[1])
