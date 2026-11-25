@@ -1,6 +1,8 @@
 package analysis_test
 
 import (
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/cosmosdb"
@@ -321,5 +323,77 @@ func TestAnalyzeValueCount(t *testing.T) {
 	}
 	if len(qa.Projections[0].SourcePaths) != 0 {
 		t.Errorf("SourcePaths: got %d, want 0", len(qa.Projections[0].SourcePaths))
+	}
+}
+
+// TestAnalyzeNamesAndSubqueries pins the names Cosmos DB returns items under
+// and the sources resolved through aliases and subqueries, which
+// testdata/span.tsv holds to the emulator, and the predicates of subqueries,
+// which it does not judge.
+func TestAnalyzeNamesAndSubqueries(t *testing.T) {
+	type proj struct{ name, paths string }
+	for _, tc := range []struct {
+		sql        string
+		want       []proj
+		star       string // StarPaths, when SELECT * stays a star
+		predicates string
+	}{
+		{sql: `SELECT UPPER(c.name), c.name, c.tags[0], LOWER(c.nick) AS l, [c.n] FROM c`,
+			want: []proj{{"$1", "c.name"}, {"name", "c.name"}, {"$2", "c.tags[0]"}, {"l", "c.nick"}, {"$3", "c.n"}}},
+		{sql: `SELECT c FROM container c`, want: []proj{{"c", "container"}}},
+		{sql: `SELECT t FROM c JOIN t IN c.tags`, want: []proj{{"t", "c.tags"}}},
+		{sql: `SELECT VALUE c.name FROM c`, want: []proj{{"", "c.name"}}},
+		{sql: `SELECT a.city, address.zip FROM c.address a JOIN address IN c.address`,
+			want: []proj{{"city", "c.address.city"}, {"zip", "c.address.zip"}}},
+		{sql: `SELECT {"k": c.name}.k FROM c`, want: []proj{{"k", "c.name"}}},
+		{sql: `SELECT {"k": {"j": c.address}}.k.j.city, {"k": c.name}.x, [c.a, c.b][1] FROM c`,
+			want: []proj{{"city", "c.address.city"}, {"x", ""}, {"$1", "c.b"}}},
+		{sql: `SELECT s.k, t.o.k FROM (SELECT VALUE {"k": c.name} FROM c) s JOIN (SELECT {"k": c.nick} AS o FROM c) t`,
+			want: []proj{{"k", "c.name"}, {"k", "c.nick"}}},
+		{sql: `SELECT * FROM (SELECT VALUE {"a": c.name, "b": c.nick} FROM c) s`, want: []proj{{"a", "c.name"}, {"b", "c.nick"}}},
+		{sql: `SELECT ARRAY(SELECT VALUE {"k": x.name} FROM x IN c.tags)[0].k AS k FROM c`, want: []proj{{"k", "c.tags.name"}}},
+		{sql: `SELECT t.k FROM (SELECT VALUE [{"k": c.name}, {"k": c.nick}] FROM c) arr JOIN t IN arr`,
+			want: []proj{{"k", "c.name c.nick"}}},
+		{sql: `SELECT ARRAY_CONCAT([c.name], [c.nick])[1] AS n, ARRAY_SLICE([c.name, c.nick], 1, 1)[0] AS m FROM c`,
+			want: []proj{{"n", "c.name[1] c.nick[1]"}, {"m", "c.name[0] c.nick[0]"}}},
+		{sql: `SELECT * FROM (SELECT VALUE {"k": c.name} ?? {"k": c.nick, "j": c.n} FROM c) s`,
+			want: []proj{{"k", "c.name c.nick"}, {"j", "c.n"}}},
+		{sql: `SELECT s.k FROM (SELECT * FROM (SELECT VALUE {"k": c.name} ?? {"k": c.nick} FROM c) s) s`,
+			want: []proj{{"k", "c.name c.nick"}}},
+		{sql: `SELECT (c.address ?? c.home).city AS city FROM c`, want: []proj{{"city", "c.address.city c.home.city"}}},
+		{sql: `SELECT ARRAY(SELECT VALUE t.name FROM t IN c.tags WHERE t.ssn = "x") AS n FROM c`,
+			want: []proj{{"n", "c.tags.name"}}, predicates: "c.tags.ssn"},
+		{sql: `SELECT c.name FROM c WHERE EXISTS(SELECT VALUE t FROM t IN c.tags WHERE t.ssn = "x")`,
+			want: []proj{{"name", "c.name"}}, predicates: "c.tags.ssn"},
+		{sql: `SELECT s.city, s FROM (SELECT c.name, c.address.city FROM c) s`,
+			want: []proj{{"city", "c.address.city"}, {"s", "c.name c.address.city"}}},
+		{sql: `SELECT * FROM (SELECT c.name AS n FROM c) s`, want: []proj{{"n", "c.name"}}},
+		{sql: `SELECT s.zip FROM (SELECT VALUE c.address FROM c) s`, want: []proj{{"zip", "c.address.zip"}}},
+		{sql: `SELECT t.name FROM c JOIN (SELECT VALUE x FROM x IN c.tags) t`, want: []proj{{"name", "c.tags.name"}}},
+		{sql: `SELECT * FROM t IN c.tags`, star: "c.tags"},
+		{sql: `SELECT * FROM (SELECT VALUE c.address FROM c) s`, star: "c.address"},
+		{sql: `SELECT * FROM root`, star: "root"},
+	} {
+		qa := analysis.Analyze(parseSelect(t, tc.sql))
+		join := func(fps []analysis.FieldPath) string {
+			var s []string
+			for _, fp := range fps {
+				s = append(s, fp.String())
+			}
+			return strings.Join(s, " ")
+		}
+		var got []proj
+		for _, p := range qa.Projections {
+			got = append(got, proj{p.Name, join(p.SourcePaths)})
+		}
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("%s: projections %v, want %v", tc.sql, got, tc.want)
+		}
+		if star := join(qa.StarPaths); qa.SelectStar != (tc.star != "") || star != tc.star {
+			t.Errorf("%s: SelectStar %v over %q, want over %q", tc.sql, qa.SelectStar, star, tc.star)
+		}
+		if p := join(qa.Predicates); p != tc.predicates {
+			t.Errorf("%s: predicates %q, want %q", tc.sql, p, tc.predicates)
+		}
 	}
 }

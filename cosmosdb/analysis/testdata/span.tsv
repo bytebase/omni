@@ -1,0 +1,362 @@
+# pin: emulator mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:2.14.28 sha256:9a4f69121f20c1d6502db84625c71ebb441ab61b01880a7b2d3d8031c6dac429 2.14.28
+# columns: omni, expected, source, fixture, session, aspect, statement
+name	name	engine	document	document	results	SELECT c.name FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT c.name FROM c
+-	~	engine	document	document	tables	SELECT c.name FROM c
+name, city	name, city	engine	document	document	results	SELECT c.name, c.address.city FROM c
+$.name | $.address.city	$.name ~ | $.address.city ~	engine	document	document	lineage	SELECT c.name, c.address.city FROM c
+-	~	engine	document	document	tables	SELECT c.name, c.address.city FROM c
+address	address	engine	document	document	results	SELECT c.address FROM c
+$.address	$.address ~	engine	document	document	lineage	SELECT c.address FROM c
+-	~	engine	document	document	tables	SELECT c.address FROM c
+lat	lat	engine	document	document	results	SELECT c.address.geo.lat FROM c
+$.address.geo.lat	$.address.geo.lat ~	engine	document	document	lineage	SELECT c.address.geo.lat FROM c
+-	~	engine	document	document	tables	SELECT c.address.geo.lat FROM c
+tags	tags	engine	document	document	results	SELECT c.tags FROM c
+$.tags	$.tags ~	engine	document	document	lineage	SELECT c.tags FROM c
+-	~	engine	document	document	tables	SELECT c.tags FROM c
+id, pk	id, pk	engine	document	document	results	SELECT c.id, c.pk FROM c
+$.id | $.pk	$.id ~ | $.pk ~	engine	document	document	lineage	SELECT c.id, c.pk FROM c
+-	~	engine	document	document	tables	SELECT c.id, c.pk FROM c
+_ts	_ts	engine	document	document	results	SELECT c._ts FROM c
+$._ts	~	engine	document	document	lineage	SELECT c._ts FROM c
+-	~	engine	document	document	tables	SELECT c._ts FROM c
+name	name	engine	document	document	results	SELECT c["name"] FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT c["name"] FROM c
+-	~	engine	document	document	tables	SELECT c["name"] FROM c
+city	city	engine	document	document	results	SELECT c.address["city"] FROM c
+$.address.city	$.address.city ~	engine	document	document	lineage	SELECT c.address["city"] FROM c
+-	~	engine	document	document	tables	SELECT c.address["city"] FROM c
+geo	geo	engine	document	document	results	SELECT c["address"]["geo"] FROM c
+$.address.geo	$.address.geo ~	engine	document	document	lineage	SELECT c["address"]["geo"] FROM c
+-	~	engine	document	document	tables	SELECT c["address"]["geo"] FROM c
+name	name	engine	document	document	results	SELECT c["tags"][1]["name"] FROM c
+$.tags.name	$.tags.name ~	engine	document	document	lineage	SELECT c["tags"][1]["name"] FROM c
+-	~	engine	document	document	tables	SELECT c["tags"][1]["name"] FROM c
+$1	$1	engine	document	document	results	SELECT c.tags[0] FROM c
+$.tags	$.tags ~	engine	document	document	lineage	SELECT c.tags[0] FROM c
+-	~	engine	document	document	tables	SELECT c.tags[0] FROM c
+name	name	engine	document	document	results	SELECT c.tags[0].name FROM c
+$.tags.name	$.tags.name ~	engine	document	document	lineage	SELECT c.tags[0].name FROM c
+-	~	engine	document	document	tables	SELECT c.tags[0].name FROM c
+name	name	engine	document	document	results	SELECT c.tags[0]["name"] FROM c
+$.tags.name	$.tags.name ~	engine	document	document	lineage	SELECT c.tags[0]["name"] FROM c
+-	~	engine	document	document	tables	SELECT c.tags[0]["name"] FROM c
+skills	skills	engine	document	document	results	SELECT c.tags[0].skills FROM c
+$.tags.skills	$.tags.skills ~	engine	document	document	lineage	SELECT c.tags[0].skills FROM c
+-	~	engine	document	document	tables	SELECT c.tags[0].skills FROM c
+name	name	engine	document	document	results	SELECT (c.name) FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT (c.name) FROM c
+-	~	engine	document	document	tables	SELECT (c.name) FROM c
+id, pk, name, nick, n, address, tags, phones, _rid, _self, _etag, _attachments, _ts	id, pk, name, nick, n, address, tags, phones, _rid, _self, _etag, _attachments, _ts	engine	document	document	results	SELECT * FROM c
+$.id | $.pk | $.name | $.nick | $.n | $.address | $.tags | $.phones | $._rid | $._self | $._etag | $._attachments | $._ts	$.id ~ | $.pk ~ | $.name ~ | $.nick ~ | $.n ~ | $.address ~ | $.tags ~ | $.phones ~ | ~ | ~ | ~ | ~ | ~	engine	document	document	lineage	SELECT * FROM c
+-	~	engine	document	document	tables	SELECT * FROM c
+c	c	engine	document	document	results	SELECT c FROM c
+$	$ ~	engine	document	document	lineage	SELECT c FROM c
+-	~	engine	document	document	tables	SELECT c FROM c
+""	""	engine	document	document	results	SELECT VALUE c FROM c
+$	$ ~	engine	document	document	lineage	SELECT VALUE c FROM c
+-	~	engine	document	document	tables	SELECT VALUE c FROM c
+root	root	engine	document	document	results	SELECT root FROM root
+$	$ ~	engine	document	document	lineage	SELECT root FROM root
+-	~	engine	document	document	tables	SELECT root FROM root
+id, pk, name, nick, n, address, tags, phones, _rid, _self, _etag, _attachments, _ts	id, pk, name, nick, n, address, tags, phones, _rid, _self, _etag, _attachments, _ts	engine	document	document	results	SELECT TOP 1 * FROM c
+$.id | $.pk | $.name | $.nick | $.n | $.address | $.tags | $.phones | $._rid | $._self | $._etag | $._attachments | $._ts	$.id ~ | $.pk ~ | $.name ~ | $.nick ~ | $.n ~ | $.address ~ | $.tags ~ | $.phones ~ | ~ | ~ | ~ | ~ | ~	engine	document	document	lineage	SELECT TOP 1 * FROM c
+-	~	engine	document	document	tables	SELECT TOP 1 * FROM c
+n	n	engine	document	document	results	SELECT c.name AS n FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT c.name AS n FROM c
+-	~	engine	document	document	tables	SELECT c.name AS n FROM c
+n	n	engine	document	document	results	SELECT c.name n FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT c.name n FROM c
+-	~	engine	document	document	tables	SELECT c.name n FROM c
+name	name	engine	document	document	results	SELECT c.address.city AS name FROM c
+$.address.city	$.address.city ~	engine	document	document	lineage	SELECT c.address.city AS name FROM c
+-	~	engine	document	document	tables	SELECT c.address.city AS name FROM c
+address, name	address, name	engine	document	document	results	SELECT c.name AS address, c.address AS name FROM c
+$.name | $.address	$.name ~ | $.address ~	engine	document	document	lineage	SELECT c.name AS address, c.address AS name FROM c
+-	~	engine	document	document	tables	SELECT c.name AS address, c.address AS name FROM c
+a	a	engine	document	document	results	SELECT c.address AS a FROM c
+$.address	$.address ~	engine	document	document	lineage	SELECT c.address AS a FROM c
+-	~	engine	document	document	tables	SELECT c.address AS a FROM c
+name	name	engine	document	document	results	SELECT r.name FROM root r
+$.name	$.name ~	engine	document	document	lineage	SELECT r.name FROM root r
+-	~	engine	document	document	tables	SELECT r.name FROM root r
+name	name	engine	document	document	results	SELECT root.name FROM root
+$.name	$.name ~	engine	document	document	lineage	SELECT root.name FROM root
+-	~	engine	document	document	tables	SELECT root.name FROM root
+name	name	engine	document	document	results	SELECT x.name FROM mycontainer x
+$.name	$.name ~	engine	document	document	lineage	SELECT x.name FROM mycontainer x
+-	~	engine	document	document	tables	SELECT x.name FROM mycontainer x
+c	c	engine	document	document	results	SELECT c FROM container c
+$	$ ~	engine	document	document	lineage	SELECT c FROM container c
+-	~	engine	document	document	tables	SELECT c FROM container c
+name	name	engine	document	document	results	SELECT c.name FROM container c
+$.name	$.name ~	engine	document	document	lineage	SELECT c.name FROM container c
+-	~	engine	document	document	tables	SELECT c.name FROM container c
+$1	$1	engine	document	document	results	SELECT UPPER(c.name) FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT UPPER(c.name) FROM c
+-	~	engine	document	document	tables	SELECT UPPER(c.name) FROM c
+name, $1	name, $1	engine	document	document	results	SELECT c.name, UPPER(c.name) FROM c
+$.name | $.name	$.name ~ | $.name ~	engine	document	document	lineage	SELECT c.name, UPPER(c.name) FROM c
+-	~	engine	document	document	tables	SELECT c.name, UPPER(c.name) FROM c
+$1, name, $2	$1, name, $2	engine	document	document	results	SELECT UPPER(c.name), c.name, LOWER(c.nick) FROM c
+$.name | $.name | $.nick	$.name ~ | $.name ~ | $.nick ~	engine	document	document	lineage	SELECT UPPER(c.name), c.name, LOWER(c.nick) FROM c
+-	~	engine	document	document	tables	SELECT UPPER(c.name), c.name, LOWER(c.nick) FROM c
+name, nick, $1, u, $2	name, nick, $1, u, $2	engine	document	document	results	SELECT c.name, c.nick, c.n + 1, UPPER(c.name) AS u, LOWER(c.name) FROM c
+$.name | $.nick | $.n | $.name | $.name	$.name ~ | $.nick ~ | ~ | $.name ~ | $.name ~	engine	document	document	lineage	SELECT c.name, c.nick, c.n + 1, UPPER(c.name) AS u, LOWER(c.name) FROM c
+-	~	engine	document	document	tables	SELECT c.name, c.nick, c.n + 1, UPPER(c.name) AS u, LOWER(c.name) FROM c
+n, $1, $2	n, $1, $2	engine	document	document	results	SELECT c.name AS n, c.tags[0], [c.name] FROM c
+$.name | $.tags | $.name	$.name ~ | $.tags ~ | $.name ~	engine	document	document	lineage	SELECT c.name AS n, c.tags[0], [c.name] FROM c
+-	~	engine	document	document	tables	SELECT c.name AS n, c.tags[0], [c.name] FROM c
+$1	$1	engine	document	document	results	SELECT -c.n FROM c
+$.n	~	engine	document	document	lineage	SELECT -c.n FROM c
+-	~	engine	document	document	tables	SELECT -c.n FROM c
+$1	$1	engine	document	document	results	SELECT {"a": c.name} FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT {"a": c.name} FROM c
+-	~	engine	document	document	tables	SELECT {"a": c.name} FROM c
+$1	$1	engine	document	document	results	SELECT IS_DEFINED(c.nick) FROM c
+$.nick	~	engine	document	document	lineage	SELECT IS_DEFINED(c.nick) FROM c
+-	~	engine	document	document	tables	SELECT IS_DEFINED(c.nick) FROM c
+k	k	engine	document	document	results	SELECT {"k": c.name}.k FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT {"k": c.name}.k FROM c
+-	~	engine	document	document	tables	SELECT {"k": c.name}.k FROM c
+label	label	engine	document	document	results	SELECT CONCAT(c.name, "-", c.address.city) AS label FROM c
+$.address.city $.name	$.address.city $.name ~	engine	document	document	lineage	SELECT CONCAT(c.name, "-", c.address.city) AS label FROM c
+-	~	engine	document	document	tables	SELECT CONCAT(c.name, "-", c.address.city) AS label FROM c
+who	who	engine	document	document	results	SELECT c.name ?? c.nick AS who FROM c
+$.name $.nick	$.name ~	engine	document	document	lineage	SELECT c.name ?? c.nick AS who FROM c
+-	~	engine	document	document	tables	SELECT c.name ?? c.nick AS who FROM c
+pick	pick	engine	document	document	results	SELECT IIF(c.n > 0, c.name, c.address.city) AS pick FROM c
+$.address.city $.n $.name	$.name ~	engine	document	document	lineage	SELECT IIF(c.n > 0, c.name, c.address.city) AS pick FROM c
+-	~	engine	document	document	tables	SELECT IIF(c.n > 0, c.name, c.address.city) AS pick FROM c
+pick	pick	engine	document	document	results	SELECT c.n > 0 ? c.name : c.address.zip AS pick FROM c
+$.address.zip $.n $.name	$.name ~	engine	document	document	lineage	SELECT c.n > 0 ? c.name : c.address.zip AS pick FROM c
+-	~	engine	document	document	tables	SELECT c.n > 0 ? c.name : c.address.zip AS pick FROM c
+o	o	engine	document	document	results	SELECT {"a": c.name, "b": c.address.city} AS o FROM c
+$.address.city $.name	$.address.city $.name ~	engine	document	document	lineage	SELECT {"a": c.name, "b": c.address.city} AS o FROM c
+-	~	engine	document	document	tables	SELECT {"a": c.name, "b": c.address.city} AS o FROM c
+arr	arr	engine	document	document	results	SELECT [c.name, c.address.zip] AS arr FROM c
+$.address.zip $.name	$.address.zip $.name ~	engine	document	document	lineage	SELECT [c.name, c.address.zip] AS arr FROM c
+-	~	engine	document	document	tables	SELECT [c.name, c.address.zip] AS arr FROM c
+first	first	engine	document	document	results	SELECT [c.name, c.address.city][0] AS first FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT [c.name, c.address.city][0] AS first FROM c
+-	~	engine	document	document	tables	SELECT [c.name, c.address.city][0] AS first FROM c
+kk	kk	engine	document	document	results	SELECT {"k": c.name}.k AS kk FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT {"k": c.name}.k AS kk FROM c
+-	~	engine	document	document	tables	SELECT {"k": c.name}.k AS kk FROM c
+city	city	engine	document	document	results	SELECT (c.address ?? c.nick).city AS city FROM c
+$.address.city $.nick.city	$.address.city ~	engine	document	document	lineage	SELECT (c.address ?? c.nick).city AS city FROM c
+-	~	engine	document	document	tables	SELECT (c.address ?? c.nick).city AS city FROM c
+zip	zip	engine	document	document	results	SELECT (c.n > 0 ? c.address : c.tags).zip AS zip FROM c
+$.address.zip $.n.zip $.tags.zip	$.address.zip ~	engine	document	document	lineage	SELECT (c.n > 0 ? c.address : c.tags).zip AS zip FROM c
+-	~	engine	document	document	tables	SELECT (c.n > 0 ? c.address : c.tags).zip AS zip FROM c
+lat	lat	engine	document	document	results	SELECT IIF(c.n > 0, c.address, c.tags).geo.lat FROM c
+$.address.geo.lat $.n.geo.lat $.tags.geo.lat	$.address.geo.lat ~	engine	document	document	lineage	SELECT IIF(c.n > 0, c.address, c.tags).geo.lat FROM c
+-	~	engine	document	document	tables	SELECT IIF(c.n > 0, c.address, c.tags).geo.lat FROM c
+l, u	l, u	engine	document	document	results	SELECT LOWER(c.name) AS l, UPPER(c.nick) AS u FROM c
+$.name | $.nick	$.name ~ | $.nick ~	engine	document	document	lineage	SELECT LOWER(c.name) AS l, UPPER(c.nick) AS u FROM c
+-	~	engine	document	document	tables	SELECT LOWER(c.name) AS l, UPPER(c.nick) AS u FROM c
+r	r	engine	document	document	results	SELECT REPLACE(c.name, "x", "y") AS r FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT REPLACE(c.name, "x", "y") AS r FROM c
+-	~	engine	document	document	tables	SELECT REPLACE(c.name, "x", "y") AS r FROM c
+s, d	s, d	engine	document	document	results	SELECT ToString(c.n) AS s, c.n * 2 AS d FROM c
+$.n | $.n	~ | ~	engine	document	document	lineage	SELECT ToString(c.n) AS s, c.n * 2 AS d FROM c
+-	~	engine	document	document	tables	SELECT ToString(c.n) AS s, c.n * 2 AS d FROM c
+ph	ph	engine	document	document	results	SELECT ARRAY_SLICE(c.phones, 0, 1) AS ph FROM c
+$.phones	$.phones ~	engine	document	document	lineage	SELECT ARRAY_SLICE(c.phones, 0, 1) AS ph FROM c
+-	~	engine	document	document	tables	SELECT ARRAY_SLICE(c.phones, 0, 1) AS ph FROM c
+all	all	engine	document	document	results	SELECT ARRAY_CONCAT(c.phones, [c.name]) AS all FROM c
+$.name $.phones	$.name $.phones ~	engine	document	document	lineage	SELECT ARRAY_CONCAT(c.phones, [c.name]) AS all FROM c
+-	~	engine	document	document	tables	SELECT ARRAY_CONCAT(c.phones, [c.name]) AS all FROM c
+n	n	engine	document	document	results	SELECT ARRAY_LENGTH(c.tags) AS n FROM c
+$.tags	~	engine	document	document	lineage	SELECT ARRAY_LENGTH(c.tags) AS n FROM c
+-	~	engine	document	document	tables	SELECT ARRAY_LENGTH(c.tags) AS n FROM c
+n	n	engine	document	document	results	SELECT ARRAY_CONCAT([c.name], [c.nick])[1] AS n FROM c
+$.name $.nick	$.nick ~	engine	document	document	lineage	SELECT ARRAY_CONCAT([c.name], [c.nick])[1] AS n FROM c
+-	~	engine	document	document	tables	SELECT ARRAY_CONCAT([c.name], [c.nick])[1] AS n FROM c
+one, k	one, k	engine	document	document	results	SELECT 1 AS one, "k" AS k FROM c
+- | -	~ | ~	engine	document	document	lineage	SELECT 1 AS one, "k" AS k FROM c
+-	~	engine	document	document	tables	SELECT 1 AS one, "k" AS k FROM c
+""	""	engine	document	document	results	SELECT VALUE c.name FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT VALUE c.name FROM c
+-	~	engine	document	document	tables	SELECT VALUE c.name FROM c
+""	""	engine	document	document	results	SELECT VALUE c.address FROM c
+$.address	$.address ~	engine	document	document	lineage	SELECT VALUE c.address FROM c
+-	~	engine	document	document	tables	SELECT VALUE c.address FROM c
+""	""	engine	document	document	results	SELECT VALUE {"n": c.name, "z": c.address.zip} FROM c
+$.address.zip $.name	$.address.zip $.name ~	engine	document	document	lineage	SELECT VALUE {"n": c.name, "z": c.address.zip} FROM c
+-	~	engine	document	document	tables	SELECT VALUE {"n": c.name, "z": c.address.zip} FROM c
+""	""	engine	document	document	results	SELECT VALUE UPPER(c.name) FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT VALUE UPPER(c.name) FROM c
+-	~	engine	document	document	tables	SELECT VALUE UPPER(c.name) FROM c
+""	""	engine	document	document	results	SELECT VALUE [c.name, c.n] FROM c
+$.n $.name	$.n $.name ~	engine	document	document	lineage	SELECT VALUE [c.name, c.n] FROM c
+-	~	engine	document	document	tables	SELECT VALUE [c.name, c.n] FROM c
+""	""	engine	document	document	results	SELECT DISTINCT VALUE c.address.city FROM c
+$.address.city	$.address.city ~	engine	document	document	lineage	SELECT DISTINCT VALUE c.address.city FROM c
+-	~	engine	document	document	tables	SELECT DISTINCT VALUE c.address.city FROM c
+name	name	engine	document	document	results	SELECT t.name FROM c JOIN t IN c.tags
+$.tags.name	$.tags.name ~	engine	document	document	lineage	SELECT t.name FROM c JOIN t IN c.tags
+-	~	engine	document	document	tables	SELECT t.name FROM c JOIN t IN c.tags
+t	t	engine	document	document	results	SELECT t FROM c JOIN t IN c.tags
+$.tags	$.tags ~	engine	document	document	lineage	SELECT t FROM c JOIN t IN c.tags
+-	~	engine	document	document	tables	SELECT t FROM c JOIN t IN c.tags
+name, tag	name, tag	engine	document	document	results	SELECT c.name, t.name AS tag FROM c JOIN t IN c.tags
+$.name | $.tags.name	$.name ~ | $.tags.name ~	engine	document	document	lineage	SELECT c.name, t.name AS tag FROM c JOIN t IN c.tags
+-	~	engine	document	document	tables	SELECT c.name, t.name AS tag FROM c JOIN t IN c.tags
+""	""	engine	document	document	results	SELECT VALUE t FROM c JOIN t IN c.tags
+$.tags	$.tags ~	engine	document	document	lineage	SELECT VALUE t FROM c JOIN t IN c.tags
+-	~	engine	document	document	tables	SELECT VALUE t FROM c JOIN t IN c.tags
+tag, skill	tag, skill	engine	document	document	results	SELECT t.name AS tag, s AS skill FROM c JOIN t IN c.tags JOIN s IN t.skills
+$.tags.name | $.tags.skills	$.tags.name ~ | $.tags.skills ~	engine	document	document	lineage	SELECT t.name AS tag, s AS skill FROM c JOIN t IN c.tags JOIN s IN t.skills
+-	~	engine	document	document	tables	SELECT t.name AS tag, s AS skill FROM c JOIN t IN c.tags JOIN s IN t.skills
+$1	$1	engine	document	document	results	SELECT t.skills[0] FROM c JOIN t IN c.tags
+$.tags.skills	$.tags.skills ~	engine	document	document	lineage	SELECT t.skills[0] FROM c JOIN t IN c.tags
+-	~	engine	document	document	tables	SELECT t.skills[0] FROM c JOIN t IN c.tags
+p	p	engine	document	document	results	SELECT p FROM c JOIN p IN c.phones
+$.phones	$.phones ~	engine	document	document	lineage	SELECT p FROM c JOIN p IN c.phones
+-	~	engine	document	document	tables	SELECT p FROM c JOIN p IN c.phones
+name, t	name, t	engine	document	document	results	SELECT c.name, t FROM c JOIN t IN c.phones
+$.name | $.phones	$.name ~ | $.phones ~	engine	document	document	lineage	SELECT c.name, t FROM c JOIN t IN c.phones
+-	~	engine	document	document	tables	SELECT c.name, t FROM c JOIN t IN c.phones
+""	""	engine	document	document	results	SELECT VALUE t.name FROM t IN c.tags
+$.tags.name	$.tags.name ~	engine	document	document	lineage	SELECT VALUE t.name FROM t IN c.tags
+-	~	engine	document	document	tables	SELECT VALUE t.name FROM t IN c.tags
+name	name	engine	document	document	results	SELECT t.name FROM t IN c.tags WHERE t.name != ""
+$.tags.name	$.tags.name ~	engine	document	document	lineage	SELECT t.name FROM t IN c.tags WHERE t.name != ""
+-	~	engine	document	document	tables	SELECT t.name FROM t IN c.tags WHERE t.name != ""
+name, skills	name, skills	engine	document	document	results	SELECT * FROM t IN c.tags
+$.tags.name | $.tags.skills	$.tags.name ~ | $.tags.skills ~	engine	document	document	lineage	SELECT * FROM t IN c.tags
+-	~	engine	document	document	tables	SELECT * FROM t IN c.tags
+city	city	engine	document	document	results	SELECT a.city FROM c.address a
+$.address.city	$.address.city ~	engine	document	document	lineage	SELECT a.city FROM c.address a
+-	~	engine	document	document	tables	SELECT a.city FROM c.address a
+a	a	engine	document	document	results	SELECT a FROM c.address a
+$.address	$.address ~	engine	document	document	lineage	SELECT a FROM c.address a
+-	~	engine	document	document	tables	SELECT a FROM c.address a
+city, zip, geo	city, zip, geo	engine	document	document	results	SELECT * FROM c.address
+$.address.city | $.address.zip | $.address.geo	$.address.city ~ | $.address.zip ~ | $.address.geo ~	engine	document	document	lineage	SELECT * FROM c.address
+-	~	engine	document	document	tables	SELECT * FROM c.address
+city	city	engine	document	document	results	SELECT address.city FROM c.address
+$.address.city	$.address.city ~	engine	document	document	lineage	SELECT address.city FROM c.address
+-	~	engine	document	document	tables	SELECT address.city FROM c.address
+name	name	engine	document	document	results	SELECT t.name FROM c JOIN t IN c.tags WHERE ARRAY_CONTAINS(t.skills, "«$.tags[0].skills[0]»")
+$.tags.name	$.tags.name ~	engine	document	document	lineage	SELECT t.name FROM c JOIN t IN c.tags WHERE ARRAY_CONTAINS(t.skills, "«$.tags[0].skills[0]»")
+-	~	engine	document	document	tables	SELECT t.name FROM c JOIN t IN c.tags WHERE ARRAY_CONTAINS(t.skills, "«$.tags[0].skills[0]»")
+names	names	engine	document	document	results	SELECT ARRAY(SELECT VALUE t.name FROM t IN c.tags) AS names FROM c
+$.tags.name	$.tags.name ~	engine	document	document	lineage	SELECT ARRAY(SELECT VALUE t.name FROM t IN c.tags) AS names FROM c
+-	~	engine	document	document	tables	SELECT ARRAY(SELECT VALUE t.name FROM t IN c.tags) AS names FROM c
+names	names	engine	document	document	results	SELECT ARRAY(SELECT t.name FROM t IN c.tags) AS names FROM c
+$.tags.name	$.tags.name ~	engine	document	document	lineage	SELECT ARRAY(SELECT t.name FROM t IN c.tags) AS names FROM c
+-	~	engine	document	document	tables	SELECT ARRAY(SELECT t.name FROM t IN c.tags) AS names FROM c
+$1	$1	engine	document	document	results	SELECT ARRAY(SELECT VALUE p FROM p IN c.phones) FROM c
+$.phones	$.phones ~	engine	document	document	lineage	SELECT ARRAY(SELECT VALUE p FROM p IN c.phones) FROM c
+-	~	engine	document	document	tables	SELECT ARRAY(SELECT VALUE p FROM p IN c.phones) FROM c
+sk	sk	engine	document	document	results	SELECT ARRAY(SELECT VALUE s FROM s IN t.skills) AS sk FROM c JOIN t IN c.tags
+$.tags.skills	$.tags.skills ~	engine	document	document	lineage	SELECT ARRAY(SELECT VALUE s FROM s IN t.skills) AS sk FROM c JOIN t IN c.tags
+-	~	engine	document	document	tables	SELECT ARRAY(SELECT VALUE s FROM s IN t.skills) AS sk FROM c JOIN t IN c.tags
+""	""	engine	document	document	results	SELECT VALUE ARRAY(SELECT VALUE t.name FROM t IN c.tags) FROM c
+$.tags.name	$.tags.name ~	engine	document	document	lineage	SELECT VALUE ARRAY(SELECT VALUE t.name FROM t IN c.tags) FROM c
+-	~	engine	document	document	tables	SELECT VALUE ARRAY(SELECT VALUE t.name FROM t IN c.tags) FROM c
+cnt	cnt	engine	document	document	results	SELECT (SELECT VALUE COUNT(1) FROM t IN c.tags) AS cnt FROM c
+-	~	engine	document	document	lineage	SELECT (SELECT VALUE COUNT(1) FROM t IN c.tags) AS cnt FROM c
+-	~	engine	document	document	tables	SELECT (SELECT VALUE COUNT(1) FROM t IN c.tags) AS cnt FROM c
+n	n	engine	document	document	results	SELECT (SELECT VALUE c.name) AS n FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT (SELECT VALUE c.name) AS n FROM c
+-	~	engine	document	document	tables	SELECT (SELECT VALUE c.name) AS n FROM c
+f	f	engine	document	document	results	SELECT FIRST(SELECT VALUE t.name FROM t IN c.tags) AS f FROM c
+$.tags.name	$.tags.name ~	engine	document	document	lineage	SELECT FIRST(SELECT VALUE t.name FROM t IN c.tags) AS f FROM c
+-	~	engine	document	document	tables	SELECT FIRST(SELECT VALUE t.name FROM t IN c.tags) AS f FROM c
+has	has	engine	document	document	results	SELECT EXISTS(SELECT VALUE t FROM t IN c.tags) AS has FROM c
+-	~	engine	document	document	lineage	SELECT EXISTS(SELECT VALUE t FROM t IN c.tags) AS has FROM c
+-	~	engine	document	document	tables	SELECT EXISTS(SELECT VALUE t FROM t IN c.tags) AS has FROM c
+name	name	engine	document	document	results	SELECT c.name FROM c WHERE EXISTS(SELECT VALUE t FROM t IN c.tags WHERE t.name = "«$.tags[1].name»")
+$.name	$.name ~	engine	document	document	lineage	SELECT c.name FROM c WHERE EXISTS(SELECT VALUE t FROM t IN c.tags WHERE t.name = "«$.tags[1].name»")
+-	~	engine	document	document	tables	SELECT c.name FROM c WHERE EXISTS(SELECT VALUE t FROM t IN c.tags WHERE t.name = "«$.tags[1].name»")
+name	name	engine	document	document	results	SELECT t.name FROM c JOIN (SELECT VALUE x FROM x IN c.tags) t
+$.tags.name	$.tags.name ~	engine	document	document	lineage	SELECT t.name FROM c JOIN (SELECT VALUE x FROM x IN c.tags) t
+-	~	engine	document	document	tables	SELECT t.name FROM c JOIN (SELECT VALUE x FROM x IN c.tags) t
+name	name	engine	document	document	results	SELECT s.name FROM (SELECT c.name FROM c) s
+$.name	$.name ~	engine	document	document	lineage	SELECT s.name FROM (SELECT c.name FROM c) s
+-	~	engine	document	document	tables	SELECT s.name FROM (SELECT c.name FROM c) s
+city	city	engine	document	document	results	SELECT s.city FROM (SELECT c.name, c.address.city FROM c) s
+$.address.city	$.address.city ~	engine	document	document	lineage	SELECT s.city FROM (SELECT c.name, c.address.city FROM c) s
+-	~	engine	document	document	tables	SELECT s.city FROM (SELECT c.name, c.address.city FROM c) s
+s	s	engine	document	document	results	SELECT s FROM (SELECT c.name, c.address.city FROM c) s
+$.address.city $.name	$.address.city $.name ~	engine	document	document	lineage	SELECT s FROM (SELECT c.name, c.address.city FROM c) s
+-	~	engine	document	document	tables	SELECT s FROM (SELECT c.name, c.address.city FROM c) s
+name, city	name, city	engine	document	document	results	SELECT * FROM (SELECT c.name, c.address.city FROM c) s
+$.name | $.address.city	$.name ~ | $.address.city ~	engine	document	document	lineage	SELECT * FROM (SELECT c.name, c.address.city FROM c) s
+-	~	engine	document	document	tables	SELECT * FROM (SELECT c.name, c.address.city FROM c) s
+city, zip, geo	city, zip, geo	engine	document	document	results	SELECT * FROM (SELECT VALUE c.address FROM c) s
+$.address.city | $.address.zip | $.address.geo	$.address.city ~ | $.address.zip ~ | $.address.geo ~	engine	document	document	lineage	SELECT * FROM (SELECT VALUE c.address FROM c) s
+-	~	engine	document	document	tables	SELECT * FROM (SELECT VALUE c.address FROM c) s
+zip	zip	engine	document	document	results	SELECT s.zip FROM (SELECT VALUE c.address FROM c) s
+$.address.zip	$.address.zip ~	engine	document	document	lineage	SELECT s.zip FROM (SELECT VALUE c.address FROM c) s
+-	~	engine	document	document	tables	SELECT s.zip FROM (SELECT VALUE c.address FROM c) s
+""	""	engine	document	document	results	SELECT VALUE s FROM (SELECT VALUE c.address FROM c) s
+$.address	$.address ~	engine	document	document	lineage	SELECT VALUE s FROM (SELECT VALUE c.address FROM c) s
+-	~	engine	document	document	tables	SELECT VALUE s FROM (SELECT VALUE c.address FROM c) s
+n	n	engine	document	document	results	SELECT s.n FROM (SELECT c.name AS n FROM c) s
+$.name	$.name ~	engine	document	document	lineage	SELECT s.n FROM (SELECT c.name AS n FROM c) s
+-	~	engine	document	document	tables	SELECT s.n FROM (SELECT c.name AS n FROM c) s
+""	""	engine	document	document	results	SELECT VALUE s.name FROM (SELECT c.name FROM c) s
+$.name	$.name ~	engine	document	document	lineage	SELECT VALUE s.name FROM (SELECT c.name FROM c) s
+-	~	engine	document	document	tables	SELECT VALUE s.name FROM (SELECT c.name FROM c) s
+k	k	engine	document	document	results	SELECT s.k FROM (SELECT VALUE {"k": c.name} FROM c) s
+$.name	$.name ~	engine	document	document	lineage	SELECT s.k FROM (SELECT VALUE {"k": c.name} FROM c) s
+-	~	engine	document	document	tables	SELECT s.k FROM (SELECT VALUE {"k": c.name} FROM c) s
+k	k	engine	document	document	results	SELECT s.o.k FROM (SELECT {"k": c.name} AS o FROM c) s
+$.name	$.name ~	engine	document	document	lineage	SELECT s.o.k FROM (SELECT {"k": c.name} AS o FROM c) s
+-	~	engine	document	document	tables	SELECT s.o.k FROM (SELECT {"k": c.name} AS o FROM c) s
+a, b	a, b	engine	document	document	results	SELECT * FROM (SELECT VALUE {"a": c.name, "b": c.nick} FROM c) s
+$.name | $.nick	$.name ~ | $.nick ~	engine	document	document	lineage	SELECT * FROM (SELECT VALUE {"a": c.name, "b": c.nick} FROM c) s
+-	~	engine	document	document	tables	SELECT * FROM (SELECT VALUE {"a": c.name, "b": c.nick} FROM c) s
+k	k	engine	document	document	results	SELECT * FROM (SELECT VALUE {"k": c.name} ?? {"k": c.nick} FROM c) s
+$.name $.nick	$.name ~	engine	document	document	lineage	SELECT * FROM (SELECT VALUE {"k": c.name} ?? {"k": c.nick} FROM c) s
+-	~	engine	document	document	tables	SELECT * FROM (SELECT VALUE {"k": c.name} ?? {"k": c.nick} FROM c) s
+k	k	engine	document	document	results	SELECT t.k FROM (SELECT VALUE [{"k": c.name}, {"k": c.nick}] FROM c) arr JOIN t IN arr
+$.name $.nick	$.name $.nick ~	engine	document	document	lineage	SELECT t.k FROM (SELECT VALUE [{"k": c.name}, {"k": c.nick}] FROM c) arr JOIN t IN arr
+-	~	engine	document	document	tables	SELECT t.k FROM (SELECT VALUE [{"k": c.name}, {"k": c.nick}] FROM c) arr JOIN t IN arr
+n	n	engine	document	document	results	SELECT COUNT(1) AS n FROM c
+-	~	engine	document	document	lineage	SELECT COUNT(1) AS n FROM c
+-	~	engine	document	document	tables	SELECT COUNT(1) AS n FROM c
+$1	$1	engine	document	document	results	SELECT COUNT(1) FROM c
+-	~	engine	document	document	lineage	SELECT COUNT(1) FROM c
+-	~	engine	document	document	tables	SELECT COUNT(1) FROM c
+""	""	engine	document	document	results	SELECT VALUE COUNT(1) FROM c
+-	~	engine	document	document	lineage	SELECT VALUE COUNT(1) FROM c
+-	~	engine	document	document	tables	SELECT VALUE COUNT(1) FROM c
+m	m	engine	document	document	results	SELECT MAX(c.name) AS m FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT MAX(c.name) AS m FROM c
+-	~	engine	document	document	tables	SELECT MAX(c.name) AS m FROM c
+$1	$1	engine	document	document	results	SELECT MIN(c.n) FROM c
+$.n	$.n ~	engine	document	document	lineage	SELECT MIN(c.n) FROM c
+-	~	engine	document	document	tables	SELECT MIN(c.n) FROM c
+total, mean	total, mean	engine	document	document	results	SELECT SUM(c.n) AS total, AVG(c.n) AS mean FROM c
+$.n | $.n	$.n ~ | $.n ~	engine	document	document	lineage	SELECT SUM(c.n) AS total, AVG(c.n) AS mean FROM c
+-	~	engine	document	document	tables	SELECT SUM(c.n) AS total, AVG(c.n) AS mean FROM c
+city, n	city, n	engine	document	document	results	SELECT c.address.city, COUNT(1) AS n FROM c GROUP BY c.address.city
+$.address.city | -	$.address.city ~ | ~	engine	document	document	lineage	SELECT c.address.city, COUNT(1) AS n FROM c GROUP BY c.address.city
+-	~	engine	document	document	tables	SELECT c.address.city, COUNT(1) AS n FROM c GROUP BY c.address.city
+city, $1	city, $1	engine	document	document	results	SELECT c.address.city, COUNT(1) FROM c GROUP BY c.address.city
+$.address.city | -	$.address.city ~ | ~	engine	document	document	lineage	SELECT c.address.city, COUNT(1) FROM c GROUP BY c.address.city
+-	~	engine	document	document	tables	SELECT c.address.city, COUNT(1) FROM c GROUP BY c.address.city
+name, n	name, n	engine	document	document	results	SELECT t.name, COUNT(1) AS n FROM c JOIN t IN c.tags GROUP BY t.name
+$.tags.name | -	$.tags.name ~ | ~	engine	document	document	lineage	SELECT t.name, COUNT(1) AS n FROM c JOIN t IN c.tags GROUP BY t.name
+-	~	engine	document	document	tables	SELECT t.name, COUNT(1) AS n FROM c JOIN t IN c.tags GROUP BY t.name
+city	city	engine	document	document	results	SELECT DISTINCT c.address.city FROM c
+$.address.city	$.address.city ~	engine	document	document	lineage	SELECT DISTINCT c.address.city FROM c
+-	~	engine	document	document	tables	SELECT DISTINCT c.address.city FROM c
+""	""	engine	document	document	results	SELECT DISTINCT VALUE t.name FROM t IN c.tags
+$.tags.name	$.tags.name ~	engine	document	document	lineage	SELECT DISTINCT VALUE t.name FROM t IN c.tags
+-	~	engine	document	document	tables	SELECT DISTINCT VALUE t.name FROM t IN c.tags
+name	name	engine	document	document	results	SELECT TOP 1 c.name FROM c ORDER BY c.name
+$.name	$.name ~	engine	document	document	lineage	SELECT TOP 1 c.name FROM c ORDER BY c.name
+-	~	engine	document	document	tables	SELECT TOP 1 c.name FROM c ORDER BY c.name
+name	name	engine	document	document	results	SELECT c.name FROM c ORDER BY c.address.city DESC
+$.name	$.name ~	engine	document	document	lineage	SELECT c.name FROM c ORDER BY c.address.city DESC
+-	~	engine	document	document	tables	SELECT c.name FROM c ORDER BY c.address.city DESC
+city	city	engine	document	document	results	SELECT c.address.city FROM c WHERE c.n > 0 OFFSET 0 LIMIT 1
+$.address.city	$.address.city ~	engine	document	document	lineage	SELECT c.address.city FROM c WHERE c.n > 0 OFFSET 0 LIMIT 1
+-	~	engine	document	document	tables	SELECT c.address.city FROM c WHERE c.n > 0 OFFSET 0 LIMIT 1

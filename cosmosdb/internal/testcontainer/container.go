@@ -115,17 +115,10 @@ var shared = struct {
 // recording calls it.
 func Endpoint(t testing.TB) (string, error) {
 	t.Helper()
-	pin, err := enginetest.LoadPin(Pins, Emulator)
-	if err != nil {
-		return "", err
-	}
 	shared.Lock()
 	defer shared.Unlock()
-	if shared.endpoint == "" && shared.err == nil {
-		shared.endpoint, shared.err = startEmulator(pin)
-	}
-	if shared.err != nil {
-		return "", shared.err
+	if err := start(); err != nil {
+		return "", err
 	}
 	if !shared.seeded {
 		if err := seed(shared.endpoint); err != nil {
@@ -134,6 +127,18 @@ func Endpoint(t testing.TB) (string, error) {
 		shared.seeded = true
 	}
 	return shared.endpoint, nil
+}
+
+// start starts the pinned emulator on first use; the caller holds shared.
+func start() error {
+	if shared.endpoint == "" && shared.err == nil {
+		pin, err := enginetest.LoadPin(Pins, Emulator)
+		if err != nil {
+			return err
+		}
+		shared.endpoint, shared.err = startEmulator(pin)
+	}
+	return shared.err
 }
 
 // startEmulator runs the pinned emulator and waits for its gateway.

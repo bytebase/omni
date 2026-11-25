@@ -1,0 +1,1 @@
+{"id":"«$.id»","pk":"«$.pk»","name":"«$.name»","nick":"«$.nick»","n":1101,"address":{"city":"«$.address.city»","zip":"«$.address.zip»","geo":{"lat":"«$.address.geo.lat»"}},"tags":[{"name":"«$.tags[0].name»","skills":["«$.tags[0].skills[0]»","«$.tags[0].skills[1]»"]},{"name":"«$.tags[1].name»","skills":["«$.tags[1].skills[0]»"]}],"phones":["«$.phones[0]»","«$.phones[1]»"]}
