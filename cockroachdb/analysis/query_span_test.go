@@ -553,6 +553,8 @@ func TestResolveQuerySpanFunctions(t *testing.T) {
 		{"SELECT recurse()", analysis.Select, []string{"recurse: db.public.t.ssn"}, "db.public.t"},
 		{"SELECT relnames()", analysis.SelectInfoSchema, nil, "db.pg_catalog.pg_class"},
 		{"SELECT writer()", analysis.DML, nil, "db.public.u"},
+		// A plain EXPLAIN plans the call without running its writes.
+		{"SELECT * FROM [EXPLAIN SELECT writer()]", analysis.Select, []string{"*:"}, "db.public.u"},
 		// Each query of a PL/pgSQL body returns what it reads, * too.
 		{"SELECT star_into()", analysis.Select, []string{"star_into: db.public.t.id db.public.t.name db.public.t.ssn"}, "db.public.t"},
 		{"SELECT return_query()", analysis.Select, []string{"return_query: db.public.u.id db.public.u.note db.public.u.t_id"}, "db.public.u"},

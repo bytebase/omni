@@ -1695,7 +1695,8 @@ func (r *spanResolver) applyBody(body *functionBody) analysis.ColumnSet {
 	}
 	r.addPredicates(body.predicates)
 	r.readsSystem = r.readsSystem || (body.readsSystem && r.inView == 0)
-	r.writes = r.writes || body.writes
+	// A plain EXPLAIN plans the call without running the body's writes.
+	r.writes = r.writes || (body.writes && r.inExplain == 0)
 	return body.sources
 }
 
