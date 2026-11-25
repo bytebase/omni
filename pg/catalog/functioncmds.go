@@ -631,6 +631,11 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	// exists, so the body may call it.
 	// pg: src/backend/catalog/pg_proc.c — ProcedureCreate (OidFunctionCall1 of the validator)
 	validateBody := func() error {
+		if strings.EqualFold(language, "internal") && !c.installingSnapshot {
+			if err := checkInternalSymbol(body, name); err != nil {
+				return err
+			}
+		}
 		if !c.checkFunctionBodies() {
 			return nil
 		}

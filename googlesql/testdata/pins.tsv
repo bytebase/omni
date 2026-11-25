@@ -18,14 +18,10 @@
 # DYNAMIC LABEL|PROPERTIES syntax refusals as reject, and re-asks CREATE VIEW
 # missing SQL SECURITY with a SQL SECURITY INVOKER stand-in so the view query
 # body is parsed.
-# parser judge revision 4 judges googlesql/parser/testdata/compat.tsv with the
-# BigQuery ∪ Spanner union judge: accept iff either the pinned Spanner emulator
-# 1.5.54 (rev 3 rules) or live BigQuery dry-run (bigquery role below) accepts.
-#
-# bigquery pins the live BigQuery dry-run project used as the BigQuery half of
-# the union judge (Spanner emulator ∪ BigQuery dry-run) for
-# googlesql/parser/testdata/compat.tsv.
+# parser judge revision 4 judged compat.tsv with a BigQuery ∪ Spanner union
+# judge. Revision 5 is the Spanner emulator alone again, with the rev 3 rules:
+# googlesql is Spanner's grammar, and BigQuery's is bigquery/parser, judged by
+# BigQuery itself.
 # columns: role, image, digest, source tag, judge revision
 default	gcr.io/cloud-spanner-emulator/emulator:1.5.54	sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2	v1.5.54	2
-parser	gcr.io/cloud-spanner-emulator/emulator:1.5.54	sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2	v1.5.54	4
-bigquery	gcp:bigquery:bytebase-dev:US	sha256:fef5b54092b50edbb5d7c363182e0cd578a2147d527595e968a26f5131429231	2026-11-21
+parser	gcr.io/cloud-spanner-emulator/emulator:1.5.54	sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2	v1.5.54	5
