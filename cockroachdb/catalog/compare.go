@@ -66,8 +66,9 @@ func (literalCastStripper) VisitPost(expr tree.Expr) tree.Expr {
 }
 
 // castRounds reports whether a cast can change its literal's value: a number
-// with a fraction cast to a type other than DECIMAL or FLOAT. CockroachDB
-// adds no such cast to what it stores, so a cast that rounds is kept.
+// with a fraction cast to a type other than an unconstrained DECIMAL or
+// FLOAT8. CockroachDB adds no such cast to what it stores, so a cast that
+// rounds is kept.
 func castRounds(cast *tree.CastExpr) bool {
 	fraction := false
 	tree.WalkExprConst(&numVisitor{visit: func(n *tree.NumVal) {
@@ -81,8 +82,15 @@ func castRounds(cast *tree.CastExpr) bool {
 	if !ok {
 		return true
 	}
-	family := t.Family()
-	return family != types.DecimalFamily && family != types.FloatFamily
+	switch t.Family() {
+	case types.DecimalFamily:
+		// DECIMAL(p, s) rounds to its scale.
+		return t.Precision() != 0
+	case types.FloatFamily:
+		// FLOAT4 rounds to single precision.
+		return t.Width() != 64
+	}
+	return true
 }
 
 type numVisitor struct{ visit func(*tree.NumVal) }

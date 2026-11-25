@@ -163,6 +163,14 @@ func TestSDLKeysKeepValues(t *testing.T) {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5::INT8);",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5::DECIMAL);",
 		},
+		"decimal scale": {
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.25::DECIMAL(3,1));",
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.25);",
+		},
+		"float4": {
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a FLOAT8 DEFAULT 1.1::FLOAT4);",
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a FLOAT8 DEFAULT 1.1);",
+		},
 		"grouping": {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT (1 + 2) * 3);",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT 1 + 2 * 3);",
@@ -181,6 +189,7 @@ func TestSDLKeysKeepValues(t *testing.T) {
 	for name, pair := range map[string][2]string{
 		"stored cast":           {"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT 'x'::STRING);", "CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT 'x');"},
 		"redundant parentheses": {"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8, CHECK (((a > 0) AND (a < 9))));", "CREATE TABLE t (id INT8 PRIMARY KEY, a INT8, CHECK (a > 0 AND a < 9));"},
+		"lossless cast":         {"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.25::DECIMAL, b FLOAT8 DEFAULT 1.1::FLOAT8);", "CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.25, b FLOAT8 DEFAULT 1.1);"},
 		"stored annotation":     {"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5:::DECIMAL);", "CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5);"},
 		"annotated body":        {"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1:::INT8 + 2:::DECIMAL(10,2)::INT8 $$;", "CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 + 2::INT8 $$;"},
 	} {
