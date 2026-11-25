@@ -510,6 +510,35 @@ func TestBuiltinProcExtrasMatchPostgres(t *testing.T) {
 		t.Errorf("types with < or > but no default btree class: postgres %v, builtinTypesWithoutBtreeOrder %v", unordered, builtinTypesWithoutBtreeOrder)
 	}
 
+	rows, err = o.db.QueryContext(o.ctx, `SELECT oid, prosrc FROM pg_proc WHERE oid < 16384 AND prolang = 12 AND prosrc <> proname ORDER BY oid`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := map[uint32]string{}
+	for rows.Next() {
+		var oid uint32
+		var s string
+		if err := rows.Scan(&oid, &s); err != nil {
+			t.Fatal(err)
+		}
+		if byOID[oid] != nil {
+			src[oid] = s
+		}
+	}
+	rows.Close()
+	if !maps.Equal(src, builtinProcSrc) {
+		for oid, s := range src {
+			if builtinProcSrc[oid] != s {
+				t.Errorf("OID %d: builtinProcSrc %q, pg_proc.prosrc %q", oid, builtinProcSrc[oid], s)
+			}
+		}
+		for oid, s := range builtinProcSrc {
+			if _, ok := src[oid]; !ok {
+				t.Errorf("OID %d: builtinProcSrc %q, pg_proc.prosrc is its name", oid, s)
+			}
+		}
+	}
+
 	rows, err = o.db.QueryContext(o.ctx, `SELECT aggfnoid::oid, aggkind, aggnumdirectargs FROM pg_aggregate WHERE aggfnoid::oid < 16384 ORDER BY 1`)
 	if err != nil {
 		t.Fatal(err)
