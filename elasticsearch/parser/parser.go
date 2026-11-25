@@ -223,6 +223,13 @@ func (s *state) eof() bool {
 	return s.at > len(s.text)
 }
 
+// errorOffset is the byte offset an error at the current position reports:
+// at, except past the end of the text, where at runs one byte over and the
+// error lies at the end of the text.
+func (s *state) errorOffset() int {
+	return min(s.at, len(s.text))
+}
+
 // Parse parses the input text and returns the raw parse result.
 func Parse(text string) (*ParseResult, error) {
 	s := newState(text)
@@ -251,7 +258,7 @@ func (s *state) parse() ([]ParsedRequest, error) {
 	// requests before it, and the one that failed, are still returned. A white
 	// that fails stops at a byte it cannot decode, which leaves text over too.
 	if err := s.white(); err != nil || !s.eof() {
-		s.errors = append(s.errors, SyntaxError{ByteOffset: s.at, Message: "Syntax error"})
+		s.errors = append(s.errors, SyntaxError{ByteOffset: s.errorOffset(), Message: "Syntax error"})
 	}
 	return s.requests, nil
 }
@@ -263,7 +270,7 @@ var requestStartRegex = regexp.MustCompile(`(?m)^(POST|HEAD|GET|PUT|DELETE|PATCH
 func (s *state) multiRequest() error {
 	catch := func(e error) int {
 		s.errors = append(s.errors, SyntaxError{
-			ByteOffset: s.at,
+			ByteOffset: s.errorOffset(),
 			Message:    e.Error(),
 		})
 		if s.at >= len(s.text) {
