@@ -323,6 +323,12 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.dropEvent(s)
 	case *nodes.SetStmt:
 		return c.execSet(s)
+	case *nodes.ObjectDDLStmt:
+		// Of OceanBase's own objects, the catalog models sequences.
+		if strings.HasSuffix(s.Action, " SEQUENCE") {
+			return c.execSequence(s)
+		}
+		return nil
 	case *nodes.CreateUserStmt, *nodes.AlterUserStmt, *nodes.DropUserStmt,
 		*nodes.RenameUserStmt, *nodes.CreateRoleStmt, *nodes.DropRoleStmt,
 		*nodes.SetPasswordStmt, *nodes.GrantStmt, *nodes.RevokeStmt,
@@ -474,6 +480,8 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.SetRoleStmt:
 		return s.Loc.Start
 	case *nodes.SetDefaultRoleStmt:
+		return s.Loc.Start
+	case *nodes.ObjectDDLStmt:
 		return s.Loc.Start
 	default:
 		return 0

@@ -822,6 +822,12 @@ func walkChildren(v Visitor, node Node) {
 	case *MviewRefreshInfo:
 		Walk(v, n.StartWith)
 		Walk(v, n.Next)
+	case *ObjectDDLStmt:
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *OdbcEscapeExpr:
 		Walk(v, n.Expr)
 	case *OnCondition:

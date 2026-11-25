@@ -37,6 +37,11 @@ func TestWalkSimulation(t *testing.T) {
 		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 3599},
 		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 280},
 		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 4069},
+		// A sequence is not synced, so the walk finds only what OceanBase
+		// refuses of the statement itself, never a sequence that exists or not
+		// (4297, 4298), a database that does not (1049), or what ALTER SEQUENCE
+		// makes of the sequence's own options.
+		{"sequences", filepath.Join("..", "catalog", "testdata", "sequences", "simulate.tsv"), 280},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{
