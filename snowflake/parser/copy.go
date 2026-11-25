@@ -518,10 +518,11 @@ func (p *Parser) parseLocalFile() (*ast.StageLocation, error) {
 // curIsWord reports whether the current token is an identifier or keyword whose
 // uppercased text equals upper.
 func (p *Parser) curIsWord(upper string) bool {
-	if p.cur.Str == "" {
-		return false
+	if p.cur.Str != "" && strings.ToUpper(p.cur.Str) == upper {
+		return true
 	}
-	return strings.ToUpper(p.cur.Str) == upper
+	p.wantWords(upper)
+	return false
 }
 
 // peekIsWord reports whether the next token (one past cur) has the given
@@ -530,11 +531,11 @@ func (p *Parser) curIsWord(upper string) bool {
 // object qualifiers (e.g. NETWORK RULE vs NETWORK POLICY, where RULE is not a
 // reserved keyword).
 func (p *Parser) peekIsWord(upper string) bool {
-	next := p.peekNext()
-	if next.Str == "" {
-		return false
+	if next := p.peekNext(); next.Str != "" && strings.ToUpper(next.Str) == upper {
+		return true
 	}
-	return strings.ToUpper(next.Str) == upper
+	p.wantNextWords(upper)
+	return false
 }
 
 // lookaheadColonSlashSlash reports whether the source immediately following the

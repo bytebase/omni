@@ -96,6 +96,7 @@ func TestCompleteSession(t *testing.T) {
 		{"typed keyword", "SELECT * FROM orders QUA|", []string{"keyword:QUALIFY"}, []string{"keyword:WHERE"}},
 		{"lower-case typed keyword", "sel|", []string{"keyword:SELECT"}, nil},
 		{"after ORDER", "SELECT * FROM orders ORDER |", []string{"keyword:BY"}, []string{"keyword:WHERE"}},
+		{"a word the parser matches by text", "CREATE NETWORK |", []string{"keyword:RULE", "keyword:POLICY"}, nil},
 		{"data types", "SELECT CAST(id AS |) FROM orders", []string{"keyword:NUMBER", "keyword:VARCHAR", "keyword:VARIANT"}, nil},
 		{"no keyword after a qualifier", "SELECT o.| FROM orders o", []string{"column:ID"}, []string{"keyword:FROM"}},
 
@@ -149,6 +150,13 @@ func TestCompleteSession(t *testing.T) {
 		{"a CTE body does not see later CTEs", "WITH a AS (SELECT * FROM |), b AS (SELECT 1 AS z) SELECT 1", []string{"table:ORDERS"}, []string{"table:B", "table:A"}},
 		{"VALUES columns", "SELECT v.| FROM (VALUES (1, 2)) v", []string{"column:COLUMN1", "column:COLUMN2"}, nil},
 		{"PIVOT sees its table", "SELECT * FROM orders PIVOT (SUM(|) FOR id IN (1, 2))", []string{"column:CUSTOMER_ID"}, nil},
+		{"later set-operation operand sees the WITH", "WITH a AS (SELECT 1 AS n) SELECT * FROM a UNION ALL SELECT a.| FROM a", []string{"column:N"}, nil},
+		{"later set-operation operand's FROM", "WITH a AS (SELECT 1 AS n) SELECT * FROM a UNION ALL SELECT * FROM |", []string{"table:A"}, nil},
+		{"PIVOT alias and columns", "SELECT p.| FROM (SELECT 1 AS empid, 2 AS amount, 3 AS quarter) PIVOT(SUM(amount) FOR quarter IN (3 AS q3)) AS p", []string{"column:EMPID", "column:Q3"}, []string{"column:AMOUNT", "column:QUARTER"}},
+		{"PIVOT value columns", "SELECT p.| FROM orders PIVOT(SUM(id) FOR customer_id IN (1, 2)) AS p", []string{`column:"1"`, "column:SRC"}, []string{"column:ID"}},
+		{"UNPIVOT alias and columns", "SELECT u.| FROM orders UNPIVOT(val FOR col IN (id, customer_id)) u", []string{"column:COL", "column:VAL", "column:SRC"}, []string{"column:ID"}},
+		{"MATCH_RECOGNIZE alias and columns", "SELECT m.| FROM orders MATCH_RECOGNIZE(PARTITION BY customer_id ORDER BY id MEASURES COUNT(*) AS cnt PATTERN (a+) DEFINE a AS id > 0) AS m", []string{"column:CNT", "column:CUSTOMER_ID"}, []string{"column:SRC"}},
+		{"MATCH_RECOGNIZE sees its table", "SELECT * FROM orders MATCH_RECOGNIZE(PARTITION BY | ORDER BY id PATTERN (a) DEFINE a AS true)", []string{"column:CUSTOMER_ID"}, nil},
 
 		// DML.
 		{"INSERT column list", "INSERT INTO orders (|", []string{"column:CUSTOMER_ID"}, []string{"function:COALESCE()"}},

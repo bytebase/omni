@@ -1242,6 +1242,7 @@ func (p *Parser) parseIntegrationProperties(props integrationProps) ([]*ast.Copy
 // parseIntegrationProperty reads one `KEY = value` property whose key props
 // names. cur is the key, which startsObjectProperty has seen followed by '='.
 func (p *Parser) parseIntegrationProperty(props integrationProps) (*ast.CopyOption, error) {
+	wantKeys(p, props)
 	spec, ok := props[strings.ToUpper(p.cur.Str)]
 	if !ok {
 		return nil, p.syntaxErrorAtCur()

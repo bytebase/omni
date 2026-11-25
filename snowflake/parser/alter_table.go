@@ -1047,7 +1047,6 @@ func (p *Parser) parseAlterConstraintAction(action *ast.AlterTableAction) error 
 func (p *Parser) parseColumnSpecificOp(action *ast.AlterTableAction, colName ast.Ident, iceberg bool) error {
 	switch {
 	case p.curIs(kwSET):
-		next := p.peekNext()
 		switch {
 		case p.nextIs(kwMASKING):
 			// SET MASKING POLICY name [USING (...)] [FORCE]
@@ -1086,7 +1085,7 @@ func (p *Parser) parseColumnSpecificOp(action *ast.AlterTableAction, colName ast
 			action.Tags = tags
 			return nil
 
-		case strings.EqualFold(next.Str, "PROJECTION"):
+		case p.peekIsWord("PROJECTION"):
 			// SET PROJECTION POLICY name [FORCE]
 			p.advance() // consume SET
 			if err := p.expectPolicyWord(); err != nil {
@@ -1110,7 +1109,6 @@ func (p *Parser) parseColumnSpecificOp(action *ast.AlterTableAction, colName ast
 		}
 
 	case p.curIs(kwUNSET):
-		next := p.peekNext()
 		switch {
 		case p.nextIs(kwMASKING):
 			// UNSET MASKING POLICY
@@ -1135,7 +1133,7 @@ func (p *Parser) parseColumnSpecificOp(action *ast.AlterTableAction, colName ast
 			action.UnsetTags = names
 			return nil
 
-		case strings.EqualFold(next.Str, "PROJECTION"):
+		case p.peekIsWord("PROJECTION"):
 			// UNSET PROJECTION POLICY
 			p.advance() // consume UNSET
 			if err := p.expectPolicyWord(); err != nil {
@@ -1200,8 +1198,7 @@ func (p *Parser) commaStartsPlainColumnAlter() bool {
 	if !p.curIs(kwSET) && !p.curIs(kwUNSET) {
 		return true
 	}
-	next := p.peekNext()
-	return !p.nextIs(kwMASKING) && !p.nextIs(kwTAG) && !strings.EqualFold(next.Str, "PROJECTION")
+	return !p.nextIs(kwMASKING) && !p.nextIs(kwTAG) && !p.peekIsWord("PROJECTION")
 }
 
 // parseAlterColumnClauses parses ALTER/MODIFY ( col_alter, ... ) — the
@@ -1517,6 +1514,7 @@ func (p *Parser) parseOneTableProp(iceberg bool) (*ast.TableProp, bool, error) {
 		if iceberg {
 			known = icebergTableSetProperties
 		}
+		wantKeys(p, known)
 		if p.startsAssignment() && p.isColumnNameToken(p.cur.Type) && known[strings.ToUpper(p.cur.Str)] {
 			eq := p.peekNext()
 			opt, err := p.parseAssignment()

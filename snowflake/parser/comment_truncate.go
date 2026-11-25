@@ -249,9 +249,7 @@ func (p *Parser) parseTruncateStmt() (ast.Node, error) {
 // form: an unquoted identifier spelled "ERROR_TABLE" (case-insensitive) followed
 // by '('.
 func (p *Parser) startsErrorTable() bool {
-	return p.curIs(tokIdent) &&
-		strings.EqualFold(p.cur.Str, "ERROR_TABLE") &&
-		p.nextIs('(')
+	return p.curIsUnquotedWord("ERROR_TABLE") && p.nextIs('(')
 }
 
 // tryIfExists consumes an IF EXISTS pair if present and reports whether it was.

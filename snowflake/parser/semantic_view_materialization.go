@@ -35,6 +35,7 @@ func (p *Parser) parseAlterSemanticViewMaterialization(stmt *ast.AlterSemanticVi
 	if !p.curIs(tokIdent) && p.cur.Type < 700 || !p.nextWord("MATERIALIZATION") {
 		return false, nil
 	}
+	wantKeys(p, semanticViewMaterializationActions)
 	action, ok := semanticViewMaterializationActions[strings.ToUpper(p.cur.Str)]
 	if !ok || !p.curWord(strings.ToUpper(p.cur.Str)) {
 		return false, nil

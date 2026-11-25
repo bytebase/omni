@@ -70,6 +70,7 @@ func (p *Parser) parseAlterIcebergOnlyAction(action *ast.AlterTableAction) (bool
 		p.advance() // consume MANAGED
 		action.Kind = ast.AlterTableConvertToManaged
 		for p.startsAssignment() {
+			wantKeys(p, convertToManagedProperties)
 			if !convertToManagedProperties[strings.ToUpper(p.cur.Str)] {
 				return true, p.syntaxErrorAtCur()
 			}

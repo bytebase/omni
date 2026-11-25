@@ -217,6 +217,7 @@ func (p *Parser) parseCreateInteractiveWarehouseStmt(start ast.Loc, orReplace bo
 				return nil, p.syntaxErrorAtCur()
 			}
 			p.advance() // consume WITH
+			wantKeys(p, interactiveWarehouseProps)
 			if _, ok := interactiveWarehouseProps[strings.ToUpper(p.cur.Str)]; !ok || !p.startsObjectProperty() {
 				return nil, p.syntaxErrorAtCur()
 			}

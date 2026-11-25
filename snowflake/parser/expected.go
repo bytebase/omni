@@ -111,6 +111,26 @@ func (p *Parser) wantNextWords(words ...string) {
 	}
 }
 
+// wantKeys records the keys of words, a map a grammar decision looks the
+// current token's text up in.
+func wantKeys[V any](p *Parser, words map[string]V) {
+	if p.collecting(p.cur) {
+		for w := range words {
+			p.wants.words[strings.ToUpper(w)] = true
+		}
+	}
+}
+
+// nextIsUnquotedWord reports whether the token after the current one is the
+// unquoted identifier upper, recorded in collection mode.
+func (p *Parser) nextIsUnquotedWord(upper string) bool {
+	if next := p.peekNext(); next.Type == tokIdent && strings.ToUpper(next.Str) == upper {
+		return true
+	}
+	p.wantNextWords(upper)
+	return false
+}
+
 // curWord is isWordToken(p.cur, upper), recorded in collection mode.
 func (p *Parser) curWord(upper string) bool {
 	if isWordToken(p.cur, upper) {

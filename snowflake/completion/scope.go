@@ -102,6 +102,13 @@ func ctesAlong(path []ast.Node) []cteMap {
 	ctesAt := make([]cteMap, len(path))
 	visible := cteMap{}
 	for i, n := range path {
+		// The parser keeps a set operation's WITH on its leftmost operand,
+		// and every operand sees it.
+		if setOp, ok := n.(*ast.SetOperationStmt); ok {
+			if left := leftmostSelect(setOp); left != nil && !slices.Contains(path[i+1:], ast.Node(left)) {
+				visible = visible.with(left.With)
+			}
+		}
 		if sel, ok := n.(*ast.SelectStmt); ok && len(sel.With) > 0 {
 			withVisible := sel.With
 			if i+1 < len(path) {
@@ -120,6 +127,20 @@ func ctesAlong(path []ast.Node) []cteMap {
 		ctesAt[i] = visible
 	}
 	return ctesAt
+}
+
+// leftmostSelect returns the first operand of a set operation.
+func leftmostSelect(n ast.Node) *ast.SelectStmt {
+	for {
+		switch q := n.(type) {
+		case *ast.SelectStmt:
+			return q
+		case *ast.SetOperationStmt:
+			n = q.Left
+		default:
+			return nil
+		}
+	}
 }
 
 // scopeAt returns the scope at the end of path, given the CTEs visible
@@ -223,11 +244,7 @@ func (b *scopeBuilder) visibleIn(rest []ast.Node, preceding []*rangeItem, ctes c
 		case it.Nested != nil && next == ast.Node(it.Nested):
 			return b.visibleIn(rest[1:], preceding, ctes)
 		}
-		source := it
-		for source.Nested != nil {
-			source = source.Nested
-		}
-		return []*rangeItem{b.tableRef(source, ctes, 0)}
+		return []*rangeItem{b.clauseSource(it, ctes, 0)}
 	}
 	return nil
 }
@@ -297,6 +314,9 @@ func (b *scopeBuilder) relation(name *ast.ObjectName, alias ast.Ident, ctes cteM
 
 // tableRef returns the item for a FROM table reference.
 func (b *scopeBuilder) tableRef(t *ast.TableRef, ctes cteMap, depth int) *rangeItem {
+	if t.Pivot != nil || t.Unpivot != nil || t.MatchRecognize != nil {
+		return b.reshaped(t, ctes, depth)
+	}
 	if t.Name != nil {
 		item := b.relation(t.Name, t.Alias, ctes, depth)
 		if len(t.Columns) > 0 {
@@ -322,11 +342,120 @@ func (b *scopeBuilder) tableRef(t *ast.TableRef, ctes cteMap, depth int) *rangeI
 			}
 			return out
 		}
-	case t.Nested != nil:
-		nested := b.tableRef(t.Nested, ctes, depth+1)
-		item.columns = nested.columns
 	}
 	return item
+}
+
+// clauseSource returns the relation a table reference's PIVOT, UNPIVOT or
+// MATCH_RECOGNIZE reads: the previous link of a chain, or the reference
+// without those clauses.
+func (b *scopeBuilder) clauseSource(t *ast.TableRef, ctes cteMap, depth int) *rangeItem {
+	if t.Nested != nil {
+		return b.tableRef(t.Nested, ctes, depth+1)
+	}
+	stripped := *t
+	stripped.Pivot, stripped.Unpivot, stripped.MatchRecognize = nil, nil, nil
+	return b.tableRef(&stripped, ctes, depth)
+}
+
+// reshaped returns the item for a table reference a MATCH_RECOGNIZE, PIVOT
+// or UNPIVOT reshapes. The parser keeps the trailing alias on the last
+// clause, which addresses the result; without one the source's names do.
+func (b *scopeBuilder) reshaped(t *ast.TableRef, ctes cteMap, depth int) *rangeItem {
+	source := b.clauseSource(t, ctes, depth)
+	item := &rangeItem{names: source.names, display: source.display}
+	var alias ast.Ident
+	switch {
+	case t.Pivot != nil && !t.Pivot.Alias.IsEmpty():
+		alias = t.Pivot.Alias
+	case t.Unpivot != nil && !t.Unpivot.Alias.IsEmpty():
+		alias = t.Unpivot.Alias
+	case t.MatchRecognize != nil && !t.MatchRecognize.Alias.IsEmpty():
+		alias = t.MatchRecognize.Alias
+	case !t.Alias.IsEmpty():
+		alias = t.Alias
+	}
+	if !alias.IsEmpty() {
+		item.names = [][]string{{alias.Normalize()}}
+		item.display = alias.String()
+	}
+	item.columns = memo(func() []colInfo {
+		cols := source.columns()
+		if t.MatchRecognize != nil {
+			cols = matchRecognizeColumns(t.MatchRecognize, cols)
+		}
+		if t.Pivot != nil {
+			cols = pivotColumns(t.Pivot, cols)
+		}
+		if t.Unpivot != nil {
+			cols = unpivotColumns(t.Unpivot, cols)
+		}
+		return cols
+	})
+	return item
+}
+
+// matchRecognizeColumns returns MATCH_RECOGNIZE's output: the partition
+// columns and the measures for ONE ROW PER MATCH, every input column and the
+// measures for ALL ROWS PER MATCH.
+func matchRecognizeColumns(mr *ast.MatchRecognizeClause, in []colInfo) []colInfo {
+	var out []colInfo
+	if mr.RowsPerMatch != nil && mr.RowsPerMatch.Kind == ast.AllRowsPerMatch {
+		out = append(out, in...)
+	} else {
+		for _, p := range mr.PartitionBy {
+			if ref, ok := p.(*ast.ColumnRef); ok && len(ref.Parts) > 0 {
+				out = append(out, colInfo{name: ref.Parts[len(ref.Parts)-1].Normalize()})
+			}
+		}
+	}
+	for _, m := range mr.Measures {
+		if !m.Alias.IsEmpty() {
+			out = append(out, colInfo{name: m.Alias.Normalize()})
+		}
+	}
+	return out
+}
+
+// pivotColumns returns PIVOT's output: the input columns but the pivot
+// column and the aggregated ones, then a column per IN value, named by its
+// alias or, unaliased, by its literal as written ('Q1'). An IN of ANY or a
+// subquery names its columns only at run time.
+func pivotColumns(p *ast.PivotClause, in []colInfo) []colInfo {
+	consumed := map[string]bool{}
+	if p.ForColumn != nil && len(p.ForColumn.Parts) > 0 {
+		consumed[p.ForColumn.Parts[len(p.ForColumn.Parts)-1].Normalize()] = true
+	}
+	if p.Agg != nil {
+		for _, arg := range p.Agg.Args {
+			if ref, ok := arg.(*ast.ColumnRef); ok && len(ref.Parts) > 0 {
+				consumed[ref.Parts[len(ref.Parts)-1].Normalize()] = true
+			}
+		}
+	}
+	out := slices.DeleteFunc(slices.Clone(in), func(c colInfo) bool { return consumed[c.name] })
+	if p.In != nil && p.In.Kind == ast.PivotInValues {
+		for _, v := range p.In.Values {
+			switch {
+			case !v.Alias.IsEmpty():
+				out = append(out, colInfo{name: v.Alias.Normalize()})
+			default:
+				if lit, ok := v.Value.(*ast.Literal); ok {
+					out = append(out, colInfo{name: lit.Value})
+				}
+			}
+		}
+	}
+	return out
+}
+
+// unpivotColumns returns UNPIVOT's output: the input columns but the
+// unpivoted ones, then the name and value columns.
+func unpivotColumns(u *ast.UnpivotClause, in []colInfo) []colInfo {
+	out := slices.DeleteFunc(slices.Clone(in), func(c colInfo) bool {
+		return slices.ContainsFunc(u.Columns, func(uc *ast.UnpivotColumn) bool { return uc.Column.Normalize() == c.name })
+	})
+	return append(out, colInfo{name: u.NameColumn.Normalize()}, colInfo{name: u.ValueColumn.Normalize()})
 }
 
 func namedColumns(ids []ast.Ident) func() []colInfo {

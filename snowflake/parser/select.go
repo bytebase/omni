@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strings"
-
 	"github.com/bytebase/omni/snowflake/ast"
 )
 
@@ -1524,8 +1522,7 @@ func (p *Parser) parseGroupByClause() (*ast.GroupByClause, error) {
 	// GROUP BY GROUPING SETS (...)
 	if p.curIs(kwGROUPING) {
 		// Check that the next token is SETS (keyword or ident)
-		next := p.peekNext()
-		if p.nextIs(kwSETS) || (p.nextIs(tokIdent) && strings.ToUpper(next.Str) == "SETS") {
+		if p.nextIs(kwSETS) || p.nextIsUnquotedWord("SETS") {
 			p.advance() // consume GROUPING
 			p.advance() // consume SETS
 			clause.Kind = ast.GroupByGroupingSets

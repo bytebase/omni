@@ -128,7 +128,6 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 
 	// NOT as infix prefix for BETWEEN, IN, LIKE, ILIKE, RLIKE, REGEXP
 	case p.curIs(kwNOT):
-		next := p.peekNext()
 		switch {
 		case p.nextIs(kwBETWEEN):
 			return bpComparison, 0, "NOT_BETWEEN", true
@@ -142,7 +141,7 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 			return bpComparison, 0, "NOT_RLIKE", true
 		default:
 			// Check for REGEXP via tokIdent
-			if p.nextIs(tokIdent) && strings.ToUpper(next.Str) == "REGEXP" {
+			if p.nextIsUnquotedWord("REGEXP") {
 				return bpComparison, 0, "NOT_REGEXP", true
 			}
 		}

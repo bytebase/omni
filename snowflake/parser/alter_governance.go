@@ -480,6 +480,7 @@ var (
 // checkPropertyValue checks, without consuming anything, that the `KEY =
 // <value>` at cur gives a documented property one of its documented values.
 func (p *Parser) checkPropertyValue() error {
+	wantKeys(p, propertyValues)
 	spec, ok := propertyValues[strings.ToUpper(p.cur.Str)]
 	if !ok {
 		return nil

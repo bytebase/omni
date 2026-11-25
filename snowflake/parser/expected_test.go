@@ -27,6 +27,11 @@ func TestExpectedKeywords(t *testing.T) {
 		{prefix: "SELECT a FROM t QUALIFY ROW_NUMBER() OVER (", want: []string{"PARTITION", "ORDER"}},
 		{prefix: "CREATE ", want: []string{"TABLE", "OR", "TRANSIENT", "WAREHOUSE", "COMPUTE", "STAGE"}},
 		{prefix: "CREATE OR ", want: []string{"REPLACE", "ALTER"}},
+		{prefix: "CREATE NETWORK ", want: []string{"POLICY", "RULE"}},
+		{prefix: "CREATE EXTERNAL ", want: []string{"TABLE", "VOLUME"}},
+		{prefix: "CREATE ", want: []string{"HYBRID"}},
+		{prefix: "SELECT a FROM t GROUP BY GROUPING ", want: []string{"SETS"}},
+		{prefix: "SELECT a FROM t WHERE a NOT ", want: []string{"LIKE", "REGEXP"}},
 		{prefix: "ALTER ", want: []string{"TABLE", "WAREHOUSE", "COMPUTE"}, absent: []string{"TEMPORARY"}},
 		{prefix: "DROP ", want: []string{"TABLE", "COMPUTE"}},
 		{prefix: "INSERT ", want: []string{"INTO", "OVERWRITE", "ALL", "FIRST"}},
@@ -53,9 +58,11 @@ func TestExpectedKeywords(t *testing.T) {
 }
 
 // TestTokenTestsAreRecorded keeps collection mode complete: parser code tests
-// the current or next token through curIs, nextIs and the word helpers of
-// expected.go, which record the test, never by comparing a token type.
+// the current or next token through curIs, nextIs and the word helpers,
+// which record the test, never by comparing a token's type or text.
 func TestTokenTestsAreRecorded(t *testing.T) {
+	// The word helpers outside expected.go compare text themselves.
+	helpers := map[string]bool{"curIsWord": true, "peekIsWord": true, "curIsUnquotedWord": true}
 	files, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatal(err)
@@ -73,37 +80,60 @@ func TestTokenTestsAreRecorded(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ast.Inspect(file, func(n ast.Node) bool {
-			var bad ast.Expr
-			switch n := n.(type) {
-			case *ast.BinaryExpr:
-				if (n.Op == token.EQL || n.Op == token.NEQ) && (parserToken(n.X) != "" || parserToken(n.Y) != "") {
-					bad = n
-				}
-			case *ast.SwitchStmt:
-				if n.Tag != nil && parserToken(n.Tag) != "" {
-					bad = n.Tag
-				}
-			case *ast.CallExpr:
-				if id, ok := n.Fun.(*ast.Ident); ok && (id.Name == "isWordToken" || id.Name == "tokIsWord") && len(n.Args) > 0 && parserTokenValue(n.Args[0]) {
-					bad = n
-				}
+		for _, decl := range file.Decls {
+			if fd, ok := decl.(*ast.FuncDecl); ok && helpers[fd.Name.Name] {
+				continue
 			}
-			if bad != nil {
-				t.Errorf("%s: test the token with curIs, nextIs or a word helper of expected.go", fset.Position(bad.Pos()))
-			}
-			return true
-		})
+			ast.Inspect(decl, func(n ast.Node) bool {
+				var bad ast.Node
+				switch n := n.(type) {
+				case *ast.BinaryExpr:
+					if (n.Op == token.EQL || n.Op == token.NEQ) && (parserToken(n.X) || parserToken(n.Y) || upperText(n.X) || upperText(n.Y)) {
+						bad = n
+					}
+				case *ast.SwitchStmt:
+					if n.Tag != nil && parserToken(n.Tag) {
+						bad = n.Tag
+					}
+				case *ast.CallExpr:
+					if id, ok := n.Fun.(*ast.Ident); ok && (id.Name == "isWordToken" || id.Name == "tokIsWord") && len(n.Args) > 0 && parserTokenValue(n.Args[0]) {
+						bad = n
+					}
+					if isSelector(n.Fun, "strings", "EqualFold") && slices.ContainsFunc(n.Args, parserText) {
+						bad = n
+					}
+				}
+				if bad != nil {
+					t.Errorf("%s: test the token with curIs, nextIs or a word helper of expected.go", fset.Position(bad.Pos()))
+				}
+				return true
+			})
+		}
 	}
 }
 
-// parserToken reports whether e is p.cur.Type or p.peekNext().Type.
-func parserToken(e ast.Expr) string {
+// upperText reports whether e is strings.ToUpper of the current or next
+// token's text.
+func upperText(e ast.Expr) bool {
+	call, ok := e.(*ast.CallExpr)
+	return ok && isSelector(call.Fun, "strings", "ToUpper") && len(call.Args) == 1 && parserText(call.Args[0])
+}
+
+// parserText reports whether e is p.cur.Str or p.peekNext().Str.
+func parserText(e ast.Expr) bool {
 	sel, ok := e.(*ast.SelectorExpr)
-	if !ok || sel.Sel.Name != "Type" || !parserTokenValue(sel.X) {
-		return ""
-	}
-	return sel.Sel.Name
+	return ok && sel.Sel.Name == "Str" && parserTokenValue(sel.X)
+}
+
+func isSelector(e ast.Expr, pkg, name string) bool {
+	sel, ok := e.(*ast.SelectorExpr)
+	return ok && sel.Sel.Name == name && isIdent(sel.X, pkg)
+}
+
+// parserToken reports whether e is p.cur.Type or p.peekNext().Type.
+func parserToken(e ast.Expr) bool {
+	sel, ok := e.(*ast.SelectorExpr)
+	return ok && sel.Sel.Name == "Type" && parserTokenValue(sel.X)
 }
 
 // parserTokenValue reports whether e is p.cur or p.peekNext().

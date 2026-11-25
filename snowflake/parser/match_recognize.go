@@ -158,6 +158,7 @@ func (p *Parser) parseMeasure() (*ast.MatchMeasure, error) {
 	// would make FINAL/RUNNING itself a function call) and not a terminator
 	// such as AS / ',' / ')' (which would mean FINAL/RUNNING is the operand,
 	// e.g. a column literally named "final").
+	p.wantWords("FINAL", "RUNNING")
 	if p.curIs(tokIdent) {
 		if up := strings.ToUpper(p.cur.Str); (up == "FINAL" || up == "RUNNING") && measureOperandFollows(p.peekNext().Type) {
 			p.advance()

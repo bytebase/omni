@@ -208,7 +208,6 @@ func (p *Parser) parseIcebergTableProperties(stmt *ast.CreateTableStmt) error {
 		case p.curIs(kwWITH):
 			// WITH introduces TAG, ROW ACCESS POLICY, AGGREGATION POLICY or
 			// CONTACT; anything else ends the properties.
-			next := p.peekNext()
 			switch {
 			case p.nextIs(kwTAG):
 				p.advance() // consume WITH
@@ -219,13 +218,13 @@ func (p *Parser) parseIcebergTableProperties(stmt *ast.CreateTableStmt) error {
 					return p.syntaxErrorAtCur()
 				}
 				continue
-			case strings.EqualFold(next.Str, "AGGREGATION"):
+			case p.peekIsWord("AGGREGATION"):
 				p.advance() // consume WITH
 				if !p.startsAggregationPolicy() {
 					return p.syntaxErrorAtCur()
 				}
 				continue
-			case strings.EqualFold(next.Str, "CONTACT"):
+			case p.peekIsWord("CONTACT"):
 				p.advance() // consume WITH
 				contacts, err := p.parseWithContact()
 				if err != nil {
