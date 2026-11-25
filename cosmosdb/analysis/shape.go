@@ -66,8 +66,9 @@ func union(members []*shape) *shape {
 
 // asObject is s as an object of known members, or nil: an object shape, or
 // a union of them (a ?? b over two object literals), whose members are each
-// key's members of the operands that hold it. It is memoized per shape, so
-// a union shared at every level is expanded once.
+// key's members of the operands that hold it. The union's operands are
+// found in one walk of its graph, each once, so neither a union shared at
+// every level nor a long chain of them builds an object per level.
 func (a *analyzer) asObject(s *shape) *shape {
 	switch s.kind {
 	case objectShape:
@@ -82,19 +83,47 @@ func (a *analyzer) asObject(s *shape) *shape {
 	if a.objects == nil {
 		a.objects = map[*shape]*shape{}
 	}
-	var keys []string
-	byKey := map[string][]*shape{}
-	for _, m := range s.members {
-		obj := a.asObject(m)
-		if obj == nil {
+	var (
+		objects []*shape
+		seen    = map[*shape]bool{}
+		stack   = []*shape{s}
+	)
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if seen[n] {
+			continue
+		}
+		seen[n] = true
+		switch n.kind {
+		case objectShape:
+			objects = append(objects, n)
+		case unionShape:
+			for i := len(n.members) - 1; i >= 0; i-- {
+				stack = append(stack, n.members[i])
+			}
+		default:
 			a.objects[s] = nil
 			return nil
 		}
+	}
+	var keys []string
+	byKey := map[string][]*shape{}
+	for _, obj := range objects {
+		last := map[string]*shape{} // the last of an object's repeated keys wins
+		for i, k := range obj.keys {
+			last[k] = obj.members[i]
+		}
 		for _, k := range obj.keys {
+			m, ok := last[k]
+			if !ok {
+				continue
+			}
+			delete(last, k)
 			if _, ok := byKey[k]; !ok {
 				keys = append(keys, k)
 			}
-			byKey[k] = append(byKey[k], obj.member(k))
+			byKey[k] = append(byKey[k], m)
 		}
 	}
 	out := &shape{kind: objectShape, keys: keys}

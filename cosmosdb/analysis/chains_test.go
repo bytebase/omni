@@ -65,3 +65,25 @@ func TestAnalyzeChainsStayLinear(t *testing.T) {
 		}
 	}
 }
+
+// TestAnalyzeStarOverLongChain: SELECT * over a ?? chain of objects with
+// distinct keys built an object holding every key so far at each level of
+// the chain, which took seconds for 2,000 keys.
+func TestAnalyzeStarOverLongChain(t *testing.T) {
+	const keys = 5000
+	var objects []string
+	for i := 0; i < keys; i++ {
+		objects = append(objects, fmt.Sprintf(`{"k%d": c.a%d}`, i, i))
+	}
+	sel := parseSelect(t, "SELECT * FROM (SELECT VALUE "+strings.Join(objects, " ?? ")+" FROM c) s")
+	var qa *analysis.QueryAnalysis
+	cputime.Within(t, 2*time.Second, "Analyze", func() {
+		qa = analysis.Analyze(sel)
+	})
+	if len(qa.Projections) != keys {
+		t.Fatalf("%d projections, want %d", len(qa.Projections), keys)
+	}
+	if last := qa.Projections[keys-1]; last.Name != fmt.Sprintf("k%d", keys-1) || len(last.SourcePaths) != 1 || last.SourcePaths[0].String() != fmt.Sprintf("c.a%d", keys-1) {
+		t.Errorf("the last projection is %s from %v", last.Name, last.SourcePaths)
+	}
+}
