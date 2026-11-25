@@ -53,6 +53,9 @@ CREATE VIEW app.customer_orders AS
     SELECT c.id, c.name, o.id AS order_id, o.amount
     FROM app.customer AS c JOIN app.orders AS o ON o.customer_id = c.id;
 
+-- pg_get_functiondef answers a procedure with its body alone.
+CREATE PROCEDURE app.touch_orders() LANGUAGE SQL AS $$ UPDATE app.orders SET amount = amount $$;
+
 CREATE MATERIALIZED VIEW app.order_totals AS
     SELECT customer_id, sum(amount) AS total FROM app.orders GROUP BY customer_id;
 

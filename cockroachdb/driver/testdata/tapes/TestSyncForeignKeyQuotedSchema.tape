@@ -793,6 +793,9 @@
 | 	p.proname as function_name,
 | 	p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as function_signature,
 | 	case when l.lanname = 'internal' then p.prosrc
+| 			when p.prokind = 'p' then (
+| 				select s.create_statement from crdb_internal.create_procedure_statements as s
+| 				where s.procedure_id + 100000 = p.oid::INT8)
 | 			else pg_get_functiondef(p.oid)
 | 			end as definition
 | from pg_proc p

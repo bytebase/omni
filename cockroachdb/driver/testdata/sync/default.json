@@ -274,6 +274,11 @@
           "name": "add",
           "definition": "CREATE FUNCTION app.add(a INT8, b INT8)\n\tRETURNS INT8\n\tIMMUTABLE\n\tNOT LEAKPROOF\n\tCALLED ON NULL INPUT\n\tLANGUAGE SQL\n\tSECURITY INVOKER\n\tAS $$\n\tSELECT a + b;\n$$",
           "signature": "add(int8, int8)"
+        },
+        {
+          "name": "touch_orders",
+          "definition": "CREATE PROCEDURE app.touch_orders()\n\tLANGUAGE SQL\n\tSECURITY INVOKER\n\tAS $$\n\tUPDATE omni_testsyncdatabase.app.orders SET amount = amount;\n$$",
+          "signature": "touch_orders()"
         }
       ],
       "materializedViews": [

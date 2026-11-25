@@ -57,6 +57,9 @@
 |     SELECT c.id, c.name, o.id AS order_id, o.amount
 |     FROM app.customer AS c JOIN app.orders AS o ON o.customer_id = c.id;
 |
+| -- pg_get_functiondef answers a procedure with its body alone.
+| CREATE PROCEDURE app.touch_orders() LANGUAGE SQL AS $$ UPDATE app.orders SET amount = amount $$;
+|
 | CREATE MATERIALIZED VIEW app.order_totals AS
 |     SELECT customer_id, sum(amount) AS total FROM app.orders GROUP BY customer_id;
 |
@@ -1247,6 +1250,9 @@
 | 	p.proname as function_name,
 | 	p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as function_signature,
 | 	case when l.lanname = 'internal' then p.prosrc
+| 			when p.prokind = 'p' then (
+| 				select s.create_statement from crdb_internal.create_procedure_statements as s
+| 				where s.procedure_id + 100000 = p.oid::INT8)
 | 			else pg_get_functiondef(p.oid)
 | 			end as definition
 | from pg_proc p
@@ -1277,6 +1283,20 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT a + b;
+| $$
+< row
+: string
+| app
+: string
+| touch_orders
+: string
+| touch_orders()
+: string
+| CREATE PROCEDURE app.touch_orders()
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	UPDATE omni_testsyncdatabase.app.orders SET amount = amount;
 | $$
 > query
 |
