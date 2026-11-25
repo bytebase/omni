@@ -52,12 +52,23 @@ type RequestAnalysis struct {
 	API MaskableAPI
 	// Index is the target index name extracted from the URL (may be empty).
 	Index string
+	// Indices is every index, alias, data stream or pattern the request
+	// names, as written and URL-decoded: the path's comma-separated target,
+	// then those a multi-get's docs or a multi-search's header lines name.
+	// Empty when the request names none, which reads every index.
+	// ExpandIndices resolves it against the indices a sync stores.
+	Indices []string
 	// BlockedFeatures lists body features that prevent safe masking.
 	BlockedFeatures []BlockedFeature
 	// SourceDisabled is true when "_source": false was set in the body.
 	SourceDisabled bool
-	// SourceFields lists fields from the _source include list.
+	// SourceFields lists fields from the _source include list: the body's
+	// _source (a field, a list, or includes) and the URL's _source or
+	// _source_includes.
 	SourceFields []string
+	// SourceExcludes lists fields from the _source exclude list: the body's
+	// _source excludes and the URL's _source_excludes.
+	SourceExcludes []string
 	// RequestedFields lists fields from the top-level "fields" array.
 	RequestedFields []string
 	// HighlightFields lists field names from highlight.fields.
@@ -192,6 +203,11 @@ func AnalyzeRequest(method, url, body string) *RequestAnalysis {
 		API:   api,
 		Index: index,
 	}
+	if api == APIUnsupported {
+		return result
+	}
+	urlPath, query, _ := strings.Cut(url, "?")
+	result.Indices = requestIndices(api, strings.TrimPrefix(urlPath, "/"), body)
 
 	// Only analyze the body for APIs that accept a query body.
 	switch api {
@@ -199,6 +215,7 @@ func AnalyzeRequest(method, url, body string) *RequestAnalysis {
 		bodyResult := analyzeRequestBody(body)
 		result.BlockedFeatures = bodyResult.BlockedFeatures
 		result.SourceFields = bodyResult.SourceFields
+		result.SourceExcludes = bodyResult.SourceExcludes
 		result.SourceDisabled = bodyResult.SourceDisabled
 		result.RequestedFields = bodyResult.RequestedFields
 		result.HighlightFields = bodyResult.HighlightFields
@@ -208,6 +225,7 @@ func AnalyzeRequest(method, url, body string) *RequestAnalysis {
 	default:
 		// No body analysis for other API types.
 	}
+	sourceParams(query, result)
 
 	return result
 }

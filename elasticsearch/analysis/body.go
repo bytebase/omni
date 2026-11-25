@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"encoding/json"
+	"net/url"
 	"slices"
 	"strings"
 )
@@ -68,16 +69,69 @@ func extractSource(parsed map[string]any, result *RequestAnalysis) {
 		if !v {
 			result.SourceDisabled = true
 		}
+	case string:
+		result.SourceFields = []string{v}
 	case []any:
 		result.SourceFields = toStringSlice(v)
 	case map[string]any:
-		if includes, ok := v["includes"]; ok {
-			if arr, ok := includes.([]any); ok {
-				result.SourceFields = toStringSlice(arr)
-			}
-		}
+		result.SourceFields = append(stringOrList(v["includes"]), stringOrList(v["include"])...)
+		result.SourceExcludes = append(stringOrList(v["excludes"]), stringOrList(v["exclude"])...)
 	default:
 	}
+}
+
+// stringOrList reads a _source filter value: one field or a list of them.
+func stringOrList(v any) []string {
+	switch v := v.(type) {
+	case string:
+		return []string{v}
+	case []any:
+		return toStringSlice(v)
+	default:
+		return nil
+	}
+}
+
+// sourceParams reads the URL's _source filtering, which Elasticsearch takes on
+// every API that returns a document: _source (true, false or a
+// comma-separated include list), _source_includes and _source_excludes. When
+// the URL holds any of them, they replace the body's _source.
+func sourceParams(query string, result *RequestAnalysis) {
+	values, err := url.ParseQuery(query)
+	if err != nil {
+		return
+	}
+	list := func(key string) []string {
+		var out []string
+		for _, v := range values[key] {
+			for field := range strings.SplitSeq(v, ",") {
+				if field != "" {
+					out = append(out, field)
+				}
+			}
+		}
+		return out
+	}
+	_, source := values["_source"]
+	_, includes := values["_source_includes"]
+	_, excludes := values["_source_excludes"]
+	if !source && !includes && !excludes {
+		return
+	}
+	result.SourceDisabled, result.SourceFields, result.SourceExcludes = false, nil, nil
+	if v := values["_source"]; len(v) > 0 {
+		switch v[len(v)-1] {
+		case "false":
+			result.SourceDisabled = true
+		case "true", "":
+		default:
+			result.SourceFields = list("_source")
+		}
+	}
+	if includes {
+		result.SourceFields = list("_source_includes")
+	}
+	result.SourceExcludes = list("_source_excludes")
 }
 
 // extractStringArray extracts a string array value from a top-level key.

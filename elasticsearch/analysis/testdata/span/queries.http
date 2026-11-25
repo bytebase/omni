@@ -1,0 +1,84 @@
+# The span.tsv corpus: one request per line, METHOD URL and an optional JSON
+# body, run on the fixture the last "# fixture:" line names. A multi-search
+# body's lines are separated by " \n ". See ../README.md.
+
+# fixture: shop
+
+# One index, every document.
+GET /users/_search
+POST /users/_search {"query":{"match_all":{}}}
+GET /orders/_search
+POST /orders/_search {"size":5}
+GET /users_archive/_search
+GET /users/_search?q=*
+
+# _source filtering in the body.
+POST /users/_search {"_source":false}
+POST /users/_search {"_source":true}
+POST /users/_search {"_source":"name"}
+POST /users/_search {"_source":["name","email"]}
+POST /users/_search {"_source":["address"]}
+POST /users/_search {"_source":["address.*"]}
+POST /users/_search {"_source":["addr*"]}
+POST /users/_search {"_source":["*.city"]}
+POST /users/_search {"_source":{"includes":["name","address.city"]}}
+POST /users/_search {"_source":{"excludes":["ssn"]}}
+POST /users/_search {"_source":{"includes":["*"],"excludes":["ssn","address.zip"]}}
+POST /users/_search {"_source":{"include":["email"]}}
+POST /users/_search {"_source":{"exclude":["email"]}}
+POST /users/_search {"_source":{"excludes":"address"}}
+POST /orders/_search {"_source":["items.sku"]}
+POST /orders/_search {"_source":{"excludes":["items"]}}
+
+# _source filtering in the URL.
+GET /users/_search?_source=false
+GET /users/_search?_source=name,email
+GET /users/_search?_source_includes=address.city
+GET /users/_search?_source_excludes=ssn,tags
+GET /users/_search?_source_includes=name,ssn&_source_excludes=ssn
+POST /users/_search?_source_excludes=email {"_source":["name","email"]}
+
+# Single documents.
+GET /users/_doc/1
+GET /users/_doc/1?_source_includes=name
+GET /users/_doc/1?_source=false
+GET /users/_doc/1?_source_excludes=ssn
+GET /users/_source/1
+GET /users/_source/1?_source_includes=email
+GET /people/_doc/1
+GET /orders/_doc/o1?_source=order_id,total
+
+# Multi-get.
+POST /users/_mget {"ids":["1","2"]}
+POST /_mget {"docs":[{"_index":"users","_id":"1"},{"_index":"orders","_id":"o1"}]}
+POST /users/_mget?_source_includes=name {"ids":["1"]}
+
+# Several indices, patterns and aliases.
+GET /users,orders/_search
+GET /users,users_archive/_search?_source=name
+GET /user*/_search
+GET /*/_search
+GET /_all/_search
+GET /_search
+POST /_search {"_source":["email"]}
+GET /user*,-users_archive/_search
+GET /*,-orders,-events-*/_search
+GET /people/_search
+GET /everyone/_search
+GET /adults/_search
+GET /people,orders/_search
+GET /peo*/_search
+GET /hidden_audit/_search
+GET /hidden*/_search
+GET /events-app/_search
+GET /events-*/_search
+GET /users%2Corders/_search
+
+# Multi-search.
+POST /_msearch {"index":"users"} \n {"query":{"match_all":{}}} \n {"index":"orders"} \n {"_source":["total"]}
+POST /users/_msearch {} \n {"_source":["name"]}
+
+# Errors.
+GET /missing/_search
+GET /users,missing/_search
+GET /missing/_doc/1
