@@ -9,7 +9,8 @@ import (
 
 // FuzzParse holds Parse to the engine contract on any input (package fuzz).
 // The console parser recovers from errors, so it reports each one in
-// ParseResult.Errors and fails only on an input it cannot read at all.
+// ParseResult.Errors and fails only on an input it cannot read at all. A
+// request carries its byte range in StartOffset and EndOffset, not a Loc.
 // `go test` replays compat.tsv and testdata/fuzz/FuzzParse.
 func FuzzParse(f *testing.F) {
 	fuzz.Seed(f, filepath.Join("testdata", "compat.tsv"))
@@ -23,6 +24,8 @@ func FuzzParse(f *testing.F) {
 				t.Fatalf("SyntaxError at byte %d, outside a %d-byte input: %s", e.ByteOffset, len(text), e.Message)
 			}
 		}
-		fuzz.Tree(t, res, text)
+		for _, r := range res.Requests {
+			fuzz.Range(t, text, "ParsedRequest", r.StartOffset, r.EndOffset)
+		}
 	})
 }
