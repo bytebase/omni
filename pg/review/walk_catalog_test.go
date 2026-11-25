@@ -45,8 +45,11 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		"CREATE VIEW v AS SELECT nope_fn(n) FROM t;",
 		// The change turns the body check off.
 		"SET check_function_bodies = off;\nCREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;",
-		// After DML, which may run user code, the catalog is not asked.
-		"INSERT INTO t VALUES (1);\nCREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;",
+		// After a statement that runs user code, the catalog is not asked.
+		"SELECT f_double(1);\nCREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;",
+		// Nor where the walk stops: RESET restores a default it does not know.
+		"RESET search_path;\nCREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;",
+		"CREATE TABLE x AS SELECT f_double(1);\nCREATE FUNCTION f_double(y int) RETURNS int LANGUAGE sql AS 'SELECT y';",
 		// A rollback undoes what the catalog does not.
 		"BEGIN;\nCREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT 1';\nROLLBACK;\nCREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT 1';",
 		// The replay starts on the search path the change starts on.

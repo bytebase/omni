@@ -59,11 +59,29 @@ func walkThrough(ctx context.Context, stmts []statement, plan *run, target revie
 		w.rangeMultirange = make(map[walk.Key]walk.Key)
 		w.pg.viewCols = nil
 	}
-	// The replay starts from the session the change starts in.
+	// The catalog replay starts from the session the change starts in, and
+	// judges the steps the walk reached from a session it knows, up to the
+	// one where the walk stops following the change: that step is judged
+	// too, since what it refuses it refuses before it runs, unless an event
+	// trigger may fire on it or it runs again.
 	path, user := slices.Clone(w.path), w.user
-	v, err := walk.Run(ctx, len(plan.steps), snap, w.lower)
+	reached, open := 0, true
+	lower := func(i int, l *walk.Ledger) *walk.Step {
+		st := plan.steps[i]
+		judged := open && !st.again && w.path != nil && (w.user != "" || !slices.Contains(w.path, "$user")) &&
+			!w.eventTriggerMayFire(stmts[st.stmt].node)
+		step := w.lower(i, l)
+		if judged {
+			reached = i + 1
+		}
+		if !judged || step == nil || step.Last {
+			open = false
+		}
+		return step
+	}
+	v, err := walk.Run(ctx, len(plan.steps), snap, lower)
 	if v == nil && err == nil {
-		v = catalogRefusal(ctx, stmts, plan, target, path, user, w.eventTriggerMayFire)
+		v = catalogRefusal(ctx, stmts, plan.steps[:reached], target, path, user)
 	}
 	if v != nil {
 		v.Statement = plan.steps[v.Statement].stmt

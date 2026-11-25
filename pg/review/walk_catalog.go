@@ -36,17 +36,15 @@ var catalogCodes = map[string]review.FindingCode{
 	"42P17": review.UnsupportedForm, // invalid object definition
 }
 
-// catalogRefusal replays the change, in the order plan runs it, in a
-// pg/catalog loaded from the synced schema, and returns a violation at the
-// first statement the catalog refuses with one of catalogCodes, when
+// catalogRefusal replays steps, the part of the change the walk reached,
+// in a pg/catalog loaded from the synced schema, and returns a violation at
+// the first statement the catalog refuses with one of catalogCodes, when
 // catalogJudges it. It is asked only when the walk found nothing and knows
 // the search path. The replay ends, accepting, at a schema that does not
-// load in full, at any other refusal, at a rollback or SET LOCAL, at a
-// statement an event trigger may fire on, and after a statement that may
-// run user code (DML, CALL, DO) or makes an event trigger, whose effects
-// the catalog does not follow.
-func catalogRefusal(ctx context.Context, stmts []statement, plan *run, target review.Target, path []string, user string, triggerMayFire func(ast.Node) bool) *walk.Violation {
-	if target.Schema == nil || target.OtherSpecs || len(path) == 0 || user == "" && slices.Contains(path, "$user") {
+// load in full, at any other refusal, and after a CALL or DO, whose effects
+// the catalog does not follow, or a change to event triggers.
+func catalogRefusal(ctx context.Context, stmts []statement, steps []step, target review.Target, path []string, user string) *walk.Violation {
+	if len(steps) == 0 || target.Schema == nil || target.OtherSpecs || len(path) == 0 || user == "" && slices.Contains(path, "$user") {
 		return nil
 	}
 	c := pgcatalog.New()
@@ -65,30 +63,12 @@ func catalogRefusal(ctx context.Context, stmts []statement, plan *run, target re
 	if _, err := c.Exec("SET check_function_bodies = on", nil); err != nil {
 		return nil
 	}
-	for i, st := range plan.steps {
-		if st.again {
-			return nil
-		}
+	for i, st := range steps {
 		node := stmts[st.stmt].node
-		if triggerMayFire(node) {
-			// A synced event trigger's function may change the schema or
-			// refuse the statement, which the catalog does not follow.
-			return nil
-		}
-		switch v := node.(type) {
+		switch node.(type) {
 		case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt:
-			return nil
-		case *ast.VariableSetStmt:
-			// The catalog keeps a SET LOCAL past the end of its transaction.
-			if v.IsLocal {
-				return nil
-			}
-		case *ast.TransactionStmt:
-			// The catalog does not undo what a rollback undoes.
-			switch v.Kind {
-			case ast.TRANS_STMT_ROLLBACK, ast.TRANS_STMT_ROLLBACK_TO, ast.TRANS_STMT_PREPARE, ast.TRANS_STMT_ROLLBACK_PREPARED:
-				return nil
-			}
+			// DML changes no schema the walk followed it past.
+			continue
 		}
 		err := processUtility(c, node)
 		var refusal *pgcatalog.Error
