@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/pgwire/pgcode"
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/pgwire/pgerror"
+	plpgsqlparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/plpgsql/parser"
+	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/plpgsqltree"
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 
 	"github.com/bytebase/omni/analysis"
@@ -91,6 +94,7 @@ func ResolveQuerySpan(_ context.Context, statement string, opts ResolveOptions) 
 		accesses:        analysis.ColumnSet{},
 		predicates:      analysis.ColumnSet{},
 		expanding:       map[analysis.ColumnResource]bool{},
+		functions:       map[string]*functionBody{},
 	}
 	stmt := stmts[0].AST
 	explain, explainAnalyze := stmt.(*tree.ExplainAnalyze)
@@ -165,7 +169,7 @@ func classifyStatement(stmt tree.Statement) analysis.QueryType {
 	case *tree.Select, *tree.ParenSelect:
 		// A write it holds makes it DML, which the resolver's walk finds.
 		return analysis.Select
-	case *tree.Insert, *tree.Update, *tree.Delete, *tree.CopyFrom, *tree.CopyTo, *tree.Import, *tree.Call:
+	case *tree.Insert, *tree.Update, *tree.Delete, *tree.CopyFrom, *tree.CopyTo, *tree.Export, *tree.Import, *tree.Call:
 		return analysis.DML
 	case *tree.Explain:
 		return analysis.Explain
@@ -248,9 +252,15 @@ type spanResolver struct {
 	inExplain  int
 	notFound   *analysis.ResourceNotFoundError
 	resolveErr error
-	// metadataErr is a failure to read the metadata, which fails the
-	// statement whatever it is.
+	// metadataErr is a failure to read the metadata, or to read a function
+	// definition in it, which fails the statement whatever it is.
 	metadataErr error
+	// functions holds each user-defined function's body, analyzed once; nil
+	// while it is being analyzed, so a recursive call reads nothing more.
+	functions map[string]*functionBody
+	// collect, while a function body is analyzed, gathers every column a
+	// name in it reads.
+	collect analysis.ColumnSet
 	// inView counts the view definitions being resolved: what a view reads is
 	// not an access of the statement, and its conditions are the view's.
 	inView    int
@@ -260,6 +270,12 @@ type spanResolver struct {
 func (r *spanResolver) fail(err error) {
 	if r.resolveErr == nil {
 		r.resolveErr = err
+	}
+}
+
+func (r *spanResolver) failStatement(err error) {
+	if r.metadataErr == nil {
+		r.metadataErr = err
 	}
 }
 
@@ -665,12 +681,16 @@ func renderName(target tree.SelectExpr) string {
 }
 
 // resolveFunctionNames resolves each function reference in e to its name, as
-// CockroachDB's naming reads it, without a function registry.
+// CockroachDB's naming reads it, without a function registry. The name as
+// written stays in ReferenceByName, as CockroachDB's resolution keeps it.
 func resolveFunctionNames(e tree.Expr) {
 	// The visit function never fails, so neither does the visit.
 	_, _ = tree.SimpleVisit(e, func(expr tree.Expr) (bool, tree.Expr, error) {
 		if f, ok := expr.(*tree.FuncExpr); ok {
 			if name, ok := f.Func.FunctionReference.(*tree.UnresolvedName); ok {
+				if written, err := name.ToUnresolvedObjectName(tree.NoAnnotation); err == nil {
+					f.Func.ReferenceByName = &written
+				}
 				f.Func.FunctionReference = &tree.ResolvedFunctionDefinition{Name: name.Parts[0]}
 			}
 		}
@@ -773,9 +793,7 @@ func (r *spanResolver) tableExpr(te tree.TableExpr, sc *spanScope) *fromItem {
 	case *tree.TableRef:
 		// A numeric reference names a relation by descriptor ID, which the
 		// metadata cannot resolve, so it fails the statement.
-		if r.metadataErr == nil {
-			r.metadataErr = errors.New("a numeric table reference names no relation the metadata can resolve")
-		}
+		r.failStatement(errors.New("a numeric table reference names no relation the metadata can resolve"))
 		return &fromItem{relations: []*spanRelation{{opaque: true}}}
 	}
 	r.fail(fmt.Errorf("unsupported table expression %T", te))
@@ -793,7 +811,14 @@ func (r *spanResolver) functionColumns(e tree.Expr, sc *spanScope) ([]spanColumn
 		return []spanColumn{{name: name, sources: r.sources(e, sc)}}, true
 	}
 	args := make([]analysis.ColumnSet, len(fn.Exprs))
-	all := analysis.ColumnSet{}
+	all := r.functionReads(fn)
+	if len(all) > 0 {
+		// A user-defined function's columns are unknown.
+		for _, arg := range fn.Exprs {
+			all = union(all, r.sources(arg, sc))
+		}
+		return []spanColumn{{name: name, sources: all}}, false
+	}
 	for i, arg := range fn.Exprs {
 		args[i] = r.sources(arg, sc)
 		all = union(all, args[i])
@@ -1030,7 +1055,7 @@ func (r *spanResolver) firstSchema() string {
 }
 
 // locate resolves where tn lives as CockroachDB does: an unqualified name in
-// pg_catalog, then the search path, then pg_extension; a two-part name in a
+// the first schema of effectiveSearchPath that has it; a two-part name in a
 // schema of the current database, or else in the public schema of a database
 // of that name. The schema is empty when no synced relation has the name.
 func (r *spanResolver) locate(tn *tree.TableName) (analysis.ColumnResource, Database) {
@@ -1045,16 +1070,22 @@ func (r *spanResolver) locate(tn *tree.TableName) (analysis.ColumnResource, Data
 			resource.Database, resource.Schema = resource.Schema, "public"
 		}
 	default:
-		if pgCatalogRelations[name] {
-			resource.Schema = "pg_catalog"
-			return resource, nil
-		}
 		db := r.database(resource.Database)
-		if db != nil {
-			resource.Schema, _ = db.SearchRelation(r.searchPath, name)
-		}
-		if resource.Schema == "" && pgExtensionRelations[name] {
-			resource.Schema = "pg_extension"
+		for _, schema := range r.effectiveSearchPath() {
+			switch schema {
+			case "pg_catalog", "pg_extension":
+				if systemRelations[schema][name] {
+					resource.Schema = schema
+					return resource, nil
+				}
+			default:
+				if db != nil {
+					if found, _ := db.SearchRelation([]string{schema}, name); found != "" {
+						resource.Schema = found
+						return resource, db
+					}
+				}
+			}
 		}
 		return resource, db
 	}
@@ -1069,6 +1100,27 @@ func (r *spanResolver) locate(tn *tree.TableName) (analysis.ColumnResource, Data
 		return resource, nil
 	}
 	return resource, db
+}
+
+// effectiveSearchPath is the search path as CockroachDB walks it
+// (pkg/sql/sessiondata/search_path.go, SearchPath.Iter): pg_catalog first
+// unless the path names it, pg_extension just before public unless the path
+// names it, and every named schema in its place. A session's temporary
+// schema, searched before them all, holds nothing the sync stores.
+func (r *spanResolver) effectiveSearchPath() []string {
+	var out []string
+	if !slices.Contains(r.searchPath, "pg_catalog") {
+		out = append(out, "pg_catalog")
+	}
+	extension := !slices.Contains(r.searchPath, "pg_extension")
+	for _, schema := range r.searchPath {
+		if schema == "public" && extension {
+			out = append(out, "pg_extension")
+			extension = false
+		}
+		out = append(out, schema)
+	}
+	return out
 }
 
 func (r *spanResolver) hasSchema(database, schema string) bool {
@@ -1203,6 +1255,8 @@ func (v *exprVisitor) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 		}
 		return false, expr
 	case *tree.FuncExpr:
+		// A user-defined function returns what its body reads.
+		v.add(v.r.functionReads(e))
 		if e.Filter != nil {
 			// An aggregate's FILTER decides which rows it reads.
 			v.r.addPredicates(v.r.sources(e.Filter, v.sc))
@@ -1219,6 +1273,9 @@ func (v *exprVisitor) VisitPost(expr tree.Expr) tree.Expr { return expr }
 func (v *exprVisitor) add(sources analysis.ColumnSet) {
 	for c := range sources {
 		v.sources[c] = true
+		if v.r.collect != nil {
+			v.r.collect[c] = true
+		}
 	}
 }
 
@@ -1454,19 +1511,278 @@ func (r *spanResolver) statementTables(stmt tree.Statement, outer *spanScope) {
 		if n.Proc != nil {
 			walk(n.Proc)
 		}
-	case *tree.CreateTable:
-		if n.AsSource != nil {
-			r.selectQuery(n.AsSource, outer)
+	case *tree.CreateChangefeed:
+		// A changefeed streams the rows of its tables.
+		for _, feed := range n.Targets {
+			if pattern, err := feed.TableName.NormalizeTablePattern(); err == nil {
+				if name, ok := pattern.(*tree.TableName); ok {
+					target(name)
+				}
+			}
 		}
-	case *tree.CreateView:
-		if n.AsSource != nil {
-			r.selectQuery(n.AsSource, outer)
+		if n.Select != nil {
+			r.selectStatement(n.Select, outer)
 		}
+		walk(n.SinkURI)
+		r.embedded(n.Options, sc)
+	case *tree.RefreshMaterializedView:
+		// REFRESH runs the view's definition into it.
+		name := n.Name.ToTableName()
+		target(&name)
+	case *tree.Prepare:
+		// PREPARE plans its statement and runs it only on EXECUTE.
+		r.inExplain++
+		r.statementTables(n.Statement, outer)
+		r.inExplain--
+	case *tree.RoutineReturn:
+		walk(n.ReturnVal)
+	case *tree.SetVar:
+		// A setting's value names no column.
+	case *tree.CreateRoutine, *tree.CreateTrigger, *tree.CreatePolicy, *tree.AlterPolicy:
+		// A definition of code that runs later reads nothing now.
+	case tree.SelectStatement:
+		r.selectStatement(n, outer)
+	default:
+		// Any other statement, such as EXPORT, CREATE TABLE AS, a SPLIT AT
+		// or a CANCEL JOBS, reads what the queries and expressions it holds
+		// read.
+		r.embedded(stmt, sc)
 	}
 }
 
-// pgCatalogRelations are the relations of CockroachDB v25.2's pg_catalog,
-// which an unqualified name reaches before the search path.
+// embedded walks every query and expression node holds, wherever it holds
+// them, so a statement or a PL/pgSQL body this resolver has no case for
+// still reads what they read. node itself is not walked as one.
+func (r *spanResolver) embedded(node any, sc *spanScope) {
+	var walk func(v reflect.Value, root bool)
+	walk = func(v reflect.Value, root bool) {
+		switch v.Kind() {
+		case reflect.Interface, reflect.Pointer:
+			if v.IsNil() {
+				return
+			}
+		case reflect.Struct, reflect.Slice, reflect.Array:
+		default:
+			return
+		}
+		if v.CanInterface() && !root {
+			switch n := v.Interface().(type) {
+			case tree.Statement:
+				if v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface {
+					r.statementTables(n, sc)
+					return
+				}
+			case tree.Expr:
+				if v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface {
+					r.sources(n, sc)
+					return
+				}
+			}
+		}
+		switch v.Kind() {
+		case reflect.Interface, reflect.Pointer:
+			walk(v.Elem(), root)
+		case reflect.Struct:
+			for i := range v.NumField() {
+				if v.Type().Field(i).IsExported() {
+					walk(v.Field(i), false)
+				}
+			}
+		case reflect.Slice, reflect.Array:
+			for i := range v.Len() {
+				walk(v.Index(i), false)
+			}
+		}
+	}
+	walk(reflect.ValueOf(node), true)
+}
+
+// dynamicExecute finds a PL/pgSQL EXECUTE of a query built at run time.
+type dynamicExecute struct{ found bool }
+
+func (d *dynamicExecute) Visit(stmt plpgsqltree.Statement) (plpgsqltree.Statement, bool) {
+	_, ok := stmt.(*plpgsqltree.DynamicExecute)
+	d.found = d.found || ok
+	return stmt, !d.found
+}
+
+// functionBody is what a user-defined function's body reads: the columns
+// any name in it reads, the relations it names, its conditions, and whether
+// it reads system metadata or writes.
+type functionBody struct {
+	sources, accesses, predicates analysis.ColumnSet
+	readsSystem, writes           bool
+}
+
+// functionReads returns the columns a call of a synced user-defined function
+// reads through its body, and records what the body reads as the
+// statement's own. A function the sync does not hold, such as a builtin,
+// reads nothing more than its arguments.
+func (r *spanResolver) functionReads(fn *tree.FuncExpr) analysis.ColumnSet {
+	if _, ok := fn.Func.FunctionReference.(*tree.FunctionOID); ok {
+		r.failStatement(errors.New("a function called by OID names no function the metadata can resolve"))
+		return nil
+	}
+	written := fn.Func.ReferenceByName
+	if written == nil {
+		name, ok := fn.Func.FunctionReference.(*tree.UnresolvedName)
+		if !ok {
+			return nil
+		}
+		ref, err := name.ToUnresolvedObjectName(tree.NoAnnotation)
+		if err != nil {
+			return nil
+		}
+		written = &ref
+	}
+	database, schemas := r.defaultDatabase, r.effectiveSearchPath()
+	if written.HasExplicitSchema() {
+		schemas = []string{written.Schema()}
+	}
+	if written.NumParts == 3 {
+		database = written.Catalog()
+	}
+	db := r.database(database)
+	if db == nil {
+		return nil
+	}
+	reads := analysis.ColumnSet{}
+	for _, schema := range schemas {
+		var overloads []*metadata.FunctionMetadata
+		for _, s := range db.Metadata().GetSchemas() {
+			if s.GetName() != schema {
+				continue
+			}
+			for _, f := range s.GetFunctions() {
+				if f.GetName() == written.Object() {
+					overloads = append(overloads, f)
+				}
+			}
+		}
+		if len(overloads) == 0 {
+			continue
+		}
+		// Every overload of the name in the first schema that has one may be
+		// the one called.
+		for _, f := range overloads {
+			reads = union(reads, r.applyBody(r.analyzeFunction(database+"."+schema+"."+f.GetSignature(), f)))
+		}
+		break
+	}
+	return reads
+}
+
+// applyBody records what a function's body reads as the statement's own and
+// returns the columns the call reads.
+func (r *spanResolver) applyBody(body *functionBody) analysis.ColumnSet {
+	if body == nil {
+		return nil
+	}
+	for resource := range body.accesses {
+		r.access(resource)
+	}
+	r.addPredicates(body.predicates)
+	r.readsSystem = r.readsSystem || (body.readsSystem && r.inView == 0)
+	r.writes = r.writes || body.writes
+	return body.sources
+}
+
+// analyzeFunction analyzes a function's synced definition once: every
+// statement of a SQL body, or every statement and expression of a PL/pgSQL
+// body. Its result reads every column a name in the body reads, which holds
+// what any statement returns, so a column is never narrower than the truth.
+// A body that cannot be analyzed fails the statement, since what it reads is
+// unknown.
+func (r *spanResolver) analyzeFunction(key string, f *metadata.FunctionMetadata) *functionBody {
+	if body, ok := r.functions[key]; ok {
+		return body
+	}
+	r.functions[key] = nil
+	saved := *r
+	r.accesses, r.predicates, r.collect = analysis.ColumnSet{}, analysis.ColumnSet{}, analysis.ColumnSet{}
+	r.readsSystem, r.writes, r.inView, r.inExplain = false, false, 0, 0
+	if err := r.walkFunction(f.GetDefinition()); err != nil {
+		r.failStatement(&analysis.FunctionNotSupportedError{Function: f.GetSignature(), Err: err})
+	}
+	body := &functionBody{sources: r.collect, accesses: r.accesses, predicates: r.predicates, readsSystem: r.readsSystem, writes: r.writes}
+	// A name in the body may be a parameter, which no relation has, so the
+	// body's resolution errors are not the statement's.
+	r.accesses, r.predicates, r.collect = saved.accesses, saved.predicates, saved.collect
+	r.readsSystem, r.writes, r.inView, r.inExplain, r.resolveErr = saved.readsSystem, saved.writes, saved.inView, saved.inExplain, saved.resolveErr
+	r.functions[key] = body
+	return body
+}
+
+// walkFunction walks the body of a CREATE FUNCTION or CREATE PROCEDURE.
+func (r *spanResolver) walkFunction(definition string) error {
+	stmts, err := Parse(definition)
+	if err != nil {
+		return err
+	}
+	var create *tree.CreateRoutine
+	if len(stmts) == 1 {
+		create, _ = stmts[0].AST.(*tree.CreateRoutine)
+	}
+	if create == nil {
+		return errors.New("the definition is not a CREATE FUNCTION")
+	}
+	language, body := tree.RoutineLangSQL, ""
+	for _, option := range create.Options {
+		switch o := option.(type) {
+		case tree.RoutineLanguage:
+			language = o
+		case tree.RoutineBodyStr:
+			body = string(o)
+		}
+	}
+	var statements []tree.Statement
+	switch {
+	case create.RoutineBody != nil:
+		statements = create.RoutineBody.Stmts
+	case strings.EqualFold(string(language), string(tree.RoutineLangSQL)):
+		parsed, err := Parse(body)
+		if err != nil {
+			return err
+		}
+		for _, stmt := range parsed {
+			statements = append(statements, stmt.AST)
+		}
+	case strings.EqualFold(string(language), string(tree.RoutineLangPLpgSQL)):
+		block, err := plpgsqlparser.Parse(body)
+		if err != nil {
+			return err
+		}
+		dynamic := &dynamicExecute{}
+		plpgsqltree.Walk(dynamic, block.AST)
+		if dynamic.found {
+			return errors.New("a dynamic EXECUTE runs SQL the definition does not hold")
+		}
+		r.embedded(block.AST, nil)
+		return nil
+	default:
+		return fmt.Errorf("a function in %s", language)
+	}
+	for _, stmt := range statements {
+		if sel, ok := stmt.(*tree.Select); ok {
+			// What * returns reads no name, so the outputs count too.
+			for _, c := range r.selectQuery(sel, nil) {
+				r.collect = union(r.collect, c.sources)
+			}
+			continue
+		}
+		r.statementTables(stmt, nil)
+	}
+	return nil
+}
+
+// systemRelations are the relations of the system schemas an unqualified
+// name reaches through the search path.
+var systemRelations = map[string]map[string]bool{
+	"pg_catalog":   pgCatalogRelations,
+	"pg_extension": setOf("geography_columns", "geometry_columns", "spatial_ref_sys"),
+}
+
+// pgCatalogRelations are the relations of CockroachDB v25.2's pg_catalog.
 var pgCatalogRelations = setOf(
 	"pg_aggregate", "pg_am", "pg_amop", "pg_amproc", "pg_attrdef", "pg_attribute", "pg_auth_members", "pg_authid",
 	"pg_available_extension_versions", "pg_available_extensions", "pg_cast", "pg_class", "pg_collation", "pg_config",
@@ -1493,10 +1809,6 @@ var pgCatalogRelations = setOf(
 	"pg_ts_config_map", "pg_ts_dict", "pg_ts_parser", "pg_ts_template", "pg_type", "pg_user", "pg_user_mapping",
 	"pg_user_mappings", "pg_views",
 )
-
-// pgExtensionRelations are the relations of CockroachDB's pg_extension, which
-// an unqualified name reaches after the search path.
-var pgExtensionRelations = setOf("geography_columns", "geometry_columns", "spatial_ref_sys")
 
 func setOf(names ...string) map[string]bool {
 	out := make(map[string]bool, len(names))

@@ -25,6 +25,22 @@ func spanTestMetadata() map[string]*metadatapb.DatabaseSchemaMetadata {
 					{Name: "t", Columns: []*metadatapb.ColumnMetadata{column("id"), column("ssn"), column("name")}},
 					{Name: "u", Columns: []*metadatapb.ColumnMetadata{column("id"), column("t_id"), column("note"), {Name: "rowid", IsInvisible: true}}},
 					{Name: "empty"},
+					// User tables named as system relations.
+					{Name: "pg_class", Columns: []*metadatapb.ColumnMetadata{column("relname")}},
+					{Name: "geometry_columns", Columns: []*metadatapb.ColumnMetadata{column("f_table_name")}},
+				},
+				Functions: []*metadatapb.FunctionMetadata{
+					sqlFunction("get_ssn()", "RETURNS STRING LANGUAGE SQL AS $$ SELECT ssn FROM db.public.t LIMIT 1 $$"),
+					sqlFunction("note_of(i INT8)", "RETURNS STRING LANGUAGE SQL AS $$ SELECT note FROM db.public.u WHERE t_id = i $$"),
+					sqlFunction("rows_of()", "RETURNS SETOF db.public.u LANGUAGE SQL AS $$ SELECT * FROM db.public.u $$"),
+					sqlFunction("two_steps()", "RETURNS STRING LANGUAGE SQL AS $$ SELECT 1 FROM db.public.u; SELECT name FROM db.public.t LIMIT 1 $$"),
+					sqlFunction("atomic_salary()", "RETURNS DECIMAL LANGUAGE SQL BEGIN ATOMIC SELECT salary FROM db.hr.t LIMIT 1; END"),
+					sqlFunction("pl_name()", "RETURNS STRING LANGUAGE PLpgSQL AS $$ DECLARE x STRING; BEGIN SELECT name INTO x FROM db.public.t LIMIT 1; RETURN x; END $$"),
+					sqlFunction("dynamic()", "RETURNS STRING LANGUAGE PLpgSQL AS $$ BEGIN EXECUTE 'SELECT ssn FROM db.public.t'; RETURN ''; END $$"),
+					sqlFunction("recurse()", "RETURNS STRING LANGUAGE SQL AS $$ SELECT db.public.recurse() || ssn FROM db.public.t LIMIT 1 $$"),
+					sqlFunction("relnames()", "RETURNS STRING LANGUAGE SQL AS $$ SELECT relname FROM pg_catalog.pg_class LIMIT 1 $$"),
+					sqlFunction("writer()", "RETURNS INT8 LANGUAGE SQL AS $$ INSERT INTO db.public.u (id) VALUES (1) RETURNING id $$"),
+					{Name: "broken", Signature: "broken()", Definition: "not a function"},
 				},
 				Views: []*metadatapb.ViewMetadata{
 					// A view whose sync stored no columns.
@@ -41,7 +57,11 @@ func spanTestMetadata() map[string]*metadatapb.DatabaseSchemaMetadata {
 					{Name: "synced_mv", Definition: "SELECT x FROM db.public.gone", Columns: []*metadatapb.ColumnMetadata{column("r"), column("n"), {Name: "rowid", IsInvisible: true}}},
 				},
 			},
-			{Name: "hr", Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{column("id"), column("salary")}}}},
+			{
+				Name:      "hr",
+				Tables:    []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{column("id"), column("salary")}}},
+				Functions: []*metadatapb.FunctionMetadata{sqlFunction("get_ssn()", "RETURNS DECIMAL LANGUAGE SQL AS $$ SELECT salary FROM db.hr.t LIMIT 1 $$")},
+			},
 		}},
 		"other": {Name: "other", Schemas: []*metadatapb.SchemaMetadata{
 			{Name: "public", Tables: []*metadatapb.TableMetadata{{Name: "x", Columns: []*metadatapb.ColumnMetadata{column("a")}}}},
@@ -49,11 +69,23 @@ func spanTestMetadata() map[string]*metadatapb.DatabaseSchemaMetadata {
 	}
 }
 
+// sqlFunction is a function as the sync stores it: its signature, and
+// pg_get_functiondef's CREATE FUNCTION in its schema.
+func sqlFunction(signature, rest string) *metadatapb.FunctionMetadata {
+	name, _, _ := strings.Cut(signature, "(")
+	return &metadatapb.FunctionMetadata{Name: name, Signature: signature, Definition: "CREATE FUNCTION public." + signature + " " + rest}
+}
+
 func resolveSpan(statement string) (*analysis.ResolvedSpan, error) {
+	return resolveSpanIn(statement, "public")
+}
+
+// resolveSpanIn resolves statement under searchPath, a search_path value.
+func resolveSpanIn(statement, searchPath string) (*analysis.ResolvedSpan, error) {
 	databases := spanTestMetadata()
 	return ResolveQuerySpan(context.Background(), statement, ResolveOptions{
 		DefaultDatabase: "db",
-		SearchPath:      []string{"public"},
+		SearchPath:      strings.Split(searchPath, ","),
 		Catalog: Catalog{GetDatabase: func(name string) (Database, error) {
 			if meta, ok := databases[name]; ok {
 				return protoDatabase{meta}, nil
@@ -472,5 +504,156 @@ func TestResolveQuerySpanMissingMetadata(t *testing.T) {
 	}
 	if diff := cmp.Diff([]string{"a: db.public.empty.a", "b: db.public.empty.b"}, lineage(span)); diff != "" {
 		t.Errorf("lineage (-want +got):\n%s", diff)
+	}
+}
+
+// TestResolveQuerySpanFunctions holds a call of a user-defined function to
+// what its synced body reads.
+func TestResolveQuerySpanFunctions(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		queryType analysis.QueryType
+		want      []string
+		tables    string
+	}{
+		{"SELECT public.get_ssn()", analysis.Select, []string{"get_ssn: db.public.t.ssn"}, "db.public.t"},
+		{"SELECT get_ssn(), get_ssn() AS again", analysis.Select, []string{"get_ssn: db.public.t.ssn", "again: db.public.t.ssn"}, "db.public.t"},
+		{"SELECT hr.get_ssn()", analysis.Select, []string{"get_ssn: db.hr.t.salary"}, "db.hr.t"},
+		// The body's names count, its parameters' arguments too.
+		{"SELECT note_of(id) FROM t", analysis.Select, []string{"note_of: db.public.t.id db.public.u.note db.public.u.t_id"}, "db.public.t db.public.u"},
+		{"SELECT upper(get_ssn())", analysis.Select, []string{"upper: db.public.t.ssn"}, "db.public.t"},
+		{"SELECT rows_of()", analysis.Select, []string{"rows_of: db.public.u.id db.public.u.note db.public.u.t_id"}, "db.public.u"},
+		{"SELECT x.y FROM rows_of() AS x(y, z)", analysis.Select, []string{"y: db.public.u.id db.public.u.note db.public.u.t_id"}, "db.public.u"},
+		{"SELECT two_steps()", analysis.Select, []string{"two_steps: db.public.t.name"}, "db.public.t db.public.u"},
+		{"SELECT atomic_salary()", analysis.Select, []string{"atomic_salary: db.hr.t.salary"}, "db.hr.t"},
+		{"SELECT pl_name()", analysis.Select, []string{"pl_name: db.public.t.name"}, "db.public.t"},
+		{"SELECT recurse()", analysis.Select, []string{"recurse: db.public.t.ssn"}, "db.public.t"},
+		{"SELECT relnames()", analysis.SelectInfoSchema, nil, "db.pg_catalog.pg_class"},
+		{"SELECT writer()", analysis.DML, nil, "db.public.u"},
+		// A builtin reads only its arguments.
+		{"SELECT lower(name) FROM t", analysis.Select, []string{"lower: db.public.t.name"}, "db.public.t"},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			span, err := resolveSpan(tc.statement)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if span.Type != tc.queryType {
+				t.Errorf("type %s, want %s", span.Type, tc.queryType)
+			}
+			if diff := cmp.Diff(tc.want, lineage(span)); diff != "" {
+				t.Errorf("lineage (-want +got):\n%s", diff)
+			}
+			if got := columnNames(span.SourceColumns); got != tc.tables {
+				t.Errorf("tables %q, want %q", got, tc.tables)
+			}
+		})
+	}
+
+	// What a body reads counts against a mix of user and system tables, and
+	// its conditions are the statement's.
+	if _, err := resolveSpan("SELECT relnames(), name FROM t"); !errors.Is(err, ErrMixUserSystemTables) {
+		t.Errorf("got %v, want ErrMixUserSystemTables", err)
+	}
+	if span, err := resolveSpan("SELECT note_of(1)"); err != nil || columnNames(span.PredicateColumns) != "db.public.u.t_id" {
+		t.Errorf("got predicates %v, error %v", span.PredicateColumns, err)
+	}
+	// A body that cannot be analyzed fails any statement.
+	for _, statement := range []string{"SELECT dynamic()", "SELECT broken()", "DELETE FROM t WHERE ssn = dynamic()"} {
+		var unsupported *analysis.FunctionNotSupportedError
+		if _, err := resolveSpan(statement); !errors.As(err, &unsupported) {
+			t.Errorf("%s: got %v, want a FunctionNotSupportedError", statement, err)
+		}
+	}
+}
+
+// TestResolveQuerySpanSearchPath holds unqualified names to CockroachDB's
+// search path: pg_catalog first and pg_extension before public, each unless
+// the path names it.
+func TestResolveQuerySpanSearchPath(t *testing.T) {
+	for _, tc := range []struct {
+		searchPath, statement string
+		queryType             analysis.QueryType
+		tables                string
+	}{
+		{"public", "SELECT * FROM pg_class", analysis.SelectInfoSchema, "db.pg_catalog.pg_class"},
+		{"public,pg_catalog", "SELECT * FROM pg_class", analysis.Select, "db.public.pg_class"},
+		{"pg_catalog,public", "SELECT * FROM pg_class", analysis.SelectInfoSchema, "db.pg_catalog.pg_class"},
+		{"public", "SELECT * FROM geometry_columns", analysis.SelectInfoSchema, "db.pg_extension.geometry_columns"},
+		{"public,pg_extension", "SELECT * FROM geometry_columns", analysis.Select, "db.public.geometry_columns"},
+		{"hr", "SELECT * FROM geometry_columns", analysis.QueryTypeUnknown, ""},
+	} {
+		span, err := resolveSpanIn(tc.statement, tc.searchPath)
+		if tc.queryType == analysis.QueryTypeUnknown {
+			// With no public in the path, pg_extension is not searched.
+			if err != nil || span.NotFoundError == nil {
+				t.Errorf("%s under %s: got %v, error %v, want NotFoundError", tc.statement, tc.searchPath, span, err)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%s under %s: %v", tc.statement, tc.searchPath, err)
+			continue
+		}
+		if span.Type != tc.queryType || columnNames(span.SourceColumns) != tc.tables {
+			t.Errorf("%s under %s: got %s %q, want %s %q", tc.statement, tc.searchPath, span.Type, columnNames(span.SourceColumns), tc.queryType, tc.tables)
+		}
+	}
+	span, err := resolveSpanIn("SELECT relname FROM pg_class", "public,pg_catalog")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff([]string{"relname: db.public.pg_class.relname"}, lineage(span)); diff != "" {
+		t.Errorf("lineage (-want +got):\n%s", diff)
+	}
+}
+
+// TestResolveQuerySpanEmbeddedQueries holds every statement that holds a
+// query or an expression to the relations they read.
+func TestResolveQuerySpanEmbeddedQueries(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		queryType analysis.QueryType
+		tables    string
+	}{
+		{"EXPORT INTO CSV 'nodelocal://1/export' FROM SELECT ssn FROM public.t", analysis.DML, "db.public.t"},
+		{"CREATE CHANGEFEED FOR TABLE t INTO 'null://'", analysis.DDL, "db.public.t"},
+		{"CREATE CHANGEFEED INTO 'null://' AS SELECT ssn FROM t", analysis.DDL, "db.public.t"},
+		{"CREATE SCHEDULE s FOR CHANGEFEED TABLE t INTO 'null://' RECURRING '@daily'", analysis.DDL, "db.public.t"},
+		{"ALTER TABLE t SPLIT AT SELECT id FROM u", analysis.QueryTypeUnknown, "db.public.u"},
+		{"ALTER TABLE t UNSPLIT AT SELECT id FROM u", analysis.QueryTypeUnknown, "db.public.u"},
+		{"ALTER TABLE t RELOCATE SELECT ARRAY[1], id FROM u", analysis.QueryTypeUnknown, "db.public.u"},
+		{"ALTER RANGE RELOCATE FROM 1 TO 2 FOR SELECT id FROM u", analysis.QueryTypeUnknown, "db.public.u"},
+		{"CANCEL JOBS SELECT id FROM u", analysis.QueryTypeUnknown, "db.public.u"},
+		{"DECLARE c CURSOR FOR SELECT ssn FROM t", analysis.QueryTypeUnknown, "db.public.t"},
+		{"PREPARE p AS DELETE FROM u", analysis.QueryTypeUnknown, "db.public.u"},
+		{"EXECUTE p((SELECT max(id) FROM u))", analysis.QueryTypeUnknown, "db.public.u"},
+		{"REFRESH MATERIALIZED VIEW region_counts", analysis.DDL, "db.public.region_counts"},
+		{"CREATE MATERIALIZED VIEW m AS SELECT ssn FROM t", analysis.DDL, "db.public.t"},
+		{"SHOW JOBS SELECT id FROM u", analysis.SelectInfoSchema, "db.public.u"},
+		// A definition of code that runs later reads nothing now.
+		{"CREATE FUNCTION f() RETURNS STRING LANGUAGE SQL AS $$ SELECT ssn FROM t $$", analysis.DDL, ""},
+		{"SET search_path = hr, public", analysis.Select, ""},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			span, err := resolveSpan(tc.statement)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if span.Type != tc.queryType {
+				t.Errorf("type %s, want %s", span.Type, tc.queryType)
+			}
+			if got := columnNames(span.SourceColumns); got != tc.tables {
+				t.Errorf("tables %q, want %q", got, tc.tables)
+			}
+		})
+	}
+	for _, statement := range []string{
+		"EXPORT INTO CSV 'nodelocal://1/export' FROM SELECT ssn FROM public.t, pg_catalog.pg_class",
+		"ALTER TABLE t SPLIT AT SELECT u.id FROM u, pg_class",
+	} {
+		if _, err := resolveSpan(statement); !errors.Is(err, ErrMixUserSystemTables) {
+			t.Errorf("%s: got %v, want ErrMixUserSystemTables", statement, err)
+		}
 	}
 }
