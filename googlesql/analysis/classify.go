@@ -35,35 +35,6 @@ import (
 	"github.com/bytebase/omni/googlesql/parser"
 )
 
-// Dialect selects the bigquery vs spanner behavior for the three contract
-// divergences. One GoogleSQL parser+AST serves both; this enum carries the
-// per-dialect deltas (system schemas, name-part bucketing, default join type)
-// down into the shared analysis code.
-type Dialect int
-
-const (
-	// DialectBigQuery is Google BigQuery. Metadata model: project.dataset.table
-	// (no schema layer; a dataset is the database). System schema:
-	// INFORMATION_SCHEMA only. Default unqualified join: CROSS.
-	DialectBigQuery Dialect = iota
-	// DialectSpanner is Google Cloud Spanner. Metadata model: db.schema.table
-	// (named schemas under one database). System schemas: INFORMATION_SCHEMA and
-	// SPANNER_SYS. Default unqualified join: INNER.
-	DialectSpanner
-)
-
-// String returns a human-readable dialect name.
-func (d Dialect) String() string {
-	switch d {
-	case DialectBigQuery:
-		return "BIGQUERY"
-	case DialectSpanner:
-		return "SPANNER"
-	default:
-		return "UNKNOWN"
-	}
-}
-
 // QueryType classifies a GoogleSQL statement. The values mirror bytebase's
 // base.QueryType so the bytebase-switch node can map them 1:1 (the legacy
 // queryTypeListener emits exactly this set: Select, DDL, DML, Explain,
@@ -104,7 +75,7 @@ const (
 // (the legacy accessTableListener) rather than re-scanning the source text.
 //
 // A nil or unrecognized node yields Unknown.
-func Classify(node ast.Node, dialect Dialect) QueryType {
+func Classify(node ast.Node) QueryType {
 	if node == nil {
 		return Unknown
 	}
@@ -118,12 +89,12 @@ func Classify(node ast.Node, dialect Dialect) QueryType {
 				return t
 			}
 		}
-		if isAllSystemQuery(node, dialect) {
+		if isAllSystemQuery(node) {
 			return SelectInfoSchema
 		}
 		return Select
 	case *ast.SelectStmt, *ast.SetOperation:
-		if isAllSystemQuery(node, dialect) {
+		if isAllSystemQuery(node) {
 			return SelectInfoSchema
 		}
 		return Select
@@ -139,7 +110,7 @@ func Classify(node ast.Node, dialect Dialect) QueryType {
 		// combined statement is no more classifiable than the head.
 		head := Select
 		if n.Head != nil {
-			head = Classify(n.Head, dialect)
+			head = Classify(n.Head)
 		}
 		return mergeQueryTypes(head, classifyPipe(n.Pipeline))
 
@@ -286,49 +257,28 @@ func mergeQueryTypes(a, b QueryType) QueryType {
 // truncated statement could classify as a read when the engine would execute
 // something else, and Unknown is the verdict that grants nothing. Empty,
 // whitespace, or comment-only input is Unknown as well.
-func ClassifySQL(sql string, dialect Dialect) QueryType {
-	file, err := parseFile(sql, dialect)
+func ClassifySQL(sql string) QueryType {
+	file, err := parseFile(sql)
 	if err != nil {
 		return Unknown
 	}
-	return ClassifyFromFile(file, dialect)
+	return ClassifyFromFile(file)
 }
 
 // ClassifyFromFile classifies the first statement of an already-parsed file.
 // Returns Unknown for a nil/empty file.
-func ClassifyFromFile(file *ast.File, dialect Dialect) QueryType {
+func ClassifyFromFile(file *ast.File) QueryType {
 	if file == nil || len(file.Stmts) == 0 {
 		return Unknown
 	}
-	return Classify(file.Stmts[0], dialect)
+	return Classify(file.Stmts[0])
 }
 
-// parseFile runs the strict GoogleSQL parser in the given dialect. It is the
-// single parse entry point classification, query-span, and limit rewriting
-// share, so they never disagree about which statement is "first" or whether
-// the input parsed at all.
-//
-// For DialectBigQuery, it parses with parser.DialectBigQuery first and falls
-// back to parser.DialectDefault for union-grammar forms in Bytebase's legacy
-// ANTLR corpus (e.g. combined ON/USING in testdata/query-span/). For
-// DialectSpanner, it parses strictly with parser.DialectSpanner so BigQuery-only
-// syntax (such as FROM-first queries) is never misclassified as valid Spanner.
-func parseFile(sql string, dialect Dialect) (*ast.File, error) {
-	switch dialect {
-	case DialectBigQuery:
-		file, err := parser.ParseWithDialect(sql, parser.DialectBigQuery)
-		if err == nil {
-			return file, nil
-		}
-		if fallback, ferr := parser.Parse(sql); ferr == nil {
-			return fallback, nil
-		}
-		return nil, err
-	case DialectSpanner:
-		return parser.ParseWithDialect(sql, parser.DialectSpanner)
-	default:
-		return parser.Parse(sql)
-	}
+// parseFile runs the strict parser. It is the single parse entry point
+// classification, query-span, and limit rewriting share, so they never disagree
+// about which statement is "first" or whether the input parsed at all.
+func parseFile(sql string) (*ast.File, error) {
+	return parser.Parse(sql)
 }
 
 // isAllSystemQuery reports whether a query node reads EXCLUSIVELY from system
@@ -338,8 +288,8 @@ func parseFile(sql string, dialect Dialect) (*ast.File, error) {
 // `SELECT 1`) is NOT all-system (it has no user tables, but the legacy code only
 // returns allSystems when at least one system table is present:
 // `!hasUser && hasSystem`).
-func isAllSystemQuery(node ast.Node, dialect Dialect) bool {
-	tables := collectAccessTables(node, dialect)
+func isAllSystemQuery(node ast.Node) bool {
+	tables := collectAccessTables(node)
 	hasSystem, hasUser := false, false
 	for _, ta := range tables {
 		if ta.IsSystem {
@@ -354,20 +304,15 @@ func isAllSystemQuery(node ast.Node, dialect Dialect) bool {
 // systemSchemas returns the schema names that mark a system/information-schema
 // reference for the given dialect. BigQuery: INFORMATION_SCHEMA only. Spanner:
 // INFORMATION_SCHEMA and SPANNER_SYS (contract.md §4; oracle.md).
-func systemSchemas(dialect Dialect) []string {
-	switch dialect {
-	case DialectSpanner:
-		return []string{"INFORMATION_SCHEMA", "SPANNER_SYS"}
-	default:
-		return []string{"INFORMATION_SCHEMA"}
-	}
+func systemSchemas() []string {
+	return []string{"INFORMATION_SCHEMA", "SPANNER_SYS"}
 }
 
 // isSystemSchemaName reports whether name equals (case-insensitively) one of the
 // dialect's system schema names. Matches the legacy isSystemResource (BigQuery:
 // EqualFold INFORMATION_SCHEMA; Spanner: INFORMATION_SCHEMA OR SPANNER_SYS).
-func isSystemSchemaName(name string, dialect Dialect) bool {
-	for _, s := range systemSchemas(dialect) {
+func isSystemSchemaName(name string) bool {
+	for _, s := range systemSchemas() {
 		if strings.EqualFold(name, s) {
 			return true
 		}

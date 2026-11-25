@@ -65,7 +65,7 @@ func (p *Parser) parseCreatePropertyGraph(create Token, orReplace bool) (ast.Nod
 	// IF NOT EXISTS cannot be used with other existence modifiers such as
 	// `OR REPLACE`"). We follow the oracle: IF NOT EXISTS optional, the pair
 	// rejected. See divergence ledger + the suite:graph-query rows of testdata/compat.tsv.
-	if orReplace && ifNotExists && p.isSpanner() {
+	if orReplace && ifNotExists {
 		return nil, &ParseError{
 			Position: ifTok.Loc.Start, End: ifTok.Loc.End,
 			Message: "syntax error: CREATE PROPERTY GRAPH IF NOT EXISTS cannot be used with OR REPLACE",
@@ -82,20 +82,18 @@ func (p *Parser) parseCreatePropertyGraph(create Token, orReplace bool) (ast.Nod
 	// NODE TABLES <element_table_list> — required in Spanner; optional in
 	// BigQuery/union mode (BigQuery accepts `CREATE PROPERTY GRAPH ds.g` and
 	// `CREATE PROPERTY GRAPH ds.g EDGE TABLES (...)`).
-	if p.cur.Type == kwNODE || p.isSpanner() {
-		if _, err := p.expect(kwNODE); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwTABLES); err != nil {
-			return nil, err
-		}
-		nodeTables, end, err := p.parseElementTableList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.NodeTables = nodeTables
-		stmt.Loc.End = end
+	if _, err := p.expect(kwNODE); err != nil {
+		return nil, err
 	}
+	if _, err := p.expect(kwTABLES); err != nil {
+		return nil, err
+	}
+	nodeTables, end, err := p.parseElementTableList()
+	if err != nil {
+		return nil, err
+	}
+	stmt.NodeTables = nodeTables
+	stmt.Loc.End = end
 
 	// opt_edge_table_clause?  — EDGE TABLES <element_table_list>.
 	if p.cur.Type == kwEDGE {

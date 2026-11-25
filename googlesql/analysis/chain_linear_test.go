@@ -56,14 +56,14 @@ func TestAnalysisChainsStayLinear(t *testing.T) {
 	} {
 		var err error
 		cputime.Within(t, 2*time.Second, fmt.Sprintf("%s: ClassifySQL and GetQuerySpan", tc.name), func() {
-			if got := ClassifySQL(tc.sql, DialectBigQuery); got != Select {
+			if got := ClassifySQL(tc.sql); got != Select {
 				err = fmt.Errorf("ClassifySQL = %v, want %v", got, Select)
 				return
 			}
 			if tc.classifyOnly {
 				return
 			}
-			_, err = GetQuerySpan(tc.sql, DialectBigQuery)
+			_, err = GetQuerySpan(tc.sql)
 		})
 		if err != nil {
 			t.Fatalf("%s: %v", tc.name, err)

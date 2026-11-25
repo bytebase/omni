@@ -46,12 +46,6 @@ func (p *Parser) parseCreateIndex(create Token, orReplace bool, scope string) (a
 			stmt.Unique = true
 			continue
 		case kwNULL_FILTERED:
-			if p.isBigQuery() {
-				return nil, &ParseError{
-					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-					Message: "syntax error: NULL_FILTERED is not a supported object type",
-				}
-			}
 			p.advance()
 			stmt.NullFiltered = true
 			continue
@@ -100,53 +94,15 @@ func (p *Parser) parseCreateIndex(create Token, orReplace bool, scope string) (a
 	// list, which is acceptable for this core node (the dialect index nodes own
 	// the exotic array-index forms).
 
-	// as_alias? (BigQuery index table alias before key list).
-	if !p.isSpanner() && p.cur.Type != int('(') {
-		if alias, ok, err := p.tryParseTableAlias(); err != nil {
-			return nil, err
-		} else if ok {
-			stmt.TableAlias = alias
-		}
-	}
-
 	// index_order_by_and_options: `( column_ordering_and_options_expr, … )` or
 	// `( ALL COLUMNS … )`.
 	if p.cur.Type != int('(') {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if p.peekNext().Type == kwALL {
-		if p.isSpanner() {
-			return nil, &ParseError{
-				Position: p.peekNext().Loc.Start, End: p.peekNext().Loc.End,
-				Message: "syntax error: ALL COLUMNS is not supported in Spanner indexes",
-			}
-		}
-		// index_all_columns: ( ALL COLUMNS [WITH COLUMN OPTIONS ( key_part, … )] ).
-		p.advance() // '('
-		p.advance() // ALL
-		if _, err := p.expect(kwCOLUMNS); err != nil {
-			return nil, err
-		}
-		stmt.AllColumns = true
-		if p.cur.Type == kwWITH {
-			p.advance() // WITH
-			if _, err := p.expect(kwCOLUMN); err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(kwOPTIONS); err != nil {
-				return nil, err
-			}
-			keys, err := p.parseKeyPartList(false)
-			if err != nil {
-				return nil, err
-			}
-			if len(keys) == 0 {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.Keys = keys
-		}
-		if _, err := p.expect(int(')')); err != nil {
-			return nil, err
+		return nil, &ParseError{
+			Position: p.peekNext().Loc.Start, End: p.peekNext().Loc.End,
+			Message: "syntax error: ALL COLUMNS is not supported in Spanner indexes",
 		}
 	} else {
 		keys, err := p.parseKeyPartListWithOptions(false /*index element*/, true /*allowSpannerParenExpr*/)
@@ -159,22 +115,11 @@ func (p *Parser) parseCreateIndex(create Token, orReplace bool, scope string) (a
 	// index_storing_list?  — STORING ( expr, … ). In Spanner, STORING takes column identifiers.
 	if p.cur.Type == kwSTORING {
 		p.advance() // STORING
-		if p.isSpanner() {
-			exprs, err := p.parseStoringIdentList()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Storing = exprs
-		} else {
-			if _, err := p.expect(int('(')); err != nil {
-				return nil, err
-			}
-			exprs, _, err := p.parseExprListThroughParen()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Storing = exprs
+		exprs, err := p.parseStoringIdentList()
+		if err != nil {
+			return nil, err
 		}
+		stmt.Storing = exprs
 	}
 
 	// opt_create_index_statement_suffix?:
@@ -252,51 +197,39 @@ func (p *Parser) parseStoringIdentList() ([]ast.Node, error) {
 // collate_clause? asc_or_desc? null_order? opt_options_list?`. The common case
 // is a bare column reference; the expression is kept in Expr (and Name set when
 // it is a single identifier) so the query-span walker can descend.
-// In DialectSpanner, ordinary CREATE INDEX allows `{ column_name | ( expression ) }`
+// In Spanner, ordinary CREATE INDEX allows `{ column_name | ( expression ) }`
 // (allowSpannerParenExpr=true), while SEARCH/VECTOR indexes require column identifiers.
 func (p *Parser) parseIndexKeyElement(allowSpannerParenExpr bool) (*ast.KeyPart, error) {
 	start := p.cur.Loc
 	var part *ast.KeyPart
-	if p.isSpanner() {
-		if allowSpannerParenExpr && p.cur.Type == int('(') {
-			openTok := p.advance() // '('
-			inner, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			closeTok, err := p.expect(int(')'))
-			if err != nil {
-				return nil, err
-			}
-			part = &ast.KeyPart{
-				Expr: &ast.ParenExpr{Expr: inner, Loc: ast.Loc{Start: openTok.Loc.Start, End: closeTok.Loc.End}},
-				Loc:  ast.Loc{Start: start.Start},
-			}
-		} else {
-			// Spanner index keys are column names (or parenthesized expressions for ordinary indexes).
-			tok, err := p.expectIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			name, err := p.identifierText(tok)
-			if err != nil {
-				return nil, err
-			}
-			part = &ast.KeyPart{
-				Name: name,
-				Expr: &ast.Identifier{Name: name, Loc: tok.Loc},
-				Loc:  ast.Loc{Start: start.Start},
-			}
-		}
-	} else {
-		expr, err := p.parseExpr()
+	if allowSpannerParenExpr && p.cur.Type == int('(') {
+		openTok := p.advance() // '('
+		inner, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
-		part = &ast.KeyPart{Expr: expr, Loc: ast.Loc{Start: start.Start}}
-		// If the expression is a bare single-identifier column, also surface its name.
-		if id, ok := expr.(*ast.Identifier); ok {
-			part.Name = id.Name
+		closeTok, err := p.expect(int(')'))
+		if err != nil {
+			return nil, err
+		}
+		part = &ast.KeyPart{
+			Expr: &ast.ParenExpr{Expr: inner, Loc: ast.Loc{Start: openTok.Loc.Start, End: closeTok.Loc.End}},
+			Loc:  ast.Loc{Start: start.Start},
+		}
+	} else {
+		// Spanner index keys are column names (or parenthesized expressions for ordinary indexes).
+		tok, err := p.expectIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		name, err := p.identifierText(tok)
+		if err != nil {
+			return nil, err
+		}
+		part = &ast.KeyPart{
+			Name: name,
+			Expr: &ast.Identifier{Name: name, Loc: tok.Loc},
+			Loc:  ast.Loc{Start: start.Start},
 		}
 	}
 
@@ -343,21 +276,7 @@ func (p *Parser) parseCreateIndexSuffix(stmt *ast.CreateIndexStmt) error {
 
 	switch p.cur.Type {
 	case kwPARTITION:
-		if p.isSpanner() {
-			return p.syntaxErrorAtCur()
-		}
-		exprs, err := p.parsePartitionByNoHint()
-		if err != nil {
-			return err
-		}
-		stmt.PartitionBy = exprs
-		if p.cur.Type == kwOPTIONS {
-			opts, err := p.parseDDLOptionsList()
-			if err != nil {
-				return err
-			}
-			stmt.Options = opts
-		}
+		return p.syntaxErrorAtCur()
 	case kwOPTIONS:
 		opts, err := p.parseDDLOptionsList()
 		if err != nil {
@@ -385,12 +304,6 @@ func (p *Parser) parseCreateIndexSuffix(stmt *ast.CreateIndexStmt) error {
 // parseIndexInterleave parses a spanner_index_interleave_clause: `, INTERLEAVE IN
 // maybe_dashed_path_expression`. cur is at the ','.
 func (p *Parser) parseIndexInterleave(stmt *ast.CreateIndexStmt) error {
-	if p.isBigQuery() {
-		return &ParseError{
-			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-			Message: "syntax error: INTERLEAVE IN is not supported",
-		}
-	}
 	p.advance() // ','
 	p.advance() // INTERLEAVE
 	if _, err := p.expect(kwIN); err != nil {

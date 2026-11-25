@@ -408,21 +408,10 @@ func (p *Parser) parseIs(left ast.Node) (ast.Node, error) {
 	}
 	// DISTINCT FROM form.
 	if p.cur.Type == kwDISTINCT {
-		if p.isSpanner() {
-			return nil, &ParseError{
-				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: "syntax error: IS DISTINCT FROM is not supported",
-			}
+		return nil, &ParseError{
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "syntax error: IS DISTINCT FROM is not supported",
 		}
-		p.advance() // DISTINCT
-		if _, err := p.expect(kwFROM); err != nil {
-			return nil, err
-		}
-		right, err := p.parseBinaryExpr(bpBitOr)
-		if err != nil {
-			return nil, err
-		}
-		return &ast.IsExpr{Expr: left, Not: not, DistinctFrom: right, Loc: spanNodes(left, right)}, nil
 	}
 	// graph_expression's IS SOURCE / IS DESTINATION / IS LABELED predicates. They
 	// sit at the comparison family's precedence (EDGE_ENDPOINT_PRECEDENCE), so
@@ -2094,12 +2083,6 @@ func (p *Parser) parseNewArg() (*ast.StructFieldExpr, error) {
 // `( path )`; the value expressions are retained for walking. A trailing comma
 // is permitted.
 func (p *Parser) parseBracedConstructor(typeRef *ast.TypeRef) (ast.Node, error) {
-	if p.isBigQuery() {
-		return nil, &ParseError{
-			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-			Message: "syntax error: braced constructors are not supported",
-		}
-	}
 	if err := p.enterNesting(); err != nil {
 		return nil, err
 	}
@@ -2422,14 +2405,6 @@ func (p *Parser) parseUnnestExpression() (ast.Node, error) {
 	n, err := p.parseFuncCallSuffix(name)
 	if err != nil {
 		return nil, err
-	}
-	if !p.isSpanner() {
-		if fc, ok := n.(*ast.FuncCall); ok && len(fc.Args) == 0 {
-			return nil, &ParseError{
-				Position: unnestTok.Loc.Start, End: fc.Loc.End,
-				Message: "syntax error: UNNEST requires at least one argument",
-			}
-		}
 	}
 	return n, nil
 }

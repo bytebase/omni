@@ -242,17 +242,17 @@ type ColumnRef struct {
 // reports through the same error list) that does not fully parse yields an
 // error, never a silently smaller span. On empty input it returns a zero-valued
 // span with Type=Unknown.
-func GetQuerySpan(statement string, dialect Dialect) (*QuerySpan, error) {
-	file, err := parseFile(statement, dialect)
+func GetQuerySpan(statement string) (*QuerySpan, error) {
+	file, err := parseFile(statement)
 	if err != nil {
 		return nil, parser.FirstError(err)
 	}
-	span := &QuerySpan{Type: ClassifyFromFile(file, dialect)}
+	span := &QuerySpan{Type: ClassifyFromFile(file)}
 	if file == nil || len(file.Stmts) == 0 {
 		return span, nil
 	}
 
-	w := newSpanWalker(span, dialect)
+	w := newSpanWalker(span)
 	w.analyzeStmt(file.Stmts[0])
 	// Fail closed (structural rule): a shape the walker accepted but could not
 	// resolve to CORRECT lineage (NATURAL JOIN, a USING join over a deferred
@@ -328,7 +328,6 @@ func (s *cteScope) cteColumns(name string) ([]projColumn, bool) {
 // right.results[i].sources.
 type spanWalker struct {
 	span        *QuerySpan
-	dialect     Dialect
 	scope       *cteScope
 	fromAliases map[string]bool // alias + bare table name of the current SELECT's FROM sources
 	// leaves is the current SELECT's leaf FROM relations (base tables, CTE
@@ -384,10 +383,9 @@ type tableKey struct {
 	Alias    string
 }
 
-func newSpanWalker(span *QuerySpan, dialect Dialect) *spanWalker {
+func newSpanWalker(span *QuerySpan) *spanWalker {
 	return &spanWalker{
 		span:     span,
-		dialect:  dialect,
 		leaves:   &leafSet{},
 		accessed: make(map[tableKey]bool),
 		predSeen: make(map[ColumnRef]bool),
@@ -1551,7 +1549,7 @@ func (w *spanWalker) buildTableExpr(n *ast.TableExpr) *relation {
 		// the source's alias so a chained correlated path off it (`t.arr a,
 		// a.child`) is likewise recognized.
 		if len(n.Path.Parts) >= 2 && w.fromAliases[strings.ToLower(n.Path.Parts[0])] {
-			w.addPredicateColumn(columnRefFromParts(n.Path.Parts, w.dialect))
+			w.addPredicateColumn(columnRefFromParts(n.Path.Parts))
 			_, sources := w.resolvePath(n.Path.Parts)
 			elem := projColumn{name: n.Path.Parts[len(n.Path.Parts)-1], sources: sources}
 			rel = w.finishUnnestRelation([]projColumn{elem}, n.Alias, n.WithOffset, n.WithOffsetAlias)
@@ -1646,7 +1644,7 @@ func (w *spanWalker) buildPathRelation(path *ast.PathExpr, alias string) *relati
 	if path == nil || len(path.Parts) == 0 {
 		return nil
 	}
-	cat, db, schema, table := bucketNameParts(path.Parts, w.dialect)
+	cat, db, schema, table := bucketNameParts(path.Parts)
 	refName := alias
 	if refName == "" {
 		refName = table
@@ -2033,7 +2031,7 @@ func (w *spanWalker) recordParts(parts []string, alias string, loc ast.Loc) {
 		return
 	}
 
-	cat, db, schema, table := bucketNameParts(parts, w.dialect)
+	cat, db, schema, table := bucketNameParts(parts)
 
 	ta := TableAccess{
 		Catalog:  cat,
@@ -2098,7 +2096,7 @@ func (w *spanWalker) recordParts(parts []string, alias string, loc ast.Loc) {
 //     leading part is captured as Catalog for the BigQuery info-schema shape
 //     (project.dataset.INFORMATION_SCHEMA.VIEW), otherwise dropped (no
 //     meaningful deeper qualifier exists in either model).
-func bucketNameParts(parts []string, dialect Dialect) (catalog, database, schema, table string) {
+func bucketNameParts(parts []string) (catalog, database, schema, table string) {
 	n := len(parts)
 	if n == 0 {
 		return "", "", "", ""
@@ -2110,43 +2108,16 @@ func bucketNameParts(parts []string, dialect Dialect) (catalog, database, schema
 
 	mid := parts[n-2] // 2nd-to-last
 	if n == 2 {
-		if dialect == DialectBigQuery {
-			if isSystemSchemaName(mid, dialect) {
-				schema = mid
-			} else {
-				database = mid
-			}
-		} else {
-			schema = mid
-		}
+		schema = mid
 		return catalog, database, schema, table
 	}
 
 	// n >= 3.
 	outer := parts[n-3] // 3rd-to-last
-	if dialect == DialectBigQuery {
-		if isSystemSchemaName(mid, dialect) {
-			// [project.](dataset|region.)INFORMATION_SCHEMA.VIEW — INFORMATION_SCHEMA
-			// is the Schema, the part before it is the dataset/region (Database), and
-			// (when present, n>=4) the part before THAT is the project (Catalog). The
-			// project must be captured so two projects' INFORMATION_SCHEMA do not
-			// collapse to one access identity (re-review finding #2).
-			schema = mid
-			database = outer
-			if n >= 4 {
-				catalog = parts[n-4]
-			}
-		} else {
-			// project.dataset.table: dataset is Database, project is Catalog.
-			database = mid
-			catalog = outer
-		}
-	} else {
-		// Spanner db.schema.table: schema is Schema, db is Database (no
-		// catalog/project layer).
-		schema = mid
-		database = outer
-	}
+	// Spanner db.schema.table: schema is Schema, db is Database (no
+	// catalog/project layer).
+	schema = mid
+	database = outer
 	return catalog, database, schema, table
 }
 
@@ -2156,7 +2127,7 @@ func bucketNameParts(parts []string, dialect Dialect) (catalog, database, schema
 // SPANNER_SYS). For Spanner, SPANNER_SYS appears as the table's Schema (e.g.
 // SPANNER_SYS.X → Schema=SPANNER_SYS); for both, INFORMATION_SCHEMA does too.
 func (w *spanWalker) tableIsSystem(ta TableAccess) bool {
-	return isSystemSchemaName(ta.Schema, w.dialect)
+	return isSystemSchemaName(ta.Schema)
 }
 
 // ---------------------------------------------------------------------------
@@ -2257,7 +2228,7 @@ func (ew *exprWalk) walk(node ast.Node) {
 		ew.emit(ColumnRef{Column: e.Name})
 		ew.emitParts([]string{e.Name})
 	case *ast.PathExpr:
-		ew.emit(columnRefFromParts(e.Parts, ew.w.dialect))
+		ew.emit(columnRefFromParts(e.Parts))
 		ew.emitParts(e.Parts)
 	case *ast.FieldAccess:
 		// A dotted name (t.a / a.b.c) is a FieldAccess chain over a leading
@@ -2268,7 +2239,7 @@ func (ew *exprWalk) walk(node ast.Node) {
 			return
 		}
 		if parts, _, base := fieldAccessPath(e); parts != nil {
-			ew.emit(columnRefFromParts(parts, ew.w.dialect))
+			ew.emit(columnRefFromParts(parts))
 			ew.emitParts(parts)
 		} else {
 			ew.walk(base)
@@ -2867,14 +2838,14 @@ func fieldAccessPath(f *ast.FieldAccess) (parts []string, outer int, base ast.No
 // TableAccess (the consistency Codex finding #1 flagged). E.g. BigQuery
 // `proj.ds.t.c` → {Catalog:proj, Database:ds, Table:t, Column:c}, matching the
 // TableAccess for `proj.ds.t`.
-func columnRefFromParts(parts []string, dialect Dialect) ColumnRef {
+func columnRefFromParts(parts []string) ColumnRef {
 	n := len(parts)
 	if n == 0 {
 		return ColumnRef{}
 	}
 	ref := ColumnRef{Column: parts[n-1]}
 	if n >= 2 {
-		ref.Catalog, ref.Database, ref.Schema, ref.Table = bucketNameParts(parts[:n-1], dialect)
+		ref.Catalog, ref.Database, ref.Schema, ref.Table = bucketNameParts(parts[:n-1])
 	}
 	return ref
 }
@@ -2898,9 +2869,9 @@ func rootName(ref ColumnRef) string {
 // collectAccessTables runs a lightweight access-table-only pass over a statement
 // node and returns its TableAccess set. Used by Classify's isAllSystemQuery to
 // decide SelectInfoSchema without building a full span.
-func collectAccessTables(node ast.Node, dialect Dialect) []TableAccess {
+func collectAccessTables(node ast.Node) []TableAccess {
 	span := &QuerySpan{}
-	w := newSpanWalker(span, dialect)
+	w := newSpanWalker(span)
 	w.tablesOnly = true
 	w.analyzeStmt(node)
 	return span.AccessTables

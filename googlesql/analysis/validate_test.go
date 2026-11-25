@@ -135,66 +135,52 @@ func TestValidateQueryShared(t *testing.T) {
 		{name: "select then syntax error", sql: "SELECT 1; SELECT FROM", wantErr: true},
 	}
 
-	for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
-		for _, tc := range tests {
-			t.Run(dialect.String()+"/"+tc.name, func(t *testing.T) {
-				readOnly, returnsData, err := ValidateQuery(tc.sql, dialect)
-				if tc.wantErr {
-					require.Error(t, err, "sql: %s", tc.sql)
-					require.False(t, readOnly)
-					require.False(t, returnsData)
-					var perr *parser.ParseError
-					require.ErrorAs(t, err, &perr)
-					return
-				}
-				require.NoError(t, err, "sql: %s", tc.sql)
-				require.Equal(t, tc.readOnly, readOnly, "readOnly for %q", tc.sql)
-				require.Equal(t, tc.returnsData, returnsData, "returnsData for %q", tc.sql)
-			})
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			readOnly, returnsData, err := ValidateQuery(tc.sql)
+			if tc.wantErr {
+				require.Error(t, err, "sql: %s", tc.sql)
+				require.False(t, readOnly)
+				require.False(t, returnsData)
+				var perr *parser.ParseError
+				require.ErrorAs(t, err, &perr)
+				return
+			}
+			require.NoError(t, err, "sql: %s", tc.sql)
+			require.Equal(t, tc.readOnly, readOnly, "readOnly for %q", tc.sql)
+			require.Equal(t, tc.returnsData, returnsData, "returnsData for %q", tc.sql)
+		})
 	}
 }
 
 func TestValidateQueryDialectSpecific(t *testing.T) {
 	tests := []struct {
 		name        string
-		dialect     Dialect
 		sql         string
 		readOnly    bool
 		returnsData bool
 		wantErr     bool
 	}{
 		// BigQuery-specific syntax
-		{name: "bigquery from-first pipe query", dialect: DialectBigQuery, sql: "FROM t |> WHERE x > 1 |> SELECT x", readOnly: true, returnsData: true},
-		{name: "bigquery qualify", dialect: DialectBigQuery, sql: "SELECT x FROM t QUALIFY ROW_NUMBER() OVER (ORDER BY x) = 1", readOnly: true, returnsData: true},
-		{name: "bigquery truncate is write", dialect: DialectBigQuery, sql: "TRUNCATE TABLE ds.t"},
-		{name: "bigquery create table is write", dialect: DialectBigQuery, sql: "CREATE TABLE ds.t (a INT64)"},
-		{name: "bigquery create table with inline pk is write", dialect: DialectBigQuery, sql: "CREATE TABLE ds.t (a INT64, PRIMARY KEY (a) NOT ENFORCED)"},
-		{name: "bigquery declare is write", dialect: DialectBigQuery, sql: "DECLARE x INT64 DEFAULT 1"},
-		{name: "bigquery if script is write", dialect: DialectBigQuery, sql: "IF TRUE THEN SELECT 1; END IF"},
-		{name: "bigquery begin end block is write", dialect: DialectBigQuery, sql: "BEGIN SELECT 1; END;"},
-		{name: "bigquery for update is syntax error", dialect: DialectBigQuery, sql: "SELECT * FROM t FOR UPDATE", wantErr: true},
-		{name: "bigquery from-first pipe insert is write", dialect: DialectBigQuery, sql: "FROM t |> INSERT dest (x)"},
 
 		// Spanner-specific syntax
-		{name: "spanner qualify as table alias", dialect: DialectSpanner, sql: "SELECT qualify.a FROM t qualify", readOnly: true, returnsData: true},
-		{name: "spanner create table is write", dialect: DialectSpanner, sql: "CREATE TABLE t (a INT64) PRIMARY KEY (a)"},
-		{name: "spanner for update rejected as non-read-only", dialect: DialectSpanner, sql: "SELECT * FROM t FOR UPDATE"},
-		{name: "spanner subquery for update rejected", dialect: DialectSpanner, sql: "SELECT * FROM (SELECT * FROM t FOR UPDATE)"},
-		{name: "spanner scalar subquery for update rejected", dialect: DialectSpanner, sql: "SELECT (SELECT a FROM t FOR UPDATE)"},
-		{name: "spanner explain for update rejected", dialect: DialectSpanner, sql: "EXPLAIN SELECT * FROM t FOR UPDATE"},
-		{name: "spanner create change stream is write", dialect: DialectSpanner, sql: "CREATE CHANGE STREAM cs FOR ALL"},
-		{name: "spanner rejects describe with pipe", dialect: DialectSpanner, sql: "DESCRIBE t |> AGGREGATE COUNT(*)", wantErr: true},
-		{name: "spanner rejects begin end block", dialect: DialectSpanner, sql: "BEGIN SELECT 1; END;", wantErr: true},
-		{name: "spanner rejects bigquery from-first", dialect: DialectSpanner, sql: "FROM t |> SELECT x", wantErr: true},
-		{name: "spanner rejects bigquery qualify clause", dialect: DialectSpanner, sql: "SELECT x FROM t QUALIFY ROW_NUMBER() OVER (ORDER BY x) = 1", wantErr: true},
-		{name: "spanner rejects truncate", dialect: DialectSpanner, sql: "TRUNCATE TABLE t", wantErr: true},
-		{name: "spanner rejects declare", dialect: DialectSpanner, sql: "DECLARE x INT64 DEFAULT 1", wantErr: true},
+		{name: "spanner qualify as table alias", sql: "SELECT qualify.a FROM t qualify", readOnly: true, returnsData: true},
+		{name: "spanner create table is write", sql: "CREATE TABLE t (a INT64) PRIMARY KEY (a)"},
+		{name: "spanner for update rejected as non-read-only", sql: "SELECT * FROM t FOR UPDATE"},
+		{name: "spanner subquery for update rejected", sql: "SELECT * FROM (SELECT * FROM t FOR UPDATE)"},
+		{name: "spanner scalar subquery for update rejected", sql: "SELECT (SELECT a FROM t FOR UPDATE)"},
+		{name: "spanner explain for update rejected", sql: "EXPLAIN SELECT * FROM t FOR UPDATE"},
+		{name: "spanner create change stream is write", sql: "CREATE CHANGE STREAM cs FOR ALL"},
+		{name: "spanner rejects describe with pipe", sql: "DESCRIBE t |> AGGREGATE COUNT(*)", wantErr: true},
+		{name: "spanner rejects begin end block", sql: "BEGIN SELECT 1; END;", wantErr: true},
+		{name: "spanner rejects bigquery from-first", sql: "FROM t |> SELECT x", wantErr: true},
+		{name: "spanner rejects bigquery qualify clause", sql: "SELECT x FROM t QUALIFY ROW_NUMBER() OVER (ORDER BY x) = 1", wantErr: true},
+		{name: "spanner rejects declare", sql: "DECLARE x INT64 DEFAULT 1", wantErr: true},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			readOnly, returnsData, err := ValidateQuery(tc.sql, tc.dialect)
+			readOnly, returnsData, err := ValidateQuery(tc.sql)
 			if tc.wantErr {
 				require.Error(t, err, "sql: %s", tc.sql)
 				require.False(t, readOnly)
@@ -211,6 +197,6 @@ func TestValidateQueryDialectSpecific(t *testing.T) {
 func TestClassifySQLDialectSpanner(t *testing.T) {
 	// Spanner-specific syntax that requires parser.DialectSpanner:
 	// unreserved QUALIFY table alias and LANGUAGE REMOTE functions.
-	require.Equal(t, Select, ClassifySQL("SELECT qualify.a FROM t qualify", DialectSpanner))
-	require.Equal(t, DDL, ClassifySQL("CREATE FUNCTION f(x INT64) RETURNS INT64 LANGUAGE REMOTE OPTIONS (endpoint='https://example.com')", DialectSpanner))
+	require.Equal(t, Select, ClassifySQL("SELECT qualify.a FROM t qualify"))
+	require.Equal(t, DDL, ClassifySQL("CREATE FUNCTION f(x INT64) RETURNS INT64 LANGUAGE REMOTE OPTIONS (endpoint='https://example.com')"))
 }

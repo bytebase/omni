@@ -50,7 +50,11 @@ func TestCorpusSpannerDifferential(t *testing.T) {
 		if !strings.HasPrefix(b.File, "spanner/") {
 			continue
 		}
-		if _, ok := officialCorpusSkips[b.Key()]; ok {
+		// A RESIDUAL GAP block is asked and must still diverge: the test fails
+		// once omni agrees, so the skip entry is removed with the fix.
+		reason, skip := officialCorpusSkips[b.Key()]
+		gap := skip && strings.HasPrefix(reason, "RESIDUAL GAP")
+		if skip && !gap {
 			skippedB++
 			continue
 		}
@@ -88,6 +92,12 @@ func TestCorpusSpannerDifferential(t *testing.T) {
 				omniAccepts := len(errs) == 0
 
 				checked++
+				if gap {
+					if omniAccepts == oracleAccepts {
+						t.Errorf("GAP CLOSED on %q (%s): omni now agrees with the oracle — remove %s from officialCorpusSkips", stmt, b.Label(), b.Key())
+					}
+					return
+				}
 				if omniAccepts != oracleAccepts {
 					t.Errorf("DIVERGENCE on %q (%s): omni accepts=%v, oracle accepts=%v (%s: %s); omni errs=%v",
 						stmt, b.Label(), omniAccepts, oracleAccepts, v.Reason, v.Message, errs)
@@ -195,7 +205,7 @@ var corpusDifferentialNonAuthoritative = map[string]string{
 	"spanner/ddl.md#21":         "UNION FORM: CREATE OR REPLACE VIEW … SQL SECURITY DEFINER — Spanner emulator supports only INVOKER, but DEFINER is in the legacy .g4 opt_sql_security_clause (INVOKER|DEFINER) and is valid in the BigQuery+Spanner union. omni accepts.",
 	"spanner/ddl.md#33":         "EMULATOR LIMITATION: GRANT SELECT (cols) ON TABLE … TO ROLE … — emulator: \"Emulator does not yet support column level access controls\" (parsed, feature unimplemented), not a grammar reject. omni accepts.",
 	"spanner/expressions.md#17": "EMULATOR LIMITATION: SELECT STRUCT(...) / SELECT (1,2,3) — emulator returns Unimplemented \"A struct value cannot be returned as a column value\" on execution, so the oracle yields no verdict (ERROR). Statement parses fine on omni.",
-	"spanner/query.md#22":       "GRAMMAR REFUSAL: SELECT … QUALIFY rn = 1 — Spanner's docs show QUALIFY, but the pinned emulator leaves FEATURE_QUALIFY off and GoogleSQL's grammar refuses it (\"QUALIFY is not supported\", googlesql.tm:8461). omni accepts.",
+	"spanner/query.md#22":       "GRAMMAR REFUSAL: SELECT … QUALIFY rn = 1 — Spanner's docs show QUALIFY, but the pinned emulator leaves FEATURE_QUALIFY off and GoogleSQL's grammar refuses it (\"QUALIFY is not supported\", googlesql.tm:8461). omni rejects too; the block stays out of the comparison.",
 	"spanner/expressions.md#39": "UNION FORM: SELECT TREAT(col AS `pkg.Type`) — proto-type-conversion expression; emulator rejects (\"Unexpected keyword TREAT\") but TREAT is accepted by omni's expression grammar (legacy/bq union). omni accepts.",
 	"spanner/ddl.md#54":         "UNION FORM: CREATE TABLE … (col INT64 DEFAULT (GET_NEXT_SEQUENCE_VALUE(SEQUENCE Seq)) NOT NULL) — the emulator rejects the DEFAULT-(seq-expr)-then-NOT NULL column-attribute ordering (Error parsing Spanner DDL statement, col 89), the same construct class as the DOC-REJECTED spanner/ddl.md#53 (DEFAULT (NEXT VALUE FOR Seq) NOT NULL). omni accepts the union-permissive attribute order, consistent with parser-ddl's established behavior. Surfaced once comment-led statements were no longer skipped.",
 	"spanner/ddl.md#48":         "UNION FORM: ALTER SEARCH INDEX … {ADD|DROP} STORED COLUMN (DDL-049, documented Spanner DDL reference) — the live emulator (sha256:caf1bd24) syntax-rejects it (\"Encountered 'SEARCH' while parsing: alter_statement\"); its grammar is a subset that lags the docs. omni accepts the documented union form (alter_table.go AlterSearchIndex), triangulated against the Spanner DDL reference + legacy .g4 (schema_object_kind has INDEX but not SEARCH INDEX). Non-authoritative reject; recorded as divergence #203 and asserted in the the suite:bq-ddl rows of testdata/compat.tsv triangulation guard.",

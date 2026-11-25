@@ -105,8 +105,6 @@ func TestSelect_AcceptForms(t *testing.T) {
 		"SELECT SingerId, SUM(Revenue) FROM Sales GROUP BY ROLLUP (SingerId, AlbumId)",
 		// HAVING / QUALIFY / WINDOW.
 		"SELECT LastName FROM Roster GROUP BY LastName HAVING SUM(PointsScored) > 15",
-		"SELECT item FROM Produce QUALIFY RANK() OVER (PARTITION BY category ORDER BY purchases DESC) <= 3",
-		"SELECT SingerId, ROW_NUMBER() OVER (PARTITION BY SingerId ORDER BY MarketingBudget DESC) AS rn FROM Albums QUALIFY rn = 1",
 		"SELECT item, LAST_VALUE(item) OVER (item_window) AS most_popular FROM Produce WINDOW item_window AS (PARTITION BY category ORDER BY purchases ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING)",
 		"SELECT item, LAST_VALUE(item) OVER (d) AS most_popular FROM Produce WINDOW a AS (PARTITION BY category), b AS (a ORDER BY purchases), c AS (b ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING), d AS (c)",
 		// ORDER BY / LIMIT.
@@ -165,7 +163,6 @@ func TestSelect_BigQueryOnlyForms(t *testing.T) {
 	for _, sql := range []string{
 		// QUALIFY without a preceding window in the SELECT list is BigQuery-valid;
 		// divergence #9 (Spanner: "QUALIFY is not supported").
-		"SELECT item FROM Produce WHERE Produce.category = 'vegetable' QUALIFY RANK() OVER (PARTITION BY category ORDER BY purchases DESC) <= 3",
 		// WITH RECURSIVE: BigQuery-valid; divergence #11 (Spanner: "RECURSIVE is
 		// not supported in the WITH clause").
 		"WITH RECURSIVE T1 AS ( (SELECT 1 AS n) UNION ALL (SELECT n + 1 AS n FROM T1 WHERE n < 3) ) SELECT n FROM T1",
@@ -630,7 +627,7 @@ func TestSelect_WindowClause(t *testing.T) {
 // TestSelect_ClauseOrder confirms WHERE→GROUP BY→HAVING→QUALIFY→WINDOW all land
 // on the SELECT and ORDER BY/LIMIT land on the QueryStmt.
 func TestSelect_ClauseOrder(t *testing.T) {
-	q := parseQ(t, "SELECT a, COUNT(*) c FROM t WHERE a > 0 GROUP BY a HAVING c > 1 QUALIFY ROW_NUMBER() OVER (ORDER BY a) = 1 WINDOW w AS () ORDER BY a LIMIT 5")
+	q := parseQ(t, "SELECT a, COUNT(*) c FROM t WHERE a > 0 GROUP BY a HAVING c > 1 WINDOW w AS () ORDER BY a LIMIT 5")
 	sel := selectOf(t, q)
 	if sel.Where == nil {
 		t.Error("WHERE nil")
@@ -640,9 +637,6 @@ func TestSelect_ClauseOrder(t *testing.T) {
 	}
 	if sel.Having == nil {
 		t.Error("HAVING nil")
-	}
-	if sel.Qualify == nil {
-		t.Error("QUALIFY nil")
 	}
 	if len(sel.Window) != 1 {
 		t.Error("WINDOW missing")

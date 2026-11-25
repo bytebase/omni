@@ -22,11 +22,6 @@ func TestStatementWhereRequireUpdateDelete(t *testing.T) {
 		{name: "where true is a where", sql: "UPDATE ds.t SET a = 1 WHERE TRUE;"},
 		{name: "delete with where", sql: "DELETE FROM ds.t WHERE a = 1;"},
 		{
-			name: "nested in script block",
-			sql:  "BEGIN\n  UPDATE ds.t SET a = 1;\n  IF TRUE THEN DELETE FROM ds.t; END IF;\nEND;",
-			want: []stmtFinding{missing("UPDATE", "UPDATE ds.t SET a = 1"), missing("DELETE", "DELETE FROM ds.t")},
-		},
-		{
 			name: "merge actions not judged",
 			sql:  "MERGE ds.t AS t USING ds.s AS s ON t.id = s.id\nWHEN MATCHED THEN UPDATE SET a = s.a\nWHEN NOT MATCHED BY SOURCE THEN DELETE;",
 		},

@@ -7,7 +7,7 @@ import (
 	metadatapb "github.com/bytebase/omni/metadata"
 )
 
-// Dump writes nothing. googlesql has no catalog that renders a synced schema back
+// Dump writes nothing. bigquery has no catalog that renders a synced schema back
 // into DDL, and a BigQuery dataset's DDL is not what the sync read: a synced table
 // carries its columns, comment, row count and data size, and not the partitioning,
 // clustering, labels, expiration or view query a CREATE TABLE or CREATE VIEW

@@ -36,7 +36,7 @@ func resolvedSources(info ColumnInfo) []string {
 // under-attribution guard: a `*` over `WITH c AS (SELECT email FROM users)` must
 // surface only email, never ssn/name.
 func TestProjection_CTESubsetThenStar(t *testing.T) {
-	span, err := GetQuerySpan("WITH c AS (SELECT email FROM users) SELECT * FROM c", DialectBigQuery)
+	span, err := GetQuerySpan("WITH c AS (SELECT email FROM users) SELECT * FROM c")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestProjection_CTESubsetThenStar(t *testing.T) {
 // subquery's resolved projection (its explicit columns), not the base table's
 // columns.
 func TestProjection_DerivedStar(t *testing.T) {
-	span, err := GetQuerySpan("SELECT * FROM (SELECT a, b FROM t) d", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT * FROM (SELECT a, b FROM t) d")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestProjection_DerivedStar(t *testing.T) {
 // resolves to the base column people.ID, while a sibling `*` reproduces the whole
 // base-table star (one StarSegment over people).
 func TestProjection_DerivedQualifiedColumnAndStar(t *testing.T) {
-	span, err := GetQuerySpan("WITH A AS (SELECT * FROM people) SELECT result.ID, * FROM (SELECT * FROM A) result", DialectBigQuery)
+	span, err := GetQuerySpan("WITH A AS (SELECT * FROM people) SELECT result.ID, * FROM (SELECT * FROM A) result")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestProjection_DerivedQualifiedColumnAndStar(t *testing.T) {
 func TestProjection_SetOpMergesResolvedCTEs(t *testing.T) {
 	sql := "WITH a AS (SELECT id, name FROM users), b AS (SELECT pid, label FROM members) " +
 		"SELECT * FROM a UNION ALL SELECT * FROM b"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestProjection_SetOpMergesResolvedCTEs(t *testing.T) {
 // lineage AND attaches a StarMerge so the consumer expands the base table and
 // position-merges its i-th column (omni cannot know the base table's arity).
 func TestProjection_SetOpConcreteAndBaseStarArm(t *testing.T) {
-	span, err := GetQuerySpan("SELECT a, b FROM t1 UNION ALL SELECT * FROM t2", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT a, b FROM t1 UNION ALL SELECT * FROM t2")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -164,7 +164,7 @@ func TestProjection_SetOpConcreteAndBaseStarArm(t *testing.T) {
 // is a single base-table-star segment (the consumer enumerates the columns), not
 // a flat set of concrete columns omni cannot know.
 func TestProjection_BaseTableStarSegment(t *testing.T) {
-	span, err := GetQuerySpan("SELECT * FROM people", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT * FROM people")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -182,7 +182,7 @@ func TestProjection_BaseTableStarSegment(t *testing.T) {
 // star inlines its segments), with the legacy join plain-field rule — the LEFT/
 // anchor side's columns are NOT plain, the right side's are.
 func TestProjection_StarOverJoinSegmentsAndPlainness(t *testing.T) {
-	span, err := GetQuerySpan("SELECT * FROM a JOIN b ON a.id = b.aid", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT * FROM a JOIN b ON a.id = b.aid")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -213,7 +213,7 @@ func TestProjection_StarOverJoinSegmentsAndPlainness(t *testing.T) {
 func TestProjection_QualifiedColumnThroughCTE(t *testing.T) {
 	sql := "WITH c AS (SELECT id, parent_id FROM nodes) " +
 		"SELECT x.id, y.parent_id FROM c x JOIN c y ON x.parent_id = y.id"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -234,7 +234,7 @@ func TestProjection_RecursiveCTEFixpoint(t *testing.T) {
 		"(SELECT a AS c1, b AS c2, c AS c3 FROM t) " +
 		"UNION ALL SELECT c1*c2, c2+c1, c3*c2 FROM c" +
 		") SELECT c1, c2, c3 FROM c"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -251,51 +251,11 @@ func TestProjection_RecursiveCTEFixpoint(t *testing.T) {
 	}
 }
 
-// TestProjection_StructFieldRootIsColumn: a `s.field` / `s.a.b` where `s` is not a
-// FROM relation resolves `s` as a (struct) column of the base table, dropping the
-// trailing field path — the legacy a-as-column field-path behaviour.
-func TestProjection_StructFieldRootIsColumn(t *testing.T) {
-	for _, sql := range []string{"SELECT s.field FROM t", "SELECT s.a.b FROM t"} {
-		span, err := GetQuerySpan(sql, DialectBigQuery)
-		if err != nil {
-			t.Fatalf("%q error: %v", sql, err)
-		}
-		if len(span.Results) != 1 {
-			t.Fatalf("%q got %d results, want 1", sql, len(span.Results))
-		}
-		if !strings.EqualFold(span.Results[0].Name, "s") {
-			t.Errorf("%q name = %q, want s (the struct column root)", sql, span.Results[0].Name)
-		}
-		if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"t.s"}) {
-			t.Errorf("%q sources = %v, want [t.s] (struct root attributed to its sole base relation)", sql, got)
-		}
-	}
-}
-
-// TestProjection_QualifiedColumnKeepsDialectBuckets: a fully-qualified column whose
-// qualifier names a FROM base table (`proj.ds.t.c`) keeps its dialect-bucketed
-// qualifier so it lines up with that table's access, rather than being misread as
-// a struct-column root.
-func TestProjection_QualifiedColumnKeepsDialectBuckets(t *testing.T) {
-	span, err := GetQuerySpan("SELECT proj.ds.t.c FROM proj.ds.t", DialectBigQuery)
-	if err != nil {
-		t.Fatalf("error: %v", err)
-	}
-	if len(span.Results) != 1 || len(span.Results[0].SourceColumns) != 1 {
-		t.Fatalf("want 1 result with 1 source, got %+v", span.Results)
-	}
-	c := span.Results[0].SourceColumns[0]
-	if c.Catalog != "proj" || c.Database != "ds" || c.Table != "t" || c.Column != "c" {
-		t.Errorf("ref = {Catalog:%q Database:%q Schema:%q Table:%q Column:%q}, want {proj ds \"\" t c}",
-			c.Catalog, c.Database, c.Schema, c.Table, c.Column)
-	}
-}
-
 // TestProjection_CTEReferenceRecorded: a CTE reference (`FROM c`) is recorded in
 // CTEReferences (not AccessTables), so the consumer can surface it in the
 // table-level source set while never column-expanding it.
 func TestProjection_CTEReferenceRecorded(t *testing.T) {
-	span, err := GetQuerySpan("WITH c AS (SELECT id FROM users) SELECT id FROM c", DialectBigQuery)
+	span, err := GetQuerySpan("WITH c AS (SELECT id FROM users) SELECT id FROM c")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -311,7 +271,7 @@ func TestProjection_CTEReferenceRecorded(t *testing.T) {
 // of the lambda-parameter exclusion: a bound lambda parameter must not appear in
 // a resolved select item's source lineage (only the free columns do).
 func TestProjection_LambdaParamExcludedFromResolvedLineage(t *testing.T) {
-	span, err := GetQuerySpan("SELECT ARRAY_TRANSFORM(arr, e -> e + threshold) AS r FROM t", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT ARRAY_TRANSFORM(arr, e -> e + threshold) AS r FROM t")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -340,7 +300,7 @@ func TestProjection_LambdaParamExcludedFromResolvedLineage(t *testing.T) {
 // from BOTH sides), then one base-table star per side carrying the key in its
 // ExceptColumns so the consumer's expansion skips it.
 func TestProjection_JoinUsingStarCoalescesLowercase(t *testing.T) {
-	span, err := GetQuerySpan("SELECT * FROM lt JOIN rt USING (k)", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT * FROM lt JOIN rt USING (k)")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -384,7 +344,7 @@ func TestProjection_JoinUsingStarCoalescesLowercase(t *testing.T) {
 // (GoogleSQL identifier rule): an uppercase-written `USING (K)` coalesces the
 // same way (this is also the legacy-recordable corpus shape).
 func TestProjection_JoinUsingCaseInsensitive(t *testing.T) {
-	span, err := GetQuerySpan("SELECT * FROM lt JOIN rt USING (K)", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT * FROM lt JOIN rt USING (K)")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -401,7 +361,7 @@ func TestProjection_JoinUsingCaseInsensitive(t *testing.T) {
 // the outer join's keys come first, then the left side's remaining columns
 // (which start with the inner join's coalesced keys), then the right side's.
 func TestProjection_JoinUsingMultiKeyAndChain(t *testing.T) {
-	span, err := GetQuerySpan("SELECT * FROM a JOIN b USING (k, j) JOIN c USING (m)", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT * FROM a JOIN b USING (k, j) JOIN c USING (m)")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -444,7 +404,7 @@ func TestProjection_JoinUsingMultiKeyAndChain(t *testing.T) {
 func TestProjection_JoinUsingConcreteSides(t *testing.T) {
 	sql := "WITH lc AS (SELECT lk AS k, note FROM t1), rc AS (SELECT rk AS k, sec FROM t2) " +
 		"SELECT * FROM lc JOIN rc USING (k)"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -466,7 +426,7 @@ func TestProjection_JoinUsingConcreteSides(t *testing.T) {
 // derived table keeps its star-group (the key joins its EXCEPT set; the key's
 // lineage is read from the group's segments).
 func TestProjection_JoinUsingStarGroupSide(t *testing.T) {
-	span, err := GetQuerySpan("SELECT * FROM (SELECT * EXCEPT (x) FROM a) d JOIN b USING (k)", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT * FROM (SELECT * EXCEPT (x) FROM a) d JOIN b USING (k)")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -497,7 +457,7 @@ func TestProjection_JoinUsingStarGroupSide(t *testing.T) {
 // fails closed (structural rule: correct lineage or an error, never silent
 // misalignment for shapes legacy could not parse).
 func TestProjection_NaturalJoinFailsClosed(t *testing.T) {
-	if _, err := GetQuerySpan("SELECT * FROM a NATURAL JOIN b", DialectBigQuery); err == nil {
+	if _, err := GetQuerySpan("SELECT * FROM a NATURAL JOIN b"); err == nil {
 		t.Fatalf("NATURAL JOIN: want a fail-closed error, got nil")
 	}
 }
@@ -508,7 +468,7 @@ func TestProjection_NaturalJoinFailsClosed(t *testing.T) {
 // analysis fails closed rather than emitting misaligned lineage.
 func TestProjection_JoinUsingDeferredSideFailsClosed(t *testing.T) {
 	sql := "SELECT * FROM (SELECT a, b FROM t UNION ALL SELECT * FROM u) d JOIN r USING (a)"
-	if _, err := GetQuerySpan(sql, DialectBigQuery); err == nil {
+	if _, err := GetQuerySpan(sql); err == nil {
 		t.Fatalf("USING over a deferred set-op side: want a fail-closed error, got nil")
 	}
 }
@@ -525,7 +485,7 @@ func TestProjection_JoinUsingDeferredSideFailsClosed(t *testing.T) {
 
 // TestProjection_UnnestElementLineage pins the core F2 contract.
 func TestProjection_UnnestElementLineage(t *testing.T) {
-	span, err := GetQuerySpan("SELECT elem FROM victim, UNNEST(victim.secret_tokens) AS elem", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT elem FROM victim, UNNEST(victim.secret_tokens) AS elem")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -548,7 +508,7 @@ func TestProjection_UnnestElementLineage(t *testing.T) {
 // column (after the base table's star) and the WITH OFFSET companion column;
 // the offset is positional, not data, so it has NO lineage.
 func TestProjection_UnnestStarAndOffset(t *testing.T) {
-	span, err := GetQuerySpan("SELECT * FROM victim, UNNEST(victim.secret_tokens) AS elem WITH OFFSET AS pos", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT * FROM victim, UNNEST(victim.secret_tokens) AS elem WITH OFFSET AS pos")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -571,7 +531,7 @@ func TestProjection_UnnestStarAndOffset(t *testing.T) {
 // (the GoogleSQL implicit-alias rule), and an UNNEST over a literal array has
 // a RESOLVED-empty lineage (not an unresolved name to be matched fail-open).
 func TestProjection_UnnestImplicitAliasAndLiteral(t *testing.T) {
-	span, err := GetQuerySpan("SELECT secret_tokens FROM victim, UNNEST(victim.secret_tokens)", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT secret_tokens FROM victim, UNNEST(victim.secret_tokens)")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -579,7 +539,7 @@ func TestProjection_UnnestImplicitAliasAndLiteral(t *testing.T) {
 		t.Errorf("implicit-alias element sources = %v, want [victim.secret_tokens]", got)
 	}
 
-	span2, err := GetQuerySpan("SELECT e FROM UNNEST([1, 2, 3]) AS e", DialectBigQuery)
+	span2, err := GetQuerySpan("SELECT e FROM UNNEST([1, 2, 3]) AS e")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -596,7 +556,7 @@ func TestProjection_UnnestImplicitAliasAndLiteral(t *testing.T) {
 // reference through the element alias (`a.child`) resolves to the element's
 // array lineage.
 func TestProjection_CorrelatedArrayPathRelation(t *testing.T) {
-	span, err := GetQuerySpan("SELECT a FROM t, t.arr AS a", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT a FROM t, t.arr AS a")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -604,7 +564,7 @@ func TestProjection_CorrelatedArrayPathRelation(t *testing.T) {
 		t.Errorf("element sources = %v, want [t.arr]", got)
 	}
 
-	span2, err := GetQuerySpan("SELECT elem.child FROM victim, UNNEST(victim.kids) AS elem", DialectBigQuery)
+	span2, err := GetQuerySpan("SELECT elem.child FROM victim, UNNEST(victim.kids) AS elem")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -629,7 +589,7 @@ func TestProjection_CorrelatedArrayPathRelation(t *testing.T) {
 func TestProjection_SetOpByNameConcrete(t *testing.T) {
 	sql := "WITH l AS (SELECT a AS id, b AS sec FROM t1), r AS (SELECT c AS sec, d AS id FROM t2) " +
 		"SELECT * FROM l UNION ALL BY NAME SELECT * FROM r"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -653,7 +613,7 @@ func TestProjection_SetOpByNameConcrete(t *testing.T) {
 func TestProjection_SetOpByNameRightOnlyAppends(t *testing.T) {
 	sql := "WITH l AS (SELECT a AS id FROM t1), r AS (SELECT d AS id, e AS extra FROM t2) " +
 		"SELECT * FROM l UNION ALL BY NAME SELECT * FROM r"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -674,7 +634,7 @@ func TestProjection_SetOpByNameRightOnlyAppends(t *testing.T) {
 func TestProjection_SetOpByNameMatchColumns(t *testing.T) {
 	sql := "WITH l AS (SELECT a AS id, b AS sec FROM t1), r AS (SELECT c AS sec, d AS id FROM t2) " +
 		"SELECT * FROM l UNION ALL BY NAME ON (sec) SELECT * FROM r"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -691,7 +651,7 @@ func TestProjection_SetOpByNameMatchColumns(t *testing.T) {
 func TestProjection_SetOpCorrespondingMergesByName(t *testing.T) {
 	sql := "WITH l AS (SELECT a AS id, b AS sec FROM t1), r AS (SELECT c AS sec, d AS id FROM t2) " +
 		"SELECT * FROM l UNION ALL CORRESPONDING SELECT * FROM r"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -704,7 +664,7 @@ func TestProjection_SetOpCorrespondingMergesByName(t *testing.T) {
 // base-table star cannot be name-merged metadata-free — the whole merge defers
 // to the consumer with the ByName flag (NEVER a silent ordinal merge).
 func TestProjection_SetOpByNameDeferredStarArm(t *testing.T) {
-	span, err := GetQuerySpan("SELECT id, sec FROM lt UNION ALL BY NAME SELECT * FROM rt", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT id, sec FROM lt UNION ALL BY NAME SELECT * FROM rt")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -732,16 +692,16 @@ func TestProjection_StructFieldStarFailsClosed(t *testing.T) {
 		"SELECT d.s.* FROM (SELECT public, STRUCT(secret AS ssn) AS s FROM t) AS d",
 		"SELECT t.s.* FROM t",
 	} {
-		if _, err := GetQuerySpan(sql, DialectSpanner); err == nil {
+		if _, err := GetQuerySpan(sql); err == nil {
 			t.Errorf("GetQuerySpan(%q) = nil error, want fail-closed (struct-field star is not enumerable)", sql)
 		}
 	}
 	// Single-part rel.* still resolves (no error).
-	if _, err := GetQuerySpan("SELECT d.* FROM (SELECT a, b FROM t) AS d", DialectSpanner); err != nil {
+	if _, err := GetQuerySpan("SELECT d.* FROM (SELECT a, b FROM t) AS d"); err != nil {
 		t.Errorf("rel.* should still resolve, got error: %v", err)
 	}
 	// Schema-qualified table star still resolves (the head is not a relation).
-	if _, err := GetQuerySpan("SELECT analytics.events.* FROM analytics.events", DialectSpanner); err != nil {
+	if _, err := GetQuerySpan("SELECT analytics.events.* FROM analytics.events"); err != nil {
 		t.Errorf("schema-qualified star should still resolve, got error: %v", err)
 	}
 }
@@ -757,12 +717,12 @@ func TestProjection_DotStarQualifierTightening(t *testing.T) {
 		"SELECT elem.* FROM t, UNNEST(t.structs) AS elem",
 		"SELECT wrongschema.t.* FROM t",
 	} {
-		if _, err := GetQuerySpan(sql, DialectSpanner); err == nil {
+		if _, err := GetQuerySpan(sql); err == nil {
 			t.Errorf("GetQuerySpan(%q) = nil error, want fail-closed", sql)
 		}
 	}
 	// BigQuery: a dataset-qualified star matches the relation's Database bucket.
-	span, err := GetQuerySpan("SELECT ds.t.* FROM ds.t", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT ds.t.* FROM ds.t")
 	if err != nil {
 		t.Fatalf("dataset-qualified star should resolve, got error: %v", err)
 	}

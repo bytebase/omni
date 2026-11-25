@@ -244,9 +244,7 @@ func (w *spanWalker) resolveStarModifiers(mods *ast.StarModifiers) ([]string, []
 // expression is anonymous.
 func (w *spanWalker) resolveExprColumn(item *ast.SelectItem) projColumn {
 	name, sources := w.resolveExprSources(item.Expr)
-	if w.dialect == DialectSpanner {
-		name = implicitAlias(item.Expr)
-	}
+	name = implicitAlias(item.Expr)
 	if item.Alias != "" {
 		name = item.Alias
 	}
@@ -334,7 +332,7 @@ func (w *spanWalker) resolvePath(parts []string) (string, []ColumnRef) {
 	// A FULLY-qualified column reference whose qualifier names a leaf base relation
 	// (e.g. `proj.ds.t.c` over `FROM proj.ds.t`): bucket it by the dialect rule so
 	// its Catalog/Database/Schema/Table line up with that table's access.
-	ref := columnRefFromParts(parts, w.dialect)
+	ref := columnRefFromParts(parts)
 	if w.qualifierNamesBaseRelation(ref) {
 		return ref.Column, []ColumnRef{ref}
 	}

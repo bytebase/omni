@@ -28,83 +28,6 @@ import (
 // against the legacy .g4 + BigQuery truth1 (DDL-008/045); proven by the unit
 // tests in bq_snapshot_clone_test.go.
 
-// parseCreateSnapshot parses a CREATE SNAPSHOT TABLE|SCHEMA statement. The shared CREATE
-// prefix (OR REPLACE) has been consumed by parseCreateStmt; cur is at SNAPSHOT.
-func (p *Parser) parseCreateSnapshot(create Token, orReplace bool) (ast.Node, error) {
-	p.advance() // SNAPSHOT
-
-	stmt := &ast.CreateSnapshotStmt{OrReplace: orReplace}
-	stmt.Loc.Start = create.Loc.Start
-
-	// SNAPSHOT (TABLE | schema_object_kind). googlesql.tm:2963 admits only the
-	// kinds SchemaObjectAllowedForSnapshot allows, and refuses every other
-	// ("CREATE SNAPSHOT <kind> is not supported"); BigQuery parses SNAPSHOT
-	// SCHEMA and answers "Statement not supported: CreateSnapshotStatement".
-	switch p.cur.Type {
-	case kwTABLE:
-		p.advance()
-	case kwSCHEMA:
-		p.advance()
-		stmt.Schema = true
-	default:
-		return nil, p.syntaxErrorAtCur()
-	}
-
-	ifNotExists, err := p.parseIfNotExists()
-	if err != nil {
-		return nil, err
-	}
-	stmt.IfNotExists = ifNotExists
-
-	name, err := p.parseTablePath()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Name = name
-
-	// CLONE clone_data_source.
-	if _, err := p.expect(kwCLONE); err != nil {
-		return nil, err
-	}
-	src, err := p.parseTablePath()
-	if err != nil {
-		return nil, err
-	}
-	stmt.CloneSource = src
-
-	// opt_at_system_time? — FOR SYSTEM_TIME AS OF expr.
-	if p.cur.Type == kwFOR {
-		ts, err := p.parseForSystemTimeExpr()
-		if err != nil {
-			return nil, err
-		}
-		stmt.ForSystemTime = ts
-	}
-
-	// where_clause? — WHERE expr (part of clone_data_source).
-	if p.cur.Type == kwWHERE {
-		p.advance() // WHERE
-		expr, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Where = expr
-	}
-
-	// opt_options_list?
-	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseOptionsList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Options = opts
-	}
-
-	stmt.Loc.End = p.prev.Loc.End
-	p.fillSubqueries(stmt)
-	return stmt, nil
-}
-
 // parseForSystemTimeExpr parses an opt_at_system_time clause and RETURNS its time
 // expression (as opposed to from_join.go's parseForSystemTime, which attaches it
 // to a TableExpr):
@@ -134,15 +57,4 @@ func (p *Parser) parseForSystemTimeExpr() (ast.Node, error) {
 		return nil, err
 	}
 	return p.parseExpr()
-}
-
-// parseBQDropSnapshot parses a DROP SNAPSHOT TABLE statement. The DROP keyword has
-// been consumed by parseDropStmt; cur is at SNAPSHOT. Grammar:
-// `DROP SNAPSHOT TABLE opt_if_exists? maybe_dashed_path` (DDL-045).
-func (p *Parser) parseBQDropSnapshot(drop Token) (ast.Node, error) {
-	p.advance() // SNAPSHOT
-	if _, err := p.expect(kwTABLE); err != nil {
-		return nil, err
-	}
-	return p.finishBQDropObject(drop, ast.BQDropSnapshotTable, false /*allowFunctionParams*/)
 }

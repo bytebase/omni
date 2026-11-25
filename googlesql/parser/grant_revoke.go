@@ -224,13 +224,7 @@ func (p *Parser) parseGrantRevokeHead() (bool, []*ast.Privilege, []string, []ast
 // privilege name), optionally followed by PRIVILEGES.
 func (p *Parser) parsePrivileges() (bool, []*ast.Privilege, error) {
 	if p.cur.Type == kwALL {
-		if p.isSpanner() {
-			return false, nil, p.syntaxErrorAtCur()
-		}
-		p.advance() // consume ALL
-		// PRIVILEGES is optional (`GRANT ALL ON ...` is valid).
-		p.match(kwPRIVILEGES)
-		return true, nil, nil
+		return false, nil, p.syntaxErrorAtCur()
 	}
 
 	privs, err := p.parsePrivilegeList()
@@ -353,7 +347,7 @@ func (p *Parser) parseObjectTypeAndPathList() ([]string, []ast.NamePath, error) 
 	if err != nil {
 		return nil, nil, err
 	}
-	if p.isSpanner() && len(objType) == 0 {
+	if len(objType) == 0 {
 		return nil, nil, &ParseError{
 			Position: first.Loc.Start, End: first.Loc.End,
 			Message: "syntax error: Spanner GRANT/REVOKE requires a target object type (e.g. TABLE, VIEW, CHANGE STREAM)",
@@ -500,81 +494,8 @@ func (p *Parser) parseGranteeList() ([]*ast.Grantee, error) {
 		}
 		return roleNamesToGrantees(roles), nil
 	}
-	if p.isSpanner() {
-		return nil, &ParseError{
-			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-			Message: "syntax error: Spanner GRANT/REVOKE requires ROLE grantees",
-		}
-	}
-
-	var grantees []*ast.Grantee
-	for {
-		g, err := p.parseGrantee()
-		if err != nil {
-			return nil, err
-		}
-		grantees = append(grantees, g)
-		if _, ok := p.match(int(',')); ok {
-			continue
-		}
-		break
-	}
-	return grantees, nil
-}
-
-// parseGrantee parses one `string_literal_or_parameter`:
-//
-//	string_literal              -> GranteeString
-//	'@' identifier              -> GranteeNamedParameter      (named_parameter_expression)
-//	'?'                         -> GranteePositionalParameter (QUESTION)
-//	'@@' path_expression        -> GranteeSystemVariable      (system_variable_expression)
-func (p *Parser) parseGrantee() (*ast.Grantee, error) {
-	start := p.cur.Loc
-
-	switch p.cur.Type {
-	case tokString:
-		if !p.isSpanner() {
-			lit, err := p.parseStringLiteral()
-			if err != nil {
-				return nil, err
-			}
-			l := lit.(*ast.Literal)
-			return &ast.Grantee{Kind: ast.GranteeString, Value: l.Value, Loc: l.Loc}, nil
-		}
-		tok := p.advance()
-		return &ast.Grantee{Kind: ast.GranteeString, Value: tok.Str, Loc: tok.Loc}, nil
-
-	case int('?'):
-		tok := p.advance()
-		return &ast.Grantee{Kind: ast.GranteePositionalParameter, Loc: tok.Loc}, nil
-
-	case int('@'):
-		p.advance() // consume '@'
-		// named_parameter_expression: '@' identifier.
-		if !isIdentifierStart(p.cur.Type) {
-			return nil, p.syntaxErrorAtCur()
-		}
-		name := p.advance()
-		return &ast.Grantee{
-			Kind:  ast.GranteeNamedParameter,
-			Value: name.Str,
-			Loc:   ast.Loc{Start: start.Start, End: name.Loc.End},
-		}, nil
-
-	case tokAtAt:
-		p.advance() // consume '@@'
-		// system_variable_expression: '@@' path_expression.
-		path, err := p.parsePathExpression()
-		if err != nil {
-			return nil, err
-		}
-		return &ast.Grantee{
-			Kind:  ast.GranteeSystemVariable,
-			Value: path.String(),
-			Loc:   ast.Loc{Start: start.Start, End: path.Loc.End},
-		}, nil
-
-	default:
-		return nil, p.syntaxErrorAtCur()
+	return nil, &ParseError{
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: "syntax error: Spanner GRANT/REVOKE requires ROLE grantees",
 	}
 }
