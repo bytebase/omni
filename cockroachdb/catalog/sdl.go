@@ -404,6 +404,10 @@ func (l *sdlLoader) createTable(n *tree.CreateTable) error {
 		// The sync reads no locality, so a migration could not keep one.
 		return fmt.Errorf("table %s: LOCALITY is not supported", n.Table.String())
 	}
+	if n.PartitionByTable != nil {
+		// Nor partitioning.
+		return fmt.Errorf("table %s: PARTITION BY is not supported", n.Table.String())
+	}
 	if len(n.StorageParams) > 0 {
 		// Nor storage parameters, row-level TTL among them.
 		return fmt.Errorf("table %s: storage parameters are not supported", n.Table.String())
@@ -492,6 +496,9 @@ func (l *sdlLoader) addColumn(schema string, table *metadatapb.TableMetadata, co
 		// Unique.ConstraintName.
 		addPrimaryKey(schema, table, string(column.Unique.ConstraintName), index)
 	}
+	if column.Unique.WithoutIndex {
+		return fmt.Errorf("column %s: UNIQUE WITHOUT INDEX is not supported", column.Name)
+	}
 	if column.Unique.IsUnique {
 		index := &tree.CreateIndex{Unique: true, Columns: tree.IndexElemList{{Column: column.Name}}, Name: column.Unique.ConstraintName}
 		table.Indexes = append(table.Indexes, sdlIndex(schema, table.Name, table.Indexes, index))
@@ -520,6 +527,10 @@ func (l *sdlLoader) addTableDef(schema string, table *metadatapb.TableMetadata, 
 	switch d := def.(type) {
 	case *tree.ColumnTableDef, *tree.FamilyTableDef:
 	case *tree.UniqueConstraintTableDef:
+		if d.WithoutIndex {
+			// The sync reads indexes; a constraint without one is lost.
+			return fmt.Errorf("UNIQUE WITHOUT INDEX is not supported")
+		}
 		index := indexOf(&d.IndexTableDef)
 		if d.PrimaryKey {
 			addPrimaryKey(schema, table, string(d.Name), index)
