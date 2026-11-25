@@ -65,32 +65,29 @@ func (literalCastStripper) VisitPost(expr tree.Expr) tree.Expr {
 	return expr
 }
 
-// castRounds reports whether a cast can change its literal's value: a number
-// with a fraction cast to a type other than an unconstrained DECIMAL or
-// FLOAT8. CockroachDB adds no such cast to what it stores, so a cast that
-// rounds is kept.
+// castRounds reports whether a cast can change its literal's value: a cast
+// to a type with a width, length, precision or scale (VARCHAR(1),
+// DECIMAL(3,1), TIMESTAMP(0)), to FLOAT4, or of a number with a fraction to
+// an integer. CockroachDB adds no such cast to what it stores, so it is kept.
 func castRounds(cast *tree.CastExpr) bool {
-	fraction := false
-	tree.WalkExprConst(&numVisitor{visit: func(n *tree.NumVal) {
-		orig := n.OrigString()
-		fraction = fraction || strings.ContainsAny(orig, ".eE")
-	}}, cast.Expr)
-	if !fraction {
-		return false
-	}
 	t, ok := tree.GetStaticallyKnownType(cast.Type)
 	if !ok {
 		return true
 	}
-	switch t.Family() {
-	case types.DecimalFamily:
-		// DECIMAL(p, s) rounds to its scale.
-		return t.Precision() != 0
-	case types.FloatFamily:
-		// FLOAT4 rounds to single precision.
-		return t.Width() != 64
+	if strings.Contains(t.SQLString(), "(") {
+		return true
 	}
-	return true
+	switch t.Family() {
+	case types.FloatFamily:
+		return t.Width() != 64
+	case types.IntFamily:
+		fraction := false
+		tree.WalkExprConst(&numVisitor{visit: func(n *tree.NumVal) {
+			fraction = fraction || strings.ContainsAny(n.OrigString(), ".eE")
+		}}, cast.Expr)
+		return fraction
+	}
+	return false
 }
 
 type numVisitor struct{ visit func(*tree.NumVal) }
