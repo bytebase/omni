@@ -518,6 +518,36 @@ func TestWalkThroughTypesDomainsEnumsAndRanges(t *testing.T) {
 	}
 }
 
+// The sync lists a view's triggers as it lists a table's, so a trigger it
+// does not list on a synced view is absent.
+func TestWalkThroughViewTriggers(t *testing.T) {
+	schema := walkSchema()
+	schema.Schemas[0].Views = []*metadata.ViewMetadata{{Name: "v", Triggers: []*metadata.TriggerMetadata{{Name: "tr_v"}}}}
+	schema.Schemas[0].Functions = []*metadata.FunctionMetadata{{Name: "f"}}
+	target := review.Target{Schema: schema, SessionUser: "u"}
+	for _, sql := range []string{
+		"DROP TRIGGER nosuch ON v;",
+		"ALTER TRIGGER nosuch ON v RENAME TO x;",
+		"COMMENT ON TRIGGER nosuch ON v IS 'c';",
+		"DROP TRIGGER tr_v ON v;\nDROP TRIGGER tr_v ON v;",
+	} {
+		if got := walkFindings(t, sql, target); len(got) != 1 || !slices.Equal(got[0].Codes, []review.FindingCode{review.ObjectNotFound}) {
+			t.Errorf("%q: findings = %+v, want one %s", sql, got, review.ObjectNotFound)
+		}
+	}
+	for _, sql := range []string{
+		"DROP TRIGGER tr_v ON v;",
+		"DROP TRIGGER IF EXISTS nosuch ON v;",
+		"CREATE TRIGGER x INSTEAD OF INSERT ON v FOR EACH ROW EXECUTE FUNCTION f();\nDROP TRIGGER x ON v;",
+		"ALTER TRIGGER tr_v ON v RENAME TO x;\nDROP TRIGGER x ON v;",
+		"CREATE OR REPLACE VIEW v AS SELECT 1 AS a;\nDROP TRIGGER tr_v ON v;",
+	} {
+		if got := walkFindings(t, sql, target); len(got) != 0 {
+			t.Errorf("%q: findings = %+v, want none", sql, got)
+		}
+	}
+}
+
 func TestWalkThroughFunctionsTriggersPoliciesAndAlterSubcommands(t *testing.T) {
 	schema := walkSchema()
 	schema.Schemas[0].Tables[0].Indexes = []*metadata.IndexMetadata{{Name: "t_a_idx"}}
