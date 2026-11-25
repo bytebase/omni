@@ -64,8 +64,12 @@
 > raw
 | {"method":"GET","route":"/*/_settings?filter_path=**.hidden\u0026expand_wildcards=open,hidden"}
 < raw
-| {"status":200,"contentType":"application/json","body":"{\".ds-.logs-deprecation.elasticsearch-default-2026.11.16-000001\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}},\".security-7\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}},\"hidden-one\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}}}"}
+| {"status":200,"contentType":"application/json","body":"{\".security-7\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}},\"hidden-one\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}}}"}
 > raw
 | {"method":"GET","route":"/_cat/indices?format=json\u0026pretty"}
 < raw
 | {"status":200,"contentType":"application/json","body":"[{\"index\":\"alpha\",\"docs.count\":\"5\",\"store.size\":\"6.6kb\"},{\"index\":\"beta\",\"docs.count\":\"5\",\"store.size\":\"5.1kb\"}]"}
+> raw
+| {"method":"GET","route":"/_alias"}
+< raw
+| {"status":200,"contentType":"application/json","body":"{\".security-7\":{\"aliases\":{\".security\":{}}},\"alpha\":{\"aliases\":{}},\"beta\":{\"aliases\":{}},\"hidden-one\":{\"aliases\":{}}}"}

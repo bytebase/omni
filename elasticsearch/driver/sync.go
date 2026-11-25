@@ -44,19 +44,66 @@ func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 }
 
 // SyncDatabase reads the cluster's indices, with the document count and data
-// size each reports. Indices are ordered by name: the cat API's order is the
-// server's, and the metadata and its golden must hold one order.
+// size each reports, and their aliases. Indices are ordered by name: the cat
+// API's order is the server's, and the metadata and its golden must hold one
+// order.
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
 	indices, err := d.getIndices(ctx)
+	if err != nil {
+		return nil, err
+	}
+	aliases, err := d.getAliases(ctx, indices)
 	if err != nil {
 		return nil, err
 	}
 	return &metadatapb.DatabaseSchemaMetadata{
 		Name: databaseName,
 		Schemas: []*metadatapb.SchemaMetadata{{
-			Tables: indices,
+			Tables:   indices,
+			Synonyms: aliases,
 		}},
 	}, nil
+}
+
+// aliasesRoute lists every index's aliases.
+const aliasesRoute = "/_alias"
+
+// aliasesResult is the part of one index's _alias entry the sync reads.
+type aliasesResult struct {
+	Aliases map[string]json.RawMessage `json:"aliases"`
+}
+
+// getAliases reads the aliases of the synced indices. An alias is another
+// name a request may read an index by, which the engine resolves when it is
+// used, so each is a synonym: one per index the alias names, ordered by
+// alias and then index. An alias of an index the sync leaves out (a hidden
+// one, a data stream's) is left out with it.
+func (d *Driver) getAliases(ctx context.Context, indices []*metadatapb.TableMetadata) ([]*metadatapb.SynonymMetadata, error) {
+	resp, err := d.client.Do(ctx, http.MethodGet, aliasesRoute, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list aliases: %w", err)
+	}
+	body, err := readBody(resp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list aliases: %w", err)
+	}
+	var results map[string]aliasesResult
+	if err := json.Unmarshal(body, &results); err != nil {
+		return nil, fmt.Errorf("failed to parse Elasticsearch aliases response: %s: %w", truncate(body, 500), err)
+	}
+	var synonyms []*metadatapb.SynonymMetadata
+	for _, index := range indices {
+		for alias := range results[index.Name].Aliases {
+			synonyms = append(synonyms, &metadatapb.SynonymMetadata{Name: alias, TargetName: index.Name})
+		}
+	}
+	slices.SortFunc(synonyms, func(a, b *metadatapb.SynonymMetadata) int {
+		if c := strings.Compare(a.Name, b.Name); c != 0 {
+			return c
+		}
+		return strings.Compare(a.TargetName, b.TargetName)
+	})
+	return synonyms, nil
 }
 
 // versionResult is the part of the root document getVersion reads.

@@ -21,3 +21,7 @@
 | {"method":"GET","route":"/_cat/indices?format=json\u0026pretty"}
 < raw
 | {"status":200,"contentType":"application/json","body":"[{\"index\":\"exec_items\",\"docs.count\":\"1\",\"store.size\":\"4.5kb\"}]"}
+> raw
+| {"method":"GET","route":"/_alias"}
+< raw
+| {"status":200,"contentType":"application/json","body":"{\".security-7\":{\"aliases\":{\".security\":{}}},\"exec_items\":{\"aliases\":{}}}"}

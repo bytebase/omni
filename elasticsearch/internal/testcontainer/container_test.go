@@ -35,6 +35,13 @@ func TestTheTapeHoldsWhatTheDriverReads(t *testing.T) {
 		require.Equal(t, `[{"index":"alpha","docs.count":"3","store.size":"4.9kb"},{"index":"beta","docs.count":"5","store.size":"5.1kb"}]`, string(narrowed))
 	})
 
+	t.Run("aliases", func(t *testing.T) {
+		body := `{"beta":{"aliases":{"both":{},"filtered":{"filter":{"term":{"n":1}},"index_routing":"1"}}},"alpha":{"aliases":{"both":{}}},"gamma":{"aliases":{}}}`
+		narrowed, ok := narrow("/_alias", "application/json", []byte(body))
+		require.True(t, ok)
+		require.Equal(t, `{"alpha":{"aliases":{"both":{}}},"beta":{"aliases":{"both":{},"filtered":{}}},"gamma":{"aliases":{}}}`, string(narrowed))
+	})
+
 	t.Run("search", func(t *testing.T) {
 		body := `{"took":7,"timed_out":false,"_shards":{"total":1},"hits":{"total":{"value":3}},"profile":{"shards":[{"id":"[node][alpha][0]","node_id":"node","searches":[{"rewrite_time":1234,"query":[{"time_in_nanos":99,"breakdown":{"build_scorer":5,"build_scorer_count":2}}],"collector":[{"time_in_nanos":3}]}]}]}}`
 		narrowed, ok := narrow("/alpha/_search", "application/json", []byte(body))

@@ -21,8 +21,9 @@ cells. A data stream is named for itself: its backing index
 omni resolves each request as Bytebase can: against what
 `elasticsearch/driver`'s sync stores for the fixture, the indices the cat API
 lists less the hidden ones, each with the fields its mapping defines (which
-an `ObjectSchema` describes). The test reads those with the sync's own two
-requests and each index's `_mapping`.
+an `ObjectSchema` describes), and their aliases, one synonym per index an
+alias names. The test reads those with the sync's own requests and each
+index's `_mapping`.
 
 The fixture is `span/fixtures/shop.sql`, a list of console requests separated
 by blank lines (the harness reads every fixture as `<name>.sql`). Every
@@ -44,13 +45,6 @@ OMNI_RECORD=1 go test ./elasticsearch/analysis/ -run '^TestQuerySpanFidelity$'  
 
 ### Known differences
 
-- **Aliases** (`people`, `everyone`, `adults`, `peo*`): Elasticsearch reads
-  the indices behind the alias; the sync stores no aliases, so omni keeps the
-  name as written and knows none of its fields. This is the one difference
-  that is not safer for masking: a policy on `users` does not reach
-  `GET /people/_search`. Closing it needs the sync to store aliases, which
-  the metadata proto has no place for, or Bytebase to mask each document by
-  the `_index` it names.
 - **Data streams and hidden indices** (`events-app`, `hidden_audit`, and the
   stream that `*`, `_all` and a request with no index also read): the sync
   stores neither, so no masking policy can name them and omni knows none of
