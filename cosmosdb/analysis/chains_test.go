@@ -44,6 +44,7 @@ func TestAnalyzeChainsStayLinear(t *testing.T) {
 		{"selectors through a union shared at every level", "SELECT VALUE s" + strings.Repeat(".k", 300) + " FROM " + strings.Repeat(`(SELECT VALUE s ?? {"k": s} FROM `, 300) + "(SELECT VALUE c.z FROM c) s" + strings.Repeat(") s", 300), 128, "c.z"},
 		{"equal accesses at every level", "SELECT VALUE s FROM " + strings.Repeat("(SELECT VALUE s.k ?? s.k FROM ", 300) + "(SELECT VALUE c.z FROM c) s" + strings.Repeat(") s", 300), 1, "c.z" + strings.Repeat(".k", 127)},
 		{"equal selections made in different steps", "SELECT VALUE s FROM " + strings.Repeat("(SELECT VALUE s.k.k ?? (SELECT VALUE s.k).k FROM ", 300) + "(SELECT VALUE c.z FROM c) s" + strings.Repeat(") s", 300), 1, "c.z" + strings.Repeat(".k", 127)},
+		{"SELECT * over a union shared at every level", "SELECT * FROM " + strings.Repeat(`(SELECT VALUE s ?? (s ?? {"k": 0}) FROM `, 300) + `(SELECT VALUE {"k": c.z} FROM c) s` + strings.Repeat(") s", 300), 1, "c.z"},
 		{"elements of nested arrays", where(strings.Repeat("[", nested) + "c.z" + strings.Repeat("][0]", nested)), 1, "c.z"},
 		{"ternary", where(strings.Repeat("c.a ? c.b : ", nested) + "c.z"), 3, "c.z"},
 		{"function calls", where(strings.Repeat("CONCAT(", nested) + "c.a" + strings.Repeat(", c.z)", nested)), 2, "c.z"},

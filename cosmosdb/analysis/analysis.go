@@ -57,6 +57,7 @@ type analyzer struct {
 	selections map[selection]*shape
 	suffixes   map[suffix]int
 	leaves     map[string]*shape
+	objects    map[*shape]*shape
 }
 
 // selectOutput is what one SELECT returns: its items' names and shapes, or,
@@ -110,10 +111,10 @@ func (a *analyzer) selectStmt(stmt *ast.SelectStmt, parent *scope) selectOutput 
 
 	var out selectOutput
 	switch {
-	case stmt.Star && first != nil && asObject(first) != nil:
+	case stmt.Star && first != nil && a.asObject(first) != nil:
 		// SELECT * over a subquery that returns objects of known members
 		// returns those members.
-		obj := asObject(first)
+		obj := a.asObject(first)
 		out.names, out.shapes = obj.keys, obj.members
 	case stmt.Star:
 		out.star = true

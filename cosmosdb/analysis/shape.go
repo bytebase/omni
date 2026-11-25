@@ -66,8 +66,9 @@ func union(members []*shape) *shape {
 
 // asObject is s as an object of known members, or nil: an object shape, or
 // a union of them (a ?? b over two object literals), whose members are each
-// key's members of the operands that hold it.
-func asObject(s *shape) *shape {
+// key's members of the operands that hold it. It is memoized per shape, so
+// a union shared at every level is expanded once.
+func (a *analyzer) asObject(s *shape) *shape {
 	switch s.kind {
 	case objectShape:
 		return s
@@ -75,11 +76,18 @@ func asObject(s *shape) *shape {
 	default:
 		return nil
 	}
+	if obj, ok := a.objects[s]; ok {
+		return obj
+	}
+	if a.objects == nil {
+		a.objects = map[*shape]*shape{}
+	}
 	var keys []string
 	byKey := map[string][]*shape{}
 	for _, m := range s.members {
-		obj := asObject(m)
+		obj := a.asObject(m)
 		if obj == nil {
+			a.objects[s] = nil
 			return nil
 		}
 		for _, k := range obj.keys {
@@ -93,6 +101,7 @@ func asObject(s *shape) *shape {
 	for _, k := range keys {
 		out.members = append(out.members, union(byKey[k]))
 	}
+	a.objects[s] = out
 	return out
 }
 
