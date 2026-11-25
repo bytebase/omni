@@ -11,7 +11,7 @@
 //   - query-span extraction (table/column lineage for masking and SQL-editor
 //     access tracking — the legacy querySpanExtractor + accessTableListener).
 //
-// It is built on the hand-written googlesql/parser AST (one parser serves both
+// It is built on the hand-written bigquery/parser AST (one parser serves both
 // engines) and is parameterized by Dialect for the three genuine bigquery vs
 // spanner seams the contract identifies (contract.md §4): the metadata model
 // (BigQuery project.dataset.table vs Spanner db.schema.table), the system-schema
@@ -67,7 +67,7 @@ const (
 // Classify returns the QueryType for a single parsed statement node, in the
 // given dialect.
 //
-// It type-switches over the concrete googlesql/ast statement nodes the merged
+// It type-switches over the concrete bigquery/ast statement nodes the merged
 // parser builds (query / DML / DDL / DCL). A query statement is reported as
 // Select, then promoted to SelectInfoSchema when the statement reads exclusively
 // from a system/information schema — exactly the legacy queryTypeListener's

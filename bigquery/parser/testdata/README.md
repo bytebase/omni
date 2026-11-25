@@ -4,9 +4,9 @@
 
 `compat.tsv` holds a statement for each alternative of each rule in
 `../../../googlesql/testdata/GoogleSQL.g4` (converted from `googlesql.tm` at
-GoogleSQL `2026.01.1` by `googlesql/parser/cmd/tm2g4`), followed by its
+GoogleSQL `2026.01.1` by `spanner/parser/cmd/tm2g4`), followed by its
 near-misses, with omni's verdict (`bigquery/parser.Parse`, BigQuery's own
-parser, forked from `googlesql/parser`'s `DialectBigQuery` mode) and live BigQuery
+parser, forked from `spanner/parser`'s `DialectBigQuery` mode) and live BigQuery
 dry-run's verdict on the pinned Google Cloud project (`../../testdata/pins.tsv`,
 `default` role).
 
@@ -30,25 +30,25 @@ differences (793 seconds).
 refuses every input (`../../../googlesql/testdata/tokens.tsv`). The optional
 clauses that file marks `(every site)` add 403 rows, all agreeing.
 
-### Comparison with Spanner emulator `1.5.54` (`googlesql/parser/testdata/compat.tsv`)
+### Comparison with Spanner emulator `1.5.54` (`spanner/parser/testdata/compat.tsv`)
 
 The sections below predate the fork: `DialectDefault` (the BigQuery ∪ Spanner
 union), `DialectBigQuery` (now `bigquery/parser`) and `DialectSpanner` (now
-`googlesql/parser`) were modes of one parser.
+`spanner/parser`) were modes of one parser.
 
 At judge revision 2, Spanner emulator `1.5.54` alone agreed with
-`googlesql/parser.Parse` (`DialectDefault`)
+`spanner/parser.Parse` (`DialectDefault`)
 on **7,909 / 9,463 rows (83.58%)** overall (including 626 hand-added `suite:`
 rows), or **7,335 / 8,837 (83.00%)** on the exact same 8,837 generated rows
 (`2,196 / 2,614` alternatives, `5,139 / 6,223` near-misses, `1,093` only Spanner
 accepts, `409` only omni accepts). That file now uses the BigQuery ∪ Spanner
 union judge (revision 4) and agrees on all 9,463 rows.
 
-Comparing `googlesql/parser.Parse` (Spanner emulator `1.5.54`, judge revision 2) with
+Comparing `spanner/parser.Parse` (Spanner emulator `1.5.54`, judge revision 2) with
 `bigquery/parser.Parse` (`DialectBigQuery`, live BigQuery dry-run) across all
 8,837 generated rows:
 
-| Spanner (`googlesql/parser`) | BigQuery (`bigquery/parser`) | Rows | Meaning |
+| Spanner (`spanner/parser`) | BigQuery (`bigquery/parser`) | Rows | Meaning |
 | --- | --- | ---: | --- |
 | `reject` / `reject` (agree) | `reject` / `reject` (agree) | 5,096 | Both engines reject invalid syntax |
 | `accept` / `accept` (agree) | `accept` / `accept` (agree) | 1,985 | Both engines accept shared GoogleSQL |
@@ -81,7 +81,7 @@ Comparing `googlesql/parser.Parse` (Spanner emulator `1.5.54`, judge revision 2)
        characters, missing whitespace, macro-disabled errors) or matches a
        GoogleSQL parser-action refusal in `grammarRefusals`
        (`../grammar_refusals_test.go`, mirrored from
-       `googlesql/spanner-oracle/grammar_refusals.go` plus the lookahead
+       `spanner/spanner-oracle/grammar_refusals.go` plus the lookahead
        transformer refusal `EXCEPT must be followed by ALL, DISTINCT, or "("`
        and the `MergeDynamicLabelProperties` refusal `DYNAMIC LABEL|PROPERTIES
        cannot be used more than once in a single element table`).
@@ -116,8 +116,8 @@ Comparing `googlesql/parser.Parse` (Spanner emulator `1.5.54`, judge revision 2)
 
 The initial `#1536` baseline measured **8,510 / 8,837 (96.30%)** with **226**
 `only BigQuery accepts` rows and **101** `only omni accepts` rows. All 327 gaps
-are now closed via shared `googlesql/parser` fixes (55 rows that also improved
-`googlesql/parser/testdata/compat.tsv`) plus `googlesql/parser.DialectBigQuery`
+are now closed via shared `spanner/parser` fixes (55 rows that also improved
+`spanner/parser/testdata/compat.tsv`) plus `spanner/parser.DialectBigQuery`
 (272 dialect-specific rows).
 
 ### Closed — previously only BigQuery accepted (226 rows: 185 alternatives, 41 near-misses)
@@ -129,19 +129,19 @@ unsupported-statement messages (zero missed syntax errors).
 | Family | Rows | Notes |
 | --- | ---: | --- |
 | `FROM`-first queries (`FROM a`, `FROM (SELECT NULL)`, `FROM UNNEST(...)`, `FROM a JOIN a`, `FROM GRAPH_TABLE(...)`, `FROM a PIVOT/UNPIVOT(...)`, `FROM a MATCH_RECOGNIZE(...)`, `WITH ... FROM a`) | 108 | Closed in `DialectBigQuery` (`parseQuery`, `parseTablePrimary` with `LATERAL`, `GRAPH_TABLE`, `MATCH_RECOGNIZE`). |
-| BigQuery ML DDL (`CREATE MODEL`, `DROP MODEL`, `TRANSFORM(...)`, `REMOTE WITH CONNECTION`, `AS (alias AS (...))`, `CREATE TEMP MODEL`) | 37 | Shared base `CREATE [OR REPLACE] MODEL [IF NOT EXISTS] ... [REMOTE]` + `DROP MODEL` in `googlesql/parser`; BigQuery ML clauses in `DialectBigQuery`. |
+| BigQuery ML DDL (`CREATE MODEL`, `DROP MODEL`, `TRANSFORM(...)`, `REMOTE WITH CONNECTION`, `AS (alias AS (...))`, `CREATE TEMP MODEL`) | 37 | Shared base `CREATE [OR REPLACE] MODEL [IF NOT EXISTS] ... [REMOTE]` + `DROP MODEL` in `spanner/parser`; BigQuery ML clauses in `DialectBigQuery`. |
 | External tables and schemas (`CREATE/DROP EXTERNAL TABLE`, `CREATE EXTERNAL SCHEMA`, `WITH PARTITION COLUMNS`, `WITH CONNECTION`) | 15 | Closed in `DialectBigQuery`. |
 | Privilege restrictions (`CREATE/ALTER/DROP PRIVILEGE RESTRICTION`) | 14 | Closed in `DialectBigQuery`. |
 | Search / vector index maintenance (`ALTER SEARCH INDEX`, `ALTER VECTOR INDEX` with `REBUILD`, `ADD/DROP/ALTER COLUMN`, `SET OPTIONS`) | 14 | Closed in `DialectBigQuery`. |
 | Row access policy alterations (`ALTER [ALL] ROW ACCESS POLICY ... GRANT/REVOKE/FILTER/RENAME`) | 10 | Closed in `DialectBigQuery`. |
 | Connections (`CREATE/DROP CONNECTION`) | 5 | Closed in `DialectBigQuery`. |
 | `CREATE TABLE` typeless / trailing-comma column list forms (`CREATE TABLE a(a)`, `CREATE TABLE a(a,)`) | 5 | Closed in `DialectBigQuery`. |
-| Arbitrary-expression dot-star (`SELECT NULL.*`, `\|> EXTEND NULL.*`, `\|> AGGREGATE NULL.*`) | 5 | Closed in shared `googlesql/parser`. |
-| `DEFINE TABLE` and `EXPLAIN` statements | 4 | Closed in shared `googlesql/parser`. |
+| Arbitrary-expression dot-star (`SELECT NULL.*`, `\|> EXTEND NULL.*`, `\|> AGGREGATE NULL.*`) | 5 | Closed in shared `spanner/parser`. |
+| `DEFINE TABLE` and `EXPLAIN` statements | 4 | Closed in shared `spanner/parser`. |
 | Constants (`CREATE/DROP CONSTANT`) | 3 | Closed in `DialectBigQuery`. |
 | `CREATE INDEX` table alias (`CREATE INDEX a ON a a(NULL)`) | 2 | Closed in `DialectBigQuery`. |
 | `CREATE TABLE ... COPY/CLONE ... FOR SYSTEM_TIME AS OF` | 2 | Closed in `DialectBigQuery`. |
-| Combined integer + brace statement hint (`@1@{ a = NULL } BEGIN`) | 1 | Closed in shared `googlesql/parser`. |
+| Combined integer + brace statement hint (`@1@{ a = NULL } BEGIN`) | 1 | Closed in shared `spanner/parser`. |
 | Adjacent string literal concatenation (`GRANT ALL ON a TO 'a' 'a'`) | 1 | Closed in `DialectBigQuery`. |
 
 ### Closed — previously only omni accepted (101 rows: 83 alternatives, 18 near-misses)
@@ -150,13 +150,13 @@ unsupported-statement messages (zero missed syntax errors).
 | --- | ---: | --- |
 | Braced constructors (`SELECT { }`, `SELECT NEW a { }`, `SELECT STRUCT { }`, etc.) | 38 | Rejected in `DialectBigQuery` (`Braced constructors are not supported`). |
 | Spanner-specific DDL (`CREATE TABLE a PRIMARY KEY(...)`, `INTERLEAVE IN [PARENT]`, `CREATE NULL_FILTERED INDEX`, `CREATE LOCALITY GROUP`, `ROW DELETION POLICY`) | 20 | Rejected in `DialectBigQuery`; retained in `DialectDefault` for Spanner. |
-| Generic entity DDL (`CREATE a a`, `ALTER a SET AS 'a'`, `DROP a a`) | 15 | Restricted in shared `googlesql/parser` to recognized generic entity types (`CAPACITY`, `RESERVATION`, `ASSIGNMENT`, `PROJECT`, `ORGANIZATION`, `FOLDER`, `PLACEMENT`). |
-| Reserved keywords (`QUALIFY`, `MATCH_RECOGNIZE`, `GRAPH_TABLE`, `LATERAL`, `IGNORE`) | 8 | `GRAPH_TABLE`, `LATERAL`, and `.IGNORE` rejected in shared `googlesql/parser`; `QUALIFY` and `MATCH_RECOGNIZE` reserved in `DialectBigQuery`. |
+| Generic entity DDL (`CREATE a a`, `ALTER a SET AS 'a'`, `DROP a a`) | 15 | Restricted in shared `spanner/parser` to recognized generic entity types (`CAPACITY`, `RESERVATION`, `ASSIGNMENT`, `PROJECT`, `ORGANIZATION`, `FOLDER`, `PLACEMENT`). |
+| Reserved keywords (`QUALIFY`, `MATCH_RECOGNIZE`, `GRAPH_TABLE`, `LATERAL`, `IGNORE`) | 8 | `GRAPH_TABLE`, `LATERAL`, and `.IGNORE` rejected in shared `spanner/parser`; `QUALIFY` and `MATCH_RECOGNIZE` reserved in `DialectBigQuery`. |
 | Pipe `INSERT REPLACE` / `INSERT UPDATE` (`\|> INSERT REPLACE a`) | 4 | Bare `REPLACE`/`UPDATE` without `OR` rejected in `DialectBigQuery`. |
-| Empty table element list (`CREATE TABLE a()`, `LOAD DATA INTO a() FROM FILES()`) | 3 | Empty `CREATE TABLE a()` without Spanner `PRIMARY KEY` rejected in shared `googlesql/parser`; all empty element lists rejected in `DialectBigQuery`. |
+| Empty table element list (`CREATE TABLE a()`, `LOAD DATA INTO a() FROM FILES()`) | 3 | Empty `CREATE TABLE a()` without Spanner `PRIMARY KEY` rejected in shared `spanner/parser`; all empty element lists rejected in `DialectBigQuery`. |
 | `FOR UPDATE` lock mode (`SELECT NULL FOR UPDATE`) | 2 | Rejected in `DialectBigQuery`. |
 | Pipe operators on `DESCRIBE` (`DESCRIBE a \|> AGGREGATE`) | 2 | Rejected in `DialectBigQuery`. |
-| Whitespace-separated dashed path in `DELETE` (`DELETE a - a`) | 2 | Closed in shared `googlesql/parser` (`consumeDashedTail` requires adjacent `-`). |
+| Whitespace-separated dashed path in `DELETE` (`DELETE a - a`) | 2 | Closed in shared `spanner/parser` (`consumeDashedTail` requires adjacent `-`). |
 | Strict syntax / near-miss over-accepts (`a : BEGIN END zzz`, `CREATE INDEX a ON a()`, `\|> EXPORT`, `\|> EXPORT AS`, `SELECT NULL QUALIFY`, `TABLE a WHERE NULL`, `ANALYZE OPTIONS(zzz)`) | 7 | Closed in `DialectBigQuery` without regressing Spanner `compat.tsv`. |
 
 ## Recording and verification commands

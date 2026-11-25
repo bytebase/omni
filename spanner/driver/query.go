@@ -15,8 +15,8 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/bytebase/omni/driver"
-	googlesqlanalysis "github.com/bytebase/omni/googlesql/analysis"
-	"github.com/bytebase/omni/googlesql/parser"
+	spanneranalysis "github.com/bytebase/omni/spanner/analysis"
+	"github.com/bytebase/omni/spanner/parser"
 )
 
 // Session returns one session. Spanner has no session state a statement can
@@ -55,7 +55,7 @@ type statement struct {
 func statements(script string) []statement {
 	var statements []statement
 	for _, segment := range parser.Split(script) {
-		// googlesql's Split marks a segment that holds no statement.
+		// spanner/parser's Split marks a segment that holds no statement.
 		if segment.Empty() {
 			continue
 		}
@@ -163,7 +163,7 @@ func (s *session) run(ctx context.Context, statement statement, opts driver.Quer
 	case query:
 		text := statement.Text
 		if opts.Limit > 0 {
-			text = googlesqlanalysis.RewriteResultLimit(text, opts.Limit)
+			text = spanneranalysis.RewriteResultLimit(text, opts.Limit)
 		}
 		result, err := s.queryStatement(ctx, text, opts)
 		if result != nil {

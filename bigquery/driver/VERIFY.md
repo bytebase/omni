@@ -23,7 +23,7 @@ deterministic tapes.
 | `SyncDatabase` (INFORMATION_SCHEMA.COLUMNS and each table's metadata) | ported, recorded and replayed from `testdata/tapes/TestSyncDatabase.tape`; `testdata/sync/omni_record.json` is what it built |
 | `Session.Query` (decode, limit wrap, dry-run explain, `MaxResultBytes`, plan) | ported, recorded and replayed from `testdata/tapes/TestQuery.tape` and `testdata/tapes/TestQueryWrites.tape` |
 | `Execute` (one job for the whole script) | ported, recorded and replayed from `testdata/tapes/TestExecute.tape` |
-| `Dump` | ported as a **no-op**: `googlesql` has no catalog, and Bytebase's BigQuery `Dump` wrote nothing |
+| `Dump` | ported as a **no-op**: `bigquery` has no catalog, and Bytebase's BigQuery `Dump` wrote nothing |
 | row-estimate (`CountAffectedRows`) | **not ported**: BigQuery has no EXPLAIN to read one from, and Bytebase counted none |
 | client seam for tapes | **built**: `client.go` holds the unexported `client`/`job`/`rowIterator` seam; `bigquery/internal/testcontainer` holds `tape.OpenRaw`'s server, live config validation, and pin verification |
 | tapes (`testdata/tapes`) | **committed**: all six driver tests replay offline with zero credentials (`TestSyncInstance`, `TestSyncDatabase`, `TestSyncDatabaseMissing`, `TestQuery`, `TestQueryWrites`, `TestExecute`) |
@@ -425,7 +425,7 @@ to be dropped, and the golden is what a later recording compares against.
 ## Step 7 — the dump
 
 `Dump` writes nothing and must not be declared until a renderer exists. The cheap
-path — `SyncDatabase` → `Diff` → `GenerateMigration` — is not open: `googlesql`
+path — `SyncDatabase` → `Diff` → `GenerateMigration` — is not open: `bigquery`
 holds no catalog at all, and the synced metadata is too thin to render even if it
 did. What a dump needs, in order:
 
@@ -589,16 +589,16 @@ settled by the run on 2026-11-17.
 | --- | --- |
 | the dataset and table listings are sorted by name | the service's order is not part of an answer, and a tape records whatever order arrives |
 | a query that returns no rows still reports its columns | Bytebase learned the schema from the first row, so it reported none |
-| `returnsRows` is `googlesql/analysis.ClassifySQL`, not a first-keyword test | a parenthesized query returns rows and Bytebase sent it down the command path; a CTE-prefixed `INSERT` does not and Bytebase sent it down the query path |
+| `returnsRows` is `bigquery/analysis.ClassifySQL`, not a first-keyword test | a parenthesized query returns rows and Bytebase sent it down the command path; a CTE-prefixed `INSERT` does not and Bytebase sent it down the query path |
 | `MaxResultBytes` is measured on every row and reports `Truncated` | Bytebase measured only on power-of-two row counts and put the cap's message in the result's error, where the contract has `Truncated` |
 | no `operator_email` job label | the contract's `QueryOptions` carries no operator identity; adding one is a contract change, not a driver's guess |
 | the dry run stops at the first failing statement | the contract says a failing statement ends a script; Bytebase continued to the next statement |
-| an unclosed literal is the statement's error, not the call's | the splitter is `googlesql/parser.SplitFlat`, which never fails; Bytebase's hand-rolled splitter refused the whole script |
+| an unclosed literal is the statement's error, not the call's | the splitter is `bigquery/parser.SplitFlat`, which never fails; Bytebase's hand-rolled splitter refused the whole script |
 | a command whose job reports no statistics is zero rows affected, not an error | the script ran; Bytebase's `QueryConn` returned an error there, but its `Execute` did not |
 | `Config.TLS` and `Config.Dial` do nothing | the client library owns its transport and holds no dialer; a caller that must tunnel forwards a local port and passes it as `Config.Host`/`Config.Port`, as hive's driver asks |
 | a synced column with no ordinal position is left out | an ingestion-time partitioned table's `_PARTITIONTIME` and `_PARTITIONDATE` are pseudo-columns the view states without a position, and the client cannot decode that NULL into a position |
 | the dataset the sync reads is quoted as a path, and the metadata reads are sorted | a dataset may be named a reserved keyword, which a path has to quote; the service's order is not part of an answer |
-| a statement `googlesql/analysis` cannot read keeps the rows the service answered *(recorded)* | omni's parser does not read a pipe query yet, and Bytebase's classification of the same statement by its first word is not available here. A plain query's job statistics state no result schema at all — only a script's last result does — so the job's `statementType` is what says whether the service returned rows |
+| a statement `bigquery/analysis` cannot read keeps the rows the service answered *(recorded)* | omni's parser does not read a pipe query yet, and Bytebase's classification of the same statement by its first word is not available here. A plain query's job statistics state no result schema at all — only a script's last result does — so the job's `statementType` is what says whether the service returned rows |
 | a missing dataset is `driver.ErrNotFound`, from a `datasets.get` the sync asks for first *(recorded)* | the service answers a read of a missing dataset's `INFORMATION_SCHEMA` with `403 accessDenied`, so the mapping could never fire from the columns query alone; a caller that drops a database on `ErrNotFound` never dropped one |
 | a NUMERIC and a BIGNUMERIC cell is its exact decimal text, and a TIMESTAMP and a DATETIME are the contract's `TimestampTZ` and `Timestamp` *(recorded)* | the client renders a `*big.Rat` as a ratio (`25/2` for `NUMERIC '12.50'`) and a timestamp as Go's text (`2026-01-02 03:04:05 +0000 UTC`), which a viewer cannot read as either |
 | a RANGE is the half-open literal the service states, and an ARRAY or a RECORD is its elements in order *(recorded)* | Go's rendering of the client's values is `&{2026-01-01 2026-02-01}` for a range and `[0x27d0b631da40]` for an array of one — an address, which is neither readable nor reproducible in a tape |

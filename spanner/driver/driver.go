@@ -5,9 +5,9 @@
 // queries and change scripts.
 //
 // It implements Driver, Syncer, Dumper, Querier and Executor. The statements are
-// GoogleSQL, which omni's googlesql tree parses and analyses. This package is
-// the conversation with a Spanner service, so it lives in a tree of its own
-// beside googlesql, as dynamodb does beside partiql.
+// GoogleSQL, which spanner/parser parses and spanner/analysis analyses. This
+// package is the conversation with a Spanner service, beside the grammar in
+// the same tree.
 //
 // Dialects. A database's dialect is fixed when it is created, and the driver
 // serves GoogleSQL only. SyncInstance skips PostgreSQL-dialect databases, and
@@ -65,7 +65,7 @@
 // resolves in the database the driver is open on, and a row's cells are the
 // typed columns Spanner declares, which the caller traces through the statement
 // it also holds. QueryOptions.Limit rewrites a query's outermost LIMIT with
-// googlesql/analysis.RewriteResultLimit, and also caps the rows read when the
+// spanner/analysis.RewriteResultLimit, and also caps the rows read when the
 // rewrite cannot (a non-literal LIMIT, a shape the parser does not read).
 // QueryOptions.MaxResultBytes stops the reading at the first row that takes the
 // rows kept past the cap and sets Result.Truncated: the kept rows are the most
@@ -109,7 +109,7 @@
 // line, and this one does not either.
 //
 // Dump is the database's DDL as the server states it (GetDatabaseDdl), not a
-// rendering of the synced metadata: googlesql has no catalog that turns a synced
+// rendering of the synced metadata: spanner has no catalog that turns a synced
 // schema back into DDL, and the server's own DDL is what Bytebase dumped. The
 // metadata argument is therefore read by nothing, and a caller that left a table
 // or a view out of it still dumps every object the server holds, exactly as

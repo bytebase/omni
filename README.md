@@ -24,7 +24,8 @@ Every engine lives in its own top-level directory and follows the same shape: `a
 | Oracle | `oracle/` | `quality` |
 | Snowflake | `snowflake/` | `analysis`, `deparse`, `diagnostics`, `advisor` |
 | Trino | `trino/` | `catalog`, `completion`, `analysis`, `deparse` |
-| GoogleSQL (BigQuery, Spanner) | `googlesql/` | `analysis`, `diagnostics` |
+| Spanner (GoogleSQL) | `spanner/` | `analysis`, `diagnostics` |
+| BigQuery (GoogleSQL) | `bigquery/` | `analysis`, `diagnostics` |
 | Apache Doris | `doris/` | `analysis` |
 | StarRocks | `starrocks/` | `analysis` |
 | PartiQL (DynamoDB) | `partiql/` | `catalog`, `completion`, `analysis` |
@@ -93,7 +94,7 @@ omni/
 │   ├── parsertest/         Parser test cases (where present)
 │   ├── <oracle>/           Differential oracle against the real engine, exec'd by
 │   │                       tests and never imported: mssql/scriptdom (.NET project),
-│   │                       googlesql/spanner-oracle (own go.mod, not built by ./...)
+│   │                       spanner/spanner-oracle (own go.mod, not built by ./...)
 │   └── ...                 catalog, completion, analysis, ... per engine
 ├── metadata/               Database schema snapshot types, generated from proto/
 ├── proto/                  Protobuf sources; CI's proto step regenerates metadata/
@@ -120,7 +121,7 @@ go test ./pg/...      # one engine
 
 Two things `./...` does not cover:
 
-- `googlesql/spanner-oracle` has its own `go.mod` and needs a running emulator (`SPANNER_EMULATOR_HOST`): `(cd googlesql/spanner-oracle && go test ./...)`. CI runs it, so a green `go test ./...` is not the full CI result.
+- `spanner/spanner-oracle` has its own `go.mod` and needs a running emulator (`SPANNER_EMULATOR_HOST`): `(cd spanner/spanner-oracle && go test ./...)`. CI runs it, so a green `go test ./...` is not the full CI result.
 - Changing `proto/` means regenerating `metadata/`: run the buf commands from the proto step of [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 ## License

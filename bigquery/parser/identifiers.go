@@ -10,7 +10,7 @@ import "strings"
 // types, SELECT, DDL, DML) consume.
 //
 // It deliberately does NOT build AST identifier nodes: the GoogleSQL AST
-// (googlesql/ast) ships only the File root container in the foundation; the
+// (bigquery/ast) ships only the File root container in the foundation; the
 // concrete Identifier / path-expression node types and their token→node parse
 // functions are owned by the expressions node. The predicates here are the
 // shared, node-independent half (which tokens may begin / continue an

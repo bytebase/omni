@@ -2,7 +2,7 @@ package ast
 
 // NodeLoc returns the source location of n, or NoLoc() if n is nil or its
 // concrete type carries no Loc field. The function is a type-switch dispatcher
-// — every concrete node type added under googlesql/ast must add a case here.
+// — every concrete node type added under bigquery/ast must add a case here.
 //
 // The pattern matches pg/ast.NodeLoc and snowflake/ast.NodeLoc.
 func NodeLoc(n Node) Loc {

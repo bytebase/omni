@@ -1,0 +1,184 @@
+package parser
+
+import (
+	"github.com/bytebase/omni/spanner/ast"
+)
+
+// ---------------------------------------------------------------------------
+// BigQuery DDL — CREATE [SEARCH|VECTOR] INDEX / ALTER VECTOR INDEX REBUILD /
+// DROP [SEARCH|VECTOR] INDEX (parser-ddl-bigquery node)
+// ---------------------------------------------------------------------------
+//
+// Ports the SEARCH / VECTOR index_type variants of the legacy ANTLR
+// create_index_statement (GoogleSQLParser.g4 §2.2/§2.6), the BigQuery
+// `DROP index_type INDEX … ON …` alternative of drop_statement, and the
+// BigQuery-documented `ALTER VECTOR INDEX … REBUILD`. The plain / UNIQUE /
+// NULL_FILTERED CREATE INDEX is owned by the core parser-ddl node
+// (create_index.go).
+//
+//	create_index_statement (search/vector):
+//	  CREATE opt_or_replace? UNIQUE? opt_spanner_null_filtered? index_type INDEX
+//	    opt_if_not_exists? path_expression on_path_expression as_alias?
+//	    index_unnest_expression_list? index_order_by_and_options index_storing_list?
+//	    opt_create_index_statement_suffix?
+//	  index_type: SEARCH | VECTOR
+//	  index_order_by_and_options: ( column_ordering_and_options_expr, … ) | index_all_columns
+//	  index_all_columns: ( ALL COLUMNS opt_with_column_options? )
+//	drop_statement (search/vector):
+//	  DROP index_type INDEX opt_if_exists? path_expression on_path_expression?
+//
+// ORACLE NOTE — BigQuery-only at the union level (oracle.md). Probed 2026-06-05:
+// a bare `CREATE VECTOR INDEX i ON t(c) OPTIONS(…)` ACCEPTS on the Spanner
+// emulator (Spanner has a vector-index grammar), but `CREATE SEARCH INDEX i ON
+// t(ALL COLUMNS)` REJECTS ("Expecting ')' but found 'ALL'") and `DROP {SEARCH|
+// VECTOR} INDEX … ON …` / `ALTER VECTOR INDEX … REBUILD` all REJECT (Spanner's
+// shapes differ). So the Spanner verdict is non-authoritative here; triangulated
+// against the legacy .g4 + BigQuery truth1 (DDL-022/023/041/054); proven by the
+// unit tests in bq_search_vector_index_test.go.
+//
+// DIVERGENCE (flagged) — `ALTER VECTOR INDEX … REBUILD` (DDL-041) is a documented
+// BigQuery form that the legacy GoogleSQLParser.g4 does NOT parse (no REBUILD
+// token anywhere; ALTER VECTOR INDEX rejects in the .g4 because VECTOR is neither
+// a table_or_table_function nor a schema_object_kind nor a generic_entity_type).
+// We implement the documented behavior (accept it) since the omni parser targets
+// the BigQuery+Spanner union and this is strictly additive over one of the
+// legacy grammar's known gaps. See the divergence ledger entry for this node.
+
+// parseCreateSearchVectorIndex parses a CREATE SEARCH|VECTOR INDEX statement. The
+// shared CREATE prefix (OR REPLACE / scope) has been consumed by parseCreateStmt;
+// cur is at SEARCH or VECTOR. scope is not part of create_index_statement, so a
+// non-empty scope is a syntax error.
+func (p *Parser) parseCreateSearchVectorIndex(create Token, orReplace bool, scope string) (ast.Node, error) {
+	if scope != "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	isVector := p.cur.Type == kwVECTOR
+	p.advance() // SEARCH | VECTOR
+
+	stmt := &ast.SearchVectorIndexStmt{IsVector: isVector, OrReplace: orReplace}
+	stmt.Loc.Start = create.Loc.Start
+
+	if _, err := p.expect(kwINDEX); err != nil {
+		return nil, err
+	}
+
+	ifNotExists, err := p.parseIfNotExists()
+	if err != nil {
+		return nil, err
+	}
+	stmt.IfNotExists = ifNotExists
+
+	// index name (path_expression).
+	name, err := p.parseTablePath()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+
+	// on_path_expression: ON path_expression.
+	if _, err := p.expect(kwON); err != nil {
+		return nil, err
+	}
+	table, err := p.parseTablePath()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Table = table
+
+	// index_order_by_and_options: `( column_ordering_and_options_expr, … )` or
+	// index_all_columns `( ALL COLUMNS opt_with_column_options? )`.
+	if p.cur.Type != int('(') {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.peekNext().Type == kwALL {
+		return nil, &ParseError{
+			Position: p.peekNext().Loc.Start, End: p.peekNext().Loc.End,
+			Message: "syntax error: ALL COLUMNS is not supported in Spanner indexes",
+		}
+	} else {
+		keys, err := p.parseKeyPartList(false /*index element*/)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Keys = keys
+	}
+
+	// index_storing_list? — STORING ( expr, … ).
+	if p.cur.Type == kwSTORING {
+		p.advance() // STORING
+		exprs, err := p.parseStoringIdentList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Storing = exprs
+	}
+
+	// opt_create_index_statement_suffix?:
+	//   partition_by_clause_prefix_no_hint opt_options_list?
+	//   | opt_options_list? spanner_index_interleave_clause   (not valid for search/vector — left unhandled)
+	//   | opt_options_list
+	// Spanner CREATE SEARCH INDEX supports `PARTITION BY column_name [, ...]`,
+	// whereas CREATE VECTOR INDEX does not.
+	if p.cur.Type == kwPARTITION {
+		if isVector {
+			return nil, p.syntaxErrorAtCur()
+		}
+		exprs, err := p.parsePartitionByNoHint()
+		if err != nil {
+			return nil, err
+		}
+		stmt.PartitionBy = exprs
+	}
+	if p.cur.Type == kwOPTIONS {
+		opts, err := p.parseDDLOptionsList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Options = opts
+	}
+
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// parseBQDropSearchVectorIndex parses a `DROP {SEARCH|VECTOR} INDEX [IF EXISTS]
+// path ON table` statement. The DROP keyword has been consumed by parseDropStmt;
+// cur is at SEARCH or VECTOR. Grammar (drop_statement index_type alt):
+// `DROP index_type INDEX opt_if_exists? path_expression on_path_expression?`
+// (DDL-054). The on_path_expression is documented as required for BigQuery
+// SEARCH/VECTOR index drops, but the grammar marks it optional; we accept both
+// (an absent ON yields OnTable nil).
+func (p *Parser) parseBQDropSearchVectorIndex(drop Token) (ast.Node, error) {
+	kind := ast.BQDropSearchIndex
+	if p.cur.Type == kwVECTOR {
+		kind = ast.BQDropVectorIndex
+	}
+	p.advance() // SEARCH | VECTOR
+	if _, err := p.expect(kwINDEX); err != nil {
+		return nil, err
+	}
+
+	stmt := &ast.BQDropStmt{Object: kind}
+	stmt.Loc.Start = drop.Loc.Start
+
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
+	}
+	stmt.IfExists = ifExists
+
+	name, err := p.parseTablePath()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+
+	// on_path_expression? — ON path (BigQuery only; Spanner DROP SEARCH/VECTOR INDEX omits ON table).
+	if p.cur.Type == kwON {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}

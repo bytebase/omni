@@ -1,0 +1,121 @@
+// Differential test for the spanner/analysis node against the live Cloud
+// Spanner emulator oracle. It replays
+// testdata/tapes/TestAnalysisDifferential.tape, the harness's answers, and starts no server;
+// record it on the pinned emulator with:
+//
+//	OMNI_RECORD=1 go test ./spanner/analysis/ -run '^TestAnalysisDifferential$'
+//
+// analysis is a FEATURE node, so the oracle is NOT used to adjudicate a grammar
+// accept/reject — that is the parser nodes' job (parser/*_oracle_test.go). What
+// the oracle pins HERE is that the SQL the classify/span tests assert over is
+// REAL GoogleSQL syntax the grammar accepts: if a corpus statement the tests
+// treat as a valid query were actually rejected by the emulator, the
+// classification/lineage assertions built on it would be meaningless. The oracle
+// therefore confirms the grammar verdict for the whole classify corpus and
+// cross-checks the read-only classification against the statement's true nature.
+//
+// The emulator speaks Spanner's dialect, a SUBSET of the BigQuery+Spanner union
+// (oracle.md). The corpus below is restricted to forms whose Spanner GRAMMAR
+// verdict is authoritative: shared GoogleSQL core (SELECT/FROM/JOIN/CTE/set-op),
+// DML (INSERT/UPDATE/DELETE), and DDL (CREATE/DROP/ALTER) — all of which the
+// emulator parses. BigQuery-only forms whose Spanner verdict is non-authoritative
+// (dashed paths, MERGE, TRUNCATE) are covered by the hand-written unit tests +
+// the divergence ledger instead, NOT here.
+//
+// The harness classifies a statement that PARSES but is then feature-rejected
+// ("X is not supported") as ACCEPT (message-prefix rule, oracle.md), so a
+// union-grammar form that Spanner feature-rejects is still a valid accept fixture.
+package analysis
+
+import (
+	"testing"
+
+	"github.com/bytebase/omni/spanner/ast"
+	"github.com/bytebase/omni/spanner/internal/testcontainer"
+	"github.com/bytebase/omni/spanner/parser"
+)
+
+// parseFirstStmt parses sql and returns its first statement node, failing the
+// test if nothing parsed (the corpus is curated to parse cleanly).
+func parseFirstStmt(t *testing.T, sql string) ast.Node {
+	t.Helper()
+	file, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatalf("corpus statement %q does not parse: %v", sql, err)
+	}
+	if file == nil || len(file.Stmts) == 0 {
+		t.Fatalf("no statement parsed from %q", sql)
+	}
+	return file.Stmts[0]
+}
+
+// classifyCorpus pairs each statement with the QueryType the analysis classifier
+// must report (in the dialect noted) and whether it is read-only. Every entry is
+// expected to be ACCEPTED by the emulator's grammar (wantAccept implicitly true);
+// the differential fails loudly if the oracle rejects one, because that would
+// mean the classification assertion rests on invalid syntax.
+var classifyCorpus = []struct {
+	sql        string
+	wantType   QueryType
+	isReadOnly bool
+}{
+	// --- read-only queries ---
+	{"SELECT a FROM t", Select, true},
+	{"SELECT * FROM t1 JOIN t2 ON t1.id = t2.id", Select, true},
+	{"WITH c AS (SELECT a FROM t) SELECT a FROM c", Select, true},
+	{"SELECT a FROM t WHERE b IN (SELECT b FROM t2)", Select, true},
+	{"SELECT a FROM t UNION ALL SELECT a2 FROM t2", Select, true},
+	{"SELECT * FROM INFORMATION_SCHEMA.TABLES", SelectInfoSchema, true},
+	{"SELECT * FROM SPANNER_SYS.QUERY_STATS_TOP_MINUTE", SelectInfoSchema, true},
+	// --- data-changing (DML) ---
+	{"INSERT INTO t (a) VALUES (1)", DML, false},
+	{"DELETE FROM t WHERE a = 1", DML, false},
+	{"UPDATE t SET a = 2 WHERE a = 1", DML, false},
+	// --- schema-changing (DDL) ---
+	{"CREATE TABLE t3 (a INT64) PRIMARY KEY (a)", DDL, false},
+	{"DROP TABLE t3", DDL, false},
+	{"ALTER TABLE t ADD COLUMN c INT64", DDL, false},
+}
+
+// TestAnalysisDifferential confirms each corpus statement's grammar verdict
+// against the live emulator and that the analysis classifier's read-only verdict
+// agrees with the statement's true (read-only vs data/schema-changing) nature.
+func TestAnalysisDifferential(t *testing.T) {
+	o := testcontainer.Open(t)
+
+	for _, tc := range classifyCorpus {
+		tc := tc
+		t.Run(tc.sql, func(t *testing.T) {
+			v := o.MustVerdict(t, tc.sql)
+			switch v.Verdict {
+			case "accept", "reject":
+			case "error":
+				t.Fatalf("oracle returned ERROR (no verdict) for %q: reason=%s code=%s msg=%s\n"+
+					"the oracle could not decide; fix the wrapper/emulator — do NOT treat as accept/reject",
+					tc.sql, v.Reason, v.Code, v.Message)
+			default:
+				t.Fatalf("unexpected harness verdict %q for %q", v.Verdict, tc.sql)
+			}
+			if v.Verdict != "accept" {
+				t.Fatalf("emulator REJECTED corpus statement %q (%s: %s) — the analysis assertions on it rest on invalid syntax",
+					tc.sql, v.Reason, v.Message)
+			}
+
+			// Cross-check: the classifier puts the statement on the correct side of
+			// the read-only line, and reports the expected type.
+			gotType := Classify(parseFirstStmt(t, tc.sql))
+			if gotType != tc.wantType {
+				t.Errorf("Classify(%q) = %v, want %v", tc.sql, gotType, tc.wantType)
+			}
+			if got := isReadOnly(gotType); got != tc.isReadOnly {
+				t.Errorf("isReadOnly(%q) = %v (type %v), want %v", tc.sql, got, gotType, tc.isReadOnly)
+			}
+		})
+	}
+}
+
+// isReadOnly mirrors the bytebase read-only guard: a statement is read-only iff
+// it is a Select, Explain, or SelectInfoSchema.
+func isReadOnly(qt QueryType) bool {
+	return qt == Select || qt == Explain || qt == SelectInfoSchema
+}
