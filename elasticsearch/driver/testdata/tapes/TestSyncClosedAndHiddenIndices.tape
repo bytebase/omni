@@ -22,9 +22,17 @@
 < raw
 | {"status":200,"contentType":"application/json","body":"{\"acknowledged\":true,\"indices\":{\"closed-index\":{\"closed\":true}},\"shards_acknowledged\":true}"}
 > raw
-| {"method":"GET","route":"/*/_settings?filter_path=**.hidden\u0026expand_wildcards=open,hidden"}
+| {"method":"PUT","route":"/hidden-closed","body":"{\"settings\": {\"number_of_shards\": 1, \"number_of_replicas\": 0, \"index.hidden\": true}}\n"}
 < raw
-| {"status":200,"contentType":"application/json","body":"{\".security-7\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}},\"hidden-one\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}}}"}
+| {"status":200,"contentType":"application/json","body":"{\"acknowledged\":true,\"index\":\"hidden-closed\",\"shards_acknowledged\":true}"}
+> raw
+| {"method":"POST","route":"/hidden-closed/_close"}
+< raw
+| {"status":200,"contentType":"application/json","body":"{\"acknowledged\":true,\"indices\":{\"hidden-closed\":{\"closed\":true}},\"shards_acknowledged\":true}"}
+> raw
+| {"method":"GET","route":"/*/_settings?filter_path=**.hidden\u0026expand_wildcards=all"}
+< raw
+| {"status":200,"contentType":"application/json","body":"{\".security-7\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}},\"hidden-closed\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}},\"hidden-one\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}}}"}
 > raw
 | {"method":"GET","route":"/_cat/indices?format=json\u0026pretty"}
 < raw
@@ -32,4 +40,4 @@
 > raw
 | {"method":"GET","route":"/_alias"}
 < raw
-| {"status":200,"contentType":"application/json","body":"{\".security-7\":{\"aliases\":{\".security\":{}}},\"alpha\":{\"aliases\":{}},\"beta\":{\"aliases\":{}},\"closed-index\":{\"aliases\":{}},\"hidden-one\":{\"aliases\":{}}}"}
+| {"status":200,"contentType":"application/json","body":"{\".security-7\":{\"aliases\":{\".security\":{}}},\"alpha\":{\"aliases\":{}},\"beta\":{\"aliases\":{}},\"closed-index\":{\"aliases\":{}},\"hidden-closed\":{\"aliases\":{}},\"hidden-one\":{\"aliases\":{}}}"}

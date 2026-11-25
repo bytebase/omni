@@ -10,7 +10,7 @@
 < raw
 | {"status":404,"contentType":"application/json","body":"{\"error\":{\"index\":\"missing-index\",\"index_uuid\":\"_na_\",\"reason\":\"no such index [missing-index]\",\"resource.id\":\"missing-index\",\"resource.type\":\"index_or_alias\",\"root_cause\":[{\"index\":\"missing-index\",\"index_uuid\":\"_na_\",\"reason\":\"no such index [missing-index]\",\"resource.id\":\"missing-index\",\"resource.type\":\"index_or_alias\",\"type\":\"index_not_found_exception\"}],\"type\":\"index_not_found_exception\"},\"status\":404}"}
 > raw
-| {"method":"GET","route":"/*/_settings?filter_path=**.hidden\u0026expand_wildcards=open,hidden"}
+| {"method":"GET","route":"/*/_settings?filter_path=**.hidden\u0026expand_wildcards=all"}
 < raw
 | {"status":200,"contentType":"application/json","body":"{\".security-7\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}}}"}
 > raw

@@ -155,9 +155,13 @@ type indexSettingsResult struct {
 	} `json:"settings"`
 }
 
-// hiddenSettingsRoute asks every index's settings for its hidden flag, hidden
-// indices included.
-const hiddenSettingsRoute = "/*/_settings?filter_path=**.hidden&expand_wildcards=open,hidden"
+// hiddenSettingsRoute asks every index's settings for its hidden flag. "all"
+// reaches hidden indices from Elasticsearch 7.7 on, and is a value 6.x knows
+// too, where "hidden" is refused (no valid expand wildcard value [hidden]) and
+// no index is hidden.
+//
+// Ref: https://www.elastic.co/guide/en/elasticsearch/reference/7.17/multi-index.html (expand_wildcards)
+const hiddenSettingsRoute = "/*/_settings?filter_path=**.hidden&expand_wildcards=all"
 
 // getHiddenIndices returns the index names that are marked as hidden.
 func (d *Driver) getHiddenIndices(ctx context.Context) (map[string]bool, error) {
