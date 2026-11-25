@@ -2,8 +2,8 @@ package analysis
 
 // DiagnoseError is the first syntax error Diagnose finds.
 type DiagnoseError struct {
-	// Offset is the error's byte offset in the script, -1 when CockroachDB's
-	// parser did not locate it.
+	// Offset is the error's byte offset in the script, the start of the
+	// failing statement when CockroachDB's parser did not locate it.
 	Offset  int
 	Message string
 }

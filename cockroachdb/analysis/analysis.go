@@ -35,8 +35,8 @@ func (s ParsedStatement) Text() string {
 
 // ParseErrorInfo holds normalized error fields extracted from a CockroachDB
 // parser error so callers outside this package do not depend on vendor error
-// types. Position is the byte offset into the parsed SQL, or -1 when the parser
-// reported no source location.
+// types. Position is the byte offset into the parsed SQL; when the parser
+// reports no source location it is the start of the statement that failed.
 type ParseErrorInfo struct {
 	Message  string
 	Position int
@@ -248,17 +248,21 @@ func scanStmtSpans(sql string) []stmtSpan {
 
 func extractParseErrorInfo(sql string, err error) *ParseErrorInfo {
 	flat := pgerror.Flatten(err)
+	// A failure the parser does not locate (a help token, or a grammar
+	// action's error such as DO's "no inline code specified") falls back to
+	// the start of the statement that failed, or 0 when no token was read.
 	info := &ParseErrorInfo{
 		Message:  flat.Message,
-		Position: -1,
+		Position: 0,
 		Code:     flat.Code,
-	}
-	snippet, relPos, ok := extractSourceSQLCaret(flat.Detail)
-	if !ok {
-		return info
 	}
 	span, found := failingStmtSpan(sql)
 	if !found {
+		return info
+	}
+	info.Position = span.start
+	snippet, relPos, ok := extractSourceSQLCaret(flat.Detail)
+	if !ok {
 		return info
 	}
 	stmtText := sql[span.start:span.end]
