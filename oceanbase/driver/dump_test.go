@@ -281,9 +281,10 @@ CREATE VIEW v_opts AS
 }
 
 // TestDumpRestoresColumnGroupsAndVectorIndexes pins what only SHOW CREATE TABLE
-// states on oceanbase-ce 4.3.5.6: a table's column groups and a vector index,
+// states on oceanbase-ce 4.3.5.6: a table's column groups, a vector index,
 // which information_schema.STATISTICS lists over hidden columns beside the
-// hidden tables that support it.
+// hidden tables that support it, and a SPATIAL key, which it lists as a BTREE
+// over hidden columns.
 func TestDumpRestoresColumnGroupsAndVectorIndexes(t *testing.T) {
 	const setup = `CREATE TABLE t_cg (a INT, b INT) WITH COLUMN GROUP(all columns, each column);
 
@@ -301,7 +302,9 @@ CREATE TABLE t_ft_default (id INT PRIMARY KEY, body VARCHAR(200), FULLTEXT KEY f
 
 CREATE TABLE t_global (a INT, b INT, c INT, KEY k_plain (c), UNIQUE KEY k_global (b) GLOBAL) PARTITION BY HASH(a) PARTITIONS 2;
 
-CREATE TABLE t_storing (a INT, b INT, c INT, KEY k_cover (a) STORING (b, c));`
+CREATE TABLE t_storing (a INT, b INT, c INT, KEY k_cover (a) STORING (b, c));
+
+CREATE TABLE t_spatial (id INT PRIMARY KEY, position POINT NOT NULL, SPATIAL KEY sk (position));`
 	source, restored, err := dumpAndRestore(t, "omni_ob_show_create_roundtrip", setup)
 	if err != nil {
 		t.Fatalf("restoring OceanBase dump: %v", err)
@@ -337,6 +340,11 @@ CREATE TABLE t_storing (a INT, b INT, c INT, KEY k_cover (a) STORING (b, c));`
 			if idx.Parser != tc.parser || fmt.Sprint(idx.ParserProperties) != tc.props || strings.Join(idx.Expressions, ",") != "body" {
 				t.Errorf("%s full-text index = %+v", tc.table, idx)
 			}
+		}
+	}
+	for _, idx := range tables["t_spatial"].Indexes {
+		if idx.Name == "sk" && (idx.Type != "SPATIAL" || strings.Join(idx.Expressions, ",") != "position" || fmt.Sprint(idx.KeyLength) != "[-1]") {
+			t.Errorf("t_spatial spatial index = %+v", idx)
 		}
 	}
 	for _, idx := range tables["t_storing"].Indexes {

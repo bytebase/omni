@@ -2613,15 +2613,12 @@
                 visible: true
               - descending:
                   - false
-                  - false
                 expressions:
-                  - __cellid_18
-                  - __mbr_18
+                  - position
                 keyLength:
                   - "-1"
-                  - "-1"
                 name: idx_spatial_position
-                type: BTREE
+                type: SPATIAL
                 visible: true
             name: locations
   newMetadata:
@@ -8262,15 +8259,12 @@
                 visible: true
               - descending:
                   - false
-                  - false
                 expressions:
-                  - __cellid_18
-                  - __mbr_18
+                  - position
                 keyLength:
                   - "-1"
-                  - "-1"
                 name: idx_spatial_position
-                type: BTREE
+                type: SPATIAL
                 visible: true
             name: locations
   expected: |-
@@ -8284,13 +8278,15 @@
       PRIMARY KEY (`id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     CREATE TABLE `mmdb_062`.`locations` (
-      `id` text,
-      `name` text,
-      `position` text
+      `id` int NOT NULL AUTO_INCREMENT,
+      `name` varchar(100) NOT NULL,
+      `position` point NOT NULL,
+      PRIMARY KEY (`id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     ALTER TABLE `mmdb_062`.`articles` ADD FULLTEXT KEY `idx_fulltext_content` (`title`,`content`);
     ALTER TABLE `mmdb_062`.`articles` ADD FULLTEXT KEY `idx_fulltext_tags` (`tags`);
-    ALTER TABLE `mmdb_062`.`articles` ADD KEY `idx_title_tags` (`title`(50),`tags`(50))
+    ALTER TABLE `mmdb_062`.`articles` ADD KEY `idx_title_tags` (`title`(50),`tags`(50));
+    ALTER TABLE `mmdb_062`.`locations` ADD SPATIAL KEY `idx_spatial_position` (`position`)
 - description: 'Reverse: Drop generated columns'
   oldSchema: |
     CREATE TABLE products (
