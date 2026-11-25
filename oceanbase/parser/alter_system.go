@@ -38,7 +38,11 @@ type sysMatch struct {
 	name    string
 	// ttlColumns is the column of each TTL entry matched so far, in order.
 	ttlColumns []string
-	err        error // an inner statement's own error, which the match reports
+	// ifExists is IF EXISTS or IF NOT EXISTS matched before the object.
+	ifExists bool
+	// sequenceOptions are a sequence's options matched so far, in order.
+	sequenceOptions []*nodes.SequenceOption
+	err             error // an inner statement's own error, which the match reports
 }
 
 // sysMiss records the current token as one no matcher took.
