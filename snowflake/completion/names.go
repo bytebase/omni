@@ -42,11 +42,11 @@ type nameContext struct {
 // nameContextAt parses stmt with the caret word replaced by the placeholder
 // and reads what the placeholder names from where it lands in the AST.
 func nameContextAt(stmt string, word caretWord, cat *catalog) *nameContext {
-	path, ok := placeholderPath(stmt, word)
+	path, text, ok := placeholderPath(stmt, word)
 	if !ok {
 		return lexicalContext(stmt[:word.start])
 	}
-	return contextFromPath(path, cat)
+	return contextFromPath(path, text, cat)
 }
 
 // relationWords are the keywords a table or view name follows.
@@ -96,20 +96,21 @@ var patchTails = []string{"", " 1", " = 1", " x"}
 // holds the placeholder, innermost last. It tries the statement with its
 // text after the caret, then the text before the caret alone, each closed by
 // patchTails.
-func placeholderPath(stmt string, word caretWord) ([]ast.Node, bool) {
+func placeholderPath(stmt string, word caretWord) ([]ast.Node, string, bool) {
 	head := stmt[:word.start] + placeholder
 	for _, base := range []string{head + stmt[word.end:], head} {
 		for _, tail := range patchTails {
 			text := base + tail
 			closers := closersFor(text)
 			for _, query := range []string{"", " SELECT 1"} {
-				if path, ok := parsePath(text + closers + query); ok {
-					return path, true
+				patched := text + closers + query
+				if path, ok := parsePath(patched); ok {
+					return path, patched, true
 				}
 			}
 		}
 	}
-	return nil, false
+	return nil, "", false
 }
 
 // closersFor returns the brackets that close those text leaves open.
@@ -222,14 +223,14 @@ func holdsPlaceholder(n ast.Node) bool {
 
 // contextFromPath reads the name context from the path to the node holding
 // the placeholder.
-func contextFromPath(path []ast.Node, cat *catalog) *nameContext {
+func contextFromPath(path []ast.Node, text string, cat *catalog) *nameContext {
 	holder := path[len(path)-1]
 	var parent ast.Node
 	if len(path) > 1 {
 		parent = path[len(path)-2]
 	}
 	nc := &nameContext{query: isQuery(path[0])}
-	b := newScopeBuilder(cat, nc.query)
+	b := newScopeBuilder(cat, nc.query, text)
 	ctes := ctesAlong(path)
 	switch n := holder.(type) {
 	case *ast.ColumnRef:

@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/snowflake/ast"
 	"github.com/bytebase/omni/snowflake/parser"
 )
 
@@ -50,13 +51,15 @@ type caretWord struct {
 	quoted     bool
 }
 
-// name is a candidate whose text is a name still to be quoted, or, when
-// written is set, text spelled as it is to be inserted: a qualifier as the
-// statement spells it, or a built-in function as the docs do.
+// name is a candidate whose text is a name still to be quoted or, when
+// written is set, a built-in function spelled as the docs spell it.
 type name struct {
 	Candidate
 	written bool
 	builtin bool
+	// qualifier, when set, is the identifier a qualifier candidate offers;
+	// Text is derived from it once the caret's quoting is known.
+	qualifier *ast.Ident
 }
 
 // complete returns the candidates for the statement stmt at byte offset
@@ -96,7 +99,12 @@ func complete(stmt string, caret int, cat *catalog) []Candidate {
 			// as the keyword the grammar reads.
 			continue
 		}
-		if !n.written {
+		switch {
+		case n.qualifier != nil && word.quoted:
+			c.Text = QuoteIdentifierIfNeeded(n.qualifier.Normalize(), true)
+		case n.qualifier != nil:
+			c.Text = n.qualifier.String()
+		case !n.written:
 			c.Text = QuoteIdentifierIfNeeded(c.Text, word.quoted)
 		}
 		if c.Type == CandidateFunction && call && !word.quoted {
@@ -212,7 +220,11 @@ func nameCandidates(nc *nameContext, cat *catalog, typed string) []name {
 	upper := strings.ToUpper(typed)
 	var out []name
 	add := func(n name) {
-		if strings.HasPrefix(strings.ToUpper(n.Text), upper) {
+		match := n.Text
+		if n.qualifier != nil {
+			match = n.qualifier.Name
+		}
+		if strings.HasPrefix(strings.ToUpper(match), upper) {
 			out = append(out, n)
 		}
 	}
@@ -324,8 +336,8 @@ func nameCandidates(nc *nameContext, cat *catalog, typed string) []name {
 			for _, level := range nc.scope.levels {
 				addColumns(level)
 				for _, item := range level {
-					if item.display != "" {
-						add(name{Candidate: Candidate{Text: item.display, Type: CandidateTable}, written: true})
+					if !item.qualifier.IsEmpty() {
+						add(name{Candidate: Candidate{Type: CandidateTable}, qualifier: &item.qualifier})
 					}
 				}
 			}

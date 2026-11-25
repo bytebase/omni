@@ -23,9 +23,10 @@ type rangeItem struct {
 	// names are the resolved qualifiers that address the item: its alias,
 	// or its table name with each of its qualifications.
 	names [][]string
-	// display is the qualifier offered for it, as written.
-	display string
-	columns func() []colInfo
+	// qualifier is the name offered to qualify its columns: its alias or
+	// table name as written. Zero when nothing addresses it.
+	qualifier ast.Ident
+	columns   func() []colInfo
 }
 
 type colInfo struct {
@@ -99,11 +100,12 @@ func (m cteMap) with(ctes []*ast.CTE) cteMap {
 type scopeBuilder struct {
 	cat     *catalog
 	query   bool
+	text    string // the parsed statement, which node Locs index
 	cteCols map[*ast.CTE][]colInfo
 }
 
-func newScopeBuilder(cat *catalog, query bool) *scopeBuilder {
-	return &scopeBuilder{cat: cat, query: query, cteCols: map[*ast.CTE][]colInfo{}}
+func newScopeBuilder(cat *catalog, query bool, text string) *scopeBuilder {
+	return &scopeBuilder{cat: cat, query: query, text: text, cteCols: map[*ast.CTE][]colInfo{}}
 }
 
 // ctesAlong returns the CTEs visible at each node of path, the path from
@@ -180,11 +182,15 @@ func (b *scopeBuilder) scopeAt(path []ast.Node, ctesAt []cteMap) scope {
 				continue
 			}
 			sc.levels = append(sc.levels, b.leavesOf(n.From, ctes))
-			if !slices.ContainsFunc(n.Targets, func(t *ast.SelectTarget) bool { return t.Expr == child }) {
-				for _, t := range n.Targets {
-					if !t.Alias.IsEmpty() {
-						sc.aliases = append(sc.aliases, t.Alias.Normalize())
-					}
+			// A select-list item may use the aliases of the items before
+			// it; the other clauses, every alias.
+			targets := n.Targets
+			if i := slices.IndexFunc(n.Targets, func(t *ast.SelectTarget) bool { return t.Expr == child }); i >= 0 {
+				targets = n.Targets[:i]
+			}
+			for _, t := range targets {
+				if !t.Alias.IsEmpty() {
+					sc.aliases = append(sc.aliases, t.Alias.Normalize())
 				}
 			}
 		case *ast.UpdateStmt:
@@ -193,6 +199,12 @@ func (b *scopeBuilder) scopeAt(path []ast.Node, ctesAt []cteMap) scope {
 		case *ast.DeleteStmt:
 			level := []*rangeItem{b.relation(n.Target, n.Alias, ctes, 0)}
 			sc.levels = append(sc.levels, append(level, b.leavesOf(n.Using, ctes)...))
+		case *ast.InsertMultiStmt:
+			// A branch's WHEN and VALUES read the source query's columns.
+			if child != n.Select {
+				sel := n.Select
+				sc.levels = append(sc.levels, []*rangeItem{{columns: memo(func() []colInfo { return b.outputs(sel, ctes, 0) })}})
+			}
 		case *ast.MergeStmt:
 			if child == n.Source {
 				continue
@@ -200,7 +212,7 @@ func (b *scopeBuilder) scopeAt(path []ast.Node, ctesAt []cteMap) scope {
 			level := []*rangeItem{b.relation(n.Target, n.TargetAlias, ctes, 0)}
 			if src := b.leaves(n.Source, ctes); len(src) == 1 && !n.SourceAlias.IsEmpty() {
 				src[0].names = [][]string{{n.SourceAlias.Normalize()}}
-				src[0].display = n.SourceAlias.String()
+				src[0].qualifier = n.SourceAlias
 				level = append(level, src...)
 			} else {
 				level = append(level, src...)
@@ -294,16 +306,16 @@ func (b *scopeBuilder) relation(name *ast.ObjectName, alias ast.Ident, ctes cteM
 	switch {
 	case !alias.IsEmpty():
 		item.names = [][]string{{alias.Normalize()}}
-		item.display = alias.String()
+		item.qualifier = alias
 	case isCTE:
 		item.names = [][]string{parts}
-		item.display = name.Name.String()
+		item.qualifier = name.Name
 	default:
 		full := b.cat.qualify(parts, b.query)
 		for i := range full {
 			item.names = append(item.names, full[i:])
 		}
-		item.display = name.Name.String()
+		item.qualifier = name.Name
 	}
 	if isCTE {
 		item.columns = func() []colInfo { return b.cteColumns(def) }
@@ -339,7 +351,7 @@ func (b *scopeBuilder) tableRef(t *ast.TableRef, ctes cteMap, depth int) *rangeI
 	item := &rangeItem{columns: func() []colInfo { return nil }}
 	if !t.Alias.IsEmpty() {
 		item.names = [][]string{{t.Alias.Normalize()}}
-		item.display = t.Alias.String()
+		item.qualifier = t.Alias
 	}
 	switch {
 	case len(t.Columns) > 0:
@@ -375,7 +387,7 @@ func (b *scopeBuilder) clauseSource(t *ast.TableRef, ctes cteMap, depth int) *ra
 // clause, which addresses the result; without one the source's names do.
 func (b *scopeBuilder) reshaped(t *ast.TableRef, ctes cteMap, depth int) *rangeItem {
 	source := b.clauseSource(t, ctes, depth)
-	item := &rangeItem{names: source.names, display: source.display}
+	item := &rangeItem{names: source.names, qualifier: source.qualifier}
 	var alias ast.Ident
 	switch {
 	case t.Pivot != nil && !t.Pivot.Alias.IsEmpty():
@@ -389,7 +401,7 @@ func (b *scopeBuilder) reshaped(t *ast.TableRef, ctes cteMap, depth int) *rangeI
 	}
 	if !alias.IsEmpty() {
 		item.names = [][]string{{alias.Normalize()}}
-		item.display = alias.String()
+		item.qualifier = alias
 	}
 	item.columns = memo(func() []colInfo {
 		cols := source.columns()
@@ -553,14 +565,44 @@ func (b *scopeBuilder) outputs(n ast.Node, ctes cteMap, depth int) []colInfo {
 			case t.Star:
 				out = append(out, b.starColumns(q, t, ctes, depth)...)
 			default:
-				if ref, ok := t.Expr.(*ast.ColumnRef); ok && len(ref.Parts) > 0 {
-					out = append(out, colInfo{name: ref.Parts[len(ref.Parts)-1].Normalize()})
+				if name := b.exprName(t.Expr); name != "" {
+					out = append(out, colInfo{name: name})
 				}
 			}
 		}
 		return out
 	}
 	return nil
+}
+
+// exprName returns the name Snowflake gives an unaliased select-list item: a
+// column reference's column, and otherwise the expression as written with
+// what is outside quotes in upper case (COUNT(*), V:A).
+func (b *scopeBuilder) exprName(expr ast.Node) string {
+	if ref, ok := expr.(*ast.ColumnRef); ok && len(ref.Parts) > 0 {
+		return ref.Parts[len(ref.Parts)-1].Normalize()
+	}
+	loc := ast.NodeLoc(expr)
+	if loc.Start < 0 || loc.End > len(b.text) || loc.Start >= loc.End {
+		return ""
+	}
+	var sb strings.Builder
+	var quote byte
+	for i := loc.Start; i < loc.End; i++ {
+		c := b.text[i]
+		switch {
+		case quote != 0:
+			if c == quote {
+				quote = 0
+			}
+		case c == '\'' || c == '"':
+			quote = c
+		case c >= 'a' && c <= 'z':
+			c -= 'a' - 'A'
+		}
+		sb.WriteByte(c)
+	}
+	return sb.String()
 }
 
 // starColumns expands * or t.* of a select list.
