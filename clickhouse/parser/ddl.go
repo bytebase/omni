@@ -47,8 +47,8 @@ func (p *parser) parseCreateStmt() (Statement, error) {
 	// ATTACH takes OR REPLACE before VIEW only: ClickHouseParser.g4:103
 	// writes (ATTACH | CREATE) (OR REPLACE)? VIEW, and ParserCreateViewQuery
 	// reads OR REPLACE after either keyword.
-	if (action == "CREATE" || action == "ATTACH" && p.peek(2).Type == KwView) &&
-		p.cur().Type == KwOr && p.peek(1).Type == KwReplace {
+	if p.cur().Type == KwOr && p.peek(1).Type == KwReplace &&
+		(action == "CREATE" || action == "ATTACH" && p.peek(2).Type == KwView) {
 		p.advance()
 		p.advance()
 		orReplace = true

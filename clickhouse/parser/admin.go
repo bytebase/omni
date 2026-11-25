@@ -120,7 +120,7 @@ func (p *parser) parseDescribeTableExpr() (*TableExpr, error) {
 
 func (p *parser) parseAnyWordIdent() (string, error) {
 	tok := p.cur()
-	if tok.Type == TokIdent || tok.Type == TokQuotedIdent || tok.IsKeyword() {
+	if !tok.probe && (tok.Type == TokIdent || tok.Type == TokQuotedIdent || tok.IsKeyword()) {
 		p.advance()
 		return tok.Val, nil
 	}
@@ -133,6 +133,9 @@ func (p *parser) isEndAfter(offset int) bool {
 }
 
 func isDescribeTableAlias(tok Token) bool {
+	if tok.probe {
+		return false
+	}
 	if tok.Type == TokIdent || tok.Type == TokQuotedIdent {
 		return true
 	}
@@ -365,7 +368,7 @@ func (p *parser) parseExplainStmt() (*ExplainStmt, error) {
 			stmt.Kind = "TABLE OVERRIDE"
 		}
 	case KwCurrent:
-		if p.peek(1).Type == TokIdent && strings.EqualFold(p.peek(1).Val, "TRANSACTION") {
+		if p.isWordAt(1, "TRANSACTION") {
 			p.advance()
 			p.advance()
 			stmt.Kind = "CURRENT TRANSACTION"
@@ -373,7 +376,7 @@ func (p *parser) parseExplainStmt() (*ExplainStmt, error) {
 			return stmt, nil
 		}
 	default:
-		if p.cur().Type == TokIdent && strings.EqualFold(p.cur().Val, "ANALYZE") && p.peek(1).Type != TokEq {
+		if p.isWord("ANALYZE") && p.peek(1).Type != TokEq {
 			p.advance()
 			stmt.Kind = "ANALYZE"
 		}
@@ -999,7 +1002,7 @@ func (p *parser) parseShowPoliciesTarget(stmt *ShowStmt) error {
 		stmt.Target = lit.Val
 		return nil
 	}
-	if p.cur().Type == TokIdent || p.cur().Type == TokQuotedIdent || p.cur().IsKeyword() {
+	if tok := p.cur(); !tok.probe && (tok.Type == TokIdent || tok.Type == TokQuotedIdent || tok.IsKeyword()) {
 		stmt.Target = p.advance().Val
 		return nil
 	}
@@ -1456,5 +1459,8 @@ func (p *parser) isWord(upper string) bool {
 
 func (p *parser) isWordAt(offset int, upper string) bool {
 	tok := p.peek(offset)
+	if p.wants != nil && tok.Type == TokEOF {
+		p.wants[upper] = true
+	}
 	return (tok.Type == TokIdent || tok.IsKeyword()) && strings.EqualFold(tok.Val, upper)
 }
