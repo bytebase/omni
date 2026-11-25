@@ -2965,12 +2965,16 @@ func (p *Parser) parseValuesFunc() (nodes.ExprNode, error) {
 	}
 	p.advance() // consume '('
 
-	col, err := p.parseExpr()
+	// The argument is a column name, not an expression. Ref: `"VALUES" '('
+	// SimpleIdent ')'` in TiDB v8.5.5 pkg/parser/parser.y, where SimpleIdent
+	// is a name of one to three parts with no star, so `VALUES(a*b)` is a 1064.
+	colStart := p.pos()
+	col, err := p.parseColumnRef()
 	if err != nil {
 		return nil, err
 	}
-	if col == nil {
-		return nil, p.syntaxErrorAtCur()
+	if col.Star {
+		return nil, &ParseError{Message: "syntax error", Position: colStart}
 	}
 
 	if _, err := p.expect(')'); err != nil {
