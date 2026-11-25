@@ -1021,6 +1021,11 @@ func getCompositeTypes(txn *sql.Tx) (map[string][]*metadatapb.CompositeTypeMetad
 }
 
 // getSequences gets all sequences of a database.
+// sequenceCache reads CACHE n from the CREATE SEQUENCE the server writes
+// (crdb_internal.create_statements), which states its options in one form;
+// PER NODE CACHE is another option.
+var sequenceCache = regexp.MustCompile(`(?:^|[^E]) CACHE (\d+)`)
+
 func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error) {
 	// A sequence's OWNED BY column is its pg_depend row of type 'a': the
 	// owning table and, as refobjsubid, the column's attnum.
@@ -1029,7 +1034,8 @@ func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error
 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
-				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+			(SELECT cs.create_statement FROM crdb_internal.create_statements cs WHERE cs.descriptor_id = c.oid::INT8)
 		FROM information_schema.sequences s
 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
@@ -1044,9 +1050,14 @@ func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error
 	for rows.Next() {
 		sequence := &metadatapb.SequenceMetadata{}
 		var schemaName, cycleOption string
-		var ownerTable, ownerColumn sql.NullString
-		if err := rows.Scan(&schemaName, &sequence.Name, &sequence.DataType, &sequence.Start, &sequence.MinValue, &sequence.MaxValue, &sequence.Increment, &cycleOption, &ownerTable, &ownerColumn); err != nil {
+		var ownerTable, ownerColumn, createStatement sql.NullString
+		if err := rows.Scan(&schemaName, &sequence.Name, &sequence.DataType, &sequence.Start, &sequence.MinValue, &sequence.MaxValue, &sequence.Increment, &cycleOption, &ownerTable, &ownerColumn, &createStatement); err != nil {
 			return nil, err
+		}
+		// CockroachDB states a sequence's CACHE only in its CREATE statement:
+		// pg_sequence.seqcache reads 1 whatever it is.
+		if m := sequenceCache.FindStringSubmatch(createStatement.String); m != nil {
+			sequence.CacheSize = m[1]
 		}
 		sequence.OwnerTable, sequence.OwnerColumn = ownerTable.String, ownerColumn.String
 		sequence.Cycle = strings.EqualFold(cycleOption, "YES")

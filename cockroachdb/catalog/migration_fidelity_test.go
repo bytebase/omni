@@ -64,6 +64,11 @@ CREATE SEQUENCE fid_m.owned_seq OWNED BY fid_m.owners.a;
 CREATE TABLE fid_m.gone_owner (id INT8 PRIMARY KEY, n INT8);
 CREATE SEQUENCE fid_m.gone_owner_seq OWNED BY fid_m.gone_owner.n;
 CREATE TABLE fid_m.calc (id INT8 PRIMARY KEY, a INT8, b INT8 AS (a + 1) STORED);
+CREATE TYPE fid_m.shade AS ENUM ('light', 'dark');
+CREATE TABLE fid_m.paints (id INT8 PRIMARY KEY, shade fid_m.shade);
+CREATE SEQUENCE fid_m.cached_seq CACHE 4;
+CREATE SCHEMA fid_gone;
+CREATE TYPE fid_gone.kind AS ENUM ('x');
 `,
 			target: `CREATE SCHEMA fid_m;
 CREATE SCHEMA fid_new;
@@ -108,6 +113,8 @@ CREATE FUNCTION fid_m.price_text() RETURNS STRING LANGUAGE SQL STABLE AS $$ SELE
 CREATE TABLE fid_m.owners (id INT8 PRIMARY KEY, b INT8);
 CREATE SEQUENCE fid_m.owned_seq OWNED BY fid_m.owners.b;
 CREATE TABLE fid_m.calc (id INT8 PRIMARY KEY);
+CREATE TABLE fid_m.paints (id INT8 PRIMARY KEY, shade STRING);
+CREATE SEQUENCE fid_m.cached_seq CACHE 8;
 `,
 		},
 		{

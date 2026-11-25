@@ -100,6 +100,12 @@
 > exec
 | CREATE TABLE fid_m.calc (id INT8 PRIMARY KEY);
 < ok 0 -
+> exec
+| CREATE TABLE fid_m.paints (id INT8 PRIMARY KEY, shade STRING);
+< ok 0 -
+> exec
+| CREATE SEQUENCE fid_m.cached_seq CACHE 8;
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -758,6 +764,62 @@
 : string
 | fid_m
 : string
+| paints
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| paints
+: string
+| shade
+: string
+| text
+: null
+: null
+: null
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | prices
 : string
 | id
@@ -1113,6 +1175,18 @@
 : string
 | fid_m
 : string
+| cached_seq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testmigrationfidelity.fid_m.cached_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | calc
 : string
 | calc_pkey
@@ -1236,6 +1310,18 @@
 | owners_pkey
 : string
 | CREATE UNIQUE INDEX owners_pkey ON omni_testmigrationfidelity.fid_m.owners USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| paints
+: string
+| paints_pkey
+: string
+| CREATE UNIQUE INDEX paints_pkey ON omni_testmigrationfidelity.fid_m.paints USING btree (id ASC)
 : string
 | PRIMARY KEY
 : null
@@ -1517,6 +1603,13 @@
 : string
 | fid_m
 : string
+| paints
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | prices
 : int64 0
 : null
@@ -1653,7 +1746,8 @@
 | 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
 | 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
 | 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
-| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT cs.create_statement FROM crdb_internal.create_statements cs WHERE cs.descriptor_id = c.oid::INT8)
 | 		FROM information_schema.sequences s
 | 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
 | 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
@@ -1669,6 +1763,28 @@
 < column "cycle_option" "TEXT"
 < column "relname" "NAME"
 < column "attname" "NAME"
+< column "create_statement" "TEXT"
+< row
+: string
+| fid_m
+: string
+| cached_seq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
+: null
+: null
+: string
+| CREATE SEQUENCE fid_m.cached_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1 CACHE 8
 < row
 : string
 | fid_m
@@ -1688,6 +1804,8 @@
 | NO
 : null
 : null
+: string
+| CREATE SEQUENCE fid_m.ids MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 2 START 10 CACHE 4
 < row
 : string
 | fid_m
@@ -1709,6 +1827,8 @@
 | owners
 : string
 | b
+: string
+| CREATE SEQUENCE fid_m.owned_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -1902,6 +2022,21 @@
 > exec
 | CREATE TABLE fid_m.calc (id INT8 PRIMARY KEY, a INT8, b INT8 AS (a + 1) STORED);
 < ok 0 -
+> exec
+| CREATE TYPE fid_m.shade AS ENUM ('light', 'dark');
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.paints (id INT8 PRIMARY KEY, shade fid_m.shade);
+< ok 0 -
+> exec
+| CREATE SEQUENCE fid_m.cached_seq CACHE 4;
+< ok 0 -
+> exec
+| CREATE SCHEMA fid_gone;
+< ok 0 -
+> exec
+| CREATE TYPE fid_gone.kind AS ENUM ('x');
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -1962,6 +2097,10 @@
 < result
 < column "nspname" "NAME"
 < column "obj_description" "TEXT"
+< row
+: string
+| fid_gone
+: null
 < row
 : string
 | fid_m
@@ -2664,6 +2803,62 @@
 : string
 | fid_m
 : string
+| paints
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| paints
+: string
+| shade
+: string
+| USER-DEFINED
+: null
+: null
+: null
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| fid_m
+: string
+| shade
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | prices
 : string
 | id
@@ -2934,6 +3129,18 @@
 : string
 | fid_m
 : string
+| cached_seq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testmigrationfidelity.fid_m.cached_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | calc
 : string
 | calc_pkey
@@ -3080,6 +3287,18 @@
 | owners_pkey
 : string
 | CREATE UNIQUE INDEX owners_pkey ON omni_testmigrationfidelity.fid_m.owners USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| paints
+: string
+| paints_pkey
+: string
+| CREATE UNIQUE INDEX paints_pkey ON omni_testmigrationfidelity.fid_m.paints USING btree (id ASC)
 : string
 | PRIMARY KEY
 : null
@@ -3358,6 +3577,13 @@
 : string
 | fid_m
 : string
+| paints
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | prices
 : int64 0
 : null
@@ -3484,7 +3710,8 @@
 | 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
 | 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
 | 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
-| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT cs.create_statement FROM crdb_internal.create_statements cs WHERE cs.descriptor_id = c.oid::INT8)
 | 		FROM information_schema.sequences s
 | 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
 | 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
@@ -3500,6 +3727,28 @@
 < column "cycle_option" "TEXT"
 < column "relname" "NAME"
 < column "attname" "NAME"
+< column "create_statement" "TEXT"
+< row
+: string
+| fid_m
+: string
+| cached_seq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
+: null
+: null
+: string
+| CREATE SEQUENCE fid_m.cached_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1 CACHE 4
 < row
 : string
 | fid_m
@@ -3521,6 +3770,8 @@
 | gone_owner
 : string
 | n
+: string
+| CREATE SEQUENCE fid_m.gone_owner_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1
 < row
 : string
 | fid_m
@@ -3540,6 +3791,8 @@
 | NO
 : null
 : null
+: string
+| CREATE SEQUENCE fid_m.ids MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 10
 < row
 : string
 | fid_m
@@ -3561,6 +3814,8 @@
 | owners
 : string
 | a
+: string
+| CREATE SEQUENCE fid_m.owned_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1
 < row
 : string
 | fid_m
@@ -3580,6 +3835,8 @@
 | NO
 : null
 : null
+: string
+| CREATE SEQUENCE fid_m.ticket_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -3594,6 +3851,13 @@
 < column "enumlabel" "TEXT"
 < row
 : string
+| fid_gone
+: string
+| kind
+: string
+| x
+< row
+: string
 | fid_m
 : string
 | Mood
@@ -3606,6 +3870,20 @@
 | level
 : string
 | high
+< row
+: string
+| fid_m
+: string
+| shade
+: string
+| light
+< row
+: string
+| fid_m
+: string
+| shade
+: string
+| dark
 < row
 : string
 | fid_m
@@ -3725,7 +4003,10 @@
 | ALTER TYPE "fid_m"."status" ADD VALUE 'void' AFTER 'done';
 < ok 0 -
 > exec
-| ALTER SEQUENCE "fid_m"."ids" INCREMENT BY 2;
+| ALTER SEQUENCE "fid_m"."cached_seq" CACHE 8;
+< ok 0 -
+> exec
+| ALTER SEQUENCE "fid_m"."ids" INCREMENT BY 2 CACHE 4;
 < ok 0 -
 > exec
 | ALTER TABLE "fid_m"."amounts" ALTER COLUMN "amount" SET DATA TYPE text;
@@ -3756,6 +4037,9 @@
 < ok 0 -
 > exec
 | ALTER TABLE "fid_m"."orders" DROP CONSTRAINT "orders_pkey", ADD CONSTRAINT "orders_pkey" PRIMARY KEY (id ASC, line ASC);
+< ok 0 -
+> exec
+| ALTER TABLE "fid_m"."paints" ALTER COLUMN "shade" SET DATA TYPE text;
 < ok 0 -
 > exec
 | ALTER TABLE "fid_m"."prices" ALTER COLUMN "price" SET DATA TYPE double precision;
@@ -3791,6 +4075,15 @@
 |     "customer_id" bigint,
 |     "id" bigint DEFAULT nextval('fid_m.ids'::REGCLASS)
 | );
+< ok 0 -
+> exec
+| DROP TYPE "fid_m"."shade";
+< ok 0 -
+> exec
+| DROP TYPE "fid_gone"."kind";
+< ok 0 -
+> exec
+| DROP SCHEMA "fid_gone";
 < ok 0 -
 > exec
 | ALTER SEQUENCE "fid_m"."owned_seq" OWNED BY "fid_m"."owners"."b";
@@ -4510,6 +4803,62 @@
 : string
 | fid_m
 : string
+| paints
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| paints
+: string
+| shade
+: string
+| text
+: null
+: null
+: null
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | prices
 : string
 | id
@@ -4865,6 +5214,18 @@
 : string
 | fid_m
 : string
+| cached_seq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testmigrationfidelity.fid_m.cached_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | calc
 : string
 | calc_pkey
@@ -4988,6 +5349,18 @@
 | owners_pkey
 : string
 | CREATE UNIQUE INDEX owners_pkey ON omni_testmigrationfidelity.fid_m.owners USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| paints
+: string
+| paints_pkey
+: string
+| CREATE UNIQUE INDEX paints_pkey ON omni_testmigrationfidelity.fid_m.paints USING btree (id ASC)
 : string
 | PRIMARY KEY
 : null
@@ -5269,6 +5642,13 @@
 : string
 | fid_m
 : string
+| paints
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | prices
 : int64 0
 : null
@@ -5405,7 +5785,8 @@
 | 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
 | 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
 | 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
-| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT cs.create_statement FROM crdb_internal.create_statements cs WHERE cs.descriptor_id = c.oid::INT8)
 | 		FROM information_schema.sequences s
 | 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
 | 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
@@ -5421,6 +5802,28 @@
 < column "cycle_option" "TEXT"
 < column "relname" "NAME"
 < column "attname" "NAME"
+< column "create_statement" "TEXT"
+< row
+: string
+| fid_m
+: string
+| cached_seq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
+: null
+: null
+: string
+| CREATE SEQUENCE fid_m.cached_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1 CACHE 8
 < row
 : string
 | fid_m
@@ -5440,6 +5843,8 @@
 | NO
 : null
 : null
+: string
+| CREATE SEQUENCE fid_m.ids MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 2 START 10 CACHE 4
 < row
 : string
 | fid_m
@@ -5461,6 +5866,8 @@
 | owners
 : string
 | b
+: string
+| CREATE SEQUENCE fid_m.owned_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -6822,7 +7229,8 @@
 | 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
 | 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
 | 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
-| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT cs.create_statement FROM crdb_internal.create_statements cs WHERE cs.descriptor_id = c.oid::INT8)
 | 		FROM information_schema.sequences s
 | 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
 | 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
@@ -6838,6 +7246,7 @@
 < column "cycle_option" "TEXT"
 < column "relname" "NAME"
 < column "attname" "NAME"
+< column "create_statement" "TEXT"
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -8146,7 +8555,8 @@
 | 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
 | 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
 | 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
-| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT cs.create_statement FROM crdb_internal.create_statements cs WHERE cs.descriptor_id = c.oid::INT8)
 | 		FROM information_schema.sequences s
 | 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
 | 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
@@ -8162,6 +8572,7 @@
 < column "cycle_option" "TEXT"
 < column "relname" "NAME"
 < column "attname" "NAME"
+< column "create_statement" "TEXT"
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -9538,7 +9949,8 @@
 | 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
 | 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
 | 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
-| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT cs.create_statement FROM crdb_internal.create_statements cs WHERE cs.descriptor_id = c.oid::INT8)
 | 		FROM information_schema.sequences s
 | 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
 | 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
@@ -9554,6 +9966,7 @@
 < column "cycle_option" "TEXT"
 < column "relname" "NAME"
 < column "attname" "NAME"
+< column "create_statement" "TEXT"
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel

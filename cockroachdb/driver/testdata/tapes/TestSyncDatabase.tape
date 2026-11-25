@@ -1563,7 +1563,8 @@
 | 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
 | 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
 | 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
-| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT cs.create_statement FROM crdb_internal.create_statements cs WHERE cs.descriptor_id = c.oid::INT8)
 | 		FROM information_schema.sequences s
 | 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
 | 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
@@ -1579,6 +1580,7 @@
 < column "cycle_option" "TEXT"
 < column "relname" "NAME"
 < column "attname" "NAME"
+< column "create_statement" "TEXT"
 < row
 : string
 | app
@@ -1598,6 +1600,8 @@
 | NO
 : null
 : null
+: string
+| CREATE SEQUENCE app.counter AS INT8 MINVALUE -100 MAXVALUE 1000 INCREMENT 5 START 10 CACHE 3
 < row
 : string
 | audit
@@ -1617,6 +1621,8 @@
 | NO
 : null
 : null
+: string
+| CREATE SEQUENCE audit.big_seq AS INT8 MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1
 < row
 : string
 | audit
@@ -1638,6 +1644,8 @@
 | tickets
 : string
 | n
+: string
+| CREATE SEQUENCE audit.ticket_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel

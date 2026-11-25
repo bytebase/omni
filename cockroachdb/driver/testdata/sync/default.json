@@ -341,7 +341,8 @@
           "start": "10",
           "minValue": "-100",
           "maxValue": "1000",
-          "increment": "5"
+          "increment": "5",
+          "cacheSize": "3"
         }
       ],
       "comment": "the application",

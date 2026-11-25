@@ -163,13 +163,14 @@ const (
 	phaseDropRoutines
 	phaseDropSequences
 	phaseDropTypes
-	phaseDropSchemas
 	phaseCreateSchemas
 	phaseCreateTypes
 	phaseCreateSequences
 	phaseAlterTables
 	phaseCreateObjects
 	phaseLateColumns
+	phaseLateDropTypes
+	phaseDropSchemas
 	phaseCreateIndexes
 	phaseAddForeignKeys
 	phaseComments
@@ -278,20 +279,26 @@ func (d *differ) diffExtensions() {
 func (d *differ) diffTypes() error {
 	// Types drop dependents first: a composite type before the types its
 	// attributes use.
-	dropped := make(map[string]bool)
+	dropped := make(map[string]int)
 	for _, schema := range d.from.schemas {
 		for _, t := range collectTypes([]*metadatapb.SchemaMetadata{schema}, false) {
 			old := d.toType(schema.Name, t)
-			if old == nil || (t.enum == nil || old.enum == nil) && d.typeDefinition(*old) != d.typeDefinition(t) {
-				dropped[getObjectID(schema.Name, t.name())] = true
+			switch {
+			case old == nil:
+				// A removed type goes once the kept columns using it are
+				// converted away.
+				dropped[getObjectID(schema.Name, t.name())] = phaseLateDropTypes
+			case (t.enum == nil || old.enum == nil) && d.typeDefinition(*old) != d.typeDefinition(t):
+				// A changed composite goes early, to be created again.
+				dropped[getObjectID(schema.Name, t.name())] = phaseDropTypes
 			}
 		}
 	}
 	all := collectTypes(d.from.schemas, false)
 	for i := len(all) - 1; i >= 0; i-- {
 		t := all[i]
-		if dropped[getObjectID(t.schema, t.name())] {
-			d.add(phaseDropTypes, MigrationOp{Type: OpDropType, SchemaName: t.schema, ObjectName: t.name(),
+		if phase, ok := dropped[getObjectID(t.schema, t.name())]; ok {
+			d.add(phase, MigrationOp{Type: OpDropType, SchemaName: t.schema, ObjectName: t.name(),
 				SQL: fmt.Sprintf("DROP TYPE %s.%s", quoteIdent(t.schema), quoteIdent(t.name()))})
 		}
 	}
