@@ -3943,9 +3943,6 @@
 | ALTER TABLE "fid_m"."uses" DROP CONSTRAINT "uses_code_fkey";
 < ok 0 -
 > exec
-| DROP FUNCTION "fid_m"."price_text"();
-< ok 0 -
-> exec
 | DROP INDEX "fid_m"."amounts"@"amounts_amount_idx";
 < ok 0 -
 > exec
@@ -3968,6 +3965,9 @@
 < ok 0 -
 > exec
 | DROP TABLE "fid_m"."gone_owner";
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_m"."price_text"();
 < ok 0 -
 > exec
 | ALTER TABLE "fid_m"."calc" DROP COLUMN "b";
@@ -6023,6 +6023,9 @@
 | CREATE VIEW fid_v.named (other) AS SELECT id FROM fid_v.items;
 < ok 0 -
 > exec
+| CREATE TABLE fid_v.keep (id INT8 PRIMARY KEY);
+< ok 0 -
+> exec
 | ALTER TABLE fid_v.items ADD COLUMN doubled DECIMAL AS (price * 2) VIRTUAL;
 < ok 0 -
 > exec
@@ -6311,6 +6314,34 @@
 | price * 2
 : string
 | v
+< row
+: string
+| fid_v
+: string
+| keep
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -6687,6 +6718,18 @@
 : string
 | fid_v
 : string
+| keep
+: string
+| keep_pkey
+: string
+| CREATE UNIQUE INDEX keep_pkey ON omni_testmigrationfidelity.fid_v.keep USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | scored
 : string
 | scored_pkey
@@ -6811,6 +6854,13 @@
 | fid_v
 : string
 | items
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| keep
 : int64 0
 : null
 < row
@@ -7342,6 +7392,24 @@
 > exec
 | CREATE FUNCTION fid_v.rb() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.ra() $$;
 < ok 0 -
+> exec
+| CREATE FUNCTION fid_v.c_const() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_v.ct1 (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_v.c_const());
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.cz_read() RETURNS INT8 LANGUAGE SQL AS $$ SELECT count(*) FROM fid_v.ct1 $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_v.ct2 (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_v.cz_read());
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.colfn() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 3 $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_v.keep (id INT8 PRIMARY KEY, x INT8 DEFAULT fid_v.colfn());
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -7453,6 +7521,120 @@
 < column "is_hidden" "TEXT"
 < column "generation_expression" "TEXT"
 < column "attgenerated" "CHAR"
+< row
+: string
+| fid_v
+: string
+| ct1
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| ct1
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_v.c_const()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| ct2
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| ct2
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_v.cz_read()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -7607,6 +7789,63 @@
 : int64 0
 : int64 5
 : null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| keep
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| keep
+: string
+| x
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_v.colfn()
 : string
 | YES
 : null
@@ -7985,11 +8224,47 @@
 : string
 | fid_v
 : string
+| ct1
+: string
+| ct1_pkey
+: string
+| CREATE UNIQUE INDEX ct1_pkey ON omni_testmigrationfidelity.fid_v.ct1 USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
+| ct2
+: string
+| ct2_pkey
+: string
+| CREATE UNIQUE INDEX ct2_pkey ON omni_testmigrationfidelity.fid_v.ct2 USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | items
 : string
 | items_pkey
 : string
 | CREATE UNIQUE INDEX items_pkey ON omni_testmigrationfidelity.fid_v.items USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
+| keep
+: string
+| keep_pkey
+: string
+| CREATE UNIQUE INDEX keep_pkey ON omni_testmigrationfidelity.fid_v.keep USING btree (id ASC)
 : string
 | PRIMARY KEY
 : null
@@ -8120,7 +8395,28 @@
 : string
 | fid_v
 : string
+| ct1
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| ct2
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
 | items
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| keep
 : int64 0
 : null
 < row
@@ -8463,6 +8759,42 @@
 : string
 | fid_v
 : string
+| c_const
+: string
+| c_const()
+: string
+| CREATE FUNCTION fid_v.c_const()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 1;
+| $$
+< row
+: string
+| fid_v
+: string
+| colfn
+: string
+| colfn()
+: string
+| CREATE FUNCTION fid_v.colfn()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 3;
+| $$
+< row
+: string
+| fid_v
+: string
 | count_items
 : string
 | count_items()
@@ -8494,6 +8826,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT count(*) FROM omni_testmigrationfidelity.fid_v.old_items;
+| $$
+< row
+: string
+| fid_v
+: string
+| cz_read
+: string
+| cz_read()
+: string
+| CREATE FUNCTION fid_v.cz_read()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT count(*) FROM omni_testmigrationfidelity.fid_v.ct1;
 | $$
 < row
 : string
@@ -8615,10 +8965,19 @@
 > commit
 < ok
 > exec
+| ALTER TABLE "fid_v"."keep" ALTER COLUMN "x" DROP DEFAULT;
+< ok 0 -
+> exec
 | ALTER TABLE "fid_v"."tagged" ALTER COLUMN "v" DROP DEFAULT;
 < ok 0 -
 > exec
+| DROP INDEX "fid_v"."totals"@"totals_name_idx";
+< ok 0 -
+> exec
 | DROP FUNCTION "fid_v"."add"(int8, int8);
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."colfn"();
 < ok 0 -
 > exec
 | DROP FUNCTION "fid_v"."count_items"();
@@ -8627,13 +8986,28 @@
 | DROP FUNCTION "fid_v"."count_old"();
 < ok 0 -
 > exec
+| DROP TABLE "fid_v"."ct2";
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."cz_read"();
+< ok 0 -
+> exec
+| DROP TABLE "fid_v"."ct1";
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."c_const"();
+< ok 0 -
+> exec
+| DROP VIEW "fid_v"."dropped";
+< ok 0 -
+> exec
 | DROP FUNCTION "fid_v"."gone"();
 < ok 0 -
 > exec
-| DROP FUNCTION "fid_v"."rb"();
+| DROP VIEW "fid_v"."named";
 < ok 0 -
 > exec
-| DROP FUNCTION "fid_v"."ra"();
+| DROP TABLE "fid_v"."old_items";
 < ok 0 -
 > exec
 | DROP VIEW "fid_v"."priced_names";
@@ -8642,19 +9016,16 @@
 | DROP VIEW "fid_v"."priced";
 < ok 0 -
 > exec
-| DROP VIEW "fid_v"."named";
+| DROP FUNCTION "fid_v"."rb"();
 < ok 0 -
 > exec
-| DROP VIEW "fid_v"."dropped";
-< ok 0 -
-> exec
-| DROP INDEX "fid_v"."totals"@"totals_name_idx";
-< ok 0 -
-> exec
-| DROP TABLE "fid_v"."old_items";
+| DROP FUNCTION "fid_v"."ra"();
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."items" DROP COLUMN "legacy";
+< ok 0 -
+> exec
+| ALTER TABLE "fid_v"."keep" DROP COLUMN "x";
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."items" ADD COLUMN "doubled" numeric AS (price * 2) VIRTUAL;
@@ -9035,6 +9406,34 @@
 : string
 | fid_v
 : string
+| keep
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
 | named
 : string
 | other
@@ -9407,6 +9806,18 @@
 : string
 | fid_v
 : string
+| keep
+: string
+| keep_pkey
+: string
+| CREATE UNIQUE INDEX keep_pkey ON omni_testmigrationfidelity.fid_v.keep USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | scored
 : string
 | scored_pkey
@@ -9531,6 +9942,13 @@
 | fid_v
 : string
 | items
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| keep
 : int64 0
 : null
 < row

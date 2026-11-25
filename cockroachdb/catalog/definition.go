@@ -128,6 +128,11 @@ func SchemaDefinition(schema *metadatapb.SchemaMetadata) (string, error) {
 		}
 	}
 	r.writeObjects(&buf, []*metadatapb.SchemaMetadata{schema})
+	for _, sequence := range schema.Sequences {
+		if !sequence.SkipDump && sequence.OwnerTable != "" && sequence.OwnerColumn != "" {
+			writeAlterSequenceOwnedBy(&buf, schema.Name, sequence)
+		}
+	}
 	writeSchemaForeignKeys(&buf, schema)
 	return buf.String(), nil
 }

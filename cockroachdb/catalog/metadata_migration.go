@@ -155,12 +155,9 @@ func (s *snapshot) table(schema, name string) *metadatapb.TableMetadata {
 const (
 	phaseDetachDefaults = iota
 	phaseDropForeignKeys
-	phaseDropRoutinesFirst
-	phaseDropViews
 	phaseDropIndexes
-	phaseDropTables
+	phaseDropObjects
 	phaseDropColumns
-	phaseDropRoutines
 	phaseDropSequences
 	phaseDropTypes
 	phaseCreateSchemas
@@ -194,6 +191,9 @@ type differ struct {
 	recreated map[string]bool
 	// r renders the target's objects; its types are both sides'.
 	r renderer
+	// drops holds the views, routines and tables the migration drops, by
+	// object ID, which orderDrops puts in dependency order.
+	drops map[string]*dropNode
 	// cascaded holds the foreign keys cascadedForeignKeys returns.
 	cascaded map[string]bool
 	// droppedSequences holds the schema-qualified names of the sequences
@@ -229,6 +229,7 @@ func (d *differ) diff() error {
 	}
 	d.diffViews()
 	d.diffRoutines()
+	d.orderDrops()
 	d.createObjects()
 	return nil
 }
@@ -663,8 +664,12 @@ func (d *differ) diffTables() error {
 				}
 			}
 			if target == nil {
-				d.add(phaseDropTables, MigrationOp{Type: OpDropTable, SchemaName: schema.Name, ObjectName: table.Name,
-					SQL: fmt.Sprintf("DROP TABLE %s.%s", quoteIdent(schema.Name), quoteIdent(table.Name))})
+				var calls []string
+				for _, name := range tableCalls(table) {
+					calls = append(calls, callPrefix+name)
+				}
+				d.addDrop(getObjectID(schema.Name, table.Name), MigrationOp{Type: OpDropTable, SchemaName: schema.Name, ObjectName: table.Name,
+					SQL: fmt.Sprintf("DROP TABLE %s.%s", quoteIdent(schema.Name), quoteIdent(table.Name))}, calls)
 			}
 		}
 	}
@@ -749,6 +754,14 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	for _, column := range dropOrder {
 		if findColumnIn(newColumns, column.Name) != nil {
 			continue
+		}
+		// A dropped column's default calling a dropped routine is detached
+		// first: routines drop before columns.
+		for _, name := range calledFunctions(column.Default) {
+			if d.droppedRoutines[name] {
+				alter(phaseDetachDefaults, OpAlterColumn, column.Name, "ALTER COLUMN "+quoteIdent(column.Name)+" DROP DEFAULT")
+				break
+			}
 		}
 		if oldKey != newKey && slices.Contains(oldPrimary.GetExpressions(), column.Name) {
 			afterKey = append(afterKey, column.Name)
@@ -1001,28 +1014,89 @@ func (d *differ) diffIndexes(schema, table string, oldIndexes, newIndexes []*met
 // diffViews drops the views and materialized views that go or are rebuilt,
 // dependents first, and alters the indexes of materialized views kept.
 func (d *differ) diffViews() {
-	var drops []MigrationOp
-	for _, object := range orderObjects(d.from.schemas) {
-		switch {
-		case object.view != nil:
-			id := getObjectID(object.schema, object.view.Name)
-			if d.rebuilt[id] || findView(d.to.byName[object.schema], object.view.Name) == nil {
-				drops = append(drops, MigrationOp{Type: OpDropView, SchemaName: object.schema, ObjectName: object.view.Name,
-					SQL: fmt.Sprintf("DROP VIEW %s.%s", quoteIdent(object.schema), quoteIdent(object.view.Name))})
+	for _, schema := range d.from.schemas {
+		for _, view := range schema.Views {
+			id := getObjectID(schema.Name, view.Name)
+			if d.rebuilt[id] || findView(d.to.byName[schema.Name], view.Name) == nil {
+				d.addDrop(id, MigrationOp{Type: OpDropView, SchemaName: schema.Name, ObjectName: view.Name,
+					SQL: fmt.Sprintf("DROP VIEW %s.%s", quoteIdent(schema.Name), quoteIdent(view.Name))}, viewReads(view.Definition, view.DependencyColumns))
 			}
-		case object.materializedView != nil:
-			id := getObjectID(object.schema, object.materializedView.Name)
-			target := findMaterializedView(d.to.byName[object.schema], object.materializedView.Name)
+		}
+		for _, view := range schema.MaterializedViews {
+			id := getObjectID(schema.Name, view.Name)
+			target := findMaterializedView(d.to.byName[schema.Name], view.Name)
 			if d.rebuilt[id] || target == nil {
-				drops = append(drops, MigrationOp{Type: OpDropView, SchemaName: object.schema, ObjectName: object.materializedView.Name,
-					SQL: fmt.Sprintf("DROP MATERIALIZED VIEW %s.%s", quoteIdent(object.schema), quoteIdent(object.materializedView.Name))})
+				d.addDrop(id, MigrationOp{Type: OpDropView, SchemaName: schema.Name, ObjectName: view.Name,
+					SQL: fmt.Sprintf("DROP MATERIALIZED VIEW %s.%s", quoteIdent(schema.Name), quoteIdent(view.Name))}, viewReads(view.Definition, view.DependencyColumns))
 				continue
 			}
-			d.diffIndexes(object.schema, target.Name, materializedViewIndexes(object.materializedView), materializedViewIndexes(target), nil)
+			d.diffIndexes(schema.Name, target.Name, materializedViewIndexes(view), materializedViewIndexes(target), nil)
 		}
 	}
-	slices.Reverse(drops)
-	d.phases[phaseDropViews] = append(d.phases[phaseDropViews], drops...)
+}
+
+// viewReads returns the relations a view reads, by object ID.
+func viewReads(query string, dependencies []*metadatapb.DependencyColumn) []string {
+	reads := queryRelations(query)
+	for _, dependency := range dependencies {
+		reads = append(reads, getObjectID(dependency.Schema, dependency.Table))
+	}
+	return reads
+}
+
+// dropNode is one view, routine or table the migration drops, with what it
+// depends on: relation IDs, and the routines it calls as callPrefix+name.
+type dropNode struct {
+	op    MigrationOp
+	reads []string
+}
+
+const callPrefix = "\x01call:"
+
+func (d *differ) addDrop(id string, op MigrationOp, reads []string) {
+	if d.drops == nil {
+		d.drops = make(map[string]*dropNode)
+	}
+	d.drops[id] = &dropNode{op: op, reads: reads}
+}
+
+// orderDrops drops the views, routines and tables the migration drops, each
+// before what it depends on: a view before the relations it reads, a routine
+// before the relations its body reads and the routines it calls, and a table
+// before the routines its defaults and checks call. No fixed order of the
+// three kinds holds when a routine reads one dropped table and another
+// dropped table's default calls it.
+func (d *differ) orderDrops() {
+	routines := make(map[string][]string)
+	for _, id := range sortedMapIDs(d.drops) {
+		node := d.drops[id]
+		if node.op.Type == OpDropFunction || node.op.Type == OpAlterFunction {
+			routines[node.op.ObjectName] = append(routines[node.op.ObjectName], id)
+			routines[node.op.SchemaName+"."+node.op.ObjectName] = append(routines[node.op.SchemaName+"."+node.op.ObjectName], id)
+		}
+	}
+	graph := newDefinitionGraph()
+	for _, id := range sortedMapIDs(d.drops) {
+		graph.AddNode(id)
+		for _, read := range d.drops[id].reads {
+			if name, ok := strings.CutPrefix(read, callPrefix); ok {
+				for _, routine := range routines[name] {
+					graph.AddEdge(id, routine)
+				}
+			} else if d.drops[read] != nil {
+				graph.AddEdge(id, read)
+			}
+		}
+	}
+	ordered, err := graph.TopologicalSort()
+	if err != nil {
+		ordered = sortedMapIDs(d.drops)
+	}
+	for _, id := range ordered {
+		if node := d.drops[id]; node != nil {
+			d.add(phaseDropObjects, node.op)
+		}
+	}
 }
 
 // planRoutines decides which source routines the migration drops: those the
@@ -1112,89 +1186,33 @@ func tableCalls(table *metadatapb.TableMetadata) []string {
 	return names
 }
 
-// diffRoutines drops the routines planRoutines chose. A routine that a
-// dropped table's or column's default, or any check, calls is dropped after
-// the tables, columns and checks go; the others first, before the relations
-// their bodies read. A kept column's default is detached from a dropped
-// routine before either.
+// diffRoutines drops the routines planRoutines chose, in the order
+// orderDrops gives them among the views and tables that go.
 func (d *differ) diffRoutines() {
-	late := make(map[string]bool)
-	for _, schema := range d.from.schemas {
-		for _, table := range schema.Tables {
-			target := d.to.table(schema.Name, table.Name)
-			for _, column := range table.Columns {
-				if target != nil && findColumn(target, column.Name) != nil {
-					continue
-				}
-				for _, name := range calledFunctions(column.Default) {
-					late[name] = true
-				}
-			}
-			for _, check := range table.CheckConstraints {
-				for _, name := range calledFunctions(check.Expression) {
-					late[name] = true
-				}
-			}
-		}
-	}
-	// A routine that calls another goes first: CockroachDB keeps a called
-	// routine while a caller remains.
-	graph := newDefinitionGraph()
-	dropping := make(map[string]*metadatapb.FunctionMetadata)
-	schemaOfID := make(map[string]string)
-	byName := make(map[string][]string)
 	for _, schema := range d.from.schemas {
 		for _, function := range schema.Functions {
 			id := getObjectID(schema.Name, metadataFuncIdentity(function))
 			if !d.recreated[id] && findFunction(d.to.byName[schema.Name], metadataFuncIdentity(function)) != nil {
 				continue
 			}
-			dropping[id], schemaOfID[id] = function, schema.Name
-			graph.AddNode(id)
-			byName[function.Name] = append(byName[function.Name], id)
-		}
-	}
-	for _, id := range sortedMapIDs(dropping) {
-		tokens, _ := crparser.Tokens(routineBody(dropping[id].Definition))
-		for i, token := range tokens {
-			if i+1 < len(tokens) && tokens[i+1].Str == "(" {
-				for _, callee := range byName[token.Str] {
-					graph.AddEdge(id, callee)
+			kind := "FUNCTION"
+			if isProcedure(function.Definition) {
+				kind = "PROCEDURE"
+			}
+			typ := OpDropFunction
+			if d.recreated[id] {
+				typ = OpAlterFunction
+			}
+			reads := routineRelations(function.Definition)
+			tokens, _ := crparser.Tokens(routineBody(function.Definition))
+			for i, token := range tokens {
+				if i+1 < len(tokens) && tokens[i+1].Str == "(" && token.Str != function.Name {
+					reads = append(reads, callPrefix+token.Str)
 				}
 			}
+			d.addDrop(id, MigrationOp{Type: typ, SchemaName: schema.Name, ObjectName: function.Name,
+				SQL: fmt.Sprintf("DROP %s %s.%s", kind, quoteIdent(schema.Name), routineSignature(function))}, reads)
 		}
-	}
-	ordered, err := graph.TopologicalSort()
-	if err != nil {
-		ordered = sortedMapIDs(dropping)
-	}
-	// A routine a late-dropped routine calls is late too.
-	isLate := make(map[string]bool)
-	for _, id := range ordered {
-		function, schema := dropping[id], schemaOfID[id]
-		isLate[id] = isLate[id] || late[function.Name] || late[schema+"."+function.Name]
-		if isLate[id] {
-			for _, callee := range graph.edges[id] {
-				isLate[callee] = true
-			}
-		}
-	}
-	for _, id := range ordered {
-		function, schema := dropping[id], schemaOfID[id]
-		kind := "FUNCTION"
-		if isProcedure(function.Definition) {
-			kind = "PROCEDURE"
-		}
-		phase := phaseDropRoutinesFirst
-		if isLate[id] {
-			phase = phaseDropRoutines
-		}
-		typ := OpDropFunction
-		if d.recreated[id] {
-			typ = OpAlterFunction
-		}
-		d.add(phase, MigrationOp{Type: typ, SchemaName: schema, ObjectName: function.Name,
-			SQL: fmt.Sprintf("DROP %s %s.%s", kind, quoteIdent(schema), routineSignature(function))})
 	}
 }
 

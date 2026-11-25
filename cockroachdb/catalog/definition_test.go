@@ -178,3 +178,15 @@ func TestMetadataMigrationSequenceCycle(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, `ALTER SEQUENCE "app"."s" NO CYCLE`, migration)
 }
+
+func TestSchemaDefinitionOwnedSequence(t *testing.T) {
+	schema := &metadata.SchemaMetadata{
+		Name:      "app",
+		Tables:    []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "n", Type: "bigint", Nullable: true}}}},
+		Sequences: []*metadata.SequenceMetadata{{Name: "s", DataType: "INT8", Start: "1", Increment: "1", MinValue: "1", MaxValue: "9", OwnerTable: "t", OwnerColumn: "n"}},
+	}
+	def, err := catalog.SchemaDefinition(schema)
+	require.NoError(t, err)
+	require.Contains(t, def, `ALTER SEQUENCE "app"."s" OWNED BY "app"."t"."n";`)
+	require.Less(t, strings.Index(def, `CREATE TABLE "app"."t"`), strings.Index(def, "OWNED BY"))
+}
