@@ -51,7 +51,7 @@ func TestProgramSimulationPG18(t *testing.T) {
 
 func programRows(t *testing.T) []simulate.Generated {
 	t.Helper()
-	rows := make([]simulate.Generated, 0, len(programFeatures)+len(quotedTypeFeatures))
+	rows := make([]simulate.Generated, 0, len(programFeatures)+len(quotedTypeFeatures)+len(quotedAliasFeatures)+len(retypeFeatures)+len(generatedRetypeFeatures))
 	seen := map[string]bool{}
 	add := func(fixture string, features []struct{ kind, statement string }) {
 		for _, f := range features {
@@ -64,6 +64,9 @@ func programRows(t *testing.T) []simulate.Generated {
 	}
 	add("programs@objects", programFeatures)
 	add("programs@quoted", quotedTypeFeatures)
+	add("programs@quoted", quotedAliasFeatures)
+	add("programs@retype", retypeFeatures)
+	add("programs@generated", generatedRetypeFeatures)
 	return rows
 }
 
@@ -407,4 +410,89 @@ var quotedTypeFeatures = []struct{ kind, statement string }{
 	{"quoted-type", `CREATE FUNCTION fq(m "Mood") RETURNS text LANGUAGE sql RETURN m::text`},
 	{"quoted-type", `CREATE FUNCTION fq() RETURNS "Mood" LANGUAGE sql AS $$SELECT 'sad'::"Mood"$$`},
 	{"quoted-type", `CREATE FUNCTION fq(m "Mood") RETURNS int LANGUAGE plpgsql AS $$ DECLARE x "Mood"; BEGIN x := m; RETURN 1; END $$`},
+}
+
+// quotedAliasFeatures run on programs@quoted. The grammar maps an unquoted
+// SQL-standard type name (integer, double precision) to its catalog name
+// (int4, float8); a quoted one names a type of that exact name, which
+// pg_catalog lacks.
+var quotedAliasFeatures = []struct{ kind, statement string }{
+	{"quoted-alias", `CREATE TABLE tq (a "integer")`},
+	{"quoted-alias", `CREATE TABLE tq (a "int")`},
+	{"quoted-alias", `CREATE TABLE tq (a "bigint")`},
+	{"quoted-alias", `CREATE TABLE tq (a "boolean")`},
+	{"quoted-alias", `CREATE TABLE tq (a "decimal"(5, 2))`},
+	{"quoted-alias", `CREATE TABLE tq (a "double precision")`},
+	{"quoted-alias", `CREATE TABLE tq (a "character varying"(5))`},
+	{"quoted-alias", `CREATE TABLE tq (a "timestamp with time zone")`},
+	{"quoted-alias", `CREATE TABLE tq (a pg_catalog."integer")`},
+	{"quoted-alias", `CREATE TABLE tq (a "integer"[])`},
+	{"quoted-alias", `CREATE TABLE tq (a "int4", b "varchar"(5), c "bool", d "char", e "float8")`},
+	{"quoted-alias", `CREATE TABLE tq (a integer, b double precision, c character varying(5), d timestamp with time zone)`},
+	{"quoted-alias", `ALTER TABLE "Foo" ADD COLUMN b "smallint"`},
+	{"quoted-alias", `ALTER TABLE "Foo" ALTER COLUMN a TYPE "bigint"`},
+	{"quoted-alias", `CREATE DOMAIN dq AS "integer"`},
+	{"quoted-alias", `CREATE TYPE cq AS (a "real")`},
+	{"quoted-alias", `CREATE TYPE rq AS RANGE (subtype = "integer")`},
+	{"quoted-alias", `CREATE VIEW vq AS SELECT 1::"integer" AS a`},
+	{"quoted-alias", `CREATE FUNCTION fq(a "integer") RETURNS int LANGUAGE sql RETURN a`},
+	{"quoted-alias", `CREATE FUNCTION fq() RETURNS "integer" LANGUAGE sql RETURN 1`},
+	{"quoted-alias", `CREATE FUNCTION fq() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x "integer"; BEGIN x := 1; RETURN x; END $$`},
+}
+
+// retypeFeatures run on programs@retype: ALTER COLUMN TYPE with and without
+// USING. PostgreSQL analyzes the USING expression against the table and
+// casts its result to the new type by assignment; without USING it casts the
+// column itself.
+var retypeFeatures = []struct{ kind, statement string }{
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE mood USING t::mood`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN v TYPE mood USING v::mood`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE mood USING notes.t::mood`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE mood USING 'happy'`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN n TYPE mood USING CASE WHEN n > 0 THEN 'happy' ELSE 'sad' END::mood`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE mood`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE mood USING t`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE mood USING n::mood`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE mood USING missing::mood`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE mood USING t::nope`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN m TYPE text`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN m TYPE int USING m::text::int`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE int`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE int USING t::int`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE int USING length(t)`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE varchar(3) USING t`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE int USING (SELECT 1)`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE int USING count(*)`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE int USING row_number() OVER ()`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE int USING generate_series(1, 2)`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE int USING $1`},
+	{"alter-using", `ALTER TABLE notes ALTER t TYPE mood USING t::mood, ALTER v TYPE mood USING v::mood`},
+	{"alter-using", `ALTER TABLE notes ALTER t TYPE mood USING t::mood, ALTER v TYPE int USING length(t)`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE int USING 'not-an-integer'`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE int USING '12'`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN n TYPE json USING JSON_ARRAYAGG(n)`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN n TYPE json USING JSON_OBJECTAGG('k' VALUE n)`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN n TYPE json USING JSON_ARRAYAGG(n) OVER ()`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE text USING tableoid::text`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE varchar(40) USING ctid::text`},
+	{"alter-using", `ALTER TABLE notes ALTER COLUMN t TYPE int USING xmin::text::int`},
+}
+
+// generatedRetypeFeatures run ALTER COLUMN TYPE on programs@generated, whose
+// table has a generated column and columns with defaults. A generated column
+// takes no USING, and a default must cast to the new type by assignment
+// whatever USING does to the rows.
+var generatedRetypeFeatures = []struct{ kind, statement string }{
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN b TYPE int USING b::int`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN b TYPE varchar(5)`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN b TYPE int`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN d TYPE int USING length(d)`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN d TYPE varchar(5) USING upper(d)`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN d TYPE varchar(5)`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN e TYPE text USING e::text`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN e TYPE bigint`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN d DROP DEFAULT, ALTER COLUMN d TYPE int USING length(d)`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN d TYPE int USING length(d), ALTER COLUMN d DROP DEFAULT`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN d SET DEFAULT 1, ALTER COLUMN d TYPE int USING length(d)`},
+	{"alter-using", `ALTER TABLE gen ALTER COLUMN d DROP DEFAULT, ALTER COLUMN d SET DEFAULT 2`},
 }

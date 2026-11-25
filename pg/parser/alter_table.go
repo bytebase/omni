@@ -1352,11 +1352,11 @@ func (p *Parser) parseAlterColumnTypeInner(colname string) (*nodes.AlterTableCmd
 		}
 	}
 
-	// USING a_expr (consumed but not stored — matches yacc behavior where it goes to
-	// transform analysis, not the raw parse tree)
+	// alter_using: USING a_expr, kept as the column's raw default.
+	// pg: src/backend/parser/gram.y — alter_table_cmd (def->raw_default = $8)
 	if p.cur.Type == USING {
 		p.advance()
-		if _, err = p.parseRequiredAExpr(0); err != nil {
+		if coldef.RawDefault, err = p.parseRequiredAExpr(0); err != nil {
 			return nil, err
 		}
 	}
