@@ -147,7 +147,6 @@ func TestPipe_Operators(t *testing.T) {
 		{"|> EXPORT DATA OPTIONS(uri = 'x')", ast.T_PipeExportData},
 		{"|> CREATE TABLE t (x INT64)", ast.T_PipeCreateTable},
 		{"|> INSERT INTO t (x) ON CONFLICT DO NOTHING", ast.T_PipeInsert},
-		{"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a) DEFINE a AS true)", ast.T_PipeMatchRecognize},
 	}
 	for _, tc := range cases {
 		t.Run(tc.sql, func(t *testing.T) {
@@ -233,16 +232,6 @@ func TestPipe_OperatorShapes(t *testing.T) {
 		}
 		if _, ok := ru.RHS.(*ast.Subpipeline); !ok {
 			t.Errorf("rhs is %T, want *ast.Subpipeline", ru.RHS)
-		}
-	})
-
-	t.Run("row pattern parentheses are in the Loc", func(t *testing.T) {
-		sql := "|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN((a)) DEFINE a AS true)"
-		pipe := subpipelineOf(t, firstStmt(t, sql))
-		pat := pipe.Ops[0].(*ast.PipeMatchRecognize).Clause.Pattern
-		want := strings.Index(sql, "PATTERN(") + len("PATTERN(")
-		if pat.Loc.Start != want {
-			t.Errorf("pattern Loc = %+v, want it to start at the outer '(' (%d)", pat.Loc, want)
 		}
 	})
 
@@ -344,18 +333,9 @@ func TestPipe_AcceptsValidNearMisses(t *testing.T) {
 		"|> WITH c AS (SELECT 1),",
 		"|> WINDOW x AS y,",
 		"|> EXTEND a WINDOW w AS ()",
-		"|> AGGREGATE x AS y DESC NULLS LAST, GROUP AND ORDER BY z NULLS FIRST",
 		"|> IF true THEN () ELSEIF false THEN (|> DISTINCT) ELSE ()",
 		"SELECT x, |> WHERE true",
 		"|> SELECT x, |> WHERE true",
-		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a || b) DEFINE a AS true, b AS true)",
-		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN((a)) DEFINE a AS true)",
-		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(||a) DEFINE a AS true)",
-		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a$) DEFINE a AS true)",
-		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a{1,3}) DEFINE a AS true)",
-		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a{1,}) DEFINE a AS true)",
-		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a{,3}) DEFINE a AS true)",
-		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a{1,3}?) DEFINE a AS true)",
 		"|> UNION ALL TABLE f(TABLE t)",
 		"|> EXTEND x, WINDOW w AS ()",
 		"|> CROSS JOIN t",

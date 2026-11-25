@@ -12,9 +12,9 @@ import (
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/civil"
 
+	"github.com/bytebase/omni/bigquery/analysis"
+	"github.com/bytebase/omni/bigquery/parser"
 	"github.com/bytebase/omni/driver"
-	googlesqlanalysis "github.com/bytebase/omni/googlesql/analysis"
-	"github.com/bytebase/omni/googlesql/parser"
 )
 
 // Session returns one session. BigQuery has no session state a statement can
@@ -76,13 +76,13 @@ func statements(script string) []string {
 }
 
 // returnsRows reports whether statement returns a result set, which
-// googlesql/analysis decides for the BigQuery dialect. A statement it does not
+// bigquery/analysis decides. A statement it does not
 // classify as a query is run as a job that reports rows affected, as Bytebase's
 // driver did; one it cannot classify at all takes that path too, and
 // session.command reads the result set when the service states one.
 func returnsRows(statement string) bool {
-	switch googlesqlanalysis.ClassifySQL(statement, googlesqlanalysis.DialectBigQuery) {
-	case googlesqlanalysis.Select, googlesqlanalysis.SelectInfoSchema:
+	switch analysis.ClassifySQL(statement) {
+	case analysis.Select, analysis.SelectInfoSchema:
 		return true
 	default:
 		return false
@@ -90,10 +90,10 @@ func returnsRows(statement string) bool {
 }
 
 // limitStatement wraps statement so BigQuery returns at most limit rows, through
-// googlesql/analysis, which is BigQuery's CTE wrap: BigQuery has no LIMIT to
+// bigquery/analysis, which is BigQuery's CTE wrap: BigQuery has no LIMIT to
 // splice into an arbitrary query.
 func limitStatement(statement string, limit int) string {
-	return googlesqlanalysis.StatementWithResultLimit(statement, limit, googlesqlanalysis.DialectBigQuery)
+	return analysis.StatementWithResultLimit(statement, limit)
 }
 
 // run runs one statement: a query reads it, and anything else runs as a job whose
@@ -194,7 +194,7 @@ func columnsOf(schema bigquery.Schema) []driver.Column {
 
 // command runs a statement that returns no rows and reports the rows it affected.
 //
-// A statement googlesql/analysis cannot read runs this way too, and omni's
+// A statement bigquery/analysis cannot read runs this way too, and omni's
 // parser has gaps a valid statement may hit (a pipe query is one). When the job
 // answered a result set, its rows are read rather than dropped; one that answered
 // none reports the rows it affected, and reading the job's result is what tells the
@@ -232,12 +232,12 @@ func (s *session) command(ctx context.Context, statement string, opts driver.Que
 // answered rows.
 const selectStatementType = "SELECT"
 
-// unclassified reports whether googlesql/analysis could read nothing about
+// unclassified reports whether bigquery/analysis could read nothing about
 // statement, which is when the service's own answer is what says whether it
 // returned rows: a pipe query, a CALL and a BEGIN block are all valid BigQuery
 // that omni's parser does not read yet.
 func unclassified(statement string) bool {
-	return googlesqlanalysis.ClassifySQL(statement, googlesqlanalysis.DialectBigQuery) == googlesqlanalysis.Unknown
+	return analysis.ClassifySQL(statement) == analysis.Unknown
 }
 
 // jobReturnsRows reports whether a finished job answered a result set.

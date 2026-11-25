@@ -49,7 +49,7 @@ func (q *querySpanResolver) getQuerySpan(statement string) (*ResolvedQuerySpan, 
 		return nil, fmt.Errorf("expecting only one statement to get query span, but got %d", count)
 	}
 
-	rawSpan, err := GetQuerySpan(single, q.opts.Dialect)
+	rawSpan, err := GetQuerySpan(single)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (q *querySpanResolver) getQuerySpan(statement string) (*ResolvedQuerySpan, 
 	}
 
 	queryType := rawSpan.Type
-	if queryType == Unknown && q.opts.SetStatementIsSelect && isSetStatement(single, q.opts.Dialect) {
+	if queryType == Unknown && q.opts.SetStatementIsSelect && isSetStatement(single) {
 		// A SET statement classifies as Select; the span walker's classifier
 		// leaves it Unknown.
 		queryType = Select
@@ -150,8 +150,8 @@ func (q *querySpanResolver) singleNonEmptyStatement(statement string) (string, i
 }
 
 // isSetStatement reports whether the statement parses to a single SET statement.
-func isSetStatement(statement string, dialect Dialect) bool {
-	file, err := parseFile(statement, dialect)
+func isSetStatement(statement string) bool {
+	file, err := parseFile(statement)
 	if err != nil || file == nil || len(file.Stmts) != 1 {
 		return false
 	}
@@ -215,12 +215,9 @@ func (q *querySpanResolver) addTableResources(out ColumnSet, span *QuerySpan, vi
 		return
 	}
 	refs := span.AccessTables
-	if q.opts.Dialect != DialectSpanner {
-		refs = append(slices.Clone(refs), span.CTEReferences...)
-	}
 	for _, t := range refs {
 		r := ColumnResource{Database: q.resourceDatabase(t.Database), Schema: t.Schema, Table: t.Table}
-		if q.opts.Dialect == DialectSpanner && !t.IsSystem {
+		if !t.IsSystem {
 			if canonical, view := q.spannerRelation(t.Schema, t.Table); canonical != "" {
 				r.Table = canonical
 				if view != nil && !views[r] {
@@ -228,7 +225,7 @@ func (q *querySpanResolver) addTableResources(out ColumnSet, span *QuerySpan, vi
 					// The view's definition is one Spanner stored, so it
 					// parses; one that does not adds no tables, and the view
 					// itself stays listed.
-					if viewSpan, err := GetQuerySpan(view.GetDefinition(), q.opts.Dialect); err == nil {
+					if viewSpan, err := GetQuerySpan(view.GetDefinition()); err == nil {
 						q.addTableResources(out, viewSpan, views)
 					}
 				}
@@ -416,7 +413,7 @@ func (q *querySpanResolver) buildSetOpMergeResults(m *SetOpMergeInfo, fullSource
 		if i < len(right) {
 			// Spanner names the column after the left arm even when it is
 			// anonymous ("").
-			if i >= len(left) || (name == "" && q.opts.Dialect != DialectSpanner) {
+			if i >= len(left) {
 				name = right[i].Name
 			}
 			for sc := range right[i].SourceColumns {
@@ -655,9 +652,6 @@ func (q *querySpanResolver) buildStarMergeResult(r ColumnInfo, fullSourceColumns
 		addMatchingColumns(sourceColumns, fullSourceColumns, ref.Column, ref.Table, aliasMap)
 	}
 	name := r.Name
-	if q.opts.Dialect != DialectSpanner {
-		name = strings.ToUpper(name)
-	}
 	// A StarMerge always carries a bare single-base-table star (a
 	// USING-coalesced or otherwise multi-segment star arm defers to SetOpMerge
 	// instead), so there are no except columns to apply here.
@@ -689,14 +683,7 @@ func (q *querySpanResolver) buildStarMergeResult(r ColumnInfo, fullSourceColumns
 // walker's first source column. A name-less expression with no column reference
 // (a literal, or an opaque scalar subquery) stays "".
 func (q *querySpanResolver) resultName(r ColumnInfo) string {
-	if q.opts.Dialect == DialectSpanner {
-		return r.Name
-	}
-	name := r.Name
-	if name == "" && len(r.SourceColumns) > 0 {
-		name = r.SourceColumns[0].Column
-	}
-	return strings.ToUpper(name)
+	return r.Name
 }
 
 // addMatchingColumns adds every column in fullSourceColumns whose name matches

@@ -36,10 +36,8 @@ func TestClassifyPipe(t *testing.T) {
 		{"|> EXPORT DATA OPTIONS(uri = 'x')", Unknown},
 	}
 	for _, tc := range tests {
-		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
-			if got := ClassifySQL(tc.sql, dialect); got != tc.want {
-				t.Errorf("%v ClassifySQL(%q) = %v, want %v", dialect, tc.sql, got, tc.want)
-			}
+		if got := ClassifySQL(tc.sql); got != tc.want {
+			t.Errorf("ClassifySQL(%q) = %v, want %v", tc.sql, got, tc.want)
 		}
 	}
 }
@@ -59,7 +57,7 @@ func TestStatementTypeOfPipe(t *testing.T) {
 		{"|> IF true THEN (|> INSERT t) ELSEIF false THEN (|> CREATE TABLE u (x INT64)) ELSE (|> INSERT v)", StatementTypeUnspecified},
 	}
 	for _, tc := range tests {
-		file, err := parseFile(tc.sql, DialectBigQuery)
+		file, err := parseFile(tc.sql)
 		if err != nil {
 			t.Fatalf("parse %q: %v", tc.sql, err)
 		}
@@ -71,7 +69,7 @@ func TestStatementTypeOfPipe(t *testing.T) {
 
 func TestGetQuerySpanPipe(t *testing.T) {
 	t.Run("a row-only suffix keeps the projection", func(t *testing.T) {
-		span, err := GetQuerySpan("SELECT x FROM t |> WHERE x > 1 |> ORDER BY x |> LIMIT 5", DialectBigQuery)
+		span, err := GetQuerySpan("SELECT x FROM t |> WHERE x > 1 |> ORDER BY x |> LIMIT 5")
 		if err != nil {
 			t.Fatalf("GetQuerySpan: %v", err)
 		}
@@ -85,7 +83,7 @@ func TestGetQuerySpanPipe(t *testing.T) {
 
 	t.Run("a sample's embedded query is walked", func(t *testing.T) {
 		sql := "SELECT * FROM INFORMATION_SCHEMA.TABLES |> TABLESAMPLE SYSTEM (10 PERCENT PARTITION BY (SELECT x FROM secret))"
-		span, err := GetQuerySpan(sql, DialectBigQuery)
+		span, err := GetQuerySpan(sql)
 		if err != nil {
 			t.Fatalf("GetQuerySpan: %v", err)
 		}
@@ -108,35 +106,35 @@ func TestGetQuerySpanPipe(t *testing.T) {
 			"SELECT x FROM t |> DROP x",
 			"SELECT x FROM t |> AGGREGATE COUNT(*)",
 		} {
-			if _, err := GetQuerySpan(sql, DialectBigQuery); err == nil {
+			if _, err := GetQuerySpan(sql); err == nil {
 				t.Errorf("GetQuerySpan(%q) returned a span; want fail closed", sql)
 			}
 		}
 	})
 
 	t.Run("a suffix-only statement fails closed", func(t *testing.T) {
-		if _, err := GetQuerySpan("|> JOIN u ON true", DialectBigQuery); err == nil {
+		if _, err := GetQuerySpan("|> JOIN u ON true"); err == nil {
 			t.Fatalf("GetQuerySpan accepted a suffix-only statement; want fail closed")
 		}
 	})
 
 	t.Run("a statement followed by a suffix fails closed", func(t *testing.T) {
-		if _, err := GetQuerySpan("DESCRIBE t |> AGGREGATE", DialectBigQuery); err == nil {
+		if _, err := GetQuerySpan("DESCRIBE t |> AGGREGATE"); err == nil {
 			t.Fatalf("GetQuerySpan accepted a piped DESCRIBE; want fail closed")
 		}
 	})
 
 	t.Run("a pipe INSERT is DML", func(t *testing.T) {
-		if got := ClassifySQL("|> INSERT t (x)", DialectBigQuery); got != DML {
+		if got := ClassifySQL("|> INSERT t (x)"); got != DML {
 			t.Errorf("ClassifySQL = %v, want DML", got)
 		}
 	})
 
 	t.Run("a piped CALL keeps the head's unknown classification", func(t *testing.T) {
-		if got := ClassifySQL("CALL p() |> WHERE true", DialectBigQuery); got != Unknown {
+		if got := ClassifySQL("CALL p() |> WHERE true"); got != Unknown {
 			t.Errorf("ClassifySQL = %v, want Unknown", got)
 		}
-		file, err := parseFile("CALL p() |> WHERE true", DialectBigQuery)
+		file, err := parseFile("CALL p() |> WHERE true")
 		if err != nil {
 			t.Fatalf("parse: %v", err)
 		}

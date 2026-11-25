@@ -274,17 +274,11 @@ func (p *Parser) parseLoadData() (ast.Node, error) {
 	// `temp`. Only consume the scope prefix when TABLE follows; otherwise fall
 	// through to parse the leading TEMP/TEMPORARY as the path's first component.
 	if (p.cur.Type == kwTEMP || p.cur.Type == kwTEMPORARY) && p.peekNext().Type == kwTABLE {
-		if p.isSpanner() {
-			// googlesql.tm:3156 — LOAD DATA statement with TEMP TABLE is not supported.
-			return nil, &ParseError{
-				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: "LOAD DATA statement with TEMP TABLE is not supported",
-			}
-		}
-		scopeTok := p.advance() // TEMP | TEMPORARY
-		stmt.Temp = true
-		stmt.TempKeyword = TokenName(scopeTok.Type)
-		p.advance() // TABLE
+		// googlesql.tm:3156 — LOAD DATA statement with TEMP TABLE is not supported.
+		return nil, &ParseError{
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "LOAD DATA statement with TEMP TABLE is not supported",
+		} // TABLE
 	}
 	name, err := p.parseTablePath()
 	if err != nil {
@@ -312,19 +306,11 @@ func (p *Parser) parseLoadData() (ast.Node, error) {
 
 	// load_data_partitions_clause? — OVERWRITE? PARTITIONS ( expr ).
 	if p.cur.Type == kwOVERWRITE || p.cur.Type == kwPARTITIONS {
-		if p.isSpanner() {
-			// googlesql.tm:3104 — LOAD DATA statement with PARTITIONS is not supported.
-			return nil, &ParseError{
-				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: "LOAD DATA statement with PARTITIONS is not supported",
-			}
+		// googlesql.tm:3104 — LOAD DATA statement with PARTITIONS is not supported.
+		return nil, &ParseError{
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "LOAD DATA statement with PARTITIONS is not supported",
 		}
-		ow, expr, err := p.parseLoadDataPartitions()
-		if err != nil {
-			return nil, err
-		}
-		stmt.PartitionsOverwrite = ow
-		stmt.Partitions = expr
 	}
 
 	// collate_clause? — COLLATE string_literal_or_parameter.
@@ -420,34 +406,6 @@ func (p *Parser) parseLoadData() (ast.Node, error) {
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
-}
-
-// parseLoadDataPartitions parses a load_data_partitions_clause:
-//
-//	OVERWRITE? PARTITIONS '(' expression ')'
-//
-// cur is at OVERWRITE or PARTITIONS. Returns whether OVERWRITE was present and
-// the partition expression.
-func (p *Parser) parseLoadDataPartitions() (bool, ast.Node, error) {
-	overwrite := false
-	if p.cur.Type == kwOVERWRITE {
-		p.advance() // OVERWRITE
-		overwrite = true
-	}
-	if _, err := p.expect(kwPARTITIONS); err != nil {
-		return false, nil, err
-	}
-	if _, err := p.expect(int('(')); err != nil {
-		return false, nil, err
-	}
-	expr, err := p.parseExpr()
-	if err != nil {
-		return false, nil, err
-	}
-	if _, err := p.expect(int(')')); err != nil {
-		return false, nil, err
-	}
-	return overwrite, expr, nil
 }
 
 // parseLoadDataFromFilesOptions parses the `options_list` of an

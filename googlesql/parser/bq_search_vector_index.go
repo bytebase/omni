@@ -92,20 +92,9 @@ func (p *Parser) parseCreateSearchVectorIndex(create Token, orReplace bool, scop
 		return nil, p.syntaxErrorAtCur()
 	}
 	if p.peekNext().Type == kwALL {
-		if p.isSpanner() {
-			return nil, &ParseError{
-				Position: p.peekNext().Loc.Start, End: p.peekNext().Loc.End,
-				Message: "syntax error: ALL COLUMNS is not supported in Spanner indexes",
-			}
-		}
-		// index_all_columns: `( ALL COLUMNS opt_with_column_options? )`. The grammar
-		// REQUIRES COLUMNS after ALL, so validate the `( ALL COLUMNS` prefix rather
-		// than blindly skipping balanced parens (a bare `( ALL )` must reject). The
-		// remaining body (the optional WITH COLUMN OPTIONS(...) and the closing ')')
-		// is captured structurally — the per-column options are not load-bearing for
-		// the query-span consumer.
-		if err := p.parseIndexAllColumns(stmt); err != nil {
-			return nil, err
+		return nil, &ParseError{
+			Position: p.peekNext().Loc.Start, End: p.peekNext().Loc.End,
+			Message: "syntax error: ALL COLUMNS is not supported in Spanner indexes",
 		}
 	} else {
 		keys, err := p.parseKeyPartList(false /*index element*/)
@@ -118,22 +107,11 @@ func (p *Parser) parseCreateSearchVectorIndex(create Token, orReplace bool, scop
 	// index_storing_list? — STORING ( expr, … ).
 	if p.cur.Type == kwSTORING {
 		p.advance() // STORING
-		if p.isSpanner() {
-			exprs, err := p.parseStoringIdentList()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Storing = exprs
-		} else {
-			if _, err := p.expect(int('(')); err != nil {
-				return nil, err
-			}
-			exprs, _, err := p.parseExprListThroughParen()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Storing = exprs
+		exprs, err := p.parseStoringIdentList()
+		if err != nil {
+			return nil, err
 		}
+		stmt.Storing = exprs
 	}
 
 	// opt_create_index_statement_suffix?:
@@ -143,7 +121,7 @@ func (p *Parser) parseCreateSearchVectorIndex(create Token, orReplace bool, scop
 	// Spanner CREATE SEARCH INDEX supports `PARTITION BY column_name [, ...]`,
 	// whereas CREATE VECTOR INDEX does not.
 	if p.cur.Type == kwPARTITION {
-		if p.isSpanner() && isVector {
+		if isVector {
 			return nil, p.syntaxErrorAtCur()
 		}
 		exprs, err := p.parsePartitionByNoHint()
@@ -162,49 +140,6 @@ func (p *Parser) parseCreateSearchVectorIndex(create Token, orReplace bool, scop
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
-}
-
-// parseIndexAllColumns parses an index_all_columns body:
-//
-//	'(' ALL COLUMNS opt_with_column_options? ')'
-//	opt_with_column_options: WITH COLUMN OPTIONS '(' column_ordering_and_options_expr (, …) ')'
-//
-// cur is at the opening '(' (the next token is ALL). It sets stmt.AllColumns and
-// validates that COLUMNS follows ALL (a bare `( ALL )` rejects). The optional
-// WITH COLUMN OPTIONS(...) parenthesized run is consumed structurally.
-func (p *Parser) parseIndexAllColumns(stmt *ast.SearchVectorIndexStmt) error {
-	p.advance() // '('
-	if _, err := p.expect(kwALL); err != nil {
-		return err
-	}
-	if _, err := p.expect(kwCOLUMNS); err != nil {
-		return err
-	}
-	stmt.AllColumns = true
-
-	// opt_with_column_options?: WITH COLUMN OPTIONS ( … ).
-	if p.cur.Type == kwWITH {
-		p.advance() // WITH
-		if _, err := p.expect(kwCOLUMN); err != nil {
-			return err
-		}
-		if _, err := p.expect(kwOPTIONS); err != nil {
-			return err
-		}
-		// all_column_column_options is a parenthesized column_ordering_and_options_expr
-		// list; consume it structurally (its per-column options are not load-bearing).
-		if p.cur.Type != int('(') {
-			return p.syntaxErrorAtCur()
-		}
-		if err := p.skipBalancedParens(); err != nil {
-			return err
-		}
-	}
-
-	if _, err := p.expect(int(')')); err != nil {
-		return err
-	}
-	return nil
 }
 
 // parseBQDropSearchVectorIndex parses a `DROP {SEARCH|VECTOR} INDEX [IF EXISTS]
@@ -241,15 +176,7 @@ func (p *Parser) parseBQDropSearchVectorIndex(drop Token) (ast.Node, error) {
 
 	// on_path_expression? — ON path (BigQuery only; Spanner DROP SEARCH/VECTOR INDEX omits ON table).
 	if p.cur.Type == kwON {
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance() // ON
-		onTable, err := p.parseTablePath()
-		if err != nil {
-			return nil, err
-		}
-		stmt.OnTable = onTable
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.Loc.End

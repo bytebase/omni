@@ -43,7 +43,7 @@ import (
 // preceded FUNCTION, and isTableFunc whether this is the TABLE FUNCTION form
 // (cur is at FUNCTION in both cases). create is the CREATE token (for Loc).
 func (p *Parser) parseCreateFunction(create Token, orReplace bool, scope string, aggregate, isTableFunc bool) (ast.Node, error) {
-	if p.isSpanner() && (scope != "" || aggregate || isTableFunc) {
+	if scope != "" || aggregate || isTableFunc {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if isTableFunc {
@@ -98,7 +98,7 @@ func (p *Parser) parseCreateFunction(create Token, orReplace bool, scope string,
 		if err := p.parseFunctionReturns(stmt); err != nil {
 			return nil, err
 		}
-	} else if p.isSpanner() {
+	} else {
 		return nil, p.syntaxErrorAtCur()
 	}
 
@@ -127,47 +127,29 @@ func (p *Parser) parseCreateFunction(create Token, orReplace bool, scope string,
 		// scalar / aggregate FUNCTION tail:
 		//   opt_determinism_level? opt_language_or_remote_with_connection?
 		//     unordered_options_body?
-		if p.isSpanner() {
-			// Spanner remote functions allow `[NOT DETERMINISTIC] LANGUAGE REMOTE OPTIONS (...)`.
-			if p.cur.Type == kwNOT && p.peekNext().Type == kwDETERMINISTIC {
-				p.advance() // NOT
-				p.advance() // DETERMINISTIC
-				stmt.Determinism = "NOT DETERMINISTIC"
-			}
-			isSpannerRemote := false
-			if p.cur.Type == kwLANGUAGE && p.peekNext().Type == kwREMOTE {
-				p.advance() // LANGUAGE
-				langTok := p.advance() // REMOTE
-				stmt.Language = p.tokenSource(langTok)
-				isSpannerRemote = true
-			}
-			if err := p.parseUnorderedOptionsBody(stmt); err != nil {
-				return nil, err
-			}
-			if isSpannerRemote {
-				if len(stmt.Options) == 0 || stmt.Body != nil || stmt.HasBodyString {
-					return nil, p.syntaxErrorAtCur()
-				}
-			} else {
-				if stmt.Determinism != "" || stmt.Body == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
+		// Spanner remote functions allow `[NOT DETERMINISTIC] LANGUAGE REMOTE OPTIONS (...)`.
+		if p.cur.Type == kwNOT && p.peekNext().Type == kwDETERMINISTIC {
+			p.advance() // NOT
+			p.advance() // DETERMINISTIC
+			stmt.Determinism = "NOT DETERMINISTIC"
+		}
+		isSpannerRemote := false
+		if p.cur.Type == kwLANGUAGE && p.peekNext().Type == kwREMOTE {
+			p.advance()            // LANGUAGE
+			langTok := p.advance() // REMOTE
+			stmt.Language = p.tokenSource(langTok)
+			isSpannerRemote = true
+		}
+		if err := p.parseUnorderedOptionsBody(stmt); err != nil {
+			return nil, err
+		}
+		if isSpannerRemote {
+			if len(stmt.Options) == 0 || stmt.Body != nil || stmt.HasBodyString {
+				return nil, p.syntaxErrorAtCur()
 			}
 		} else {
-			stmt.Determinism = p.matchDeterminismLevel()
-
-			// opt_language_or_remote_with_connection?:
-			//   LANGUAGE id remote_with_connection_clause?
-			//   | remote_with_connection_clause language?
-			if err := p.parseLanguageOrRemoteWithConnection(stmt); err != nil {
-				return nil, err
-			}
-
-			// unordered_options_body?:
-			//   opt_options_list as_sql_function_body_or_string?
-			//   | as_sql_function_body_or_string opt_options_list?
-			if err := p.parseUnorderedOptionsBody(stmt); err != nil {
-				return nil, err
+			if stmt.Determinism != "" || stmt.Body == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 		}
 	}
@@ -186,16 +168,7 @@ func (p *Parser) parseCreateFunction(create Token, orReplace bool, scope string,
 func (p *Parser) parseFunctionReturns(stmt *ast.CreateFunctionStmt) error {
 	p.advance() // RETURNS
 	if p.cur.Type == kwTABLE && p.peekNext().Type == int('<') {
-		if p.isSpanner() {
-			return p.syntaxErrorAtCur()
-		}
-		cols, err := p.parseTVFSchema()
-		if err != nil {
-			return err
-		}
-		stmt.ReturnsTable = true
-		stmt.ReturnColumns = cols
-		return nil
+		return p.syntaxErrorAtCur()
 	}
 	dt, err := p.parseType()
 	if err != nil {
@@ -336,7 +309,7 @@ func (p *Parser) parseFunctionParameter() (*ast.FunctionParam, error) {
 			return nil, err
 		}
 		param.Name = name
-	} else if p.isSpanner() {
+	} else {
 		return nil, p.syntaxErrorAtCur()
 	}
 
@@ -349,19 +322,7 @@ func (p *Parser) parseFunctionParameter() (*ast.FunctionParam, error) {
 
 	// opt_as_alias_with_required_as? — AS identifier.
 	if p.cur.Type == kwAS {
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance() // AS
-		aliasTok, err := p.expectIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		alias, err := p.identifierText(aliasTok)
-		if err != nil {
-			return nil, err
-		}
-		param.Alias = alias
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// opt_default_expression? — DEFAULT expr (named form only in the grammar; the
@@ -378,12 +339,7 @@ func (p *Parser) parseFunctionParameter() (*ast.FunctionParam, error) {
 
 	// opt_not_aggregate? — NOT AGGREGATE.
 	if p.cur.Type == kwNOT && p.peekNext().Type == kwAGGREGATE {
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance() // NOT
-		p.advance() // AGGREGATE
-		param.NotAggregate = true
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	param.Loc = ast.Loc{Start: start.Start, End: p.prev.Loc.End}
@@ -506,106 +462,6 @@ func renderTVFSchema(cols []*ast.ColumnDef) string {
 	return out
 }
 
-// matchDeterminismLevel consumes an opt_determinism_level (DETERMINISTIC | NOT
-// DETERMINISTIC | IMMUTABLE | STABLE | VOLATILE) if present and returns its
-// spelling, or "" when absent.
-func (p *Parser) matchDeterminismLevel() string {
-	switch p.cur.Type {
-	case kwDETERMINISTIC:
-		p.advance()
-		return "DETERMINISTIC"
-	case kwNOT:
-		if p.peekNext().Type == kwDETERMINISTIC {
-			p.advance() // NOT
-			p.advance() // DETERMINISTIC
-			return "NOT DETERMINISTIC"
-		}
-	case kwIMMUTABLE:
-		p.advance()
-		return "IMMUTABLE"
-	case kwSTABLE:
-		p.advance()
-		return "STABLE"
-	case kwVOLATILE:
-		p.advance()
-		return "VOLATILE"
-	}
-	return ""
-}
-
-// parseLanguageOrRemoteWithConnection parses opt_language_or_remote_with_connection
-// into stmt:
-//
-//	LANGUAGE identifier remote_with_connection_clause?
-//	| remote_with_connection_clause language?
-//
-// where remote_with_connection_clause is `REMOTE [WITH CONNECTION conn]? | WITH
-// CONNECTION conn`.
-func (p *Parser) parseLanguageOrRemoteWithConnection(stmt *ast.CreateFunctionStmt) error {
-	switch {
-	case p.cur.Type == kwLANGUAGE:
-		p.advance() // LANGUAGE
-		langTok, err := p.expectIdentifier()
-		if err != nil {
-			return err
-		}
-		stmt.Language = p.tokenSource(langTok)
-		// remote_with_connection_clause?
-		return p.parseRemoteWithConnection(stmt)
-	case p.cur.Type == kwREMOTE || (p.cur.Type == kwWITH && p.peekNext().Type == kwCONNECTION):
-		if err := p.parseRemoteWithConnection(stmt); err != nil {
-			return err
-		}
-		// language?
-		if p.cur.Type == kwLANGUAGE {
-			p.advance() // LANGUAGE
-			langTok, err := p.expectIdentifier()
-			if err != nil {
-				return err
-			}
-			stmt.Language = p.tokenSource(langTok)
-		}
-		return nil
-	}
-	return nil
-}
-
-// parseRemoteWithConnection parses a remote_with_connection_clause into stmt:
-//
-//	REMOTE with_connection_clause?
-//	| with_connection_clause
-//
-// with_connection_clause is `WITH connection_clause`; connection_clause is
-// `CONNECTION <path>` (the path / DEFAULT keyword forms are captured as text). It
-// records the Remote flag and, when a connection path is present, HasConnection +
-// ConnectionName. Returns nil when neither REMOTE nor WITH CONNECTION is present.
-func (p *Parser) parseRemoteWithConnection(stmt *ast.CreateFunctionStmt) error {
-	if p.cur.Type == kwREMOTE {
-		p.advance() // REMOTE
-		stmt.Remote = true
-		// optional WITH CONNECTION conn.
-		if p.cur.Type == kwWITH && p.peekNext().Type == kwCONNECTION {
-			name, err := p.parseConnectionClause()
-			if err != nil {
-				return err
-			}
-			stmt.HasConnection = true
-			stmt.ConnectionName = name
-		}
-		return nil
-	}
-	if p.cur.Type == kwWITH && p.peekNext().Type == kwCONNECTION {
-		name, err := p.parseConnectionClause()
-		if err != nil {
-			return err
-		}
-		stmt.HasConnection = true
-		stmt.ConnectionName = name
-		return nil
-	}
-	return nil
-}
-
 // parseConnectionClause parses a with_connection_clause `WITH CONNECTION
 // connection_clause` and returns the connection name text. connection_clause is a
 // path_expression or the DEFAULT keyword (BigQuery default connection). cur is at
@@ -692,13 +548,6 @@ func (p *Parser) parseSQLFunctionBodyOrString(stmt *ast.CreateFunctionStmt) erro
 		stmt.Body = expr
 		return nil
 	}
-	// AS string_literal (not supported in Spanner).
-	if !p.isSpanner() && p.cur.Type == tokString {
-		strTok := p.advance()
-		stmt.BodyString = strTok.Str
-		stmt.HasBodyString = true
-		return nil
-	}
 	return p.syntaxErrorAtCur()
 }
 
@@ -762,167 +611,6 @@ func (p *Parser) parseAsQueryOrString(stmt *ast.CreateFunctionStmt) error {
 	return nil
 }
 
-// parseCreateProcedure parses a CREATE PROCEDURE statement. The shared CREATE
-// prefix (OR REPLACE / scope) has been consumed; cur is at PROCEDURE.
-func (p *Parser) parseCreateProcedure(create Token, orReplace bool, scope string) (ast.Node, error) {
-	p.advance() // PROCEDURE
-
-	stmt := &ast.CreateProcedureStmt{OrReplace: orReplace, Scope: scope}
-	stmt.Loc.Start = create.Loc.Start
-
-	ifNotExists, err := p.parseIfNotExists()
-	if err != nil {
-		return nil, err
-	}
-	stmt.IfNotExists = ifNotExists
-
-	name, err := p.parseTablePath()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Name = name
-
-	// procedure_parameters — required parenthesized list.
-	if p.cur.Type != int('(') {
-		return nil, p.syntaxErrorAtCur()
-	}
-	params, err := p.parseFunctionParameters(true /*procedure*/)
-	if err != nil {
-		return nil, err
-	}
-	stmt.Params = params
-
-	// opt_external_security_clause? — EXTERNAL SECURITY {INVOKER|DEFINER}.
-	if p.cur.Type == kwEXTERNAL && p.peekNext().Type == kwSECURITY {
-		p.advance() // EXTERNAL
-		p.advance() // SECURITY
-		switch p.cur.Type {
-		case kwINVOKER:
-			p.advance()
-			stmt.ExternalSecurity = "INVOKER"
-		case kwDEFINER:
-			p.advance()
-			stmt.ExternalSecurity = "DEFINER"
-		default:
-			return nil, p.syntaxErrorAtCur()
-		}
-	}
-
-	// with_connection_clause? — WITH CONNECTION conn.
-	if p.cur.Type == kwWITH && p.peekNext().Type == kwCONNECTION {
-		connName, err := p.parseConnectionClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.HasConnection = true
-		stmt.ConnectionName = connName
-	}
-
-	// opt_options_list?
-	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseOptionsList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Options = opts
-	}
-
-	// begin_end_block_or_language_as_code:
-	//   begin_end_block
-	//   | LANGUAGE identifier opt_as_code?
-	switch p.cur.Type {
-	case kwBEGIN:
-		text, err := p.captureBeginEndBlock()
-		if err != nil {
-			return nil, err
-		}
-		stmt.BodyText = text
-	case kwLANGUAGE:
-		p.advance() // LANGUAGE
-		langTok, err := p.expectIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Language = p.tokenSource(langTok)
-		// opt_as_code?: AS string_literal.
-		if p.cur.Type == kwAS {
-			p.advance() // AS
-			strTok, err := p.expect(tokString)
-			if err != nil {
-				return nil, err
-			}
-			stmt.BodyString = strTok.Str
-			stmt.HasBodyString = true
-		}
-	default:
-		return nil, p.syntaxErrorAtCur()
-	}
-
-	stmt.Loc.End = p.prev.Loc.End
-	return stmt, nil
-}
-
-// captureBeginEndBlock consumes a begin_end_block (`BEGIN statement_list?
-// opt_exception_handler? END`) with balanced BEGIN/CASE … END nesting and returns
-// its verbatim source text (including the BEGIN and END keywords). cur is at
-// BEGIN.
-//
-// The procedural statement_list grammar is owned by the parser-scripting node;
-// this node captures the block as text so a CREATE PROCEDURE round-trips and the
-// query-span consumer sees a body, without parsing the script statements. Nesting
-// is tracked over the block-opening keywords that take a matching END in
-// GoogleSQL's procedural grammar: BEGIN, CASE, IF, WHILE, LOOP, REPEAT, FOR (each
-// closes with END / END CASE / END IF / …). A bare `END` at depth 1 closes the
-// outermost BEGIN.
-//
-// A block-opener keyword that is immediately followed by '(' is a FUNCTION call,
-// NOT a block — e.g. `SELECT IF(cond, a, b)` inside the body. Those have no
-// matching END, so counting them would make a valid body look unterminated; the
-// '(' lookahead excludes them. (A CASE *expression* `CASE WHEN … END` is still
-// counted as a block, which is harmless: its own END balances it.)
-func (p *Parser) captureBeginEndBlock() (string, error) {
-	beginTok := p.advance() // BEGIN
-	startOff := absIndex(p, beginTok.Loc.Start)
-	depth := 1
-	for p.cur.Type != tokEOF {
-		switch p.cur.Type {
-		case kwBEGIN, kwCASE, kwIF, kwWHILE, kwLOOP, kwREPEAT, kwFOR:
-			// A '(' immediately after makes this a function call (e.g. IF(...)),
-			// not a procedural block opener; do not count it.
-			if p.peekNext().Type == int('(') {
-				p.advance()
-				continue
-			}
-			depth++
-			p.advance()
-		case kwEND:
-			depth--
-			endTok := p.advance() // END
-			if depth == 0 {
-				// END may be followed by a closing keyword for an inner construct we
-				// over-counted? No — at depth 0 this END closes the outer BEGIN. The
-				// block text spans [BEGIN … END].
-				endOff := absIndex(p, endTok.Loc.End)
-				if startOff >= 0 && endOff <= len(p.input) && startOff < endOff {
-					return p.input[startOff:endOff], nil
-				}
-				return "", nil
-			}
-			// An inner END may carry a trailing closing keyword (END IF / END WHILE /
-			// END LOOP / END REPEAT / END FOR / END CASE); consume it so it is not
-			// re-counted as a new block opener.
-			switch p.cur.Type {
-			case kwIF, kwWHILE, kwLOOP, kwREPEAT, kwFOR, kwCASE:
-				p.advance()
-			}
-		default:
-			p.advance()
-		}
-	}
-	// Reached EOF without a matching END.
-	return "", &ParseError{Position: beginTok.Loc.Start, End: beginTok.Loc.End, Message: "syntax error: unterminated BEGIN...END block (expected END)"}
-}
-
 // ---------------------------------------------------------------------------
 // DROP FUNCTION / TABLE FUNCTION / PROCEDURE
 // ---------------------------------------------------------------------------
@@ -944,17 +632,6 @@ func (p *Parser) parseBQDropFunction(drop Token) (ast.Node, error) {
 		return nil, err
 	}
 	return p.finishBQDropObject(drop, kind, true /*allowFunctionParams*/)
-}
-
-// parseBQDropProcedure parses a DROP PROCEDURE statement. cur is at PROCEDURE (the
-// DROP token is consumed). schema_object_kind PROCEDURE carries an
-// opt_function_parameters? and opt_drop_mode? in the grammar; the parameters are
-// accepted (rare) and the trailing RESTRICT/CASCADE is consumed by the core
-// schema-object drop, but PROCEDURE has no documented drop-mode so we keep it
-// minimal: `DROP PROCEDURE [IF EXISTS] path [opt_function_parameters]`.
-func (p *Parser) parseBQDropProcedure(drop Token) (ast.Node, error) {
-	p.advance() // PROCEDURE
-	return p.finishBQDropObject(drop, ast.BQDropProcedure, true /*allowFunctionParams*/)
 }
 
 // finishBQDropObject parses the shared tail `opt_if_exists? maybe_dashed_path

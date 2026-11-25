@@ -354,7 +354,6 @@ func checkDigest(ctx context.Context, c testcontainers.Container, digest string)
 // Terminate removes the emulator this run started, if any. The package's
 // TestMain calls it.
 func Terminate() {
-	cleanupHarness()
 	shared.Lock()
 	container := shared.container
 	shared.container = nil

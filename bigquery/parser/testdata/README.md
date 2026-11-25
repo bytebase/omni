@@ -5,8 +5,8 @@
 `compat.tsv` holds a statement for each alternative of each rule in
 `../../../googlesql/testdata/GoogleSQL.g4` (converted from `googlesql.tm` at
 GoogleSQL `2026.01.1` by `googlesql/parser/cmd/tm2g4`), followed by its
-near-misses, with omni's verdict (`bigquery/parser.Parse`, delegating to
-`googlesql/parser.ParseWithDialect(..., DialectBigQuery)`) and live BigQuery
+near-misses, with omni's verdict (`bigquery/parser.Parse`, BigQuery's own
+parser, forked from `googlesql/parser`'s `DialectBigQuery` mode) and live BigQuery
 dry-run's verdict on the pinned Google Cloud project (`../../testdata/pins.tsv`,
 `default` role).
 
@@ -31,6 +31,10 @@ refuses every input (`../../../googlesql/testdata/tokens.tsv`). The optional
 clauses that file marks `(every site)` add 403 rows, all agreeing.
 
 ### Comparison with Spanner emulator `1.5.54` (`googlesql/parser/testdata/compat.tsv`)
+
+The sections below predate the fork: `DialectDefault` (the BigQuery ∪ Spanner
+union), `DialectBigQuery` (now `bigquery/parser`) and `DialectSpanner` (now
+`googlesql/parser`) were modes of one parser.
 
 At judge revision 2, Spanner emulator `1.5.54` alone agreed with
 `googlesql/parser.Parse` (`DialectDefault`)

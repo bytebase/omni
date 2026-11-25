@@ -371,8 +371,8 @@ func TestAlterSearchIndex_Rejects(t *testing.T) {
 		"ALTER SEARCH INDEX idx SET OPTIONS (x=1)",
 		"ALTER SEARCH INDEX idx ADD COLUMN c INT64",
 	} {
-		if _, err := ParseWithDialect(sql, DialectSpanner); err == nil {
-			t.Errorf("ParseWithDialect(%q, DialectSpanner): want error, got nil", sql)
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): want error, got nil", sql)
 		}
 	}
 }

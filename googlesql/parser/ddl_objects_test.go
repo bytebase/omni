@@ -49,16 +49,6 @@ func TestCreateView_OrReplaceDefiner(t *testing.T) {
 	}
 }
 
-func TestCreateView_BigQueryColumnsAndOptions(t *testing.T) {
-	v := viewOf(t, "CREATE OR REPLACE VIEW mydataset.age_groups(age, count) OPTIONS (description = 'd') AS SELECT age, COUNT(*) FROM people GROUP BY age")
-	if len(v.Columns) != 2 || v.Columns[0].Name != "age" || v.Columns[1].Name != "count" {
-		t.Errorf("Columns = %+v, want [age count]", v.Columns)
-	}
-	if len(v.Options) != 1 {
-		t.Errorf("Options = %d, want 1", len(v.Options))
-	}
-}
-
 func TestCreateView_Plain(t *testing.T) {
 	v := viewOf(t, "CREATE VIEW v AS SELECT 1")
 	if v.SQLSecurity != "" {
@@ -66,13 +56,6 @@ func TestCreateView_Plain(t *testing.T) {
 	}
 	if v.AsQuery == nil {
 		t.Error("AsQuery = nil")
-	}
-}
-
-func TestCreateView_Recursive(t *testing.T) {
-	v := viewOf(t, "CREATE RECURSIVE VIEW v AS SELECT 1")
-	if !v.Recursive {
-		t.Error("Recursive = false, want true")
 	}
 }
 
@@ -161,17 +144,6 @@ func TestCreateIndex_IfNotExistsAndWhere(t *testing.T) {
 	}
 }
 
-func TestCreateIndex_PartitionByOptions(t *testing.T) {
-	// BigQuery index suffix: PARTITION BY + OPTIONS.
-	i := indexOf(t, "CREATE INDEX idx ON T (a) PARTITION BY b OPTIONS (x = 1)")
-	if len(i.PartitionBy) != 1 {
-		t.Errorf("PartitionBy = %d, want 1", len(i.PartitionBy))
-	}
-	if len(i.Options) != 1 {
-		t.Errorf("Options = %d, want 1", len(i.Options))
-	}
-}
-
 func TestCreateIndex_EmptyKeyListAccepted(t *testing.T) {
 	// oracle-confirmed accept: the Spanner emulator accepts `CREATE INDEX … ()`
 	// (an empty key list), even though the legacy .g4 index_order_by_and_options
@@ -243,13 +215,6 @@ func TestDropSchema(t *testing.T) {
 	d2 := dropOf(t, "DROP SCHEMA IF EXISTS mydataset CASCADE")
 	if !d2.IfExists || d2.DropMode != "CASCADE" {
 		t.Errorf("drop = %+v, want IF EXISTS … CASCADE", d2)
-	}
-}
-
-func TestDropExternalSchema(t *testing.T) {
-	d := dropOf(t, "DROP EXTERNAL SCHEMA mydataset")
-	if d.Object != ast.DropSchema || !d.External {
-		t.Errorf("drop = %+v, want DROP EXTERNAL SCHEMA", d)
 	}
 }
 
@@ -391,8 +356,8 @@ func TestDrop_DropModeAndOn(t *testing.T) {
 
 	// Plain DROP INDEX with `ON <table>` is accepted in BigQuery/union mode
 	// and rejected in DialectSpanner.
-	if _, err := ParseWithDialect("DROP INDEX idx ON T", DialectSpanner); err == nil {
-		t.Errorf("ParseWithDialect(DROP INDEX idx ON T, DialectSpanner): want error, got nil")
+	if _, err := Parse("DROP INDEX idx ON T"); err == nil {
+		t.Errorf("Parse(DROP INDEX idx ON T): want error, got nil")
 	}
 
 	// schema_object_kind objects DO carry opt_drop_mode (CASCADE/RESTRICT). These
@@ -403,7 +368,6 @@ func TestDrop_DropModeAndOn(t *testing.T) {
 		"DROP SCHEMA sch CASCADE",
 		"DROP SCHEMA sch RESTRICT",
 		"DROP VIEW v CASCADE",
-		"DROP DATABASE db CASCADE",
 		"DROP INDEX idx CASCADE",
 		"DROP INDEX idx RESTRICT",
 	} {
