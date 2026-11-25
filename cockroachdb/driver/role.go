@@ -9,7 +9,6 @@ import (
 	"github.com/cockroachdb/cockroach-go/v2/crdb"
 
 	"github.com/bytebase/omni/driver"
-	pganalysis "github.com/bytebase/omni/pg/analysis"
 )
 
 func (d *Driver) getInstanceRoles(ctx context.Context) ([]*driver.Role, error) {
@@ -43,10 +42,6 @@ func (d *Driver) getInstanceRoles(ctx context.Context) ([]*driver.Role, error) {
 			); err != nil {
 				return err
 			}
-			if pganalysis.IsSystemUser(role) {
-				continue
-			}
-
 			var attributes []string
 			if super {
 				attributes = append(attributes, "Superuser")
