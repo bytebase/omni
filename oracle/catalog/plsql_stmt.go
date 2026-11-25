@@ -156,15 +156,21 @@ func (c *plChecker) stmt(n ast.StmtNode) {
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/Data-Type-Comparison-Rules.html (Implicit Data Conversion)
 func (c *plChecker) returnFits(x ast.ExprNode) {
-	if _, ok := x.(*ast.NumberLiteral); !ok {
-		return
+	if _, ok := x.(*ast.NumberLiteral); ok && c.returnsDatetime {
+		c.fail("PLS-00382", "expression is of wrong type")
 	}
-	switch typeWord(c.returns) {
+}
+
+// builtinDatetime reports a return type that names the built-in DATE,
+// TIMESTAMP or INTERVAL. It is read in the signature's scope, before the
+// body's declarations: a type name an enclosing scope declares, such as
+// SUBTYPE "TIMESTAMP" IS NUMBER, is that declaration's.
+func (c *plChecker) builtinDatetime(t *ast.TypeName) bool {
+	switch word := typeWord(t); word {
 	case "DATE", "TIMESTAMP", "INTERVAL":
-		if !c.returns.IsPercType && !c.returns.IsPercRowtype {
-			c.fail("PLS-00382", "expression is of wrong type")
-		}
+		return !t.IsPercType && !t.IsPercRowtype && c.lookup(word) == nil
 	}
+	return false
 }
 
 // cursor checks a cursor or cursor variable OPEN, FETCH or CLOSE names. A
