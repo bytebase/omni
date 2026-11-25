@@ -190,6 +190,17 @@ func TestCompleteSessionNames(t *testing.T) {
 		{input: "WITH users AS (SELECT 1 AS one) SELECT users.| FROM users", typ: CandidateColumn},
 		{input: "WITH recent AS (SELECT amount FROM orders) SELECT | FROM recent, users", typ: CandidateColumn, want: []string{"id", "name"}},
 		{input: "WITH 1 AS users SELECT | FROM users", typ: CandidateColumn, want: []string{"id", "name"}},
+		{input: "SELECT | FROM users WHERE id IN (WITH users AS (SELECT 1 AS id) SELECT id FROM users)", typ: CandidateColumn, want: []string{"id", "name"}},
+		// The inner users is the WITH query; the outer table's columns are
+		// still there for a correlated reference.
+		{input: "SELECT * FROM users WHERE id IN (WITH users AS (SELECT 1 AS id) SELECT | FROM users)", typ: CandidateColumn, want: []string{"id", "name"}},
+		{input: "SELECT * FROM orders WHERE id IN (WITH users AS (SELECT 1 AS id) SELECT users.| FROM users)", typ: CandidateColumn},
+		{input: "SELECT | FROM orders CROSS JOIN users, other.events", typ: CandidateColumn, want: []string{"amount", "id", "name", "ts", "user_id"}},
+		{input: "SELECT * FROM orders CROSS JOIN users, |", typ: CandidateTable, want: []string{"`back\\\\slash`", "`my-table`", "orders", "other", "users"}},
+		{input: "SELECT * FROM orders o JOIN users u ON o.id = u.id, |", typ: CandidateTable},
+		{input: "INSERT INTO orders SELECT | FROM users", typ: CandidateColumn, want: []string{"id", "name"}},
+		{input: "INSERT INTO orders (|) SELECT id FROM users", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "INSERT INTO orders (|", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
 		{input: "ALTER TABLE orders UPDATE amount = 0 WHERE |", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
 	} {
 		t.Run(tc.input, func(t *testing.T) {
@@ -248,6 +259,17 @@ func TestCompleteSessionBudget(t *testing.T) {
 	start := time.Now()
 	completeAt(t, testConfig(), "SELECT "+strings.Join(cols, ", ")+" FROM orders |")
 	require.Less(t, time.Since(start), 5*time.Second)
+
+	// Reading the tables in scope is linear in the statement's tokens.
+	names := make([]string, 20000)
+	for i := range names {
+		names[i] = fmt.Sprintf("c%d", i)
+	}
+	stmt := "SELECT " + strings.Join(names, ", ") + " FROM orders"
+	start = time.Now()
+	refs := refsInScope(significantTokens(stmt), len(stmt))
+	require.Len(t, refs, 1)
+	require.Less(t, time.Since(start), time.Second)
 }
 
 func TestQuoteIdentifierIfNeeded(t *testing.T) {
