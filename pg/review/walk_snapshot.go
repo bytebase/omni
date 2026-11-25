@@ -93,8 +93,9 @@ var systemColumns = map[string]bool{
 // So a schema's absence is trusted unless its name is a system one, a
 // relation's in a synced schema unless its name is one the sync drops or
 // a partition's or a partition index's, which may sit in any schema, or
-// the sync may have lost partitions, and a column's in a synced table or
-// foreign table. A type's, a constraint's, and a primary key's absence is
+// the sync may have lost partitions, a column's in a synced table or
+// foreign table, and a trigger's on a synced table, view, or materialized
+// view. A type's, a constraint's, and a primary key's absence is
 // never trusted.
 //
 // Assumed: a relation the sync drops by its name or its schema holds no
@@ -359,6 +360,7 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 			rel(v.GetName(), relView)
 			rowType(v.GetName())
 			s.addRules([2]string{name, v.GetName()}, v.GetRules())
+			s.addTriggers([2]string{name, v.GetName()}, v.GetTriggers())
 			if len(v.GetColumns()) > 0 {
 				s.viewCols[[2]string{name, v.GetName()}] = len(v.GetColumns())
 			}
@@ -366,6 +368,7 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		for _, v := range schema.GetMaterializedViews() {
 			rel(v.GetName(), relMatview)
 			rowType(v.GetName())
+			s.addTriggers([2]string{name, v.GetName()}, v.GetTriggers())
 			for _, idx := range v.GetIndexes() {
 				rel(idx.GetName(), relIndex)
 				if idxInfo := parseSyncedIndex(idx.GetDefinition()); idxInfo != nil {
@@ -490,6 +493,16 @@ func (s *pgSnapshot) addRules(key [2]string, rules []*metadata.RuleMetadata) {
 		names[r.GetName()] = true
 	}
 	s.rules[key] = names
+}
+
+// addTriggers records the triggers of a view or materialized view, which
+// pg/driver/sync.go's getTriggers lists as it lists a table's.
+func (s *pgSnapshot) addTriggers(key [2]string, triggers []*metadata.TriggerMetadata) {
+	names := make(map[string]bool, len(triggers))
+	for _, tr := range triggers {
+		names[tr.GetName()] = true
+	}
+	s.triggers[key] = names
 }
 
 // addPartitions records the partitions of a table in schema root, at any
