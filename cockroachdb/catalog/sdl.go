@@ -68,6 +68,10 @@ func LoadSDL(text string) (*metadatapb.DatabaseSchemaMetadata, error) {
 				fk.ReferencedColumns = append(fk.ReferencedColumns, index.Expressions...)
 			}
 		}
+		if len(fk.ReferencedColumns) == 0 {
+			// Its key is the hidden rowid, which the sync does not read.
+			return nil, fmt.Errorf("foreign key %s references table %s.%s, which declares no primary key", fk.Name, fk.ReferencedSchema, fk.ReferencedTable)
+		}
 	}
 	return l.meta, nil
 }
@@ -359,6 +363,9 @@ func sdlExpr(expr tree.Expr) string {
 func (l *sdlLoader) createTable(n *tree.CreateTable) error {
 	if n.AsSource != nil {
 		return fmt.Errorf("CREATE TABLE AS is not a schema definition")
+	}
+	if n.Persistence.IsTemporary() {
+		return fmt.Errorf("table %s: a temporary table is not a schema definition", n.Table.String())
 	}
 	if n.Locality != nil {
 		// The sync reads no locality, so a migration could not keep one.
@@ -656,6 +663,11 @@ func (l *sdlLoader) alterTable(n *tree.AlterTable) error {
 	for _, cmd := range n.Cmds {
 		switch c := cmd.(type) {
 		case *tree.AlterTableAddConstraint:
+			if c.ValidationBehavior == tree.ValidationSkip {
+				// The sync reads no validation state, so a migration
+				// would validate it.
+				return fmt.Errorf("NOT VALID is not supported")
+			}
 			if err := l.addTableDef(schema, table, c.ConstraintDef); err != nil {
 				return err
 			}

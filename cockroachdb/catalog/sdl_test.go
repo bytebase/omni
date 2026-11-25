@@ -20,6 +20,9 @@ func TestLoadSDLRefuses(t *testing.T) {
 		"table as select":  "CREATE TABLE t AS SELECT 1",
 		"unknown sequence": "ALTER SEQUENCE s INCREMENT BY 2",
 		"locality":         "CREATE TABLE t (id INT8 PRIMARY KEY) LOCALITY GLOBAL",
+		"temporary":        "CREATE TEMP TABLE t (id INT8 PRIMARY KEY)",
+		"not valid":        "CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); ALTER TABLE t ADD CONSTRAINT positive CHECK (a > 0) NOT VALID",
+		"rowid reference":  "CREATE TABLE p (a INT8); CREATE TABLE c (id INT8 PRIMARY KEY, pid INT8 REFERENCES p)",
 		"storage params":   "CREATE TABLE t (id INT8 PRIMARY KEY, expires_at TIMESTAMPTZ) WITH (ttl_expiration_expression = 'expires_at')",
 		"on update":        "CREATE TABLE t (id INT8 PRIMARY KEY, updated TIMESTAMPTZ DEFAULT now() ON UPDATE now())",
 	} {
