@@ -38,6 +38,7 @@ GET /users/_search?_source=name,email
 GET /users/_search?_source_includes=address.city
 GET /users/_search?_source_excludes=ssn,tags
 GET /users/_search?_source_includes=name,ssn&_source_excludes=ssn
+GET /users/_search?_source_excludes=ssn&_source_excludes=email
 POST /users/_search?_source_excludes=email {"_source":["name","email"]}
 
 # Single documents.
@@ -82,6 +83,7 @@ GET /.cust*/_search
 POST /_msearch {"index":"users"} \n {"query":{"match_all":{}}} \n {"index":"orders"} \n {"_source":["total"]}
 POST /users/_msearch {} \n {"_source":["name"]}
 POST /_msearch {} \n {} \n {"index":"orders"} \n {}
+POST /users/_msearch {"indices":"orders"} \n {}
 POST /_msearch {"index":"users"} \n {} \n {"index":"*,-users"} \n {}
 
 # Errors.

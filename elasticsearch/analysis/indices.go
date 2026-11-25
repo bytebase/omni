@@ -43,16 +43,18 @@ func requestTargets(api MaskableAPI, urlPath, body string) [][]string {
 		}
 		return targets
 	case api == APIMaskSearch && strings.Contains(urlPath, "_msearch"):
-		// A multi-search body alternates a header line and a search body;
-		// a header's "index" is a name, a comma-separated list or an array.
-		lines := nonEmptyLines(body)
+		// A multi-search body alternates a header and a search body, each a
+		// JSON object, which the console may spread over lines; a header's
+		// index (or indices) is a name, a comma-separated list or an array.
+		objects := jsonObjects(body)
 		var targets [][]string
-		for i := 0; i < len(lines); i += 2 {
-			var header map[string]any
-			if json.Unmarshal([]byte(lines[i]), &header) != nil {
-				header = nil
+		for i := 0; i < len(objects); i += 2 {
+			header := objects[i]
+			value, ok := header["index"]
+			if !ok {
+				value = header["indices"]
 			}
-			switch v := header["index"].(type) {
+			switch v := value.(type) {
 			case string:
 				targets = append(targets, splitNames(v))
 			case []any:
@@ -80,14 +82,19 @@ func splitNames(list string) []string {
 	return names
 }
 
-func nonEmptyLines(body string) []string {
-	var lines []string
-	for line := range strings.SplitSeq(body, "\n") {
-		if strings.TrimSpace(line) != "" {
-			lines = append(lines, line)
+// jsonObjects decodes the body's successive JSON values, a value that is no
+// object standing as an empty one, up to the first that does not decode.
+func jsonObjects(body string) []map[string]any {
+	decoder := json.NewDecoder(strings.NewReader(body))
+	var objects []map[string]any
+	for {
+		var v any
+		if err := decoder.Decode(&v); err != nil {
+			return objects
 		}
+		object, _ := v.(map[string]any)
+		objects = append(objects, object)
 	}
-	return lines
 }
 
 // ExpandIndices resolves the index expressions a request reads

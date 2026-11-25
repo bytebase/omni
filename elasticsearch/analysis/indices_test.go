@@ -22,6 +22,8 @@ func TestRequestTargets(t *testing.T) {
 		{"POST", "/u/_mget", `{"docs":[{"_id":"1"},{"_index":"orders","_id":"2"}]}`, [][]string{{"u"}, {"orders"}}},
 		{"POST", "/_msearch", "{\"index\":\"users\"}\n{}\n{\"index\":[\"a\",\"b\"]}\n{}\n{}\n{}\n", [][]string{{"users"}, {"a", "b"}, nil}},
 		{"POST", "/x/_msearch", "{}\n{}\n{\"index\":\"y,z\"}\n{}\n", [][]string{{"x"}, {"y", "z"}}},
+		{"POST", "/x/_msearch", "{\"indices\":\"orders\"}\n{}\n", [][]string{{"orders"}}},
+		{"POST", "/x/_msearch", "{\n  \"index\": \"orders\"\n}\n{\n  \"query\": {\"match_all\": {}}\n}\n{}\n{}\n", [][]string{{"orders"}, {"x"}}},
 		{"PUT", "/users/_doc/1", `{}`, nil},
 	} {
 		got := analysis.AnalyzeRequest(tc.method, tc.url, tc.body).Targets
@@ -75,6 +77,8 @@ func TestSourceFiltering(t *testing.T) {
 		{"/u/_doc/1?_source_includes=a", "", []string{"a"}, nil, false},
 		{"/u/_source/1?_source_excludes=a", "", nil, []string{"a"}, false},
 		{"/u/_search", `{"_source":{"excludes":["ssn"],"exclude":["email"]}}`, nil, []string{"email"}, false},
+		{"/u/_search?_source_excludes=ssn&_source_excludes=email", `{}`, nil, []string{"email"}, false},
+		{"/u/_search?_source=a&_source=false", `{}`, nil, nil, true},
 		{"/u/_search", `{"_source":{"include":"a","includes":["b","c"]}}`, []string{"b", "c"}, nil, false},
 	} {
 		method := "POST"

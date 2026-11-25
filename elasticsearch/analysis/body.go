@@ -136,13 +136,17 @@ func sourceParams(query string, result *RequestAnalysis) {
 	if err != nil {
 		return
 	}
+	// A repeated parameter keeps its last value, as Elasticsearch's
+	// RestUtils.decodeQueryString overwrites the earlier ones.
 	list := func(key string) []string {
+		v := values[key]
+		if len(v) == 0 {
+			return nil
+		}
 		var out []string
-		for _, v := range values[key] {
-			for field := range strings.SplitSeq(v, ",") {
-				if field != "" {
-					out = append(out, field)
-				}
+		for field := range strings.SplitSeq(v[len(v)-1], ",") {
+			if field != "" {
+				out = append(out, field)
 			}
 		}
 		return out

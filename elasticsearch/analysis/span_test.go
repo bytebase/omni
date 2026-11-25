@@ -433,10 +433,13 @@ func sourceLeaves(prefix string, v any) []string {
 // name, each through _resolve/index with a search's default
 // expand_wildcards=open.
 func resolveTargets(c *testcontainer.Client, target, body string, segments []string) ([]string, error) {
-	var targets []string
-	if target != "" {
-		targets = append(targets, target)
+	// A doc or a search that names no index reads the path's target, or
+	// every index; one that names one reads only that.
+	fallback := target
+	if fallback == "" {
+		fallback = "*"
 	}
+	var targets []string
 	switch {
 	case slices.Contains(segments, "_mget"):
 		var parsed struct {
@@ -450,30 +453,32 @@ func resolveTargets(c *testcontainer.Client, target, body string, segments []str
 		for _, d := range parsed.Docs {
 			if d.Index != "" {
 				targets = append(targets, url.PathEscape(d.Index))
+			} else {
+				targets = append(targets, fallback)
 			}
 		}
 	case slices.Contains(segments, "_msearch"):
 		lines := strings.Split(strings.TrimSuffix(body, "\n"), "\n")
 		for i := 0; i < len(lines); i += 2 {
 			var header struct {
-				Index string `json:"index"`
+				Index   string `json:"index"`
+				Indices string `json:"indices"`
 			}
 			if err := json.Unmarshal([]byte(lines[i]), &header); err != nil {
 				return nil, err
 			}
-			// A header that names no index searches the path's target,
-			// or every index.
-			switch {
-			case header.Index != "":
+			if header.Index == "" {
+				header.Index = header.Indices
+			}
+			if header.Index != "" {
 				targets = append(targets, url.PathEscape(header.Index))
-			case target != "":
-			default:
-				targets = append(targets, "*")
+			} else {
+				targets = append(targets, fallback)
 			}
 		}
 	}
 	if len(targets) == 0 {
-		targets = []string{"*"}
+		targets = []string{fallback}
 	}
 	var out []string
 	for _, t := range targets {
