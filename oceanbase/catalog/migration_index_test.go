@@ -45,3 +45,26 @@ func TestMigration_InvisibleIndex(t *testing.T) {
 		})
 	}
 }
+
+// TestAlterAddKeyInvisibleIgnored pins that ALTER TABLE ... ADD KEY leaves the key
+// visible whatever it says, and that ALTER INDEX then hides it, as
+// TestOracle_OceanBaseInvisibleIndex measures on the engine.
+func TestAlterAddKeyInvisibleIgnored(t *testing.T) {
+	c := New()
+	mustExec(t, c, "CREATE DATABASE d; USE d; CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT);")
+	mustExec(t, c, "ALTER TABLE t ADD KEY k_plain (a) INVISIBLE; ALTER TABLE t ADD KEY k_comment (a, b) /*!80000 INVISIBLE */;")
+	tbl := c.GetDatabase("d").GetTable("t")
+	for _, name := range []string{"k_plain", "k_comment"} {
+		for _, idx := range tbl.Indexes {
+			if idx.Name == name && !idx.Visible {
+				t.Errorf("%s is invisible after ALTER TABLE ... ADD KEY; OceanBase leaves it visible", name)
+			}
+		}
+	}
+	mustExec(t, c, "ALTER TABLE t ALTER INDEX k_plain INVISIBLE;")
+	for _, idx := range tbl.Indexes {
+		if idx.Name == "k_plain" && idx.Visible {
+			t.Error("k_plain is visible after ALTER INDEX ... INVISIBLE")
+		}
+	}
+}

@@ -1325,6 +1325,7 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			p.addRuleCandidate("charset")
 			return nil, &ParseError{Message: "collecting"}
 		}
+		fc.UsingQuoted = p.cur.Type == tokSCONST
 		cs, err := p.parseCharsetName()
 		if err != nil {
 			return nil, err
@@ -2712,6 +2713,7 @@ func (p *Parser) parseConvertExpr() (nodes.ExprNode, error) {
 		// charset_name is ident_or_text | BINARY_SYM (MySQL-compatible
 		// grammar): an identifier, a string literal, or the reserved word
 		// BINARY, so CONVERT(x USING BINARY) parses on OceanBase (MySQL mode).
+		conv.CharsetQuoted = p.cur.Type == tokSCONST
 		charset, err := p.parseCharsetName()
 		if err != nil {
 			return nil, err

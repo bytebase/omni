@@ -380,8 +380,8 @@ ok:05dfa2a7669b	ok:05dfa2a7669b	engine	one_table@column	window_function/COUNT_(_
 1054	1054	engine	one_table@column	window_function/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) a
 5929	5929	engine	one_table@column	window_function/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) OVER a zzz
 5929	5929	engine	one_table@column	window_function/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/ALL	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(ALL a) OVER a
-5929	5798	engine	one_table@column	window_function/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/DISTINCT	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(DISTINCT a) OVER a
-5929	5798	engine	one_table@column	window_function/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/UNIQUE	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(UNIQUE a) OVER a
+5798	5798	engine	one_table@column	window_function/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/DISTINCT	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(DISTINCT a) OVER a
+5798	5798	engine	one_table@column	window_function/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/UNIQUE	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(UNIQUE a) OVER a
 5929	5929	engine	one_table@column	window_function/JSON_OBJECTAGG_(_expr_,_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a, a) OVER a
 1054	1054	engine	one_table@column	window_function/JSON_OBJECTAGG_(_expr_,_expr_)_OVER_new_generalized_window_clause!drop-7	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a, a) a
 5929	5929	engine	one_table@column	window_function/JSON_OBJECTAGG_(_expr_,_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a, a) OVER a zzz
@@ -546,8 +546,8 @@ ok:8b3ee4b75227	ok:8b3ee4b75227	engine	one_table@column	func_expr/COUNT_(_opt_al
 1054	1054	engine	one_table@column	func_expr/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a)
 1054	1054	engine	one_table@column	func_expr/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)!insert	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) zzz
 1054	1054	engine	one_table@column	func_expr/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/ALL	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(ALL a)
-1054	5798	engine	one_table@column	func_expr/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/DISTINCT	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(DISTINCT a)
-1054	5798	engine	one_table@column	func_expr/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/UNIQUE	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(UNIQUE a)
+5798	5798	engine	one_table@column	func_expr/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/DISTINCT	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(DISTINCT a)
+5798	5798	engine	one_table@column	func_expr/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/UNIQUE	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(UNIQUE a)
 1054	1054	engine	one_table@column	func_expr/JSON_OBJECTAGG_(_expr_,_expr_)	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a, a)
 1054	1054	engine	one_table@column	func_expr/JSON_OBJECTAGG_(_expr_,_expr_)!insert	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a, a) zzz
 1054	1054	engine	one_table@column	func_expr/STD_(_opt_all_expr_)	CREATE VIEW _v AS SELECT STD(a)
@@ -573,8 +573,8 @@ ok:8b3ee4b75227	ok:8b3ee4b75227	engine	one_table@column	func_expr/COUNT_(_opt_al
 1054	1054	engine	one_table@column	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr_list_)	CREATE VIEW _v AS SELECT PERCENTILE_CONT(a, a)
 1054	1054	engine	one_table@column	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr_list_)!insert	CREATE VIEW _v AS SELECT PERCENTILE_CONT(a, a) zzz
 1054	1054	engine	one_table@column	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr_list_)+opt_distinct_or_all/ALL	CREATE VIEW _v AS SELECT PERCENTILE_CONT(ALL a, a)
-1054	5798	engine	one_table@column	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr_list_)+opt_distinct_or_all/DISTINCT	CREATE VIEW _v AS SELECT PERCENTILE_CONT(DISTINCT a, a)
-1054	5798	engine	one_table@column	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr_list_)+opt_distinct_or_all/UNIQUE	CREATE VIEW _v AS SELECT PERCENTILE_CONT(UNIQUE a, a)
+5798	5798	engine	one_table@column	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr_list_)+opt_distinct_or_all/DISTINCT	CREATE VIEW _v AS SELECT PERCENTILE_CONT(DISTINCT a, a)
+5798	5798	engine	one_table@column	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr_list_)+opt_distinct_or_all/UNIQUE	CREATE VIEW _v AS SELECT PERCENTILE_CONT(UNIQUE a, a)
 1054	1054	engine	one_table@column	func_expr/GROUPING_(_expr_)	CREATE VIEW _v AS SELECT GROUPING(a)
 1054	1054	engine	one_table@column	func_expr/GROUPING_(_expr_)!insert	CREATE VIEW _v AS SELECT GROUPING(a) zzz
 1054	1054	engine	one_table@column	func_expr/GROUPING_ID_(_expr_list_)	CREATE VIEW _v AS SELECT GROUPING_ID(a)
@@ -613,7 +613,7 @@ ok:4a781ec512c6	ok:4a781ec512c6	engine	one_table@column	func_expr/utc_date_func!
 1054	1054	engine	one_table@column	func_expr/CONVERT_(_expr_,_cast_data_type_)!insert	CREATE VIEW _v AS SELECT CONVERT(a, BINARY) zzz
 1115	1115	engine	one_table@column	func_expr/CONVERT_(_expr_USING_charset_name_)	CREATE VIEW _v AS SELECT CONVERT(a USING a)
 1115	1115	engine	one_table@column	func_expr/CONVERT_(_expr_USING_charset_name_)!insert	CREATE VIEW _v AS SELECT CONVERT(a USING a) zzz
-1115	1054	engine	one_table@column	func_expr/CONVERT_(_expr_USING_charset_name_)+charset_name/STRING_VALUE	CREATE VIEW _v AS SELECT CONVERT(a USING 's')
+1054	1054	engine	one_table@column	func_expr/CONVERT_(_expr_USING_charset_name_)+charset_name/STRING_VALUE	CREATE VIEW _v AS SELECT CONVERT(a USING 's')
 1054	1054	engine	one_table@column	func_expr/CONVERT_(_expr_USING_charset_name_)+charset_name/BINARY	CREATE VIEW _v AS SELECT CONVERT(a USING BINARY)
 1054	1054	engine	one_table@column	func_expr/CONVERT_(_expr_USING_charset_name_)+charset_name/ASCII	CREATE VIEW _v AS SELECT CONVERT(a USING ASCII)
 1054	1054	engine	one_table@column	func_expr/POSITION_(_bit_expr_IN_expr_)	CREATE VIEW _v AS SELECT POSITION(a IN a)
@@ -700,7 +700,7 @@ ok:4a781ec512c6	ok:4a781ec512c6	engine	one_table@column	func_expr/utc_date_func!
 1054	1054	engine	one_table@column	func_expr/CHARACTER_(_expr_list_)!swap	CREATE VIEW _v AS SELECT CHARSET(a)
 1115	1115	engine	one_table@column	func_expr/CHARACTER_(_expr_list_USING_charset_name_)	CREATE VIEW _v AS SELECT CHARACTER(a USING a)
 1115	1115	engine	one_table@column	func_expr/CHARACTER_(_expr_list_USING_charset_name_)!insert	CREATE VIEW _v AS SELECT CHARACTER(a USING a) zzz
-1115	1054	engine	one_table@column	func_expr/CHARACTER_(_expr_list_USING_charset_name_)+charset_name/STRING_VALUE	CREATE VIEW _v AS SELECT CHARACTER(a USING 's')
+1054	1054	engine	one_table@column	func_expr/CHARACTER_(_expr_list_USING_charset_name_)+charset_name/STRING_VALUE	CREATE VIEW _v AS SELECT CHARACTER(a USING 's')
 1054	1054	engine	one_table@column	func_expr/CHARACTER_(_expr_list_USING_charset_name_)+charset_name/BINARY	CREATE VIEW _v AS SELECT CHARACTER(a USING BINARY)
 1054	1054	engine	one_table@column	func_expr/CHARACTER_(_expr_list_USING_charset_name_)+charset_name/ASCII	CREATE VIEW _v AS SELECT CHARACTER(a USING ASCII)
 1054	1054	engine	one_table@column	func_expr/LOG_(_expr_,_expr_)	CREATE VIEW _v AS SELECT LOG(a, a)

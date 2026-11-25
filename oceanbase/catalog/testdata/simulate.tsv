@@ -1777,7 +1777,7 @@ ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/WITH_ROWID	
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/index_using_algorithm+index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY(a) USING HASH
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
-ok	ok:e5cac50200af	engine	one_table@column	index_option/visibility_option+visibility_option/INVISIBLE	ALTER TABLE a ADD KEY(a) INVISIBLE
+ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/visibility_option+visibility_option/INVISIBLE	ALTER TABLE a ADD KEY(a) INVISIBLE
 1235	1235	engine	one_table@column	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
 1235	1235	engine	one_table@column	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1235	1235	engine	one_table@column	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
@@ -2413,7 +2413,7 @@ ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/WITH_ROWID	A
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/index_using_algorithm+index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY(a) USING HASH
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
-ok	ok:7c097d37a5bb	engine	one_table@index	index_option/visibility_option+visibility_option/INVISIBLE	ALTER TABLE a ADD KEY(a) INVISIBLE
+ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/visibility_option+visibility_option/INVISIBLE	ALTER TABLE a ADD KEY(a) INVISIBLE
 1235	1235	engine	one_table@index	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
 1235	1235	engine	one_table@index	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1235	1235	engine	one_table@index	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
@@ -3685,7 +3685,7 @@ ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	index_option/WITH_ROW
 ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
 ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	index_option/index_using_algorithm+index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY(a) USING HASH
 ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
-ok	ok:e0e0b83aeb2a	engine	objects@partitioned	index_option/visibility_option+visibility_option/INVISIBLE	ALTER TABLE a ADD KEY(a) INVISIBLE
+ok:e0e0b83aeb2a	ok:e0e0b83aeb2a	engine	objects@partitioned	index_option/visibility_option+visibility_option/INVISIBLE	ALTER TABLE a ADD KEY(a) INVISIBLE
 1235	1235	engine	objects@partitioned	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
 1235	1235	engine	objects@partitioned	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1235	1235	engine	objects@partitioned	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
@@ -4321,7 +4321,7 @@ ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	index_option/WITH_ROWID	ALTER 
 ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	index_option/index_using_algorithm	ALTER TABLE a ADD KEY(a) USING BTREE
 ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	index_option/index_using_algorithm+index_using_algorithm/USING_HASH	ALTER TABLE a ADD KEY(a) USING HASH
 ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
-ok	ok:dc6e32f7591c	engine	objects@fk	index_option/visibility_option+visibility_option/INVISIBLE	ALTER TABLE a ADD KEY(a) INVISIBLE
+ok:dc6e32f7591c	ok:dc6e32f7591c	engine	objects@fk	index_option/visibility_option+visibility_option/INVISIBLE	ALTER TABLE a ADD KEY(a) INVISIBLE
 1235	1235	engine	objects@fk	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
 1235	1235	engine	objects@fk	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
 1235	1235	engine	objects@fk	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1

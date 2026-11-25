@@ -981,6 +981,7 @@ type FuncCallExpr struct {
 	// JSONValueArm does for JSON_VALUE.
 	JSONQueryArm bool
 	Using        string // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
+	UsingQuoted  bool   // Using was written as a string, as ConvertExpr.CharsetQuoted
 	// NullTreatment is a window function's RESPECT NULLS or IGNORE NULLS, as
 	// "RESPECT" or "IGNORE", whether written inside the argument list or after
 	// it. Only FIRST_VALUE, LAST_VALUE, LEAD, LAG and NTH_VALUE take it.
@@ -2932,6 +2933,9 @@ type ConvertExpr struct {
 	Expr     ExprNode
 	TypeName *DataType
 	Charset  string // CONVERT(expr USING charset)
+	// CharsetQuoted marks a USING name written as a string ('utf8'). OceanBase reads it
+	// as a parameter (charset_name's STRING_VALUE arm) and checks it after the argument.
+	CharsetQuoted bool
 }
 
 func (e *ConvertExpr) nodeTag()  {}
