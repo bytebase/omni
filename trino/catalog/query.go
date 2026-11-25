@@ -24,6 +24,9 @@ type scopeRel struct {
 	// before this one, which * shows once; usingOrder is their order.
 	using      map[string]bool
 	usingOrder []string
+	// usingFrom is the index, among the scope's relations, of the first
+	// relation of the join's left side.
+	usingFrom int
 }
 
 // queryColumns returns the output columns of a CREATE TABLE AS or view
@@ -108,7 +111,7 @@ func (c *Catalog) typeSpec(spec *parser.QuerySpec, ctes map[string][]*Column) ([
 	for _, item := range spec.Items {
 		switch item.Kind {
 		case parser.SelectAll:
-			out = append(out, joinedColumns(scope.rels)...)
+			out = append(out, joinedColumns(scope.rels, 0)...)
 		case parser.SelectAllFrom:
 			var cols []*Column
 			if q, ok := nameChain(item.Expr); ok {
@@ -152,7 +155,7 @@ func (c *Catalog) addRelation(scope *queryScope, rel parser.Relation, ctes map[s
 		if len(scope.rels) > before+1 {
 			// An alias on a parenthesized join names one relation of all
 			// the join's columns.
-			cols := joinedColumns(scope.rels[before:])
+			cols := joinedColumns(scope.rels[before:], before)
 			scope.rels = append(scope.rels[:before], scopeRel{cols: cols})
 		}
 		if len(scope.rels) == before+1 {
@@ -181,6 +184,7 @@ func (c *Catalog) addRelation(scope *queryScope, rel parser.Relation, ctes map[s
 		}
 		scope.rels = append(scope.rels, scopeRel{names: names, cols: cols})
 	case *parser.Join:
+		left := len(scope.rels)
 		if err := c.addRelation(scope, n.Left, ctes); err != nil {
 			return err
 		}
@@ -191,7 +195,7 @@ func (c *Catalog) addRelation(scope *queryScope, rel parser.Relation, ctes map[s
 		if len(n.Using) > 0 && len(scope.rels) == before+1 {
 			// A USING column is the join's once, from its left side.
 			r := &scope.rels[before]
-			r.using = map[string]bool{}
+			r.using, r.usingFrom = map[string]bool{}, left
 			for _, u := range n.Using {
 				r.using[fold(u)] = true
 				r.usingOrder = append(r.usingOrder, fold(u))
@@ -286,28 +290,37 @@ func (s *queryScope) typeExpr(e parser.Expr) (*Column, error) {
 	return &Column{Nullable: true}, nil
 }
 
-// joinedColumns is what * shows of relations joined left to right: a
+// joinedColumns is what * shows of relations joined left to right, rels
+// being the scope's relations from index offset on: a
 // JOIN ... USING puts its columns first, in its order, once, then the
 // other columns of each side.
-func joinedColumns(rels []scopeRel) []*Column {
+func joinedColumns(rels []scopeRel, offset int) []*Column {
 	var out []*Column
-	for _, r := range rels {
+	starts := make([]int, len(rels))
+	for i, r := range rels {
+		starts[i] = len(out)
 		if len(r.usingOrder) > 0 {
+			// Only the join's left side is coalesced.
+			from := 0
+			if k := r.usingFrom - offset; k >= 0 && k < i {
+				from = starts[k]
+			}
+			side := out[from:]
 			var keys, rest []*Column
 			for _, name := range r.usingOrder {
-				for _, col := range out {
+				for _, col := range side {
 					if col.Name == name {
 						keys = append(keys, col)
 						break
 					}
 				}
 			}
-			for _, col := range out {
+			for _, col := range side {
 				if !r.using[col.Name] {
 					rest = append(rest, col)
 				}
 			}
-			out = append(keys, rest...)
+			out = append(append(out[:from:from], keys...), rest...)
 		}
 		for _, col := range copyColumns(r.cols) {
 			if !r.using[col.Name] {
@@ -382,13 +395,33 @@ func rowField(rowType, field string) (string, bool) {
 				continue
 			}
 		}
-		name, typ, _ := strings.Cut(strings.TrimSpace(inner[start:i]), " ")
-		if strings.Trim(name, `"`) == field {
+		name, typ := splitRowField(strings.TrimSpace(inner[start:i]))
+		if name == field {
 			return typ, true
 		}
 		start = i + 1
 	}
 	return "", false
+}
+
+// splitRowField reads one field of a stored row type, a name, quoted when
+// quoteName quoted it, and its type.
+func splitRowField(f string) (name, typ string) {
+	if !strings.HasPrefix(f, `"`) {
+		name, typ, _ = strings.Cut(f, " ")
+		return name, typ
+	}
+	for i := 1; i < len(f); i++ {
+		if f[i] != '"' {
+			continue
+		}
+		if i+1 < len(f) && f[i+1] == '"' {
+			i++
+			continue
+		}
+		return strings.ReplaceAll(f[1:i], `""`, `"`), strings.TrimSpace(f[i+1:])
+	}
+	return f, ""
 }
 
 // valuesColumns types the columns of a VALUES list by its rows' literals:

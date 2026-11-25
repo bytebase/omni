@@ -174,6 +174,10 @@ func TestExecParenJoinAndViewContext(t *testing.T) {
 		"CREATE TABLE u AS SELECT * FROM ul JOIN ur USING (id)",
 		"CREATE VIEW sv AS SELECT a FROM l",
 		"ALTER VIEW sv RENAME TO other.sv",
+		"CREATE TABLE x (x bigint)",
+		"CREATE TABLE cu (one, two, three, four) AS SELECT * FROM x, ul JOIN ur USING (id)",
+		"CREATE TABLE rowt (p ROW(\"a b\" integer))",
+		"CREATE VIEW rowv AS SELECT p.\"a b\" FROM rowt",
 	} {
 		if results, err := c.Exec(sql, nil); err != nil || len(results) != 1 || results[0].Error != nil {
 			t.Fatalf("%s: got %+v, %v", sql, results, err)
@@ -190,5 +194,15 @@ func TestExecParenJoinAndViewContext(t *testing.T) {
 	}
 	if got := strings.Join(s.GetTable("u").ColumnNames(), ","); got != "id,a,b" {
 		t.Errorf("u's columns = %s, want id,a,b", got)
+	}
+	var types []string
+	for _, col := range s.GetTable("cu").Columns() {
+		types = append(types, col.Type)
+	}
+	if got := strings.Join(types, ","); got != "bigint,integer,varchar,bigint" {
+		t.Errorf("cu's types = %s, want x's bigint before the join's", got)
+	}
+	if cols := s.GetView("rowv").Columns(); len(cols) != 1 || cols[0].Type != "integer" {
+		t.Errorf("rowv's columns = %+v, want an integer", cols)
 	}
 }
