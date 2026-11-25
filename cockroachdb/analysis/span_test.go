@@ -10,14 +10,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/pgwire/pgcode"
+	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/pgwire/pgerror"
+
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/cockroachdb/internal/testcontainer"
 	"github.com/bytebase/omni/enginetest/span"
 	metadatapb "github.com/bytebase/omni/metadata"
-	pganalysis "github.com/bytebase/omni/pg/analysis"
 )
 
-// TestQuerySpanFidelity holds the query span Bytebase resolves for
-// CockroachDB, which is pg/analysis's ResolveQuerySpan, to CockroachDB: for
+// TestQuerySpanFidelity holds ResolveQuerySpan to CockroachDB: for
 // each query of testdata/span/queries.sql, the output column names, each
 // column's lineage and the relations read, as omni resolves them against the
 // schema CockroachDB stored for the fixture, and as CockroachDB states them.
@@ -62,17 +64,15 @@ func TestQuerySpanFidelity(t *testing.T) {
 	})
 }
 
-// omniSpan is ResolveQuerySpan's answer, resolved as Bytebase resolves it for
-// CockroachDB: in the fixture's database, under the session's search_path,
-// against the metadata a sync stores, with names matched exactly, and
-// through views.
+// omniSpan is ResolveQuerySpan's answer, resolved as Bytebase resolves it: in
+// the fixture's database, under the session's search_path, against the
+// metadata a sync stores, with names matched exactly.
 func omniSpan(fx testcontainer.SpanFixture, session, statement string) span.Answer {
 	meta := spanMetadata(fx)
-	resolved, err := pganalysis.ResolveQuerySpan(context.Background(), statement, pganalysis.ResolveOptions{
+	resolved, err := ResolveQuerySpan(context.Background(), statement, ResolveOptions{
 		DefaultDatabase: meta.GetName(),
 		SearchPath:      strings.Split(session, ","),
-		ThroughViews:    true,
-		Catalog: pganalysis.Catalog{GetDatabase: func(name string) (pganalysis.Database, error) {
+		Catalog: Catalog{GetDatabase: func(name string) (Database, error) {
 			if name != meta.GetName() {
 				return nil, errors.New("database not found")
 			}
@@ -80,6 +80,9 @@ func omniSpan(fx testcontainer.SpanFixture, session, statement string) span.Answ
 		}},
 	})
 	switch {
+	case err != nil && pgerror.GetPGCode(err) != pgcode.Uncategorized:
+		// A refusal for CockroachDB's reason names its SQLSTATE.
+		return span.Answer{Error: pgerror.GetPGCode(err).String()}
 	case err != nil:
 		return span.Answer{Error: "omni"}
 	case resolved.NotFoundError != nil:
@@ -87,7 +90,7 @@ func omniSpan(fx testcontainer.SpanFixture, session, statement string) span.Answ
 	}
 	var a span.Answer
 	for c := range resolved.SourceColumns {
-		a.Tables = append(a.Tables, pganalysis.ColumnResource{Database: c.Database, Schema: c.Schema, Table: c.Table}.String())
+		a.Tables = append(a.Tables, analysis.ColumnResource{Database: c.Database, Schema: c.Schema, Table: c.Table}.String())
 	}
 	for _, r := range resolved.Results {
 		a.Results = append(a.Results, r.Name)
@@ -132,7 +135,8 @@ func spanMetadata(fx testcontainer.SpanFixture) *metadatapb.DatabaseSchemaMetada
 // it names nothing for is span.Unstated. Through a view it names the table
 // column behind the view's column and never the view's column, so a column
 // whose origin is also the origin of a column of a view the query reads
-// names that origin and span.Unstated.
+// names that origin and span.Unstated. The relations of a statement no view
+// can hold are span.Unstated.
 func engineSpan(fx testcontainer.SpanFixture, a testcontainer.SpanAnswer) span.Answer {
 	if a.Error != "" {
 		return span.Answer{Error: a.Error}
@@ -152,6 +156,9 @@ func engineSpan(fx testcontainer.SpanFixture, a testcontainer.SpanAnswer) span.A
 		}
 	}
 	out := span.Answer{Tables: a.Tables}
+	if a.TablesUnstated {
+		out.Tables = []string{span.Unstated}
+	}
 	for _, c := range a.Columns {
 		out.Results = append(out.Results, c.Name)
 		switch {
@@ -215,10 +222,6 @@ func (d protoDatabase) SearchRelation(searchPath []string, name string) (string,
 		}
 	}
 	return "", ""
-}
-
-func (d protoDatabase) SearchFunctions(searchPath []string, name string) []*metadatapb.FunctionMetadata {
-	return nil
 }
 
 // readSpanCorpus reads queries.sql: one query per line, on the fixture and

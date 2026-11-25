@@ -180,6 +180,30 @@ SELECT id, *, region FROM customers, unnest(ARRAY['a']) AS tags
 SELECT *, s.email FROM (SELECT id, upper(email) AS email FROM customers) s CROSS JOIN unnest(ARRAY['a']) AS tags
 SELECT *, customer_id FROM orders JOIN items ON items.order_id = orders.id CROSS JOIN unnest(ARRAY['a']) AS tags
 
+-- CockroachDB's own syntax, which PostgreSQL's grammar rejects. A statement
+-- no view can hold (AS OF SYSTEM TIME, UPSERT, SHOW, EXPLAIN) leaves its
+-- relations unstated.
+SELECT id, name FROM customers AS OF SYSTEM TIME '-1ms'
+SELECT c.name, o.amount FROM customers AS c JOIN orders AS o ON o.customer_id = c.id AS OF SYSTEM TIME '-1ms'
+SELECT name FROM customers@customers_pkey
+SELECT c.email FROM customers@{FORCE_INDEX=customers_pkey} AS c WHERE c.id > 1
+SELECT * FROM orders@{NO_FULL_SCAN} WHERE id = 1
+SELECT o.id, c.name FROM orders AS o INNER HASH JOIN customers AS c ON c.id = o.customer_id
+SELECT o.id, c.name FROM orders AS o LEFT LOOKUP JOIN customers AS c ON c.id = o.customer_id
+SELECT name FROM customers ORDER BY PRIMARY KEY customers
+SELECT * FROM customers WITH ORDINALITY
+SELECT IF(amount > 10, status, 'small') AS s, IFNULL(email, status) FROM orders JOIN customers ON customers.id = orders.customer_id
+SELECT * FROM [SELECT id, email FROM customers] AS s
+SELECT s.email FROM [SELECT id, email FROM customers] AS s WHERE s.id > 1
+SELECT * FROM [SHOW TABLES]
+SELECT column_name FROM [SHOW COLUMNS FROM customers]
+SHOW COLUMNS FROM customers
+UPSERT INTO customers (id, name) VALUES (1, 'a')
+UPSERT INTO customers (id, name) SELECT id, status FROM orders
+EXPLAIN (OPT) SELECT name FROM customers
+EXPLAIN (VEC) SELECT o.id FROM orders AS o JOIN customers AS c ON c.id = o.customer_id
+EXPLAIN ANALYZE SELECT name FROM customers WHERE region = 'x'
+
 -- session: sales,public
 SELECT id, region FROM orders
 SELECT * FROM orders
