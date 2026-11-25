@@ -113,6 +113,9 @@ func (l *sdlLoader) load(stmt tree.Statement) error {
 	case *tree.CreateType:
 		return l.createType(n)
 	case *tree.CreateSequence:
+		if n.Persistence.IsTemporary() {
+			return fmt.Errorf("sequence %s: a temporary sequence is not a schema definition", n.Name.String())
+		}
 		s := l.schema(schemaOf(&n.Name))
 		if skip, err := repeated(findSequence(s, string(n.Name.ObjectName)) != nil, n.IfNotExists, n.Name.String()); skip || err != nil {
 			return err
@@ -736,6 +739,9 @@ func (l *sdlLoader) alterTable(n *tree.AlterTable) error {
 }
 
 func (l *sdlLoader) createView(n *tree.CreateView) error {
+	if n.Persistence.IsTemporary() {
+		return fmt.Errorf("view %s: a temporary view is not a schema definition", n.Name.String())
+	}
 	schema := schemaOf(&n.Name)
 	s := l.schema(schema)
 	if !n.Replace {
