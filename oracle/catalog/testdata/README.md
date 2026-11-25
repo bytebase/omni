@@ -150,11 +150,8 @@ modifying a column a unit names (not adding one, nor changing another),
 replacing a procedure, or a function under other parameters, and replacing a
 spec, which leaves its own body `INVALID` but not the spec's callers.
 
-**270 / 274 rows (98.54%) agree** (up from 266 / 274 when the suite was
-first recorded). A column type that is no built-in type, no type of the schema
-and no synonym is `ORA-00902`, as in a declaration it is `PLS-00201`; a
-qualified type, or any type in a catalog loaded from metadata, is taken as
-existing. The 4 that do not agree:
+**269 / 274 rows (98.18%) agree** (up from 266 / 274 when the suite was
+first recorded). The 5 that do not:
 
 - `CREATE PROCEDURE p IS BEGIN NULL END;` and `CREATE TABLE` inside a body:
   Oracle creates the unit `INVALID` with `PLS-00103`, and `Exec` returns the
@@ -163,6 +160,9 @@ existing. The 4 that do not agree:
   another schema's or a public synonym's (Oracle: `PLS-00201`). The schema
   shows neither the server's other users nor its public synonyms, such as
   `DBMS_OUTPUT`.
+- `CREATE TABLE pts (p nope_type)`: the catalog takes an unknown column type
+  (Oracle: `ORA-00902`). The metadata holds no types, so neither a catalog
+  loaded from it nor one loaded from the DDL it dumps knows the schema's.
 
 Rules the checker leaves to Oracle, as no recorded row pins them yet (a
 row added for one is the way to take it on): a type body that leaves out a

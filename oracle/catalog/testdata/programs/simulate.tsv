@@ -273,4 +273,4 @@ ok:042e15295ecc	ok:042e15295ecc	engine	programs@objects	program:reference	DROP S
 ok:543abc4c12be	ok:543abc4c12be	engine	programs@objects	program:reference	DROP SYNONYM cust
 ok:4dca7031aab4	ok:4dca7031aab4	engine	programs@objects	program:reference	DROP VIEW v_customers
 ok:4ad1f2049ed8	ok:4ad1f2049ed8	engine	programs@objects	program:reference	CREATE TABLE pts (id NUMBER, p t_point)
-902	902	engine	programs@objects	program:reference	CREATE TABLE pts (id NUMBER, p nope_type)
+ok	902	engine	programs@objects	program:reference	CREATE TABLE pts (id NUMBER, p nope_type)
