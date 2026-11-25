@@ -7463,7 +7463,10 @@
 | CREATE FUNCTION fid_v.eight() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 8 $$;
 < ok 0 -
 > exec
-| CREATE TABLE fid_v.grow (id INT8 PRIMARY KEY, s INT8 DEFAULT fid_v.seven(), e INT8 NOT NULL DEFAULT fid_v.eight());
+| CREATE FUNCTION fid_v.nine() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 10 $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_v.grow (id INT8 PRIMARY KEY, s INT8 DEFAULT fid_v.seven(), e INT8 NOT NULL DEFAULT fid_v.eight(), z INT8 NOT NULL DEFAULT fid_v.nine());
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_v.next_id() RETURNS INT8 LANGUAGE SQL VOLATILE AS $$ SELECT unique_rowid() $$;
@@ -7788,6 +7791,35 @@
 : int64 3
 : string
 | fid_v.eight()
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| grow
+: string
+| z
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 4
+: string
+| fid_v.nine()
 : string
 | NO
 : null
@@ -9344,6 +9376,24 @@
 : string
 | fid_v
 : string
+| nine
+: string
+| nine()
+: string
+| CREATE FUNCTION fid_v.nine()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 10;
+| $$
+< row
+: string
+| fid_v
+: string
 | pdef
 : string
 | pdef(int8)
@@ -9653,6 +9703,9 @@
 > exec
 | INSERT INTO fid_v.grow VALUES (1), (2);
 < ok 2 -
+> exec
+| CREATE FUNCTION fid_v.nine() RETURNS INT8 LANGUAGE SQL AS $$ SELECT NULL::INT8 $$;
+< ok 0 -
 > exec
 | CREATE TABLE fid_v.keyed (id INT8 PRIMARY KEY);
 < ok 0 -
@@ -11682,6 +11735,24 @@
 : string
 | fid_v
 : string
+| nine
+: string
+| nine()
+: string
+| CREATE FUNCTION fid_v.nine()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT NULL::INT8;
+| $$
+< row
+: string
+| fid_v
+: string
 | ov
 : string
 | ov()
@@ -12029,13 +12100,10 @@
 | ALTER TABLE "fid_v"."grow" ADD COLUMN "s" bigint;
 < ok 0 -
 > exec
-| ALTER TABLE "fid_v"."grow" ALTER COLUMN "s" SET DEFAULT fid_v.seven();
+| ALTER TABLE "fid_v"."grow" ADD COLUMN "e" bigint;
 < ok 0 -
 > exec
-| UPDATE "fid_v"."grow" SET "s" = fid_v.seven() WHERE "s" IS NULL;
-< ok 2 -
-> exec
-| ALTER TABLE "fid_v"."grow" ADD COLUMN "e" bigint;
+| ALTER TABLE "fid_v"."grow" ADD COLUMN "z" bigint;
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."items" ADD COLUMN "doubled" numeric AS (price * 2) VIRTUAL;
@@ -12133,6 +12201,18 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT unique_rowid();
+| $$;
+< ok 0 -
+> exec
+| CREATE OR REPLACE FUNCTION fid_v.nine()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 10;
 | $$;
 < ok 0 -
 > exec
@@ -12260,6 +12340,12 @@
 | UPDATE "fid_v"."ab" SET "x" = fid_v.xa() WHERE "x" IS NULL;
 < ok 0 -
 > exec
+| ALTER TABLE "fid_v"."grow" ALTER COLUMN "s" SET DEFAULT fid_v.seven();
+< ok 0 -
+> exec
+| UPDATE "fid_v"."grow" SET "s" = fid_v.seven() WHERE "s" IS NULL;
+< ok 2 -
+> exec
 | ALTER TABLE "fid_v"."grow" ALTER COLUMN "e" SET DEFAULT fid_v.eight();
 < ok 0 -
 > exec
@@ -12267,6 +12353,15 @@
 < ok 2 -
 > exec
 | ALTER TABLE "fid_v"."grow" ALTER COLUMN "e" SET NOT NULL;
+< ok 0 -
+> exec
+| ALTER TABLE "fid_v"."grow" ALTER COLUMN "z" SET DEFAULT fid_v.nine();
+< ok 0 -
+> exec
+| UPDATE "fid_v"."grow" SET "z" = fid_v.nine() WHERE "z" IS NULL;
+< ok 2 -
+> exec
+| ALTER TABLE "fid_v"."grow" ALTER COLUMN "z" SET NOT NULL;
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."items" ALTER COLUMN "bonus" SET DEFAULT fid_v.bonus();
@@ -12588,6 +12683,35 @@
 : int64 3
 : string
 | fid_v.eight()
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| grow
+: string
+| z
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 4
+: string
+| fid_v.nine()
 : string
 | NO
 : null
@@ -14139,6 +14263,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT unique_rowid();
+| $$
+< row
+: string
+| fid_v
+: string
+| nine
+: string
+| nine()
+: string
+| CREATE FUNCTION fid_v.nine()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 10;
 | $$
 < row
 : string

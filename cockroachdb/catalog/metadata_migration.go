@@ -850,15 +850,17 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 			bare.Default, bare.Nullable = "", true
 			d.r.writeColumnDefinition(&buf, bare)
 			alter(phaseAlterTables, OpAddColumn, column.Name, "ADD COLUMN "+buf.String())
-			// A primary key on this column waits for its backfill.
-			if defaultPhase == phaseLateColumns && slices.Contains(newPrimary.GetExpressions(), column.Name) {
+			// The default, backfill and NOT NULL wait for every routine to be
+			// created or replaced, so the backfill runs the target's routine;
+			// a primary key on this column waits for them.
+			if slices.Contains(newPrimary.GetExpressions(), column.Name) {
 				keyPhase = phaseLateColumns
 			}
-			alter(defaultPhase, OpAlterColumn, column.Name, "ALTER COLUMN "+quoteIdent(column.Name)+" SET DEFAULT "+defaultExpression(column.Default))
-			d.add(defaultPhase, MigrationOp{Type: OpAlterTable, SchemaName: schema, ObjectName: column.Name, ParentObject: new.Name,
+			alter(phaseLateColumns, OpAlterColumn, column.Name, "ALTER COLUMN "+quoteIdent(column.Name)+" SET DEFAULT "+defaultExpression(column.Default))
+			d.add(phaseLateColumns, MigrationOp{Type: OpAlterTable, SchemaName: schema, ObjectName: column.Name, ParentObject: new.Name,
 				SQL: fmt.Sprintf("UPDATE %s SET %s = %s WHERE %s IS NULL", name, quoteIdent(column.Name), defaultExpression(column.Default), quoteIdent(column.Name))})
 			if !column.Nullable {
-				alter(defaultPhase, OpAlterColumn, column.Name, "ALTER COLUMN "+quoteIdent(column.Name)+" SET NOT NULL")
+				alter(phaseLateColumns, OpAlterColumn, column.Name, "ALTER COLUMN "+quoteIdent(column.Name)+" SET NOT NULL")
 			}
 			continue
 		}
