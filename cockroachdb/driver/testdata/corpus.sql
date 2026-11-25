@@ -13,6 +13,9 @@ CREATE TYPE app.address AS (street STRING, city VARCHAR(50), zip INT8);
 
 CREATE SEQUENCE app.counter AS INT8 INCREMENT BY 5 MINVALUE -100 MAXVALUE 1000 START WITH 10 CACHE 3;
 CREATE SEQUENCE audit.big_seq AS INT8;
+-- A sequence the column it numbers owns.
+CREATE TABLE audit.tickets (id INT8 PRIMARY KEY, n INT8);
+CREATE SEQUENCE audit.ticket_seq OWNED BY audit.tickets.n;
 
 CREATE FUNCTION app.add(a INT8, b INT8) RETURNS INT8 LANGUAGE SQL IMMUTABLE AS $$ SELECT a + b $$;
 
@@ -40,6 +43,9 @@ CREATE TABLE app.orders (
     customer_id INT8 NOT NULL REFERENCES app.customer(id) ON DELETE CASCADE ON UPDATE RESTRICT,
     amount DECIMAL(10, 2) NOT NULL,
     placed_at TIMESTAMP,
+    -- Computed columns: their expression is not a default.
+    amount_cents INT8 AS ((amount * 100)::INT8) STORED,
+    doubled DECIMAL AS (amount * 2) VIRTUAL,
     CONSTRAINT orders_amount_positive CHECK (amount > 0)
 );
 COMMENT ON TABLE app.orders IS 'an order';
@@ -52,6 +58,9 @@ CREATE TABLE audit.events (at TIMESTAMPTZ, note STRING);
 CREATE VIEW app.customer_orders AS
     SELECT c.id, c.name, o.id AS order_id, o.amount
     FROM app.customer AS c JOIN app.orders AS o ON o.customer_id = c.id;
+
+-- pg_get_functiondef answers a procedure with its body alone.
+CREATE PROCEDURE app.touch_orders() LANGUAGE SQL AS $$ UPDATE app.orders SET amount = amount $$;
 
 CREATE MATERIALIZED VIEW app.order_totals AS
     SELECT customer_id, sum(amount) AS total FROM app.orders GROUP BY customer_id;

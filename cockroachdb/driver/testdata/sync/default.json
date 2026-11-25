@@ -156,6 +156,26 @@
               "position": 4,
               "nullable": true,
               "type": "timestamp without time zone"
+            },
+            {
+              "name": "amount_cents",
+              "position": 5,
+              "nullable": true,
+              "type": "bigint",
+              "generation": {
+                "type": "TYPE_STORED",
+                "expression": "(amount * 100)::INT8"
+              }
+            },
+            {
+              "name": "doubled",
+              "position": 6,
+              "nullable": true,
+              "type": "numeric",
+              "generation": {
+                "type": "TYPE_VIRTUAL",
+                "expression": "amount * 2"
+              }
             }
           ],
           "indexes": [
@@ -274,6 +294,11 @@
           "name": "add",
           "definition": "CREATE FUNCTION app.add(a INT8, b INT8)\n\tRETURNS INT8\n\tIMMUTABLE\n\tNOT LEAKPROOF\n\tCALLED ON NULL INPUT\n\tLANGUAGE SQL\n\tSECURITY INVOKER\n\tAS $$\n\tSELECT a + b;\n$$",
           "signature": "add(int8, int8)"
+        },
+        {
+          "name": "touch_orders",
+          "definition": "CREATE PROCEDURE app.touch_orders()\n\tLANGUAGE SQL\n\tSECURITY INVOKER\n\tAS $$\n\tUPDATE omni_testsyncdatabase.app.orders SET amount = amount;\n$$",
+          "signature": "touch_orders()"
         }
       ],
       "materializedViews": [
@@ -306,6 +331,27 @@
               "primary": true,
               "definition": "CREATE UNIQUE INDEX order_totals_pkey ON omni_testsyncdatabase.app.order_totals USING btree (rowid ASC)"
             }
+          ],
+          "columns": [
+            {
+              "name": "customer_id",
+              "position": 1,
+              "nullable": true,
+              "type": "bigint"
+            },
+            {
+              "name": "total",
+              "position": 2,
+              "nullable": true,
+              "type": "numeric"
+            },
+            {
+              "name": "rowid",
+              "position": 3,
+              "default": "unique_rowid()",
+              "type": "bigint",
+              "isInvisible": true
+            }
           ]
         }
       ],
@@ -316,9 +362,11 @@
           "start": "10",
           "minValue": "-100",
           "maxValue": "1000",
-          "increment": "5"
+          "increment": "5",
+          "cacheSize": "3"
         }
       ],
+      "comment": "the application",
       "enumTypes": [
         {
           "name": "mood",
@@ -390,6 +438,37 @@
               "definition": "CREATE UNIQUE INDEX events_pkey ON omni_testsyncdatabase.audit.events USING btree (rowid ASC)"
             }
           ]
+        },
+        {
+          "name": "tickets",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "type": "bigint"
+            },
+            {
+              "name": "n",
+              "position": 2,
+              "nullable": true,
+              "type": "bigint"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "tickets_pkey",
+              "expressions": [
+                "id"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "btree",
+              "unique": true,
+              "primary": true,
+              "definition": "CREATE UNIQUE INDEX tickets_pkey ON omni_testsyncdatabase.audit.tickets USING btree (id ASC)"
+            }
+          ]
         }
       ],
       "sequences": [
@@ -400,6 +479,16 @@
           "minValue": "1",
           "maxValue": "9223372036854775807",
           "increment": "1"
+        },
+        {
+          "name": "ticket_seq",
+          "dataType": "INT8",
+          "start": "1",
+          "minValue": "1",
+          "maxValue": "9223372036854775807",
+          "increment": "1",
+          "ownerTable": "tickets",
+          "ownerColumn": "n"
         }
       ]
     },

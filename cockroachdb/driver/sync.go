@@ -81,7 +81,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 	defer txn.Rollback()
 
-	schemas, err := getSchemas(txn)
+	schemas, schemaComments, err := getSchemas(txn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get schemas from database %q: %w", d.databaseName, err)
 	}
@@ -112,7 +112,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to get views from database %q: %w", d.databaseName, err)
 	}
-	materializedViewMap, err := getMaterializedViews(txn, indexMap)
+	materializedViewMap, err := getMaterializedViews(txn, indexMap, columnMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get materialized views from database %q: %w", d.databaseName, err)
 	}
@@ -151,6 +151,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		}
 		databaseMetadata.Schemas = append(databaseMetadata.Schemas, &metadatapb.SchemaMetadata{
 			Name:              schemaName,
+			Comment:           schemaComments[schemaName],
 			Tables:            tables,
 			ExternalTables:    externalTableMap[schemaName],
 			Views:             viewMap[schemaName],
@@ -421,34 +422,38 @@ func getColumnList(definition string) ([]string, error) {
 }
 
 var listSchemaQuery = fmt.Sprintf(`
-SELECT nspname
+SELECT nspname, obj_description(oid, 'pg_namespace')
 FROM pg_catalog.pg_namespace
 WHERE nspname NOT IN (%s)
 ORDER BY nspname;
 `, crrawanalysis.SystemSchemaWhereClause)
 
-func getSchemas(txn *sql.Tx) ([]string, error) {
+// getSchemas returns the database's schemas and their comments.
+func getSchemas(txn *sql.Tx) ([]string, map[string]string, error) {
 	rows, err := txn.Query(listSchemaQuery)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
 
 	var schemaNames []string
+	comments := make(map[string]string)
 	for rows.Next() {
 		var schemaName string
-		if err := rows.Scan(&schemaName); err != nil {
-			return nil, err
+		var comment sql.NullString
+		if err := rows.Scan(&schemaName, &comment); err != nil {
+			return nil, nil, err
 		}
 		if crrawanalysis.IsSystemSchema(schemaName) {
 			continue
 		}
 		schemaNames = append(schemaNames, schemaName)
+		comments[schemaName] = comment.String
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return schemaNames, nil
+	return schemaNames, comments, nil
 }
 
 func getListForeignTableQuery() string {
@@ -635,7 +640,9 @@ SELECT
 	cols.udt_schema,
 	cols.udt_name,
 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-	cols.is_hidden
+	cols.is_hidden,
+	cols.generation_expression,
+	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 FROM INFORMATION_SCHEMA.COLUMNS AS cols
 LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')` + fmt.Sprintf(`
@@ -656,8 +663,18 @@ func getTableColumns(txn *sql.Tx) (map[tableKey][]*metadatapb.ColumnMetadata, er
 		var characterMaxLength, defaultStr, collation, udtSchema, udtName, comment sql.NullString
 		var numericPrecision, numericScale sql.NullInt64
 		var hidden string
-		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &numericPrecision, &numericScale, &column.Position, &defaultStr, &nullable, &collation, &udtSchema, &udtName, &comment, &hidden); err != nil {
+		var generation, generated sql.NullString
+		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &numericPrecision, &numericScale, &column.Position, &defaultStr, &nullable, &collation, &udtSchema, &udtName, &comment, &hidden, &generation, &generated); err != nil {
 			return nil, err
+		}
+		// A computed column states its expression apart from its default;
+		// pg_attribute.attgenerated tells a stored one ('s') from a virtual
+		// one ('v').
+		if generation.String != "" {
+			column.Generation = &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_STORED, Expression: generation.String}
+			if generated.String == "v" {
+				column.Generation.Type = metadatapb.GenerationMetadata_TYPE_VIRTUAL
+			}
 		}
 		// A hidden column, such as the rowid CockroachDB adds to a table with
 		// no primary key, is one * leaves out.
@@ -716,7 +733,7 @@ LEFT JOIN pg_class c ON c.relname = m.matviewname AND c.relnamespace = n.oid AND
 WHERE m.schemaname NOT IN (%s)
 ORDER BY m.schemaname, m.matviewname;`, crrawanalysis.SystemSchemaWhereClause)
 
-func getMaterializedViews(txn *sql.Tx, indexMap map[tableKey][]*metadatapb.IndexMetadata) (map[string][]*metadatapb.MaterializedViewMetadata, error) {
+func getMaterializedViews(txn *sql.Tx, indexMap map[tableKey][]*metadatapb.IndexMetadata, columnMap map[tableKey][]*metadatapb.ColumnMetadata) (map[string][]*metadatapb.MaterializedViewMetadata, error) {
 	matviewMap := make(map[string][]*metadatapb.MaterializedViewMetadata)
 
 	rows, err := txn.Query(listMaterializedViewQuery)
@@ -741,6 +758,9 @@ func getMaterializedViews(txn *sql.Tx, indexMap map[tableKey][]*metadatapb.Index
 		}
 
 		matview.Indexes = indexMap[tableKey{Schema: schemaName, Table: matview.Name}]
+		// The output names, which pg_matviews.definition leaves out when
+		// CREATE MATERIALIZED VIEW names them.
+		matview.Columns = columnMap[tableKey{Schema: schemaName, Table: matview.Name}]
 		matviewMap[schemaName] = append(matviewMap[schemaName], matview)
 	}
 	if err := rows.Err(); err != nil {
@@ -1004,11 +1024,29 @@ func getCompositeTypes(txn *sql.Tx) (map[string][]*metadatapb.CompositeTypeMetad
 }
 
 // getSequences gets all sequences of a database.
+// sequenceCache reads CACHE n from the CREATE SEQUENCE the server writes
+// (crdb_internal.create_statements), which states its options in one form;
+// PER NODE CACHE is another option.
+var sequenceCache = regexp.MustCompile(`(?:^|[^E]) CACHE (\d+)`)
+
+// quotedName matches a quoted identifier, which the cache match skips so a
+// name holding "CACHE 4" supplies no option.
+var quotedName = regexp.MustCompile(`"(?:[^"]|"")*"`)
+
 func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error) {
+	// A sequence's OWNED BY column is its pg_depend row of type 'a': the
+	// owning table and, as refobjsubid, the column's attnum.
 	query := `
-		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-		FROM information_schema.sequences
-		ORDER BY sequence_schema, sequence_name;`
+		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+			(SELECT cs.create_statement FROM crdb_internal.create_statements cs WHERE cs.descriptor_id = c.oid::INT8)
+		FROM information_schema.sequences s
+		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+		ORDER BY s.sequence_schema, s.sequence_name;`
 	rows, err := txn.Query(query)
 	if err != nil {
 		return nil, err
@@ -1019,9 +1057,16 @@ func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error
 	for rows.Next() {
 		sequence := &metadatapb.SequenceMetadata{}
 		var schemaName, cycleOption string
-		if err := rows.Scan(&schemaName, &sequence.Name, &sequence.DataType, &sequence.Start, &sequence.MinValue, &sequence.MaxValue, &sequence.Increment, &cycleOption); err != nil {
+		var ownerTable, ownerColumn, createStatement sql.NullString
+		if err := rows.Scan(&schemaName, &sequence.Name, &sequence.DataType, &sequence.Start, &sequence.MinValue, &sequence.MaxValue, &sequence.Increment, &cycleOption, &ownerTable, &ownerColumn, &createStatement); err != nil {
 			return nil, err
 		}
+		// CockroachDB states a sequence's CACHE only in its CREATE statement:
+		// pg_sequence.seqcache reads 1 whatever it is.
+		if m := sequenceCache.FindStringSubmatch(quotedName.ReplaceAllString(createStatement.String, `""`)); m != nil {
+			sequence.CacheSize = m[1]
+		}
+		sequence.OwnerTable, sequence.OwnerColumn = ownerTable.String, ownerColumn.String
 		sequence.Cycle = strings.EqualFold(cycleOption, "YES")
 		sequenceMap[schemaName] = append(sequenceMap[schemaName], sequence)
 	}
@@ -1110,11 +1155,18 @@ func getIndexMethodType(stmt string) string {
 	return matches[1]
 }
 
+// listFunctionQuery reads each routine's CREATE statement. CockroachDB's
+// pg_get_functiondef returns only the body of a procedure, so a procedure is
+// read from crdb_internal.create_procedure_statements, whose procedure_id is
+// its pg_proc oid less 100000.
 var listFunctionQuery = `
 select n.nspname as function_schema,
 	p.proname as function_name,
 	p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as function_signature,
 	case when l.lanname = 'internal' then p.prosrc
+			when p.prokind = 'p' then (
+				select s.create_statement from crdb_internal.create_procedure_statements as s
+				where s.procedure_id + 100000 = p.oid::INT8)
 			else pg_get_functiondef(p.oid)
 			end as definition
 from pg_proc p
@@ -1122,7 +1174,7 @@ left join pg_namespace n on p.pronamespace = n.oid
 left join pg_language l on p.prolang = l.oid
 left join pg_type t on t.oid = p.prorettype ` + fmt.Sprintf(`
 where n.nspname not in (%s)
-order by function_schema, function_name;`, crrawanalysis.SystemSchemaWhereClause)
+order by function_schema, function_name, function_signature;`, crrawanalysis.SystemSchemaWhereClause)
 
 // getFunctions gets all functions of a database.
 func getFunctions(txn *sql.Tx) (map[string][]*metadatapb.FunctionMetadata, error) {

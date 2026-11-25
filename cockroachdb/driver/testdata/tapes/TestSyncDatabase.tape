@@ -17,6 +17,9 @@
 |
 | CREATE SEQUENCE app.counter AS INT8 INCREMENT BY 5 MINVALUE -100 MAXVALUE 1000 START WITH 10 CACHE 3;
 | CREATE SEQUENCE audit.big_seq AS INT8;
+| -- A sequence the column it numbers owns.
+| CREATE TABLE audit.tickets (id INT8 PRIMARY KEY, n INT8);
+| CREATE SEQUENCE audit.ticket_seq OWNED BY audit.tickets.n;
 |
 | CREATE FUNCTION app.add(a INT8, b INT8) RETURNS INT8 LANGUAGE SQL IMMUTABLE AS $$ SELECT a + b $$;
 |
@@ -44,6 +47,9 @@
 |     customer_id INT8 NOT NULL REFERENCES app.customer(id) ON DELETE CASCADE ON UPDATE RESTRICT,
 |     amount DECIMAL(10, 2) NOT NULL,
 |     placed_at TIMESTAMP,
+|     -- Computed columns: their expression is not a default.
+|     amount_cents INT8 AS ((amount * 100)::INT8) STORED,
+|     doubled DECIMAL AS (amount * 2) VIRTUAL,
 |     CONSTRAINT orders_amount_positive CHECK (amount > 0)
 | );
 | COMMENT ON TABLE app.orders IS 'an order';
@@ -56,6 +62,9 @@
 | CREATE VIEW app.customer_orders AS
 |     SELECT c.id, c.name, o.id AS order_id, o.amount
 |     FROM app.customer AS c JOIN app.orders AS o ON o.customer_id = c.id;
+|
+| -- pg_get_functiondef answers a procedure with its body alone.
+| CREATE PROCEDURE app.touch_orders() LANGUAGE SQL AS $$ UPDATE app.orders SET amount = amount $$;
 |
 | CREATE MATERIALIZED VIEW app.order_totals AS
 |     SELECT customer_id, sum(amount) AS total FROM app.orders GROUP BY customer_id;
@@ -117,25 +126,31 @@
 < ok
 > query
 |
-| SELECT nspname
+| SELECT nspname, obj_description(oid, 'pg_namespace')
 | FROM pg_catalog.pg_namespace
 | WHERE nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
 | ORDER BY nspname;
 |
 < result
 < column "nspname" "NAME"
+< column "obj_description" "TEXT"
 < row
 : string
 | Mixed Case
+: null
 < row
 : string
 | app
+: string
+| the application
 < row
 : string
 | audit
+: null
 < row
 : string
 | public
+: null
 > query
 |
 | SELECT
@@ -153,7 +168,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -175,6 +192,8 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
 < row
 : string
 | app
@@ -200,6 +219,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -224,6 +247,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -249,6 +276,10 @@
 | login
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -275,6 +306,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -300,6 +335,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -324,6 +363,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -349,6 +392,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -374,6 +421,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -398,6 +449,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -422,6 +477,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -447,6 +506,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -471,6 +534,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -496,6 +563,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -520,6 +591,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -544,6 +619,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -568,6 +647,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -592,6 +675,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -617,6 +704,10 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -641,6 +732,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -665,6 +760,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -689,6 +788,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -713,6 +816,66 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
+< row
+: string
+| app
+: string
+| orders
+: string
+| amount_cents
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 5
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+| (amount * 100)::INT8
+: string
+| s
+< row
+: string
+| app
+: string
+| orders
+: string
+| doubled
+: string
+| numeric
+: null
+: null
+: null
+: int64 6
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| numeric
+: null
+: string
+| NO
+: string
+| amount * 2
+: string
+| v
 < row
 : string
 | audit
@@ -737,6 +900,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | audit
@@ -761,6 +928,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | audit
@@ -786,6 +957,66 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
+< row
+: string
+| audit
+: string
+| tickets
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| audit
+: string
+| tickets
+: string
+| n
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -911,6 +1142,30 @@
 | events_pkey
 : string
 | CREATE UNIQUE INDEX events_pkey ON omni_testsyncdatabase.audit.events USING btree (rowid ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| audit
+: string
+| ticket_seq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testsyncdatabase.audit.ticket_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| audit
+: string
+| tickets
+: string
+| tickets_pkey
+: string
+| CREATE UNIQUE INDEX tickets_pkey ON omni_testsyncdatabase.audit.tickets USING btree (id ASC)
 : string
 | PRIMARY KEY
 : null
@@ -1060,6 +1315,13 @@
 | audit
 : string
 | events
+: int64 0
+: null
+< row
+: string
+| audit
+: string
+| tickets
 : int64 0
 : null
 > query
@@ -1247,6 +1509,9 @@
 | 	p.proname as function_name,
 | 	p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as function_signature,
 | 	case when l.lanname = 'internal' then p.prosrc
+| 			when p.prokind = 'p' then (
+| 				select s.create_statement from crdb_internal.create_procedure_statements as s
+| 				where s.procedure_id + 100000 = p.oid::INT8)
 | 			else pg_get_functiondef(p.oid)
 | 			end as definition
 | from pg_proc p
@@ -1254,7 +1519,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"
@@ -1278,11 +1543,32 @@
 | 	AS $$
 | 	SELECT a + b;
 | $$
+< row
+: string
+| app
+: string
+| touch_orders
+: string
+| touch_orders()
+: string
+| CREATE PROCEDURE app.touch_orders()
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	UPDATE omni_testsyncdatabase.app.orders SET amount = amount;
+| $$
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT cs.create_statement FROM crdb_internal.create_statements cs WHERE cs.descriptor_id = c.oid::INT8)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -1292,6 +1578,9 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
+< column "create_statement" "TEXT"
 < row
 : string
 | app
@@ -1309,6 +1598,10 @@
 | 5
 : string
 | NO
+: null
+: null
+: string
+| CREATE SEQUENCE app.counter AS INT8 MINVALUE -100 MAXVALUE 1000 INCREMENT 5 START 10 CACHE 3
 < row
 : string
 | audit
@@ -1326,6 +1619,33 @@
 | 1
 : string
 | NO
+: null
+: null
+: string
+| CREATE SEQUENCE audit.big_seq AS INT8 MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1
+< row
+: string
+| audit
+: string
+| ticket_seq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
+: string
+| tickets
+: string
+| n
+: string
+| CREATE SEQUENCE audit.ticket_seq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel

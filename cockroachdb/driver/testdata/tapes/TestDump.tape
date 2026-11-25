@@ -80,19 +80,23 @@
 < ok
 > query
 |
-| SELECT nspname
+| SELECT nspname, obj_description(oid, 'pg_namespace')
 | FROM pg_catalog.pg_namespace
 | WHERE nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
 | ORDER BY nspname;
 |
 < result
 < column "nspname" "NAME"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
+: string
+| the application
 < row
 : string
 | public
+: null
 > query
 |
 | SELECT
@@ -110,7 +114,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -132,6 +138,8 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
 < row
 : string
 | app
@@ -156,6 +164,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -180,6 +192,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -205,6 +221,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -229,6 +249,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -253,6 +277,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -277,6 +305,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -301,6 +333,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -326,6 +362,10 @@
 | the label
 : string
 | NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -639,6 +679,9 @@
 | 	p.proname as function_name,
 | 	p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as function_signature,
 | 	case when l.lanname = 'internal' then p.prosrc
+| 			when p.prokind = 'p' then (
+| 				select s.create_statement from crdb_internal.create_procedure_statements as s
+| 				where s.procedure_id + 100000 = p.oid::INT8)
 | 			else pg_get_functiondef(p.oid)
 | 			end as definition
 | from pg_proc p
@@ -646,7 +689,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"
@@ -654,9 +697,16 @@
 < column "definition" "TEXT"
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT cs.create_statement FROM crdb_internal.create_statements cs WHERE cs.descriptor_id = c.oid::INT8)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -666,6 +716,9 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
+< column "create_statement" "TEXT"
 < row
 : string
 | app
@@ -683,6 +736,10 @@
 | 2
 : string
 | NO
+: null
+: null
+: string
+| CREATE SEQUENCE app.counter AS INT8 MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 2 START 10
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -876,19 +933,23 @@
 < ok
 > query
 |
-| SELECT nspname
+| SELECT nspname, obj_description(oid, 'pg_namespace')
 | FROM pg_catalog.pg_namespace
 | WHERE nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
 | ORDER BY nspname;
 |
 < result
 < column "nspname" "NAME"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
+: string
+| the application
 < row
 : string
 | public
+: null
 > query
 |
 | SELECT
@@ -906,7 +967,9 @@
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
-| 	cols.is_hidden
+| 	cols.is_hidden,
+| 	cols.generation_expression,
+| 	(SELECT a.attgenerated FROM pg_catalog.pg_attribute a WHERE a.attrelid = c.oid AND a.attname = cols.column_name) AS attgenerated
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -928,6 +991,8 @@
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
 < column "is_hidden" "TEXT"
+< column "generation_expression" "TEXT"
+< column "attgenerated" "CHAR"
 < row
 : string
 | app
@@ -952,6 +1017,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -976,6 +1045,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -1001,6 +1074,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -1025,6 +1102,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -1049,6 +1130,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -1073,6 +1158,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -1097,6 +1186,10 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
 < row
 : string
 | app
@@ -1122,6 +1215,10 @@
 | the label
 : string
 | NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -1435,6 +1532,9 @@
 | 	p.proname as function_name,
 | 	p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as function_signature,
 | 	case when l.lanname = 'internal' then p.prosrc
+| 			when p.prokind = 'p' then (
+| 				select s.create_statement from crdb_internal.create_procedure_statements as s
+| 				where s.procedure_id + 100000 = p.oid::INT8)
 | 			else pg_get_functiondef(p.oid)
 | 			end as definition
 | from pg_proc p
@@ -1442,7 +1542,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"
@@ -1450,9 +1550,16 @@
 < column "definition" "TEXT"
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT cs.create_statement FROM crdb_internal.create_statements cs WHERE cs.descriptor_id = c.oid::INT8)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -1462,6 +1569,9 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
+< column "create_statement" "TEXT"
 < row
 : string
 | app
@@ -1479,6 +1589,10 @@
 | 2
 : string
 | NO
+: null
+: null
+: string
+| CREATE SEQUENCE app.counter AS INT8 MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 2 START 10
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
