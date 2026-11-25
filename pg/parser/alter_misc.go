@@ -755,9 +755,6 @@ func (p *Parser) parseDomainConstraintForAlter(typname *nodes.List) (*nodes.Alte
 			Loc:     nodes.NoLoc(),
 		}
 	case NOT:
-		if p.isSpannerPG() {
-			return nil, p.syntaxErrorAtCur()
-		}
 		// DomainConstraintElem: NOT NULL ConstraintAttributeSpec
 		p.advance()
 		if _, err := p.expect(NULL_P); err != nil {

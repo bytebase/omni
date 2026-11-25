@@ -22,11 +22,9 @@
 // on one address), and query plans (it has no optimizer). The driver's package
 // doc states each.
 //
-// Both dialects are recorded: Create creates a GoogleSQL database from a
-// backtick-quoted CREATE DATABASE, and CreatePostgres creates a PostgreSQL one
-// from a double-quoted statement with DatabaseDialect set, applying the fixture's
-// DDL in that dialect's SQL. The emulator answers a PostgreSQL database's own
-// INFORMATION_SCHEMA and a script's PostgreSQL dialect too.
+// Create creates a GoogleSQL database from a backtick-quoted CREATE DATABASE.
+// CreatePostgres creates a PostgreSQL-dialect one, which the driver skips and
+// refuses; it is there so a test records the database beside a GoogleSQL one.
 //
 // A database is created per fixture, through the admin API, before the first
 // request of a recording: a replay answers as if it were there, and the fixture

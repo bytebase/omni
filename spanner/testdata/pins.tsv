@@ -1,14 +1,13 @@
 # The server this engine's committed answers come from. default records the
-# tapes and judges spanner/parser/testdata/pg/compat.tsv: the Cloud Spanner
-# emulator, released from the source tag v1.5.54 of
+# tapes: the Cloud Spanner emulator, released from the source tag v1.5.54 of
 # GoogleCloudPlatform/cloud-spanner-emulator. The googlesql tree pins the same
 # emulator for its parser's oracle (googlesql/testdata/pins.tsv); default is
 # the driver's own, because the driver's answers are recorded from the
 # service's clients and can move with an image bump of their own.
 #
 # parser judges spanner/parser/testdata/compat.tsv at the same emulator 1.5.54
-# release so a judge revision bump rejudges GoogleSQL compat.tsv without
-# touching the default-pinned tapes or PostgreSQL compat.tsv.
+# release so a judge revision bump rejudges compat.tsv without touching the
+# default-pinned tapes.
 #
 # parser judge revision 2 classifies GoogleSQL's parse-error fallback
 # ("Statement not supported: <Kind>Stmt"), lookahead EXCEPT and duplicate

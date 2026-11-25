@@ -289,9 +289,6 @@ func (p *Parser) parseCopyGenericOptArg() (nodes.Node, error) {
 		p.advance()
 		return &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}, nil
 	case DEFAULT:
-		if p.isSpannerPG() {
-			return nil, p.syntaxErrorAtCur()
-		}
 		p.advance()
 		return &nodes.String{Str: "default"}, nil
 	case '(':
@@ -402,7 +399,7 @@ func (p *Parser) parseCopyOptItem() (*nodes.DefElem, error) {
 			if _, err := p.expect(NULL_P); err != nil {
 				return nil, err
 			}
-			if p.cur.Type == '*' && !p.isSpannerPG() {
+			if p.cur.Type == '*' {
 				starLoc := p.pos()
 				p.advance()
 				return &nodes.DefElem{Defname: "force_not_null", Arg: &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}, Loc: nodes.NoLoc()}, nil
@@ -415,7 +412,7 @@ func (p *Parser) parseCopyOptItem() (*nodes.DefElem, error) {
 		}
 		if p.cur.Type == NULL_P {
 			p.advance()
-			if p.cur.Type == '*' && !p.isSpannerPG() {
+			if p.cur.Type == '*' {
 				starLoc := p.pos()
 				p.advance()
 				return &nodes.DefElem{Defname: "force_null", Arg: &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}, Loc: nodes.NoLoc()}, nil

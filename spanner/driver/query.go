@@ -17,9 +17,6 @@ import (
 	"github.com/bytebase/omni/driver"
 	googlesqlanalysis "github.com/bytebase/omni/googlesql/analysis"
 	"github.com/bytebase/omni/googlesql/parser"
-	"github.com/bytebase/omni/pg"
-	pganalysis "github.com/bytebase/omni/pg/analysis"
-	pgparser "github.com/bytebase/omni/pg/parser"
 )
 
 // Session returns one session. Spanner has no session state a statement can
@@ -53,53 +50,26 @@ type statement struct {
 }
 
 // statements splits script into the statements the driver runs, in the order
-// they are written, by the grammar of the database's dialect. A segment that
-// holds only a comment, and asks Spanner nothing, is skipped.
-func statements(script string, d dialect) []statement {
+// they are written, by GoogleSQL's grammar. A segment that holds only a
+// comment, and asks Spanner nothing, is skipped.
+func statements(script string) []statement {
 	var statements []statement
-	for _, text := range splitScript(script, d) {
-		text = strings.TrimSpace(text)
+	for _, segment := range parser.Split(script) {
+		// googlesql's Split marks a segment that holds no statement.
+		if segment.Empty() {
+			continue
+		}
+		text := strings.TrimSpace(segment.Text)
 		if text == "" {
 			continue
 		}
-		kind, ok := classifyStatement(text, d)
+		kind, ok := classifyStatement(text)
 		if !ok {
 			continue
 		}
 		statements = append(statements, statement{Text: text, Kind: kind})
 	}
 	return statements
-}
-
-// splitScript splits script at its top-level semicolons with the dialect's own
-// scanner: pg's keeps a dollar-quoted string whole and reads `#` as PostgreSQL's
-// operator, where googlesql's reads it as the start of a comment. A PostgreSQL
-// segment keeps the semicolon it ends with, as pg.Split returns it, and the
-// server takes a statement either way.
-func splitScript(script string, d dialect) []string {
-	if d == postgresSQL {
-		segments := pg.Split(script)
-		texts := make([]string, 0, len(segments))
-		for _, segment := range segments {
-			// A segment that holds only whitespace, semicolons and comments asks
-			// Spanner nothing, and pg.Split marks it.
-			if segment.Empty() {
-				continue
-			}
-			texts = append(texts, segment.Text)
-		}
-		return texts
-	}
-	segments := parser.Split(script)
-	texts := make([]string, 0, len(segments))
-	for _, segment := range segments {
-		// googlesql's Split marks a segment that holds no statement too.
-		if segment.Empty() {
-			continue
-		}
-		texts = append(texts, segment.Text)
-	}
-	return texts
 }
 
 // classifyStatement routes one statement by its first keyword and reports false
@@ -110,12 +80,12 @@ func splitScript(script string, d dialect) []string {
 // DDL statements the admin API takes, and Bytebase's prefix test sent them down
 // the DML path, where Spanner refuses them as "not valid DML". A statement that
 // changes privileges changes the schema's access, so it is a schema change.
-func classifyStatement(text string, d dialect) (statementKind, bool) {
-	first := firstKeyword(text, d)
-	if first == "" {
+func classifyStatement(text string) (statementKind, bool) {
+	tokens := firstTokens(text, 1)
+	if len(tokens) == 0 {
 		return 0, false
 	}
-	switch strings.ToUpper(first) {
+	switch strings.ToUpper(tokens[0]) {
 	case "SELECT", "WITH":
 		return query, true
 	case "CREATE", "DROP", "ALTER", "GRANT", "REVOKE":
@@ -125,23 +95,12 @@ func classifyStatement(text string, d dialect) (statementKind, bool) {
 	}
 }
 
-// firstKeyword returns text's first token as it is written, or "" for a segment
-// that holds only comments: each dialect's lexer skips its own comments, a
-// PostgreSQL nested block comment included.
-func firstKeyword(text string, d dialect) string {
-	tokens := firstTokens(text, d, 1)
-	if len(tokens) == 0 {
-		return ""
-	}
-	return tokens[0]
-}
-
 // firstTwoKeywords returns text's first two keywords as they are written, upper
 // case, with the comments before and between them skipped. A text with fewer
 // words answers what it has.
-func firstTwoKeywords(text string, d dialect) [2]string {
+func firstTwoKeywords(text string) [2]string {
 	var keywords [2]string
-	tokens := firstTokens(text, d, len(keywords))
+	tokens := firstTokens(text, len(keywords))
 	for i := range keywords {
 		if i < len(tokens) {
 			keywords[i] = strings.ToUpper(tokens[i])
@@ -150,21 +109,10 @@ func firstTwoKeywords(text string, d dialect) [2]string {
 	return keywords
 }
 
-// firstTokens returns text's first count tokens as they are written, with the
-// dialect's lexer skipping its comments, and stops at the end of the text.
-func firstTokens(text string, d dialect, count int) []string {
+// firstTokens returns text's first count tokens as they are written, with
+// GoogleSQL's lexer skipping its comments, and stops at the end of the text.
+func firstTokens(text string, count int) []string {
 	tokens := make([]string, 0, count)
-	if d == postgresSQL {
-		lexer := pgparser.NewLexer(text)
-		for len(tokens) < count {
-			tok := lexer.NextToken()
-			if tok.End <= tok.Loc {
-				break
-			}
-			tokens = append(tokens, text[tok.Loc:tok.End])
-		}
-		return tokens
-	}
 	lexer := parser.NewLexer(text)
 	for len(tokens) < count {
 		tok := lexer.NextToken()
@@ -174,21 +122,6 @@ func firstTokens(text string, d dialect, count int) []string {
 		tokens = append(tokens, text[tok.Loc.Start:tok.Loc.End])
 	}
 	return tokens
-}
-
-// rewriteResultLimit lowers statement's outermost LIMIT with the dialect's own
-// rewriter. PostgreSQL's answers an error for a LIMIT it will not touch — ALL,
-// NULL, an expression — and the statement then stays as written: the read caps
-// the rows it keeps either way.
-func rewriteResultLimit(statement string, limitCount int, d dialect) string {
-	if d == postgresSQL {
-		rewritten, err := pganalysis.RewriteResultLimit(statement, limitCount)
-		if err != nil {
-			return statement
-		}
-		return rewritten
-	}
-	return googlesqlanalysis.RewriteResultLimit(statement, limitCount)
 }
 
 // Query runs each statement of script in order and returns one Result per
@@ -201,7 +134,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	}
 
 	var results []*driver.Result
-	for _, statement := range statements(script, s.driver.getDialect()) {
+	for _, statement := range statements(script) {
 		startTime := time.Now()
 		result, err := s.run(ctx, statement, opts)
 		stop := false
@@ -230,7 +163,7 @@ func (s *session) run(ctx context.Context, statement statement, opts driver.Quer
 	case query:
 		text := statement.Text
 		if opts.Limit > 0 {
-			text = rewriteResultLimit(text, opts.Limit, s.driver.getDialect())
+			text = googlesqlanalysis.RewriteResultLimit(text, opts.Limit)
 		}
 		result, err := s.queryStatement(ctx, text, opts)
 		if result != nil {
@@ -306,7 +239,7 @@ func (s *session) queryStatement(ctx context.Context, statement string, opts dri
 // showed.
 func (s *session) explainStatement(ctx context.Context, script string, _ driver.QueryOptions) ([]*driver.Result, error) {
 	var results []*driver.Result
-	for _, statement := range statements(script, s.driver.getDialect()) {
+	for _, statement := range statements(script) {
 		startTime := time.Now()
 		result, err := func() (*driver.Result, error) {
 			// Spanner refuses DML in a single-use read-only transaction, so
