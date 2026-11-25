@@ -37,74 +37,55 @@ type QueryAnalysis struct {
 func Analyze(stmt *ast.SelectStmt) *QueryAnalysis {
 	a := &analyzer{}
 	out := a.selectStmt(stmt, nil)
-	return &QueryAnalysis{
-		Projections: out.projections,
-		SelectStar:  out.star,
-		StarPaths:   out.starPaths,
-		Predicates:  a.predicates,
+	qa := &QueryAnalysis{
+		SelectStar: out.star,
+		StarPaths:  copyPaths(out.starPaths),
+		Predicates: copyPaths(a.predicates),
 	}
+	for i, name := range out.names {
+		qa.Projections = append(qa.Projections, Projection{Name: name, SourcePaths: copyPaths(out.shapes[i].paths(nil))})
+	}
+	return qa
 }
 
 // analyzer resolves one statement, collecting the predicates of every SELECT
-// it holds.
+// it holds. The paths it builds are shared between the shapes that hold
+// them and never changed once built; Analyze copies what it returns.
 type analyzer struct {
 	predicates []FieldPath
 }
 
-// selectOutput is what one SELECT returns.
+// selectOutput is what one SELECT returns: its items' names and shapes, or,
+// for a SELECT * that stays a star, where its documents come from.
 type selectOutput struct {
-	value       bool // SELECT VALUE: one bare item, Projections[0]
-	star        bool
-	starPaths   []FieldPath
-	projections []Projection
+	value     bool // SELECT VALUE: one bare item
+	star      bool
+	starPaths []FieldPath
+	names     []string
+	shapes    []*shape
 }
 
-// paths is every source of what the SELECT returns. They are o's own paths,
-// not copies: copying them at each level made nested scalar subqueries
-// quadratic. A caller that keeps o as well (a binding) copies before it
-// extends one, as every reader of a binding does.
-func (o selectOutput) paths() []FieldPath {
-	if o.star {
-		return o.starPaths
+// item is the shape of one value the SELECT returns: the bare item of a
+// SELECT VALUE, the document of a SELECT *, or an object of the named items.
+func (o selectOutput) item() *shape {
+	switch {
+	case o.star:
+		return leaf(o.starPaths)
+	case o.value && len(o.shapes) == 1:
+		return o.shapes[0]
 	}
-	var out []FieldPath
-	for _, p := range o.projections {
-		out = append(out, p.SourcePaths...)
-	}
-	return out
+	return &shape{kind: objectShape, keys: o.names, members: o.shapes}
 }
 
-// A binding is what a FROM or JOIN source names: the paths its value comes
-// from and, for a subquery that names its items, those items, which a
-// property access selects by name.
-type binding struct {
-	paths  []FieldPath
-	fields []Projection
-}
-
-// field returns the sources of the bound value's property name.
-func (b *binding) field(name string) ([]FieldPath, bool) {
-	if b.fields == nil {
-		return nil, false
-	}
-	for _, f := range b.fields {
-		if f.Name == name {
-			return copyPaths(f.SourcePaths), true
-		}
-	}
-	// A property the subquery does not return is undefined; its sources are
-	// all of the subquery's, which is the safe answer for masking.
-	return copyPaths(b.paths), true
-}
-
-// scope is the names one SELECT's FROM clause binds, inside the SELECT that
-// holds it: a subquery may name its outer query's sources.
+// scope is the names one SELECT's FROM clause binds, each to the shape of
+// the value it names, inside the SELECT that holds it: a subquery may name
+// its outer query's sources.
 type scope struct {
 	parent *scope
-	names  map[string]*binding
+	names  map[string]*shape
 }
 
-func (s *scope) lookup(name string) *binding {
+func (s *scope) lookup(name string) *shape {
 	for ; s != nil; s = s.parent {
 		if b, ok := s.names[name]; ok {
 			return b
@@ -114,8 +95,8 @@ func (s *scope) lookup(name string) *binding {
 }
 
 func (a *analyzer) selectStmt(stmt *ast.SelectStmt, parent *scope) selectOutput {
-	sc := &scope{parent: parent, names: map[string]*binding{}}
-	var first *binding
+	sc := &scope{parent: parent, names: map[string]*shape{}}
+	var first *shape
 	if stmt.From != nil {
 		first = a.register(stmt.From, sc)
 	}
@@ -125,35 +106,34 @@ func (a *analyzer) selectStmt(stmt *ast.SelectStmt, parent *scope) selectOutput 
 
 	var out selectOutput
 	switch {
-	case stmt.Star && first != nil && first.fields != nil:
-		// SELECT * over a subquery returns the subquery's items.
-		out.projections = make([]Projection, len(first.fields))
-		for i, f := range first.fields {
-			out.projections[i] = Projection{Name: f.Name, SourcePaths: copyPaths(f.SourcePaths)}
-		}
+	case stmt.Star && first != nil && first.kind == objectShape:
+		// SELECT * over a subquery that returns objects of known members
+		// returns those members.
+		out.names, out.shapes = first.keys, first.members
 	case stmt.Star:
 		out.star = true
 		if first != nil {
-			out.starPaths = copyPaths(first.paths)
+			out.starPaths = first.paths(nil)
 		}
 	default:
 		out.value = stmt.Value
 		unnamed := 0
 		for _, t := range stmt.Targets {
-			p := Projection{SourcePaths: a.exprPaths(nil, t.Expr, sc)}
+			name := ""
 			switch {
 			case stmt.Value:
 			case t.Alias != nil:
-				p.Name = *t.Alias
+				name = *t.Alias
 			default:
-				if name, ok := propertyName(t.Expr); ok {
-					p.Name = name
+				if n, ok := propertyName(t.Expr); ok {
+					name = n
 				} else {
 					unnamed++
-					p.Name = "$" + strconv.Itoa(unnamed)
+					name = "$" + strconv.Itoa(unnamed)
 				}
 			}
-			out.projections = append(out.projections, p)
+			out.names = append(out.names, name)
+			out.shapes = append(out.shapes, a.shapeOf(t.Expr, sc))
 		}
 	}
 
@@ -183,17 +163,18 @@ func propertyName(expr ast.ExprNode) (string, bool) {
 	return "", false
 }
 
-// register binds a FROM or JOIN source in sc and returns its binding.
-func (a *analyzer) register(te ast.TableExpr, sc *scope) *binding {
+// register binds a FROM or JOIN source in sc and returns its shape.
+func (a *analyzer) register(te ast.TableExpr, sc *scope) *shape {
 	var (
 		name string
-		b    *binding
+		b    *shape
 	)
 	switch src := te.(type) {
 	case *ast.AliasedTableExpr:
 		name, b = src.Alias, a.source(src.Source, sc)
 	case *ast.ArrayIterationExpr:
-		name, b = src.Alias, a.source(src.Source, sc)
+		// The alias names each element of what IN reads.
+		name, b = src.Alias, a.source(src.Source, sc).element()
 	default:
 		// An unaliased source is named by its last identifier: FROM c binds
 		// c, FROM c.address binds address.
@@ -220,7 +201,7 @@ func sourceName(te ast.TableExpr) string {
 }
 
 // source resolves what a FROM or JOIN source reads.
-func (a *analyzer) source(te ast.TableExpr, sc *scope) *binding {
+func (a *analyzer) source(te ast.TableExpr, sc *scope) *shape {
 	switch src := te.(type) {
 	case *ast.ContainerRef:
 		name := src.Name
@@ -230,104 +211,19 @@ func (a *analyzer) source(te ast.TableExpr, sc *scope) *binding {
 		if b := sc.lookup(name); b != nil {
 			return b
 		}
-		return &binding{paths: []FieldPath{{ItemSelector(name)}}}
+		return leaf([]FieldPath{{ItemSelector(name)}})
 	case *ast.DotAccessExpr:
-		return &binding{paths: a.exprPaths(nil, src, sc)}
+		return a.chainShape(src, sc)
 	case *ast.BracketAccessExpr:
-		return &binding{paths: a.exprPaths(nil, src, sc)}
+		return a.chainShape(src, sc)
 	case *ast.SubqueryExpr:
-		out := a.selectStmt(src.Select, sc)
-		b := &binding{paths: out.paths()}
-		if !out.value && !out.star {
-			b.fields = out.projections
-		}
-		return b
+		return a.selectStmt(src.Select, sc).item()
 	case *ast.AliasedTableExpr:
 		return a.source(src.Source, sc)
 	case *ast.ArrayIterationExpr:
-		return a.source(src.Source, sc)
+		return a.source(src.Source, sc).element()
 	}
-	return &binding{}
-}
-
-// resolveChain resolves a property path: the binding of the identifier it
-// is rooted at, then each selector. A property of an object or array
-// literal is the member it selects ({"k": c.name}.k is c.name); a property
-// of any other computed value ((c.a ?? c.b).city) is that property of each
-// of the value's sources. Each source yields one path, so nested literals
-// and long chains stay linear.
-func (a *analyzer) resolveChain(dst []FieldPath, expr ast.ExprNode, sc *scope) []FieldPath {
-	// pending holds the selectors still to apply, the next one last.
-	var pending []Selector
-	root := expr
-peel:
-	for {
-		switch e := root.(type) {
-		case *ast.DotAccessExpr:
-			pending = append(pending, ItemSelector(e.Property))
-			root = e.Expr
-		case *ast.BracketAccessExpr:
-			pending = append(pending, bracketSelector(e.Index))
-			root = e.Expr
-		case *ast.CreateObjectExpr:
-			if len(pending) == 0 || pending[len(pending)-1].IsArray() {
-				break peel
-			}
-			name := pending[len(pending)-1].Name
-			member := -1
-			for k, f := range e.Fields {
-				if f.Key == name {
-					member = k // the last of repeated keys wins
-				}
-			}
-			if member < 0 {
-				// A key the literal does not hold is undefined.
-				return dst
-			}
-			pending = pending[:len(pending)-1]
-			root = e.Fields[member].Value
-		case *ast.CreateArrayExpr:
-			if len(pending) == 0 || !pending[len(pending)-1].IsArray() {
-				break peel
-			}
-			n := pending[len(pending)-1].ArrayIndex
-			if n >= len(e.Elements) {
-				return dst
-			}
-			pending = pending[:len(pending)-1]
-			root = e.Elements[n]
-		default:
-			break peel
-		}
-	}
-	sels := make([]Selector, len(pending))
-	for i, s := range pending {
-		sels[len(pending)-1-i] = s
-	}
-	ref, ok := root.(*ast.ColumnRef)
-	if !ok {
-		start := len(dst)
-		dst = a.exprPaths(dst, root, sc)
-		for k := start; k < len(dst); k++ {
-			dst[k] = append(dst[k], sels...)
-		}
-		return dst
-	}
-	var base []FieldPath
-	b := sc.lookup(ref.Name)
-	switch {
-	case b == nil:
-		base = []FieldPath{{ItemSelector(ref.Name)}}
-	case len(sels) > 0 && !sels[0].IsArray() && b.fields != nil:
-		base, _ = b.field(sels[0].Name)
-		sels = sels[1:]
-	default:
-		base = copyPaths(b.paths)
-	}
-	for _, p := range base {
-		dst = append(dst, append(p, sels...))
-	}
-	return dst
+	return leaf(nil)
 }
 
 // bracketSelector creates a Selector from a bracket index expression.
@@ -345,7 +241,7 @@ func bracketSelector(index ast.ExprNode) Selector {
 	}
 }
 
-// copyPath returns a shallow copy of a FieldPath to avoid alias mutation.
+// copyPath returns a copy of a FieldPath.
 func copyPath(fp FieldPath) FieldPath {
 	cp := make(FieldPath, len(fp))
 	copy(cp, fp)
@@ -353,6 +249,9 @@ func copyPath(fp FieldPath) FieldPath {
 }
 
 func copyPaths(fps []FieldPath) []FieldPath {
+	if fps == nil {
+		return nil
+	}
 	out := make([]FieldPath, len(fps))
 	for i, fp := range fps {
 		out[i] = copyPath(fp)

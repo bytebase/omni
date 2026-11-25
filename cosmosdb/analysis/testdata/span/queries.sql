@@ -120,6 +120,9 @@ SELECT s.zip FROM (SELECT VALUE c.address FROM c) s
 SELECT VALUE s FROM (SELECT VALUE c.address FROM c) s
 SELECT s.n FROM (SELECT c.name AS n FROM c) s
 SELECT VALUE s.name FROM (SELECT c.name FROM c) s
+SELECT s.k FROM (SELECT VALUE {"k": c.name} FROM c) s
+SELECT s.o.k FROM (SELECT {"k": c.name} AS o FROM c) s
+SELECT * FROM (SELECT VALUE {"a": c.name, "b": c.nick} FROM c) s
 
 -- Aggregates, grouping and ordering.
 SELECT COUNT(1) AS n FROM c

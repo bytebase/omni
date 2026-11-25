@@ -410,6 +410,18 @@
 < raw
 | {"selectValue":true,"items":["«$.name»"]}
 > raw
+| {"op":"query","fixture":"document","statement":"SELECT s.k FROM (SELECT VALUE {\"k\": c.name} FROM c) s"}
+< raw
+| {"items":[{"k":"«$.name»"}]}
+> raw
+| {"op":"query","fixture":"document","statement":"SELECT s.o.k FROM (SELECT {\"k\": c.name} AS o FROM c) s"}
+< raw
+| {"items":[{"k":"«$.name»"}]}
+> raw
+| {"op":"query","fixture":"document","statement":"SELECT * FROM (SELECT VALUE {\"a\": c.name, \"b\": c.nick} FROM c) s"}
+< raw
+| {"items":[{"a":"«$.name»","b":"«$.nick»"}]}
+> raw
 | {"op":"query","fixture":"document","statement":"SELECT COUNT(1) AS n FROM c"}
 < raw
 | {"items":[{"n":1}]}

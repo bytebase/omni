@@ -15,14 +15,11 @@ func (a *analyzer) exprPaths(dst []FieldPath, expr ast.ExprNode, sc *scope) []Fi
 	}
 
 	switch e := expr.(type) {
-	case *ast.ColumnRef:
-		if b := sc.lookup(e.Name); b != nil {
-			return append(dst, copyPaths(b.paths)...)
-		}
-		return append(dst, FieldPath{ItemSelector(e.Name)})
-
-	case *ast.DotAccessExpr, *ast.BracketAccessExpr:
-		return a.resolveChain(dst, e, sc)
+	case *ast.ColumnRef, *ast.DotAccessExpr, *ast.BracketAccessExpr,
+		*ast.SubLink, *ast.ArrayExpr, *ast.SubqueryFuncExpr, *ast.ExistsExpr:
+		// Names, property paths and subqueries resolve through the shapes
+		// of the values they name.
+		return a.shapeOf(e, sc).paths(dst)
 
 	case *ast.BinaryExpr:
 		dst = a.exprPaths(dst, e.Left, sc)
@@ -66,21 +63,6 @@ func (a *analyzer) exprPaths(dst []FieldPath, expr ast.ExprNode, sc *scope) []Fi
 		for _, f := range e.Fields {
 			dst = a.exprPaths(dst, f.Value, sc)
 		}
-		return dst
-
-	case *ast.SubLink:
-		return append(dst, a.selectStmt(e.Select, sc).paths()...)
-
-	case *ast.ArrayExpr:
-		return append(dst, a.selectStmt(e.Select, sc).paths()...)
-
-	case *ast.SubqueryFuncExpr:
-		return append(dst, a.selectStmt(e.Select, sc).paths()...)
-
-	case *ast.ExistsExpr:
-		// EXISTS returns a boolean, which carries no value of the subquery;
-		// the subquery's predicates are still collected.
-		a.selectStmt(e.Select, sc)
 		return dst
 
 	default:

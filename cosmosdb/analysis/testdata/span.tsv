@@ -300,6 +300,15 @@ $.name	$.name ~	engine	document	document	lineage	SELECT s.n FROM (SELECT c.name 
 ""	""	engine	document	document	results	SELECT VALUE s.name FROM (SELECT c.name FROM c) s
 $.name	$.name ~	engine	document	document	lineage	SELECT VALUE s.name FROM (SELECT c.name FROM c) s
 -	~	engine	document	document	tables	SELECT VALUE s.name FROM (SELECT c.name FROM c) s
+k	k	engine	document	document	results	SELECT s.k FROM (SELECT VALUE {"k": c.name} FROM c) s
+$.name	$.name ~	engine	document	document	lineage	SELECT s.k FROM (SELECT VALUE {"k": c.name} FROM c) s
+-	~	engine	document	document	tables	SELECT s.k FROM (SELECT VALUE {"k": c.name} FROM c) s
+k	k	engine	document	document	results	SELECT s.o.k FROM (SELECT {"k": c.name} AS o FROM c) s
+$.name	$.name ~	engine	document	document	lineage	SELECT s.o.k FROM (SELECT {"k": c.name} AS o FROM c) s
+-	~	engine	document	document	tables	SELECT s.o.k FROM (SELECT {"k": c.name} AS o FROM c) s
+a, b	a, b	engine	document	document	results	SELECT * FROM (SELECT VALUE {"a": c.name, "b": c.nick} FROM c) s
+$.name | $.nick	$.name ~ | $.nick ~	engine	document	document	lineage	SELECT * FROM (SELECT VALUE {"a": c.name, "b": c.nick} FROM c) s
+-	~	engine	document	document	tables	SELECT * FROM (SELECT VALUE {"a": c.name, "b": c.nick} FROM c) s
 n	n	engine	document	document	results	SELECT COUNT(1) AS n FROM c
 -	~	engine	document	document	lineage	SELECT COUNT(1) AS n FROM c
 -	~	engine	document	document	tables	SELECT COUNT(1) AS n FROM c
