@@ -22,6 +22,38 @@ import (
 // commits the rows a catalog fix moved; and -simulate-show=<text> prints both
 // schemas of the rows that hold the text.
 func TestQuerySimulation(t *testing.T) {
+	simulate.Check(t, simulate.Suite{
+		Path:     filepath.Join("testdata", "queries", "simulate.tsv"),
+		Pins:     testcontainer.Pins,
+		Fixtures: filepath.Join("testdata", "fixtures"),
+		Rows:     querySimulationRows(t),
+		MadeUp:   nil,
+		Omni:     simulationOmni,
+		Engine:   simulationEngineWithQuery(querySimulationFormsQuery),
+	})
+}
+
+// TestQuerySimulationPG18 holds the catalog at PG18 to
+// testdata/pg18/queries/simulate.tsv: TestQuerySimulation's rows, recorded
+// against PostgreSQL 18 (the pg18 pin) on
+// testdata/tapes/TestQuerySimulationPG18.tape.
+func TestQuerySimulationPG18(t *testing.T) {
+	simulate.Check(t, simulate.Suite{
+		Path:     filepath.Join("testdata", "pg18", "queries", "simulate.tsv"),
+		Pins:     testcontainer.Pins,
+		PinRole:  testcontainer.PG18,
+		Fixtures: filepath.Join("testdata", "fixtures"),
+		Rows:     querySimulationRows(t),
+		MadeUp:   nil,
+		Omni:     simulationOmniWithVersion(PG18),
+		Engine:   simulationEngineWithRole(testcontainer.PG18, querySimulationFormsQuery),
+	})
+}
+
+// querySimulationRows wraps compat.tsv's generated SELECT rows in
+// CREATE VIEW _v AS on querySimulationFixtures.
+func querySimulationRows(t *testing.T) []simulate.Generated {
+	t.Helper()
 	rows, err := simulate.FromCompat(filepath.Join("..", "parser", "testdata", "compat.tsv"), querySimulationFixtures, simulatedQuery)
 	if err != nil {
 		t.Fatal(err)
@@ -43,15 +75,7 @@ func TestQuerySimulation(t *testing.T) {
 		r.Statement = stmt
 		wrapped = append(wrapped, r)
 	}
-	simulate.Check(t, simulate.Suite{
-		Path:     filepath.Join("testdata", "queries", "simulate.tsv"),
-		Pins:     testcontainer.Pins,
-		Fixtures: filepath.Join("testdata", "fixtures"),
-		Rows:     wrapped,
-		MadeUp:   nil,
-		Omni:     simulationOmni,
-		Engine:   simulationEngineWithQuery(querySimulationFormsQuery),
-	})
+	return wrapped
 }
 
 var querySimulationFixtures = []string{"one_table@column"}
