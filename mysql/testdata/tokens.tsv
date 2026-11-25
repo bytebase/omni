@@ -18,6 +18,7 @@ lvalue_variable	autocommit	a system variable SET assigns: an unknown name answer
 # where their own alternative's row reaches (see grammar.EverySite).
 opt_if_not_exists	(every site)	IF NOT EXISTS
 if_exists	(every site)	IF EXISTS
+opt_temporary	(every site)	sql_yacc.yy:13071 TEMPORARY
 
 # Keyword choices tried at every site that names them, and not only where
 # their own alternatives' rows reach (see grammar.EveryAlternative).
