@@ -4093,7 +4093,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -4206,11 +4206,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -4218,6 +4220,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -4225,6 +4231,10 @@
 | SYS_C_SNAP$_9000007PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -4232,6 +4242,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -4239,6 +4253,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -4246,6 +4264,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -4253,6 +4275,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -9791,7 +9817,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -9904,11 +9930,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -9916,6 +9944,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -9923,6 +9955,10 @@
 | SYS_C_SNAP$_9000009PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -9930,6 +9966,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -9937,6 +9977,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -9944,6 +9988,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -9951,6 +9999,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -11324,7 +11376,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -11437,11 +11489,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -11449,6 +11503,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -11456,6 +11514,10 @@
 | SYS_C_SNAP$_9000025PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -11463,6 +11525,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -11470,6 +11536,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -11477,6 +11547,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -11484,6 +11558,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -16435,7 +16513,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -16548,11 +16626,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -16560,6 +16640,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -16567,6 +16651,10 @@
 | SYS_C_SNAP$_9000044PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -16574,6 +16662,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -16581,6 +16673,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -16588,6 +16684,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -16595,6 +16695,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -20630,7 +20734,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -20743,11 +20847,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -20755,6 +20861,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -20762,6 +20872,10 @@
 | SYS_C_SNAP$_9000055PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -20769,6 +20883,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -20776,6 +20894,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -20783,6 +20905,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -20790,6 +20916,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -28301,7 +28431,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -28414,11 +28544,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -28426,6 +28558,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -28433,6 +28569,10 @@
 | SYS_C_SNAP$_9000037PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -28440,6 +28580,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -28447,6 +28591,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -28454,6 +28602,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -28461,6 +28613,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -29993,7 +30149,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -30106,11 +30262,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -30118,6 +30276,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -30125,6 +30287,10 @@
 | SYS_C_SNAP$_9000038PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -30132,6 +30298,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -30139,6 +30309,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -30146,6 +30320,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -30153,6 +30331,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -37969,7 +38151,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -38082,11 +38264,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -38094,6 +38278,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -38101,6 +38289,10 @@
 | SYS_C_SNAP$_9000016PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -38108,6 +38300,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -38115,6 +38311,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -38122,6 +38322,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -38129,6 +38333,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -41470,7 +41678,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -41599,11 +41807,13 @@
 : string
 | o.x > 0
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -41611,6 +41821,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -41618,6 +41832,10 @@
 | SYS_C_SNAP$_9000021PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -41625,6 +41843,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -41632,6 +41854,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -41639,6 +41865,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -41646,6 +41876,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | TT
@@ -41653,6 +41887,10 @@
 | TT_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -45677,7 +45915,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -45790,11 +46028,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -45802,6 +46042,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -45809,6 +46053,10 @@
 | SYS_C_SNAP$_9000028PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -45816,6 +46064,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -45823,6 +46075,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -45830,6 +46086,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -45837,6 +46097,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -58129,7 +58393,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -58242,11 +58506,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -58254,6 +58520,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -58261,6 +58531,10 @@
 | SYS_C_SNAP$_9000027PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -58268,6 +58542,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -58275,6 +58553,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -58282,6 +58564,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -58289,6 +58575,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -64005,7 +64295,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -64118,11 +64408,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -64130,6 +64422,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -64137,6 +64433,10 @@
 | SYS_C_SNAP$_9000003PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -64144,6 +64444,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -64151,6 +64455,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -64158,6 +64466,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -64165,6 +64477,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -67195,7 +67511,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -67308,11 +67624,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -67320,6 +67638,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -67327,6 +67649,10 @@
 | SYS_C_SNAP$_9000054PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -67334,6 +67660,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -67341,6 +67671,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -67348,6 +67682,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -67355,6 +67693,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -70941,7 +71283,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -71054,11 +71396,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -71066,6 +71410,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -71073,6 +71421,10 @@
 | SYS_C_SNAP$_9000002PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -71080,6 +71432,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -71087,6 +71443,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -71094,6 +71454,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -71101,6 +71465,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -78887,7 +79255,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -79000,11 +79368,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -79012,6 +79382,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -79019,6 +79393,10 @@
 | SYS_C_SNAP$_9000034PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -79026,6 +79404,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -79033,6 +79415,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -79040,6 +79426,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -79047,6 +79437,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -85187,7 +85581,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -85300,11 +85694,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -85312,6 +85708,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -85319,6 +85719,10 @@
 | SYS_C_SNAP$_9000015PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -85326,6 +85730,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -85333,6 +85741,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -85340,6 +85752,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -85347,6 +85763,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -87852,7 +88272,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -87965,11 +88385,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -87977,6 +88399,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -87984,6 +88410,10 @@
 | SYS_C_SNAP$_9000035PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -87991,6 +88421,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -87998,6 +88432,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -88005,6 +88443,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -88012,6 +88454,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -93244,7 +93690,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -93357,11 +93803,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -93369,6 +93817,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -93376,6 +93828,10 @@
 | SYS_C_SNAP$_9000026PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -93383,6 +93839,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -93390,6 +93850,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -93397,6 +93861,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -93404,6 +93872,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -98643,7 +99115,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -98771,11 +99243,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | JCT
@@ -98783,6 +99257,10 @@
 | SYS_C9000022
 : string
 | FUNCTION-BASED NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | JCT
@@ -98790,6 +99268,10 @@
 | SYS_IL9000000024C00001$$
 : string
 | LOB
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -98797,6 +99279,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -98804,6 +99290,10 @@
 | SYS_C_SNAP$_9000023PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -98811,6 +99301,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -98818,6 +99312,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -98825,6 +99323,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -98832,6 +99334,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -101382,7 +101888,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -101495,11 +102001,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -101507,6 +102015,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -101514,6 +102026,10 @@
 | SYS_C_SNAP$_9000053PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -101521,6 +102037,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -101528,6 +102048,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -101535,6 +102059,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -101542,6 +102070,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -103936,7 +104468,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -104049,11 +104581,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -104061,6 +104595,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -104068,6 +104606,10 @@
 | SYS_C_SNAP$_9000013PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -104075,6 +104617,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -104082,6 +104628,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -104089,6 +104639,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -104096,6 +104650,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -106967,7 +107525,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -107080,11 +107638,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -107092,6 +107652,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -107099,6 +107663,10 @@
 | SYS_C_SNAP$_9000014PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -107106,6 +107674,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -107113,6 +107685,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -107120,6 +107696,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -107127,6 +107707,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -110048,7 +110632,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -110161,11 +110745,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -110173,6 +110759,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -110180,6 +110770,10 @@
 | SYS_C_SNAP$_9000017PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -110187,6 +110781,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -110194,6 +110792,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -110201,6 +110803,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -110208,6 +110814,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -111658,7 +112268,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -111771,11 +112381,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -111783,6 +112395,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -111790,6 +112406,10 @@
 | SYS_C_SNAP$_9000048PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -111797,6 +112417,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -111804,6 +112428,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -111811,6 +112439,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -111818,6 +112450,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -113254,7 +113890,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -113367,11 +114003,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -113379,6 +114017,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -113386,6 +114028,10 @@
 | SYS_C_SNAP$_9000047PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -113393,6 +114039,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -113400,6 +114050,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -113407,6 +114061,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -113414,6 +114072,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -116565,7 +117227,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -116678,11 +117340,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -116690,6 +117354,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -116697,6 +117365,10 @@
 | SYS_C_SNAP$_9000046PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -116704,6 +117376,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -116711,6 +117387,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -116718,6 +117398,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -116725,6 +117409,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -119676,7 +120364,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -119811,11 +120499,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | ML
@@ -119823,6 +120513,10 @@
 | SYS_C9000019
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MLOG$_ML
@@ -119830,6 +120524,10 @@
 | I_MLOG$_ML
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -119837,6 +120535,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -119844,6 +120546,10 @@
 | SYS_C_SNAP$_9000020PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -119851,6 +120557,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -119858,6 +120568,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -119865,6 +120579,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -119872,6 +120590,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -125984,7 +126706,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -126040,14 +126762,14 @@
 | 0
 < row
 : string
-| SYS_FK0000092586N00002$
+| SYS_FK0000092659N00002$
 : string
 | NESTED_TABLE_ID
 : string
 | 0
 < row
 : string
-| SYS_FK0000092590N00002$
+| SYS_FK0000092663N00002$
 : string
 | NESTED_TABLE_ID
 : string
@@ -126141,25 +126863,35 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | CHILD
 : string
-| SYS_FK0000092586N00002$
+| SYS_FK0000092659N00002$
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | CHILD2
 : string
-| SYS_FK0000092590N00002$
+| SYS_FK0000092663N00002$
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -126167,6 +126899,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -126174,6 +126910,10 @@
 | SYS_C_SNAP$_9000052PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -126181,6 +126921,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | PARENT
@@ -126188,6 +126932,10 @@
 | SYS_C9000050
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | PARENT2
@@ -126195,6 +126943,10 @@
 | SYS_C9000051
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -126202,6 +126954,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -126209,6 +126965,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -126216,6 +126976,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -130252,7 +131016,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -130365,11 +131129,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -130377,6 +131143,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -130384,6 +131154,10 @@
 | SYS_C_SNAP$_9000004PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -130391,6 +131165,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -130398,6 +131176,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -130405,6 +131187,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -130412,6 +131198,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -137167,7 +137957,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -137280,11 +138070,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -137292,6 +138084,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -137299,6 +138095,10 @@
 | SYS_C_SNAP$_9000005PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -137306,6 +138106,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -137313,6 +138117,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -137320,6 +138128,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -137327,6 +138139,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -138853,7 +139669,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -138966,11 +139782,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -138978,6 +139796,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -138985,6 +139807,10 @@
 | SYS_C_SNAP$_9000039PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -138992,6 +139818,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -138999,6 +139829,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -139006,6 +139840,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -139013,6 +139851,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -140452,7 +141294,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -140565,11 +141407,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -140577,6 +141421,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -140584,6 +141432,10 @@
 | SYS_C_SNAP$_9000049PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -140591,6 +141443,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -140598,6 +141454,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -140605,6 +141465,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -140612,6 +141476,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -142633,7 +143501,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -142746,11 +143614,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -142758,6 +143628,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -142765,6 +143639,10 @@
 | SYS_C_SNAP$_9000043PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -142772,6 +143650,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -142779,6 +143661,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -142786,6 +143672,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -142793,6 +143683,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -145510,7 +146404,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -145623,11 +146517,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -145635,6 +146531,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -145642,6 +146542,10 @@
 | SYS_C_SNAP$_9000041PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -145649,6 +146553,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -145656,6 +146564,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -145663,6 +146575,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -145670,6 +146586,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -150263,7 +151183,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -150376,11 +151296,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -150388,6 +151310,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -150395,6 +151321,10 @@
 | SYS_C_SNAP$_9000010PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -150402,6 +151332,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -150409,6 +151343,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -150416,6 +151354,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -150423,6 +151365,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -152519,7 +153465,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -152632,11 +153578,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -152644,6 +153592,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -152651,6 +153603,10 @@
 | SYS_C_SNAP$_9000045PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -152658,6 +153614,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -152665,6 +153625,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -152672,6 +153636,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -152679,6 +153647,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -154756,7 +155728,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -154869,11 +155841,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -154881,6 +155855,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -154888,6 +155866,10 @@
 | SYS_C_SNAP$_9000031PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -154895,6 +155877,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -154902,6 +155888,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -154909,6 +155899,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -154916,6 +155910,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -156907,7 +157905,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -157020,11 +158018,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -157032,6 +158032,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -157039,6 +158043,10 @@
 | SYS_C_SNAP$_9000032PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -157046,6 +158054,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -157053,6 +158065,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -157060,6 +158076,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -157067,6 +158087,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -161400,7 +162424,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -161513,11 +162537,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -161525,6 +162551,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -161532,6 +162562,10 @@
 | SYS_C_SNAP$_9000033PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -161539,6 +162573,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -161546,6 +162584,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -161553,6 +162595,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -161560,6 +162606,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -165833,7 +166883,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -165946,11 +166996,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -165958,6 +167010,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -165965,6 +167021,10 @@
 | SYS_C_SNAP$_9000018PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -165972,6 +167032,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -165979,6 +167043,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -165986,6 +167054,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -165993,6 +167065,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -172580,7 +173656,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -172693,11 +173769,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -172705,6 +173783,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -172712,6 +173794,10 @@
 | SYS_C_SNAP$_9000008PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -172719,6 +173805,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -172726,6 +173816,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -172733,6 +173827,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -172740,6 +173838,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -179519,7 +180621,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -179632,11 +180734,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -179644,6 +180748,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -179651,6 +180759,10 @@
 | SYS_C_SNAP$_9000012PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -179658,6 +180770,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -179665,6 +180781,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -179672,6 +180792,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -179679,6 +180803,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -187332,7 +188460,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -187445,11 +188573,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -187457,6 +188587,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -187464,6 +188598,10 @@
 | SYS_C_SNAP$_9000011PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -187471,6 +188609,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -187478,6 +188620,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -187485,6 +188631,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -187492,6 +188642,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -196480,7 +197634,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -196593,11 +197747,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -196605,6 +197761,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -196612,6 +197772,10 @@
 | SYS_C_SNAP$_9000029PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -196619,6 +197783,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -196626,6 +197794,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -196633,6 +197805,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -196640,6 +197816,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -199174,7 +200354,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -199287,11 +200467,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -199299,6 +200481,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -199306,6 +200492,10 @@
 | SYS_C_SNAP$_9000006PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -199313,6 +200503,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -199320,6 +200514,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -199327,6 +200525,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -199334,6 +200536,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -201857,7 +203063,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -201970,11 +203176,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -201982,6 +203190,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -201989,6 +203201,10 @@
 | SYS_C_SNAP$_9000042PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -201996,6 +203212,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -202003,6 +203223,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -202010,6 +203234,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -202017,6 +203245,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -204647,7 +205879,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -204760,11 +205992,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -204772,6 +206006,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -204779,6 +206017,10 @@
 | SYS_C_SNAP$_9000040PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -204786,6 +206028,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -204793,6 +206039,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -204800,6 +206050,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -204807,6 +206061,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -213357,7 +214615,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -213470,11 +214728,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -213482,6 +214742,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -213489,6 +214753,10 @@
 | SYS_C_SNAP$_9000001PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -213496,6 +214764,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -213503,6 +214775,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -213510,6 +214786,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -213517,6 +214797,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -219756,7 +221040,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -219869,11 +221153,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -219881,6 +221167,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -219888,6 +221178,10 @@
 | SYS_C_SNAP$_9000030PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -219895,6 +221189,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -219902,6 +221200,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -219909,6 +221211,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -219916,6 +221222,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result
@@ -227575,7 +228885,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -227688,11 +228998,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | MV
@@ -227700,6 +229012,10 @@
 | MV_IX
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | MV
@@ -227707,6 +229023,10 @@
 | SYS_C_SNAP$_9000036PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | P
@@ -227714,6 +229034,10 @@
 | PK_P
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -227721,6 +229045,10 @@
 | IX_N
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -227728,6 +229056,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -227735,6 +229067,10 @@
 | UK_CODE
 : string
 | NORMAL
+: string
+| SHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP' ORDER BY 1
 < result

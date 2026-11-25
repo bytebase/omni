@@ -2319,12 +2319,12 @@
 | TYPES_PK
 > query
 |
-| 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
+| 		SELECT INDEX_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
 | 		FROM sys.all_ind_columns
-| 		WHERE TABLE_OWNER = 'OMNI_DUMP'
+| 		WHERE INDEX_OWNER = 'OMNI_DUMP'
 | 		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION
 < result
-< column "TABLE_OWNER" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -2507,12 +2507,12 @@
 | ASC
 > query
 |
-| 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_EXPRESSION
+| 		SELECT INDEX_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_EXPRESSION
 | 		FROM sys.all_ind_expressions
-| 		WHERE TABLE_OWNER = 'OMNI_DUMP'
+| 		WHERE INDEX_OWNER = 'OMNI_DUMP'
 | 		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION
 < result
-< column "TABLE_OWNER" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_EXPRESSION" "LONG"
@@ -2536,13 +2536,15 @@
 | UPPER("NAME")
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, INDEX_NAME, UNIQUENESS, INDEX_TYPE, VISIBILITY
+| 		SELECT OWNER, TABLE_OWNER, TABLE_NAME, TABLE_TYPE, INDEX_NAME, UNIQUENESS, INDEX_TYPE, VISIBILITY
 | 		FROM sys.all_indexes
 | 		WHERE OWNER = 'OMNI_DUMP'
 | 		ORDER BY TABLE_NAME, INDEX_NAME
 < result
 < column "OWNER" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
+< column "TABLE_TYPE" "CHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "UNIQUENESS" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
@@ -2551,7 +2553,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | CHILD
+: string
+| TABLE
 : string
 | CHILD_PARENT_DESC_IDX
 : string
@@ -2564,7 +2570,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | CHILD
+: string
+| TABLE
 : string
 | CHILD_PARENT_IDX
 : string
@@ -2577,7 +2587,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | CHILD
+: string
+| TABLE
 : string
 | CHILD_PK
 : string
@@ -2590,7 +2604,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | IDENT
+: string
+| TABLE
 : string
 | IDENT_PK
 : string
@@ -2603,7 +2621,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | IDENT_OPTS
+: string
+| TABLE
 : string
 | IDENT_OPTS_PK
 : string
@@ -2616,7 +2638,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | PARENT
+: string
+| TABLE
 : string
 | PARENT_NAME_UK
 : string
@@ -2629,7 +2655,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | PARENT
+: string
+| TABLE
 : string
 | PARENT_PK
 : string
@@ -2642,7 +2672,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | PARENT
+: string
+| TABLE
 : string
 | PARENT_UPPER_NAME_IDX
 : string
@@ -2655,7 +2689,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | PARENT_MV
+: string
+| TABLE
 : string
 | PARENT_MV_NAME_IDX
 : string
@@ -2668,7 +2706,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | PARENT_MV
+: string
+| TABLE
 : string
 | SYS_C_SNAP$_9000013PARENT_PK
 : string
@@ -2681,7 +2723,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | PARENT_MV_COMPLETE
+: string
+| TABLE
 : string
 | SYS_C_SNAP$_9000016PARENT_PK
 : string
@@ -2694,7 +2740,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | PARENT_MV_DEFERRED
+: string
+| TABLE
 : string
 | SYS_C_SNAP$_9000019PARENT_PK
 : string
@@ -2707,7 +2757,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | REUSED
+: string
+| TABLE
 : string
 | REUSED_CODE_IDX
 : string
@@ -2720,7 +2774,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | REUSED
+: string
+| TABLE
 : string
 | REUSED_ID_IDX
 : string
@@ -2733,7 +2791,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | TYPES
+: string
+| TABLE
 : string
 | TYPES_LABEL_UK
 : string
@@ -2746,7 +2808,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | TYPES
+: string
+| TABLE
 : string
 | TYPES_PK
 : string
@@ -2755,6 +2821,24 @@
 | NORMAL
 : string
 | VISIBLE
+> query
+|
+| 		SELECT o.OBJECT_NAME, c.TABLE_OWNER, c.TABLE_NAME, k.CLUSTER_NAME
+| 		FROM sys.all_objects o
+| 		LEFT JOIN (
+| 			SELECT DISTINCT INDEX_NAME, TABLE_OWNER, TABLE_NAME
+| 			FROM sys.all_ind_columns
+| 			WHERE INDEX_OWNER = 'OMNI_DUMP'
+| 		) c ON c.INDEX_NAME = o.OBJECT_NAME
+| 		LEFT JOIN sys.all_clusters k ON k.OWNER = c.TABLE_OWNER AND k.CLUSTER_NAME = c.TABLE_NAME
+| 		WHERE o.OWNER = 'OMNI_DUMP' AND o.OBJECT_TYPE = 'INDEX'
+| 		AND o.OBJECT_NAME NOT IN (SELECT INDEX_NAME FROM sys.all_indexes WHERE OWNER = 'OMNI_DUMP')
+| 		ORDER BY o.OBJECT_NAME
+< result
+< column "OBJECT_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CLUSTER_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_NAME, PARTITIONING_TYPE, SUBPARTITIONING_TYPE, INTERVAL
@@ -3529,10 +3613,11 @@
 | snapshot table for snapshot OMNI_DUMP.PARENT_MV_DEFERRED
 > query
 |
-| 		SELECT OWNER, MVIEW_NAME, QUERY, BUILD_MODE, REFRESH_METHOD, REFRESH_MODE
-| 		FROM sys.all_mviews
-| 		WHERE OWNER = 'OMNI_DUMP'
-| 		ORDER BY MVIEW_NAME
+| 		SELECT m.OWNER, m.MVIEW_NAME, m.QUERY, m.BUILD_MODE, m.REFRESH_METHOD, m.REFRESH_MODE, t.TABLESPACE_NAME
+| 		FROM sys.all_mviews m
+| 		LEFT JOIN sys.all_tables t ON t.OWNER = m.OWNER AND t.TABLE_NAME = m.MVIEW_NAME
+| 		WHERE m.OWNER = 'OMNI_DUMP'
+| 		ORDER BY m.MVIEW_NAME
 | 	
 < result
 < column "OWNER" "NCHAR" "string"
@@ -3541,6 +3626,7 @@
 < column "BUILD_MODE" "NCHAR" "string"
 < column "REFRESH_METHOD" "NCHAR" "string"
 < column "REFRESH_MODE" "NCHAR" "string"
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | OMNI_DUMP
@@ -3554,6 +3640,8 @@
 | FORCE
 : string
 | DEMAND
+: string
+| USERS
 < row
 : string
 | OMNI_DUMP
@@ -3567,6 +3655,8 @@
 | COMPLETE
 : string
 | DEMAND
+: string
+| USERS
 < row
 : string
 | OMNI_DUMP
@@ -3580,6 +3670,8 @@
 | COMPLETE
 : string
 | DEMAND
+: string
+| USERS
 > query
 |
 | 		SELECT 
@@ -69169,12 +69261,12 @@
 | TYPES_PK
 > query
 |
-| 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
+| 		SELECT INDEX_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
 | 		FROM sys.all_ind_columns
-| 		WHERE TABLE_OWNER = 'OMNI_DUMP'
+| 		WHERE INDEX_OWNER = 'OMNI_DUMP'
 | 		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION
 < result
-< column "TABLE_OWNER" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -69357,12 +69449,12 @@
 | ASC
 > query
 |
-| 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_EXPRESSION
+| 		SELECT INDEX_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_EXPRESSION
 | 		FROM sys.all_ind_expressions
-| 		WHERE TABLE_OWNER = 'OMNI_DUMP'
+| 		WHERE INDEX_OWNER = 'OMNI_DUMP'
 | 		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION
 < result
-< column "TABLE_OWNER" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_EXPRESSION" "LONG"
@@ -69386,13 +69478,15 @@
 | UPPER("NAME")
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, INDEX_NAME, UNIQUENESS, INDEX_TYPE, VISIBILITY
+| 		SELECT OWNER, TABLE_OWNER, TABLE_NAME, TABLE_TYPE, INDEX_NAME, UNIQUENESS, INDEX_TYPE, VISIBILITY
 | 		FROM sys.all_indexes
 | 		WHERE OWNER = 'OMNI_DUMP'
 | 		ORDER BY TABLE_NAME, INDEX_NAME
 < result
 < column "OWNER" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
+< column "TABLE_TYPE" "CHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "UNIQUENESS" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
@@ -69401,7 +69495,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | CHILD
+: string
+| TABLE
 : string
 | CHILD_PARENT_DESC_IDX
 : string
@@ -69414,7 +69512,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | CHILD
+: string
+| TABLE
 : string
 | CHILD_PARENT_IDX
 : string
@@ -69427,7 +69529,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | CHILD
+: string
+| TABLE
 : string
 | CHILD_PK
 : string
@@ -69440,7 +69546,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | IDENT
+: string
+| TABLE
 : string
 | IDENT_PK
 : string
@@ -69453,7 +69563,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | IDENT_OPTS
+: string
+| TABLE
 : string
 | IDENT_OPTS_PK
 : string
@@ -69466,7 +69580,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | PARENT
+: string
+| TABLE
 : string
 | PARENT_NAME_UK
 : string
@@ -69479,7 +69597,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | PARENT
+: string
+| TABLE
 : string
 | PARENT_PK
 : string
@@ -69492,7 +69614,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | PARENT
+: string
+| TABLE
 : string
 | PARENT_UPPER_NAME_IDX
 : string
@@ -69505,7 +69631,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | PARENT_MV
+: string
+| TABLE
 : string
 | PARENT_MV_NAME_IDX
 : string
@@ -69518,7 +69648,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | PARENT_MV
+: string
+| TABLE
 : string
 | SYS_C_SNAP$_9000036PARENT_PK
 : string
@@ -69531,7 +69665,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | PARENT_MV_COMPLETE
+: string
+| TABLE
 : string
 | SYS_C_SNAP$_9000039PARENT_PK
 : string
@@ -69544,7 +69682,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | PARENT_MV_DEFERRED
+: string
+| TABLE
 : string
 | SYS_C_SNAP$_9000042PARENT_PK
 : string
@@ -69557,7 +69699,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | REUSED
+: string
+| TABLE
 : string
 | REUSED_CODE_IDX
 : string
@@ -69570,7 +69716,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | REUSED
+: string
+| TABLE
 : string
 | REUSED_ID_IDX
 : string
@@ -69583,7 +69733,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | TYPES
+: string
+| TABLE
 : string
 | TYPES_LABEL_UK
 : string
@@ -69596,7 +69750,11 @@
 : string
 | OMNI_DUMP
 : string
+| OMNI_DUMP
+: string
 | TYPES
+: string
+| TABLE
 : string
 | TYPES_PK
 : string
@@ -69605,6 +69763,24 @@
 | NORMAL
 : string
 | VISIBLE
+> query
+|
+| 		SELECT o.OBJECT_NAME, c.TABLE_OWNER, c.TABLE_NAME, k.CLUSTER_NAME
+| 		FROM sys.all_objects o
+| 		LEFT JOIN (
+| 			SELECT DISTINCT INDEX_NAME, TABLE_OWNER, TABLE_NAME
+| 			FROM sys.all_ind_columns
+| 			WHERE INDEX_OWNER = 'OMNI_DUMP'
+| 		) c ON c.INDEX_NAME = o.OBJECT_NAME
+| 		LEFT JOIN sys.all_clusters k ON k.OWNER = c.TABLE_OWNER AND k.CLUSTER_NAME = c.TABLE_NAME
+| 		WHERE o.OWNER = 'OMNI_DUMP' AND o.OBJECT_TYPE = 'INDEX'
+| 		AND o.OBJECT_NAME NOT IN (SELECT INDEX_NAME FROM sys.all_indexes WHERE OWNER = 'OMNI_DUMP')
+| 		ORDER BY o.OBJECT_NAME
+< result
+< column "OBJECT_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CLUSTER_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_NAME, PARTITIONING_TYPE, SUBPARTITIONING_TYPE, INTERVAL
@@ -70379,10 +70555,11 @@
 | snapshot table for snapshot OMNI_DUMP.PARENT_MV_DEFERRED
 > query
 |
-| 		SELECT OWNER, MVIEW_NAME, QUERY, BUILD_MODE, REFRESH_METHOD, REFRESH_MODE
-| 		FROM sys.all_mviews
-| 		WHERE OWNER = 'OMNI_DUMP'
-| 		ORDER BY MVIEW_NAME
+| 		SELECT m.OWNER, m.MVIEW_NAME, m.QUERY, m.BUILD_MODE, m.REFRESH_METHOD, m.REFRESH_MODE, t.TABLESPACE_NAME
+| 		FROM sys.all_mviews m
+| 		LEFT JOIN sys.all_tables t ON t.OWNER = m.OWNER AND t.TABLE_NAME = m.MVIEW_NAME
+| 		WHERE m.OWNER = 'OMNI_DUMP'
+| 		ORDER BY m.MVIEW_NAME
 | 	
 < result
 < column "OWNER" "NCHAR" "string"
@@ -70391,6 +70568,7 @@
 < column "BUILD_MODE" "NCHAR" "string"
 < column "REFRESH_METHOD" "NCHAR" "string"
 < column "REFRESH_MODE" "NCHAR" "string"
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | OMNI_DUMP
@@ -70405,6 +70583,8 @@
 | FORCE
 : string
 | DEMAND
+: string
+| USERS
 < row
 : string
 | OMNI_DUMP
@@ -70419,6 +70599,8 @@
 | COMPLETE
 : string
 | DEMAND
+: string
+| USERS
 < row
 : string
 | OMNI_DUMP
@@ -70433,6 +70615,8 @@
 | COMPLETE
 : string
 | DEMAND
+: string
+| USERS
 > query
 |
 | 		SELECT 

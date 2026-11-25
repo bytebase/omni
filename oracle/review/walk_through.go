@@ -363,9 +363,9 @@ func (b *builder) syncedColMeta(r objRef) *syncedTable {
 // metadata (from oracle/driver/sync.go) is still valid and unmutated.
 func (b *builder) syncedPartMeta(r objRef) *syncedTable {
 	st := b.syncedTable(r)
-	// A materialized view's partitions are not synced, so its partition
-	// facts stay unknown.
-	if st == nil || st.mview || !st.hasRichSync || b.w.mutatedPartitions[[2]string{r.schema, r.name}] {
+	// A materialized view's partitions are known only from a sync that
+	// lists them (syncedTable.partsSynced).
+	if st == nil || !st.partsSynced || !st.hasRichSync || b.w.mutatedPartitions[[2]string{r.schema, r.name}] {
 		return nil
 	}
 	return st
