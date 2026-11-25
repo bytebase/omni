@@ -314,8 +314,10 @@ func nameCandidates(nc *nameContext, cat *catalog, typed string) []name {
 		if len(nc.qualifier) == 0 {
 			addFunctions(nil, true)
 			addUnqualified(func(s *schema) { addFunctions(s, false) })
-		} else {
-			addFunctions(cat.schemaAt(nc.qualifier), false)
+		} else if s := cat.schemaAt(nc.qualifier); s != nil {
+			addFunctions(s, false)
+		} else if len(nc.qualifier) == 1 && cat != nil {
+			addSchemas(cat.database(nc.qualifier[0]))
 		}
 	case kindExpr:
 		if len(nc.qualifier) == 0 {
@@ -351,6 +353,9 @@ func nameCandidates(nc *nameContext, cat *catalog, typed string) []name {
 		if s := cat.schemaAt(nc.qualifier); s != nil {
 			addRelations(s)
 			addFunctions(s, false)
+		} else if len(nc.qualifier) == 1 && cat != nil {
+			// db. in db.schema.f() or db.schema.t.c.
+			addSchemas(cat.database(nc.qualifier[0]))
 		}
 	}
 	return out

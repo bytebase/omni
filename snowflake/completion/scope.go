@@ -63,10 +63,20 @@ type cteDef struct {
 
 func (d *cteDef) bodyCTEs() cteMap {
 	n := d.index
-	if d.cte.Recursive {
+	if selfVisible(d.siblings, d.index) {
 		n++
 	}
 	return d.outer.with(d.siblings[:n])
+}
+
+// selfVisible reports whether the k-th CTE of a WITH sees itself: Snowflake
+// reads a CTE as recursive when the WITH says RECURSIVE or, without the
+// keyword, when its body is a set operation, as snowflake/analysis does.
+func selfVisible(with []*ast.CTE, k int) bool {
+	if _, ok := with[k].Query.(*ast.SetOperationStmt); ok {
+		return true
+	}
+	return slices.ContainsFunc(with, func(c *ast.CTE) bool { return c.Recursive })
 }
 
 func (m cteMap) with(ctes []*ast.CTE) cteMap {
@@ -117,7 +127,7 @@ func ctesAlong(path []ast.Node) []cteMap {
 				for k, c := range sel.With {
 					if c.Query == path[i+1] {
 						withVisible = sel.With[:k]
-						if c.Recursive {
+						if selfVisible(sel.With, k) {
 							withVisible = sel.With[:k+1]
 						}
 						break
@@ -353,7 +363,7 @@ func (b *scopeBuilder) tableRef(t *ast.TableRef, ctes cteMap, depth int) *rangeI
 // without those clauses.
 func (b *scopeBuilder) clauseSource(t *ast.TableRef, ctes cteMap, depth int) *rangeItem {
 	if t.Nested != nil {
-		return b.tableRef(t.Nested, ctes, depth+1)
+		return b.tableRef(t.Nested, ctes, depth)
 	}
 	stripped := *t
 	stripped.Pivot, stripped.Unpivot, stripped.MatchRecognize = nil, nil, nil
@@ -501,16 +511,26 @@ func (b *scopeBuilder) outputs(n ast.Node, ctes cteMap, depth int) []colInfo {
 	}
 	switch q := n.(type) {
 	case *ast.SetOperationStmt:
-		left := b.outputs(q.Left, ctes, depth+1)
-		if !q.ByName {
-			return left
+		// The parser builds a left-deep tree: walk the chain rather than
+		// charging each operand to the depth bound.
+		var chain []*ast.SetOperationStmt
+		var first ast.Node = q
+		for op, ok := first.(*ast.SetOperationStmt); ok; op, ok = first.(*ast.SetOperationStmt) {
+			chain = append(chain, op)
+			first = op.Left
 		}
-		// UNION [ALL] BY NAME aligns the operands by name: the left's
-		// columns, then the right's it lacks.
-		out := slices.Clone(left)
-		for _, c := range b.outputs(q.Right, ctes, depth+1) {
-			if !slices.ContainsFunc(out, func(o colInfo) bool { return o.name == c.name }) {
-				out = append(out, c)
+		out := b.outputs(first, ctes, depth+1)
+		for i := len(chain) - 1; i >= 0; i-- {
+			if !chain[i].ByName {
+				continue
+			}
+			// UNION [ALL] BY NAME aligns the operands by name: the left's
+			// columns, then the right's it lacks.
+			out = slices.Clone(out)
+			for _, c := range b.outputs(chain[i].Right, ctes, depth+1) {
+				if !slices.ContainsFunc(out, func(o colInfo) bool { return o.name == c.name }) {
+					out = append(out, c)
+				}
 			}
 		}
 		return out
@@ -565,9 +585,11 @@ func (b *scopeBuilder) starColumns(q *ast.SelectStmt, t *ast.SelectTarget, ctes 
 			if slices.ContainsFunc(t.Exclude, func(id ast.Ident) bool { return id.Normalize() == c.name }) {
 				continue
 			}
+			// Each rename applies to a column's original name, once.
 			for _, r := range t.Rename {
 				if r.Col.Normalize() == c.name {
 					c.name = r.Alias.Normalize()
+					break
 				}
 			}
 			out = append(out, colInfo{name: c.name})
