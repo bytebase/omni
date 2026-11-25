@@ -609,6 +609,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			if err := validateKeyColumnLengths(tbl, idxCols); err != nil {
 				return err
 			}
+			if err := checkNonVectorHNSW(resolveConstraintIndexType(con)); err != nil {
+				return err
+			}
 			uqIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
@@ -707,6 +710,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				return err
 			}
 			if err := validateKeyColumnLengths(tbl, idxCols); err != nil {
+				return err
+			}
+			if err := checkNonVectorHNSW(resolveConstraintIndexType(con)); err != nil {
 				return err
 			}
 			keyIdx := &Index{
@@ -1451,6 +1457,19 @@ func vectorIndexName(tbl *Table, con *nodes.Constraint, cols []string) string {
 //
 // Ref: CreateIndexStmt and ConstraintVectorIndex in TiDB v8.5.5 pkg/parser/parser.y.
 const vectorIndexHNSW = "HNSW"
+
+// checkNonVectorHNSW refuses HNSW on a key that is no vector index, as v8.5.5
+// does when it builds the key: `ALTER TABLE t ADD KEY USING HNSW (c)` and
+// `CREATE TABLE t (a INT, KEY USING HNSW (a))` answer 8200, after the key's
+// columns (1072) and name (1061) are judged (measured on v8.5.5). A PRIMARY
+// KEY that CREATE TABLE declares takes no type and runs.
+func checkNonVectorHNSW(indexType string) error {
+	if strings.EqualFold(indexType, vectorIndexHNSW) {
+		return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL),
+			Message: "Unsupported add vector index: Only support vector index with HNSW type, but it's non-vector index"}
+	}
+	return nil
+}
 
 // applyIndexOptions extracts COMMENT, VISIBLE/INVISIBLE, and KEY_BLOCK_SIZE
 // from AST IndexOptions and applies them to the given Index.

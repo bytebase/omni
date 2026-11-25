@@ -72,6 +72,7 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 		lexer: NewLexerWithOffset(sql, baseOffset),
 	}
 	p.lexer.dotNamesWord = true
+	p.lexer.bareAtAt = true
 	p.advance()
 
 	var stmts []nodes.Node
@@ -151,6 +152,7 @@ func (p *Parser) lexerError() *ParseError {
 func ParseExpr(sql string) (nodes.ExprNode, error) {
 	p := &Parser{lexer: NewLexerWithOffset(sql, 0)}
 	p.lexer.dotNamesWord = true
+	p.lexer.bareAtAt = true
 	p.advance()
 	start := p.cur.Loc
 	expr, err := p.parseExpr()
