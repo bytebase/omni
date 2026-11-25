@@ -88,25 +88,38 @@ func identText(t parser.Token) (string, bool) {
 
 // patchTails close a statement cut short at the caret or left incomplete
 // after it, tried in order until one parses: what may follow a name (an
-// expression's operand, a SET's value, the call TABLE(...) needs), then
-// each unclosed bracket, then a query for a statement that needs one.
-var patchTails = []string{"", " 1", " = 1", " x", "()"}
+// expression's operand, a SET's value, the call TABLE(...) needs, the rest
+// of a BETWEEN or a CASE), then each unclosed bracket, then a query for a
+// statement that needs one.
+var patchTails = []string{"", " 1", " = 1", " x", "()", " AND 1", " THEN 1 END", " WHEN 1 THEN 1 END", " END"}
 
 // placeholderPath returns the AST path from the statement to the node that
-// holds the placeholder, innermost last. It tries the statement with its
-// text after the caret, then the text before the caret alone, each closed by
-// patchTails.
+// holds the placeholder, innermost last, and the text parsed. Each tail of
+// patchTails is tried after the statement's text, then at the caret with the
+// text after it kept (CASE WHEN a THEN | END FROM t), then at the caret
+// alone; each closed by the brackets it leaves open.
 func placeholderPath(stmt string, word caretWord) ([]ast.Node, string, bool) {
-	head := stmt[:word.start] + placeholder
-	for _, base := range []string{head + stmt[word.end:], head} {
-		for _, tail := range patchTails {
-			text := base + tail
-			closers := closersFor(text)
-			for _, query := range []string{"", " SELECT 1"} {
-				patched := text + closers + query
-				if path, ok := parsePath(patched); ok {
-					return path, patched, true
-				}
+	head, rest := stmt[:word.start]+placeholder, stmt[word.end:]
+	var texts []string
+	for _, tail := range patchTails {
+		texts = append(texts, head+rest+tail)
+	}
+	for _, tail := range patchTails[1:] {
+		if rest != "" {
+			texts = append(texts, head+tail+rest)
+		}
+	}
+	for _, tail := range patchTails {
+		if rest != "" {
+			texts = append(texts, head+tail)
+		}
+	}
+	for _, text := range texts {
+		closers := closersFor(text)
+		for _, query := range []string{"", " SELECT 1"} {
+			patched := text + closers + query
+			if path, ok := parsePath(patched); ok {
+				return path, patched, true
 			}
 		}
 	}
