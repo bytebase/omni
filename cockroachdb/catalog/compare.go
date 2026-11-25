@@ -51,7 +51,14 @@ type literalCastStripper struct{}
 
 // VisitPre keeps a cast of a cast whole: '01'::INT8::STRING is '1', and
 // stripping its inner cast would make it '01'::STRING.
+//
+// It also keeps a comparison of literals whole: there the casts choose the
+// type the literals compare as ('01'::INT8 = '1'::INT8 holds, '01' = '1' does
+// not), where a literal compared with a column takes the column's type.
 func (literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) {
+	if cmp, ok := expr.(*tree.ComparisonExpr); ok && literalOperand(cmp.Left) && literalOperand(cmp.Right) {
+		return false, expr
+	}
 	if cast, ok := expr.(*tree.CastExpr); ok {
 		if _, ok := unparen(cast.Expr).(*tree.CastExpr); ok {
 			return false, expr
@@ -142,6 +149,25 @@ func (*numVisitor) VisitPost(expr tree.Expr) tree.Expr { return expr }
 // its grouping, so (1 + 2) * 3 and 1 + 2 * 3 stay apart.
 func groupedKey(node tree.NodeFormatter) string {
 	return tree.AsStringWithFlags(node, tree.FmtAlwaysGroupExprs)
+}
+
+// literalOperand reports whether a comparison operand is a literal, cast or
+// annotated or not, or a tuple of them.
+func literalOperand(expr tree.Expr) bool {
+	switch e := unparen(expr).(type) {
+	case *tree.CastExpr:
+		return literalOperand(e.Expr)
+	case *tree.AnnotateTypeExpr:
+		return literalOperand(e.Expr)
+	case *tree.Tuple:
+		for _, element := range e.Exprs {
+			if !literalOperand(element) {
+				return false
+			}
+		}
+		return true
+	}
+	return isLiteral(unparen(expr))
 }
 
 func isLiteral(expr tree.Expr) bool {
