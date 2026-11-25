@@ -40,11 +40,45 @@ func collectionReads(database, collection, method string, args []ast.Node) []Nam
 	return reads
 }
 
+// commandReads returns what a find, count, distinct or aggregate command
+// reads: the collection its first field names, and what an aggregate's
+// pipeline reads. An aggregate of 1 runs on the database, so only its
+// pipeline names collections. runCommand runs in the statement's database;
+// adminCommand runs in admin.
+func commandReads(s *ast.DatabaseStatement) []Namespace {
+	if len(s.Args) == 0 {
+		return nil
+	}
+	doc, ok := s.Args[0].(*ast.Document)
+	if !ok || len(doc.Pairs) == 0 {
+		return nil
+	}
+	database := ""
+	if s.Method == "adminCommand" {
+		database = "admin"
+	}
+	var reads []Namespace
+	switch doc.Pairs[0].Key {
+	case "find", "count", "distinct", "aggregate":
+		if coll, ok := doc.Pairs[0].Value.(*ast.StringLiteral); ok {
+			reads = append(reads, Namespace{Database: database, Collection: coll.Value})
+		}
+	default:
+		return nil
+	}
+	if doc.Pairs[0].Key == "aggregate" {
+		if pipeline := field(doc, "pipeline"); pipeline != nil {
+			reads = append(reads, pipelineReads(pipeline, database)...)
+		}
+	}
+	return reads
+}
+
 // siblingReads returns what db.getSiblingDB("other").<collection>.<method>(...)
-// reads, in the other database; cursor methods may follow. Any other chain
-// reads nothing it can name.
+// reads, in the other database; an explain() may come before the method and
+// cursor methods after it. Any other chain reads nothing it can name.
 func siblingReads(s *ast.DatabaseStatement) []Namespace {
-	if s.Method != "getSiblingDB" || len(s.Args) != 1 || len(s.ChainedMethods) < 2 {
+	if len(s.Args) != 1 || len(s.ChainedMethods) < 2 {
 		return nil
 	}
 	database, ok := s.Args[0].(*ast.StringLiteral)
@@ -52,6 +86,12 @@ func siblingReads(s *ast.DatabaseStatement) []Namespace {
 		return nil
 	}
 	target, method := s.ChainedMethods[0], s.ChainedMethods[1]
+	if method.Name == "explain" {
+		if len(s.ChainedMethods) < 3 {
+			return nil
+		}
+		method = s.ChainedMethods[2]
+	}
 	collection := target.Name
 	if target.Name == "getCollection" {
 		if len(target.Args) != 1 {

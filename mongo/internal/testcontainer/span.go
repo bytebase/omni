@@ -315,57 +315,95 @@ func explainable(database, statement string) (string, string, error) {
 }
 
 // planNamespaces appends the collections plan names, as database.collection,
-// with a stage's bare collection name read in database. It skips the command
-// the plan echoes, which names what was asked rather than what is read.
+// with a stage's bare collection name read in database. It reads only the
+// plan's structure: the query plan's stages and the pipeline's, never a
+// filter or a stage's own arguments, where a document is the query's data.
 func planNamespaces(plan any, database string, out *[]string) {
-	stack := []any{plan}
+	type pending struct {
+		value    any
+		pipeline bool // an array of pipeline stages, not plan stages
+	}
+	stack := []pending{{value: plan}}
 	for len(stack) > 0 {
-		v := stack[len(stack)-1]
+		p := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
-		switch x := v.(type) {
-		case bson.D:
-			for _, e := range x {
-				switch e.Key {
-				case "command", "serverInfo", "serverParameters":
+		if p.pipeline {
+			for _, stage := range asArray(p.value) {
+				doc := asDoc(stage)
+				if len(doc) != 1 {
 					continue
-				case "namespace", "foreignCollection":
-					if s, ok := e.Value.(string); ok {
-						*out = append(*out, s)
-						continue
-					}
+				}
+				spec := asDoc(doc[0].Value)
+				switch doc[0].Key {
+				case "$cursor":
+					stack = append(stack, pending{value: spec})
 				case "$lookup", "$graphLookup":
-					if spec, ok := e.Value.(bson.D); ok {
-						for _, f := range spec {
-							if f.Key != "from" {
-								continue
-							}
-							switch from := f.Value.(type) {
-							case string:
-								*out = append(*out, database+"."+from)
-							case bson.D:
-								db, _ := lookup(from, "db").(string)
-								coll, _ := lookup(from, "coll").(string)
-								*out = append(*out, db+"."+coll)
-							}
-						}
+					switch from := lookup(spec, "from").(type) {
+					case string:
+						*out = append(*out, database+"."+from)
+					case bson.D:
+						db, _ := lookup(from, "db").(string)
+						coll, _ := lookup(from, "coll").(string)
+						*out = append(*out, db+"."+coll)
+					}
+					if sub := lookup(spec, "pipeline"); sub != nil {
+						stack = append(stack, pending{value: sub, pipeline: true})
 					}
 				case "$unionWith":
-					if spec, ok := e.Value.(bson.D); ok {
-						if coll, ok := lookup(spec, "coll").(string); ok {
-							*out = append(*out, database+"."+coll)
-						}
+					if coll, ok := lookup(spec, "coll").(string); ok {
+						*out = append(*out, database+"."+coll)
+					}
+					if sub := lookup(spec, "pipeline"); sub != nil {
+						stack = append(stack, pending{value: sub, pipeline: true})
+					}
+				case "$facet":
+					for _, branch := range spec {
+						stack = append(stack, pending{value: branch.Value, pipeline: true})
 					}
 				}
-				stack = append(stack, e.Value)
 			}
-		case bson.M:
-			stack = append(stack, ordered(x))
-		case bson.A:
-			stack = append(stack, []any(x)...)
-		case []any:
-			stack = append(stack, x...)
+			continue
+		}
+		for _, e := range asDoc(p.value) {
+			switch e.Key {
+			case "namespace", "foreignCollection":
+				if ns, ok := e.Value.(string); ok {
+					*out = append(*out, ns)
+				}
+			case "stages":
+				stack = append(stack, pending{value: e.Value, pipeline: true})
+			case "queryPlanner", "winningPlan", "queryPlan", "inputStage", "outerStage", "innerStage", "thenStage", "elseStage":
+				stack = append(stack, pending{value: e.Value})
+			case "rejectedPlans", "inputStages":
+				for _, child := range asArray(e.Value) {
+					stack = append(stack, pending{value: child})
+				}
+			}
 		}
 	}
+}
+
+// asDoc returns v as an ordered document, or nil.
+func asDoc(v any) bson.D {
+	switch x := v.(type) {
+	case bson.D:
+		return x
+	case bson.M:
+		d, _ := ordered(x).(bson.D)
+		return d
+	}
+	return nil
+}
+
+// asArray returns v as an array, or nil.
+func asArray(v any) []any {
+	switch x := v.(type) {
+	case bson.A:
+		return x
+	case []any:
+		return x
+	}
+	return nil
 }
 
 func lookup(doc bson.D, key string) any {

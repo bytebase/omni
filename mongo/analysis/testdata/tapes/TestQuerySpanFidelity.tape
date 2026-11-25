@@ -34,6 +34,10 @@
 < raw
 | {"tables":["shop.users"]}
 > raw
+| {"op":"Span","database":"shop","statement":"db.users.find({payload: {namespace: \"hr.employees\", foreignCollection: \"hr.departments\"}})"}
+< raw
+| {"tables":["shop.users"]}
+> raw
 | {"op":"Span","database":"shop","statement":"db.users.find().explain()"}
 < raw
 | {"tables":["shop.users"]}
@@ -117,6 +121,10 @@
 | {"op":"Span","database":"shop","statement":"db.users.aggregate([{$match: {name: \"a\"}}])"}
 < raw
 | {"tables":["shop.users"]}
+> raw
+| {"op":"Span","database":"shop","statement":"db.users.aggregate([{$lookup: {from: \"orders\", pipeline: [{$match: {namespace: \"hr.employees\"}}], as: \"o\"}}])"}
+< raw
+| {"tables":["shop.orders","shop.users"]}
 > raw
 | {"op":"Span","database":"shop","statement":"db.users.aggregate([{$project: {name: 1}}])"}
 < raw

@@ -150,7 +150,12 @@ func analyzeDatabase(s *ast.DatabaseStatement) *StatementAnalysis {
 	if a.Operation != OpAdmin && hasUnsafeStatementArgs(s) {
 		a.Operation = OpWrite
 	}
-	a.Reads = siblingReads(s)
+	switch s.Method {
+	case "getSiblingDB":
+		a.Reads = siblingReads(s)
+	case "runCommand", "adminCommand":
+		a.Reads = commandReads(s)
+	}
 	return a
 }
 

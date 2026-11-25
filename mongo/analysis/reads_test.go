@@ -26,6 +26,16 @@ func TestReads(t *testing.T) {
 		{`db.getSiblingDB("hr").emp.find().limit(1)`, []analysis.Namespace{ns("hr", "emp")}},
 		{`db.getSiblingDB("hr").getCollection("emp").aggregate([{$unionWith: "dept"}])`, []analysis.Namespace{ns("hr", "emp"), ns("hr", "dept")}},
 		{`db.getSiblingDB("hr").getMongo().find()`, nil},
+		{`db.getSiblingDB("hr").emp.explain().find()`, []analysis.Namespace{ns("hr", "emp")}},
+		{`db.getSiblingDB("hr").emp.explain("executionStats").aggregate([{$lookup: {from: "dept", localField: "d", foreignField: "_id", as: "d"}}])`,
+			[]analysis.Namespace{ns("hr", "emp"), ns("hr", "dept")}},
+		{`db.getSiblingDB("hr").emp.explain()`, nil},
+		{`db.runCommand({find: "users", filter: {}})`, []analysis.Namespace{ns("", "users")}},
+		{`db.runCommand({count: "users"})`, []analysis.Namespace{ns("", "users")}},
+		{`db.runCommand({aggregate: "users", pipeline: [{$unionWith: "archive"}], cursor: {}})`, []analysis.Namespace{ns("", "users"), ns("", "archive")}},
+		{`db.runCommand({aggregate: 1, pipeline: [{$documents: [{}]}, {$lookup: {from: "orders", pipeline: [], as: "o"}}], cursor: {}})`, []analysis.Namespace{ns("", "orders")}},
+		{`db.adminCommand({find: "system.users"})`, []analysis.Namespace{ns("admin", "system.users")}},
+		{`db.runCommand({insert: "users", documents: [{}]})`, nil},
 		{`db.getSiblingDB("hr").emp.insertOne({a: 1})`, nil},
 	}
 	for _, tt := range tests {

@@ -26,8 +26,9 @@ How MongoDB's answers are read, in `mongo/internal/testcontainer/span.go`:
 - A plan names each collection it scans (`queryPlanner.namespace`, one per
   pipeline a `$unionWith` runs) and each a stage joins: `$lookup` and
   `$graphLookup`'s `from`, `$unionWith`'s `coll`, and a lowered lookup's
-  `foreignCollection`. The `command` the plan echoes is skipped, since it is
-  the request. The target of `$out` or `$merge` is written, not read, and
+  `foreignCollection`. Only the plan's structure is read (its plan stages
+  and pipeline stages), never a filter, a `$match` or the `command` the plan
+  echoes, where a document is the query's data. The target of `$out` or `$merge` is written, not read, and
   neither side names it.
 - A view the statement targets is already resolved in the plan. A view a
   stage names is not, so it is planned in turn (`aggregate([])` over it) and
