@@ -7,6 +7,7 @@ ok:76b9f486f516	ok:76b9f486f516	engine	one_table@column	verb_clause/do	CREATE VI
 ok:74acbfb55ac1	ok:74acbfb55ac1	engine	one_table@column	opt_field_scale/%empty	CREATE VIEW _v AS SELECT CAST(a AS TIME) FROM a
 1064	1064	engine	one_table@column	opt_load_data_charset/%empty	CREATE VIEW _v AS SELECT a INTO OUTFILE 's'
 1064	1064	engine	one_table@column	opt_load_data_charset/charset_charset_name_or_default	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' CHARSET utf8mb4
+1064	1064	engine	one_table@column	opt_load_data_charset/charset_charset_name_or_default+charset/CHAR_SYM_SET	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' CHAR SET utf8mb4
 ok:315fb27974a9	ok:315fb27974a9	engine	one_table@column	ws_nweights/(_real_ulong_num_)	CREATE VIEW _v AS SELECT WEIGHT_STRING(a AS CHAR(1)) FROM a
 ok:2c0a05e6b151	ok:2c0a05e6b151	engine	one_table@column	ws_level_flag_desc/ASC	CREATE VIEW _v AS SELECT WEIGHT_STRING(a LEVEL 1 ASC) FROM a
 ok:09efbd95121f	ok:09efbd95121f	engine	one_table@column	ws_level_flag_desc/DESC	CREATE VIEW _v AS SELECT WEIGHT_STRING(a LEVEL 1 DESC) FROM a
@@ -128,6 +129,7 @@ ok:8d54d8a8ebeb	ok:8d54d8a8ebeb	engine	one_table@column	numeric_dyncol_type/DECI
 ok:e7a1df72ec30	ok:e7a1df72ec30	engine	one_table@column	temporal_dyncol_type/TIME_SYM_opt_field_scale	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a AS TIME) FROM a
 ok:f6e2388d2cd9	ok:f6e2388d2cd9	engine	one_table@column	temporal_dyncol_type/DATETIME_opt_field_scale	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a AS DATETIME) FROM a
 ok:6bae2e54cc77	ok:6bae2e54cc77	engine	one_table@column	string_dyncol_type/nchar	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a AS NCHAR) FROM a
+ok:02ff51cec918	ok:02ff51cec918	engine	one_table@column	string_dyncol_type/nchar+nchar/NATIONAL_SYM_CHAR_SYM	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a AS NATIONAL CHAR) FROM a
 ok:fba8eec5eff8	ok:fba8eec5eff8	engine	one_table@column	dyncall_create_list/dyncall_create_list_,_dyncall_create_element	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a, a, a) FROM a
 ok:f24c3d95174a	ok:f24c3d95174a	engine	one_table@column	trim_operands/trim_operands_regular	CREATE VIEW _v AS SELECT TRIM(a) FROM a
 ok:2015f652ab93	ok:2015f652ab93	engine	one_table@column	trim_operands/trim_operands_special	CREATE VIEW _v AS SELECT TRIM(LEADING FROM a) FROM a
@@ -223,7 +225,23 @@ ok:0c66ef4a1628	ok:0c66ef4a1628	engine	one_table@column	function_call_nonkeyword
 ok:8b891d4e6a98	ok:8b891d4e6a98	engine	one_table@column	function_call_nonkeyword/SYSDATE_(_real_ulong_num_)	CREATE VIEW _v AS SELECT SYSDATE(1) FROM a
 1630	1630	engine	one_table@column	function_call_nonkeyword/SYSDATE_(_real_ulong_num_)!swap	CREATE VIEW _v AS SELECT SYSTEM(1) FROM a
 ok:645e216e3d87	ok:645e216e3d87	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)	CREATE VIEW _v AS SELECT TIMESTAMPADD(DAY, a, a) FROM a
+ok:e0104c856184	ok:e0104c856184	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/WEEK_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(WEEK, a, a) FROM a
+ok:aae07c6ccb85	ok:aae07c6ccb85	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/HOUR_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(HOUR, a, a) FROM a
+ok:d41458f8fb85	ok:d41458f8fb85	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/MINUTE_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(MINUTE, a, a) FROM a
+ok:8c79998ef9e2	ok:8c79998ef9e2	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/MONTH_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(MONTH, a, a) FROM a
+ok:fdedc00b8a6f	ok:fdedc00b8a6f	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/QUARTER_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(QUARTER, a, a) FROM a
+ok:609c5a852d93	ok:609c5a852d93	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/SECOND_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(SECOND, a, a) FROM a
+ok:7689eceda64a	ok:7689eceda64a	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/MICROSECOND_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(MICROSECOND, a, a) FROM a
+ok:f33906bb63fd	ok:f33906bb63fd	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/YEAR_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(YEAR, a, a) FROM a
 ok:32b15272b41b	ok:32b15272b41b	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(DAY, a, a) FROM a
+ok:3f932ebb582b	ok:3f932ebb582b	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/WEEK_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(WEEK, a, a) FROM a
+ok:adf839478681	ok:adf839478681	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/HOUR_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(HOUR, a, a) FROM a
+ok:75a2b7ee4d06	ok:75a2b7ee4d06	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/MINUTE_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(MINUTE, a, a) FROM a
+ok:2e5c350460ba	ok:2e5c350460ba	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/MONTH_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(MONTH, a, a) FROM a
+ok:10c6f619eefe	ok:10c6f619eefe	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/QUARTER_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(QUARTER, a, a) FROM a
+ok:cb3c04b5120c	ok:cb3c04b5120c	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/SECOND_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(SECOND, a, a) FROM a
+ok:7591294b825d	ok:7591294b825d	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/MICROSECOND_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(MICROSECOND, a, a) FROM a
+ok:2e6ace8effdd	ok:2e6ace8effdd	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/YEAR_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(YEAR, a, a) FROM a
 ok:c1c11a5f8c1a	ok:c1c11a5f8c1a	engine	one_table@column	function_call_nonkeyword/TRIM_ORACLE_(_trim_operands_)	CREATE VIEW _v AS SELECT TRIM_ORACLE(a) FROM a
 ok:d374df6bf6b8	ok:d374df6bf6b8	engine	one_table@column	function_call_nonkeyword/UTC_DATE_SYM_optional_braces	CREATE VIEW _v AS SELECT UTC_DATE FROM a
 ok:eda844179de1	ok:eda844179de1	engine	one_table@column	function_call_nonkeyword/UTC_TIME_SYM_opt_time_precision	CREATE VIEW _v AS SELECT UTC_TIME FROM a
@@ -306,10 +324,16 @@ ok:b8e6c8ef5904	ok:b8e6c8ef5904	engine	one_table@column	window_func_expr/window_
 4009	4009	engine	one_table@column	simple_window_func/LAG_SYM_(_expr_,_expr_)	CREATE VIEW _v AS SELECT LAG(a, a) OVER a FROM a
 ok:b8d6a312939b	ok:b8d6a312939b	engine	one_table@column	percentile_function/inverse_distribution_function_def_WITHIN_GROUP_SYM_(_order_by_single_element_list_)	CREATE VIEW _v AS SELECT PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a) OVER() FROM a
 ok:e1b281ce9055	ok:e1b281ce9055	engine	one_table@column	inverse_distribution_function_def/PERCENTILE_DISC_SYM_(_expr_)	CREATE VIEW _v AS SELECT PERCENTILE_DISC(a) WITHIN GROUP(ORDER BY a) OVER() FROM a
+ok:08612bf7391e	ok:08612bf7391e	engine	one_table@column	order_by_single_element_list/ORDER_SYM_BY_order_ident_order_dir+order_dir/ASC	CREATE VIEW _v AS SELECT PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a ASC) OVER() FROM a
+ok:173f0a26f9c4	ok:173f0a26f9c4	engine	one_table@column	order_by_single_element_list/ORDER_SYM_BY_order_ident_order_dir+order_dir/DESC	CREATE VIEW _v AS SELECT PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a DESC) OVER() FROM a
 ok:6b48e67ed580	ok:6b48e67ed580	engine	one_table@column	opt_distinct/DISTINCT	CREATE VIEW _v AS SELECT GROUP_CONCAT(DISTINCT a) FROM a
 ok:f9ad6581b783	ok:f9ad6581b783	engine	one_table@column	opt_gconcat_separator/SEPARATOR_SYM_text_string	CREATE VIEW _v AS SELECT GROUP_CONCAT(a SEPARATOR 's') FROM a
 ok:f2e6e733ebf5	ok:f2e6e733ebf5	engine	one_table@column	opt_gorder_clause/ORDER_SYM_BY_gorder_list	CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a) FROM a
 ok:a202142f116b	ok:a202142f116b	engine	one_table@column	gorder_list/gorder_list_,_order_ident_order_dir	CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a, a) FROM a
+ok:923c05cfc76c	ok:923c05cfc76c	engine	one_table@column	gorder_list/gorder_list_,_order_ident_order_dir+order_dir/ASC	CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a, a ASC) FROM a
+ok:92e9dcc65cc0	ok:92e9dcc65cc0	engine	one_table@column	gorder_list/gorder_list_,_order_ident_order_dir+order_dir/DESC	CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a, a DESC) FROM a
+ok:c69e45f23421	ok:c69e45f23421	engine	one_table@column	gorder_list/order_ident_order_dir+order_dir/ASC	CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a ASC) FROM a
+ok:c99146934a2f	ok:c99146934a2f	engine	one_table@column	gorder_list/order_ident_order_dir+order_dir/DESC	CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a DESC) FROM a
 ok:fcc3e8c089b8	ok:fcc3e8c089b8	engine	one_table@column	cast_type/CHAR_SYM_opt_field_length_opt_binary	CREATE VIEW _v AS SELECT CAST(a AS CHAR) FROM a
 ok:1607aeb18ced	ok:1607aeb18ced	engine	one_table@column	cast_type/VARCHAR_field_length_opt_binary	CREATE VIEW _v AS SELECT CAST(a AS VARCHAR(2147483648)) FROM a
 ok:985c040b9f20	ok:985c040b9f20	engine	one_table@column	cast_type/NCHAR_SYM_opt_field_length	CREATE VIEW _v AS SELECT CAST(a AS NCHAR) FROM a
@@ -354,6 +378,8 @@ ok:1a271fb0a755	ok:1a271fb0a755	engine	one_table@column	opt_all/ALL	CREATE VIEW 
 1054	1054	engine	one_table@column	opt_having_clause/HAVING_search_condition	CREATE VIEW _v AS SELECT a HAVING a
 1054	1054	engine	one_table@column	opt_group_clause/GROUP_SYM_BY_group_list_olap_opt	CREATE VIEW _v AS SELECT a GROUP BY a
 1054	1054	engine	one_table@column	group_list/group_list_,_order_ident_order_dir	CREATE VIEW _v AS SELECT a GROUP BY a, a
+1054	1054	engine	one_table@column	group_list/group_list_,_order_ident_order_dir+order_dir/ASC	CREATE VIEW _v AS SELECT a GROUP BY a, a ASC
+1054	1054	engine	one_table@column	group_list/group_list_,_order_ident_order_dir+order_dir/DESC	CREATE VIEW _v AS SELECT a GROUP BY a, a DESC
 1054	1054	engine	one_table@column	olap_opt/WITH_ROLLUP_SYM	CREATE VIEW _v AS SELECT a GROUP BY a WITH ROLLUP
 4009	4009	engine	one_table@column	opt_window_ref/%empty!insert	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(zzz) FROM a
 4009	4009	engine	one_table@column	opt_window_ref/ident	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(a) FROM a
@@ -372,9 +398,14 @@ ok:bf03abe3a658	ok:bf03abe3a658	engine	one_table@column	opt_window_order_clause/
 4017	4017	engine	one_table@column	opt_window_frame_exclusion/EXCLUDE_SYM_NO_SYM_OTHERS_MARIADB_SYM	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING EXCLUDE NO OTHERS) FROM a
 1054	1054	engine	one_table@column	order_clause/ORDER_SYM_BY_order_list	CREATE VIEW _v AS SELECT a ORDER BY a
 1054	1054	engine	one_table@column	order_list/order_list_,_order_ident_order_dir	CREATE VIEW _v AS SELECT a ORDER BY a, a
+1054	1054	engine	one_table@column	order_list/order_list_,_order_ident_order_dir+order_dir/ASC	CREATE VIEW _v AS SELECT a ORDER BY a, a ASC
+1054	1054	engine	one_table@column	order_list/order_list_,_order_ident_order_dir+order_dir/DESC	CREATE VIEW _v AS SELECT a ORDER BY a, a DESC
+1054	1054	engine	one_table@column	order_list/order_ident_order_dir+order_dir/ASC	CREATE VIEW _v AS SELECT a ORDER BY a ASC
+1054	1054	engine	one_table@column	order_list/order_ident_order_dir+order_dir/DESC	CREATE VIEW _v AS SELECT a ORDER BY a DESC
 1054	1054	engine	one_table@column	order_dir/ASC	CREATE VIEW _v AS SELECT a GROUP BY a ASC
 1054	1054	engine	one_table@column	order_dir/DESC	CREATE VIEW _v AS SELECT a GROUP BY a DESC
 1054	1054	engine	one_table@column	fetch_first_clause/FETCH_SYM_first_or_next_row_or_rows_only_or_with_ties	CREATE VIEW _v AS SELECT a FETCH FIRST ROW ONLY
+1054	1054	engine	one_table@column	fetch_first_clause/FETCH_SYM_first_or_next_row_or_rows_only_or_with_ties+row_or_rows/ROWS_SYM	CREATE VIEW _v AS SELECT a FETCH FIRST ROWS ONLY
 1054	1054	engine	one_table@column	first_or_next/NEXT_SYM	CREATE VIEW _v AS SELECT a FETCH NEXT ROW ONLY
 1054	1054	engine	one_table@column	only_or_with_ties/WITH_TIES_SYM	CREATE VIEW _v AS SELECT a FETCH FIRST ROW WITH TIES
 1064	1064	engine	one_table@column	limit_option/param_marker	CREATE VIEW _v AS SELECT a LIMIT ?
@@ -435,7 +466,11 @@ ok:76b9f486f516	ok:76b9f486f516	engine	one_table@column	ident_cli/IDENT_QUOTED	C
 1630	1630	engine	one_table@column	ident_cli_func/keyword_func_sp_var_and_label	CREATE VIEW _v AS SELECT ACTION() FROM a
 1630	1630	engine	one_table@column	ident_cli_func/keyword_func_sp_var_not_label!swap	CREATE VIEW _v AS SELECT FOUND() FROM a
 1054	1054	engine	one_table@column	unit_type_decl/INTERSECT_SYM_union_option	CREATE VIEW _v AS SELECT a INTERSECT SELECT a
+1054	1054	engine	one_table@column	unit_type_decl/INTERSECT_SYM_union_option+union_option/DISTINCT	CREATE VIEW _v AS SELECT a INTERSECT DISTINCT SELECT a
+1054	1054	engine	one_table@column	unit_type_decl/INTERSECT_SYM_union_option+union_option/ALL	CREATE VIEW _v AS SELECT a INTERSECT ALL SELECT a
 1054	1054	engine	one_table@column	unit_type_decl/EXCEPT_SYM_union_option	CREATE VIEW _v AS SELECT a EXCEPT SELECT a
+1054	1054	engine	one_table@column	unit_type_decl/EXCEPT_SYM_union_option+union_option/DISTINCT	CREATE VIEW _v AS SELECT a EXCEPT DISTINCT SELECT a
+1054	1054	engine	one_table@column	unit_type_decl/EXCEPT_SYM_union_option+union_option/ALL	CREATE VIEW _v AS SELECT a EXCEPT ALL SELECT a
 1054	1054	engine	one_table@column	union_option/DISTINCT	CREATE VIEW _v AS SELECT a UNION DISTINCT SELECT a
 1054	1054	engine	one_table@column	union_option/ALL	CREATE VIEW _v AS SELECT a UNION ALL SELECT a
 1054	1054	engine	one_table@column	query_expression_option/HIGH_PRIORITY	CREATE VIEW _v AS SELECT HIGH_PRIORITY a
