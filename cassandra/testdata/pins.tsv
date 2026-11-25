@@ -1,7 +1,8 @@
 # The server and the grammar this engine's committed answers come from.
 #
-# default judges compat.tsv (cassandra/parser) and driver records the driver's
-# tapes (cassandra/driver through cassandra/internal/testcontainer): both pin
+# default judges compat.tsv (cassandra/parser) and driver records the tapes of
+# cassandra/driver and cassandra/analysis's span.tsv (through
+# cassandra/internal/testcontainer, with materialized views enabled): both pin
 # Apache Cassandra 5.0.9 by digest, verified against the running container's
 # image digest and SELECT release_version FROM system.local.
 #

@@ -1972,10 +1972,11 @@ func reconcileIndexesFromShowCreate(t *metadatapb.TableMetadata, constraints []*
 		if !ok {
 			continue
 		}
-		// STATISTICS lists a FULLTEXT or VECTOR key over the hidden columns
-		// that hold it (__word_segment_<n>, __doc_id_<n>; __vid_<n>,
-		// __type_<n>); its own columns are in SHOW CREATE TABLE.
-		if con.Type == oceanbaseast.ConstrFulltextIndex || con.Type == oceanbaseast.ConstrVector {
+		// STATISTICS lists a FULLTEXT, SPATIAL or VECTOR key over the hidden
+		// columns that hold it (__word_segment_<n>, __doc_id_<n>; __cellid_<n>,
+		// __mbr_<n>; __vid_<n>, __type_<n>); its own columns are in SHOW
+		// CREATE TABLE. A SPATIAL key is listed as a BTREE there.
+		if con.Type == oceanbaseast.ConstrFulltextIndex || con.Type == oceanbaseast.ConstrSpatialIndex || con.Type == oceanbaseast.ConstrVector {
 			idx.Expressions = idx.Expressions[:0]
 			idx.KeyLength = idx.KeyLength[:0]
 			idx.Descending = idx.Descending[:0]
@@ -1989,6 +1990,9 @@ func reconcileIndexesFromShowCreate(t *metadatapb.TableMetadata, constraints []*
 		}
 		if con.Type == oceanbaseast.ConstrFulltextIndex {
 			idx.Parser, idx.ParserProperties = fulltextParser(con.IndexOptions)
+		}
+		if con.Type == oceanbaseast.ConstrSpatialIndex {
+			idx.Type = "SPATIAL"
 		}
 		// A GLOBAL index spans the partitions; a restore that drops the word
 		// makes it local, and a unique key without the partition key then

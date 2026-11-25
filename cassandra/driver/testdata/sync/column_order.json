@@ -1,0 +1,113 @@
+{
+  "name":  "omni_driver",
+  "schemas":  [
+    {
+      "tables":  [
+        {
+          "name":  "readings",
+          "columns":  [
+            {
+              "name":  "sensor",
+              "nullable":  true,
+              "type":  "text"
+            },
+            {
+              "name":  "day",
+              "nullable":  true,
+              "type":  "date"
+            },
+            {
+              "name":  "seq",
+              "nullable":  true,
+              "type":  "int"
+            },
+            {
+              "name":  "zone",
+              "nullable":  true,
+              "type":  "text"
+            },
+            {
+              "name":  "alpha",
+              "nullable":  true,
+              "type":  "text"
+            },
+            {
+              "name":  "beta",
+              "nullable":  true,
+              "type":  "text"
+            }
+          ],
+          "indexes":  [
+            {
+              "name":  "PRIMARY KEY",
+              "expressions":  [
+                "(sensor,day)",
+                "seq"
+              ],
+              "descending":  [
+                false,
+                false
+              ],
+              "primary":  true,
+              "definition":  "((sensor,day),seq)"
+            }
+          ]
+        }
+      ],
+      "materializedViews":  [
+        {
+          "name":  "readings_by_alpha",
+          "dependencyColumns":  [
+            {
+              "table":  "readings",
+              "column":  "alpha"
+            },
+            {
+              "table":  "readings",
+              "column":  "sensor"
+            },
+            {
+              "table":  "readings",
+              "column":  "day"
+            },
+            {
+              "table":  "readings",
+              "column":  "seq"
+            },
+            {
+              "table":  "readings",
+              "column":  "beta"
+            }
+          ],
+          "columns":  [
+            {
+              "name":  "alpha",
+              "nullable":  true,
+              "type":  "text"
+            },
+            {
+              "name":  "sensor",
+              "nullable":  true,
+              "type":  "text"
+            },
+            {
+              "name":  "day",
+              "nullable":  true,
+              "type":  "date"
+            },
+            {
+              "name":  "seq",
+              "nullable":  true,
+              "type":  "int"
+            },
+            {
+              "name":  "beta",
+              "nullable":  true,
+              "type":  "text"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

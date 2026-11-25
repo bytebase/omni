@@ -1,0 +1,293 @@
+# pin: driver cassandra:5.0.9 sha256:acd754f07c73f3a166bb477354b56ce9a05690c3e5e2aaacc1aab2afddba6436 5.0.9
+# columns: omni, expected, source, fixture, session, aspect, statement
+id, name	id, name	engine	base	shop	results	SELECT id, name FROM users
+shop.users.id | shop.users.name	shop.users.id | shop.users.name	engine	base	shop	lineage	SELECT id, name FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT id, name FROM users
+name, id	name, id	engine	base	shop	results	SELECT name, id FROM users
+shop.users.name | shop.users.id	shop.users.name | shop.users.id	engine	base	shop	lineage	SELECT name, id FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT name, id FROM users
+id, name, name	id, name, name	engine	base	shop	results	SELECT id, name, name FROM users
+shop.users.id | shop.users.name | shop.users.name	shop.users.id | shop.users.name | shop.users.name	engine	base	shop	lineage	SELECT id, name, name FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT id, name, name FROM users
+name, email	name, email	engine	base	shop	results	SELECT NAME, Email FROM Users
+shop.users.name | shop.users.email	shop.users.name | shop.users.email	engine	base	shop	lineage	SELECT NAME, Email FROM Users
+shop.users	shop.users	engine	base	shop	tables	SELECT NAME, Email FROM Users
+id, created, email, history, home, name, phone, prefs, score, ssn, tags	id, created, email, history, home, name, phone, prefs, score, ssn, tags	engine	base	shop	results	SELECT * FROM users
+shop.users.id | shop.users.created | shop.users.email | shop.users.history | shop.users.home | shop.users.name | shop.users.phone | shop.users.prefs | shop.users.score | shop.users.ssn | shop.users.tags	shop.users.id | shop.users.created | shop.users.email | shop.users.history | shop.users.home | shop.users.name | shop.users.phone | shop.users.prefs | shop.users.score | shop.users.ssn | shop.users.tags	engine	base	shop	lineage	SELECT * FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT * FROM users
+customer_id, order_id, amount, note, status	customer_id, order_id, amount, note, status	engine	base	shop	results	SELECT * FROM orders
+shop.orders.customer_id | shop.orders.order_id | shop.orders.amount | shop.orders.note | shop.orders.status	shop.orders.customer_id | shop.orders.order_id | shop.orders.amount | shop.orders.note | shop.orders.status	engine	base	shop	lineage	SELECT * FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT * FROM orders
+tenant, day, seq, region, kind, payload	tenant, day, seq, region, kind, payload	engine	base	shop	results	SELECT * FROM events
+shop.events.tenant | shop.events.day | shop.events.seq | shop.events.region | shop.events.kind | shop.events.payload	shop.events.tenant | shop.events.day | shop.events.seq | shop.events.region | shop.events.kind | shop.events.payload	engine	base	shop	lineage	SELECT * FROM events
+shop.events	shop.events	engine	base	shop	tables	SELECT * FROM events
+id, hits	id, hits	engine	base	shop	results	SELECT * FROM counters
+shop.counters.id | shop.counters.hits	shop.counters.id | shop.counters.hits	engine	base	shop	lineage	SELECT * FROM counters
+shop.counters	shop.counters	engine	base	shop	tables	SELECT * FROM counters
+id, pair	id, pair	engine	base	shop	results	SELECT * FROM pairs
+shop.pairs.id | shop.pairs.pair	shop.pairs.id | shop.pairs.pair	engine	base	shop	lineage	SELECT * FROM pairs
+shop.pairs	shop.pairs	engine	base	shop	tables	SELECT * FROM pairs
+user_id, n	user_id, n	engine	base	shop	results	SELECT id AS user_id, name AS n FROM users
+shop.users.id | shop.users.name	~ | ~	engine	base	shop	lineage	SELECT id AS user_id, name AS n FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT id AS user_id, name AS n FROM users
+ID, Name	ID, Name	engine	base	shop	results	SELECT id AS "ID", name AS "Name" FROM users
+shop.users.id | shop.users.name	~ | ~	engine	base	shop	lineage	SELECT id AS "ID", name AS "Name" FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT id AS "ID", name AS "Name" FROM users
+email	email	engine	base	shop	results	SELECT name AS email FROM users
+shop.users.name	shop.users.email	engine	base	shop	lineage	SELECT name AS email FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT name AS email FROM users
+email	email	engine	base	shop	results	SELECT email FROM users WHERE id = 1
+shop.users.email	shop.users.email	engine	base	shop	lineage	SELECT email FROM users WHERE id = 1
+shop.users	shop.users	engine	base	shop	tables	SELECT email FROM users WHERE id = 1
+tags, prefs, history, home	tags, prefs, history, home	engine	base	shop	results	SELECT tags, prefs, history, home FROM users
+shop.users.tags | shop.users.prefs | shop.users.history | shop.users.home	shop.users.tags | shop.users.prefs | shop.users.history | shop.users.home	engine	base	shop	lineage	SELECT tags, prefs, history, home FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT tags, prefs, history, home FROM users
+hits	hits	engine	base	shop	results	SELECT hits FROM counters
+shop.counters.hits	shop.counters.hits	engine	base	shop	lineage	SELECT hits FROM counters
+shop.counters	shop.counters	engine	base	shop	tables	SELECT hits FROM counters
+pair	pair	engine	base	shop	results	SELECT pair FROM pairs
+shop.pairs.pair	shop.pairs.pair	engine	base	shop	lineage	SELECT pair FROM pairs
+shop.pairs	shop.pairs	engine	base	shop	tables	SELECT pair FROM pairs
+customer_id, order_id, amount	customer_id, order_id, amount	engine	base	shop	results	SELECT customer_id, order_id, amount FROM orders WHERE customer_id = 1 ORDER BY order_id ASC
+shop.orders.customer_id | shop.orders.order_id | shop.orders.amount	shop.orders.customer_id | shop.orders.order_id | shop.orders.amount	engine	base	shop	lineage	SELECT customer_id, order_id, amount FROM orders WHERE customer_id = 1 ORDER BY order_id ASC
+shop.orders	shop.orders	engine	base	shop	tables	SELECT customer_id, order_id, amount FROM orders WHERE customer_id = 1 ORDER BY order_id ASC
+customer_id, order_id, amount, note, status	customer_id, order_id, amount, note, status	engine	base	shop	results	SELECT * FROM orders WHERE customer_id = 1 LIMIT 10
+shop.orders.customer_id | shop.orders.order_id | shop.orders.amount | shop.orders.note | shop.orders.status	shop.orders.customer_id | shop.orders.order_id | shop.orders.amount | shop.orders.note | shop.orders.status	engine	base	shop	lineage	SELECT * FROM orders WHERE customer_id = 1 LIMIT 10
+shop.orders	shop.orders	engine	base	shop	tables	SELECT * FROM orders WHERE customer_id = 1 LIMIT 10
+customer_id, order_id, amount, note, status	customer_id, order_id, amount, note, status	engine	base	shop	results	SELECT * FROM orders PER PARTITION LIMIT 1
+shop.orders.customer_id | shop.orders.order_id | shop.orders.amount | shop.orders.note | shop.orders.status	shop.orders.customer_id | shop.orders.order_id | shop.orders.amount | shop.orders.note | shop.orders.status	engine	base	shop	lineage	SELECT * FROM orders PER PARTITION LIMIT 1
+shop.orders	shop.orders	engine	base	shop	tables	SELECT * FROM orders PER PARTITION LIMIT 1
+status	status	engine	base	shop	results	SELECT status FROM orders WHERE status = 'open' ALLOW FILTERING
+shop.orders.status	shop.orders.status	engine	base	shop	lineage	SELECT status FROM orders WHERE status = 'open' ALLOW FILTERING
+shop.orders	shop.orders	engine	base	shop	tables	SELECT status FROM orders WHERE status = 'open' ALLOW FILTERING
+region	region	engine	base	shop	results	SELECT region FROM events WHERE tenant = 't' AND day = '2024-01-01'
+shop.events.region	shop.events.region	engine	base	shop	lineage	SELECT region FROM events WHERE tenant = 't' AND day = '2024-01-01'
+shop.events	shop.events	engine	base	shop	tables	SELECT region FROM events WHERE tenant = 't' AND day = '2024-01-01'
+name	name	engine	base	shop	results	SELECT name FROM users WHERE token(id) > 0
+shop.users.name	shop.users.name	engine	base	shop	lineage	SELECT name FROM users WHERE token(id) > 0
+shop.users	shop.users	engine	base	shop	tables	SELECT name FROM users WHERE token(id) > 0
+name	name	engine	base	shop	results	SELECT name FROM shop.users
+shop.users.name	shop.users.name	engine	base	shop	lineage	SELECT name FROM shop.users
+shop.users	shop.users	engine	base	shop	tables	SELECT name FROM shop.users
+id	id	engine	base	shop	results	SELECT DISTINCT id FROM users
+shop.users.id	shop.users.id	engine	base	shop	lineage	SELECT DISTINCT id FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT DISTINCT id FROM users
+customer_id	customer_id	engine	base	shop	results	SELECT DISTINCT customer_id FROM orders
+shop.orders.customer_id	shop.orders.customer_id	engine	base	shop	lineage	SELECT DISTINCT customer_id FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT DISTINCT customer_id FROM orders
+tenant, day	tenant, day	engine	base	shop	results	SELECT DISTINCT tenant, day FROM events
+shop.events.tenant | shop.events.day	shop.events.tenant | shop.events.day	engine	base	shop	lineage	SELECT DISTINCT tenant, day FROM events
+shop.events	shop.events	engine	base	shop	tables	SELECT DISTINCT tenant, day FROM events
+tenant, day, region	tenant, day, region	engine	base	shop	results	SELECT DISTINCT tenant, day, region FROM events
+shop.events.tenant | shop.events.day | shop.events.region	shop.events.tenant | shop.events.day | shop.events.region	engine	base	shop	lineage	SELECT DISTINCT tenant, day, region FROM events
+shop.events	shop.events	engine	base	shop	tables	SELECT DISTINCT tenant, day, region FROM events
+[json]	[json]	engine	base	shop	results	SELECT JSON id, name FROM users
+shop.users.id shop.users.name	~	engine	base	shop	lineage	SELECT JSON id, name FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT JSON id, name FROM users
+[json]	[json]	engine	base	shop	results	SELECT JSON * FROM users
+shop.users.created shop.users.email shop.users.history shop.users.home shop.users.id shop.users.name shop.users.phone shop.users.prefs shop.users.score shop.users.ssn shop.users.tags	~	engine	base	shop	lineage	SELECT JSON * FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT JSON * FROM users
+[json]	[json]	engine	base	shop	results	SELECT JSON * FROM orders
+shop.orders.amount shop.orders.customer_id shop.orders.note shop.orders.order_id shop.orders.status	~	engine	base	shop	lineage	SELECT JSON * FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT JSON * FROM orders
+[json]	[json]	engine	base	shop	results	SELECT JSON DISTINCT id FROM users
+shop.users.id	~	engine	base	shop	lineage	SELECT JSON DISTINCT id FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT JSON DISTINCT id FROM users
+[json]	[json]	engine	base	shop	results	SELECT JSON name AS n FROM users
+shop.users.name	~	engine	base	shop	lineage	SELECT JSON name AS n FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT JSON name AS n FROM users
+[json]	[json]	engine	base	shop	results	SELECT JSON home.city FROM users
+shop.users.home	~	engine	base	shop	lineage	SELECT JSON home.city FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT JSON home.city FROM users
+[json]	[json]	engine	base	shop	results	SELECT JSON count(*) FROM users
+-	~	engine	base	shop	lineage	SELECT JSON count(*) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT JSON count(*) FROM users
+[json]	[json]	engine	base	shop	results	SELECT JSON "AccountId", "eMail" FROM "Accounts"
+shop.Accounts.AccountId shop.Accounts.eMail	~	engine	base	shop	lineage	SELECT JSON "AccountId", "eMail" FROM "Accounts"
+shop.Accounts	shop.Accounts	engine	base	shop	tables	SELECT JSON "AccountId", "eMail" FROM "Accounts"
+writetime(name)	writetime(name)	engine	base	shop	results	SELECT WRITETIME(name) FROM users
+shop.users.name	~	engine	base	shop	lineage	SELECT WRITETIME(name) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT WRITETIME(name) FROM users
+ttl(email)	ttl(email)	engine	base	shop	results	SELECT TTL(email) FROM users
+shop.users.email	~	engine	base	shop	lineage	SELECT TTL(email) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT TTL(email) FROM users
+w, t	w, t	engine	base	shop	results	SELECT writetime(name) AS w, ttl(name) AS t FROM users
+shop.users.name | shop.users.name	~ | ~	engine	base	shop	lineage	SELECT writetime(name) AS w, ttl(name) AS t FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT writetime(name) AS w, ttl(name) AS t FROM users
+id, writetime(email), email	id, writetime(email), email	engine	base	shop	results	SELECT id, WRITETIME(email), email FROM users
+shop.users.id | shop.users.email | shop.users.email	shop.users.id | ~ | shop.users.email	engine	base	shop	lineage	SELECT id, WRITETIME(email), email FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT id, WRITETIME(email), email FROM users
+maxwritetime(history)	maxwritetime(history)	engine	base	shop	results	SELECT MAXWRITETIME(history) FROM users
+shop.users.history	~	engine	base	shop	lineage	SELECT MAXWRITETIME(history) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT MAXWRITETIME(history) FROM users
+writetime(region)	writetime(region)	engine	base	shop	results	SELECT writetime(region) FROM events
+shop.events.region	~	engine	base	shop	lineage	SELECT writetime(region) FROM events
+shop.events	shop.events	engine	base	shop	tables	SELECT writetime(region) FROM events
+count	count	engine	base	shop	results	SELECT count(*) FROM users
+-	~	engine	base	shop	lineage	SELECT count(*) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT count(*) FROM users
+count	count	engine	base	shop	results	SELECT COUNT(1) FROM users
+-	~	engine	base	shop	lineage	SELECT COUNT(1) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT COUNT(1) FROM users
+system.count(email)	system.count(email)	engine	base	shop	results	SELECT count(email) FROM users
+shop.users.email	~	engine	base	shop	lineage	SELECT count(email) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT count(email) FROM users
+system.max(score), system.min(score), system.avg(score), system.sum(score)	system.max(score), system.min(score), system.avg(score), system.sum(score)	engine	base	shop	results	SELECT max(score), min(score), avg(score), sum(score) FROM users
+shop.users.score | shop.users.score | shop.users.score | shop.users.score	~ | ~ | ~ | ~	engine	base	shop	lineage	SELECT max(score), min(score), avg(score), sum(score) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT max(score), min(score), avg(score), sum(score) FROM users
+total	total	engine	base	shop	results	SELECT sum(score) AS total FROM users WHERE id IN (1, 2)
+shop.users.score	~	engine	base	shop	lineage	SELECT sum(score) AS total FROM users WHERE id IN (1, 2)
+shop.users	shop.users	engine	base	shop	tables	SELECT sum(score) AS total FROM users WHERE id IN (1, 2)
+customer_id, system.sum(amount)	customer_id, system.sum(amount)	engine	base	shop	results	SELECT customer_id, sum(amount) FROM orders GROUP BY customer_id
+shop.orders.customer_id | shop.orders.amount	shop.orders.customer_id | ~	engine	base	shop	lineage	SELECT customer_id, sum(amount) FROM orders GROUP BY customer_id
+shop.orders	shop.orders	engine	base	shop	tables	SELECT customer_id, sum(amount) FROM orders GROUP BY customer_id
+customer_id, n	customer_id, n	engine	base	shop	results	SELECT customer_id, count(*) AS n FROM orders GROUP BY customer_id
+shop.orders.customer_id | -	shop.orders.customer_id | ~	engine	base	shop	lineage	SELECT customer_id, count(*) AS n FROM orders GROUP BY customer_id
+shop.orders	shop.orders	engine	base	shop	tables	SELECT customer_id, count(*) AS n FROM orders GROUP BY customer_id
+tenant, day, system.max(seq)	tenant, day, system.max(seq)	engine	base	shop	results	SELECT tenant, day, max(seq) FROM events GROUP BY tenant, day
+shop.events.tenant | shop.events.day | shop.events.seq	shop.events.tenant | shop.events.day | ~	engine	base	shop	lineage	SELECT tenant, day, max(seq) FROM events GROUP BY tenant, day
+shop.events	shop.events	engine	base	shop	tables	SELECT tenant, day, max(seq) FROM events GROUP BY tenant, day
+system.tojson(home)	system.tojson(home)	engine	base	shop	results	SELECT toJson(home) FROM users
+shop.users.home	~	engine	base	shop	lineage	SELECT toJson(home) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT toJson(home) FROM users
+j	j	engine	base	shop	results	SELECT toJson(email) AS j FROM users
+shop.users.email	~	engine	base	shop	lineage	SELECT toJson(email) AS j FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT toJson(email) AS j FROM users
+system.tojson(prefs), system.tojson(tags)	system.tojson(prefs), system.tojson(tags)	engine	base	shop	results	SELECT toJson(prefs), toJson(tags) FROM users
+shop.users.prefs | shop.users.tags	~ | ~	engine	base	shop	lineage	SELECT toJson(prefs), toJson(tags) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT toJson(prefs), toJson(tags) FROM users
+system.token(id)	system.token(id)	engine	base	shop	results	SELECT token(id) FROM users
+shop.users.id	~	engine	base	shop	lineage	SELECT token(id) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT token(id) FROM users
+system.token(id), id	system.token(id), id	engine	base	shop	results	SELECT token(id), id FROM users
+shop.users.id | shop.users.id	~ | shop.users.id	engine	base	shop	lineage	SELECT token(id), id FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT token(id), id FROM users
+system.blobastext(payload)	system.blobastext(payload)	engine	base	shop	results	SELECT blobAsText(payload) FROM events
+shop.events.payload	~	engine	base	shop	lineage	SELECT blobAsText(payload) FROM events
+shop.events	shop.events	engine	base	shop	tables	SELECT blobAsText(payload) FROM events
+system.textasblob(email)	system.textasblob(email)	engine	base	shop	results	SELECT textAsBlob(email) FROM users
+shop.users.email	~	engine	base	shop	lineage	SELECT textAsBlob(email) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT textAsBlob(email) FROM users
+cast(score as text)	cast(score as text)	engine	base	shop	results	SELECT CAST(score AS text) FROM users
+shop.users.score	~	engine	base	shop	lineage	SELECT CAST(score AS text) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT CAST(score AS text) FROM users
+big	big	engine	base	shop	results	SELECT CAST(id AS bigint) AS big FROM users
+shop.users.id	~	engine	base	shop	lineage	SELECT CAST(id AS bigint) AS big FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT CAST(id AS bigint) AS big FROM users
+system.todate(created), system.tounixtimestamp(created)	system.todate(created), system.tounixtimestamp(created)	engine	base	shop	results	SELECT toDate(created), toUnixTimestamp(created) FROM users
+shop.users.created | shop.users.created	~ | ~	engine	base	shop	lineage	SELECT toDate(created), toUnixTimestamp(created) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT toDate(created), toUnixTimestamp(created) FROM users
+system.totimestamp(order_id), system.tounixtimestamp(order_id)	system.totimestamp(order_id), system.tounixtimestamp(order_id)	engine	base	shop	results	SELECT toTimestamp(order_id), toUnixTimestamp(order_id) FROM orders
+shop.orders.order_id | shop.orders.order_id	~ | ~	engine	base	shop	lineage	SELECT toTimestamp(order_id), toUnixTimestamp(order_id) FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT toTimestamp(order_id), toUnixTimestamp(order_id) FROM orders
+system.now()	system.now()	engine	base	shop	results	SELECT now() FROM users
+-	~	engine	base	shop	lineage	SELECT now() FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT now() FROM users
+system.uuid(), id	system.uuid(), id	engine	base	shop	results	SELECT uuid(), id FROM users
+- | shop.users.id	~ | shop.users.id	engine	base	shop	lineage	SELECT uuid(), id FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT uuid(), id FROM users
+id + 1	id + 1	engine	base	shop	results	SELECT id + 1 FROM users
+shop.users.id	~	engine	base	shop	lineage	SELECT id + 1 FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT id + 1 FROM users
+doubled	doubled	engine	base	shop	results	SELECT score * 2 AS doubled FROM users
+shop.users.score	~	engine	base	shop	lineage	SELECT score * 2 AS doubled FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT score * 2 AS doubled FROM users
+-score	-score	engine	base	shop	results	SELECT -score FROM users
+shop.users.score	~	engine	base	shop	lineage	SELECT -score FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT -score FROM users
+id, (int)1	id, (int)1	engine	base	shop	results	SELECT id, (int) 1 FROM users
+shop.users.id | -	shop.users.id | ~	engine	base	shop	lineage	SELECT id, (int) 1 FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT id, (int) 1 FROM users
+system.mask_default(email)	system.mask_default(email)	engine	base	shop	results	SELECT mask_default(email) FROM users
+shop.users.email	~	engine	base	shop	lineage	SELECT mask_default(email) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT mask_default(email) FROM users
+system.mask_inner(phone, 1, 2)	system.mask_inner(phone, 1, 2)	engine	base	shop	results	SELECT mask_inner(phone, 1, 2) FROM users
+shop.users.phone	~	engine	base	shop	lineage	SELECT mask_inner(phone, 1, 2) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT mask_inner(phone, 1, 2) FROM users
+h	h	engine	base	shop	results	SELECT mask_hash(ssn) AS h FROM users
+shop.users.ssn	~	engine	base	shop	lineage	SELECT mask_hash(ssn) AS h FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT mask_hash(ssn) AS h FROM users
+system.collection_count(tags)	system.collection_count(tags)	engine	base	shop	results	SELECT collection_count(tags) FROM users
+shop.users.tags	~	engine	base	shop	lineage	SELECT collection_count(tags) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT collection_count(tags) FROM users
+system.map_keys(prefs)	system.map_keys(prefs)	engine	base	shop	results	SELECT map_keys(prefs) FROM users
+shop.users.prefs	~	engine	base	shop	lineage	SELECT map_keys(prefs) FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT map_keys(prefs) FROM users
+home.city	home.city	engine	base	shop	results	SELECT home.city FROM users
+shop.users.home	~	engine	base	shop	lineage	SELECT home.city FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT home.city FROM users
+c, home.zip	c, home.zip	engine	base	shop	results	SELECT home.city AS c, home.zip FROM users
+shop.users.home | shop.users.home	~ | ~	engine	base	shop	lineage	SELECT home.city AS c, home.zip FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT home.city AS c, home.zip FROM users
+prefs['lang']	prefs['lang']	engine	base	shop	results	SELECT prefs['lang'] FROM users
+shop.users.prefs	~	engine	base	shop	lineage	SELECT prefs['lang'] FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT prefs['lang'] FROM users
+some	some	engine	base	shop	results	SELECT prefs['a'..'m'] AS some FROM users
+shop.users.prefs	~	engine	base	shop	lineage	SELECT prefs['a'..'m'] AS some FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT prefs['a'..'m'] AS some FROM users
+tags['red']	tags['red']	engine	base	shop	results	SELECT tags['red'] FROM users
+shop.users.tags	~	engine	base	shop	lineage	SELECT tags['red'] FROM users
+shop.users	shop.users	engine	base	shop	tables	SELECT tags['red'] FROM users
+email, id, name, phone	email, id, name, phone	engine	base	shop	results	SELECT * FROM users_by_email
+shop.users.email shop.users_by_email.email | shop.users.id shop.users_by_email.id | shop.users.name shop.users_by_email.name | shop.users.phone shop.users_by_email.phone	shop.users_by_email.email ~ | shop.users_by_email.id ~ | shop.users_by_email.name ~ | shop.users_by_email.phone ~	engine	base	shop	lineage	SELECT * FROM users_by_email
+shop.users, shop.users_by_email	shop.users_by_email, ~	engine	base	shop	tables	SELECT * FROM users_by_email
+email, name	email, name	engine	base	shop	results	SELECT email, name FROM users_by_email WHERE email = 'a@b.c'
+shop.users.email shop.users_by_email.email | shop.users.name shop.users_by_email.name	shop.users_by_email.email ~ | shop.users_by_email.name ~	engine	base	shop	lineage	SELECT email, name FROM users_by_email WHERE email = 'a@b.c'
+shop.users, shop.users_by_email	shop.users_by_email, ~	engine	base	shop	tables	SELECT email, name FROM users_by_email WHERE email = 'a@b.c'
+status, customer_id, order_id, amount, note	status, customer_id, order_id, amount, note	engine	base	shop	results	SELECT * FROM orders_by_status
+shop.orders.status shop.orders_by_status.status | shop.orders.customer_id shop.orders_by_status.customer_id | shop.orders.order_id shop.orders_by_status.order_id | shop.orders.amount shop.orders_by_status.amount | shop.orders.note shop.orders_by_status.note	shop.orders_by_status.status ~ | shop.orders_by_status.customer_id ~ | shop.orders_by_status.order_id ~ | shop.orders_by_status.amount ~ | shop.orders_by_status.note ~	engine	base	shop	lineage	SELECT * FROM orders_by_status
+shop.orders, shop.orders_by_status	shop.orders_by_status, ~	engine	base	shop	tables	SELECT * FROM orders_by_status
+status, amount	status, amount	engine	base	shop	results	SELECT status, amount FROM orders_by_status
+shop.orders.status shop.orders_by_status.status | shop.orders.amount shop.orders_by_status.amount	shop.orders_by_status.status ~ | shop.orders_by_status.amount ~	engine	base	shop	lineage	SELECT status, amount FROM orders_by_status
+shop.orders, shop.orders_by_status	shop.orders_by_status, ~	engine	base	shop	tables	SELECT status, amount FROM orders_by_status
+count	count	engine	base	shop	results	SELECT count(*) FROM users_by_email
+-	~	engine	base	shop	lineage	SELECT count(*) FROM users_by_email
+shop.users, shop.users_by_email	shop.users_by_email, ~	engine	base	shop	tables	SELECT count(*) FROM users_by_email
+[json]	[json]	engine	base	shop	results	SELECT JSON * FROM users_by_email
+shop.users.email shop.users.id shop.users.name shop.users.phone shop.users_by_email.email shop.users_by_email.id shop.users_by_email.name shop.users_by_email.phone	~	engine	base	shop	lineage	SELECT JSON * FROM users_by_email
+shop.users, shop.users_by_email	shop.users_by_email, ~	engine	base	shop	tables	SELECT JSON * FROM users_by_email
+AccountId, DisplayName, eMail, plain	AccountId, DisplayName, eMail, plain	engine	base	shop	results	SELECT * FROM "Accounts"
+shop.Accounts.AccountId | shop.Accounts.DisplayName | shop.Accounts.eMail | shop.Accounts.plain	shop.Accounts.AccountId | shop.Accounts.DisplayName | shop.Accounts.eMail | shop.Accounts.plain	engine	base	shop	lineage	SELECT * FROM "Accounts"
+shop.Accounts	shop.Accounts	engine	base	shop	tables	SELECT * FROM "Accounts"
+AccountId, DisplayName	AccountId, DisplayName	engine	base	shop	results	SELECT "AccountId", "DisplayName" FROM "Accounts"
+shop.Accounts.AccountId | shop.Accounts.DisplayName	shop.Accounts.AccountId | shop.Accounts.DisplayName	engine	base	shop	lineage	SELECT "AccountId", "DisplayName" FROM "Accounts"
+shop.Accounts	shop.Accounts	engine	base	shop	tables	SELECT "AccountId", "DisplayName" FROM "Accounts"
+Mail	Mail	engine	base	shop	results	SELECT "eMail" AS "Mail" FROM "Accounts"
+shop.Accounts.eMail	~	engine	base	shop	lineage	SELECT "eMail" AS "Mail" FROM "Accounts"
+shop.Accounts	shop.Accounts	engine	base	shop	tables	SELECT "eMail" AS "Mail" FROM "Accounts"
+plain, plain	plain, plain	engine	base	shop	results	SELECT plain, PLAIN FROM "Accounts"
+shop.Accounts.plain | shop.Accounts.plain	shop.Accounts.plain | shop.Accounts.plain	engine	base	shop	lineage	SELECT plain, PLAIN FROM "Accounts"
+shop.Accounts	shop.Accounts	engine	base	shop	tables	SELECT plain, PLAIN FROM "Accounts"
+display	display	engine	base	shop	results	SELECT "DisplayName" AS display FROM shop."Accounts"
+shop.Accounts.DisplayName	~	engine	base	shop	lineage	SELECT "DisplayName" AS display FROM shop."Accounts"
+shop.Accounts	shop.Accounts	engine	base	shop	tables	SELECT "DisplayName" AS display FROM shop."Accounts"
+id, Who, what	id, Who, what	engine	base	shop	results	SELECT * FROM "Audit"."Log"
+Audit.Log.id | Audit.Log.Who | Audit.Log.what	Audit.Log.id | Audit.Log.Who | Audit.Log.what	engine	base	shop	lineage	SELECT * FROM "Audit"."Log"
+Audit.Log	Audit.Log	engine	base	shop	tables	SELECT * FROM "Audit"."Log"
+Who, what	Who, what	engine	base	shop	results	SELECT "Who", what FROM "Audit"."Log"
+Audit.Log.Who | Audit.Log.what	Audit.Log.Who | Audit.Log.what	engine	base	shop	lineage	SELECT "Who", what FROM "Audit"."Log"
+Audit.Log	Audit.Log	engine	base	shop	tables	SELECT "Who", what FROM "Audit"."Log"
+id, email, full_name, owner, vec	id, email, full_name, owner, vec	engine	base	shop	results	SELECT * FROM crm.contacts
+crm.contacts.id | crm.contacts.email | crm.contacts.full_name | crm.contacts.owner | crm.contacts.vec	crm.contacts.id | crm.contacts.email | crm.contacts.full_name | crm.contacts.owner | crm.contacts.vec	engine	base	shop	lineage	SELECT * FROM crm.contacts
+crm.contacts	crm.contacts	engine	base	shop	tables	SELECT * FROM crm.contacts
+full_name, email	full_name, email	engine	base	shop	results	SELECT full_name, email FROM crm.contacts
+crm.contacts.full_name | crm.contacts.email	crm.contacts.full_name | crm.contacts.email	engine	base	shop	lineage	SELECT full_name, email FROM crm.contacts
+crm.contacts	crm.contacts	engine	base	shop	tables	SELECT full_name, email FROM crm.contacts
+id, owner	id, owner	engine	base	shop	results	SELECT id, owner FROM crm.contacts WHERE id = 5132b130-ae79-11e4-ab27-0800200c9a66
+crm.contacts.id | crm.contacts.owner	crm.contacts.id | crm.contacts.owner	engine	base	shop	lineage	SELECT id, owner FROM crm.contacts WHERE id = 5132b130-ae79-11e4-ab27-0800200c9a66
+crm.contacts	crm.contacts	engine	base	shop	tables	SELECT id, owner FROM crm.contacts WHERE id = 5132b130-ae79-11e4-ab27-0800200c9a66
+system.similarity_cosine(vec, [0.1, 0.2, 0.3])	system.similarity_cosine(vec, [0.1, 0.2, 0.3])	engine	base	shop	results	SELECT similarity_cosine(vec, [0.1, 0.2, 0.3]) FROM crm.contacts
+crm.contacts.vec	~	engine	base	shop	lineage	SELECT similarity_cosine(vec, [0.1, 0.2, 0.3]) FROM crm.contacts
+crm.contacts	crm.contacts	engine	base	shop	tables	SELECT similarity_cosine(vec, [0.1, 0.2, 0.3]) FROM crm.contacts
+id, email, full_name, owner, vec	id, email, full_name, owner, vec	engine	base	crm	results	SELECT * FROM contacts
+crm.contacts.id | crm.contacts.email | crm.contacts.full_name | crm.contacts.owner | crm.contacts.vec	crm.contacts.id | crm.contacts.email | crm.contacts.full_name | crm.contacts.owner | crm.contacts.vec	engine	base	crm	lineage	SELECT * FROM contacts
+crm.contacts	crm.contacts	engine	base	crm	tables	SELECT * FROM contacts
+email	email	engine	base	crm	results	SELECT email FROM contacts
+crm.contacts.email	crm.contacts.email	engine	base	crm	lineage	SELECT email FROM contacts
+crm.contacts	crm.contacts	engine	base	crm	tables	SELECT email FROM contacts
+name, email	name, email	engine	base	crm	results	SELECT name, email FROM shop.users
+shop.users.name | shop.users.email	shop.users.name | shop.users.email	engine	base	crm	lineage	SELECT name, email FROM shop.users
+shop.users	shop.users	engine	base	crm	tables	SELECT name, email FROM shop.users
+email, id, name, phone	email, id, name, phone	engine	base	crm	results	SELECT * FROM shop.users_by_email
+shop.users.email shop.users_by_email.email | shop.users.id shop.users_by_email.id | shop.users.name shop.users_by_email.name | shop.users.phone shop.users_by_email.phone	shop.users_by_email.email ~ | shop.users_by_email.id ~ | shop.users_by_email.name ~ | shop.users_by_email.phone ~	engine	base	crm	lineage	SELECT * FROM shop.users_by_email
+shop.users, shop.users_by_email	shop.users_by_email, ~	engine	base	crm	tables	SELECT * FROM shop.users_by_email

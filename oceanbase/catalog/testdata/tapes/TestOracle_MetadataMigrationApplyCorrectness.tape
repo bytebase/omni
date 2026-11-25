@@ -2784,15 +2784,234 @@
 | ALTER TABLE `pa_mm_6858194b`.`articles` DROP INDEX `idx_title_tags`
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_6858194b`.`locations` MODIFY COLUMN `id` int NOT NULL AUTO_INCREMENT
+| ALTER TABLE `pa_mm_6858194b`.`locations` DROP INDEX `idx_spatial_position`
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_6858194b`.`locations` MODIFY COLUMN `name` varchar(100) NOT NULL
+| DROP DATABASE IF EXISTS pa_mm_6858194b_to
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_6858194b`.`locations` MODIFY COLUMN `position` point NOT NULL
-< error
-| 1138 22004 Invalid use of NULL value
+| CREATE DATABASE pa_mm_6858194b_to
+< ok 1 0
+> exec
+| USE pa_mm_6858194b_to
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE articles (
+|     id INT NOT NULL AUTO_INCREMENT,
+|     title VARCHAR(200) NOT NULL,
+|     content TEXT NOT NULL,
+|     tags VARCHAR(500),
+|     PRIMARY KEY (id)
+| ) ENGINE=InnoDB
+< ok 0 0
+> exec
+| CREATE TABLE locations (
+|     id INT NOT NULL AUTO_INCREMENT,
+|     name VARCHAR(100) NOT NULL,
+|     position POINT NOT NULL,
+|     PRIMARY KEY (id)
+| ) ENGINE=InnoDB
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE pa_mm_6858194b
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| pa_mm_6858194b
+< result
+< column "TABLE_NAME" "CHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
+< row
+: bytes
+| articles
+: bytes
+| BASE TABLE
+< row
+: bytes
+| locations
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `pa_mm_6858194b`.`articles`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| articles
+: bytes
+| CREATE TABLE `articles` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `title` varchar(200) NOT NULL,
+|   `content` text NOT NULL,
+|   `tags` varchar(500) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `pa_mm_6858194b`.`locations`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| locations
+: bytes
+| CREATE TABLE `locations` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `name` varchar(100) NOT NULL,
+|   `position` point NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+: string
+| pa_mm_6858194b
+< result
+< column "ROUTINE_TYPE" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "DTD_IDENTIFIER" "TEXT"
+< column "ROUTINE_DEFINITION" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
+> query
+| SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
+: string
+| pa_mm_6858194b
+< result
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
+< column "PARAMETER_MODE" "VARCHAR"
+< column "PARAMETER_NAME" "VARCHAR"
+< column "DTD_IDENTIFIER" "TEXT"
+> query
+| SELECT TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_TIMING, ACTION_ORDER, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? ORDER BY TRIGGER_NAME
+: string
+| pa_mm_6858194b
+< result
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "ACTION_TIMING" "VARCHAR"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
+> query
+| SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
+: string
+| pa_mm_6858194b
+< result
+< column "EVENT_NAME" "VARCHAR"
+< column "EVENT_DEFINITION" "TEXT"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "INTERVAL_VALUE" "VARCHAR"
+< column "INTERVAL_FIELD" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
+> exec
+| USE pa_mm_6858194b_to
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| pa_mm_6858194b_to
+< result
+< column "TABLE_NAME" "CHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
+< row
+: bytes
+| articles
+: bytes
+| BASE TABLE
+< row
+: bytes
+| locations
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `pa_mm_6858194b_to`.`articles`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| articles
+: bytes
+| CREATE TABLE `articles` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `title` varchar(200) NOT NULL,
+|   `content` text NOT NULL,
+|   `tags` varchar(500) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `pa_mm_6858194b_to`.`locations`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| locations
+: bytes
+| CREATE TABLE `locations` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `name` varchar(100) NOT NULL,
+|   `position` point NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+: string
+| pa_mm_6858194b_to
+< result
+< column "ROUTINE_TYPE" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "DTD_IDENTIFIER" "TEXT"
+< column "ROUTINE_DEFINITION" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
+> query
+| SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
+: string
+| pa_mm_6858194b_to
+< result
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
+< column "PARAMETER_MODE" "VARCHAR"
+< column "PARAMETER_NAME" "VARCHAR"
+< column "DTD_IDENTIFIER" "TEXT"
+> query
+| SELECT TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_TIMING, ACTION_ORDER, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? ORDER BY TRIGGER_NAME
+: string
+| pa_mm_6858194b_to
+< result
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "ACTION_TIMING" "VARCHAR"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
+> query
+| SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
+: string
+| pa_mm_6858194b_to
+< result
+< column "EVENT_NAME" "VARCHAR"
+< column "EVENT_DEFINITION" "TEXT"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "INTERVAL_VALUE" "VARCHAR"
+< column "INTERVAL_FIELD" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_668e0e2b
 < ok 0 0
@@ -8651,18 +8870,6 @@
 | SET foreign_key_checks = 1
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_482448c6`.`locations` DROP PRIMARY KEY
-< ok 0 0
-> exec
-| ALTER TABLE `pa_mm_482448c6`.`locations` MODIFY COLUMN `id` text
-< ok 0 0
-> exec
-| ALTER TABLE `pa_mm_482448c6`.`locations` MODIFY COLUMN `name` text
-< ok 0 0
-> exec
-| ALTER TABLE `pa_mm_482448c6`.`locations` MODIFY COLUMN `position` text
-< ok 0 0
-> exec
 | ALTER TABLE `pa_mm_482448c6`.`articles` ADD FULLTEXT KEY `idx_fulltext_content` (`title`,`content`)
 < ok 0 0
 > exec
@@ -8670,6 +8877,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_482448c6`.`articles` ADD KEY `idx_title_tags` (`title`(50),`tags`(50))
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_482448c6`.`locations` ADD SPATIAL KEY `idx_spatial_position` (`position`)
 < ok 0 0
 > exec
 | DROP DATABASE IF EXISTS pa_mm_482448c6_to
@@ -8756,10 +8966,12 @@
 | locations
 : bytes
 | CREATE TABLE `locations` (
-|   `id` text DEFAULT NULL,
-|   `name` text DEFAULT NULL,
-|   `position` text DEFAULT NULL
-| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `name` varchar(100) NOT NULL,
+|   `position` point NOT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `idx_spatial_position` (`position`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
 : string
