@@ -256,8 +256,8 @@ func (v *sequenceCollector) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 
 func (*sequenceCollector) VisitPost(expr tree.Expr) tree.Expr { return expr }
 
-// calledFunctions returns the names of the functions expr calls, as written:
-// qualified or not.
+// calledFunctions returns the names of the functions expr calls, unquoted,
+// schema-qualified where expr qualifies them.
 func calledFunctions(expr string) []string {
 	if strings.TrimSpace(expr) == "" {
 		return nil
@@ -275,8 +275,14 @@ type funcCollector struct{ names []string }
 
 func (v *funcCollector) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 	if call, ok := expr.(*tree.FuncExpr); ok {
-		if name, ok := call.Func.FunctionReference.(*tree.UnresolvedName); ok {
-			v.names = append(v.names, name.String())
+		// The key is the name's parts unquoted, as metadata names it:
+		// schema.name, or name alone.
+		if name, ok := call.Func.FunctionReference.(*tree.UnresolvedName); ok && name.NumParts > 0 {
+			key := name.Parts[0]
+			if name.NumParts > 1 {
+				key = name.Parts[1] + "." + key
+			}
+			v.names = append(v.names, key)
 		}
 	}
 	return true, expr

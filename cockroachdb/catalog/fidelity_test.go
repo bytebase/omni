@@ -113,6 +113,12 @@ END
 $$;
 CREATE PROCEDURE fid_routines.reset_prices() LANGUAGE SQL AS $$ UPDATE fid_routines.items SET price = 0 $$;
 CREATE TABLE fid_routines.scored (id INT8 PRIMARY KEY, score INT8 DEFAULT fid_routines.add(1, 2));
+CREATE FUNCTION fid_routines.a_constant() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
+CREATE TABLE fid_routines.t1 (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_routines.a_constant());
+CREATE FUNCTION fid_routines.z_read() RETURNS INT8 LANGUAGE SQL AS $$ SELECT count(*) FROM fid_routines.t1 $$;
+CREATE TABLE fid_routines.t2 (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_routines.z_read());
+CREATE FUNCTION fid_routines."Quoted"() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 2 $$;
+CREATE TABLE fid_routines.t3 (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_routines."Quoted"());
 `,
 		},
 		{

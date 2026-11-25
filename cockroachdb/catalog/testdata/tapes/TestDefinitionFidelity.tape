@@ -2882,6 +2882,24 @@
 > exec
 | CREATE TABLE fid_routines.scored (id INT8 PRIMARY KEY, score INT8 DEFAULT fid_routines.add(1, 2));
 < ok 0 -
+> exec
+| CREATE FUNCTION fid_routines.a_constant() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_routines.t1 (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_routines.a_constant());
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_routines.z_read() RETURNS INT8 LANGUAGE SQL AS $$ SELECT count(*) FROM fid_routines.t1 $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_routines.t2 (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_routines.z_read());
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_routines."Quoted"() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 2 $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_routines.t3 (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_routines."Quoted"());
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -3277,6 +3295,177 @@
 : string
 | fid_routines
 : string
+| t1
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| t1
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_routines.a_constant()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| t2
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| t2
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_routines.z_read()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| t3
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| t3
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_routines."Quoted"()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
 | tickets
 : string
 | id
@@ -3566,6 +3755,42 @@
 : string
 | fid_routines
 : string
+| t1
+: string
+| t1_pkey
+: string
+| CREATE UNIQUE INDEX t1_pkey ON omni_testdefinitionfidelity.fid_routines.t1 USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_routines
+: string
+| t2
+: string
+| t2_pkey
+: string
+| CREATE UNIQUE INDEX t2_pkey ON omni_testdefinitionfidelity.fid_routines.t2 USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_routines
+: string
+| t3
+: string
+| t3_pkey
+: string
+| CREATE UNIQUE INDEX t3_pkey ON omni_testdefinitionfidelity.fid_routines.t3 USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_routines
+: string
 | ticket_seq
 : string
 | primary
@@ -3674,6 +3899,27 @@
 | fid_routines
 : string
 | scored
+: int64 0
+: null
+< row
+: string
+| fid_routines
+: string
+| t1
+: int64 0
+: null
+< row
+: string
+| fid_routines
+: string
+| t2
+: int64 0
+: null
+< row
+: string
+| fid_routines
+: string
+| t3
 : int64 0
 : null
 < row
@@ -3936,6 +4182,42 @@
 : string
 | fid_routines
 : string
+| Quoted
+: string
+| Quoted()
+: string
+| CREATE FUNCTION fid_routines."Quoted"()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 2;
+| $$
+< row
+: string
+| fid_routines
+: string
+| a_constant
+: string
+| a_constant()
+: string
+| CREATE FUNCTION fid_routines.a_constant()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 1;
+| $$
+< row
+: string
+| fid_routines
+: string
 | add
 : string
 | add(int8, int8)
@@ -4019,6 +4301,24 @@
 | 	BEGIN
 | 	RETURN (SELECT count(*) FROM omni_testdefinitionfidelity.fid_routines.items);
 | 	END;
+| $$
+< row
+: string
+| fid_routines
+: string
+| z_read
+: string
+| z_read()
+: string
+| CREATE FUNCTION fid_routines.z_read()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT count(*) FROM omni_testdefinitionfidelity.fid_routines.t1;
 | $$
 > query
 |
@@ -4209,40 +4509,28 @@
 | SET default_tablespace = '';
 < ok 0 -
 > exec
-| CREATE TABLE "fid_routines"."items" (
-|     "id" bigint DEFAULT nextval('fid_routines.plain'::REGCLASS) NOT NULL,
-|     "name" text NOT NULL,
-|     "price" numeric(10,2),
-|     "cents" bigint AS ((price * 100)::INT8) STORED,
-|     "doubled" numeric AS (price * 2) VIRTUAL,
-|     CONSTRAINT "items_pkey" PRIMARY KEY (id ASC)
-| );
+| CREATE FUNCTION fid_routines."Quoted"()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 2;
+| $$;
 < ok 0 -
 > exec
-| CREATE MATERIALIZED VIEW "fid_routines"."item_totals" AS 
-| SELECT name, sum(price) AS total FROM fid_routines.items GROUP BY name;
-< ok 0 -
-> exec
-| CREATE INDEX item_totals_name_idx ON fid_routines.item_totals (name ASC);
-< ok 0 -
-> exec
-| CREATE TABLE "fid_routines"."tickets" (
-|     "id" bigint NOT NULL,
-|     "n" bigint,
-|     CONSTRAINT "tickets_pkey" PRIMARY KEY (id ASC)
-| );
-< ok 0 -
-> exec
-| CREATE VIEW "fid_routines"."v_items" ("id", "name") AS 
-| SELECT id, name FROM fid_routines.items WHERE price > 0;
-< ok 0 -
-> exec
-| CREATE VIEW "fid_routines"."v_item_names" ("name") AS 
-| SELECT name FROM fid_routines.v_items;
-< ok 0 -
-> exec
-| CREATE VIEW "fid_routines"."v_renamed" ("item_id", "item_name") AS 
-| SELECT id, name FROM fid_routines.items;
+| CREATE FUNCTION fid_routines.a_constant()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 1;
+| $$;
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_routines.add(a INT8, b INT8)
@@ -4269,23 +4557,21 @@
 | $$;
 < ok 0 -
 > exec
-| CREATE TABLE "fid_routines"."scored" (
-|     "id" bigint NOT NULL,
-|     "score" bigint DEFAULT fid_routines.add(1, 2),
-|     CONSTRAINT "scored_pkey" PRIMARY KEY (id ASC)
+| CREATE TABLE "fid_routines"."items" (
+|     "id" bigint DEFAULT nextval('fid_routines.plain'::REGCLASS) NOT NULL,
+|     "name" text NOT NULL,
+|     "price" numeric(10,2),
+|     "cents" bigint AS ((price * 100)::INT8) STORED,
+|     "doubled" numeric AS (price * 2) VIRTUAL,
+|     CONSTRAINT "items_pkey" PRIMARY KEY (id ASC)
 | );
 < ok 0 -
 > exec
-| CREATE FUNCTION fid_routines.item_count()
-| 	RETURNS INT8
-| 	STABLE
-| 	NOT LEAKPROOF
-| 	CALLED ON NULL INPUT
-| 	LANGUAGE SQL
-| 	SECURITY INVOKER
-| 	AS $$
-| SELECT count(*) FROM fid_routines.v_items;
-| $$;
+| CREATE MATERIALIZED VIEW "fid_routines"."item_totals" AS 
+| SELECT name, sum(price) AS total FROM fid_routines.items GROUP BY name;
+< ok 0 -
+> exec
+| CREATE INDEX item_totals_name_idx ON fid_routines.item_totals (name ASC);
 < ok 0 -
 > exec
 | CREATE PROCEDURE fid_routines.reset_prices()
@@ -4294,6 +4580,34 @@
 | 	AS $$
 | UPDATE fid_routines.items SET price = 0;
 | $$;
+< ok 0 -
+> exec
+| CREATE TABLE "fid_routines"."scored" (
+|     "id" bigint NOT NULL,
+|     "score" bigint DEFAULT fid_routines.add(1, 2),
+|     CONSTRAINT "scored_pkey" PRIMARY KEY (id ASC)
+| );
+< ok 0 -
+> exec
+| CREATE TABLE "fid_routines"."t1" (
+|     "id" bigint NOT NULL,
+|     "v" bigint DEFAULT fid_routines.a_constant(),
+|     CONSTRAINT "t1_pkey" PRIMARY KEY (id ASC)
+| );
+< ok 0 -
+> exec
+| CREATE TABLE "fid_routines"."t3" (
+|     "id" bigint NOT NULL,
+|     "v" bigint DEFAULT fid_routines."Quoted"(),
+|     CONSTRAINT "t3_pkey" PRIMARY KEY (id ASC)
+| );
+< ok 0 -
+> exec
+| CREATE TABLE "fid_routines"."tickets" (
+|     "id" bigint NOT NULL,
+|     "n" bigint,
+|     CONSTRAINT "tickets_pkey" PRIMARY KEY (id ASC)
+| );
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_routines.touch()
@@ -4309,6 +4623,49 @@
 | END;
 |
 | $$;
+< ok 0 -
+> exec
+| CREATE VIEW "fid_routines"."v_items" ("id", "name") AS 
+| SELECT id, name FROM fid_routines.items WHERE price > 0;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_routines.item_count()
+| 	RETURNS INT8
+| 	STABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| SELECT count(*) FROM fid_routines.v_items;
+| $$;
+< ok 0 -
+> exec
+| CREATE VIEW "fid_routines"."v_item_names" ("name") AS 
+| SELECT name FROM fid_routines.v_items;
+< ok 0 -
+> exec
+| CREATE VIEW "fid_routines"."v_renamed" ("item_id", "item_name") AS 
+| SELECT id, name FROM fid_routines.items;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_routines.z_read()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| SELECT count(*) FROM fid_routines.t1;
+| $$;
+< ok 0 -
+> exec
+| CREATE TABLE "fid_routines"."t2" (
+|     "id" bigint NOT NULL,
+|     "v" bigint DEFAULT fid_routines.z_read(),
+|     CONSTRAINT "t2_pkey" PRIMARY KEY (id ASC)
+| );
 < ok 0 -
 > exec
 | ALTER SEQUENCE "fid_routines"."ticket_seq" OWNED BY "fid_routines"."tickets"."n";
@@ -4708,6 +5065,177 @@
 : string
 | fid_routines
 : string
+| t1
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| t1
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_routines.a_constant()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| t2
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| t2
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_routines.z_read()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| t3
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| t3
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_routines."Quoted"()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
 | tickets
 : string
 | id
@@ -4997,6 +5525,42 @@
 : string
 | fid_routines
 : string
+| t1
+: string
+| t1_pkey
+: string
+| CREATE UNIQUE INDEX t1_pkey ON omni_testdefinitionfidelity.fid_routines.t1 USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_routines
+: string
+| t2
+: string
+| t2_pkey
+: string
+| CREATE UNIQUE INDEX t2_pkey ON omni_testdefinitionfidelity.fid_routines.t2 USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_routines
+: string
+| t3
+: string
+| t3_pkey
+: string
+| CREATE UNIQUE INDEX t3_pkey ON omni_testdefinitionfidelity.fid_routines.t3 USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_routines
+: string
 | ticket_seq
 : string
 | primary
@@ -5105,6 +5669,27 @@
 | fid_routines
 : string
 | scored
+: int64 0
+: null
+< row
+: string
+| fid_routines
+: string
+| t1
+: int64 0
+: null
+< row
+: string
+| fid_routines
+: string
+| t2
+: int64 0
+: null
+< row
+: string
+| fid_routines
+: string
+| t3
 : int64 0
 : null
 < row
@@ -5367,6 +5952,42 @@
 : string
 | fid_routines
 : string
+| Quoted
+: string
+| Quoted()
+: string
+| CREATE FUNCTION fid_routines."Quoted"()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 2;
+| $$
+< row
+: string
+| fid_routines
+: string
+| a_constant
+: string
+| a_constant()
+: string
+| CREATE FUNCTION fid_routines.a_constant()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 1;
+| $$
+< row
+: string
+| fid_routines
+: string
 | add
 : string
 | add(int8, int8)
@@ -5450,6 +6071,24 @@
 | 	BEGIN
 | 	RETURN (SELECT count(*) FROM omni_testdefinitionfidelity.fid_routines.items);
 | 	END;
+| $$
+< row
+: string
+| fid_routines
+: string
+| z_read
+: string
+| z_read()
+: string
+| CREATE FUNCTION fid_routines.z_read()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT count(*) FROM omni_testdefinitionfidelity.fid_routines.t1;
 | $$
 > query
 |

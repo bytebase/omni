@@ -3601,13 +3601,6 @@
 | );
 < ok 0 -
 > exec
-| CREATE TABLE "fid_new"."audit" (
-|     "at" timestamp with time zone,
-|     "customer_id" bigint,
-|     "id" bigint DEFAULT nextval('fid_m.ids'::REGCLASS)
-| );
-< ok 0 -
-> exec
 | CREATE FUNCTION fid_m.price_text()
 | 	RETURNS STRING
 | 	STABLE
@@ -3618,6 +3611,13 @@
 | 	AS $$
 | SELECT max(price)::STRING FROM fid_m.prices;
 | $$;
+< ok 0 -
+> exec
+| CREATE TABLE "fid_new"."audit" (
+|     "at" timestamp with time zone,
+|     "customer_id" bigint,
+|     "id" bigint DEFAULT nextval('fid_m.ids'::REGCLASS)
+| );
 < ok 0 -
 > exec
 | ALTER SEQUENCE "fid_m"."owned_seq" OWNED BY "fid_m"."owners"."b";
@@ -7967,22 +7967,6 @@
 | ALTER TABLE "fid_v"."items" ADD COLUMN "doubled" numeric AS (price * 2) VIRTUAL;
 < ok 0 -
 > exec
-| CREATE VIEW "fid_v"."named" ("other") AS 
-| SELECT id FROM fid_v.items;
-< ok 0 -
-> exec
-| CREATE VIEW "fid_v"."priced" ("id", "name") AS 
-| SELECT id, name FROM fid_v.items WHERE price > 1;
-< ok 0 -
-> exec
-| CREATE VIEW "fid_v"."cheap" ("id") AS 
-| SELECT p.id FROM fid_v.priced AS p JOIN fid_v.items AS i ON i.id = p.id;
-< ok 0 -
-> exec
-| CREATE VIEW "fid_v"."priced_names" ("name") AS 
-| SELECT name FROM fid_v.priced;
-< ok 0 -
-> exec
 | CREATE FUNCTION fid_v.add(a INT8, b INT8)
 | 	RETURNS INT8
 | 	IMMUTABLE
@@ -7993,13 +7977,6 @@
 | 	AS $$
 | 	SELECT (a + b) + 0;
 | $$;
-< ok 0 -
-> exec
-| CREATE TABLE "fid_v"."scored" (
-|     "id" bigint NOT NULL,
-|     "score" bigint DEFAULT fid_v.add(1, 2),
-|     CONSTRAINT "scored_pkey" PRIMARY KEY (id ASC)
-| );
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_v.bonus()
@@ -8014,6 +7991,30 @@
 | $$;
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_v.count_old()
+| 	RETURNS INT8
+| 	STABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| SELECT count(*) FROM fid_v.items;
+| $$;
+< ok 0 -
+> exec
+| CREATE VIEW "fid_v"."named" ("other") AS 
+| SELECT id FROM fid_v.items;
+< ok 0 -
+> exec
+| CREATE VIEW "fid_v"."priced" ("id", "name") AS 
+| SELECT id, name FROM fid_v.items WHERE price > 1;
+< ok 0 -
+> exec
+| CREATE VIEW "fid_v"."cheap" ("id") AS 
+| SELECT p.id FROM fid_v.priced AS p JOIN fid_v.items AS i ON i.id = p.id;
+< ok 0 -
+> exec
 | CREATE FUNCTION fid_v.count_items()
 | 	RETURNS INT8
 | 	STABLE
@@ -8026,16 +8027,15 @@
 | $$;
 < ok 0 -
 > exec
-| CREATE FUNCTION fid_v.count_old()
-| 	RETURNS INT8
-| 	STABLE
-| 	NOT LEAKPROOF
-| 	CALLED ON NULL INPUT
-| 	LANGUAGE SQL
-| 	SECURITY INVOKER
-| 	AS $$
-| SELECT count(*) FROM fid_v.items;
-| $$;
+| CREATE VIEW "fid_v"."priced_names" ("name") AS 
+| SELECT name FROM fid_v.priced;
+< ok 0 -
+> exec
+| CREATE TABLE "fid_v"."scored" (
+|     "id" bigint NOT NULL,
+|     "score" bigint DEFAULT fid_v.add(1, 2),
+|     CONSTRAINT "scored_pkey" PRIMARY KEY (id ASC)
+| );
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_v.touch()

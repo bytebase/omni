@@ -30,23 +30,6 @@ func (g *definitionGraph) AddEdge(start, end string) {
 	g.edges[start] = append(g.edges[start], end)
 }
 
-// reachable returns the IDs that depend on id, directly or not.
-func (g *definitionGraph) reachable(id string) map[string]bool {
-	seen := make(map[string]bool)
-	stack := []string{id}
-	for len(stack) > 0 {
-		n := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-		for _, next := range g.edges[n] {
-			if !seen[next] {
-				seen[next] = true
-				stack = append(stack, next)
-			}
-		}
-	}
-	return seen
-}
-
 // TopologicalSort returns the IDs in dependency order, or an error when the
 // graph has a cycle.
 func (g *definitionGraph) TopologicalSort() ([]string, error) {

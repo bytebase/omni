@@ -18,6 +18,8 @@ package catalog
 
 import (
 	"fmt"
+
+	crparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
 	"slices"
 	"strings"
 
@@ -305,24 +307,21 @@ func orderObjects(schemas []*metadatapb.SchemaMetadata) []objectRef {
 			}
 		}
 	}
-	// CockroachDB resolves the relations a routine body names when it creates
-	// the routine, and the sync records no routine dependencies, so a function
-	// follows every relation that does not itself depend on the function.
+	// CockroachDB resolves what a routine body names when it creates the
+	// routine, and the sync records no routine dependencies, so a routine
+	// follows the relations its body reads and the routines it calls, read on
+	// CockroachDB's tree.
 	for _, functionID := range sortedMapIDs(functions) {
-		dependents := graph.reachable(functionID)
-		for _, id := range sortedMapIDs(tables) {
-			if !dependents[id] {
-				graph.AddEdge(id, functionID)
-			}
+		function := functions[functionID]
+		for _, relation := range routineRelations(function.Definition) {
+			graph.AddEdge(relation, functionID)
 		}
-		for _, id := range sortedMapIDs(views) {
-			if !dependents[id] {
-				graph.AddEdge(id, functionID)
-			}
-		}
-		for _, id := range sortedMapIDs(materializedViews) {
-			if !dependents[id] {
-				graph.AddEdge(id, functionID)
+		tokens, _ := crparser.Tokens(routineBody(function.Definition))
+		for i, token := range tokens {
+			if i+1 < len(tokens) && tokens[i+1].Str == "(" {
+				for _, calledID := range functionsByName[token.Str] {
+					graph.AddEdge(calledID, functionID)
+				}
 			}
 		}
 	}
