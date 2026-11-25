@@ -15,7 +15,7 @@ omni's answer and CockroachDB's:
 | `lineage` | each result's `SourceColumns`, results separated by `\|` | the table OID and attribute number the RowDescription gives each column, resolved through `pg_class` and `pg_attribute`; `~` where it gives none |
 | `tables` | the relations of `SourceColumns` | the relations a view over the query depends on (`crdb_internal.backward_dependencies`); `~` for a statement no view can hold |
 
-The session column is the search_path. 179 queries: most of them
+The session column is the search_path. 184 queries: most of them
 `pg/analysis`'s span corpus where CockroachDB accepts it (it has no
 partitioned tables, system columns, `TABLESAMPLE`, `JSON_TABLE`,
 `USING (...) AS` or grouping sets), a section on hidden columns, and a
@@ -57,10 +57,10 @@ test starts no server.
 
 | aspect | rows | agree | differ | of which `~` |
 | --- | --- | --- | --- | --- |
-| results | 179 | 173 | 6 | 0 |
-| lineage | 179 | 176 | 3 | 88 |
-| tables | 179 | 179 | 0 | 8 |
-| all | 537 | 528 | 9 | 96 |
+| results | 184 | 178 | 6 | 0 |
+| lineage | 184 | 181 | 3 | 88 |
+| tables | 184 | 184 | 0 | 8 |
+| all | 552 | 543 | 9 | 96 |
 
 On the first 157 queries, the span Bytebase resolved through `pg/analysis`
 agreed on 467 of 471 rows; the native resolver agrees on 470, all but the

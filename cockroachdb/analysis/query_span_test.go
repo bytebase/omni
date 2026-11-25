@@ -56,6 +56,13 @@ func spanTestMetadata() map[string]*metadatapb.DatabaseSchemaMetadata {
 					sqlFunction("copied()", "RETURNS INT8 LANGUAGE SQL AS $$ INSERT INTO db.public.u (id) SELECT * FROM db.public.t RETURNING 1 $$"),
 					sqlFunction("deleted()", "RETURNS SETOF db.public.u LANGUAGE SQL AS $$ DELETE FROM db.public.u RETURNING * $$"),
 					// An overload whose arguments a later schema's overload matches.
+					// Mutually recursive functions: f reads t.ssn at its base
+					// case, g only through f; and a three-function cycle.
+					sqlFunction("f(n INT8)", "RETURNS STRING LANGUAGE PLpgSQL AS $$ BEGIN IF n = 0 THEN RETURN (SELECT ssn FROM db.public.t LIMIT 1); END IF; RETURN db.public.g(n - 1); END $$"),
+					sqlFunction("g(n INT8)", "RETURNS STRING LANGUAGE PLpgSQL AS $$ BEGIN RETURN db.public.f(n - 1); END $$"),
+					sqlFunction("cycle_a()", "RETURNS STRING LANGUAGE SQL AS $$ SELECT db.public.cycle_b() $$"),
+					sqlFunction("cycle_b()", "RETURNS STRING LANGUAGE SQL AS $$ SELECT db.public.cycle_c() $$"),
+					sqlFunction("cycle_c()", "RETURNS STRING LANGUAGE SQL AS $$ SELECT db.public.cycle_a() || name FROM db.public.t LIMIT 1 $$"),
 					sqlFunction("pick(i INT8)", "RETURNS STRING LANGUAGE SQL AS $$ SELECT ssn FROM db.public.t LIMIT 1 $$"),
 				},
 				Views: []*metadatapb.ViewMetadata{
@@ -165,6 +172,13 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 		// arguments too.
 		{"SELECT (SELECT ssn FROM f(t.name)) FROM t", []string{"ssn: db.public.t.name db.public.t.ssn"}},
 		{"SELECT o.ordinality, o.name FROM t WITH ORDINALITY AS o", []string{"ordinality:", "name: db.public.t.name"}},
+		// A tuple's fields are columns of their own; a value of unknown
+		// fields stays one column.
+		{"SELECT (ROW(t.id, t.ssn)).* FROM t", []string{"?column?: db.public.t.id", "?column?: db.public.t.ssn"}},
+		{"SELECT ((t.id, upper(t.ssn))).* FROM t", []string{"?column?: db.public.t.id", "?column?: db.public.t.ssn"}},
+		{"SELECT (((id, ssn) AS k, v)).* FROM t", []string{"k: db.public.t.id", "v: db.public.t.ssn"}},
+		{"SELECT b FROM (SELECT (ROW(t.id, t.ssn)).* FROM t) AS q(a, b)", []string{"b: db.public.t.ssn"}},
+		{"SELECT (unknown_fn(t.name)).* FROM t", []string{"?column?: db.public.t.name"}},
 		{"SELECT a FROM other.x", []string{"a: other.public.x.a"}},
 		// CockroachDB's own syntax.
 		{"SELECT name FROM t@t_pkey AS OF SYSTEM TIME '-1s'", []string{"name: db.public.t.name"}},
@@ -565,6 +579,12 @@ func TestResolveQuerySpanFunctions(t *testing.T) {
 		{"SELECT returning_into()", analysis.DML, nil, "db.public.u"},
 		{"SELECT diagnostics()", analysis.Select, []string{"diagnostics:"}, ""},
 		{"SELECT x.id FROM deleted() AS x(id)", analysis.DML, nil, "db.public.u"},
+		// Each function of a recursive cycle reads what any of them reads,
+		// whichever is called first.
+		{"SELECT f(0), g(1)", analysis.Select, []string{"f: db.public.t.ssn", "g: db.public.t.ssn"}, "db.public.t"},
+		{"SELECT g(1), f(0)", analysis.Select, []string{"g: db.public.t.ssn", "f: db.public.t.ssn"}, "db.public.t"},
+		{"SELECT cycle_a(), cycle_b(), cycle_c()", analysis.Select, []string{"cycle_a: db.public.t.name", "cycle_b: db.public.t.name", "cycle_c: db.public.t.name"}, "db.public.t"},
+		{"SELECT cycle_b(), cycle_c(), cycle_a()", analysis.Select, []string{"cycle_b: db.public.t.name", "cycle_c: db.public.t.name", "cycle_a: db.public.t.name"}, "db.public.t"},
 		// A builtin reads only its arguments.
 		{"SELECT lower(name) FROM t", analysis.Select, []string{"lower: db.public.t.name"}, "db.public.t"},
 	} {

@@ -103,6 +103,31 @@
 | {"columns":[{"name":"name","source":"db.public.customers.name"},{"name":"id","source":"db.public.customers.id"},{"name":"name","source":"db.public.customers.name"},{"name":"email","source":"db.public.customers.email"},{"name":"region","source":"db.public.customers.region"}],"tables":["db.public.customers"]}
 > raw
 | span public
+| SELECT (ROW(id, email)).* FROM customers
+< raw
+| {"columns":[{"name":"?column?","source":"db.public.customers.id"},{"name":"?column?","source":"db.public.customers.email"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT ((id, email)).* FROM customers
+< raw
+| {"columns":[{"name":"?column?","source":"db.public.customers.id"},{"name":"?column?","source":"db.public.customers.email"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT b FROM (SELECT (ROW(id, email)).* FROM customers) AS q(a, b)
+< raw
+| {"columns":[{"name":"b","source":"db.public.customers.email"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT (((id, email) AS k, v)).* FROM customers
+< raw
+| {"columns":[{"name":"k","source":"db.public.customers.id"},{"name":"v","source":"db.public.customers.email"}],"tables":["db.public.customers"]}
+> raw
+| span public
+| SELECT ((SELECT id, email FROM customers LIMIT 1)).*
+< raw
+| {"error":"42601"}
+> raw
+| span public
 | SELECT row_to_json(c) FROM customers c
 < raw
 | {"columns":[{"name":"row_to_json"}],"tables":["db.public.customers"]}

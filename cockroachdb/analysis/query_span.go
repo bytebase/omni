@@ -82,7 +82,6 @@ func ResolveQuerySpan(_ context.Context, statement string, opts ResolveOptions) 
 	if len(stmts) != 1 {
 		return nil, fmt.Errorf("expected exactly 1 statement, got %d", len(stmts))
 	}
-	r := newSpanResolver(opts)
 	stmt := stmts[0].AST
 	explain, explainAnalyze := stmt.(*tree.ExplainAnalyze)
 	if explainAnalyze {
@@ -90,10 +89,22 @@ func ResolveQuerySpan(_ context.Context, statement string, opts ResolveOptions) 
 	}
 	queryType := classifyStatement(stmt)
 	var results []spanColumn
-	if sel, ok := stmt.(*tree.Select); ok {
-		results = r.selectQuery(sel, nil)
-	} else {
-		r.statementTables(stmt, nil)
+	r := newSpanResolver(opts)
+	for {
+		if sel, ok := stmt.(*tree.Select); ok {
+			results = r.selectQuery(sel, nil)
+		} else {
+			r.statementTables(stmt, nil)
+		}
+		if !r.recursed || !r.grew {
+			break
+		}
+		// A function's body read another's, or its own, before it was
+		// complete: resolve again with what this pass learned, until no body
+		// grows. Every body only grows, so this ends.
+		next := newSpanResolver(opts)
+		next.previous = r.previous
+		r = next
 	}
 	if r.metadataErr != nil {
 		return nil, r.metadataErr
@@ -163,6 +174,7 @@ func newSpanResolver(opts ResolveOptions) *spanResolver {
 		predicates:      analysis.ColumnSet{},
 		expanding:       map[analysis.ColumnResource]bool{},
 		functions:       map[string]*functionBody{},
+		previous:        map[string]*functionBody{},
 	}
 }
 
@@ -259,9 +271,13 @@ type spanResolver struct {
 	// metadataErr is a failure to read the metadata, or to read a function
 	// definition in it, which fails the statement whatever it is.
 	metadataErr error
-	// functions holds each user-defined function's body, analyzed once; nil
-	// while it is being analyzed, so a recursive call reads nothing more.
-	functions map[string]*functionBody
+	// functions holds each user-defined function's body, analyzed once a
+	// pass; nil while it is being analyzed. A call of a body being analyzed
+	// reads previous, the body as the pass before found it, and sets
+	// recursed; a body larger than previous sets grew.
+	functions      map[string]*functionBody
+	previous       map[string]*functionBody
+	recursed, grew bool
 	// collect, while a function body is analyzed, gathers every column a
 	// name in it reads.
 	collect analysis.ColumnSet
@@ -634,6 +650,22 @@ func (r *spanResolver) selectTarget(target tree.SelectExpr, sc *spanScope) []spa
 	case *tree.TupleStar:
 		if rel := r.wholeRow(e.Expr, sc); rel != nil {
 			return relationColumns(rel)
+		}
+		if tuple, ok := tree.StripParens(e.Expr).(*tree.Tuple); ok {
+			// A tuple's fields are its own columns, named by its labels or,
+			// as CockroachDB names them, ?column?. A value of a type whose
+			// fields are unknown, such as a composite column, stays one
+			// column that reads all of it.
+			cols := make([]spanColumn, len(tuple.Exprs))
+			for i, field := range tuple.Exprs {
+				name := "?column?"
+				if i < len(tuple.Labels) {
+					name = tuple.Labels[i]
+				}
+				_, plain := field.(*tree.UnresolvedName)
+				cols[i] = spanColumn{name: name, sources: r.sources(field, sc), plain: plain}
+			}
+			return cols
 		}
 	}
 	_, plain := target.Expr.(*tree.UnresolvedName)
@@ -1708,6 +1740,10 @@ func (r *spanResolver) applyBody(body *functionBody) analysis.ColumnSet {
 // unknown.
 func (r *spanResolver) analyzeFunction(key string, f *metadata.FunctionMetadata) *functionBody {
 	if body, ok := r.functions[key]; ok {
+		if body == nil {
+			r.recursed = true
+			return r.previous[key]
+		}
 		return body
 	}
 	r.functions[key] = nil
@@ -1723,7 +1759,25 @@ func (r *spanResolver) analyzeFunction(key string, f *metadata.FunctionMetadata)
 	r.accesses, r.predicates, r.collect = saved.accesses, saved.predicates, saved.collect
 	r.readsSystem, r.writes, r.inView, r.inExplain, r.resolveErr = saved.readsSystem, saved.writes, saved.inView, saved.inExplain, saved.resolveErr
 	r.functions[key] = body
+	if r.previous[key].size() < body.size() {
+		r.grew = true
+	}
+	r.previous[key] = body
 	return body
+}
+
+// size measures a body, which only grows from one pass to the next.
+func (b *functionBody) size() int {
+	if b == nil {
+		return -1
+	}
+	n := len(b.sources) + len(b.accesses) + len(b.predicates)
+	for _, flag := range []bool{b.readsSystem, b.writes} {
+		if flag {
+			n++
+		}
+	}
+	return n
 }
 
 // walkFunction walks the body of a CREATE FUNCTION or CREATE PROCEDURE.

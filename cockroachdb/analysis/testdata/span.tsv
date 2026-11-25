@@ -45,6 +45,21 @@ db.public.customers	db.public.customers	engine	base	public	tables	TABLE customer
 name, id, name, email, region	name, id, name, email, region	engine	base	public	results	SELECT (c).name, (c).* FROM customers c
 db.public.customers.name | db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	db.public.customers.name | db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	engine	base	public	lineage	SELECT (c).name, (c).* FROM customers c
 db.public.customers	db.public.customers	engine	base	public	tables	SELECT (c).name, (c).* FROM customers c
+?column?, ?column?	?column?, ?column?	engine	base	public	results	SELECT (ROW(id, email)).* FROM customers
+db.public.customers.id | db.public.customers.email	db.public.customers.id | db.public.customers.email	engine	base	public	lineage	SELECT (ROW(id, email)).* FROM customers
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT (ROW(id, email)).* FROM customers
+?column?, ?column?	?column?, ?column?	engine	base	public	results	SELECT ((id, email)).* FROM customers
+db.public.customers.id | db.public.customers.email	db.public.customers.id | db.public.customers.email	engine	base	public	lineage	SELECT ((id, email)).* FROM customers
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT ((id, email)).* FROM customers
+b	b	engine	base	public	results	SELECT b FROM (SELECT (ROW(id, email)).* FROM customers) AS q(a, b)
+db.public.customers.email	db.public.customers.email	engine	base	public	lineage	SELECT b FROM (SELECT (ROW(id, email)).* FROM customers) AS q(a, b)
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT b FROM (SELECT (ROW(id, email)).* FROM customers) AS q(a, b)
+k, v	k, v	engine	base	public	results	SELECT (((id, email) AS k, v)).* FROM customers
+db.public.customers.id | db.public.customers.email	db.public.customers.id | db.public.customers.email	engine	base	public	lineage	SELECT (((id, email) AS k, v)).* FROM customers
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT (((id, email) AS k, v)).* FROM customers
+error:42601	error:42601	engine	base	public	results	SELECT ((SELECT id, email FROM customers LIMIT 1)).*
+error:42601	error:42601	engine	base	public	lineage	SELECT ((SELECT id, email FROM customers LIMIT 1)).*
+error:42601	error:42601	engine	base	public	tables	SELECT ((SELECT id, email FROM customers LIMIT 1)).*
 row_to_json	row_to_json	engine	base	public	results	SELECT row_to_json(c) FROM customers c
 db.public.customers.email db.public.customers.id db.public.customers.name db.public.customers.region	~	engine	base	public	lineage	SELECT row_to_json(c) FROM customers c
 db.public.customers	db.public.customers	engine	base	public	tables	SELECT row_to_json(c) FROM customers c

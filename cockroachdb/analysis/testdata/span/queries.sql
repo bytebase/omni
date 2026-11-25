@@ -21,6 +21,11 @@ TABLE customers
 
 -- Star expansion.
 SELECT (c).name, (c).* FROM customers c
+SELECT (ROW(id, email)).* FROM customers
+SELECT ((id, email)).* FROM customers
+SELECT b FROM (SELECT (ROW(id, email)).* FROM customers) AS q(a, b)
+SELECT (((id, email) AS k, v)).* FROM customers
+SELECT ((SELECT id, email FROM customers LIMIT 1)).*
 SELECT row_to_json(c) FROM customers c
 SELECT * FROM ONLY customers
 SELECT a, b FROM customers AS c(a, b)
