@@ -486,7 +486,7 @@ func TestLoadMetadataInstallsSyncedKeyExpressions(t *testing.T) {
 	for _, idx := range requireTable(t, c, "t").Indexes {
 		exprs[idx.Name] = idx.Columns[0].Expr
 	}
-	if got := exprs["ix_quote"]; !strings.Contains(got, `it\'s`) {
+	if got := exprs["ix_quote"]; !strings.Contains(got, `it''s`) {
 		t.Errorf("ix_quote = %q, want the path it's", got)
 	}
 	if got := exprs["ix_backslash"]; !strings.Contains(got, `a\\b`) {
@@ -707,7 +707,6 @@ const (
 // still load as the catalog defines it from TiDB's own SHOW CREATE TABLE, and
 // one that matches TiDB fails, so a fix removes its entry.
 var metadataLoadGaps = map[string]string{
-	"table:ex":       "key expressions deparse as MySQL writes them: no space after a comma, CAST AS CHAR with its charset, 'it\\'s'",
 	"table:ck":       "CHECK expressions deparse as MySQL writes them: each comparison parenthesized, <> for !=, 'it\\'s'",
 	"table:defaults": "a string default with a quote is written 'it\\'s', not 'it''s'",
 }

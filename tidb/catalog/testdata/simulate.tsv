@@ -3265,7 +3265,7 @@ ok:5cf6455b730a	ok:5cf6455b730a	engine	features@generated	generated:column	ALTER
 ok:0163b3aed61a	ok:0163b3aed61a	engine	features@generated	generated:column	CREATE TABLE gc2 (a INT, b INT AS (a + 1), c INT AS (b * 2) STORED, KEY ((b + 1)))
 3107	3107	engine	features@generated	generated:column	CREATE TABLE gc3 (a INT, b INT AS (c + 1), c INT AS (a + 1))
 3109	3109	engine	features@generated	generated:column	CREATE TABLE gc4 (a INT AUTO_INCREMENT PRIMARY KEY, b INT AS (a + 1))
-ok	ok:78e83a998337	engine	features@generated	index:functional	ALTER TABLE people ADD INDEX idx_tags ((CAST(doc->'$.tags' AS UNSIGNED ARRAY)))
+ok:78e83a998337	ok:78e83a998337	engine	features@generated	index:functional	ALTER TABLE people ADD INDEX idx_tags ((CAST(doc->'$.tags' AS UNSIGNED ARRAY)))
 ok:827670b34f67	ok:827670b34f67	engine	features@generated	index:functional	ALTER TABLE people ADD INDEX idx_expr ((age + 1))
 1054	1054	engine	features@generated	index:functional	ALTER TABLE people ADD INDEX idx_bad ((nope + 1))
 3758	3758	engine	features@generated	index:functional	ALTER TABLE people ADD INDEX idx_rand ((RAND()))

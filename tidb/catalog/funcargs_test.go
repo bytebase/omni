@@ -9,9 +9,9 @@ import "testing"
 // different index: the one is multi-valued and the other is not, and the
 // accept/reject gate cannot see the difference.
 //
-// The stored text is the engine's: SHOW CREATE TABLE on TiDB v8.5.5 and MySQL
-// 8.0 renders the key part as ((cast(`b` as signed array))). The charset after
-// a CHAR cast is omni's own and predates this test.
+// The stored text is the engine's: SHOW CREATE TABLE on TiDB v8.5.5 renders
+// the key part as ((cast(`b` as signed array))), restored as a generated
+// column is, so a string literal carries its character set.
 func TestFunctionArgumentKeyParts(t *testing.T) {
 	c := New()
 	const ddl = "CREATE DATABASE d; USE d; " +
@@ -36,10 +36,10 @@ func TestFunctionArgumentKeyParts(t *testing.T) {
 	}
 	want := map[string]string{
 		"mv":    "cast(`b` as signed array)",
-		"mvc":   "cast(`b` as char(10) charset utf8mb4 array)",
+		"mvc":   "cast(`b` as char(10) array)",
 		"plain": "cast(`b` as signed)",
 		"ex":    "extract(day_hour from `b`)",
-		"pos":   "position('x' in `b`)",
+		"pos":   "position(_utf8mb4'x' in `b`)",
 	}
 	for _, idx := range tbl.Indexes {
 		w, ok := want[idx.Name]
