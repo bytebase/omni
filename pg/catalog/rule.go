@@ -2523,12 +2523,14 @@ func (c *Catalog) coerceRuleLiteral(b *ruleBindings, n nodes.Node, target uint32
 }
 
 // coerceEnumComparison coerces a quoted literal compared to an enum to that
-// enum. An enum's only operators are the anyenum comparisons, so the
-// literal takes the other side's type.
+// enum when the comparison resolved to a built-in operator: an enum's only
+// built-in operators are the anyenum comparisons, so the literal takes the
+// other side's type. A user-defined operator (bindRuleOperator records it)
+// takes the literal as its own signature says, which is left alone.
 //
 // pg: src/include/catalog/pg_operator.dat — enum_eq, enum_ne, enum_lt, enum_gt, enum_le, enum_ge
 func (c *Catalog) coerceEnumComparison(b *ruleBindings, e *nodes.A_Expr, lType, rType uint32) error {
-	if e.Lexpr == nil {
+	if e.Lexpr == nil || b == nil || b.operByList[e.Name] != 0 {
 		return nil
 	}
 	if _, name := qualifiedName(e.Name); name != "=" && name != "<>" && name != "<" && name != ">" && name != "<=" && name != ">=" {

@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -13,28 +14,32 @@ import (
 // it the inner body is not run, where PostgreSQL would run out of stack.
 const maxPLRunDepth = 16
 
+// errNotRun reports a body the catalog does not run. A body that calls one
+// is not run either, as it cannot know whether the call returns.
+var errNotRun = errors.New("PL/pgSQL body not run")
+
 // runPLpgSQL runs a compiled PL/pgSQL body, a DO block or a procedure
 // CALL runs, when the body is a straight list of statements: no variables,
 // no control flow, no exception handlers. Each statement then runs as
 // PL/pgSQL runs it: a utility statement executes, a DML statement is
 // analyzed against the catalog (its rows are not simulated), and RAISE
 // EXCEPTION fails the block. A failed block leaves the catalog as it was.
-// A body with anything else is not run, as its path depends on data.
+// A body with anything else returns errNotRun, as its path depends on data.
 //
 // fn holds the parameters a procedure's statements may name, nil for DO.
 //
 // pg: src/pl/plpgsql/src/pl_exec.c — exec_stmt_block, exec_stmt_execsql, exec_stmt_raise
 func (c *Catalog) runPLpgSQL(body string, fn *sqlFnParams) error {
 	if c.plRunDepth >= maxPLRunDepth {
-		return nil
+		return errNotRun
 	}
 	block, err := plparser.Parse(body)
 	if err != nil {
-		return nil
+		return errNotRun
 	}
 	var stmts []plast.Node
 	if !plStraightLine(block, &stmts) {
-		return nil
+		return errNotRun
 	}
 	c.plRunDepth++
 	defer func() { c.plRunDepth-- }()
@@ -66,7 +71,7 @@ func (c *Catalog) runPLpgSQL(body string, fn *sqlFnParams) error {
 		}
 		list, err := parser.Parse(text)
 		if err != nil || list == nil {
-			return fail(nil)
+			return fail(errNotRun)
 		}
 		for _, item := range list.Items {
 			stmt := unwrapRawStmt(item)
@@ -76,15 +81,105 @@ func (c *Catalog) runPLpgSQL(body string, fn *sqlFnParams) error {
 				}
 				continue
 			}
+			if err := plRefusedUtility(stmt); err != nil {
+				return fail(err)
+			}
 			if saved == nil {
 				saved = c.Clone()
 			}
-			if err := c.ProcessUtility(stmt); err != nil {
+			switch s := stmt.(type) {
+			case *nodes.CallStmt:
+				err = c.execCall(s.Funccall, fn)
+			case *nodes.DoStmt:
+				err = c.execDo(s)
+			default:
+				err = c.ProcessUtility(stmt)
+			}
+			if err != nil {
 				return fail(err)
 			}
 		}
 	}
 	return nil
+}
+
+// plRefusedUtility is the error PostgreSQL raises for a statement a function
+// may not run, as it cannot run inside a transaction block; errNotRun for a
+// transaction statement, which PL/pgSQL handles apart.
+//
+// pg: src/backend/tcop/utility.c — standard_ProcessUtility, ProcessUtilitySlow, ExecDropStmt (PreventInTransactionBlock)
+// pg: src/backend/commands/vacuum.c — vacuum
+// pg: src/backend/access/transam/xact.c — PreventInTransactionBlock
+func plRefusedUtility(stmt nodes.Node) error {
+	what := ""
+	switch s := stmt.(type) {
+	case *nodes.TransactionStmt:
+		return errNotRun
+	case *nodes.CreateTableSpaceStmt:
+		what = "CREATE TABLESPACE"
+	case *nodes.DropTableSpaceStmt:
+		what = "DROP TABLESPACE"
+	case *nodes.CreatedbStmt:
+		what = "CREATE DATABASE"
+	case *nodes.DropdbStmt:
+		what = "DROP DATABASE"
+	case *nodes.AlterSystemStmt:
+		what = "ALTER SYSTEM"
+	case *nodes.VacuumStmt:
+		if s.IsVacuumCmd {
+			what = "VACUUM"
+		}
+	case *nodes.IndexStmt:
+		if s.Concurrent {
+			what = "CREATE INDEX CONCURRENTLY"
+		}
+	case *nodes.DropStmt:
+		if s.Concurrent {
+			what = "DROP INDEX CONCURRENTLY"
+		}
+	case *nodes.ReindexStmt:
+		// REINDEX CONCURRENTLY, DATABASE and SYSTEM refuse a transaction
+		// block too, each with its own message; the catalog does not run them.
+		return errNotRun
+	case *nodes.AlterTableStmt:
+		if s.Cmds != nil {
+			for _, item := range s.Cmds.Items {
+				if cmd, ok := item.(*nodes.AlterTableCmd); ok && cmd.Subtype == int(nodes.AT_DetachPartition) {
+					if pc, ok := cmd.Def.(*nodes.PartitionCmd); ok && pc.Concurrent {
+						what = "ALTER TABLE ... DETACH CONCURRENTLY"
+					}
+				}
+			}
+		}
+	}
+	if what == "" {
+		return nil
+	}
+	return &Error{Code: CodeActiveSQLTransaction, Message: what + " cannot be executed from a function"}
+}
+
+// execCall resolves a CALL's procedure, its arguments naming fn's
+// parameters, and runs a PL/pgSQL body when runPLpgSQL can. A procedure
+// with SET options runs under settings the catalog does not apply, so it
+// is not run.
+//
+// pg: src/backend/commands/functioncmds.c — ExecuteCallStmt
+func (c *Catalog) execCall(fc *nodes.FuncCall, fn *sqlFnParams) error {
+	b := newRuleBindings(0, 0)
+	b.fn = fn
+	if err := c.checkCall(b, fc, &ruleEvalContext{}); err != nil {
+		return err
+	}
+	// checkCall records the procedure after what its arguments use.
+	n := len(b.funcDeps)
+	if n == 0 {
+		return errNotRun
+	}
+	up := c.userProcs[b.funcDeps[n-1]]
+	if up == nil || up.Kind != 'p' || !strings.EqualFold(up.Language, "plpgsql") || len(up.SetConfig) > 0 {
+		return errNotRun
+	}
+	return c.runPLpgSQL(up.Body, procParams(up))
 }
 
 // plStraightLine collects the statements of a block that runs every one of

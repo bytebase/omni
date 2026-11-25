@@ -466,10 +466,18 @@ func plNameList(names []string) *nodes.List {
 
 // checkDo compiles a DO block and runs it when runPLpgSQL can: a block
 // whose path depends on data is compiled only.
+func (c *Catalog) checkDo(s *nodes.DoStmt) error {
+	if err := c.execDo(s); !errors.Is(err, errNotRun) {
+		return err
+	}
+	return nil
+}
+
+// execDo compiles a DO block and runs it, or returns errNotRun.
 //
 // pg: src/backend/commands/functioncmds.c — ExecuteDoStmt
 // pg: src/pl/plpgsql/src/pl_handler.c — plpgsql_inline_handler
-func (c *Catalog) checkDo(s *nodes.DoStmt) error {
+func (c *Catalog) execDo(s *nodes.DoStmt) error {
 	language, body := "plpgsql", ""
 	if s.Args != nil {
 		for _, item := range s.Args.Items {
@@ -494,7 +502,7 @@ func (c *Catalog) checkDo(s *nodes.DoStmt) error {
 	case "sql", "c", "internal":
 		return &Error{Code: CodeFeatureNotSupported, Message: fmt.Sprintf("language %q does not support inline code execution", language)}
 	case "plperl", "plperlu", "pltcl", "pltclu", "plpythonu", "plpython2u", "plpython3u":
-		return nil
+		return errNotRun
 	}
 	return &Error{Code: CodeUndefinedObject, Message: fmt.Sprintf("language %q does not exist", language)}
 }
