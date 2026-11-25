@@ -67,17 +67,52 @@ func queryRelations(query string) []string {
 	if err != nil {
 		return nil
 	}
-	ctes := cteNames(query)
 	var relations []string
+	storedRelations(stmt, nil, func(tn *tree.TableName) {
+		relations = append(relations, getObjectID(schemaOf(tn), string(tn.ObjectName)))
+	})
+	return relations
+}
+
+// storedRelations calls visit for each relation a statement names that is
+// not a CTE in scope. A WITH's names are in scope in the query it heads and
+// in each CTE after its own, or in every CTE when RECURSIVE; a CTE's own
+// body reads the stored relation of its name. The names a WITH nested deeper
+// binds are left out wherever they appear.
+func storedRelations(stmt tree.Statement, visible map[string]bool, visit func(*tree.TableName)) {
+	if sel, ok := stmt.(*tree.Select); ok && sel.With != nil {
+		inner := make(map[string]bool)
+		for name := range visible {
+			inner[name] = true
+		}
+		for _, cte := range sel.With.CTEList {
+			if sel.With.Recursive {
+				inner[string(cte.Name.Alias)] = true
+			}
+		}
+		for _, cte := range sel.With.CTEList {
+			scope := make(map[string]bool)
+			for name := range inner {
+				scope[name] = true
+			}
+			storedRelations(cte.Stmt, scope, visit)
+			inner[string(cte.Name.Alias)] = true
+		}
+		body := *sel
+		body.With = nil
+		storedRelations(&body, inner, visit)
+		return
+	}
+	nested := cteNames(tree.AsString(stmt))
 	ctx := tree.NewFmtCtx(tree.FmtSimple, tree.FmtReformatTableNames(func(ctx *tree.FmtCtx, tn *tree.TableName) {
-		if tn.ExplicitSchema || !ctes[string(tn.ObjectName)] {
-			relations = append(relations, getObjectID(schemaOf(tn), string(tn.ObjectName)))
+		name := string(tn.ObjectName)
+		if tn.ExplicitSchema || !visible[name] && !nested[name] {
+			visit(tn)
 		}
 		ctx.WithReformatTableNames(nil, func() { ctx.FormatNode(tn) })
 	}))
 	ctx.FormatNode(stmt)
 	ctx.Close()
-	return relations
 }
 
 // cteNames returns the names a query's WITH clauses bind: a word followed by

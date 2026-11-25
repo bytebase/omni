@@ -20,6 +20,7 @@ func TestLoadSDLRefuses(t *testing.T) {
 		"table as select":  "CREATE TABLE t AS SELECT 1",
 		"unknown sequence": "ALTER SEQUENCE s INCREMENT BY 2",
 		"locality":         "CREATE TABLE t (id INT8 PRIMARY KEY) LOCALITY GLOBAL",
+		"on update":        "CREATE TABLE t (id INT8 PRIMARY KEY, updated TIMESTAMPTZ DEFAULT now() ON UPDATE now())",
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := catalog.LoadSDL(sdl)
@@ -304,4 +305,15 @@ func TestSDLUnqualifiedRoutine(t *testing.T) {
 		catalog.SDLMigrationOptions{})
 	require.NoError(t, err)
 	require.Nil(t, plan, "%v", plan)
+}
+
+// TestSDLViewCTEScope reads a CTE's own name inside its body as the stored
+// relation, and as the CTE in the query the WITH heads.
+func TestSDLViewCTEScope(t *testing.T) {
+	plan, err := catalog.BuildSDLMigrationPlan("", `CREATE TABLE public.t (id INT8 PRIMARY KEY);
+CREATE VIEW public.a AS WITH z AS (SELECT id FROM z) SELECT id FROM z;
+CREATE VIEW public.z AS SELECT id FROM public.t;`, catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	sql := plan.SQL()
+	require.Less(t, strings.Index(sql, `CREATE VIEW "public"."z"`), strings.Index(sql, `CREATE VIEW "public"."a"`), sql)
 }

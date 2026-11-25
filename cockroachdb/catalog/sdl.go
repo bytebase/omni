@@ -412,6 +412,10 @@ func (l *sdlLoader) addColumn(schema string, table *metadatapb.TableMetadata, co
 	if column.DefaultExpr.Expr != nil {
 		c.Default = sdlExpr(column.DefaultExpr.Expr)
 	}
+	if column.OnUpdateExpr.Expr != nil {
+		// The sync reads no ON UPDATE, so a migration could not keep one.
+		return fmt.Errorf("column %s: ON UPDATE is not supported", column.Name)
+	}
 	if column.IsSerial {
 		c.Default = "unique_rowid()"
 	}
@@ -676,19 +680,15 @@ func (l *sdlLoader) createView(n *tree.CreateView) error {
 	s := l.schema(schema)
 	dropCatalogs(n.AsSource)
 	definition := tree.AsString(n.AsSource)
-	ctes := cteNames(definition)
 	var dependencies []*metadatapb.DependencyColumn
 	seen := make(map[string]bool)
-	ctx := tree.NewFmtCtx(tree.FmtSimple, tree.FmtReformatTableNames(func(ctx *tree.FmtCtx, tn *tree.TableName) {
+	storedRelations(n.AsSource, nil, func(tn *tree.TableName) {
 		dep := &metadatapb.DependencyColumn{Schema: schemaOf(tn), Table: string(tn.ObjectName)}
-		if id := getObjectID(dep.Schema, dep.Table); !seen[id] && (tn.ExplicitSchema || !ctes[dep.Table]) {
+		if id := getObjectID(dep.Schema, dep.Table); !seen[id] {
 			seen[id] = true
 			dependencies = append(dependencies, dep)
 		}
-		ctx.WithReformatTableNames(nil, func() { ctx.FormatNode(tn) })
-	}))
-	ctx.FormatNode(n.AsSource)
-	ctx.Close()
+	})
 	names := make([]string, len(n.ColumnNames))
 	for i, name := range n.ColumnNames {
 		names[i] = string(name)
