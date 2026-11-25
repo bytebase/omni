@@ -124,7 +124,7 @@ func parseAlterApplicationPackage(p *Parser, s *ast.ObjectStmt) error {
 	case p.acceptWords("REGISTER", "VERSION"):
 		return p.parseApplicationPackageVersionUsing(s, "REGISTER VERSION", start)
 	case p.acceptWords("ADD", "PATCH"):
-		if p.cur.Type == tokInt {
+		if p.curIs(tokInt) {
 			if _, err := p.parseApplicationLiteralClause(s, "ADD PATCH", start, tokInt); err != nil {
 				return err
 			}
@@ -361,7 +361,7 @@ func (p *Parser) parseApplicationAccounts(c *ast.ObjectClause) error {
 	if _, err := p.expect('='); err != nil {
 		return err
 	}
-	if p.cur.Type != '(' {
+	if !p.curIs('(') {
 		return p.syntaxErrorAtCur()
 	}
 	if err := p.parseObjectValue(opt); err != nil {

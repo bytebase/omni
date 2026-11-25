@@ -23,13 +23,13 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	// object-type dispatch to reject.
 	orReplace := false
 	orAlter := false
-	if p.cur.Type == kwOR {
-		switch p.peekNext().Type {
-		case kwREPLACE:
+	if p.curIs(kwOR) {
+		switch {
+		case p.nextIs(kwREPLACE):
 			p.advance() // consume OR
 			p.advance() // consume REPLACE
 			orReplace = true
-		case kwALTER:
+		case p.nextIs(kwALTER):
 			p.advance() // consume OR
 			p.advance() // consume ALTER
 			orAlter = true
@@ -38,7 +38,7 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 
 	// An object read by its documented shape (object.go) is dispatched by the
 	// registry before the switches below.
-	if f := p.matchObjectForm(); f != nil {
+	if f := p.matchObjectForm(formCreates); f != nil {
 		return p.parseObjectStmt("CREATE", f, start, orReplace, orAlter)
 	}
 	// CATALOG / EXTERNAL ACCESS INTEGRATION (integration.go).
@@ -58,14 +58,14 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	// (T2.4) and to FUNCTION / EXTERNAL FUNCTION / PROCEDURE (T4.5). It is
 	// checked before the temporary modifiers since it precedes the object type.
 	secure := false
-	if p.cur.Type == kwSECURE {
+	if p.curIs(kwSECURE) {
 		p.advance()
 		secure = true
 	}
 
 	// Optional RECURSIVE modifier (VIEW-only).
 	recursive := false
-	if p.cur.Type == kwRECURSIVE {
+	if p.curIs(kwRECURSIVE) {
 		p.advance()
 		recursive = true
 	}
@@ -76,7 +76,7 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	// MATERIALIZED — otherwise a bare "INTERACTIVE" identifier object is left for
 	// the dispatch switch to reject. INTERACTIVE pairs only with MATERIALIZED VIEW.
 	interactive := false
-	if p.curIsWord("INTERACTIVE") && p.peekNext().Type == kwMATERIALIZED {
+	if p.curIsWord("INTERACTIVE") && p.nextIs(kwMATERIALIZED) {
 		p.advance() // consume INTERACTIVE
 		interactive = true
 	}
@@ -88,39 +88,39 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	// FUNCTION / PROCEDURE.
 	if secure || recursive || interactive {
 		if !recursive && !interactive {
-			if f := p.matchObjectForm(); f != nil {
+			if f := p.matchObjectForm(formSecure); f != nil {
 				return p.parseCreateObjectStmt(f, start, orReplace, orAlter, false, true)
 			}
-			if isWordToken(p.cur, "AGGREGATE") && p.peekNext().Type == kwFUNCTION {
+			if p.curWord("AGGREGATE") && p.nextIs(kwFUNCTION) {
 				p.advance() // consume AGGREGATE
 				return p.parseCreateAggregateFunctionStmt(start, orReplace, orAlter, true, false)
 			}
 		}
-		switch p.cur.Type {
-		case kwVIEW:
+		switch {
+		case p.curIs(kwVIEW):
 			return p.parseCreateViewStmt(start, orReplace, orAlter, secure, recursive)
-		case kwMATERIALIZED:
+		case p.curIs(kwMATERIALIZED):
 			p.advance() // consume MATERIALIZED
 			return p.parseCreateMaterializedViewStmt(start, orReplace, orAlter, secure, interactive)
-		case kwFUNCTION:
+		case p.curIs(kwFUNCTION):
 			if recursive {
 				return p.unsupported("CREATE")
 			}
 			// CREATE [OR REPLACE] SECURE FUNCTION ... (T4.5).
 			return p.parseCreateFunctionStmt(start, orReplace, orAlter, true, false)
-		case kwPROCEDURE:
+		case p.curIs(kwPROCEDURE):
 			if recursive {
 				return p.unsupported("CREATE")
 			}
 			// CREATE [OR REPLACE] SECURE PROCEDURE ... (T4.5).
 			return p.parseCreateProcedureStmt(start, orReplace, orAlter, true, false)
-		case kwEXTERNAL:
+		case p.curIs(kwEXTERNAL):
 			if recursive {
 				return p.unsupported("CREATE")
 			}
 			// CREATE [OR REPLACE] SECURE EXTERNAL FUNCTION ... (T4.5).
 			p.advance() // consume EXTERNAL
-			if p.cur.Type != kwFUNCTION {
+			if !p.curIs(kwFUNCTION) {
 				// EXTERNAL TABLE (and any other EXTERNAL object) is owned by another node.
 				return p.unsupported("CREATE")
 			}
@@ -131,7 +131,7 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	}
 
 	// CREATE [ OR REPLACE ] AGGREGATE FUNCTION ... (LANGUAGE PYTHON).
-	if isWordToken(p.cur, "AGGREGATE") && p.peekNext().Type == kwFUNCTION {
+	if p.curWord("AGGREGATE") && p.nextIs(kwFUNCTION) {
 		p.advance() // consume AGGREGATE
 		return p.parseCreateAggregateFunctionStmt(start, orReplace, orAlter, false, false)
 	}
@@ -143,24 +143,24 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	localOrGlobal := false
 
 	// Consume optional LOCAL/GLOBAL prefix (they don't change semantics here)
-	if p.cur.Type == kwLOCAL || p.cur.Type == kwGLOBAL {
+	if p.curIs(kwLOCAL) || p.curIs(kwGLOBAL) {
 		p.advance()
 		localOrGlobal = true
 	}
 
-	switch p.cur.Type {
-	case kwTRANSIENT:
+	switch {
+	case p.curIs(kwTRANSIENT):
 		p.advance()
 		transient = true
-	case kwTEMPORARY, kwTEMP:
+	case p.curIs(kwTEMPORARY), p.curIs(kwTEMP):
 		p.advance()
 		temporary = true
 		// TEMP[ORARY] READ ONLY TABLE ... CLONE
 		// (https://docs.snowflake.com/en/sql-reference/sql/create-table).
-		if p.cur.Type == kwREAD && p.peekNext().Type == kwONLY {
+		if p.curIs(kwREAD) && p.nextIs(kwONLY) {
 			p.advance() // consume READ
 			p.advance() // consume ONLY
-			if p.cur.Type != kwTABLE {
+			if !p.curIs(kwTABLE) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			return p.parseCreateTableBody(&ast.CreateTableStmt{
@@ -172,36 +172,36 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 			})
 		}
 		if !localOrGlobal {
-			if f := p.matchObjectForm(); f != nil {
+			if f := p.matchObjectForm(formTemp); f != nil {
 				return p.parseCreateObjectStmt(f, start, orReplace, orAlter, true, false)
 			}
-			if p.cur.Type == kwSECURE {
+			if p.curIs(kwSECURE) {
 				p.advance() // consume SECURE
-				if f := p.matchObjectForm(); f != nil {
+				if f := p.matchObjectForm(formTempSecure); f != nil {
 					return p.parseCreateObjectStmt(f, start, orReplace, orAlter, true, true)
 				}
-				if isWordToken(p.cur, "AGGREGATE") && p.peekNext().Type == kwFUNCTION {
+				if p.curWord("AGGREGATE") && p.nextIs(kwFUNCTION) {
 					p.advance() // consume AGGREGATE
 					return p.parseCreateAggregateFunctionStmt(start, orReplace, orAlter, true, true)
 				}
-				if p.cur.Type == kwFUNCTION {
+				if p.curIs(kwFUNCTION) {
 					return p.parseCreateFunctionStmt(start, orReplace, orAlter, true, true)
 				}
 				return p.unsupported("CREATE")
 			}
-			if isWordToken(p.cur, "AGGREGATE") && p.peekNext().Type == kwFUNCTION {
+			if p.curWord("AGGREGATE") && p.nextIs(kwFUNCTION) {
 				p.advance() // consume AGGREGATE
 				return p.parseCreateAggregateFunctionStmt(start, orReplace, orAlter, false, true)
 			}
 		}
-	case kwVOLATILE:
+	case p.curIs(kwVOLATILE):
 		p.advance()
 		volatile = true
 	}
 
 	// CREATE [ OR REPLACE ] INTERACTIVE WAREHOUSE (warehouse.go).
 	if !transient && !temporary && !volatile && !orAlter &&
-		tokIsWord(p.cur, "INTERACTIVE") && p.peekNext().Type == kwWAREHOUSE {
+		p.curNameWord("INTERACTIVE") && p.nextIs(kwWAREHOUSE) {
 		return p.parseCreateInteractiveWarehouseStmt(start, orReplace)
 	}
 
@@ -209,7 +209,7 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	// (https://docs.snowflake.com/en/sql-reference/sql/create-interactive-table).
 	// INTERACTIVE is not a keyword token; it takes no temporary modifier.
 	if !transient && !temporary && !volatile && !orAlter &&
-		p.curIsWord("INTERACTIVE") && p.peekNext().Type == kwTABLE {
+		p.curIsWord("INTERACTIVE") && p.nextIs(kwTABLE) {
 		p.advance() // consume INTERACTIVE
 		return p.parseCreateTableBody(&ast.CreateTableStmt{
 			OrReplace:   orReplace,
@@ -225,7 +225,7 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	// left for the dispatch switch to reject. CREATE HYBRID TABLE is the only
 	// documented form, so HYBRID pairs only with TABLE.
 	hybrid := false
-	if p.curIsWord("HYBRID") && p.peekNext().Type == kwTABLE {
+	if p.curIsWord("HYBRID") && p.nextIs(kwTABLE) {
 		p.advance() // consume HYBRID
 		hybrid = true
 	}
@@ -233,7 +233,7 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	// Optional VERSIONED modifier: CREATE OR ALTER VERSIONED SCHEMA is the only
 	// documented form (https://docs.snowflake.com/en/sql-reference/sql/create-versioned-schema).
 	// VERSIONED is not a reserved keyword; it is taken only before SCHEMA.
-	if tokIsWord(p.cur, "VERSIONED") && p.peekNext().Type == kwSCHEMA {
+	if p.curNameWord("VERSIONED") && p.nextIs(kwSCHEMA) {
 		if !orAlter || transient || temporary || volatile {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -243,44 +243,44 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 
 	// CREATE [OR REPLACE] [TRANSIENT] ICEBERG TABLE (iceberg_table.go). ICEBERG is
 	// not a reserved keyword, so it is matched by text and only before TABLE.
-	if p.curIsWord("ICEBERG") && p.peekNext().Type == kwTABLE && !orAlter && !temporary && !volatile {
+	if p.curIsWord("ICEBERG") && p.nextIs(kwTABLE) && !orAlter && !temporary && !volatile {
 		return p.parseCreateIcebergTableStmt(start, orReplace, transient)
 	}
 
-	switch p.cur.Type {
-	case kwTABLE:
+	switch {
+	case p.curIs(kwTABLE):
 		return p.parseCreateTableStmt(start, orReplace, orAlter, transient, temporary, volatile, hybrid)
-	case kwDATABASE:
+	case p.curIs(kwDATABASE):
 		// CREATE [OR REPLACE] DATABASE ROLE ... (T4.6) vs CREATE DATABASE ... (T2.1).
 		// DATABASE ROLE is disambiguated by the ROLE keyword following DATABASE.
-		if p.peekNext().Type == kwROLE {
+		if p.nextIs(kwROLE) {
 			p.advance() // consume DATABASE
 			return p.parseCreateRoleStmt(start, orReplace, orAlter, true)
 		}
 		return p.parseCreateDatabaseStmt(start, orReplace, orAlter, transient)
-	case kwSCHEMA:
+	case p.curIs(kwSCHEMA):
 		return p.parseCreateSchemaStmt(start, orReplace, orAlter, transient, false)
-	case kwVIEW:
+	case p.curIs(kwVIEW):
 		return p.parseCreateViewStmt(start, orReplace, orAlter, false, false)
-	case kwMATERIALIZED:
+	case p.curIs(kwMATERIALIZED):
 		p.advance() // consume MATERIALIZED
 		return p.parseCreateMaterializedViewStmt(start, orReplace, orAlter, false, false)
-	case kwSTAGE:
+	case p.curIs(kwSTAGE):
 		// CREATE [OR REPLACE] [TEMP|TEMPORARY] STAGE ... (T4.1).
 		return p.parseCreateStageStmt(start, orReplace, orAlter, temporary)
-	case kwFILE_FORMAT, kwFILE:
+	case p.curIs(kwFILE_FORMAT), p.curIs(kwFILE):
 		// CREATE [OR REPLACE] [TEMP|TEMPORARY|VOLATILE] FILE FORMAT ... (T4.2).
 		// FILE FORMAT lexes as one FILE_FORMAT token or two FILE+FORMAT tokens;
 		// both dispatch here. Per the docs VOLATILE is a synonym of TEMPORARY for
 		// a file format, so either modifier sets the statement's Temporary flag.
 		return p.parseCreateFileFormatStmt(start, orReplace, orAlter, temporary || volatile)
-	case kwPIPE:
+	case p.curIs(kwPIPE):
 		// CREATE [OR REPLACE] PIPE ... (T4.3).
 		return p.parseCreatePipeStmt(start, orReplace, orAlter)
-	case kwSTREAM:
+	case p.curIs(kwSTREAM):
 		// CREATE [OR REPLACE] STREAM ... (T4.3).
 		return p.parseCreateStreamStmt(start, orReplace, orAlter)
-	case kwTASK:
+	case p.curIs(kwTASK):
 		// CREATE [OR REPLACE] TASK ... (T4.3), or TASK GRAPH (task_graph.go).
 		task := func() (ast.Node, error) { return p.parseCreateTaskStmt(start, orReplace, orAlter) }
 		if p.startsTaskGraph() {
@@ -289,35 +289,35 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 			}, task)
 		}
 		return task()
-	case kwALERT:
+	case p.curIs(kwALERT):
 		// CREATE [OR REPLACE] ALERT ... (T4.3).
 		return p.parseCreateAlertStmt(start, orReplace, orAlter)
-	case kwFUNCTION:
+	case p.curIs(kwFUNCTION):
 		// CREATE [OR REPLACE] [TEMP|TEMPORARY] FUNCTION ... (T4.5).
 		return p.parseCreateFunctionStmt(start, orReplace, orAlter, false, temporary)
-	case kwPROCEDURE:
+	case p.curIs(kwPROCEDURE):
 		// CREATE [OR REPLACE] PROCEDURE ... (T4.5).
 		return p.parseCreateProcedureStmt(start, orReplace, orAlter, false, transient || temporary || volatile)
-	case kwDYNAMIC:
+	case p.curIs(kwDYNAMIC):
 		// CREATE [OR REPLACE] [TRANSIENT] DYNAMIC [ICEBERG] TABLE ... (T4.4).
 		return p.parseCreateDynamicTableStmt(start, orReplace, orAlter, transient)
-	case kwEVENT:
+	case p.curIs(kwEVENT):
 		// CREATE [OR REPLACE] EVENT TABLE ... (T4.4).
 		return p.parseCreateEventTableStmt(start, orReplace, orAlter)
-	case kwSEQUENCE:
+	case p.curIs(kwSEQUENCE):
 		// CREATE [OR REPLACE] SEQUENCE ... (T4.4).
 		return p.parseCreateSequenceStmt(start, orReplace, orAlter)
-	case kwWAREHOUSE:
+	case p.curIs(kwWAREHOUSE):
 		// CREATE [ OR REPLACE | OR ALTER ] WAREHOUSE ... (gap-warehouse).
 		return p.parseCreateWarehouseStmt(start, orReplace, orAlter)
-	case kwEXTERNAL:
+	case p.curIs(kwEXTERNAL):
 		// CREATE [OR REPLACE] EXTERNAL { FUNCTION (T4.5) | TABLE (T4.4) | VOLUME (T4.7) }.
 		// The object is disambiguated by what follows EXTERNAL. EXTERNAL TABLE keeps
 		// cur on the EXTERNAL keyword (its sub-parser consumes both EXTERNAL and
 		// TABLE), matching the DYNAMIC/EVENT two-keyword handling. VOLUME is not a
 		// reserved keyword, so EXTERNAL VOLUME lexes as kwEXTERNAL followed by a
 		// "VOLUME" identifier; that branch is taken here.
-		if p.peekNext().Type == kwTABLE {
+		if p.nextIs(kwTABLE) {
 			return p.parseCreateExternalTableStmt(start, orReplace, orAlter)
 		}
 		p.advance() // consume EXTERNAL
@@ -325,58 +325,58 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 			p.advance() // consume VOLUME (a plain identifier; not a reserved keyword)
 			return p.parseCreateExternalVolumeStmt(start, orReplace, orAlter)
 		}
-		if p.cur.Type != kwFUNCTION {
+		if !p.curIs(kwFUNCTION) {
 			return p.unsupported("CREATE")
 		}
 		return p.parseCreateExternalFunctionStmt(start, orReplace, orAlter, false)
-	case kwSTORAGE, kwAPI, kwNOTIFICATION, kwSECURITY, kwRESOURCE, kwSECRET, kwCONNECTION, kwGIT:
+	case p.curIs(kwSTORAGE), p.curIs(kwAPI), p.curIs(kwNOTIFICATION), p.curIs(kwSECURITY), p.curIs(kwRESOURCE), p.curIs(kwSECRET), p.curIs(kwCONNECTION), p.curIs(kwGIT):
 		// CREATE [OR REPLACE] account-level integration objects (T4.7):
 		// { STORAGE | API | NOTIFICATION | SECURITY } INTEGRATION, RESOURCE MONITOR,
 		// SECRET, CONNECTION, GIT REPOSITORY. parseCreateIntegrationStmt consumes the
 		// object-type keyword(s).
 		return p.parseCreateIntegrationStmt(start, orReplace, orAlter)
-	case kwTAG:
+	case p.curIs(kwTAG):
 		// CREATE [OR REPLACE] TAG ... (T4.9).
 		return p.parseCreateTagStmt(start, orReplace, orAlter)
-	case kwSEMANTIC:
+	case p.curIs(kwSEMANTIC):
 		// CREATE [OR REPLACE] SEMANTIC VIEW ... (T4.9). The sub-parser consumes
 		// SEMANTIC + VIEW.
 		return p.parseCreateSemanticViewStmt(start, orReplace, orAlter)
-	case kwDATASET:
+	case p.curIs(kwDATASET):
 		// CREATE [OR REPLACE] DATASET ... (T4.9).
 		return p.parseCreateDatasetStmt(start, orReplace, orAlter)
-	case kwIF:
+	case p.curIs(kwIF):
 		// CREATE [ OR REPLACE ] [ IF NOT EXISTS ] DATASET <name>, as the
 		// dataset page writes it.
 		if p.startsIfNotExistsDataset() {
 			return p.parseCreateDatasetStmt(start, orReplace, orAlter)
 		}
 		return p.unsupported("CREATE")
-	case kwFAILOVER, kwREPLICATION:
+	case p.curIs(kwFAILOVER), p.curIs(kwREPLICATION):
 		// CREATE [OR REPLACE] { FAILOVER | REPLICATION } GROUP ... (T4.8).
 		// parseCreateReplicationGroupStmt consumes the kind keyword + GROUP.
 		return p.parseCreateReplicationGroupStmt(start, orReplace, orAlter)
-	case kwACCOUNT, kwMANAGED:
+	case p.curIs(kwACCOUNT), p.curIs(kwMANAGED):
 		// CREATE ACCOUNT / CREATE [OR REPLACE] MANAGED ACCOUNT ... (T4.8).
 		// parseCreateAccountStmt consumes the (MANAGED) ACCOUNT keyword(s).
 		return p.parseCreateAccountStmt(start, orReplace, orAlter)
-	case kwSHARE:
+	case p.curIs(kwSHARE):
 		// CREATE [OR REPLACE] SHARE ... (T4.8).
 		return p.parseCreateShareStmt(start, orReplace, orAlter)
-	case kwROLE:
+	case p.curIs(kwROLE):
 		// CREATE [OR REPLACE] ROLE ... (T4.6). DATABASE ROLE is dispatched by the
 		// kwDATABASE case above.
 		return p.parseCreateRoleStmt(start, orReplace, orAlter, false)
-	case kwUSER:
+	case p.curIs(kwUSER):
 		// CREATE [OR REPLACE] USER ... (T4.6).
 		return p.parseCreateUserStmt(start, orReplace, orAlter)
-	case kwMASKING, kwSESSION, kwPASSWORD, kwNETWORK, kwROW:
+	case p.curIs(kwMASKING), p.curIs(kwSESSION), p.curIs(kwPASSWORD), p.curIs(kwNETWORK), p.curIs(kwROW):
 		// CREATE [OR REPLACE] NETWORK RULE ... (gap-network-rule) vs the policy
 		// objects below. NETWORK is reserved but RULE is not, so NETWORK RULE lexes
 		// as kwNETWORK followed by a "RULE" identifier; NETWORK POLICY lexes as
 		// kwNETWORK followed by kwPOLICY. The RULE form is dispatched here before the
 		// shared policy path.
-		if p.cur.Type == kwNETWORK && p.peekIsWord("RULE") {
+		if p.curIs(kwNETWORK) && p.peekIsWord("RULE") {
 			return p.parseCreateNetworkRuleStmt(start, orReplace)
 		}
 		// CREATE [OR REPLACE] { MASKING | ROW ACCESS | SESSION | PASSWORD | NETWORK }
@@ -388,7 +388,7 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		// AUTHENTICATION is not a reserved keyword, so CREATE AUTHENTICATION POLICY
 		// lexes as an "AUTHENTICATION" identifier followed by the POLICY keyword;
 		// that form is dispatched here (T4.6).
-		if p.curIsWord("AUTHENTICATION") && p.peekNext().Type == kwPOLICY {
+		if p.curIsWord("AUTHENTICATION") && p.nextIs(kwPOLICY) {
 			return p.parseCreatePolicyDispatch(start, orReplace, orAlter)
 		}
 		// CREATE [ OR REPLACE ] AI FUNCTION ... (ai_function.go).
@@ -448,9 +448,8 @@ func (p *Parser) parseCreateTableBody(stmt *ast.CreateTableStmt) (ast.Node, erro
 	p.advance() // consume TABLE
 
 	// IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		next := p.peekNext()
-		if next.Type == kwNOT {
+	if p.curIs(kwIF) {
+		if p.nextIs(kwNOT) {
 			p.advance() // consume IF
 			p.advance() // consume NOT
 			if _, err := p.expect(kwEXISTS); err != nil {
@@ -469,7 +468,7 @@ func (p *Parser) parseCreateTableBody(stmt *ast.CreateTableStmt) (ast.Node, erro
 
 	// Postfix IF NOT EXISTS: Snowflake (and the legacy grammar) also accept
 	// the clause AFTER the table name — CREATE TABLE t1 IF NOT EXISTS (...).
-	if !stmt.IfNotExists && p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
+	if !stmt.IfNotExists && p.curIs(kwIF) && p.nextIs(kwNOT) {
 		p.advance() // consume IF
 		p.advance() // consume NOT
 		if _, err := p.expect(kwEXISTS); err != nil {
@@ -478,16 +477,16 @@ func (p *Parser) parseCreateTableBody(stmt *ast.CreateTableStmt) (ast.Node, erro
 		stmt.IfNotExists = true
 	}
 
-	if stmt.ReadOnly && p.cur.Type != kwCLONE {
+	if stmt.ReadOnly && !p.curIs(kwCLONE) {
 		return nil, p.syntaxErrorAtCur()
 	}
-	if stmt.Interactive && p.cur.Type != '(' && p.cur.Type != kwCLUSTER {
+	if stmt.Interactive && !p.curIs('(') && !p.curIs(kwCLUSTER) {
 		return nil, p.syntaxErrorAtCur()
 	}
 
 	// Branch on what follows the table name
-	switch p.cur.Type {
-	case kwLIKE:
+	switch {
+	case p.curIs(kwLIKE):
 		// CREATE TABLE ... LIKE source_table [table_properties]
 		p.advance() // consume LIKE
 		src, err := p.parseObjectName()
@@ -499,7 +498,7 @@ func (p *Parser) parseCreateTableBody(stmt *ast.CreateTableStmt) (ast.Node, erro
 			return nil, err
 		}
 
-	case kwCLONE:
+	case p.curIs(kwCLONE):
 		// CREATE TABLE ... CLONE source [AT|BEFORE ...]
 		clone, err := p.parseCloneSource()
 		if err != nil {
@@ -513,12 +512,12 @@ func (p *Parser) parseCreateTableBody(stmt *ast.CreateTableStmt) (ast.Node, erro
 			}
 		}
 
-	case kwFROM:
+	case p.curIs(kwFROM):
 		if err := p.parseCreateTableFrom(stmt); err != nil {
 			return nil, err
 		}
 
-	case '(':
+	case p.curIs('('):
 		// CREATE TABLE ... ( column_defs [, constraints] ) [table_properties] [AS SELECT]
 		if err := p.parseColumnDeclItems(stmt); err != nil {
 			return nil, err
@@ -599,7 +598,7 @@ func (p *Parser) tryParseUsingTemplate(stmt *ast.CreateTableStmt) (bool, error) 
 		p.advance() // consume GRANTS
 		copyGrants = true
 	}
-	if p.cur.Type != kwUSING || !p.peekIsWord("TEMPLATE") {
+	if !p.curIs(kwUSING) || !p.peekIsWord("TEMPLATE") {
 		p.restore(snap)
 		return false, nil
 	}
@@ -627,7 +626,7 @@ func (p *Parser) tryParseUsingTemplate(stmt *ast.CreateTableStmt) (bool, error) 
 // An interactive table's every form puts CLUSTER BY before its AS
 // (https://docs.snowflake.com/en/sql-reference/sql/create-interactive-table).
 func (p *Parser) parseCreateTableAsQuery(stmt *ast.CreateTableStmt) error {
-	if p.cur.Type != kwAS {
+	if !p.curIs(kwAS) {
 		return nil
 	}
 	if stmt.Interactive && len(stmt.ClusterBy) == 0 {
@@ -666,14 +665,14 @@ func (p *Parser) parseCreateTableFrom(stmt *ast.CreateTableStmt) error {
 			return err
 		}
 		src := &ast.ArchiveSource{Table: table}
-		if p.cur.Type == kwAS {
+		if p.curIs(kwAS) {
 			p.advance() // consume AS
 			alias, err := p.parseIdent()
 			if err != nil {
 				return err
 			}
 			src.Alias = alias
-		} else if p.cur.Type != kwWHERE {
+		} else if !p.curIs(kwWHERE) {
 			alias, err := p.parseIdent()
 			if err != nil {
 				return err
@@ -706,7 +705,7 @@ func (p *Parser) parseCreateTableFrom(stmt *ast.CreateTableStmt) error {
 // which follows FROM in CREATE [ DYNAMIC [ ICEBERG ] ] TABLE. On entry cur is
 // BACKUP, which is not a keyword token.
 func (p *Parser) parseBackupSource() (*ast.BackupSource, error) {
-	if !isWordToken(p.cur, "BACKUP") {
+	if !p.curWord("BACKUP") {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // consume BACKUP
@@ -738,20 +737,20 @@ func (p *Parser) parseColumnDeclItems(stmt *ast.CreateTableStmt) error {
 		return err
 	}
 
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for !p.curIs(')') && !p.curIs(tokEOF) {
 		// An inline INDEX element (HYBRID TABLE) shares its leading keyword with a
 		// column whose name is literally "index" (INDEX is non-reserved).
 		// tryParseTableIndex speculatively matches the INDEX <name> ( ... ) shape
 		// and reports matched=false (rolling back) when it is actually a column
 		// named "index", which then falls through to parseColumnDef below.
-		if p.cur.Type == kwINDEX {
+		if p.curIs(kwINDEX) {
 			idx, matched, err := p.tryParseTableIndex()
 			if err != nil {
 				return err
 			}
 			if matched {
 				stmt.Indexes = append(stmt.Indexes, idx)
-				if p.cur.Type == ',' {
+				if p.curIs(',') {
 					p.advance() // consume ','
 					continue
 				}
@@ -773,7 +772,7 @@ func (p *Parser) parseColumnDeclItems(stmt *ast.CreateTableStmt) error {
 			stmt.Columns = append(stmt.Columns, col)
 		}
 
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 		} else {
 			break
@@ -789,8 +788,8 @@ func (p *Parser) parseColumnDeclItems(stmt *ast.CreateTableStmt) error {
 // isOutOfLineConstraintStart returns true if the current token starts an
 // out-of-line (table-level) constraint definition.
 func (p *Parser) isOutOfLineConstraintStart() bool {
-	switch p.cur.Type {
-	case kwCONSTRAINT, kwPRIMARY, kwUNIQUE, kwFOREIGN, kwCHECK:
+	switch {
+	case p.curIs(kwCONSTRAINT), p.curIs(kwPRIMARY), p.curIs(kwUNIQUE), p.curIs(kwFOREIGN), p.curIs(kwCHECK):
 		return true
 	}
 	return false
@@ -820,7 +819,7 @@ func (p *Parser) tryParseTableIndex() (idx *ast.TableIndex, matched bool, err er
 	p.advance() // consume INDEX
 
 	name, nameErr := p.parseIdent()
-	if nameErr != nil || p.cur.Type != '(' {
+	if nameErr != nil || !p.curIs('(') {
 		p.restore(snap)
 		return nil, false, nil
 	}
@@ -841,7 +840,7 @@ func (p *Parser) tryParseTableIndex() (idx *ast.TableIndex, matched bool, err er
 	// Optional INCLUDE ( <col> [, <col>...] ): the covering columns
 	// (https://docs.snowflake.com/en/sql-reference/sql/create-hybrid-table).
 	// The element is committed by now, so an error here is a real one.
-	if p.cur.Type == kwINCLUDE {
+	if p.curIs(kwINCLUDE) {
 		p.advance() // consume INCLUDE
 		include, err := p.parseIdentListInParens()
 		if err != nil {
@@ -881,13 +880,13 @@ func (p *Parser) parseColumnDefIn(iceberg bool) (*ast.ColumnDef, error) {
 
 	// The data type is optional when followed by AS (virtual column
 	// defined with an expression). Peek ahead to decide.
-	if p.cur.Type != kwAS && p.cur.Type != ',' && p.cur.Type != ')' &&
-		p.cur.Type != kwNOT && p.cur.Type != kwNULL && p.cur.Type != kwDEFAULT &&
-		p.cur.Type != kwIDENTITY && p.cur.Type != kwAUTOINCREMENT &&
-		p.cur.Type != kwCOLLATE && p.cur.Type != kwCONSTRAINT &&
-		p.cur.Type != kwPRIMARY && p.cur.Type != kwUNIQUE && p.cur.Type != kwFOREIGN &&
-		p.cur.Type != kwCOMMENT && p.cur.Type != kwWITH && p.cur.Type != kwMASKING &&
-		p.cur.Type != kwTAG && p.cur.Type != tokEOF {
+	if !p.curIs(kwAS) && !p.curIs(',') && !p.curIs(')') &&
+		!p.curIs(kwNOT) && !p.curIs(kwNULL) && !p.curIs(kwDEFAULT) &&
+		!p.curIs(kwIDENTITY) && !p.curIs(kwAUTOINCREMENT) &&
+		!p.curIs(kwCOLLATE) && !p.curIs(kwCONSTRAINT) &&
+		!p.curIs(kwPRIMARY) && !p.curIs(kwUNIQUE) && !p.curIs(kwFOREIGN) &&
+		!p.curIs(kwCOMMENT) && !p.curIs(kwWITH) && !p.curIs(kwMASKING) &&
+		!p.curIs(kwTAG) && !p.curIs(tokEOF) {
 		dt, err := p.parseDataType()
 		if err != nil {
 			return nil, err
@@ -912,11 +911,10 @@ func (p *Parser) parseColumnOptions(col *ast.ColumnDef) error {
 
 func (p *Parser) parseColumnOptionsIn(col *ast.ColumnDef, iceberg bool) error {
 	for {
-		switch p.cur.Type {
-		case kwNOT:
+		switch {
+		case p.curIs(kwNOT):
 			// NOT NULL
-			next := p.peekNext()
-			if next.Type == kwNULL {
+			if p.nextIs(kwNULL) {
 				p.advance() // consume NOT
 				p.advance() // consume NULL
 				col.NotNull = true
@@ -924,11 +922,11 @@ func (p *Parser) parseColumnOptionsIn(col *ast.ColumnDef, iceberg bool) error {
 				return nil
 			}
 
-		case kwNULL:
+		case p.curIs(kwNULL):
 			p.advance() // consume NULL
 			col.Nullable = true
 
-		case kwDEFAULT:
+		case p.curIs(kwDEFAULT):
 			p.advance() // consume DEFAULT
 			expr, err := p.parseExpr()
 			if err != nil {
@@ -936,14 +934,14 @@ func (p *Parser) parseColumnOptionsIn(col *ast.ColumnDef, iceberg bool) error {
 			}
 			col.Default = expr
 
-		case kwIDENTITY, kwAUTOINCREMENT:
+		case p.curIs(kwIDENTITY), p.curIs(kwAUTOINCREMENT):
 			spec, err := p.parseIdentitySpec()
 			if err != nil {
 				return err
 			}
 			col.Identity = spec
 
-		case kwCOLLATE:
+		case p.curIs(kwCOLLATE):
 			p.advance() // consume COLLATE
 			tok, err := p.expect(tokString)
 			if err != nil {
@@ -951,14 +949,14 @@ func (p *Parser) parseColumnOptionsIn(col *ast.ColumnDef, iceberg bool) error {
 			}
 			col.Collate = tok.Str
 
-		case kwCONSTRAINT, kwPRIMARY, kwUNIQUE, kwFOREIGN, kwREFERENCES, kwCHECK:
+		case p.curIs(kwCONSTRAINT), p.curIs(kwPRIMARY), p.curIs(kwUNIQUE), p.curIs(kwFOREIGN), p.curIs(kwREFERENCES), p.curIs(kwCHECK):
 			ic, err := p.parseInlineConstraint(true)
 			if err != nil {
 				return err
 			}
 			col.InlineConstraint = ic
 
-		case kwCOMMENT:
+		case p.curIs(kwCOMMENT):
 			p.advance() // consume COMMENT
 			tok, err := p.expect(tokString)
 			if err != nil {
@@ -967,13 +965,12 @@ func (p *Parser) parseColumnOptionsIn(col *ast.ColumnDef, iceberg bool) error {
 			s := tok.Str
 			col.Comment = &s
 
-		case kwWITH:
+		case p.curIs(kwWITH):
 			// WITH MASKING POLICY name [USING (...)]
 			// WITH TAG (...)
 			// WITH ROW ACCESS POLICY ... — consumed and discarded
-			next := p.peekNext()
-			switch next.Type {
-			case kwMASKING:
+			switch {
+			case p.nextIs(kwMASKING):
 				p.advance() // consume WITH
 				p.advance() // consume MASKING
 				if _, err := p.expect(kwPOLICY); err != nil {
@@ -985,20 +982,20 @@ func (p *Parser) parseColumnOptionsIn(col *ast.ColumnDef, iceberg bool) error {
 				}
 				col.MaskingPolicy = policyName
 				// Optional USING ( <col> [ , ... ] )
-				if p.cur.Type == kwUSING {
+				if p.curIs(kwUSING) {
 					p.advance() // consume USING
 					if _, err := p.parseIdentListInParens(); err != nil {
 						return err
 					}
 				}
-			case kwTAG:
+			case p.nextIs(kwTAG):
 				p.advance() // consume WITH
 				tags, err := p.parseTagAssignments()
 				if err != nil {
 					return err
 				}
 				col.Tags = append(col.Tags, tags...)
-			case tokIdent:
+			case p.nextIs(tokIdent):
 				// WITH PROJECTION POLICY: nothing else begins WITH PROJECTION.
 				if !p.peekIsWord("PROJECTION") {
 					return nil
@@ -1009,7 +1006,7 @@ func (p *Parser) parseColumnOptionsIn(col *ast.ColumnDef, iceberg bool) error {
 					return err
 				}
 				col.ProjectionPolicy = policyName
-			case kwROW:
+			case p.nextIs(kwROW):
 				// WITH ROW ACCESS POLICY ... — consume and discard
 				p.advance() // consume WITH
 				p.advance() // consume ROW
@@ -1024,7 +1021,7 @@ func (p *Parser) parseColumnOptionsIn(col *ast.ColumnDef, iceberg bool) error {
 					return err
 				}
 				// Optional ON (cols)
-				if p.cur.Type == kwON {
+				if p.curIs(kwON) {
 					p.advance() // consume ON
 					if err := p.skipParenthesized(); err != nil {
 						return err
@@ -1034,7 +1031,7 @@ func (p *Parser) parseColumnOptionsIn(col *ast.ColumnDef, iceberg bool) error {
 				return nil
 			}
 
-		case kwMASKING:
+		case p.curIs(kwMASKING):
 			// MASKING POLICY name [USING (...)] — without WITH prefix
 			p.advance() // consume MASKING
 			if _, err := p.expect(kwPOLICY); err != nil {
@@ -1045,14 +1042,14 @@ func (p *Parser) parseColumnOptionsIn(col *ast.ColumnDef, iceberg bool) error {
 				return err
 			}
 			col.MaskingPolicy = policyName
-			if p.cur.Type == kwUSING {
+			if p.curIs(kwUSING) {
 				p.advance() // consume USING
 				if _, err := p.parseIdentListInParens(); err != nil {
 					return err
 				}
 			}
 
-		case kwTAG:
+		case p.curIs(kwTAG):
 			// TAG (...) — without WITH prefix
 			tags, err := p.parseTagAssignments()
 			if err != nil {
@@ -1060,7 +1057,7 @@ func (p *Parser) parseColumnOptionsIn(col *ast.ColumnDef, iceberg bool) error {
 			}
 			col.Tags = append(col.Tags, tags...)
 
-		case kwAS:
+		case p.curIs(kwAS):
 			if col.VirtualExpr != nil {
 				return p.syntaxErrorAtCur()
 			}
@@ -1088,7 +1085,7 @@ func (p *Parser) parseColumnOptionsIn(col *ast.ColumnDef, iceberg bool) error {
 				}
 				p.advance() // consume GENERATED
 				p.advance() // consume ALWAYS
-				if p.cur.Type != kwAS {
+				if !p.curIs(kwAS) {
 					return p.syntaxErrorAtCur()
 				}
 				if err := p.parseVirtualColumnExpr(col); err != nil {
@@ -1144,7 +1141,7 @@ func (p *Parser) startsGeneratedAlways() bool {
 // startsProjectionPolicy reports whether cur begins PROJECTION POLICY.
 // PROJECTION is not a keyword token.
 func (p *Parser) startsProjectionPolicy() bool {
-	return p.curIsWord("PROJECTION") && p.peekNext().Type == kwPOLICY
+	return p.curIsWord("PROJECTION") && p.nextIs(kwPOLICY)
 }
 
 // parseProjectionPolicy parses PROJECTION POLICY <name>, a column's
@@ -1175,7 +1172,7 @@ func (p *Parser) parseInlineConstraint(allowCheck bool) (*ast.InlineConstraint, 
 	}
 
 	// Optional CONSTRAINT name
-	if p.cur.Type == kwCONSTRAINT {
+	if p.curIs(kwCONSTRAINT) {
 		p.advance() // consume CONSTRAINT
 		name, err := p.parseIdent()
 		if err != nil {
@@ -1184,21 +1181,21 @@ func (p *Parser) parseInlineConstraint(allowCheck bool) (*ast.InlineConstraint, 
 		ic.Name = name
 	}
 
-	switch p.cur.Type {
-	case kwPRIMARY:
+	switch {
+	case p.curIs(kwPRIMARY):
 		p.advance() // consume PRIMARY
 		if _, err := p.expect(kwKEY); err != nil {
 			return nil, err
 		}
 		ic.Type = ast.ConstrPrimaryKey
 
-	case kwUNIQUE:
+	case p.curIs(kwUNIQUE):
 		p.advance() // consume UNIQUE
 		ic.Type = ast.ConstrUnique
 
-	case kwFOREIGN, kwREFERENCES:
+	case p.curIs(kwFOREIGN), p.curIs(kwREFERENCES):
 		// An inline foreign key's FOREIGN KEY is optional.
-		if p.cur.Type == kwFOREIGN {
+		if p.curIs(kwFOREIGN) {
 			p.advance() // consume FOREIGN
 			if _, err := p.expect(kwKEY); err != nil {
 				return nil, err
@@ -1211,7 +1208,7 @@ func (p *Parser) parseInlineConstraint(allowCheck bool) (*ast.InlineConstraint, 
 		ic.Type = ast.ConstrForeignKey
 		ic.References = ref
 
-	case kwCHECK:
+	case p.curIs(kwCHECK):
 		if !allowCheck {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -1253,7 +1250,7 @@ func (p *Parser) parseOutOfLineConstraint() (*ast.TableConstraint, error) {
 	}
 
 	// Optional CONSTRAINT name
-	if p.cur.Type == kwCONSTRAINT {
+	if p.curIs(kwCONSTRAINT) {
 		p.advance() // consume CONSTRAINT
 		name, err := p.parseIdent()
 		if err != nil {
@@ -1262,8 +1259,8 @@ func (p *Parser) parseOutOfLineConstraint() (*ast.TableConstraint, error) {
 		con.Name = name
 	}
 
-	switch p.cur.Type {
-	case kwPRIMARY:
+	switch {
+	case p.curIs(kwPRIMARY):
 		p.advance() // consume PRIMARY
 		if _, err := p.expect(kwKEY); err != nil {
 			return nil, err
@@ -1275,7 +1272,7 @@ func (p *Parser) parseOutOfLineConstraint() (*ast.TableConstraint, error) {
 		}
 		con.Columns = cols
 
-	case kwUNIQUE:
+	case p.curIs(kwUNIQUE):
 		p.advance() // consume UNIQUE
 		con.Type = ast.ConstrUnique
 		cols, err := p.parseIdentListInParens()
@@ -1284,7 +1281,7 @@ func (p *Parser) parseOutOfLineConstraint() (*ast.TableConstraint, error) {
 		}
 		con.Columns = cols
 
-	case kwFOREIGN:
+	case p.curIs(kwFOREIGN):
 		p.advance() // consume FOREIGN
 		if _, err := p.expect(kwKEY); err != nil {
 			return nil, err
@@ -1301,7 +1298,7 @@ func (p *Parser) parseOutOfLineConstraint() (*ast.TableConstraint, error) {
 		}
 		con.References = ref
 
-	case kwCHECK:
+	case p.curIs(kwCHECK):
 		expr, err := p.parseCheckExpr()
 		if err != nil {
 			return nil, err
@@ -1318,7 +1315,7 @@ func (p *Parser) parseOutOfLineConstraint() (*ast.TableConstraint, error) {
 	}
 
 	// Optional COMMENT 'text'
-	if p.cur.Type == kwCOMMENT {
+	if p.curIs(kwCOMMENT) {
 		p.advance() // consume COMMENT
 		tok, err := p.expect(tokString)
 		if err != nil {
@@ -1366,7 +1363,7 @@ func (p *Parser) parseIdentListInParens() ([]ast.Ident, error) {
 	}
 	idents = append(idents, id)
 
-	for p.cur.Type == ',' {
+	for p.curIs(',') {
 		p.advance() // consume ','
 		id, err = p.parseIdent()
 		if err != nil {
@@ -1413,7 +1410,7 @@ func (p *Parser) parseForeignKeyRefAfterReferences() (*ast.ForeignKeyRef, error)
 	}
 
 	// Optional column list
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		cols, err := p.parseIdentListInParens()
 		if err != nil {
 			return nil, err
@@ -1422,16 +1419,16 @@ func (p *Parser) parseForeignKeyRefAfterReferences() (*ast.ForeignKeyRef, error)
 	}
 
 	// Optional MATCH FULL | PARTIAL | SIMPLE
-	if p.cur.Type == kwMATCH {
+	if p.curIs(kwMATCH) {
 		p.advance() // consume MATCH
-		switch p.cur.Type {
-		case kwFULL:
+		switch {
+		case p.curIs(kwFULL):
 			p.advance()
 			ref.Match = "FULL"
-		case kwPARTIAL:
+		case p.curIs(kwPARTIAL):
 			p.advance()
 			ref.Match = "PARTIAL"
-		case kwSIMPLE:
+		case p.curIs(kwSIMPLE):
 			p.advance()
 			ref.Match = "SIMPLE"
 		default:
@@ -1440,10 +1437,9 @@ func (p *Parser) parseForeignKeyRefAfterReferences() (*ast.ForeignKeyRef, error)
 	}
 
 	// Optional ON DELETE / ON UPDATE
-	for p.cur.Type == kwON {
-		next := p.peekNext()
-		switch next.Type {
-		case kwDELETE:
+	for p.curIs(kwON) {
+		switch {
+		case p.nextIs(kwDELETE):
 			p.advance() // consume ON
 			p.advance() // consume DELETE
 			action, err := p.parseReferenceAction()
@@ -1451,7 +1447,7 @@ func (p *Parser) parseForeignKeyRefAfterReferences() (*ast.ForeignKeyRef, error)
 				return nil, err
 			}
 			ref.OnDelete = action
-		case kwUPDATE:
+		case p.nextIs(kwUPDATE):
 			p.advance() // consume ON
 			p.advance() // consume UPDATE
 			action, err := p.parseReferenceAction()
@@ -1459,7 +1455,7 @@ func (p *Parser) parseForeignKeyRefAfterReferences() (*ast.ForeignKeyRef, error)
 				return nil, err
 			}
 			ref.OnUpdate = action
-			if p.cur.Type == kwDELETE {
+			if p.curIs(kwDELETE) {
 				p.advance() // consume DELETE
 				action, err := p.parseReferenceAction()
 				if err != nil {
@@ -1480,26 +1476,26 @@ func (p *Parser) parseForeignKeyRefAfterReferences() (*ast.ForeignKeyRef, error)
 //
 //	CASCADE | SET NULL | SET DEFAULT | RESTRICT | NO ACTION
 func (p *Parser) parseReferenceAction() (ast.ReferenceAction, error) {
-	switch p.cur.Type {
-	case kwCASCADE:
+	switch {
+	case p.curIs(kwCASCADE):
 		p.advance()
 		return ast.RefActCascade, nil
-	case kwSET:
+	case p.curIs(kwSET):
 		p.advance() // consume SET
-		switch p.cur.Type {
-		case kwNULL:
+		switch {
+		case p.curIs(kwNULL):
 			p.advance()
 			return ast.RefActSetNull, nil
-		case kwDEFAULT:
+		case p.curIs(kwDEFAULT):
 			p.advance()
 			return ast.RefActSetDefault, nil
 		default:
 			return ast.RefActNone, p.syntaxErrorAtCur()
 		}
-	case kwRESTRICT:
+	case p.curIs(kwRESTRICT):
 		p.advance()
 		return ast.RefActRestrict, nil
-	case kwNO:
+	case p.curIs(kwNO):
 		p.advance() // consume NO
 		if _, err := p.expect(kwACTION); err != nil {
 			return ast.RefActNone, err
@@ -1519,49 +1515,48 @@ func (p *Parser) parseReferenceAction() (ast.ReferenceAction, error) {
 // when all have been consumed.
 func (p *Parser) parseConstraintProperties() error {
 	for {
-		switch p.cur.Type {
-		case kwNOT:
-			next := p.peekNext()
-			if next.Type == kwENFORCED {
+		switch {
+		case p.curIs(kwNOT):
+			if p.nextIs(kwENFORCED) {
 				p.advance() // consume NOT
 				p.advance() // consume ENFORCED
-			} else if next.Type == kwDEFERRABLE {
+			} else if p.nextIs(kwDEFERRABLE) {
 				p.advance() // consume NOT
 				p.advance() // consume DEFERRABLE
 			} else {
 				return nil
 			}
-		case kwENFORCED:
+		case p.curIs(kwENFORCED):
 			p.advance()
-		case kwDEFERRABLE:
+		case p.curIs(kwDEFERRABLE):
 			p.advance()
-		case kwINITIALLY:
+		case p.curIs(kwINITIALLY):
 			p.advance() // consume INITIALLY
 			// Expect DEFERRED or IMMEDIATE
-			if p.cur.Type == kwDEFERRED || p.cur.Type == kwIMMEDIATE {
+			if p.curIs(kwDEFERRED) || p.curIs(kwIMMEDIATE) {
 				p.advance()
 			} else {
 				return p.syntaxErrorAtCur()
 			}
-		case kwENABLE:
+		case p.curIs(kwENABLE):
 			p.advance() // consume ENABLE
 			// Optional VALIDATE / NOVALIDATE
-			if p.cur.Type == kwVALIDATE || p.cur.Type == kwNOVALIDATE {
+			if p.curIs(kwVALIDATE) || p.curIs(kwNOVALIDATE) {
 				p.advance()
 			}
-		case kwDISABLE:
+		case p.curIs(kwDISABLE):
 			p.advance() // consume DISABLE
 			// Optional VALIDATE / NOVALIDATE
-			if p.cur.Type == kwVALIDATE || p.cur.Type == kwNOVALIDATE {
+			if p.curIs(kwVALIDATE) || p.curIs(kwNOVALIDATE) {
 				p.advance()
 			}
-		case kwVALIDATE:
+		case p.curIs(kwVALIDATE):
 			p.advance()
-		case kwNOVALIDATE:
+		case p.curIs(kwNOVALIDATE):
 			p.advance()
-		case kwRELY:
+		case p.curIs(kwRELY):
 			p.advance()
-		case kwNORELY:
+		case p.curIs(kwNORELY):
 			p.advance()
 		default:
 			return nil
@@ -1583,7 +1578,7 @@ func (p *Parser) parseIdentitySpec() (*ast.IdentitySpec, error) {
 	spec := &ast.IdentitySpec{}
 
 	// Optional (start, increment)
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		p.advance() // consume '('
 		startTok, err := p.expect(tokInt)
 		if err != nil {
@@ -1609,14 +1604,14 @@ func (p *Parser) parseIdentitySpec() (*ast.IdentitySpec, error) {
 	}
 
 	// Optional START [WITH] [=] n
-	if p.cur.Type == kwSTART {
+	if p.curIs(kwSTART) {
 		p.advance() // consume START
 		// Optional WITH
-		if p.cur.Type == kwWITH {
+		if p.curIs(kwWITH) {
 			p.advance() // consume WITH
 		}
 		// Optional =
-		if p.cur.Type == '=' {
+		if p.curIs('=') {
 			p.advance()
 		}
 		tok, err := p.expect(tokInt)
@@ -1628,14 +1623,14 @@ func (p *Parser) parseIdentitySpec() (*ast.IdentitySpec, error) {
 	}
 
 	// Optional INCREMENT [BY] [=] n
-	if p.cur.Type == kwINCREMENT {
+	if p.curIs(kwINCREMENT) {
 		p.advance() // consume INCREMENT
 		// Optional BY
-		if p.cur.Type == kwBY {
+		if p.curIs(kwBY) {
 			p.advance() // consume BY
 		}
 		// Optional =
-		if p.cur.Type == '=' {
+		if p.curIs('=') {
 			p.advance()
 		}
 		tok, err := p.expect(tokInt)
@@ -1647,11 +1642,11 @@ func (p *Parser) parseIdentitySpec() (*ast.IdentitySpec, error) {
 	}
 
 	// Optional ORDER / NOORDER
-	if p.cur.Type == kwORDER {
+	if p.curIs(kwORDER) {
 		p.advance()
 		b := true
 		spec.Order = &b
-	} else if p.cur.Type == kwNOORDER {
+	} else if p.curIs(kwNOORDER) {
 		p.advance()
 		b := false
 		spec.Order = &b
@@ -1676,7 +1671,7 @@ func (p *Parser) parseTagAssignments() ([]*ast.TagAssignment, error) {
 
 	var tags []*ast.TagAssignment
 
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for !p.curIs(')') && !p.curIs(tokEOF) {
 		tagName, err := p.parseObjectName()
 		if err != nil {
 			return nil, err
@@ -1693,7 +1688,7 @@ func (p *Parser) parseTagAssignments() ([]*ast.TagAssignment, error) {
 			Value: valueTok.Str,
 		})
 
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 		} else {
 			break
@@ -1727,9 +1722,9 @@ func (p *Parser) parseCloneSource() (*ast.CloneSource, error) {
 	}
 
 	// Optional AT|BEFORE (TIMESTAMP|OFFSET|STATEMENT => value)
-	if p.cur.Type == kwAT || p.cur.Type == kwBEFORE {
+	if p.curIs(kwAT) || p.curIs(kwBEFORE) {
 		atBefore := "AT"
-		if p.cur.Type == kwBEFORE {
+		if p.curIs(kwBEFORE) {
 			atBefore = "BEFORE"
 		}
 		p.advance() // consume AT or BEFORE
@@ -1739,14 +1734,14 @@ func (p *Parser) parseCloneSource() (*ast.CloneSource, error) {
 		}
 
 		var kind string
-		switch p.cur.Type {
-		case kwTIMESTAMP:
+		switch {
+		case p.curIs(kwTIMESTAMP):
 			p.advance()
 			kind = "TIMESTAMP"
-		case kwOFFSET:
+		case p.curIs(kwOFFSET):
 			p.advance()
 			kind = "OFFSET"
-		case kwSTATEMENT:
+		case p.curIs(kwSTATEMENT):
 			p.advance()
 			kind = "STATEMENT"
 		default:
@@ -1811,7 +1806,7 @@ func (p *Parser) parseTableProperties(stmt *ast.CreateTableStmt) error {
 		}
 		// An interactive table's refresh settings
 		// (https://docs.snowflake.com/en/sql-reference/sql/create-interactive-table).
-		if stmt.Interactive && (p.cur.Type == kwTARGET_LAG || p.cur.Type == kwWAREHOUSE || p.curIsWord("INITIALIZATION_WAREHOUSE")) {
+		if stmt.Interactive && (p.curIs(kwTARGET_LAG) || p.curIs(kwWAREHOUSE) || p.curIsWord("INITIALIZATION_WAREHOUSE")) {
 			opt, err := p.parseRefreshSetting(false)
 			if err != nil {
 				return err
@@ -1823,21 +1818,21 @@ func (p *Parser) parseTableProperties(stmt *ast.CreateTableStmt) error {
 		// COMMENT = '<string>' and [ WITH ] TAG ( ... ).
 		if stmt.Interactive {
 			switch {
-			case p.cur.Type == kwCLUSTER, p.cur.Type == kwTAG:
-			case p.cur.Type == kwWITH && p.peekNext().Type == kwTAG:
-			case p.cur.Type == kwCOMMENT && p.peekNext().Type == '=':
+			case p.curIs(kwCLUSTER), p.curIs(kwTAG):
+			case p.curIs(kwWITH) && p.nextIs(kwTAG):
+			case p.curIs(kwCOMMENT) && p.nextIs('='):
 			default:
 				return nil
 			}
 		}
-		switch p.cur.Type {
-		case kwCLUSTER:
+		switch {
+		case p.curIs(kwCLUSTER):
 			// CLUSTER BY [LINEAR] (exprs)
 			p.advance() // consume CLUSTER
 			if _, err := p.expect(kwBY); err != nil {
 				return err
 			}
-			if p.cur.Type == kwLINEAR {
+			if p.curIs(kwLINEAR) {
 				p.advance() // consume LINEAR
 				stmt.Linear = true
 			}
@@ -1853,7 +1848,7 @@ func (p *Parser) parseTableProperties(stmt *ast.CreateTableStmt) error {
 			}
 			stmt.ClusterBy = exprs
 
-		case kwCOPY:
+		case p.curIs(kwCOPY):
 			// COPY GRANTS | COPY TAGS | COPY = ( ... )
 			if !p.startsCopyClause() {
 				return nil
@@ -1862,10 +1857,10 @@ func (p *Parser) parseTableProperties(stmt *ast.CreateTableStmt) error {
 				return err
 			}
 
-		case kwCOMMENT:
+		case p.curIs(kwCOMMENT):
 			// COMMENT = 'text'
 			p.advance() // consume COMMENT
-			if p.cur.Type == '=' {
+			if p.curIs('=') {
 				p.advance() // consume =
 			}
 			tok, err := p.expect(tokString)
@@ -1875,10 +1870,9 @@ func (p *Parser) parseTableProperties(stmt *ast.CreateTableStmt) error {
 			s := tok.Str
 			stmt.Comment = &s
 
-		case kwWITH:
-			next := p.peekNext()
-			switch next.Type {
-			case kwTAG:
+		case p.curIs(kwWITH):
+			switch {
+			case p.nextIs(kwTAG):
 				p.advance() // consume WITH
 				tags, err := p.parseTagAssignments()
 				if err != nil {
@@ -1889,7 +1883,7 @@ func (p *Parser) parseTableProperties(stmt *ast.CreateTableStmt) error {
 				return nil
 			}
 
-		case kwTAG:
+		case p.curIs(kwTAG):
 			// TAG (...) — without WITH prefix
 			tags, err := p.parseTagAssignments()
 			if err != nil {
@@ -1897,17 +1891,17 @@ func (p *Parser) parseTableProperties(stmt *ast.CreateTableStmt) error {
 			}
 			stmt.Tags = append(stmt.Tags, tags...)
 
-		case kwDATA_RETENTION_TIME_IN_DAYS:
+		case p.curIs(kwDATA_RETENTION_TIME_IN_DAYS):
 			// DATA_RETENTION_TIME_IN_DAYS = n — consume and discard
 			p.advance() // consume DATA_RETENTION_TIME_IN_DAYS
-			if p.cur.Type == '=' {
+			if p.curIs('=') {
 				p.advance()
 			}
 			if _, err := p.expect(tokInt); err != nil {
 				return err
 			}
 
-		case kwMAX_DATA_EXTENSION_TIME_IN_DAYS:
+		case p.curIs(kwMAX_DATA_EXTENSION_TIME_IN_DAYS):
 			// MAX_DATA_EXTENSION_TIME_IN_DAYS = n — consume and discard
 			p.advance() // consume MAX_DATA_EXTENSION_TIME_IN_DAYS
 			if _, err := p.expect('='); err != nil {
@@ -1917,29 +1911,29 @@ func (p *Parser) parseTableProperties(stmt *ast.CreateTableStmt) error {
 				return err
 			}
 
-		case kwCHANGE_TRACKING:
+		case p.curIs(kwCHANGE_TRACKING):
 			// CHANGE_TRACKING = TRUE|FALSE — consume and discard
 			p.advance() // consume CHANGE_TRACKING
-			if p.cur.Type == '=' {
+			if p.curIs('=') {
 				p.advance()
 			}
-			if p.cur.Type == kwTRUE || p.cur.Type == kwFALSE {
+			if p.curIs(kwTRUE) || p.curIs(kwFALSE) {
 				p.advance()
 			} else {
 				return p.syntaxErrorAtCur()
 			}
 
-		case kwDEFAULT_DDL_COLLATION:
+		case p.curIs(kwDEFAULT_DDL_COLLATION):
 			// DEFAULT_DDL_COLLATION = 'string' — consume and discard
 			p.advance() // consume DEFAULT_DDL_COLLATION
-			if p.cur.Type == '=' {
+			if p.curIs('=') {
 				p.advance()
 			}
 			if _, err := p.expect(tokString); err != nil {
 				return err
 			}
 
-		case tokIdent:
+		case p.curIs(tokIdent):
 			// The parameters CREATE TABLE lists that are not keyword tokens —
 			// consume and discard, like the ones above:
 			//	ICEBERG_DEFAULT_DDL_COLLATION = '<string>'
@@ -1958,7 +1952,7 @@ func (p *Parser) parseTableProperties(stmt *ast.CreateTableStmt) error {
 				if _, err := p.expect('='); err != nil {
 					return err
 				}
-				if p.cur.Type != kwTRUE && p.cur.Type != kwFALSE {
+				if !p.curIs(kwTRUE) && !p.curIs(kwFALSE) {
 					return p.syntaxErrorAtCur()
 				}
 				p.advance() // consume TRUE / FALSE
@@ -1966,20 +1960,20 @@ func (p *Parser) parseTableProperties(stmt *ast.CreateTableStmt) error {
 				return nil
 			}
 
-		case kwSTAGE_FILE_FORMAT:
+		case p.curIs(kwSTAGE_FILE_FORMAT):
 			// STAGE_FILE_FORMAT = (...) — consume and discard
 			p.advance() // consume STAGE_FILE_FORMAT
-			if p.cur.Type == '=' {
+			if p.curIs('=') {
 				p.advance()
 			}
 			if err := p.skipParenthesized(); err != nil {
 				return err
 			}
 
-		case kwSTAGE_COPY_OPTIONS:
+		case p.curIs(kwSTAGE_COPY_OPTIONS):
 			// STAGE_COPY_OPTIONS = (...) — consume and discard
 			p.advance() // consume STAGE_COPY_OPTIONS
-			if p.cur.Type == '=' {
+			if p.curIs('=') {
 				p.advance()
 			}
 			if err := p.skipParenthesized(); err != nil {
@@ -2003,11 +1997,11 @@ func (p *Parser) skipParenthesized() error {
 		return err
 	}
 	depth := 1
-	for depth > 0 && p.cur.Type != tokEOF {
-		switch p.cur.Type {
-		case '(':
+	for depth > 0 && !p.curIs(tokEOF) {
+		switch {
+		case p.curIs('('):
 			depth++
-		case ')':
+		case p.curIs(')'):
 			depth--
 		}
 		p.advance()
@@ -2046,14 +2040,13 @@ const (
 // begin there.
 func (p *Parser) startsObjectClause(allowed objectClause) objectClause {
 	var c objectClause
-	next := p.peekNext()
-	if p.cur.Type == kwWITH {
+	if p.curIs(kwWITH) {
 		switch {
-		case next.Type == kwROW:
+		case p.nextIs(kwROW):
 			c = clauseRowAccess
-		case next.Type == kwJOIN:
+		case p.nextIs(kwJOIN):
 			c = clauseJoin
-		case next.Type == kwSTORAGE:
+		case p.nextIs(kwSTORAGE):
 			c = clauseStorageLifecycle
 		case p.peekIsWord("AGGREGATION"):
 			c = clauseAggregation
@@ -2062,13 +2055,13 @@ func (p *Parser) startsObjectClause(allowed objectClause) objectClause {
 		}
 	} else {
 		switch {
-		case p.cur.Type == kwROW && next.Type == kwACCESS:
+		case p.curIs(kwROW) && p.nextIs(kwACCESS):
 			c = clauseRowAccess
-		case p.cur.Type == kwJOIN && next.Type == kwPOLICY:
+		case p.curIs(kwJOIN) && p.nextIs(kwPOLICY):
 			c = clauseJoin
-		case p.cur.Type == kwSTORAGE && p.peekIsWord("LIFECYCLE"):
+		case p.curIs(kwSTORAGE) && p.peekIsWord("LIFECYCLE"):
 			c = clauseStorageLifecycle
-		case p.curIsWord("AGGREGATION") && next.Type == kwPOLICY:
+		case p.curIsWord("AGGREGATION") && p.nextIs(kwPOLICY):
 			c = clauseAggregation
 		}
 	}
@@ -2087,7 +2080,7 @@ type objectClauseResult struct {
 // parseObjectClause parses the clause startsObjectClause reported.
 func (p *Parser) parseObjectClause(c objectClause) (objectClauseResult, error) {
 	var res objectClauseResult
-	if p.cur.Type == kwWITH {
+	if p.curIs(kwWITH) {
 		p.advance() // consume WITH
 	}
 	switch c {
@@ -2184,7 +2177,7 @@ func (p *Parser) parseRefreshSetting(downstream bool) (*ast.CopyOption, error) {
 			return nil, err
 		}
 		opt.Words = name.String()
-	case p.cur.Type == tokString:
+	case p.curIs(tokString):
 		tok := p.advance()
 		opt.Lit = &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}
 	case downstream && p.curIsWord("DOWNSTREAM"):
@@ -2209,12 +2202,12 @@ func (p *Parser) parsePolicyName() (*ast.ObjectName, error) {
 // COPY = ( ... ) into the fields CREATE ICEBERG TABLE also sets. The caller
 // has confirmed startsCopyClause.
 func (p *Parser) parseTableCopyClause(stmt *ast.CreateTableStmt) error {
-	switch p.peekNext().Type {
-	case kwGRANTS:
+	switch {
+	case p.nextIs(kwGRANTS):
 		p.advance() // consume COPY
 		p.advance() // consume GRANTS
 		stmt.CopyGrants = true
-	case kwTAGS:
+	case p.nextIs(kwTAGS):
 		p.advance() // consume COPY
 		p.advance() // consume TAGS
 		stmt.CopyTags = true
@@ -2231,11 +2224,11 @@ func (p *Parser) parseTableCopyClause(stmt *ast.CreateTableStmt) error {
 // startsCopyClause reports whether cur begins COPY GRANTS, COPY TAGS, or
 // COPY = ( ... ).
 func (p *Parser) startsCopyClause() bool {
-	if p.cur.Type != kwCOPY {
+	if !p.curIs(kwCOPY) {
 		return false
 	}
-	switch p.peekNext().Type {
-	case kwGRANTS, kwTAGS, '=':
+	switch {
+	case p.nextIs(kwGRANTS), p.nextIs(kwTAGS), p.nextIs('='):
 		return true
 	}
 	return false
@@ -2252,11 +2245,11 @@ func (p *Parser) startsCopyClause() bool {
 // external table, materialized view). What else is copied is not kept.
 func (p *Parser) parseCopyClause(grantsOnly bool) (bool, error) {
 	p.advance() // consume COPY
-	switch p.cur.Type {
-	case kwGRANTS:
+	switch {
+	case p.curIs(kwGRANTS):
 		p.advance() // consume GRANTS
 		return true, nil
-	case kwTAGS:
+	case p.curIs(kwTAGS):
 		if grantsOnly {
 			return false, p.syntaxErrorAtCur()
 		}
@@ -2272,14 +2265,14 @@ func (p *Parser) parseCopyClause(grantsOnly bool) (bool, error) {
 	grants := false
 	for {
 		switch {
-		case p.cur.Type == kwGRANTS:
+		case p.curIs(kwGRANTS):
 			grants = true
-		case !grantsOnly && (p.cur.Type == kwTAGS || p.curIsWord("COMMENTS")):
+		case !grantsOnly && (p.curIs(kwTAGS) || p.curIsWord("COMMENTS")):
 		default:
 			return false, p.syntaxErrorAtCur()
 		}
 		p.advance() // consume the copied item
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','

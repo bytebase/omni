@@ -63,7 +63,7 @@ var taskGraphDefaults = objectProps{
 
 // startsTaskGraph reports whether cur, TASK, is followed by the word GRAPH.
 func (p *Parser) startsTaskGraph() bool {
-	return p.cur.Type == kwTASK && isWordToken(p.peekNext(), "GRAPH")
+	return p.curIs(kwTASK) && p.nextWord("GRAPH")
 }
 
 // parseTaskOrGraph reads a statement whose object starts TASK GRAPH: by graph
@@ -74,7 +74,7 @@ func (p *Parser) parseTaskOrGraph(graph, task func() (ast.Node, error)) (ast.Nod
 	node, gerr := graph()
 	if gerr == nil {
 		// A result pipe (->>) after the statement is parseTopStmt's to read.
-		if p.cur.Type == tokEOF || p.cur.Type == ';' || p.cur.Type == tokFlow {
+		if p.curIs(tokEOF) || p.curIs(';') || p.curIs(tokFlow) {
 			return node, nil
 		}
 		gerr = p.syntaxErrorAtCur()
@@ -112,7 +112,7 @@ func parseCreateTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 	for {
 		start := p.cur.Loc.Start
 		switch {
-		case p.cur.Type == kwWITH && isWordToken(p.peekNext(), "CONTACT"):
+		case p.curIs(kwWITH) && p.nextWord("CONTACT"):
 			if s.OrAlter || seenContact {
 				return p.syntaxErrorAtCur()
 			}
@@ -127,7 +127,7 @@ func parseCreateTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 				return err
 			}
 			p.addObjectKeywordsClause(s, "WITH CONTACT", start).Options = []*ast.CopyOption{group}
-		case isWordToken(p.cur, "TASK_DEFAULTS") && p.peekNext().Type == '(':
+		case p.curWord("TASK_DEFAULTS") && p.nextIs('('):
 			if seenDefaults {
 				return p.syntaxErrorAtCur()
 			}
@@ -138,7 +138,7 @@ func parseCreateTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 				return err
 			}
 			p.addObjectKeywordsClause(s, "TASK_DEFAULTS", start).Options = []*ast.CopyOption{group}
-		case p.cur.Type == kwWHEN:
+		case p.curIs(kwWHEN):
 			// WHEN is the last clause.
 			p.advance() // consume WHEN
 			cond, err := p.parseExpr()
@@ -206,7 +206,7 @@ func parseAlterTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 	case p.acceptWords("REMOVE", "WHEN"):
 		p.addObjectKeywordsClause(s, "REMOVE WHEN", start)
 		return nil
-	case p.cur.Type == kwSET && isWordToken(p.peekNext(), "TASK_DEFAULTS"):
+	case p.curIs(kwSET) && p.nextWord("TASK_DEFAULTS"):
 		p.advance() // consume SET
 		p.advance() // consume TASK_DEFAULTS
 		group, err := p.parseTaskGraphDefaults(false)
@@ -215,7 +215,7 @@ func parseAlterTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 		}
 		p.addObjectKeywordsClause(s, "SET TASK_DEFAULTS", start).Options = []*ast.CopyOption{group}
 		return nil
-	case p.cur.Type == kwUNSET && isWordToken(p.peekNext(), "TASK_DEFAULTS"):
+	case p.curIs(kwUNSET) && p.nextWord("TASK_DEFAULTS"):
 		p.advance() // consume UNSET
 		p.advance() // consume TASK_DEFAULTS
 		group, err := p.parseTaskGraphDefaults(true)
@@ -224,7 +224,7 @@ func parseAlterTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 		}
 		p.addObjectKeywordsClause(s, "UNSET TASK_DEFAULTS", start).Options = []*ast.CopyOption{group}
 		return nil
-	case p.cur.Type == kwSET && isWordToken(p.peekNext(), "CONTACT"):
+	case p.curIs(kwSET) && p.nextWord("CONTACT"):
 		p.advance() // consume SET
 		p.advance() // consume CONTACT
 		var contacts []*ast.CopyOption
@@ -234,7 +234,7 @@ func parseAlterTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 				return err
 			}
 			contacts = append(contacts, e)
-			if p.cur.Type != ',' {
+			if !p.curIs(',') {
 				break
 			}
 			p.advance() // consume ','
@@ -244,7 +244,7 @@ func parseAlterTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 		}
 		p.addObjectKeywordsClause(s, "SET CONTACT", start).Options = contacts
 		return nil
-	case p.cur.Type == kwUNSET && isWordToken(p.peekNext(), "CONTACT"):
+	case p.curIs(kwUNSET) && p.nextWord("CONTACT"):
 		p.advance() // consume UNSET
 		p.advance() // consume CONTACT
 		keys, err := p.parseObjectUnsetKeys()
@@ -253,7 +253,7 @@ func parseAlterTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 		}
 		p.addObjectKeywordsClause(s, "UNSET CONTACT", start).Keys = keys
 		return nil
-	case p.cur.Type == kwSET && p.peekNext().Type != kwTAG:
+	case p.curIs(kwSET) && !p.nextIs(kwTAG):
 		// SET <property> = <value> [ , ... ]: the page separates them with
 		// commas. Duplicate property validation is deferred to the
 		// semantic/catalog layer, matching CREATE/ALTER WAREHOUSE.
@@ -271,7 +271,7 @@ func parseAlterTaskGraph(p *Parser, s *ast.ObjectStmt) error {
 				return err
 			}
 			c.Options = append(c.Options, o)
-			if p.cur.Type != ',' {
+			if !p.curIs(',') {
 				break
 			}
 			p.advance() // consume ','
@@ -343,7 +343,7 @@ func (p *Parser) parseTaskGraphGroup(names, execAs bool) (*ast.CopyOption, error
 			return nil, err
 		}
 		group.Group = append(group.Group, e)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -379,7 +379,7 @@ func (p *Parser) parseTaskGraphEntry(names, execAs bool) (*ast.CopyOption, error
 		key := p.advance()
 		return &ast.CopyOption{Name: strings.ToUpper(key.Str), Bare: true, Loc: key.Loc}, nil
 	}
-	if p.peekNext().Type != '=' {
+	if !p.nextIs('=') {
 		p.advance()
 		return nil, p.syntaxErrorAtCur()
 	}

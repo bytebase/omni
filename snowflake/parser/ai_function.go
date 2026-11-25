@@ -55,7 +55,7 @@ func (p *Parser) parseCreateAiFunctionStmt(start ast.Loc, orReplace bool) (ast.N
 		return nil, err
 	}
 
-	if p.cur.Type == kwFROM {
+	if p.curIs(kwFROM) {
 		p.advance() // consume FROM
 		if err := p.expectWords("EXPERIMENT"); err != nil {
 			return nil, err
@@ -83,7 +83,7 @@ func (p *Parser) parseCreateAiFunctionStmt(start ast.Loc, orReplace bool) (ast.N
 		}
 		stmt.Options = append(stmt.Options, opt)
 	}
-	if p.cur.Type != kwAS {
+	if !p.curIs(kwAS) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	body, dollar, end, err := p.parseRoutineBody()

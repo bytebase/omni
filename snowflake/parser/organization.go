@@ -141,11 +141,11 @@ func parseCreateOrganizationUser(p *Parser, s *ast.ObjectStmt) error {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/alter-organization-user
 func parseAlterOrganizationUser(p *Parser, s *ast.ObjectStmt) error {
-	if s.IfExists && p.cur.Type == kwUNSET {
+	if s.IfExists && p.curIs(kwUNSET) {
 		// The page writes IF EXISTS on SET alone.
 		return p.syntaxErrorAtCur()
 	}
-	if p.cur.Type == kwSET {
+	if p.curIs(kwSET) {
 		start := p.cur.Loc.Start
 		p.advance() // consume SET
 		c, err := p.parseObjectPropertiesWith(s, "SET", true, true)
@@ -205,7 +205,7 @@ func parseAlterOrganizationUserGroup(p *Parser, s *ast.ObjectStmt) error {
 			return nil
 		}
 	}
-	if p.cur.Type == kwSET && isWordToken(p.peekNext(), "VISIBILITY") {
+	if p.curIs(kwSET) && p.nextWord("VISIBILITY") {
 		p.advance() // consume SET
 		p.advance() // consume VISIBILITY
 		if _, err := p.expect('='); err != nil {
@@ -231,7 +231,7 @@ func parseAlterOrganizationUserGroup(p *Parser, s *ast.ObjectStmt) error {
 		}
 		return nil
 	}
-	if p.cur.Type == kwSET {
+	if p.curIs(kwSET) {
 		ok, err := p.parseObjectAlterCommon(s, actSet)
 		if err != nil || !ok {
 			return err
@@ -307,13 +307,13 @@ func parseCreateOrganizationAccount(p *Parser, s *ast.ObjectStmt) error {
 // https://docs.snowflake.com/en/sql-reference/sql/alter-organization-account
 func parseAlterOrganizationAccount(p *Parser, s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
-	if (p.cur.Type == kwSET || p.cur.Type == kwUNSET) &&
-		(p.peekNext().Type == kwPASSWORD || p.peekNext().Type == kwSESSION) {
+	if (p.curIs(kwSET) || p.curIs(kwUNSET)) &&
+		(p.nextIs(kwPASSWORD) || p.nextIs(kwSESSION)) {
 		verb := strings.ToUpper(p.cur.Str)
 		snap := p.snapshot()
 		p.advance() // consume SET or UNSET
 		kind := strings.ToUpper(p.advance().Str)
-		if p.cur.Type == kwPOLICY {
+		if p.curIs(kwPOLICY) {
 			p.advance() // consume POLICY
 			c := p.addObjectKeywordsClause(s, verb+" "+kind+" POLICY", start)
 			if verb == "SET" {
@@ -329,7 +329,7 @@ func parseAlterOrganizationAccount(p *Parser, s *ast.ObjectStmt) error {
 		// A parameter named PASSWORD or SESSION.
 		p.restore(snap)
 	}
-	if p.cur.Type == kwSET && p.peekNext().Type != kwTAG {
+	if p.curIs(kwSET) && !p.nextIs(kwTAG) {
 		return p.parseOrganizationAccountParams(s)
 	}
 	ok, err := p.parseObjectAlterCommon(s, actUnset|actTags)
@@ -362,7 +362,7 @@ func (p *Parser) parseOrganizationAccountParams(s *ast.ObjectStmt) error {
 		}
 		seen[opt.Name] = true
 		c.Options = append(c.Options, opt)
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','; a parameter must follow
 			continue
 		}
@@ -386,18 +386,18 @@ func (p *Parser) parseOrganizationAccountParams(s *ast.ObjectStmt) error {
 // https://docs.snowflake.com/en/sql-reference/sql/create-organization-profile
 func parseCreateOrganizationProfile(p *Parser, s *ast.ObjectStmt) error {
 	switch {
-	case p.cur.Type == kwAS:
+	case p.curIs(kwAS):
 		if err := p.parseObjectAsString(s); err != nil {
 			return err
 		}
-	case p.cur.Type == kwFROM:
+	case p.curIs(kwFROM):
 		if err := p.parseObjectFromStage(s); err != nil {
 			return err
 		}
 	default:
 		return nil
 	}
-	if start := p.cur.Loc.Start; p.cur.Type == kwVERSION {
+	if start := p.cur.Loc.Start; p.curIs(kwVERSION) {
 		p.advance() // consume VERSION
 		name, err := p.parseObjectSimpleName()
 		if err != nil {
@@ -425,9 +425,9 @@ func parseCreateOrganizationProfile(p *Parser, s *ast.ObjectStmt) error {
 func parseAlterOrganizationProfile(p *Parser, s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
 	switch {
-	case p.cur.Type == kwAS:
+	case p.curIs(kwAS):
 		return p.parseObjectAsString(s)
-	case p.cur.Type == kwRENAME:
+	case p.curIs(kwRENAME):
 		return p.parseObjectRenameSimple(s)
 	case p.acceptWords("PUBLISH"):
 		p.addObjectKeywordsClause(s, "PUBLISH", start)
@@ -492,7 +492,7 @@ func parseAlterOrganization(p *Parser, s *ast.ObjectStmt) error {
 	case p.acceptWords("UNSET", "EVENT", "ROUTING", "TABLE", "FOR", "ALL", "APPLICATION", "LISTINGS"):
 		p.addObjectKeywordsClause(s, "UNSET EVENT ROUTING TABLE FOR ALL APPLICATION LISTINGS", start)
 		return nil
-	case p.cur.Type == kwSET:
+	case p.curIs(kwSET):
 		// One property a statement: each is a form of its own.
 		p.advance() // consume SET
 		if !p.startsObjectProperty() {

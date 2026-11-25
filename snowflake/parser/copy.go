@@ -43,7 +43,7 @@ import (
 // a table name and therefore a load. The COPY keyword has NOT been consumed.
 func (p *Parser) parseCopyStmt() (ast.Node, error) {
 	copyTok := p.advance() // consume COPY
-	if isWordToken(p.cur, "FILES") && p.peekNext().Type == kwINTO {
+	if p.curWord("FILES") && p.nextIs(kwINTO) {
 		return p.parseCopyFiles(copyTok.Loc)
 	}
 	if _, err := p.expect(kwINTO); err != nil {
@@ -80,7 +80,7 @@ func (p *Parser) parseCopyIntoTable(start ast.Loc) (ast.Node, error) {
 
 	// Optional ( col, ... ) column list (transformation form). Distinguished
 	// from anything else by the '(' immediately following the table name.
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		p.advance() // consume '('
 		cols, err := p.parseIdentList()
 		if err != nil {
@@ -98,7 +98,7 @@ func (p *Parser) parseCopyIntoTable(start ast.Loc) (ast.Node, error) {
 
 	// Source: a transformation query `( SELECT ... FROM stage )` or a bare
 	// stage/location. The '(' followed by SELECT (or WITH) is the transform.
-	if p.cur.Type == '(' && (p.peekNext().Type == kwSELECT || p.peekNext().Type == kwWITH) {
+	if p.curIs('(') && (p.nextIs(kwSELECT) || p.nextIs(kwWITH)) {
 		p.advance() // consume '('
 		sel, err := p.parseCopyTransformQuery()
 		if err != nil {
@@ -168,7 +168,7 @@ func (p *Parser) parseCopyTransformQuery() (*ast.SelectStmt, error) {
 	// no dedicated stage field, and the shared primary-source parser cannot
 	// consume an '@' stage). Non-stage sources (a table function, a parenthesized
 	// subquery, a plain name) reuse the shared primary-source parser.
-	if p.cur.Type == '@' {
+	if p.curIs('@') {
 		stage, err := p.parseStageRef()
 		if err != nil {
 			return nil, err
@@ -232,10 +232,10 @@ func (p *Parser) parseCopyIntoLocation(start ast.Loc) (ast.Node, error) {
 	}
 
 	// FROM source: a parenthesized query or a table name.
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		p.advance() // consume '('
 		var query ast.Node
-		if p.cur.Type == kwWITH {
+		if p.curIs(kwWITH) {
 			query, err = p.parseWithQueryExpr()
 		} else {
 			query, err = p.parseQueryExpr()
@@ -256,7 +256,7 @@ func (p *Parser) parseCopyIntoLocation(start ast.Loc) (ast.Node, error) {
 	}
 
 	// Optional PARTITION BY <expr>.
-	if p.cur.Type == kwPARTITION {
+	if p.curIs(kwPARTITION) {
 		p.advance() // consume PARTITION
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
@@ -316,9 +316,9 @@ func (p *Parser) parseCopyFiles(start ast.Loc) (ast.Node, error) {
 	if _, err := p.expect(kwFROM); err != nil {
 		return nil, err
 	}
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		p.advance() // consume '('
-		if p.cur.Type != kwSELECT {
+		if !p.curIs(kwSELECT) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		q, err := p.parseQueryExpr()
@@ -356,7 +356,7 @@ func (p *Parser) parseCopyFiles(start ast.Loc) (ast.Node, error) {
 // parseCopyFilesStage reads a COPY FILES stage: '@' and a stage, never an
 // external location.
 func (p *Parser) parseCopyFilesStage() (*ast.StageLocation, error) {
-	if p.cur.Type != '@' {
+	if !p.curIs('@') {
 		return nil, p.syntaxErrorAtCur()
 	}
 	return p.parseStageLocation()
@@ -371,10 +371,10 @@ func (p *Parser) parseCopyFilesStage() (*ast.StageLocation, error) {
 // '@'; an external location is a single-quoted 'scheme://...' string. A bare
 // identifier is a table name (load target / unload source), not a location.
 func (p *Parser) startsStageLocation() bool {
-	if p.cur.Type == '@' {
+	if p.curIs('@') {
 		return true
 	}
-	if p.cur.Type == tokString {
+	if p.curIs(tokString) {
 		return isExternalURI(p.cur.Str)
 	}
 	return false
@@ -408,10 +408,10 @@ func isExternalURI(s string) bool {
 // (PUT/GET local file paths are parsed by parseLocalFile, not here, because
 // they need raw-source scanning past the '//' comment hazard.)
 func (p *Parser) parseStageLocation() (*ast.StageLocation, error) {
-	if p.cur.Type == '@' {
+	if p.curIs('@') {
 		return p.parseStageRef()
 	}
-	if p.cur.Type == tokString && isExternalURI(p.cur.Str) {
+	if p.curIs(tokString) && isExternalURI(p.cur.Str) {
 		tok := p.advance()
 		return &ast.StageLocation{
 			Kind: ast.StageExternal,
@@ -487,7 +487,7 @@ func (p *Parser) isStagePathToken(tokType int) bool {
 // stream.
 func (p *Parser) parseLocalFile() (*ast.StageLocation, error) {
 	// Quoted form: 'file://...' (or any quoted local path).
-	if p.cur.Type == tokString {
+	if p.curIs(tokString) {
 		tok := p.advance()
 		return &ast.StageLocation{
 			Kind: ast.StageLocalFile,
@@ -503,7 +503,7 @@ func (p *Parser) parseLocalFile() (*ast.StageLocation, error) {
 	}
 
 	// Bare local path (e.g. GET target `my_target_path`): a single identifier.
-	if p.cur.Type == tokIdent || p.cur.Type == tokQuotedIdent {
+	if p.curIs(tokIdent) || p.curIs(tokQuotedIdent) {
 		tok := p.advance()
 		return &ast.StageLocation{
 			Kind: ast.StageLocalFile,
@@ -518,10 +518,11 @@ func (p *Parser) parseLocalFile() (*ast.StageLocation, error) {
 // curIsWord reports whether the current token is an identifier or keyword whose
 // uppercased text equals upper.
 func (p *Parser) curIsWord(upper string) bool {
-	if p.cur.Str == "" {
-		return false
+	if p.cur.Str != "" && strings.ToUpper(p.cur.Str) == upper {
+		return true
 	}
-	return strings.ToUpper(p.cur.Str) == upper
+	p.wantWords(upper)
+	return false
 }
 
 // peekIsWord reports whether the next token (one past cur) has the given
@@ -530,11 +531,11 @@ func (p *Parser) curIsWord(upper string) bool {
 // object qualifiers (e.g. NETWORK RULE vs NETWORK POLICY, where RULE is not a
 // reserved keyword).
 func (p *Parser) peekIsWord(upper string) bool {
-	next := p.peekNext()
-	if next.Str == "" {
-		return false
+	if next := p.peekNext(); next.Str != "" && strings.ToUpper(next.Str) == upper {
+		return true
 	}
-	return strings.ToUpper(next.Str) == upper
+	p.wantNextWords(upper)
+	return false
 }
 
 // lookaheadColonSlashSlash reports whether the source immediately following the
@@ -633,12 +634,12 @@ func (p *Parser) parseCopyOptionsSep(commas bool) ([]*ast.CopyOption, error) {
 // it, and reports whether it did. A ',' before anything else stays, for the
 // caller to reject.
 func (p *Parser) acceptOptionComma() bool {
-	if p.cur.Type != ',' {
+	if !p.curIs(',') {
 		return false
 	}
 	snap := p.snapshot()
 	p.advance() // consume ','
-	if p.startsCopyOption() && p.peekNext().Type == '=' {
+	if p.startsCopyOption() && p.nextIs('=') {
 		return true
 	}
 	p.restore(snap)
@@ -650,10 +651,10 @@ func (p *Parser) acceptOptionComma() bool {
 // option names: FILES, PATTERN, FILE_FORMAT, PARTITION, ON_ERROR, ...).
 // Structural tokens (parens, commas, operators) and EOF do not begin an option.
 func (p *Parser) startsCopyOption() bool {
-	if p.cur.Type == tokIdent || p.cur.Type == tokQuotedIdent {
+	if p.curIs(tokIdent) || p.curIs(tokQuotedIdent) {
 		return true
 	}
-	if p.cur.Type == tokEOF || p.cur.Type == ';' {
+	if p.curIs(tokEOF) || p.curIs(';') {
 		return false
 	}
 	return p.cur.Type >= 700
@@ -680,14 +681,14 @@ func (p *Parser) parseCopyOption() (*ast.CopyOption, error) {
 	}
 
 	// Bare option (no '='): e.g. trailing HEADER.
-	if p.cur.Type != '=' {
+	if !p.curIs('=') {
 		opt.Bare = true
 		return opt, nil
 	}
 	p.advance() // consume '='
 
 	// Parenthesized value: a nested group or a literal list.
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		if err := p.parseCopyOptionParen(opt); err != nil {
 			return nil, err
 		}
@@ -699,23 +700,23 @@ func (p *Parser) parseCopyOption() (*ast.CopyOption, error) {
 	// token is lexically an identifier but, as an option value, is semantically a
 	// string (Snowflake accepts e.g. PATTERN = "regex"); it is recorded as a
 	// string literal carrying the quoted text.
-	switch p.cur.Type {
-	case tokString:
+	switch {
+	case p.curIs(tokString):
 		tok := p.advance()
 		opt.Lit = &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}
 		opt.Loc.End = tok.Loc.End
 		return opt, nil
-	case tokQuotedIdent:
+	case p.curIs(tokQuotedIdent):
 		tok := p.advance()
 		opt.Lit = &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}
 		opt.Loc.End = tok.Loc.End
 		return opt, nil
-	case tokInt:
+	case p.curIs(tokInt):
 		tok := p.advance()
 		opt.Lit = &ast.Literal{Kind: ast.LitInt, Value: tok.Str, Ival: tok.Ival, Loc: tok.Loc}
 		opt.Loc.End = tok.Loc.End
 		return opt, nil
-	case tokFloat, tokReal:
+	case p.curIs(tokFloat), p.curIs(tokReal):
 		tok := p.advance()
 		opt.Lit = &ast.Literal{Kind: ast.LitFloat, Value: tok.Str, Loc: tok.Loc}
 		opt.Loc.End = tok.Loc.End
@@ -745,7 +746,7 @@ func (p *Parser) parseCopyOptionParen(opt *ast.CopyOption) error {
 	p.advance() // consume '('
 
 	// Empty group: ().
-	if p.cur.Type == ')' {
+	if p.curIs(')') {
 		p.advance()
 		opt.Group = []*ast.CopyOption{} // non-nil to record "()" explicitly
 		return nil
@@ -754,8 +755,7 @@ func (p *Parser) parseCopyOptionParen(opt *ast.CopyOption) error {
 	// A literal list: first token is a literal and the token after it is ',' or
 	// ')'. (FILES = ('f1', 'f2'); NULL_IF = ('NULL', 'null').)
 	if p.curIsLiteral() {
-		next := p.peekNext()
-		if next.Type == ',' || next.Type == ')' {
+		if p.nextIs(',') || p.nextIs(')') {
 			lits, err := p.parseLiteralList()
 			if err != nil {
 				return err
@@ -776,13 +776,13 @@ func (p *Parser) parseCopyOptionParen(opt *ast.CopyOption) error {
 	// continues while another `key [= value]` entry begins, optionally
 	// consuming a separating comma.
 	var group []*ast.CopyOption
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for !p.curIs(')') && !p.curIs(tokEOF) {
 		sub, err := p.parseGroupEntry()
 		if err != nil {
 			return err
 		}
 		group = append(group, sub)
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume optional ',' separator
 		}
 	}
@@ -808,7 +808,7 @@ func (p *Parser) parseGroupEntry() (*ast.CopyOption, error) {
 	// parseCopyOptionParen before we are called), so accepting it does not
 	// reinterpret any list. The string's text is stored verbatim (not uppercased)
 	// since it is a literal name, not a keyword.
-	quotedKey := p.cur.Type == tokString
+	quotedKey := p.curIs(tokString)
 	if !quotedKey && !p.startsCopyOption() {
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -824,31 +824,31 @@ func (p *Parser) parseGroupEntry() (*ast.CopyOption, error) {
 
 	// Group entries are always `key = value` (a bare key inside a group is not
 	// a documented form), but tolerate a bare key defensively rather than error.
-	if p.cur.Type != '=' {
+	if !p.curIs('=') {
 		entry.Bare = true
 		return entry, nil
 	}
 	p.advance() // consume '='
 
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		if err := p.parseCopyOptionParen(entry); err != nil {
 			return nil, err
 		}
 		entry.Loc.End = p.prev.Loc.End
 		return entry, nil
 	}
-	switch p.cur.Type {
-	case tokString:
+	switch {
+	case p.curIs(tokString):
 		tok := p.advance()
 		entry.Lit = &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}
 		entry.Loc.End = tok.Loc.End
 		return entry, nil
-	case tokInt:
+	case p.curIs(tokInt):
 		tok := p.advance()
 		entry.Lit = &ast.Literal{Kind: ast.LitInt, Value: tok.Str, Ival: tok.Ival, Loc: tok.Loc}
 		entry.Loc.End = tok.Loc.End
 		return entry, nil
-	case tokFloat, tokReal:
+	case p.curIs(tokFloat), p.curIs(tokReal):
 		tok := p.advance()
 		entry.Lit = &ast.Literal{Kind: ast.LitFloat, Value: tok.Str, Loc: tok.Loc}
 		entry.Loc.End = tok.Loc.End
@@ -865,8 +865,8 @@ func (p *Parser) parseGroupEntry() (*ast.CopyOption, error) {
 
 // curIsLiteral reports whether the current token is a string or numeric literal.
 func (p *Parser) curIsLiteral() bool {
-	switch p.cur.Type {
-	case tokString, tokInt, tokFloat, tokReal:
+	switch {
+	case p.curIs(tokString), p.curIs(tokInt), p.curIs(tokFloat), p.curIs(tokReal):
 		return true
 	}
 	return false
@@ -882,7 +882,7 @@ func (p *Parser) parseLiteralList() ([]*ast.Literal, error) {
 			return nil, err
 		}
 		lits = append(lits, lit)
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -893,14 +893,14 @@ func (p *Parser) parseLiteralList() ([]*ast.Literal, error) {
 
 // parseCopyLiteral parses one string/number literal in a COPY option list.
 func (p *Parser) parseCopyLiteral() (*ast.Literal, error) {
-	switch p.cur.Type {
-	case tokString:
+	switch {
+	case p.curIs(tokString):
 		tok := p.advance()
 		return &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}, nil
-	case tokInt:
+	case p.curIs(tokInt):
 		tok := p.advance()
 		return &ast.Literal{Kind: ast.LitInt, Value: tok.Str, Ival: tok.Ival, Loc: tok.Loc}, nil
-	case tokFloat, tokReal:
+	case p.curIs(tokFloat), p.curIs(tokReal):
 		tok := p.advance()
 		return &ast.Literal{Kind: ast.LitFloat, Value: tok.Str, Loc: tok.Loc}, nil
 	}
@@ -929,7 +929,7 @@ func (p *Parser) parseValueWord() (string, int, error) {
 	end := first.Loc.End
 
 	// Adjacency-joined dotted / $ continuations only (no spaces).
-	for (p.cur.Type == '.' || p.cur.Type == '$') && p.cur.Loc.Start == end {
+	for (p.curIs('.') || p.curIs('$')) && p.cur.Loc.Start == end {
 		sep := p.advance()
 		b.WriteString(p.srcSlice(sep.Loc.Start, sep.Loc.End))
 		end = sep.Loc.End

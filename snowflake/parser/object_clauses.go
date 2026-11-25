@@ -29,7 +29,7 @@ func rejectObjectTags(s *ast.ObjectStmt) error {
 func (p *Parser) parseObjectStringList() ([]*ast.CopyOption, error) {
 	var out []*ast.CopyOption
 	for {
-		if p.cur.Type != tokString {
+		if !p.curIs(tokString) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		lit, err := p.parseCopyLiteral()
@@ -37,7 +37,7 @@ func (p *Parser) parseObjectStringList() ([]*ast.CopyOption, error) {
 			return nil, err
 		}
 		out = append(out, &ast.CopyOption{Lit: lit, Loc: lit.Loc})
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			return out, nil
 		}
 		p.advance() // consume ','
@@ -51,7 +51,7 @@ func (p *Parser) parseObjectAsString(s *ast.ObjectStmt) error {
 	if _, err := p.expect(kwAS); err != nil {
 		return err
 	}
-	if p.cur.Type != tokString {
+	if !p.curIs(tokString) {
 		return p.syntaxErrorAtCur()
 	}
 	lit, err := p.parseCopyLiteral()
@@ -69,7 +69,7 @@ func (p *Parser) parseObjectFromStage(s *ast.ObjectStmt) error {
 	if _, err := p.expect(kwFROM); err != nil {
 		return err
 	}
-	if p.cur.Type != '@' {
+	if !p.curIs('@') {
 		return p.syntaxErrorAtCur()
 	}
 	raw, loc := p.parseObjectStageLocation()
@@ -88,7 +88,7 @@ func (p *Parser) parseObjectFromStage(s *ast.ObjectStmt) error {
 func (p *Parser) parseObjectStageLocation() (string, ast.Loc) {
 	at := p.advance() // consume '@'
 	loc := ast.Loc{Start: at.Loc.Start, End: at.Loc.End}
-	for p.cur.Loc.Start == loc.End && (p.isStagePathToken(p.cur.Type) || p.cur.Type == '-') {
+	for p.cur.Loc.Start == loc.End && (p.isStagePathToken(p.cur.Type) || p.curIs('-')) {
 		loc.End = p.cur.Loc.End
 		p.advance()
 	}
@@ -100,7 +100,7 @@ func (p *Parser) parseObjectStageLocation() (string, ast.Loc) {
 // from start, into a clause. The name is absent when FROM follows.
 func (p *Parser) parseObjectAddVersion(s *ast.ObjectStmt, keywords string, start int) error {
 	c := p.addObjectKeywordsClause(s, keywords, start)
-	if p.cur.Type == kwFROM {
+	if p.curIs(kwFROM) {
 		return nil
 	}
 	ifNotExists := false

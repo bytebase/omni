@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strings"
-
 	"github.com/bytebase/omni/snowflake/ast"
 )
 
@@ -70,7 +68,7 @@ func (p *Parser) parseMergeStmt() (*ast.MergeStmt, error) {
 	stmt.On = on
 
 	// WHEN clauses (one or more)
-	for p.cur.Type == kwWHEN {
+	for p.curIs(kwWHEN) {
 		when, err := p.parseMergeWhen()
 		if err != nil {
 			return nil, err
@@ -86,14 +84,13 @@ func (p *Parser) parseMergeStmt() (*ast.MergeStmt, error) {
 // a parenthesized subquery. It does NOT parse the alias; the caller parses
 // the optional alias after this function returns.
 func (p *Parser) parseMergeSource() (ast.Node, error) {
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		startLoc := p.cur.Loc
-		next := p.peekNext()
-		if next.Type == kwSELECT || next.Type == kwWITH {
+		if p.nextIs(kwSELECT) || p.nextIs(kwWITH) {
 			p.advance() // consume '('
 			var query ast.Node
 			var err error
-			if p.cur.Type == kwWITH {
+			if p.curIs(kwWITH) {
 				query, err = p.parseWithQueryExpr()
 			} else {
 				query, err = p.parseQueryExpr()
@@ -136,23 +133,23 @@ func (p *Parser) parseMergeWhen() (*ast.MergeWhen, error) {
 		Loc: ast.Loc{Start: whenTok.Loc.Start},
 	}
 
-	if p.cur.Type == kwMATCHED {
+	if p.curIs(kwMATCHED) {
 		p.advance() // consume MATCHED
 		when.Matched = true
-	} else if p.cur.Type == kwNOT {
+	} else if p.curIs(kwNOT) {
 		p.advance() // consume NOT
 		if _, err := p.expect(kwMATCHED); err != nil {
 			return nil, err
 		}
 		when.Matched = false
 		// Optional BY TARGET|SOURCE
-		if p.cur.Type == kwBY {
+		if p.curIs(kwBY) {
 			p.advance() // consume BY
 			switch {
-			case p.cur.Type == kwSOURCE:
+			case p.curIs(kwSOURCE):
 				p.advance() // consume SOURCE
 				when.BySource = true
-			case p.cur.Type == tokIdent && strings.ToUpper(p.cur.Str) == "TARGET":
+			case p.curIsUnquotedWord("TARGET"):
 				p.advance() // consume TARGET (identifier)
 				when.ByTarget = true
 			default:
@@ -168,7 +165,7 @@ func (p *Parser) parseMergeWhen() (*ast.MergeWhen, error) {
 	}
 
 	// Optional AND condition
-	if p.cur.Type == kwAND {
+	if p.curIs(kwAND) {
 		p.advance() // consume AND
 		cond, err := p.parseExpr()
 		if err != nil {
@@ -182,8 +179,8 @@ func (p *Parser) parseMergeWhen() (*ast.MergeWhen, error) {
 		return nil, err
 	}
 
-	switch p.cur.Type {
-	case kwUPDATE:
+	switch {
+	case p.curIs(kwUPDATE):
 		p.advance() // consume UPDATE
 		when.Action = ast.MergeActionUpdate
 		// `UPDATE ALL BY NAME` is an alternative to `UPDATE SET col = val, ...`.
@@ -200,11 +197,11 @@ func (p *Parser) parseMergeWhen() (*ast.MergeWhen, error) {
 		}
 		when.Sets = sets
 
-	case kwDELETE:
+	case p.curIs(kwDELETE):
 		p.advance() // consume DELETE
 		when.Action = ast.MergeActionDelete
 
-	case kwINSERT:
+	case p.curIs(kwINSERT):
 		p.advance() // consume INSERT
 		when.Action = ast.MergeActionInsert
 
@@ -215,10 +212,9 @@ func (p *Parser) parseMergeWhen() (*ast.MergeWhen, error) {
 		}
 
 		// Optional column list
-		if p.cur.Type == '(' {
+		if p.curIs('(') {
 			// Peek to see if it's a column list or VALUES
-			next := p.peekNext()
-			if next.Type != kwVALUES && next.Type != kwDEFAULT {
+			if !p.nextIs(kwVALUES) && !p.nextIs(kwDEFAULT) {
 				p.advance() // consume '('
 				cols, err := p.parseIdentList()
 				if err != nil {
@@ -236,7 +232,7 @@ func (p *Parser) parseMergeWhen() (*ast.MergeWhen, error) {
 			return nil, err
 		}
 
-		if p.cur.Type == kwDEFAULT {
+		if p.curIs(kwDEFAULT) {
 			p.advance() // consume DEFAULT
 			when.InsertDefault = true
 		} else {
@@ -268,10 +264,10 @@ func (p *Parser) parseMergeWhen() (*ast.MergeWhen, error) {
 // for the caller's normal SET / VALUES handling. ALL, BY, and NAME are all
 // non-reserved keywords (kwALL/kwBY/kwNAME).
 func (p *Parser) matchAllByName() bool {
-	if p.cur.Type != kwALL {
+	if !p.curIs(kwALL) {
 		return false
 	}
-	if p.peekNext().Type != kwBY {
+	if !p.nextIs(kwBY) {
 		return false
 	}
 	// Confirm `NAME` follows `BY` before consuming anything. Snapshot the
@@ -285,7 +281,7 @@ func (p *Parser) matchAllByName() bool {
 
 	p.advance() // consume ALL (cur is now BY)
 	p.advance() // consume BY  (cur is the token after BY)
-	if p.cur.Type == kwNAME {
+	if p.curIs(kwNAME) {
 		p.advance() // consume NAME
 		return true
 	}

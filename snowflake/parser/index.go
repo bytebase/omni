@@ -41,7 +41,7 @@ func parseCreateIndex(p *Parser, s *ast.ObjectStmt) error {
 	c := p.addObjectKeywordsClause(s, "ON", start)
 	c.Names = []*ast.ObjectName{table}
 	c.Options = []*ast.CopyOption{cols}
-	if p.cur.Type == kwINCLUDE {
+	if p.curIs(kwINCLUDE) {
 		start := p.cur.Loc.Start
 		p.advance() // consume INCLUDE
 		cols, err := p.parseObjectColumnGroup()
@@ -72,7 +72,7 @@ func (p *Parser) parseObjectColumnGroup() (*ast.CopyOption, error) {
 			entry.Name = col.String()
 		}
 		opt.Group = append(opt.Group, entry)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -103,7 +103,7 @@ func (p *Parser) parseDropIndexStmt(start ast.Loc) (ast.Node, error) {
 			return nil, err
 		}
 		parts = append(parts, part)
-		if p.cur.Type != '.' || len(parts) == 4 {
+		if !p.curIs('.') || len(parts) == 4 {
 			break
 		}
 		p.advance() // consume '.'

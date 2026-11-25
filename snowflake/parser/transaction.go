@@ -38,11 +38,11 @@ func (p *Parser) parseBeginStmt() (ast.Node, error) {
 	}
 
 	// Optional { WORK | TRANSACTION } modifier (at most one).
-	switch p.cur.Type {
-	case kwWORK:
+	switch {
+	case p.curIs(kwWORK):
 		p.advance()
 		stmt.Kind = ast.BeginWork
-	case kwTRANSACTION:
+	case p.curIs(kwTRANSACTION):
 		p.advance()
 		stmt.Kind = ast.BeginTransaction
 	}
@@ -88,7 +88,7 @@ func (p *Parser) parseStartTransactionStmt() (ast.Node, error) {
 // identifier on stmt. NAME is a non-reserved keyword (kwNAME); when present it
 // MUST be followed by an identifier (a missing identifier is a parse error).
 func (p *Parser) parseOptionalTxnName(stmt *ast.BeginStmt) error {
-	if p.cur.Type != kwNAME {
+	if !p.curIs(kwNAME) {
 		return nil
 	}
 	p.advance() // consume NAME
@@ -108,7 +108,7 @@ func (p *Parser) parseCommitStmt() (ast.Node, error) {
 		Loc: ast.Loc{Start: commitTok.Loc.Start, End: commitTok.Loc.End},
 	}
 
-	if p.cur.Type == kwWORK {
+	if p.curIs(kwWORK) {
 		p.advance()
 		stmt.Work = true
 	}
@@ -125,7 +125,7 @@ func (p *Parser) parseRollbackStmt() (ast.Node, error) {
 		Loc: ast.Loc{Start: rollbackTok.Loc.Start, End: rollbackTok.Loc.End},
 	}
 
-	if p.cur.Type == kwWORK {
+	if p.curIs(kwWORK) {
 		p.advance()
 		stmt.Work = true
 	}

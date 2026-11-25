@@ -27,7 +27,7 @@ import "github.com/bytebase/omni/snowflake/ast"
 // a chain instead of the second clause being eaten as alias "PIVOT" and its
 // body discarded. An explicit `AS pivot` alias is still accepted.
 func (p *Parser) parsePivotTrailingAlias() (ast.Ident, bool) {
-	if (p.cur.Type == kwPIVOT || p.cur.Type == kwUNPIVOT) && p.peekNext().Type == '(' {
+	if (p.curIs(kwPIVOT) || p.curIs(kwUNPIVOT)) && p.nextIs('(') {
 		return ast.Ident{}, false
 	}
 	return p.parseOptionalAlias()
@@ -91,7 +91,7 @@ func (p *Parser) parsePivotClause() (*ast.PivotClause, error) {
 	}
 
 	// Optional DEFAULT ON NULL ( <expr> )
-	if p.cur.Type == kwDEFAULT {
+	if p.curIs(kwDEFAULT) {
 		p.advance() // consume DEFAULT
 		if _, err := p.expect(kwON); err != nil {
 			return nil, err
@@ -139,7 +139,7 @@ func (p *Parser) parsePivotColumnRef() (*ast.ColumnRef, error) {
 		Parts: []ast.Ident{first},
 		Loc:   first.Loc,
 	}
-	for p.cur.Type == '.' {
+	for p.curIs('.') {
 		p.advance() // consume '.'
 		part, err := p.parseIdent()
 		if err != nil {
@@ -163,10 +163,10 @@ func (p *Parser) parsePivotInClause() (*ast.PivotInClause, error) {
 	}
 
 	switch {
-	case p.cur.Type == kwANY:
+	case p.curIs(kwANY):
 		p.advance() // consume ANY
 		in.Kind = ast.PivotInAny
-		if p.cur.Type == kwORDER {
+		if p.curIs(kwORDER) {
 			p.advance() // consume ORDER
 			if _, err := p.expect(kwBY); err != nil {
 				return nil, err
@@ -180,11 +180,11 @@ func (p *Parser) parsePivotInClause() (*ast.PivotInClause, error) {
 		in.Loc.End = p.prev.Loc.End
 		return in, nil
 
-	case p.cur.Type == kwSELECT || p.cur.Type == kwWITH:
+	case p.curIs(kwSELECT) || p.curIs(kwWITH):
 		in.Kind = ast.PivotInSubquery
 		var query ast.Node
 		var err error
-		if p.cur.Type == kwWITH {
+		if p.curIs(kwWITH) {
 			query, err = p.parseWithQueryExpr()
 		} else {
 			query, err = p.parseQueryExpr()
@@ -204,7 +204,7 @@ func (p *Parser) parsePivotInClause() (*ast.PivotInClause, error) {
 				return nil, err
 			}
 			in.Values = append(in.Values, val)
-			if p.cur.Type != ',' {
+			if !p.curIs(',') {
 				break
 			}
 			p.advance() // consume ','
@@ -241,14 +241,14 @@ func (p *Parser) parseUnpivotClause() (*ast.UnpivotClause, error) {
 	}
 
 	// Optional { INCLUDE | EXCLUDE } NULLS
-	switch p.cur.Type {
-	case kwINCLUDE:
+	switch {
+	case p.curIs(kwINCLUDE):
 		p.advance()
 		if _, err := p.expect(kwNULLS); err != nil {
 			return nil, err
 		}
 		clause.NullsMode = ast.UnpivotIncludeNulls
-	case kwEXCLUDE:
+	case p.curIs(kwEXCLUDE):
 		p.advance()
 		if _, err := p.expect(kwNULLS); err != nil {
 			return nil, err
@@ -288,7 +288,7 @@ func (p *Parser) parseUnpivotClause() (*ast.UnpivotClause, error) {
 			return nil, err
 		}
 		clause.Columns = append(clause.Columns, col)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -343,17 +343,17 @@ func (p *Parser) parseSampleClause() (*ast.SampleClause, error) {
 	}
 
 	// Optional sampling method.
-	switch p.cur.Type {
-	case kwBERNOULLI:
+	switch {
+	case p.curIs(kwBERNOULLI):
 		p.advance()
 		clause.Method = ast.SampleMethodBernoulli
-	case kwROW:
+	case p.curIs(kwROW):
 		p.advance()
 		clause.Method = ast.SampleMethodRow
-	case kwSYSTEM:
+	case p.curIs(kwSYSTEM):
 		p.advance()
 		clause.Method = ast.SampleMethodSystem
-	case kwBLOCK:
+	case p.curIs(kwBLOCK):
 		p.advance()
 		clause.Method = ast.SampleMethodBlock
 	}
@@ -367,7 +367,7 @@ func (p *Parser) parseSampleClause() (*ast.SampleClause, error) {
 		return nil, err
 	}
 	clause.Quantity = qty
-	if p.cur.Type == kwROWS {
+	if p.curIs(kwROWS) {
 		p.advance() // consume ROWS
 		clause.Rows = true
 	}
@@ -377,11 +377,11 @@ func (p *Parser) parseSampleClause() (*ast.SampleClause, error) {
 	clause.Loc.End = p.prev.Loc.End
 
 	// Optional { SEED | REPEATABLE } ( <n> )
-	switch p.cur.Type {
-	case kwSEED:
+	switch {
+	case p.curIs(kwSEED):
 		p.advance()
 		clause.SeedKind = ast.SampleSeedSeed
-	case kwREPEATABLE:
+	case p.curIs(kwREPEATABLE):
 		p.advance()
 		clause.SeedKind = ast.SampleSeedRepeatable
 	}

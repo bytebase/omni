@@ -101,7 +101,7 @@ func (p *Parser) parseGetStmt() (ast.Node, error) {
 // on internal stages, which are always '@'-prefixed; this is a thin wrapper over
 // parseStageRef that produces a clear error if the operand is not a stage.
 func (p *Parser) parsePutGetStage() (*ast.StageLocation, error) {
-	if p.cur.Type != '@' {
+	if !p.curIs('@') {
 		return nil, p.syntaxErrorAtCur()
 	}
 	return p.parseStageRef()
@@ -177,7 +177,7 @@ func (p *Parser) parseRemoveStmt(short bool) (ast.Node, error) {
 // internal and external stages (both '@'-prefixed); a non-stage operand is an
 // error.
 func (p *Parser) parseStageOperand() (*ast.StageLocation, error) {
-	if p.cur.Type != '@' {
+	if !p.curIs('@') {
 		return nil, p.syntaxErrorAtCur()
 	}
 	return p.parseStageRef()
@@ -189,18 +189,18 @@ func (p *Parser) parseStageOperand() (*ast.StageLocation, error) {
 // (the GET docs example uses PATTERN = "tmp.parquet"), so a quoted-identifier
 // token is accepted and normalized to a string literal carrying its text.
 func (p *Parser) parseOptionalPattern() (*ast.Literal, error) {
-	if p.cur.Type != kwPATTERN {
+	if !p.curIs(kwPATTERN) {
 		return nil, nil
 	}
 	p.advance() // consume PATTERN
 	if _, err := p.expect('='); err != nil {
 		return nil, err
 	}
-	switch p.cur.Type {
-	case tokString:
+	switch {
+	case p.curIs(tokString):
 		tok := p.advance()
 		return &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}, nil
-	case tokQuotedIdent:
+	case p.curIs(tokQuotedIdent):
 		// PATTERN = "regex": Snowflake permits a double-quoted value here; record
 		// it as a string literal carrying the quoted text.
 		tok := p.advance()

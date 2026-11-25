@@ -119,107 +119,106 @@ func (p *Parser) parseExprPrec(minBP int) (ast.Node, error) {
 // If special is non-empty, the caller must dispatch to the named handler
 // instead of building a BinaryExpr.
 func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
-	switch p.cur.Type {
+	switch {
 	// Logical
-	case kwOR:
+	case p.curIs(kwOR):
 		return bpOr, ast.BinOr, "", true
-	case kwAND:
+	case p.curIs(kwAND):
 		return bpAnd, ast.BinAnd, "", true
 
 	// NOT as infix prefix for BETWEEN, IN, LIKE, ILIKE, RLIKE, REGEXP
-	case kwNOT:
-		next := p.peekNext()
-		switch next.Type {
-		case kwBETWEEN:
+	case p.curIs(kwNOT):
+		switch {
+		case p.nextIs(kwBETWEEN):
 			return bpComparison, 0, "NOT_BETWEEN", true
-		case kwIN:
+		case p.nextIs(kwIN):
 			return bpComparison, 0, "NOT_IN", true
-		case kwLIKE:
+		case p.nextIs(kwLIKE):
 			return bpComparison, 0, "NOT_LIKE", true
-		case kwILIKE:
+		case p.nextIs(kwILIKE):
 			return bpComparison, 0, "NOT_ILIKE", true
-		case kwRLIKE:
+		case p.nextIs(kwRLIKE):
 			return bpComparison, 0, "NOT_RLIKE", true
 		default:
 			// Check for REGEXP via tokIdent
-			if next.Type == tokIdent && strings.ToUpper(next.Str) == "REGEXP" {
+			if p.nextIsUnquotedWord("REGEXP") {
 				return bpComparison, 0, "NOT_REGEXP", true
 			}
 		}
 		return 0, 0, "", false
 
 	// Comparison operators
-	case '=':
+	case p.curIs('='):
 		return bpComparison, ast.BinEq, "", true
-	case tokNotEq:
+	case p.curIs(tokNotEq):
 		return bpComparison, ast.BinNe, "", true
-	case '<':
+	case p.curIs('<'):
 		return bpComparison, ast.BinLt, "", true
-	case '>':
+	case p.curIs('>'):
 		return bpComparison, ast.BinGt, "", true
-	case tokLessEq:
+	case p.curIs(tokLessEq):
 		return bpComparison, ast.BinLe, "", true
-	case tokGreaterEq:
+	case p.curIs(tokGreaterEq):
 		return bpComparison, ast.BinGe, "", true
-	case kwIS:
+	case p.curIs(kwIS):
 		return bpComparison, 0, "IS", true
-	case kwBETWEEN:
+	case p.curIs(kwBETWEEN):
 		return bpComparison, 0, "BETWEEN", true
-	case kwIN:
+	case p.curIs(kwIN):
 		return bpComparison, 0, "IN", true
-	case kwLIKE:
+	case p.curIs(kwLIKE):
 		return bpComparison, 0, "LIKE", true
-	case kwILIKE:
+	case p.curIs(kwILIKE):
 		return bpComparison, 0, "ILIKE", true
-	case kwRLIKE:
+	case p.curIs(kwRLIKE):
 		return bpComparison, 0, "RLIKE", true
 
 	// Arithmetic
-	case '+':
+	case p.curIs('+'):
 		return bpAdd, ast.BinAdd, "", true
-	case '-':
+	case p.curIs('-'):
 		return bpAdd, ast.BinSub, "", true
-	case tokConcat:
+	case p.curIs(tokConcat):
 		return bpAdd, ast.BinConcat, "", true
-	case '*':
+	case p.curIs('*'):
 		return bpMul, ast.BinMul, "", true
-	case '/':
+	case p.curIs('/'):
 		return bpMul, ast.BinDiv, "", true
-	case '%':
+	case p.curIs('%'):
 		return bpMul, ast.BinMod, "", true
 
 	// Postfix: (+) legacy Oracle-style outer-join marker. Only treat a '('
 	// as an operator when it forms exactly `(+)`; otherwise a leading '(' is
 	// not an infix operator here (function-call parens are consumed by the
 	// primary parser).
-	case '(':
+	case p.curIs('('):
 		if p.atOuterJoinMarker() {
 			return bpPostfix, 0, "OUTER_JOIN", true
 		}
 		return 0, 0, "", false
 
 	// Postfix: :: cast
-	case tokDoubleColon:
+	case p.curIs(tokDoubleColon):
 		return bpPostfix, 0, "DOUBLE_COLON", true
 
 	// Postfix: COLLATE
-	case kwCOLLATE:
+	case p.curIs(kwCOLLATE):
 		return bpPostfix, 0, "COLLATE", true
 
 	// Postfix: OVER
-	case kwOVER:
+	case p.curIs(kwOVER):
 		return bpPostfix, 0, "OVER", true
 
 	// Access: : (JSON path)
-	case ':':
+	case p.curIs(':'):
 		return bpAccess, 0, "COLON_ACCESS", true
 
 	// Access: [ (array subscript)
-	case '[':
+	case p.curIs('['):
 		return bpAccess, 0, "BRACKET_ACCESS", true
 
 	// Access: . (dot path) — only for semi-structured chaining after :/[]
-	case '.':
+	case p.curIs('.'):
 		// Dot access is tricky: we only want to treat . as an access operator
 		// when the left side is an AccessExpr (semi-structured chaining).
 		// Otherwise . is not an infix expression operator (it's handled in
@@ -228,7 +227,7 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 	}
 
 	// Check for REGEXP via tokIdent (not a keyword in F2)
-	if p.cur.Type == tokIdent && strings.ToUpper(p.cur.Str) == "REGEXP" {
+	if p.curIsUnquotedWord("REGEXP") {
 		return bpComparison, 0, "REGEXP", true
 	}
 
@@ -242,8 +241,8 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 // parsePrefixExpr handles prefix unary operators (-, +, NOT) and delegates
 // everything else to parsePrimaryExpr.
 func (p *Parser) parsePrefixExpr() (ast.Node, error) {
-	switch p.cur.Type {
-	case '-':
+	switch {
+	case p.curIs('-'):
 		start := p.cur.Loc
 		p.advance()
 		operand, err := p.parseExprPrec(bpUnary)
@@ -256,7 +255,7 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 			Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
 		}, nil
 
-	case '+':
+	case p.curIs('+'):
 		start := p.cur.Loc
 		p.advance()
 		operand, err := p.parseExprPrec(bpUnary)
@@ -269,7 +268,7 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 			Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
 		}, nil
 
-	case kwNOT:
+	case p.curIs(kwNOT):
 		start := p.cur.Loc
 		p.advance()
 		operand, err := p.parseExprPrec(bpNot)
@@ -282,7 +281,7 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 			Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
 		}, nil
 
-	case kwPRIOR:
+	case p.curIs(kwPRIOR):
 		// PRIOR <operand> — hierarchical-query prefix operator used inside
 		// CONNECT BY conditions. Binds tightly to the following operand. Only
 		// treated as an operator inside a CONNECT BY clause; elsewhere PRIOR is
@@ -302,14 +301,14 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 		}
 		return p.parsePrimaryExpr()
 
-	case kwEXISTS:
+	case p.curIs(kwEXISTS):
 		existsTok := p.advance()
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
 		var query ast.Node
 		var err error
-		if p.cur.Type == kwWITH {
+		if p.curIs(kwWITH) {
 			query, err = p.parseWithQueryExpr()
 		} else {
 			query, err = p.parseQueryExpr()
@@ -328,7 +327,7 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 		// arrives as a plain identifier (not a reserved keyword). Treat it as a
 		// prefix only when it is NOT immediately followed by '(' (which would
 		// make it an ordinary function call).
-		if p.cur.Type == tokIdent && strings.EqualFold(p.cur.Str, "CONNECT_BY_ROOT") && p.peekNext().Type != '(' {
+		if p.curIsUnquotedWord("CONNECT_BY_ROOT") && !p.nextIs('(') {
 			start := p.cur.Loc
 			p.advance()
 			operand, err := p.parseExprPrec(bpUnary)
@@ -353,8 +352,8 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 // function calls, parenthesized expressions, CASE, CAST, IFF, array/JSON
 // literals, and lambda expressions.
 func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
-	switch p.cur.Type {
-	case tokInt:
+	switch {
+	case p.curIs(tokInt):
 		tok := p.advance()
 		return &ast.Literal{
 			Kind:  ast.LitInt,
@@ -363,7 +362,7 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 			Loc:   tok.Loc,
 		}, nil
 
-	case tokFloat, tokReal:
+	case p.curIs(tokFloat), p.curIs(tokReal):
 		tok := p.advance()
 		return &ast.Literal{
 			Kind:  ast.LitFloat,
@@ -371,7 +370,7 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 			Loc:   tok.Loc,
 		}, nil
 
-	case tokString:
+	case p.curIs(tokString):
 		tok := p.advance()
 		return &ast.Literal{
 			Kind:  ast.LitString,
@@ -379,7 +378,7 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 			Loc:   tok.Loc,
 		}, nil
 
-	case kwTRUE:
+	case p.curIs(kwTRUE):
 		tok := p.advance()
 		return &ast.Literal{
 			Kind:  ast.LitBool,
@@ -388,7 +387,7 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 			Loc:   tok.Loc,
 		}, nil
 
-	case kwFALSE:
+	case p.curIs(kwFALSE):
 		tok := p.advance()
 		return &ast.Literal{
 			Kind:  ast.LitBool,
@@ -397,7 +396,7 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 			Loc:   tok.Loc,
 		}, nil
 
-	case kwNULL:
+	case p.curIs(kwNULL):
 		tok := p.advance()
 		return &ast.Literal{
 			Kind:  ast.LitNull,
@@ -405,32 +404,32 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 			Loc:   tok.Loc,
 		}, nil
 
-	case '(':
+	case p.curIs('('):
 		return p.parseParenExpr()
 
-	case kwCASE:
+	case p.curIs(kwCASE):
 		return p.parseCaseExpr()
 
-	case kwCAST:
+	case p.curIs(kwCAST):
 		return p.parseCastExpr()
 
-	case kwTRY_CAST:
+	case p.curIs(kwTRY_CAST):
 		return p.parseTryCastExpr()
 
-	case kwIFF:
+	case p.curIs(kwIFF):
 		return p.parseIffExpr()
 
-	case '[':
+	case p.curIs('['):
 		return p.parseArrayLiteral()
 
-	case '{':
+	case p.curIs('{'):
 		return p.parseJsonLiteral()
 
-	case '*':
+	case p.curIs('*'):
 		tok := p.advance()
 		return &ast.StarExpr{Loc: tok.Loc}, nil
 
-	case tokVariable:
+	case p.curIs(tokVariable):
 		// $N positional column ref or $<name> session/scripting variable. The
 		// lexer strips the leading '$' (Str holds the bare name) and folds both
 		// forms into tokVariable. A lone '$' is emitted as a bare ASCII token,
@@ -440,13 +439,13 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 	// Reserved keywords that are also common zero-argument functions:
 	// CURRENT_TIMESTAMP([prec]), CURRENT_DATE, CURRENT_TIME([prec]).
 	// Snowflake allows them both with and without parentheses.
-	case kwCURRENT_TIMESTAMP, kwCURRENT_DATE, kwCURRENT_TIME:
+	case p.curIs(kwCURRENT_TIMESTAMP), p.curIs(kwCURRENT_DATE), p.curIs(kwCURRENT_TIME):
 		tok := p.advance()
 		name := ast.ObjectName{
 			Name: ast.Ident{Name: tok.Str, Loc: tok.Loc},
 			Loc:  tok.Loc,
 		}
-		if p.cur.Type == '(' {
+		if p.curIs('(') {
 			return p.parseFuncCall(name, tok.Loc)
 		}
 		// Without parens — treat as a no-arg function call.
@@ -457,12 +456,12 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 		// non-reserved keyword, so it is only treated as an interval literal when
 		// immediately followed by a string literal; otherwise it falls through to
 		// identifier handling so a column literally named "interval" still parses.
-		if p.cur.Type == kwINTERVAL && p.peekNext().Type == tokString {
+		if p.curIs(kwINTERVAL) && p.nextIs(tokString) {
 			return p.parseIntervalExpr()
 		}
 
 		// Lambda detection: single ident followed by ->
-		if p.isIdentToken() && p.peekNext().Type == tokArrow {
+		if p.isIdentToken() && p.nextIs(tokArrow) {
 			return p.parseLambdaExpr()
 		}
 
@@ -495,8 +494,8 @@ func (p *Parser) parseIntervalExpr() (ast.Node, error) {
 // isIdentToken reports whether the current token is usable as an identifier
 // in expression context: tokIdent, tokQuotedIdent, or a non-reserved keyword.
 func (p *Parser) isIdentToken() bool {
-	switch p.cur.Type {
-	case tokIdent, tokQuotedIdent:
+	switch {
+	case p.curIs(tokIdent), p.curIs(tokQuotedIdent):
 		return true
 	}
 	return p.cur.Type >= 700 && !keywordReserved[p.cur.Type]
@@ -517,13 +516,13 @@ func (p *Parser) parseIdentExpr() (ast.Node, error) {
 	// Check for function call: name( — but a following `(+)` is the
 	// Oracle-style outer-join marker, not a call, so leave it for the infix
 	// postfix loop to consume.
-	if p.cur.Type == '(' && !p.atOuterJoinMarker() {
+	if p.curIs('(') && !p.atOuterJoinMarker() {
 		objName := ast.ObjectName{Name: first, Loc: first.Loc}
 		return p.parseFuncCall(objName, first.Loc)
 	}
 
 	// Check for qualified name: name.name or name.name.name
-	if p.cur.Type == '.' {
+	if p.curIs('.') {
 		// Could be schema.table.column or table.column or table.*
 		// But be careful: dot access for semi-structured data is handled in
 		// the infix loop (DOT_ACCESS). Here we only handle standard SQL
@@ -581,11 +580,11 @@ func isAllDigits(s string) bool {
 func (p *Parser) parseDottedIdentOrFunc(first ast.Ident) (ast.Node, error) {
 	parts := []ast.Ident{first}
 
-	for p.cur.Type == '.' {
+	for p.curIs('.') {
 		p.advance() // consume '.'
 
 		// table.*
-		if p.cur.Type == '*' {
+		if p.curIs('*') {
 			starTok := p.advance()
 			var qualifier *ast.ObjectName
 			switch len(parts) {
@@ -617,7 +616,7 @@ func (p *Parser) parseDottedIdentOrFunc(first ast.Ident) (ast.Node, error) {
 		// table.$N — positional column ref qualified by a table alias/name
 		// (e.g. d.$1 in a COPY transform). The accumulated dotted parts become
 		// the DollarRef qualifier, mirroring the table.* case above.
-		if p.cur.Type == tokVariable {
+		if p.curIs(tokVariable) {
 			var qualifier *ast.ObjectName
 			switch len(parts) {
 			case 1:
@@ -651,7 +650,7 @@ func (p *Parser) parseDottedIdentOrFunc(first ast.Ident) (ast.Node, error) {
 		// Check for function call: schema.func( — but a following `(+)` is the
 		// Oracle-style outer-join marker on a qualified column ref (e.g.
 		// t2.c2(+)), not a call, so leave it for the infix postfix loop.
-		if p.cur.Type == '(' && !p.atOuterJoinMarker() {
+		if p.curIs('(') && !p.atOuterJoinMarker() {
 			var objName ast.ObjectName
 			switch len(parts) {
 			case 2:
@@ -699,7 +698,7 @@ func (p *Parser) parseFuncCall(name ast.ObjectName, startLoc ast.Loc) (*ast.Func
 	}
 
 	// COUNT(*) special handling
-	if funcName == "COUNT" && p.cur.Type == '*' {
+	if funcName == "COUNT" && p.curIs('*') {
 		p.advance()
 		fc.Star = true
 		closeTok, err := p.expect(')')
@@ -711,7 +710,7 @@ func (p *Parser) parseFuncCall(name ast.ObjectName, startLoc ast.Loc) (*ast.Func
 	}
 
 	// DISTINCT handling for aggregates like COUNT(DISTINCT x)
-	if p.cur.Type == kwDISTINCT {
+	if p.curIs(kwDISTINCT) {
 		p.advance()
 		fc.Distinct = true
 	}
@@ -719,7 +718,7 @@ func (p *Parser) parseFuncCall(name ast.ObjectName, startLoc ast.Loc) (*ast.Func
 	// TRIM special handling: TRIM( expr ) or TRIM( LEADING|TRAILING|BOTH expr FROM expr )
 	// We parse TRIM as a regular function call with arguments.
 
-	if p.cur.Type != ')' {
+	if !p.curIs(')') {
 		args, err := p.parseFuncArgList()
 		if err != nil {
 			return nil, err
@@ -734,7 +733,7 @@ func (p *Parser) parseFuncCall(name ast.ObjectName, startLoc ast.Loc) (*ast.Func
 	fc.Loc.End = closeTok.Loc.End
 
 	// Check for WITHIN GROUP (ORDER BY ...)
-	if p.cur.Type == kwWITHIN {
+	if p.curIs(kwWITHIN) {
 		p.advance() // consume WITHIN
 		if _, err := p.expect(kwGROUP); err != nil {
 			return nil, err
@@ -775,11 +774,11 @@ func (p *Parser) parseFuncCall(name ast.ObjectName, startLoc ast.Loc) (*ast.Func
 // robust to intervening whitespace and comments, e.g. `t2.c2 (+)` and
 // `t2.c2 /* */ ( + )` both match.
 func (p *Parser) atOuterJoinMarker() bool {
-	if p.cur.Type != '(' {
+	if !p.curIs('(') {
 		return false
 	}
 	// First lookahead token (immediately after '(') must be '+'.
-	if p.peekNext().Type != '+' {
+	if !p.nextIs('+') {
 		return false
 	}
 
@@ -794,7 +793,7 @@ func (p *Parser) atOuterJoinMarker() bool {
 
 	p.advance() // consume '('  (cur is now '+')
 	p.advance() // consume '+'  (cur is the token after '+')
-	isMarker := p.cur.Type == ')'
+	isMarker := p.curIs(')')
 
 	// Restore.
 	p.cur = savedCur
@@ -838,10 +837,10 @@ func (p *Parser) parseParenExpr() (ast.Node, error) {
 	startLoc := openTok.Loc.Start
 
 	// Subquery: (SELECT ...) or (WITH ... SELECT ...), optionally with set ops
-	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+	if p.curIs(kwSELECT) || p.curIs(kwWITH) {
 		var query ast.Node
 		var err error
-		if p.cur.Type == kwWITH {
+		if p.curIs(kwWITH) {
 			query, err = p.parseWithQueryExpr()
 		} else {
 			query, err = p.parseQueryExpr()
@@ -882,7 +881,7 @@ func (p *Parser) parseCaseExpr() (*ast.CaseExpr, error) {
 
 	// Determine if this is a simple CASE (CASE expr WHEN ...) or
 	// searched CASE (CASE WHEN ...).
-	if p.cur.Type != kwWHEN {
+	if !p.curIs(kwWHEN) {
 		// Simple CASE: parse the operand expression.
 		operand, err := p.parseExpr()
 		if err != nil {
@@ -895,7 +894,7 @@ func (p *Parser) parseCaseExpr() (*ast.CaseExpr, error) {
 	}
 
 	// Parse WHEN clauses.
-	for p.cur.Type == kwWHEN {
+	for p.curIs(kwWHEN) {
 		whenTok := p.advance() // consume WHEN
 		cond, err := p.parseExpr()
 		if err != nil {
@@ -923,7 +922,7 @@ func (p *Parser) parseCaseExpr() (*ast.CaseExpr, error) {
 	}
 
 	// Optional ELSE.
-	if p.cur.Type == kwELSE {
+	if p.curIs(kwELSE) {
 		p.advance() // consume ELSE
 		elseExpr, err := p.parseExpr()
 		if err != nil {
@@ -1042,7 +1041,7 @@ func (p *Parser) parseArrayLiteral() (*ast.ArrayLiteralExpr, error) {
 		Loc: ast.Loc{Start: openTok.Loc.Start},
 	}
 
-	if p.cur.Type != ']' {
+	if !p.curIs(']') {
 		elems, err := p.parseExprList()
 		if err != nil {
 			return nil, err
@@ -1068,11 +1067,11 @@ func (p *Parser) parseJsonLiteral() (*ast.JsonLiteralExpr, error) {
 		Loc: ast.Loc{Start: openTok.Loc.Start},
 	}
 
-	if p.cur.Type != '}' {
+	if !p.curIs('}') {
 		for {
 			pairLoc := p.cur.Loc
 			var key string
-			if p.cur.Type == tokString {
+			if p.curIs(tokString) {
 				tok := p.advance()
 				key = tok.Str
 			} else if p.isIdentToken() {
@@ -1100,7 +1099,7 @@ func (p *Parser) parseJsonLiteral() (*ast.JsonLiteralExpr, error) {
 				Loc:   ast.Loc{Start: pairLoc.Start, End: ast.NodeLoc(val).End},
 			})
 
-			if p.cur.Type != ',' {
+			if !p.curIs(',') {
 				break
 			}
 			p.advance() // consume ','
@@ -1153,13 +1152,13 @@ func (p *Parser) parseIsExpr(left ast.Node) (ast.Node, error) {
 	p.advance() // consume IS
 
 	notFlag := false
-	if p.cur.Type == kwNOT {
+	if p.curIs(kwNOT) {
 		p.advance()
 		notFlag = true
 	}
 
 	// IS [NOT] DISTINCT FROM expr
-	if p.cur.Type == kwDISTINCT {
+	if p.curIs(kwDISTINCT) {
 		p.advance() // consume DISTINCT
 		if _, err := p.expect(kwFROM); err != nil {
 			return nil, err
@@ -1178,7 +1177,7 @@ func (p *Parser) parseIsExpr(left ast.Node) (ast.Node, error) {
 	}
 
 	// IS [NOT] NULL
-	if p.cur.Type != kwNULL {
+	if !p.curIs(kwNULL) {
 		return nil, &ParseError{
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			Message: "expected NULL or DISTINCT after IS [NOT]",
@@ -1197,7 +1196,7 @@ func (p *Parser) parseIsExpr(left ast.Node) (ast.Node, error) {
 // parseBetweenExpr parses [NOT] BETWEEN low AND high.
 func (p *Parser) parseBetweenExpr(left ast.Node) (ast.Node, error) {
 	notFlag := false
-	if p.cur.Type == kwNOT {
+	if p.curIs(kwNOT) {
 		p.advance() // consume NOT
 		notFlag = true
 	}
@@ -1235,7 +1234,7 @@ func (p *Parser) parseBetweenExpr(left ast.Node) (ast.Node, error) {
 // parseInExpr parses [NOT] IN ( values ).
 func (p *Parser) parseInExpr(left ast.Node) (ast.Node, error) {
 	notFlag := false
-	if p.cur.Type == kwNOT {
+	if p.curIs(kwNOT) {
 		p.advance() // consume NOT
 		notFlag = true
 	}
@@ -1247,10 +1246,10 @@ func (p *Parser) parseInExpr(left ast.Node) (ast.Node, error) {
 	}
 
 	// Subquery: IN (SELECT ...) or IN (WITH ... SELECT ...), optionally with set ops
-	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+	if p.curIs(kwSELECT) || p.curIs(kwWITH) {
 		var query ast.Node
 		var err error
-		if p.cur.Type == kwWITH {
+		if p.curIs(kwWITH) {
 			query, err = p.parseWithQueryExpr()
 		} else {
 			query, err = p.parseQueryExpr()
@@ -1296,19 +1295,19 @@ func (p *Parser) parseInExpr(left ast.Node) (ast.Node, error) {
 func (p *Parser) parseLikeExpr(left ast.Node, likeOp ast.LikeOp, notFlag bool) (ast.Node, error) {
 	// If we have NOT, it was recognized in infixBindingPower; need to
 	// consume it here if present.
-	if notFlag && p.cur.Type == kwNOT {
+	if notFlag && p.curIs(kwNOT) {
 		p.advance() // consume NOT
 	}
 
 	// Consume the LIKE/ILIKE/RLIKE keyword (or REGEXP ident).
-	if p.cur.Type == tokIdent && strings.ToUpper(p.cur.Str) == "REGEXP" {
+	if p.curIsUnquotedWord("REGEXP") {
 		p.advance()
 	} else {
 		p.advance() // consume kwLIKE, kwILIKE, kwRLIKE
 	}
 
 	// LIKE ANY (...)
-	if likeOp == ast.LikeOpLike && p.cur.Type == kwANY {
+	if likeOp == ast.LikeOpLike && p.curIs(kwANY) {
 		p.advance() // consume ANY
 		if _, err := p.expect('('); err != nil {
 			return nil, err
@@ -1332,7 +1331,7 @@ func (p *Parser) parseLikeExpr(left ast.Node, likeOp ast.LikeOp, notFlag bool) (
 	}
 
 	// ILIKE ANY (...)
-	if likeOp == ast.LikeOpILike && p.cur.Type == kwANY {
+	if likeOp == ast.LikeOpILike && p.curIs(kwANY) {
 		p.advance() // consume ANY
 		if _, err := p.expect('('); err != nil {
 			return nil, err
@@ -1370,7 +1369,7 @@ func (p *Parser) parseLikeExpr(left ast.Node, likeOp ast.LikeOp, notFlag bool) (
 	}
 
 	// Optional ESCAPE clause (only for LIKE and ILIKE)
-	if p.cur.Type == kwESCAPE {
+	if p.curIs(kwESCAPE) {
 		p.advance() // consume ESCAPE
 		escExpr, err := p.parseExprPrec(bpComparison + 1)
 		if err != nil {
@@ -1406,8 +1405,8 @@ func (p *Parser) parseCollatePostfix(left ast.Node) (ast.Node, error) {
 
 	// Collation can be a string literal or an identifier.
 	var collation string
-	switch p.cur.Type {
-	case tokString:
+	switch {
+	case p.curIs(tokString):
 		tok := p.advance()
 		collation = tok.Str
 		return &ast.CollateExpr{
@@ -1464,7 +1463,7 @@ func (p *Parser) parseOverClause() (*ast.WindowSpec, error) {
 	}
 
 	// PARTITION BY
-	if p.cur.Type == kwPARTITION {
+	if p.curIs(kwPARTITION) {
 		p.advance() // consume PARTITION
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
@@ -1477,7 +1476,7 @@ func (p *Parser) parseOverClause() (*ast.WindowSpec, error) {
 	}
 
 	// ORDER BY
-	if p.cur.Type == kwORDER {
+	if p.curIs(kwORDER) {
 		p.advance() // consume ORDER
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
@@ -1490,7 +1489,7 @@ func (p *Parser) parseOverClause() (*ast.WindowSpec, error) {
 	}
 
 	// Window frame: ROWS | RANGE | GROUPS
-	if p.cur.Type == kwROWS || p.isFrameKeyword() {
+	if p.curIs(kwROWS) || p.isFrameKeyword() {
 		frame, err := p.parseWindowFrame()
 		if err != nil {
 			return nil, err
@@ -1511,10 +1510,10 @@ func (p *Parser) parseOverClause() (*ast.WindowSpec, error) {
 // RANGE is not a keyword in F2, we check by ident comparison. GROUPS is
 // a keyword (kwGROUPS). ROWS is also a keyword (kwROWS).
 func (p *Parser) isFrameKeyword() bool {
-	if p.cur.Type == kwGROUPS {
+	if p.curIs(kwGROUPS) {
 		return true
 	}
-	if p.cur.Type == tokIdent && strings.ToUpper(p.cur.Str) == "RANGE" {
+	if p.curIsUnquotedWord("RANGE") {
 		return true
 	}
 	return false
@@ -1526,13 +1525,13 @@ func (p *Parser) parseWindowFrame() (*ast.WindowFrame, error) {
 
 	var kind ast.WindowFrameKind
 	switch {
-	case p.cur.Type == kwROWS:
+	case p.curIs(kwROWS):
 		kind = ast.FrameRows
 		p.advance()
-	case p.cur.Type == kwGROUPS:
+	case p.curIs(kwGROUPS):
 		kind = ast.FrameGroups
 		p.advance()
-	case p.cur.Type == tokIdent && strings.ToUpper(p.cur.Str) == "RANGE":
+	case p.curIsUnquotedWord("RANGE"):
 		kind = ast.FrameRange
 		p.advance()
 	default:
@@ -1545,7 +1544,7 @@ func (p *Parser) parseWindowFrame() (*ast.WindowFrame, error) {
 	}
 
 	// BETWEEN start AND end
-	if p.cur.Type == kwBETWEEN {
+	if p.curIs(kwBETWEEN) {
 		p.advance() // consume BETWEEN
 
 		startBound, err := p.parseWindowBound()
@@ -1603,9 +1602,9 @@ func (p *Parser) parseWindowBound() (ast.WindowBound, error) {
 	}
 
 	// CURRENT ROW
-	if p.cur.Type == kwCURRENT {
+	if p.curIs(kwCURRENT) {
 		p.advance() // consume CURRENT
-		if p.cur.Type == kwROW {
+		if p.curIs(kwROW) {
 			p.advance()
 			return ast.WindowBound{Kind: ast.BoundCurrentRow}, nil
 		}
@@ -1639,19 +1638,19 @@ func (p *Parser) parseWindowBound() (ast.WindowBound, error) {
 // isUnbounded checks if the current token is the UNBOUNDED keyword.
 // UNBOUNDED is not in F2's keyword table, so we check via tokIdent.
 func (p *Parser) isUnbounded() bool {
-	return p.cur.Type == tokIdent && strings.ToUpper(p.cur.Str) == "UNBOUNDED"
+	return p.curIsUnquotedWord("UNBOUNDED")
 }
 
 // isPreceding checks if the current token is the PRECEDING keyword.
 // PRECEDING is not in F2's keyword table, so we check via tokIdent.
 func (p *Parser) isPreceding() bool {
-	return p.cur.Type == tokIdent && strings.ToUpper(p.cur.Str) == "PRECEDING"
+	return p.curIsUnquotedWord("PRECEDING")
 }
 
 // isFollowing checks if the current token is the FOLLOWING keyword.
 // FOLLOWING is not in F2's keyword table, so we check via tokIdent.
 func (p *Parser) isFollowing() bool {
-	return p.cur.Type == tokIdent && strings.ToUpper(p.cur.Str) == "FOLLOWING"
+	return p.curIsUnquotedWord("FOLLOWING")
 }
 
 // ---------------------------------------------------------------------------
@@ -1729,7 +1728,7 @@ func (p *Parser) parseExprList() ([]ast.Node, error) {
 	}
 	exprs = append(exprs, expr)
 
-	for p.cur.Type == ',' {
+	for p.curIs(',') {
 		p.advance() // consume ','
 		expr, err = p.parseExpr()
 		if err != nil {
@@ -1768,7 +1767,7 @@ func (p *Parser) parseFuncArgList() ([]ast.Node, error) {
 		}
 		args = append(args, arg)
 
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -1782,7 +1781,7 @@ func (p *Parser) parseFuncArgList() ([]ast.Node, error) {
 // expression. The value of a named argument may be any expression (so casts,
 // `$N` refs, colon paths, nested calls compose through).
 func (p *Parser) parseFuncArg() (ast.Node, error) {
-	if p.isIdentToken() && p.peekNext().Type == tokAssoc {
+	if p.isIdentToken() && p.nextIs(tokAssoc) {
 		start := p.cur.Loc.Start
 		name, err := p.parseIdent()
 		if err != nil {
@@ -1813,7 +1812,7 @@ func (p *Parser) parseOrderByList() ([]*ast.OrderItem, error) {
 		}
 		items = append(items, item)
 
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -1830,7 +1829,7 @@ func (p *Parser) parseOrderItem() (*ast.OrderItem, error) {
 	// NULLS) or a list/clause terminator (`,`, `;`, `)`, EOF). Because ALL is
 	// reserved it can never begin a real ORDER BY expression, so this never
 	// shadows a legitimate `ORDER BY <expr>`.
-	if p.cur.Type == kwALL && p.orderByAllFollows() {
+	if p.curIs(kwALL) && p.orderByAllFollows() {
 		allTok := p.advance() // consume ALL
 		item := &ast.OrderItem{
 			All: true,
@@ -1865,8 +1864,8 @@ func (p *Parser) parseOrderItem() (*ast.OrderItem, error) {
 // NULLS) or a term/clause terminator (`,`, `;`, `)`, EOF). The caller must
 // already be positioned on the ALL token; this peeks one token ahead.
 func (p *Parser) orderByAllFollows() bool {
-	switch p.peekNext().Type {
-	case kwASC, kwDESC, kwNULLS, ',', ';', ')', tokEOF:
+	switch {
+	case p.nextIs(kwASC), p.nextIs(kwDESC), p.nextIs(kwNULLS), p.nextIs(','), p.nextIs(';'), p.nextIs(')'), p.nextIs(tokEOF):
 		return true
 	}
 	return false
@@ -1877,25 +1876,25 @@ func (p *Parser) orderByAllFollows() bool {
 // them on item. Shared by the expression and the `ORDER BY ALL` forms.
 func (p *Parser) parseOrderItemModifiers(item *ast.OrderItem) error {
 	// ASC / DESC
-	if p.cur.Type == kwASC {
+	if p.curIs(kwASC) {
 		p.advance()
 		item.Desc = false
 		item.Loc.End = p.prev.Loc.End
-	} else if p.cur.Type == kwDESC {
+	} else if p.curIs(kwDESC) {
 		p.advance()
 		item.Desc = true
 		item.Loc.End = p.prev.Loc.End
 	}
 
 	// NULLS FIRST / NULLS LAST
-	if p.cur.Type == kwNULLS {
+	if p.curIs(kwNULLS) {
 		p.advance() // consume NULLS
-		if p.cur.Type == kwFIRST {
+		if p.curIs(kwFIRST) {
 			p.advance()
 			nf := true
 			item.NullsFirst = &nf
 			item.Loc.End = p.prev.Loc.End
-		} else if p.cur.Type == kwLAST {
+		} else if p.curIs(kwLAST) {
 			p.advance()
 			nf := false
 			item.NullsFirst = &nf
@@ -1937,7 +1936,7 @@ func ParseExpr(input string) (ast.Node, []ParseError) {
 		return nil, []ParseError{{Message: err.Error()}}
 	}
 
-	if p.cur.Type != tokEOF {
+	if !p.curIs(tokEOF) {
 		return node, []ParseError{{
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			Message: "unexpected token after expression: " + tokenDesc(p.cur),

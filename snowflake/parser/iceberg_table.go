@@ -63,7 +63,7 @@ func (p *Parser) parseCreateIcebergTableStmt(start ast.Loc, orReplace, transient
 	}
 	stmt.Name = name
 
-	if p.cur.Type == kwFROM {
+	if p.curIs(kwFROM) {
 		if orReplace || transient || stmt.IfNotExists {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -78,8 +78,8 @@ func (p *Parser) parseCreateIcebergTableStmt(start ast.Loc, orReplace, transient
 	}
 
 	asAllowed := true
-	switch p.cur.Type {
-	case kwLIKE:
+	switch {
+	case p.curIs(kwLIKE):
 		p.advance() // consume LIKE
 		src, err := p.parseObjectName()
 		if err != nil {
@@ -87,14 +87,14 @@ func (p *Parser) parseCreateIcebergTableStmt(start ast.Loc, orReplace, transient
 		}
 		stmt.Like = src
 		asAllowed = false
-	case kwCLONE:
+	case p.curIs(kwCLONE):
 		clone, err := p.parseCloneSource()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Clone = clone
 		asAllowed = false
-	case '(':
+	case p.curIs('('):
 		if err := p.parseColumnDeclItems(stmt); err != nil {
 			return nil, err
 		}
@@ -104,7 +104,7 @@ func (p *Parser) parseCreateIcebergTableStmt(start ast.Loc, orReplace, transient
 		return nil, err
 	}
 
-	if asAllowed && p.cur.Type == kwAS {
+	if asAllowed && p.curIs(kwAS) {
 		for _, col := range stmt.Columns {
 			if col.VirtualExpr != nil {
 				return nil, &ParseError{
@@ -147,34 +147,34 @@ func (p *Parser) parseCreateIcebergTableStmt(start ast.Loc, orReplace, transient
 func (p *Parser) parseIcebergTableProperties(stmt *ast.CreateTableStmt) error {
 	for {
 		switch {
-		case p.cur.Type == kwPARTITION && p.peekNext().Type == kwBY:
+		case p.curIs(kwPARTITION) && p.nextIs(kwBY):
 			exprs, err := p.parseIcebergPartitionBy()
 			if err != nil {
 				return err
 			}
 			stmt.PartitionBy = exprs
-		case p.cur.Type == kwCLUSTER:
+		case p.curIs(kwCLUSTER):
 			if err := p.parseClusterByInto(&stmt.ClusterBy, &stmt.Linear); err != nil {
 				return err
 			}
-		case p.cur.Type == kwCOPY && p.peekNext().Type == kwGRANTS:
+		case p.curIs(kwCOPY) && p.nextIs(kwGRANTS):
 			p.advance() // consume COPY
 			p.advance() // consume GRANTS
 			stmt.CopyGrants = true
-		case p.cur.Type == kwCOPY && p.peekIsWord("TAGS"):
+		case p.curIs(kwCOPY) && p.peekIsWord("TAGS"):
 			p.advance() // consume COPY
 			p.advance() // consume TAGS
 			stmt.CopyTags = true
-		case p.cur.Type == kwCOPY && p.peekNext().Type == '=':
+		case p.curIs(kwCOPY) && p.nextIs('='):
 			opt, err := p.parseCopyWhatOption()
 			if err != nil {
 				return err
 			}
 			stmt.Options = append(stmt.Options, opt)
-		case p.curIsWord("PURGE") && p.peekNext().Type != '=':
+		case p.curIsWord("PURGE") && !p.nextIs('='):
 			p.advance() // consume PURGE
 			stmt.Purge = true
-		case p.cur.Type == kwCOMMENT:
+		case p.curIs(kwCOMMENT):
 			p.advance() // consume COMMENT
 			if _, err := p.expect('='); err != nil {
 				return err
@@ -185,13 +185,13 @@ func (p *Parser) parseIcebergTableProperties(stmt *ast.CreateTableStmt) error {
 			}
 			s := tok.Str
 			stmt.Comment = &s
-		case p.cur.Type == kwTAG:
+		case p.curIs(kwTAG):
 			tags, err := p.parseTagAssignments()
 			if err != nil {
 				return err
 			}
 			stmt.Tags = append(stmt.Tags, tags...)
-		case p.cur.Type == kwROW && p.peekNext().Type == kwACCESS:
+		case p.curIs(kwROW) && p.nextIs(kwACCESS):
 			rp, err := p.parseRowAccessPolicyClause()
 			if err != nil {
 				return err
@@ -205,27 +205,26 @@ func (p *Parser) parseIcebergTableProperties(stmt *ast.CreateTableStmt) error {
 				return err
 			}
 			stmt.AggregationPolicy = name
-		case p.cur.Type == kwWITH:
+		case p.curIs(kwWITH):
 			// WITH introduces TAG, ROW ACCESS POLICY, AGGREGATION POLICY or
 			// CONTACT; anything else ends the properties.
-			next := p.peekNext()
 			switch {
-			case next.Type == kwTAG:
+			case p.nextIs(kwTAG):
 				p.advance() // consume WITH
 				continue
-			case next.Type == kwROW:
+			case p.nextIs(kwROW):
 				p.advance() // consume WITH
-				if p.peekNext().Type != kwACCESS {
+				if !p.nextIs(kwACCESS) {
 					return p.syntaxErrorAtCur()
 				}
 				continue
-			case strings.EqualFold(next.Str, "AGGREGATION"):
+			case p.peekIsWord("AGGREGATION"):
 				p.advance() // consume WITH
 				if !p.startsAggregationPolicy() {
 					return p.syntaxErrorAtCur()
 				}
 				continue
-			case strings.EqualFold(next.Str, "CONTACT"):
+			case p.peekIsWord("CONTACT"):
 				p.advance() // consume WITH
 				contacts, err := p.parseWithContact()
 				if err != nil {
@@ -235,7 +234,7 @@ func (p *Parser) parseIcebergTableProperties(stmt *ast.CreateTableStmt) error {
 			default:
 				return nil
 			}
-		case p.startsCopyOption() && p.peekNext().Type == '=':
+		case p.startsCopyOption() && p.nextIs('='):
 			// A catalog or storage parameter: EXTERNAL_VOLUME, CATALOG,
 			// BASE_LOCATION, CATALOG_TABLE_NAME, CATALOG_NAMESPACE,
 			// METADATA_FILE_PATH, TARGET_FILE_SIZE, AUTO_REFRESH, ...
@@ -253,7 +252,7 @@ func (p *Parser) parseIcebergTableProperties(stmt *ast.CreateTableStmt) error {
 // startsAggregationPolicy reports whether cur begins AGGREGATION POLICY.
 // AGGREGATION is not a reserved keyword, so it is matched by text.
 func (p *Parser) startsAggregationPolicy() bool {
-	return p.curIsWord("AGGREGATION") && p.peekNext().Type == kwPOLICY
+	return p.curIsWord("AGGREGATION") && p.nextIs(kwPOLICY)
 }
 
 // parseIcebergPartitionBy parses PARTITION BY ( <partition_expr> [, ...] ).
@@ -271,7 +270,7 @@ func (p *Parser) parseIcebergPartitionBy() ([]ast.Node, error) {
 			return nil, err
 		}
 		exprs = append(exprs, e)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -302,10 +301,10 @@ var icebergPartitionTransforms = map[string]bool{
 //
 // A column is returned as a ColumnRef, a transform as a FuncCallExpr.
 func (p *Parser) parseIcebergPartitionExpr() (ast.Node, error) {
-	if p.peekNext().Type == '(' && p.cur.Str != "" {
+	if p.nextIs('(') && p.cur.Str != "" {
 		word := strings.ToUpper(p.cur.Str)
 		numeric, ok := icebergPartitionTransforms[word]
-		if !ok || p.cur.Type == tokQuotedIdent {
+		if !ok || p.curIs(tokQuotedIdent) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		nameTok := p.advance() // consume the transform name
@@ -354,12 +353,12 @@ func (p *Parser) parseCopyWhatOption() (*ast.CopyOption, error) {
 	opt := &ast.CopyOption{Name: "COPY", Group: []*ast.CopyOption{}, Loc: ast.Loc{Start: copyTok.Loc.Start}}
 	for {
 		word := strings.ToUpper(p.cur.Str)
-		if p.cur.Type == tokQuotedIdent || (word != "COMMENTS" && word != "TAGS" && word != "GRANTS") {
+		if p.curIs(tokQuotedIdent) || (word != "COMMENTS" && word != "TAGS" && word != "GRANTS") {
 			return nil, p.syntaxErrorAtCur()
 		}
 		tok := p.advance()
 		opt.Group = append(opt.Group, &ast.CopyOption{Name: word, Bare: true, Loc: tok.Loc})
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -396,7 +395,7 @@ func (p *Parser) parseWithContact() ([]*ast.CopyOption, error) {
 			Words: contact.String(),
 			Loc:   ast.Loc{Start: purpose.Loc.Start, End: contact.Loc.End},
 		})
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','

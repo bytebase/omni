@@ -59,11 +59,11 @@ func parseCreateOnlineFeatureTable(p *Parser, s *ast.ObjectStmt) error {
 	// The properties, where COMMENT may follow WITH as TAG may.
 	props := &ast.ObjectClause{Loc: ast.Loc{Start: p.cur.Loc.Start}}
 	for {
-		if p.cur.Type == kwWITH && isWordToken(p.peekNext(), "COMMENT") {
+		if p.curIs(kwWITH) && p.nextWord("COMMENT") {
 			p.advance() // consume WITH
 		}
 		switch {
-		case p.startsWithTags() && (p.cur.Type == kwWITH || p.peekNext().Type == '('):
+		case p.startsWithTags() && (p.curIs(kwWITH) || p.nextIs('(')):
 			tags, err := p.parseWithTags()
 			if err != nil {
 				return err

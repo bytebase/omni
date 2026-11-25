@@ -61,7 +61,7 @@ func (p *Parser) parseUndropOther(o *undropObject, start ast.Loc) (ast.Node, err
 //
 // https://docs.snowflake.com/en/sql-reference/sql/undrop-snapshot
 func (p *Parser) parseUndropRename(stmt *ast.UndropStmt) error {
-	if p.cur.Type != kwRENAME {
+	if !p.curIs(kwRENAME) {
 		return nil
 	}
 	p.advance() // consume RENAME

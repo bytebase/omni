@@ -82,7 +82,7 @@ func aiCheckOptions(opts []*ast.CopyOption, props objectProps) error {
 // begun at start and already consumed, whose one nameless option lists the
 // columns as bare names. cur is '('.
 func (p *Parser) parseAiParenNames(s *ast.ObjectStmt, keywords string, start int) error {
-	if p.cur.Type != '(' {
+	if !p.curIs('(') {
 		return p.syntaxErrorAtCur()
 	}
 	cols := &ast.CopyOption{Loc: ast.Loc{Start: p.cur.Loc.Start}}
@@ -131,7 +131,7 @@ func (p *Parser) parseAiParenNames(s *ast.ObjectStmt, keywords string, start int
 func parseCreateCortexSearch(p *Parser, s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
 	switch {
-	case p.cur.Type == kwON:
+	case p.curIs(kwON):
 		p.advance() // consume ON
 		col, err := p.parseAiSingleName()
 		if err != nil {
@@ -195,7 +195,7 @@ func (p *Parser) parseCortexVectorIndexes(s *ast.ObjectStmt) error {
 			opt.Name = col.Name.String()
 		}
 		c.Options = append(c.Options, opt)
-		if p.cur.Type == '(' {
+		if p.curIs('(') {
 			p.advance() // consume '('
 			if !p.curIsWord("MODEL") && !p.curIsWord("QUERY_MODEL") || !p.startsObjectProperty() {
 				return p.syntaxErrorAtCur()
@@ -213,7 +213,7 @@ func (p *Parser) parseCortexVectorIndexes(s *ast.ObjectStmt) error {
 			opt.Group = []*ast.CopyOption{setting}
 			opt.Loc.End = p.prev.Loc.End
 		}
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -263,7 +263,7 @@ func parseAlterCortexSearch(p *Parser, s *ast.ObjectStmt) error {
 		p.addObjectKeywordsClause(s, "REFRESH", start)
 	case p.acceptWords("SET", "ATTRIBUTES"):
 		return p.parseAiParenNames(s, "SET ATTRIBUTES", start)
-	case p.cur.Type == kwSET:
+	case p.curIs(kwSET):
 		return p.parseCortexSet(s)
 	case p.acceptWords("UNSET", "PRIMARY", "KEY"):
 		p.addObjectKeywordsClause(s, "UNSET PRIMARY KEY", start)
@@ -271,7 +271,7 @@ func parseAlterCortexSearch(p *Parser, s *ast.ObjectStmt) error {
 		p.addObjectKeywordsClause(s, "UNSET ATTRIBUTES", start)
 	case !s.IfExists && p.acceptWords("ADD", "SCORING", "PROFILE"):
 		c := p.addObjectKeywordsClause(s, "ADD SCORING PROFILE", start)
-		if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
+		if p.curIs(kwIF) && p.nextIs(kwNOT) {
 			if err := p.parseIfNotExists(new(bool)); err != nil {
 				return err
 			}
@@ -290,7 +290,7 @@ func parseAlterCortexSearch(p *Parser, s *ast.ObjectStmt) error {
 		c.Loc.End = p.prev.Loc.End
 	case !s.IfExists && p.acceptWords("DROP", "SCORING", "PROFILE"):
 		c := p.addObjectKeywordsClause(s, "DROP SCORING PROFILE", start)
-		if p.cur.Type == kwIF && p.peekNext().Type == kwEXISTS {
+		if p.curIs(kwIF) && p.nextIs(kwEXISTS) {
 			p.advance() // consume IF
 			p.advance() // consume EXISTS
 			c.Keywords = "DROP SCORING PROFILE IF EXISTS"
@@ -323,7 +323,7 @@ func (p *Parser) parseCortexSet(s *ast.ObjectStmt) error {
 				return err
 			}
 			opt := &ast.CopyOption{Name: "PRIMARY KEY", Loc: ast.Loc{Start: key.Loc.Start}}
-			if p.cur.Type != '(' {
+			if !p.curIs('(') {
 				return p.syntaxErrorAtCur()
 			}
 			if err := p.parseObjectValueParen(opt); err != nil {
@@ -369,7 +369,7 @@ func (p *Parser) parseCortexColumnList(s *ast.ObjectStmt, keywords string, start
 			return nil, err
 		}
 		c.Names = append(c.Names, col)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -384,7 +384,7 @@ func (p *Parser) parseCortexColumnList(s *ast.ObjectStmt, keywords string, start
 func (p *Parser) parseAiStageFrom(s *ast.ObjectStmt, start int) error {
 	// A stage's name (or ~ or %) follows the '@' with no space.
 	if next := p.peekNext(); next.Loc.Start != p.cur.Loc.End ||
-		!(next.Type == tokIdent || next.Type == tokQuotedIdent || next.Type >= 700 || next.Type == '~' || next.Type == '%') {
+		!(p.nextIs(tokIdent) || p.nextIs(tokQuotedIdent) || next.Type >= 700 || p.nextIs('~') || p.nextIs('%')) {
 		return p.syntaxErrorAtCur()
 	}
 	ref, err := p.parseStageOperand()

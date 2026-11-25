@@ -32,11 +32,12 @@ var semanticViewMaterializationActions = map[string]ast.AlterSemanticViewAction{
 // The page writes these forms without IF EXISTS.
 // https://docs.snowflake.com/en/sql-reference/sql/alter-semantic-view
 func (p *Parser) parseAlterSemanticViewMaterialization(stmt *ast.AlterSemanticViewStmt) (bool, error) {
-	if p.cur.Type != tokIdent && p.cur.Type < 700 || !isWordToken(p.peekNext(), "MATERIALIZATION") {
+	if !p.curIs(tokIdent) && p.cur.Type < 700 || !p.nextWord("MATERIALIZATION") {
 		return false, nil
 	}
+	wantKeys(p, semanticViewMaterializationActions)
 	action, ok := semanticViewMaterializationActions[strings.ToUpper(p.cur.Str)]
-	if !ok || !isWordToken(p.cur, strings.ToUpper(p.cur.Str)) {
+	if !ok || !p.curWord(strings.ToUpper(p.cur.Str)) {
 		return false, nil
 	}
 	if stmt.IfExists {
@@ -68,7 +69,7 @@ func (p *Parser) parseAlterSemanticViewMaterialization(stmt *ast.AlterSemanticVi
 			return true, err
 		}
 		switch {
-		case isWordToken(p.cur, "AUTO"), isWordToken(p.cur, "FULL"), isWordToken(p.cur, "INCREMENTAL"):
+		case p.curWord("AUTO"), p.curWord("FULL"), p.curWord("INCREMENTAL"):
 			stmt.RefreshMode = strings.ToUpper(p.advance().Str)
 		default:
 			return true, p.syntaxErrorAtCur()
@@ -91,7 +92,7 @@ func (p *Parser) parseAlterSemanticViewMaterialization(stmt *ast.AlterSemanticVi
 	if stmt.Metrics, err = p.parseSemanticMemberList(); err != nil {
 		return true, err
 	}
-	if p.cur.Type == kwWHERE {
+	if p.curIs(kwWHERE) {
 		p.advance() // consume WHERE
 		if stmt.Where, err = p.parseParenCondition(); err != nil {
 			return true, err
@@ -132,7 +133,7 @@ func (p *Parser) parseSemanticMemberList() ([]*ast.ObjectName, error) {
 			}
 		}
 		names = append(names, name)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			return names, nil
 		}
 		p.advance() // consume ','

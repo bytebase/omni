@@ -41,7 +41,7 @@ func (p *Parser) parseMatchRecognizeClause() (*ast.MatchRecognizeClause, error) 
 	}
 
 	// PARTITION BY <expr_list>
-	if p.cur.Type == kwPARTITION {
+	if p.curIs(kwPARTITION) {
 		p.advance() // consume PARTITION
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
@@ -54,7 +54,7 @@ func (p *Parser) parseMatchRecognizeClause() (*ast.MatchRecognizeClause, error) 
 	}
 
 	// ORDER BY <order_items>
-	if p.cur.Type == kwORDER {
+	if p.curIs(kwORDER) {
 		p.advance() // consume ORDER
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
@@ -67,7 +67,7 @@ func (p *Parser) parseMatchRecognizeClause() (*ast.MatchRecognizeClause, error) 
 	}
 
 	// MEASURES <measure_list>
-	if p.cur.Type == kwMEASURES {
+	if p.curIs(kwMEASURES) {
 		p.advance() // consume MEASURES
 		measures, err := p.parseMeasureList()
 		if err != nil {
@@ -77,7 +77,7 @@ func (p *Parser) parseMatchRecognizeClause() (*ast.MatchRecognizeClause, error) 
 	}
 
 	// { ONE ROW | ALL ROWS } PER MATCH [opt]
-	if p.cur.Type == kwONE || p.cur.Type == kwALL {
+	if p.curIs(kwONE) || p.curIs(kwALL) {
 		rpm, err := p.parseRowsPerMatch()
 		if err != nil {
 			return nil, err
@@ -86,7 +86,7 @@ func (p *Parser) parseMatchRecognizeClause() (*ast.MatchRecognizeClause, error) 
 	}
 
 	// AFTER MATCH SKIP …
-	if p.cur.Type == kwAFTER {
+	if p.curIs(kwAFTER) {
 		am, err := p.parseAfterMatchSkip()
 		if err != nil {
 			return nil, err
@@ -95,7 +95,7 @@ func (p *Parser) parseMatchRecognizeClause() (*ast.MatchRecognizeClause, error) 
 	}
 
 	// PATTERN ( <row_pattern> )
-	if p.cur.Type == kwPATTERN {
+	if p.curIs(kwPATTERN) {
 		pat, err := p.parseRowPattern()
 		if err != nil {
 			return nil, err
@@ -104,7 +104,7 @@ func (p *Parser) parseMatchRecognizeClause() (*ast.MatchRecognizeClause, error) 
 	}
 
 	// DEFINE <define_list>
-	if p.cur.Type == kwDEFINE {
+	if p.curIs(kwDEFINE) {
 		p.advance() // consume DEFINE
 		defs, err := p.parseDefineList()
 		if err != nil {
@@ -137,7 +137,7 @@ func (p *Parser) parseMeasureList() ([]*ast.MatchMeasure, error) {
 			return nil, err
 		}
 		measures = append(measures, m)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -158,7 +158,8 @@ func (p *Parser) parseMeasure() (*ast.MatchMeasure, error) {
 	// would make FINAL/RUNNING itself a function call) and not a terminator
 	// such as AS / ',' / ')' (which would mean FINAL/RUNNING is the operand,
 	// e.g. a column literally named "final").
-	if p.cur.Type == tokIdent {
+	p.wantWords("FINAL", "RUNNING")
+	if p.curIs(tokIdent) {
 		if up := strings.ToUpper(p.cur.Str); (up == "FINAL" || up == "RUNNING") && measureOperandFollows(p.peekNext().Type) {
 			p.advance()
 			if up == "FINAL" {
@@ -226,8 +227,8 @@ func (p *Parser) parseRowsPerMatch() (*ast.RowsPerMatch, error) {
 	rpm.Loc.End = p.prev.Loc.End
 
 	// Optional modifier (only valid for ALL ROWS, but accepted generally).
-	switch p.cur.Type {
-	case kwSHOW:
+	switch {
+	case p.curIs(kwSHOW):
 		p.advance() // consume SHOW
 		if _, err := p.expect(kwEMPTY); err != nil {
 			return nil, err
@@ -237,7 +238,7 @@ func (p *Parser) parseRowsPerMatch() (*ast.RowsPerMatch, error) {
 		}
 		rpm.Opt = ast.RowsPerMatchShowEmpty
 		rpm.Loc.End = p.prev.Loc.End
-	case kwOMIT:
+	case p.curIs(kwOMIT):
 		p.advance() // consume OMIT
 		if _, err := p.expect(kwEMPTY); err != nil {
 			return nil, err
@@ -247,7 +248,7 @@ func (p *Parser) parseRowsPerMatch() (*ast.RowsPerMatch, error) {
 		}
 		rpm.Opt = ast.RowsPerMatchOmitEmpty
 		rpm.Loc.End = p.prev.Loc.End
-	case kwWITH:
+	case p.curIs(kwWITH):
 		p.advance() // consume WITH
 		if _, err := p.expect(kwUNMATCHED); err != nil {
 			return nil, err
@@ -275,8 +276,8 @@ func (p *Parser) parseAfterMatchSkip() (*ast.AfterMatchSkip, error) {
 		return nil, err
 	}
 
-	switch p.cur.Type {
-	case kwPAST:
+	switch {
+	case p.curIs(kwPAST):
 		p.advance() // consume PAST
 		if _, err := p.expect(kwLAST); err != nil {
 			return nil, err
@@ -286,16 +287,16 @@ func (p *Parser) parseAfterMatchSkip() (*ast.AfterMatchSkip, error) {
 		}
 		am.Kind = ast.AfterMatchSkipPastLastRow
 
-	case kwTO:
+	case p.curIs(kwTO):
 		p.advance() // consume TO
-		switch p.cur.Type {
-		case kwNEXT:
+		switch {
+		case p.curIs(kwNEXT):
 			p.advance() // consume NEXT
 			if _, err := p.expect(kwROW); err != nil {
 				return nil, err
 			}
 			am.Kind = ast.AfterMatchSkipToNextRow
-		case kwFIRST:
+		case p.curIs(kwFIRST):
 			p.advance() // consume FIRST
 			sym, err := p.parseIdent()
 			if err != nil {
@@ -303,7 +304,7 @@ func (p *Parser) parseAfterMatchSkip() (*ast.AfterMatchSkip, error) {
 			}
 			am.Kind = ast.AfterMatchSkipToFirst
 			am.Symbol = sym
-		case kwLAST:
+		case p.curIs(kwLAST):
 			p.advance() // consume LAST
 			sym, err := p.parseIdent()
 			if err != nil {
@@ -404,7 +405,7 @@ func (p *Parser) parseDefineList() ([]*ast.MatchDefine, error) {
 			return nil, err
 		}
 		defs = append(defs, d)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','

@@ -207,7 +207,7 @@ func (p *Parser) parseObjectFromString(s *ast.ObjectStmt, keywords string) error
 
 // parseObjectStringValue reads a '<string>' as a nameless option.
 func (p *Parser) parseObjectStringValue() (*ast.CopyOption, error) {
-	if p.cur.Type != tokString {
+	if !p.curIs(tokString) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	lit, err := p.parseCopyLiteral()
@@ -352,7 +352,7 @@ func (p *Parser) parseExecuteDbtProject(s *ast.ObjectStmt) error {
 			return err
 		}
 		p.addObjectKeywordsClause(s, "FROM WORKSPACE", start).Names = []*ast.ObjectName{name}
-	case p.cur.Type == tokEOF || p.cur.Type == ';' || p.startsObjectProperty():
+	case p.curIs(tokEOF) || p.curIs(';') || p.startsObjectProperty():
 		// The second form with no workspace.
 	default:
 		name, err := p.parseObjectName()
@@ -412,7 +412,7 @@ func execString(p *Parser, opt *ast.CopyOption) error {
 
 // execBool reads TRUE or FALSE.
 func execBool(p *Parser, opt *ast.CopyOption) error {
-	if !isWordToken(p.cur, "TRUE") && !isWordToken(p.cur, "FALSE") {
+	if !p.curWord("TRUE") && !p.curWord("FALSE") {
 		return p.syntaxErrorAtCur()
 	}
 	opt.Words = strings.ToUpper(p.advance().Str)
@@ -422,7 +422,7 @@ func execBool(p *Parser, opt *ast.CopyOption) error {
 // execNames reads ( <name> [ , ... ] ) of one-part names.
 func execNames(p *Parser, opt *ast.CopyOption) error {
 	return p.parseExecList(opt, func(e *ast.CopyOption) error {
-		if p.cur.Type != tokIdent && p.cur.Type != tokQuotedIdent && p.cur.Type < 700 {
+		if !p.curIs(tokIdent) && !p.curIs(tokQuotedIdent) && p.cur.Type < 700 {
 			return p.syntaxErrorAtCur()
 		}
 		w, err := p.parseObjectWord()
@@ -447,7 +447,7 @@ func execNames(p *Parser, opt *ast.CopyOption) error {
 // is kept as Lit, anything else as Expr.
 func execEnvVars(p *Parser, opt *ast.CopyOption) error {
 	return p.parseExecList(opt, func(e *ast.CopyOption) error {
-		if p.cur.Type != tokString {
+		if !p.curIs(tokString) {
 			return p.syntaxErrorAtCur()
 		}
 		key := p.advance()
@@ -455,7 +455,7 @@ func execEnvVars(p *Parser, opt *ast.CopyOption) error {
 		if _, err := p.expect('='); err != nil {
 			return err
 		}
-		if p.cur.Type == tokString && (p.peekNext().Type == ',' || p.peekNext().Type == ')') {
+		if p.curIs(tokString) && (p.nextIs(',') || p.nextIs(')')) {
 			v, err := p.parseObjectStringValue()
 			if err != nil {
 				return err
@@ -464,11 +464,11 @@ func execEnvVars(p *Parser, opt *ast.CopyOption) error {
 			return nil
 		}
 		var err error
-		switch p.cur.Type {
-		case '?':
+		switch {
+		case p.curIs('?'):
 			tok := p.advance()
 			e.Expr = &ast.BindVariable{Placeholder: true, Loc: tok.Loc}
-		case ':':
+		case p.curIs(':'):
 			e.Expr, err = p.parseBindVariable()
 		default:
 			e.Expr, err = p.parseExpr()
@@ -493,13 +493,13 @@ var dbtImportFunctions = map[string]bool{
 func execImports(p *Parser, opt *ast.CopyOption) error {
 	return p.parseExecList(opt, func(e *ast.CopyOption) error {
 		switch {
-		case p.cur.Type == tokString:
+		case p.curIs(tokString):
 			v, err := p.parseObjectStringValue()
 			if err != nil {
 				return err
 			}
 			e.Lit = v.Lit
-		case p.cur.Type == tokIdent && dbtImportFunctions[strings.ToUpper(p.cur.Str)] && p.peekNext().Type == '(':
+		case p.curIs(tokIdent) && dbtImportFunctions[strings.ToUpper(p.cur.Str)] && p.nextIs('('):
 			x, err := p.parseExpr()
 			if err != nil {
 				return err
@@ -515,7 +515,7 @@ func execImports(p *Parser, opt *ast.CopyOption) error {
 		default:
 			return p.syntaxErrorAtCur()
 		}
-		if p.cur.Type == kwAS {
+		if p.curIs(kwAS) {
 			p.advance() // consume AS
 			v, err := p.parseObjectStringValue()
 			if err != nil {
@@ -559,7 +559,7 @@ func validImportCall(call *ast.FuncCallExpr) bool {
 // execBundleArgs reads ( { '<arg>' | :<variable> } [ , ... ] ).
 func execBundleArgs(p *Parser, opt *ast.CopyOption) error {
 	return p.parseExecList(opt, func(e *ast.CopyOption) error {
-		if p.cur.Type == tokString {
+		if p.curIs(tokString) {
 			v, err := p.parseObjectStringValue()
 			if err != nil {
 				return err
@@ -590,11 +590,11 @@ func (p *Parser) parseColonVariable() (string, error) {
 // parseBindVariable reads a Snowflake Scripting variable reference :<name>,
 // the colon written against the name.
 func (p *Parser) parseBindVariable() (*ast.BindVariable, error) {
-	if p.cur.Type != ':' {
+	if !p.curIs(':') {
 		return nil, p.syntaxErrorAtCur()
 	}
 	colon := p.advance()
-	if p.cur.Loc.Start != colon.Loc.End || (p.cur.Type != tokIdent && p.cur.Type != tokQuotedIdent && p.cur.Type < 700) {
+	if p.cur.Loc.Start != colon.Loc.End || (!p.curIs(tokIdent) && !p.curIs(tokQuotedIdent) && p.cur.Type < 700) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	tok := p.advance()
@@ -617,7 +617,7 @@ func (p *Parser) parseExecList(opt *ast.CopyOption, read func(e *ast.CopyOption)
 		}
 		e.Loc.End = p.prev.Loc.End
 		opt.Group = append(opt.Group, e)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -646,7 +646,7 @@ func (p *Parser) parseExecuteCodeBundle(s *ast.ObjectStmt) error {
 		read execValue
 		need bool
 	}{{"ENTRYPOINT", execString, true}, {"ARGUMENTS", execBundleArgs, false}} {
-		if !p.atWords(prop.name) || p.peekNext().Type != '=' {
+		if !p.atWords(prop.name) || !p.nextIs('=') {
 			if prop.need {
 				return p.syntaxErrorAtCur()
 			}
@@ -663,7 +663,7 @@ func (p *Parser) parseExecuteCodeBundle(s *ast.ObjectStmt) error {
 	}
 	c.Loc.End = p.prev.Loc.End
 	s.Clauses = append(s.Clauses, c)
-	if start := p.cur.Loc.Start; p.cur.Type == kwWITH && isWordToken(p.peekNext(), "SPECIFICATION") {
+	if start := p.cur.Loc.Start; p.curIs(kwWITH) && p.nextWord("SPECIFICATION") {
 		p.advance() // consume WITH
 		p.advance() // consume SPECIFICATION
 		spec, err := p.parseObjectStringValue()
@@ -739,9 +739,9 @@ func (p *Parser) parseExecuteDcmProject(s *ast.ObjectStmt) error {
 		if err := p.parseObjectFromString(s, "FROM"); err != nil {
 			return err
 		}
-		if start := p.cur.Loc.Start; p.cur.Type == kwLIMIT {
+		if start := p.cur.Loc.Start; p.curIs(kwLIMIT) {
 			p.advance() // consume LIMIT
-			if p.cur.Type != tokInt {
+			if !p.curIs(tokInt) {
 				return p.syntaxErrorAtCur()
 			}
 			lit, err := p.parseCopyLiteral()
@@ -761,7 +761,7 @@ func (p *Parser) parseExecuteDcmProject(s *ast.ObjectStmt) error {
 // start, and reads its optional AS <alias> into it.
 func (p *Parser) parseDcmAlias(s *ast.ObjectStmt, keywords string, start int) error {
 	c := p.addObjectKeywordsClause(s, keywords, start)
-	if p.cur.Type != kwAS {
+	if !p.curIs(kwAS) {
 		return nil
 	}
 	p.advance() // consume AS
@@ -785,7 +785,7 @@ func (p *Parser) parseDcmAlias(s *ast.ObjectStmt, keywords string, start int) er
 // writes both optional, but a bare USING says nothing.
 func (p *Parser) parseDcmSource(s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
-	if p.cur.Type == kwFROM && isWordToken(p.peekNext(), "DEPLOYMENT") {
+	if p.curIs(kwFROM) && p.nextWord("DEPLOYMENT") {
 		p.advance() // consume FROM
 		p.advance() // consume DEPLOYMENT
 		ref, err := p.parseObjectSimpleName()
@@ -795,7 +795,7 @@ func (p *Parser) parseDcmSource(s *ast.ObjectStmt) error {
 		p.addObjectKeywordsClause(s, "FROM DEPLOYMENT", start).Names = []*ast.ObjectName{ref}
 		return nil
 	}
-	if p.cur.Type == kwUSING {
+	if p.curIs(kwUSING) {
 		p.advance() // consume USING
 		c := &ast.ObjectClause{Keywords: "USING", Loc: ast.Loc{Start: start}}
 		if p.acceptWords("CONFIGURATION") {
@@ -806,7 +806,7 @@ func (p *Parser) parseDcmSource(s *ast.ObjectStmt) error {
 			c.Keywords = "USING CONFIGURATION"
 			c.Names = []*ast.ObjectName{config}
 		}
-		if p.cur.Type == '(' {
+		if p.curIs('(') {
 			args, err := p.parseNamedArgList()
 			if err != nil {
 				return err
@@ -836,7 +836,7 @@ func (p *Parser) parseDcmEnvironment(s *ast.ObjectStmt) error {
 	}
 	opt := &ast.CopyOption{Loc: ast.Loc{Start: p.cur.Loc.Start}}
 	err := p.parseExecList(opt, func(e *ast.CopyOption) error {
-		if p.cur.Type == tokVariable || p.cur.Type == '?' {
+		if p.curIs(tokVariable) || p.curIs('?') {
 			tok := p.advance()
 			e.Name = p.srcSlice(tok.Loc.Start, tok.Loc.End)
 		} else {
@@ -873,14 +873,14 @@ func (p *Parser) parseNamedArgList() ([]*ast.CallArg, error) {
 	}
 	var args []*ast.CallArg
 	for {
-		if (p.cur.Type != tokIdent && p.cur.Type != tokQuotedIdent && p.cur.Type < 700) || p.peekNext().Type != tokAssoc {
+		if (!p.curIs(tokIdent) && !p.curIs(tokQuotedIdent) && p.cur.Type < 700) || !p.nextIs(tokAssoc) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		tok := p.advance()
 		p.advance() // consume '=>'
 		var value ast.Node
 		var err error
-		if p.cur.Type == ':' {
+		if p.curIs(':') {
 			value, err = p.parseBindVariable()
 		} else {
 			value, err = p.parseExpr()
@@ -893,7 +893,7 @@ func (p *Parser) parseNamedArgList() ([]*ast.CallArg, error) {
 			Value: value,
 			Loc:   ast.Loc{Start: tok.Loc.Start, End: p.prev.Loc.End},
 		})
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','

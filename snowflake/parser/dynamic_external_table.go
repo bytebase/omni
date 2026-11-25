@@ -63,7 +63,7 @@ func (p *Parser) parseCreateDynamicTableStmt(start ast.Loc, orReplace, orAlter, 
 	// Optional ICEBERG modifier (DYNAMIC ICEBERG TABLE). ICEBERG is not a reserved
 	// keyword token, so it is matched by identifier text (and only when TABLE
 	// follows, so a table literally named "iceberg" is not misread as the modifier).
-	if p.curIsWord("ICEBERG") && p.peekNext().Type == kwTABLE {
+	if p.curIsWord("ICEBERG") && p.nextIs(kwTABLE) {
 		p.advance() // consume ICEBERG
 		stmt.Iceberg = true
 	}
@@ -84,7 +84,7 @@ func (p *Parser) parseCreateDynamicTableStmt(start ast.Loc, orReplace, orAlter, 
 
 	// FROM BACKUP SET <set> IDENTIFIER '<id>', which the page writes with no
 	// modifier.
-	if p.cur.Type == kwFROM && !orReplace && !orAlter && !transient && !stmt.IfNotExists {
+	if p.curIs(kwFROM) && !orReplace && !orAlter && !transient && !stmt.IfNotExists {
 		p.advance() // consume FROM
 		backup, err := p.parseBackupSource()
 		if err != nil {
@@ -98,7 +98,7 @@ func (p *Parser) parseCreateDynamicTableStmt(start ast.Loc, orReplace, orAlter, 
 	// CLONE form: CREATE DYNAMIC TABLE <name> CLONE <source> [AT|BEFORE (...)]
 	// [ COPY ... ] [ TARGET_LAG = ... ] [ WAREHOUSE = ... ] [ EXECUTE AS USER ... ],
 	// the clone overriding each setting it names.
-	if p.cur.Type == kwCLONE {
+	if p.curIs(kwCLONE) {
 		clone, err := p.parseCloneSource()
 		if err != nil {
 			return nil, err
@@ -113,7 +113,7 @@ func (p *Parser) parseCreateDynamicTableStmt(start ast.Loc, orReplace, orAlter, 
 				}
 				stmt.CopyGrants = stmt.CopyGrants || grants
 				continue
-			case p.cur.Type == kwTARGET_LAG || p.cur.Type == kwWAREHOUSE:
+			case p.curIs(kwTARGET_LAG) || p.curIs(kwWAREHOUSE):
 				opt, err := p.parseRefreshSetting(true)
 				if err != nil {
 					return nil, err
@@ -133,7 +133,7 @@ func (p *Parser) parseCreateDynamicTableStmt(start ast.Loc, orReplace, orAlter, 
 	}
 
 	// Optional materialized column list: ( <col> [ <type> ] [, ...] ).
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		cols, err := p.parseMaterializedColumnList()
 		if err != nil {
 			return nil, err
@@ -165,7 +165,7 @@ func (p *Parser) parseCreateDynamicTableStmt(start ast.Loc, orReplace, orAlter, 
 			continue
 		}
 		switch {
-		case p.cur.Type == kwCLUSTER:
+		case p.curIs(kwCLUSTER):
 			if err := p.parseClusterByInto(&stmt.ClusterBy, &stmt.Linear); err != nil {
 				return nil, err
 			}
@@ -177,14 +177,14 @@ func (p *Parser) parseCreateDynamicTableStmt(start ast.Loc, orReplace, orAlter, 
 			}
 			stmt.CopyGrants = stmt.CopyGrants || grants
 			continue
-		case stmt.Iceberg && p.cur.Type == kwPARTITION && p.peekNext().Type == kwBY:
+		case stmt.Iceberg && p.curIs(kwPARTITION) && p.nextIs(kwBY):
 			parts, err := p.parsePartitionTransforms()
 			if err != nil {
 				return nil, err
 			}
 			stmt.PartitionBy = parts
 			continue
-		case p.cur.Type == kwSTART && p.peekNext().Type == kwAT:
+		case p.curIs(kwSTART) && p.nextIs(kwAT):
 			if err := p.parseDynamicTableStartAt(stmt); err != nil {
 				return nil, err
 			}
@@ -194,7 +194,7 @@ func (p *Parser) parseCreateDynamicTableStmt(start ast.Loc, orReplace, orAlter, 
 				return nil, err
 			}
 			continue
-		case p.curIsWord("REQUIRE") && p.peekNext().Type == kwUSER:
+		case p.curIsWord("REQUIRE") && p.nextIs(kwUSER):
 			// REQUIRE USER — a bare flag clause (no value).
 			p.advance() // consume REQUIRE
 			p.advance() // consume USER
@@ -208,7 +208,7 @@ func (p *Parser) parseCreateDynamicTableStmt(start ast.Loc, orReplace, orAlter, 
 			stmt.ImmutableKind = kind
 			stmt.ImmutableWhere = expr
 			continue
-		case p.cur.Type == kwAS || p.cur.Type == kwREFRESH:
+		case p.curIs(kwAS) || p.curIs(kwREFRESH):
 			// fall out of the loop to the body parse below.
 		default:
 			if p.startsDynamicTableOption() {
@@ -224,15 +224,15 @@ func (p *Parser) parseCreateDynamicTableStmt(start ast.Loc, orReplace, orAlter, 
 	}
 
 	// Terminal body: AS <query> | REFRESH USING ( <dml> ).
-	switch p.cur.Type {
-	case kwAS:
+	switch {
+	case p.curIs(kwAS):
 		p.advance() // consume AS
 		query, err := p.parseQueryExpr()
 		if err != nil {
 			return nil, err
 		}
 		stmt.AsQuery = query
-	case kwREFRESH:
+	case p.curIs(kwREFRESH):
 		// REFRESH USING ( <dml_statement> ).
 		p.advance() // consume REFRESH
 		if _, err := p.expect(kwUSING); err != nil {
@@ -270,14 +270,14 @@ func (p *Parser) parseMaterializedColumnList() ([]*ast.ColumnDef, error) {
 	}
 
 	var cols []*ast.ColumnDef
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for !p.curIs(')') && !p.curIs(tokEOF) {
 		col, err := p.parseMaterializedColumnDef()
 		if err != nil {
 			return nil, err
 		}
 		cols = append(cols, col)
 
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -308,9 +308,9 @@ func (p *Parser) parseMaterializedColumnDef() (*ast.ColumnDef, error) {
 	// The data type is optional. It is absent when the next token closes the
 	// column (',' / ')') or begins a column property (WITH / MASKING / TAG /
 	// COMMENT). Otherwise read a data type.
-	if p.cur.Type != ',' && p.cur.Type != ')' && p.cur.Type != tokEOF &&
-		p.cur.Type != kwWITH && p.cur.Type != kwMASKING && p.cur.Type != kwTAG &&
-		p.cur.Type != kwCOMMENT {
+	if !p.curIs(',') && !p.curIs(')') && !p.curIs(tokEOF) &&
+		!p.curIs(kwWITH) && !p.curIs(kwMASKING) && !p.curIs(kwTAG) &&
+		!p.curIs(kwCOMMENT) {
 		dt, err := p.parseDataType()
 		if err != nil {
 			return nil, err
@@ -332,8 +332,8 @@ func (p *Parser) parseMaterializedColumnDef() (*ast.ColumnDef, error) {
 // contextual REQUIRE / FROZEN words), so those are never swallowed as option
 // names.
 func (p *Parser) startsDynamicTableOption() bool {
-	switch p.cur.Type {
-	case kwCLUSTER, kwAS, kwREFRESH, kwIMMUTABLE:
+	switch {
+	case p.curIs(kwCLUSTER), p.curIs(kwAS), p.curIs(kwREFRESH), p.curIs(kwIMMUTABLE):
 		return false
 	}
 	if p.curIsWord("REQUIRE") || p.curIsWord("FROZEN") {
@@ -363,7 +363,7 @@ func (p *Parser) parsePartitionTransforms() ([]ast.Node, error) {
 			return nil, err
 		}
 		parts = append(parts, part)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -382,7 +382,7 @@ func (p *Parser) parsePartitionTransform() (ast.Node, error) {
 	name := strings.ToUpper(tok.Str)
 	withWidth := name == "BUCKET" || name == "TRUNCATE"
 	transform := withWidth || name == "YEAR" || name == "MONTH" || name == "DAY" || name == "HOUR"
-	if !transform || p.peekNext().Type != '(' {
+	if !transform || !p.nextIs('(') {
 		col, err := p.parseIdent()
 		if err != nil {
 			return nil, err
@@ -431,8 +431,8 @@ func (p *Parser) parseDynamicTableStartAt(stmt *ast.CreateDynamicTableStmt) erro
 	if _, err := p.expect('('); err != nil {
 		return err
 	}
-	switch p.cur.Type {
-	case kwSTREAM, kwTIMESTAMP, kwSTATEMENT, kwOFFSET:
+	switch {
+	case p.curIs(kwSTREAM), p.curIs(kwTIMESTAMP), p.curIs(kwSTATEMENT), p.curIs(kwOFFSET):
 		stmt.StartAtKind = strings.ToUpper(p.cur.Str)
 		p.advance() // consume the selector
 	default:
@@ -472,7 +472,7 @@ func (p *Parser) parseDynamicTableStartAt(stmt *ast.CreateDynamicTableStmt) erro
 // startsExecuteAsUser reports whether cur begins EXECUTE AS USER. EXECUTE is
 // not a keyword token.
 func (p *Parser) startsExecuteAsUser() bool {
-	return p.curIsWord("EXECUTE") && p.peekNext().Type == kwAS
+	return p.curIsWord("EXECUTE") && p.nextIs(kwAS)
 }
 
 // parseExecuteAsUser parses
@@ -491,7 +491,7 @@ func (p *Parser) parseExecuteAsUser(stmt *ast.CreateDynamicTableStmt) error {
 		return err
 	}
 	stmt.ExecuteAsUser = user
-	if p.cur.Type != kwUSE {
+	if !p.curIs(kwUSE) {
 		return nil
 	}
 	p.advance() // consume USE
@@ -501,8 +501,8 @@ func (p *Parser) parseExecuteAsUser(stmt *ast.CreateDynamicTableStmt) error {
 	if _, err := p.expect(kwROLES); err != nil {
 		return err
 	}
-	switch p.cur.Type {
-	case kwALL, kwNONE:
+	switch {
+	case p.curIs(kwALL), p.curIs(kwNONE):
 		stmt.SecondaryRolesKeyword = strings.ToUpper(p.cur.Str)
 		p.advance() // consume ALL / NONE
 		return nil
@@ -513,7 +513,7 @@ func (p *Parser) parseExecuteAsUser(stmt *ast.CreateDynamicTableStmt) error {
 			return err
 		}
 		stmt.SecondaryRoles = append(stmt.SecondaryRoles, role)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			return nil
 		}
 		p.advance() // consume ','
@@ -524,10 +524,10 @@ func (p *Parser) parseExecuteAsUser(stmt *ast.CreateDynamicTableStmt) error {
 // clause: the IMMUTABLE keyword (or the contextual FROZEN word) immediately
 // followed by WHERE.
 func (p *Parser) startsImmutableWhere() bool {
-	if p.cur.Type == kwIMMUTABLE && p.peekNext().Type == kwWHERE {
+	if p.curIs(kwIMMUTABLE) && p.nextIs(kwWHERE) {
 		return true
 	}
-	return p.curIsWord("FROZEN") && p.peekNext().Type == kwWHERE
+	return p.curIsWord("FROZEN") && p.nextIs(kwWHERE)
 }
 
 // parseImmutableWhere parses a { IMMUTABLE | FROZEN } WHERE ( <expr> ) clause,
@@ -559,7 +559,7 @@ func (p *Parser) parseClusterByInto(exprs *[]ast.Node, linear *bool) error {
 	if _, err := p.expect(kwBY); err != nil {
 		return err
 	}
-	if p.cur.Type == kwLINEAR {
+	if p.curIs(kwLINEAR) {
 		p.advance() // consume LINEAR
 		*linear = true
 	}
@@ -620,7 +620,7 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 	stmt.Name = name
 
 	// REFRESH takes a comma-separated list of tables.
-	for p.cur.Type == ',' {
+	for p.curIs(',') {
 		p.advance() // consume ','
 		more, err := p.parseObjectName()
 		if err != nil {
@@ -628,22 +628,22 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 		}
 		stmt.MoreNames = append(stmt.MoreNames, more)
 	}
-	if len(stmt.MoreNames) > 0 && p.cur.Type != kwREFRESH {
+	if len(stmt.MoreNames) > 0 && !p.curIs(kwREFRESH) {
 		return nil, p.syntaxErrorAtCur()
 	}
 
-	switch p.cur.Type {
-	case kwSUSPEND, kwRESUME:
+	switch {
+	case p.curIs(kwSUSPEND), p.curIs(kwRESUME):
 		verb := p.advance() // consume SUSPEND / RESUME
 		suspend := verb.Type == kwSUSPEND
 		switch {
-		case p.cur.Type == kwRECLUSTER:
+		case p.curIs(kwRECLUSTER):
 			p.advance() // consume RECLUSTER
 			stmt.Action = ast.AlterDynamicTableResumeRecluster
 			if suspend {
 				stmt.Action = ast.AlterDynamicTableSuspendRecluster
 			}
-		case p.cur.Type == kwSEARCH:
+		case p.curIs(kwSEARCH):
 			if err := p.parseDynamicTableSearchOpt(stmt, true); err != nil {
 				return nil, err
 			}
@@ -658,17 +658,17 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 			}
 		}
 
-	case kwREFRESH:
+	case p.curIs(kwREFRESH):
 		// REFRESH [ COPY SESSION ].
 		p.advance() // consume REFRESH
 		stmt.Action = ast.AlterDynamicTableRefresh
-		if p.cur.Type == kwCOPY && p.peekNext().Type == kwSESSION {
+		if p.curIs(kwCOPY) && p.nextIs(kwSESSION) {
 			p.advance() // consume COPY
 			p.advance() // consume SESSION
 			stmt.RefreshCopySession = true
 		}
 
-	case kwRENAME:
+	case p.curIs(kwRENAME):
 		// RENAME TO <new_name>.
 		p.advance() // consume RENAME
 		if _, err := p.expect(kwTO); err != nil {
@@ -681,7 +681,7 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterDynamicTableRename
 		stmt.NewName = newName
 
-	case kwSWAP:
+	case p.curIs(kwSWAP):
 		// SWAP WITH <other_name>.
 		p.advance() // consume SWAP
 		if _, err := p.expect(kwWITH); err != nil {
@@ -694,10 +694,10 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterDynamicTableSwap
 		stmt.NewName = other
 
-	case kwSET:
+	case p.curIs(kwSET):
 		p.advance() // consume SET
 		switch {
-		case p.cur.Type == kwTAG:
+		case p.curIs(kwTAG):
 			tags, err := p.parseSetTagClause()
 			if err != nil {
 				return nil, err
@@ -720,10 +720,10 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 			stmt.Action = ast.AlterDynamicTableSet
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
 		switch {
-		case p.cur.Type == kwTAG:
+		case p.curIs(kwTAG):
 			names, err := p.parseUnsetTagClause()
 			if err != nil {
 				return nil, err
@@ -744,17 +744,17 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 			stmt.UnsetProps = props
 		}
 
-	case kwCLUSTER:
+	case p.curIs(kwCLUSTER):
 		// CLUSTER BY ( exprs ).
 		if err := p.parseClusterByInto(&stmt.ClusterBy, &stmt.Linear); err != nil {
 			return nil, err
 		}
 		stmt.Action = ast.AlterDynamicTableClusterBy
 
-	case kwADD:
+	case p.curIs(kwADD):
 		p.advance() // consume ADD
 		switch {
-		case p.cur.Type == kwROW:
+		case p.curIs(kwROW):
 			name, cols, err := p.parseAddRowAccessPolicyTail()
 			if err != nil {
 				return nil, err
@@ -762,12 +762,12 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 			stmt.Action = ast.AlterDynamicTableAddRowAccessPolicy
 			stmt.PolicyName = name
 			stmt.PolicyCols = cols
-		case p.cur.Type == kwSEARCH:
+		case p.curIs(kwSEARCH):
 			if err := p.parseDynamicTableSearchOpt(stmt, false); err != nil {
 				return nil, err
 			}
 			stmt.Action = ast.AlterDynamicTableAddSearchOpt
-		case p.cur.Type == kwSTORAGE:
+		case p.curIs(kwSTORAGE):
 			if err := p.expectStorageLifecyclePolicy(); err != nil {
 				return nil, err
 			}
@@ -789,17 +789,17 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 
-	case kwDROP:
+	case p.curIs(kwDROP):
 		p.advance() // consume DROP
-		switch p.cur.Type {
-		case kwCLUSTERING:
+		switch {
+		case p.curIs(kwCLUSTERING):
 			// DROP CLUSTERING KEY.
 			p.advance() // consume CLUSTERING
 			if _, err := p.expect(kwKEY); err != nil {
 				return nil, err
 			}
 			stmt.Action = ast.AlterDynamicTableDropClusteringKey
-		case kwROW, kwALL:
+		case p.curIs(kwROW), p.curIs(kwALL):
 			all, name, addName, addCols, err := p.parseDropRowAccessPolicyTail(false)
 			if err != nil {
 				return nil, err
@@ -812,12 +812,12 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 			stmt.PolicyName = name
 			stmt.AddPolicyName = addName
 			stmt.AddPolicyCols = addCols
-		case kwSEARCH:
+		case p.curIs(kwSEARCH):
 			if err := p.parseDynamicTableSearchOpt(stmt, true); err != nil {
 				return nil, err
 			}
 			stmt.Action = ast.AlterDynamicTableDropSearchOpt
-		case kwSTORAGE:
+		case p.curIs(kwSTORAGE):
 			if err := p.expectStorageLifecyclePolicy(); err != nil {
 				return nil, err
 			}
@@ -826,7 +826,7 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 
-	case kwALTER, kwMODIFY:
+	case p.curIs(kwALTER), p.curIs(kwMODIFY):
 		p.advance() // consume ALTER / MODIFY
 		actions, err := p.parseColumnPolicyActions()
 		if err != nil {
@@ -864,7 +864,7 @@ func (p *Parser) parseDynamicTableSearchOpt(stmt *ast.AlterDynamicTableStmt, bar
 	if _, err := p.expect(kwOPTIMIZATION); err != nil {
 		return err
 	}
-	if p.cur.Type != kwON {
+	if !p.curIs(kwON) {
 		return nil
 	}
 	p.advance() // consume ON
@@ -882,11 +882,11 @@ func (p *Parser) parseDynamicTableSearchOpt(stmt *ast.AlterDynamicTableStmt, bar
 func (p *Parser) startsDynamicTableSetItem() bool {
 	switch {
 	case p.curIsWord("CONTACT"):
-		return p.peekNext().Type == '('
+		return p.nextIs('(')
 	case p.curIsWord("FROZEN"):
-		return p.peekNext().Type == kwWHERE
+		return p.nextIs(kwWHERE)
 	case p.curIsWord("EXECUTE"):
-		return p.peekNext().Type == kwAS
+		return p.nextIs(kwAS)
 	}
 	return p.startsAssignment()
 }
@@ -945,7 +945,7 @@ func (p *Parser) parseDynamicTableSetProps(stmt *ast.AlterDynamicTableStmt) erro
 			}
 			stmt.Options = append(stmt.Options, opt)
 		}
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -968,7 +968,7 @@ func (p *Parser) parseDynamicTableExecuteAs(stmt *ast.AlterDynamicTableStmt) err
 		return err
 	}
 	stmt.ExecuteAsUser = &user
-	if p.cur.Type != kwUSE {
+	if !p.curIs(kwUSE) {
 		return nil
 	}
 	p.advance() // consume USE
@@ -978,7 +978,7 @@ func (p *Parser) parseDynamicTableExecuteAs(stmt *ast.AlterDynamicTableStmt) err
 	if _, err := p.expect(kwROLES); err != nil {
 		return err
 	}
-	if p.cur.Type == kwALL || p.cur.Type == kwNONE {
+	if p.curIs(kwALL) || p.curIs(kwNONE) {
 		stmt.SecondaryRoles = []string{TokenName(p.advance().Type)}
 		return nil
 	}
@@ -991,7 +991,7 @@ func (p *Parser) parseDynamicTableExecuteAs(stmt *ast.AlterDynamicTableStmt) err
 			return err
 		}
 		stmt.SecondaryRoles = append(stmt.SecondaryRoles, role.String())
-		if p.cur.Type != ',' || p.commaStartsDynamicTableSetItem() {
+		if !p.curIs(',') || p.commaStartsDynamicTableSetItem() {
 			return nil
 		}
 		p.advance() // consume ','
@@ -1008,17 +1008,17 @@ func (p *Parser) parseDynamicTableUnsetProps() ([]string, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		switch {
-		case p.curIsWord("CONTACT") && p.peekNext().Type != ',' && p.peekNext().Type != tokEOF && p.peekNext().Type != ';':
+		case p.curIsWord("CONTACT") && !p.nextIs(',') && !p.nextIs(tokEOF) && !p.nextIs(';'):
 			prop, err := p.parseUnsetContact()
 			if err != nil {
 				return nil, err
 			}
 			props = append(props, prop)
-		case p.curIsWord("FROZEN") && p.peekNext().Type == kwWHERE:
+		case p.curIsWord("FROZEN") && p.nextIs(kwWHERE):
 			p.advance() // consume FROZEN
 			p.advance() // consume WHERE
 			props = append(props, "FROZEN WHERE")
-		case p.curIsWord("EXECUTE") && p.peekNext().Type == kwAS:
+		case p.curIsWord("EXECUTE") && p.nextIs(kwAS):
 			p.advance() // consume EXECUTE
 			p.advance() // consume AS
 			if _, err := p.expect(kwUSER); err != nil {
@@ -1030,7 +1030,7 @@ func (p *Parser) parseDynamicTableUnsetProps() ([]string, error) {
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			return props, nil
 		}
 		p.advance() // consume ','
@@ -1083,13 +1083,13 @@ func (p *Parser) parseCreateExternalTableStmt(start ast.Loc, orReplace, orAlter 
 
 	// Either an explicit ( <external_col_decl_list> ) or the USING TEMPLATE form.
 	switch {
-	case p.cur.Type == '(':
+	case p.curIs('('):
 		cols, err := p.parseExternalColumnList()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Columns = cols
-	case p.cur.Type == kwUSING:
+	case p.curIs(kwUSING):
 		// USING TEMPLATE ( <query> ). TEMPLATE is not a reserved keyword token, so
 		// it is matched by identifier text.
 		p.advance() // consume USING
@@ -1122,12 +1122,12 @@ func (p *Parser) parseCreateExternalTableStmt(start ast.Loc, orReplace, orAlter 
 			}
 			continue
 		}
-		switch p.cur.Type {
-		case kwPARTITION:
+		switch {
+		case p.curIs(kwPARTITION):
 			// PARTITION BY ( exprs ). PARTITION_TYPE = USER_SPECIFIED is a *different*
 			// token (kwPARTITION_TYPE), captured as an option, so only a PARTITION
 			// followed by BY is the partition-by clause.
-			if p.peekNext().Type == kwBY {
+			if p.nextIs(kwBY) {
 				p.advance() // consume PARTITION
 				p.advance() // consume BY
 				if _, err := p.expect('('); err != nil {
@@ -1143,7 +1143,7 @@ func (p *Parser) parseCreateExternalTableStmt(start ast.Loc, orReplace, orAlter 
 				stmt.PartitionBy = exprs
 				continue
 			}
-		case kwLOCATION:
+		case p.curIs(kwLOCATION):
 			// [WITH] LOCATION = @stage[/path].
 			p.advance() // consume LOCATION
 			if _, err := p.expect('='); err != nil {
@@ -1155,10 +1155,10 @@ func (p *Parser) parseCreateExternalTableStmt(start ast.Loc, orReplace, orAlter 
 			}
 			stmt.Location = loc
 			continue
-		case kwWITH:
+		case p.curIs(kwWITH):
 			// A bare WITH preceding LOCATION (legacy `partition_by? WITH? LOCATION`)
 			// is a no-op anchor; WITH TAG introduces the tag clause.
-			if p.peekNext().Type == kwTAG {
+			if p.nextIs(kwTAG) {
 				tags, err := p.parseStreamWithTags()
 				if err != nil {
 					return nil, err
@@ -1166,7 +1166,7 @@ func (p *Parser) parseCreateExternalTableStmt(start ast.Loc, orReplace, orAlter 
 				stmt.Tags = append(stmt.Tags, tags...)
 				continue
 			}
-			if p.peekNext().Type == kwROW {
+			if p.nextIs(kwROW) {
 				// WITH ROW ACCESS POLICY ... — consume and discard (mirrors CREATE TABLE).
 				if err := p.skipRowAccessPolicy(); err != nil {
 					return nil, err
@@ -1175,14 +1175,14 @@ func (p *Parser) parseCreateExternalTableStmt(start ast.Loc, orReplace, orAlter 
 			}
 			p.advance() // consume bare WITH (anchors the following LOCATION)
 			continue
-		case kwTAG:
+		case p.curIs(kwTAG):
 			tags, err := p.parseTagAssignments()
 			if err != nil {
 				return nil, err
 			}
 			stmt.Tags = append(stmt.Tags, tags...)
 			continue
-		case kwCOPY:
+		case p.curIs(kwCOPY):
 			// COPY GRANTS | COPY = ( GRANTS )
 			if p.startsCopyClause() {
 				grants, err := p.parseCopyClause(true)
@@ -1225,7 +1225,7 @@ func (p *Parser) parseExternalRowAccessOrContact(c objectClause) error {
 		_, err := p.parseObjectClause(c)
 		return err
 	}
-	if p.cur.Type == kwWITH {
+	if p.curIs(kwWITH) {
 		p.advance() // consume WITH
 	}
 	p.advance() // consume ROW
@@ -1253,8 +1253,8 @@ func (p *Parser) parseExternalRowAccessOrContact(c objectClause) error {
 // clauses (WITH / TAG / PARTITION / LOCATION / COPY), so those are never swallowed
 // as option names.
 func (p *Parser) startsExternalTableOption() bool {
-	switch p.cur.Type {
-	case kwWITH, kwTAG, kwPARTITION, kwLOCATION, kwCOPY:
+	switch {
+	case p.curIs(kwWITH), p.curIs(kwTAG), p.curIs(kwPARTITION), p.curIs(kwLOCATION), p.curIs(kwCOPY):
 		return false
 	}
 	return p.startsCopyOption()
@@ -1268,14 +1268,14 @@ func (p *Parser) parseExternalColumnList() ([]*ast.ExternalColumnDef, error) {
 	}
 
 	var cols []*ast.ExternalColumnDef
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for !p.curIs(')') && !p.curIs(tokEOF) {
 		col, err := p.parseExternalColumnDef()
 		if err != nil {
 			return nil, err
 		}
 		cols = append(cols, col)
 
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -1335,13 +1335,13 @@ func (p *Parser) parseExternalColumnDef() (*ast.ExternalColumnDef, error) {
 
 	// Optional inline NOT NULL / PRIMARY KEY / UNIQUE / [FOREIGN KEY] REFERENCES
 	// constraint (https://docs.snowflake.com/en/sql-reference/sql/create-external-table).
-	if p.cur.Type == kwNOT && p.peekNext().Type == kwNULL {
+	if p.curIs(kwNOT) && p.nextIs(kwNULL) {
 		p.advance() // consume NOT
 		p.advance() // consume NULL
 		col.NotNull = true
 	}
-	if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwPRIMARY ||
-		p.cur.Type == kwUNIQUE || p.cur.Type == kwFOREIGN || p.cur.Type == kwREFERENCES {
+	if p.curIs(kwCONSTRAINT) || p.curIs(kwPRIMARY) ||
+		p.curIs(kwUNIQUE) || p.curIs(kwFOREIGN) || p.curIs(kwREFERENCES) {
 		// The external table page lists no CHECK constraint.
 		ic, err := p.parseInlineConstraint(false)
 		if err != nil {
@@ -1369,7 +1369,7 @@ func (p *Parser) skipRowAccessPolicy() error {
 	if _, err := p.parseObjectName(); err != nil {
 		return err
 	}
-	if p.cur.Type == kwON {
+	if p.curIs(kwON) {
 		p.advance() // consume ON
 		if err := p.skipParenthesized(); err != nil {
 			return err
@@ -1422,28 +1422,28 @@ func (p *Parser) parseAlterExternalTableStmt() (ast.Node, error) {
 		}
 	}
 
-	switch p.cur.Type {
-	case kwREFRESH:
+	switch {
+	case p.curIs(kwREFRESH):
 		// REFRESH [ '<relative-path>' ].
 		p.advance() // consume REFRESH
 		stmt.Action = ast.AlterExternalTableRefresh
-		if p.cur.Type == tokString {
+		if p.curIs(tokString) {
 			tok := p.advance()
 			s := tok.Str
 			stmt.RefreshPath = &s
 		}
 
-	case kwADD:
+	case p.curIs(kwADD):
 		p.advance() // consume ADD
-		switch p.cur.Type {
-		case kwFILES:
+		switch {
+		case p.curIs(kwFILES):
 			files, err := p.parseFilesList()
 			if err != nil {
 				return nil, err
 			}
 			stmt.Action = ast.AlterExternalTableAddFiles
 			stmt.Files = files
-		case kwPARTITION:
+		case p.curIs(kwPARTITION):
 			// ADD PARTITION ( <col> = '<val>' [, ...] ) LOCATION '<path>'.
 			p.advance() // consume PARTITION
 			parts, err := p.parsePartitionAssignments()
@@ -1465,10 +1465,10 @@ func (p *Parser) parseAlterExternalTableStmt() (ast.Node, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 
-	case kwREMOVE:
+	case p.curIs(kwREMOVE):
 		// REMOVE FILES ( ... ).
 		p.advance() // consume REMOVE
-		if p.cur.Type != kwFILES {
+		if !p.curIs(kwFILES) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		files, err := p.parseFilesList()
@@ -1478,7 +1478,7 @@ func (p *Parser) parseAlterExternalTableStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterExternalTableRemoveFiles
 		stmt.Files = files
 
-	case kwDROP:
+	case p.curIs(kwDROP):
 		// DROP PARTITION LOCATION '<path>'.
 		p.advance() // consume DROP
 		if _, err := p.expect(kwPARTITION); err != nil {
@@ -1495,14 +1495,14 @@ func (p *Parser) parseAlterExternalTableStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterExternalTableDropPartition
 		stmt.DropLocation = &s
 
-	case kwSET:
+	case p.curIs(kwSET):
 		// SET [ AUTO_REFRESH = ... ] [ TAG <tag> = '<value>' [, ...] ]. Both parts
 		// are optional in the legacy grammar but a SET with nothing settable is a
 		// syntax error.
 		p.advance() // consume SET
 		sawSomething := false
 		// Open-ended options (AUTO_REFRESH = TRUE/FALSE, ...) up to a TAG clause.
-		for p.cur.Type != kwTAG && p.startsCopyOption() {
+		for !p.curIs(kwTAG) && p.startsCopyOption() {
 			opt, err := p.parseCopyOption()
 			if err != nil {
 				return nil, err
@@ -1510,7 +1510,7 @@ func (p *Parser) parseAlterExternalTableStmt() (ast.Node, error) {
 			stmt.Options = append(stmt.Options, opt)
 			sawSomething = true
 		}
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			tags, err := p.parseTagSetList()
 			if err != nil {
 				return nil, err
@@ -1523,10 +1523,10 @@ func (p *Parser) parseAlterExternalTableStmt() (ast.Node, error) {
 		}
 		stmt.Action = ast.AlterExternalTableSet
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		// UNSET TAG <tag> [, ...]. parseUnsetTagNameList consumes the TAG keyword.
 		p.advance() // consume UNSET
-		if p.cur.Type != kwTAG {
+		if !p.curIs(kwTAG) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		names, err := p.parseUnsetTagNameList()
@@ -1560,7 +1560,7 @@ func (p *Parser) parseFilesList() ([]*ast.Literal, error) {
 			return nil, err
 		}
 		files = append(files, &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc})
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -1592,7 +1592,7 @@ func (p *Parser) parsePartitionAssignments() ([]*ast.ExternalTablePartition, err
 			return nil, err
 		}
 		parts = append(parts, &ast.ExternalTablePartition{Column: col, Value: valTok.Str})
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -1645,7 +1645,7 @@ func (p *Parser) parseCreateEventTableStmt(start ast.Loc, orReplace, orAlter boo
 
 	// CLONE <source> [ { AT | BEFORE } ( ... ) ] [ COPY GRANTS ]
 	// (https://docs.snowflake.com/en/sql-reference/sql/create-event-table).
-	if p.cur.Type == kwCLONE {
+	if p.curIs(kwCLONE) {
 		clone, err := p.parseCloneSource()
 		if err != nil {
 			return nil, err
@@ -1667,13 +1667,13 @@ func (p *Parser) parseCreateEventTableStmt(start ast.Loc, orReplace, orAlter boo
 			}
 			continue
 		}
-		switch p.cur.Type {
-		case kwCLUSTER:
+		switch {
+		case p.curIs(kwCLUSTER):
 			if err := p.parseClusterByInto(&stmt.ClusterBy, &stmt.Linear); err != nil {
 				return nil, err
 			}
 			continue
-		case kwCOPY:
+		case p.curIs(kwCOPY):
 			// COPY GRANTS | COPY = ( GRANTS )
 			if p.startsCopyClause() {
 				grants, err := p.parseCopyClause(true)
@@ -1683,28 +1683,28 @@ func (p *Parser) parseCreateEventTableStmt(start ast.Loc, orReplace, orAlter boo
 				stmt.CopyGrants = stmt.CopyGrants || grants
 				continue
 			}
-		case kwTAG:
+		case p.curIs(kwTAG):
 			tags, err := p.parseTagAssignments()
 			if err != nil {
 				return nil, err
 			}
 			stmt.Tags = append(stmt.Tags, tags...)
 			continue
-		case kwWITH:
-			switch p.peekNext().Type {
-			case kwTAG:
+		case p.curIs(kwWITH):
+			switch {
+			case p.nextIs(kwTAG):
 				tags, err := p.parseStreamWithTags()
 				if err != nil {
 					return nil, err
 				}
 				stmt.Tags = append(stmt.Tags, tags...)
 				continue
-			case kwROW:
+			case p.nextIs(kwROW):
 				if err := p.skipRowAccessPolicy(); err != nil {
 					return nil, err
 				}
 				continue
-			case kwCOMMENT:
+			case p.nextIs(kwCOMMENT):
 				// WITH COMMENT = '...' — the WITH is a no-op anchor; route COMMENT to
 				// the open-ended option reader.
 				p.advance() // consume WITH
@@ -1735,8 +1735,8 @@ func (p *Parser) parseCreateEventTableStmt(start ast.Loc, orReplace, orAlter boo
 // option. It is the COPY-option predicate minus the keywords that anchor dedicated
 // clauses (WITH / TAG / CLUSTER / COPY).
 func (p *Parser) startsEventTableOption() bool {
-	switch p.cur.Type {
-	case kwWITH, kwTAG, kwCLUSTER, kwCOPY:
+	switch {
+	case p.curIs(kwWITH), p.curIs(kwTAG), p.curIs(kwCLUSTER), p.curIs(kwCOPY):
 		return false
 	}
 	return p.startsCopyOption()

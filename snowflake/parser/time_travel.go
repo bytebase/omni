@@ -60,17 +60,17 @@ func (p *Parser) parseTimeTravelClause() (*ast.TimeTravelClause, error) {
 // parseTimeTravelAnchor consumes the anchor keyword (TIMESTAMP / OFFSET /
 // STATEMENT / STREAM) and returns the corresponding enum.
 func (p *Parser) parseTimeTravelAnchor() (ast.TimeTravelAnchor, error) {
-	switch p.cur.Type {
-	case kwTIMESTAMP:
+	switch {
+	case p.curIs(kwTIMESTAMP):
 		p.advance()
 		return ast.TimeTravelTimestamp, nil
-	case kwOFFSET:
+	case p.curIs(kwOFFSET):
 		p.advance()
 		return ast.TimeTravelOffset, nil
-	case kwSTATEMENT:
+	case p.curIs(kwSTATEMENT):
 		p.advance()
 		return ast.TimeTravelStatement, nil
-	case kwSTREAM:
+	case p.curIs(kwSTREAM):
 		p.advance()
 		return ast.TimeTravelStream, nil
 	default:
@@ -101,11 +101,11 @@ func (p *Parser) parseChangesClause() (*ast.ChangesClause, error) {
 	if _, err := p.expect(tokAssoc); err != nil {
 		return nil, err
 	}
-	switch p.cur.Type {
-	case kwDEFAULT:
+	switch {
+	case p.curIs(kwDEFAULT):
 		p.advance()
 		clause.Info = ast.ChangesDefault
-	case kwAPPEND_ONLY:
+	case p.curIs(kwAPPEND_ONLY):
 		p.advance()
 		clause.Info = ast.ChangesAppendOnly
 	default:
@@ -119,7 +119,7 @@ func (p *Parser) parseChangesClause() (*ast.ChangesClause, error) {
 	}
 
 	// Required AT | BEFORE anchor.
-	if p.cur.Type != kwAT && p.cur.Type != kwBEFORE {
+	if !p.curIs(kwAT) && !p.curIs(kwBEFORE) {
 		return nil, &ParseError{
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			Message: "expected AT or BEFORE after CHANGES(…)",
@@ -133,7 +133,7 @@ func (p *Parser) parseChangesClause() (*ast.ChangesClause, error) {
 	clause.Loc.End = start.Loc.End
 
 	// Optional END ( … ) bound. END mirrors AT/BEFORE's anchor forms.
-	if p.cur.Type == kwEND {
+	if p.curIs(kwEND) {
 		end, err := p.parseEndClause()
 		if err != nil {
 			return nil, err

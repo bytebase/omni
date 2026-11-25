@@ -53,7 +53,7 @@ func parseCreateStorageLifecyclePolicy(p *Parser, s *ast.ObjectStmt) error {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/create-data-movement-rule
 func parseCreateDataMovementRule(p *Parser, s *ast.ObjectStmt) error {
-	if !p.atWords("TYPE") || p.peekNext().Type != '=' {
+	if !p.atWords("TYPE") || !p.nextIs('=') {
 		return p.syntaxErrorAtCur()
 	}
 	start := p.cur.Loc.Start
@@ -65,7 +65,7 @@ func parseCreateDataMovementRule(p *Parser, s *ast.ObjectStmt) error {
 	if err := p.parseMaxRowsBody(s, "MAX_ROWS AS", p.cur.Loc.Start); err != nil {
 		return err
 	}
-	if p.atWords("COMMENT") && p.peekNext().Type == '=' {
+	if p.atWords("COMMENT") && p.nextIs('=') {
 		start := p.cur.Loc.Start
 		comment, err := p.parseObjectProperty()
 		if err != nil {
@@ -108,7 +108,7 @@ func (p *Parser) parseBodyReturns(typ string, paren bool) (*ast.TypeName, ast.No
 	if _, err := p.expect(kwRETURNS); err != nil {
 		return nil, nil, err
 	}
-	if !isWordToken(p.cur, typ) {
+	if !p.curWord(typ) {
 		return nil, nil, p.syntaxErrorAtCur()
 	}
 	ret, err := p.parseDataType()

@@ -26,7 +26,7 @@ const maxDataMetricTables = 2
 // startsDataMetricTableArgs reports whether a DMF signature,
 // ( TABLE ( ... ) ... ), starts at cur. It consumes nothing.
 func (p *Parser) startsDataMetricTableArgs() bool {
-	return p.cur.Type == '(' && p.peekNext().Type == kwTABLE
+	return p.curIs('(') && p.nextIs(kwTABLE)
 }
 
 // parseDataMetricTableArgs reads a data metric function's signature, which
@@ -57,7 +57,7 @@ func (p *Parser) parseDataMetricTableArgs() ([]*ast.RoutineTableArgType, error) 
 				return nil, err
 			}
 			arg.Types = append(arg.Types, typ)
-			if p.cur.Type != ',' {
+			if !p.curIs(',') {
 				break
 			}
 			p.advance() // consume ','
@@ -67,7 +67,7 @@ func (p *Parser) parseDataMetricTableArgs() ([]*ast.RoutineTableArgType, error) 
 		}
 		arg.Loc = ast.Loc{Start: argStart, End: p.prev.Loc.End}
 		args = append(args, arg)
-		if p.cur.Type != ',' || len(args) == maxDataMetricTables {
+		if !p.curIs(',') || len(args) == maxDataMetricTables {
 			break
 		}
 		p.advance() // consume ','
@@ -129,7 +129,7 @@ func (p *Parser) parseCreateDataMetricFunction(start ast.Loc, orReplace, orAlter
 			return nil, err
 		}
 		stmt.Args = append(stmt.Args, arg)
-		if p.cur.Type != ',' || len(stmt.Args) == maxDataMetricTables {
+		if !p.curIs(',') || len(stmt.Args) == maxDataMetricTables {
 			break
 		}
 		p.advance() // consume ','
@@ -141,7 +141,7 @@ func (p *Parser) parseCreateDataMetricFunction(start ast.Loc, orReplace, orAlter
 	if _, err := p.expect(kwRETURNS); err != nil {
 		return nil, err
 	}
-	if !isWordToken(p.cur, "NUMBER") || p.peekNext().Type == '(' {
+	if !p.curWord("NUMBER") || p.nextIs('(') {
 		return nil, p.syntaxErrorAtCur()
 	}
 	ret, err := p.parseDataType()
@@ -150,11 +150,11 @@ func (p *Parser) parseCreateDataMetricFunction(start ast.Loc, orReplace, orAlter
 	}
 	stmt.ReturnType = ret
 	switch {
-	case p.cur.Type == kwNOT && p.peekNext().Type == kwNULL:
+	case p.curIs(kwNOT) && p.nextIs(kwNULL):
 		p.advance() // consume NOT
 		p.advance() // consume NULL
 		stmt.ReturnNotNull = true
-	case p.cur.Type == kwNULL:
+	case p.curIs(kwNULL):
 		p.advance() // consume NULL
 		stmt.ReturnNull = true
 	}
@@ -168,8 +168,8 @@ func (p *Parser) parseCreateDataMetricFunction(start ast.Loc, orReplace, orAlter
 			Loc: ast.Loc{Start: lang.Loc.Start, End: p.prev.Loc.End},
 		})
 	}
-	if p.cur.Type == kwCOMMENT {
-		if p.peekNext().Type != '=' {
+	if p.curIs(kwCOMMENT) {
+		if !p.nextIs('=') {
 			return nil, syntaxErrorAtTok(p.peekNext())
 		}
 		opt, err := p.parseObjectProperty()
@@ -182,12 +182,12 @@ func (p *Parser) parseCreateDataMetricFunction(start ast.Loc, orReplace, orAlter
 		stmt.Options = append(stmt.Options, opt)
 	}
 
-	if p.cur.Type != kwAS {
+	if !p.curIs(kwAS) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	// The body is a quoted expression: a procedure's bare DECLARE / BEGIN
 	// block, which parseRoutineBody also reads, is not one.
-	if next := p.peekNext(); next.Type == kwBEGIN || next.Type == kwDECLARE {
+	if next := p.peekNext(); p.nextIs(kwBEGIN) || p.nextIs(kwDECLARE) {
 		return nil, syntaxErrorAtTok(next)
 	}
 	body, dollar, end, err := p.parseRoutineBody()
@@ -210,7 +210,7 @@ func (p *Parser) parseDataMetricTableArg() (*ast.RoutineArg, error) {
 	if _, err := p.expect(kwTABLE); err != nil {
 		return nil, err
 	}
-	if p.cur.Type == '(' && p.peekNext().Type == ')' {
+	if p.curIs('(') && p.nextIs(')') {
 		return nil, syntaxErrorAtTok(p.peekNext())
 	}
 	cols, err := p.parseRoutineTableColumns()
@@ -224,7 +224,7 @@ func (p *Parser) parseDataMetricTableArg() (*ast.RoutineArg, error) {
 // signature, ( TABLE ( ... ): a plain function's argument type is never
 // TABLE. It consumes nothing.
 func (p *Parser) startsDataMetricSignature() bool {
-	return p.cur.Type == '(' && p.peekNext().Type == kwTABLE
+	return p.curIs('(') && p.nextIs(kwTABLE)
 }
 
 // parseAlterDataMetricFunction reads the rest of
@@ -246,14 +246,14 @@ func (p *Parser) parseAlterDataMetricFunction(stmt *ast.AlterRoutineStmt) (ast.N
 	stmt.TableArgs = args
 
 	switch {
-	case p.cur.Type == kwRENAME:
+	case p.curIs(kwRENAME):
 		newName, err := p.parseRenameTo()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Action = ast.AlterRoutineRename
 		stmt.NewName = newName
-	case p.cur.Type == kwSET && p.peekNext().Type == kwTAG:
+	case p.curIs(kwSET) && p.nextIs(kwTAG):
 		p.advance() // consume SET
 		p.advance() // consume TAG
 		tags, err := p.parseObjectTagList()
@@ -262,7 +262,7 @@ func (p *Parser) parseAlterDataMetricFunction(stmt *ast.AlterRoutineStmt) (ast.N
 		}
 		stmt.Action = ast.AlterRoutineSetTag
 		stmt.Tags = tags
-	case p.cur.Type == kwUNSET && p.peekNext().Type == kwTAG:
+	case p.curIs(kwUNSET) && p.nextIs(kwTAG):
 		p.advance() // consume UNSET
 		p.advance() // consume TAG
 		names, err := p.parseObjectNameList()
@@ -271,13 +271,13 @@ func (p *Parser) parseAlterDataMetricFunction(stmt *ast.AlterRoutineStmt) (ast.N
 		}
 		stmt.Action = ast.AlterRoutineUnsetTag
 		stmt.UnsetTags = names
-	case p.cur.Type == kwSET:
+	case p.curIs(kwSET):
 		p.advance() // consume SET
 		switch {
-		case isWordToken(p.cur, "SECURE"):
+		case p.curWord("SECURE"):
 			tok := p.advance()
 			stmt.Options = []*ast.CopyOption{{Name: "SECURE", Bare: true, Loc: tok.Loc}}
-		case p.cur.Type == kwCOMMENT && p.peekNext().Type == '=':
+		case p.curIs(kwCOMMENT) && p.nextIs('='):
 			opt, err := p.parseObjectProperty()
 			if err != nil {
 				return nil, err
@@ -290,9 +290,9 @@ func (p *Parser) parseAlterDataMetricFunction(stmt *ast.AlterRoutineStmt) (ast.N
 			return nil, p.syntaxErrorAtCur()
 		}
 		stmt.Action = ast.AlterRoutineSet
-	case p.cur.Type == kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
-		if !isWordToken(p.cur, "SECURE") && !isWordToken(p.cur, "COMMENT") {
+		if !p.curWord("SECURE") && !p.curWord("COMMENT") {
 			return nil, p.syntaxErrorAtCur()
 		}
 		stmt.Action = ast.AlterRoutineUnset

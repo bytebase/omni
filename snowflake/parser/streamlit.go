@@ -97,7 +97,7 @@ func streamlitCheckPush(opts []*ast.CopyOption) error {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/create-streamlit
 func parseCreateStreamlit(p *Parser, s *ast.ObjectStmt) error {
-	from := p.cur.Type == kwFROM
+	from := p.curIs(kwFROM)
 	if from {
 		if err := p.parseStreamlitFrom(s, true); err != nil {
 			return err
@@ -207,11 +207,11 @@ func parseAlterStreamlit(p *Parser, s *ast.ObjectStmt) error {
 func (p *Parser) parseStreamlitPush(s *ast.ObjectStmt, start int) error {
 	c := p.addObjectKeywordsClause(s, "PUSH", start)
 	props := c.Options
-	if p.cur.Type == kwTO {
+	if p.curIs(kwTO) {
 		p.advance() // consume TO
 		c.Keywords = "PUSH TO"
 		branch := &ast.CopyOption{Loc: ast.Loc{Start: p.cur.Loc.Start}}
-		if p.cur.Type == '(' {
+		if p.curIs('(') {
 			return p.syntaxErrorAtCur()
 		}
 		if err := p.parseObjectValue(branch); err != nil {
@@ -299,7 +299,7 @@ func (p *Parser) parseStreamlitFrom(s *ast.ObjectStmt, stage bool) error {
 	start := p.cur.Loc.Start
 	p.advance() // consume FROM
 	var src *ast.CopyOption
-	if stage && p.cur.Type == '@' {
+	if stage && p.curIs('@') {
 		ref, err := p.parseStageOperand()
 		if err != nil {
 			return err

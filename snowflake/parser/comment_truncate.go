@@ -38,7 +38,7 @@ func (p *Parser) parseCommentStmt() (ast.Node, error) {
 	stmt := &ast.CommentStmt{Loc: ast.Loc{Start: start.Start}}
 
 	// Optional IF EXISTS.
-	if p.cur.Type == kwIF && p.peekNext().Type == kwEXISTS {
+	if p.curIs(kwIF) && p.nextIs(kwEXISTS) {
 		p.advance() // consume IF
 		p.advance() // consume EXISTS
 		stmt.IfExists = true
@@ -48,7 +48,7 @@ func (p *Parser) parseCommentStmt() (ast.Node, error) {
 		return nil, err
 	}
 
-	if p.cur.Type == kwCOLUMN {
+	if p.curIs(kwCOLUMN) {
 		// COMMENT ON COLUMN <column_name> IS '<string>'. The legacy
 		// full_column_name rule allows up to four dotted parts
 		// (db.schema.table.column), which exceeds ObjectName's 3-part shape, so a
@@ -71,7 +71,7 @@ func (p *Parser) parseCommentStmt() (ast.Node, error) {
 		stmt.Name = name
 
 		// Optional FUNCTION/PROCEDURE argument-type signature.
-		if p.cur.Type == '(' {
+		if p.curIs('(') {
 			sig, err := p.parseGrantSignature()
 			if err != nil {
 				return nil, err
@@ -131,8 +131,8 @@ func (p *Parser) parseTypedObject() (string, *ast.ObjectName, error) {
 // space-separated name unit inside a "<type> <name>" run — i.e. it is a name
 // word and not a clause terminator (IS, '(', or EOF).
 func (p *Parser) startsTypedObjectNameUnit() bool {
-	switch p.cur.Type {
-	case kwIS, '(', tokEOF:
+	switch {
+	case p.curIs(kwIS), p.curIs('('), p.curIs(tokEOF):
 		return false
 	}
 	return p.isObjectTypeWord(p.cur.Type)
@@ -150,7 +150,7 @@ func (p *Parser) parseColumnRef() (*ast.ColumnRef, error) {
 		return nil, err
 	}
 	parts := []ast.Ident{first}
-	for p.cur.Type == '.' {
+	for p.curIs('.') {
 		dotLoc := p.cur.Loc
 		p.advance() // consume '.'
 		if len(parts) >= 4 {
@@ -187,8 +187,8 @@ func (p *Parser) parseTruncateStmt() (ast.Node, error) {
 
 	stmt := &ast.TruncateStmt{Loc: ast.Loc{Start: start.Start}}
 
-	switch p.cur.Type {
-	case kwMATERIALIZED:
+	switch {
+	case p.curIs(kwMATERIALIZED):
 		// TRUNCATE MATERIALIZED VIEW <name> — no IF EXISTS in the legacy grammar.
 		p.advance() // consume MATERIALIZED
 		if _, err := p.expect(kwVIEW); err != nil {
@@ -203,7 +203,7 @@ func (p *Parser) parseTruncateStmt() (ast.Node, error) {
 		stmt.Loc.End = p.prev.Loc.End
 		return stmt, nil
 
-	case kwTABLE:
+	case p.curIs(kwTABLE):
 		// TRUNCATE TABLE [IF EXISTS] ...
 		p.advance() // consume TABLE
 		stmt.IfExists = p.tryIfExists()
@@ -249,14 +249,12 @@ func (p *Parser) parseTruncateStmt() (ast.Node, error) {
 // form: an unquoted identifier spelled "ERROR_TABLE" (case-insensitive) followed
 // by '('.
 func (p *Parser) startsErrorTable() bool {
-	return p.cur.Type == tokIdent &&
-		strings.EqualFold(p.cur.Str, "ERROR_TABLE") &&
-		p.peekNext().Type == '('
+	return p.curIsUnquotedWord("ERROR_TABLE") && p.nextIs('(')
 }
 
 // tryIfExists consumes an IF EXISTS pair if present and reports whether it was.
 func (p *Parser) tryIfExists() bool {
-	if p.cur.Type == kwIF && p.peekNext().Type == kwEXISTS {
+	if p.curIs(kwIF) && p.nextIs(kwEXISTS) {
 		p.advance() // consume IF
 		p.advance() // consume EXISTS
 		return true

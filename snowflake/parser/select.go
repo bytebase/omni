@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strings"
-
 	"github.com/bytebase/omni/snowflake/ast"
 )
 
@@ -28,7 +26,7 @@ func (p *Parser) parseQueryExpr() (ast.Node, error) {
 	var left ast.Node
 	var err error
 	switch {
-	case p.cur.Type == '(':
+	case p.curIs('('):
 		// Parenthesized query body: consume '(', parse inner query, then ')'.
 		// The inner query may itself begin with WITH (a CTE / RECURSIVE), e.g.
 		// CREATE VIEW v AS ( WITH cte AS (...) SELECT ... ), so dispatch on WITH
@@ -41,7 +39,7 @@ func (p *Parser) parseQueryExpr() (ast.Node, error) {
 		if _, err = p.expect(')'); err != nil {
 			return nil, err
 		}
-	case p.cur.Type == kwWITH:
+	case p.curIs(kwWITH):
 		left, err = p.parseWithQueryExpr()
 		if err != nil {
 			return nil, err
@@ -61,7 +59,7 @@ func (p *Parser) parseQueryExpr() (ast.Node, error) {
 // parenthesized operand of a set-op chain, a CTE body, and a parenthesized view
 // body — so a leading WITH is never mistaken for a bare SELECT.
 func (p *Parser) parseQueryBody() (ast.Node, error) {
-	if p.cur.Type == kwWITH {
+	if p.curIs(kwWITH) {
 		return p.parseWithQueryExpr()
 	}
 	return p.parseQueryExpr()
@@ -91,7 +89,7 @@ func (p *Parser) parseSetOpChain(left ast.Node) (ast.Node, error) {
 		// The right side may be parenthesized: (SELECT ...)
 		var right ast.Node
 		var err error
-		if p.cur.Type == '(' {
+		if p.curIs('(') {
 			p.advance() // consume '('
 			right, err = p.parseQueryExpr()
 			if err != nil {
@@ -121,32 +119,31 @@ func (p *Parser) parseSetOpChain(left ast.Node) (ast.Node, error) {
 // tryParseSetOp checks if the current token starts a set operator.
 // Returns (op, all, byName, ok). Consumes the operator tokens on match.
 func (p *Parser) tryParseSetOp() (ast.SetOp, bool, bool, bool) {
-	switch p.cur.Type {
-	case kwUNION:
+	switch {
+	case p.curIs(kwUNION):
 		p.advance() // consume UNION
 		all := false
 		byName := false
-		if p.cur.Type == kwALL {
+		if p.curIs(kwALL) {
 			all = true
 			p.advance() // consume ALL
 		}
 		// UNION [ALL] BY NAME — Snowflake-specific
-		if p.cur.Type == kwBY {
-			next := p.peekNext()
-			if next.Type == kwNAME {
+		if p.curIs(kwBY) {
+			if p.nextIs(kwNAME) {
 				p.advance() // consume BY
 				p.advance() // consume NAME
 				byName = true
 			}
 		}
 		return ast.SetOpUnion, all, byName, true
-	case kwEXCEPT:
+	case p.curIs(kwEXCEPT):
 		p.advance() // consume EXCEPT
 		return ast.SetOpExcept, false, false, true
-	case kwMINUS:
+	case p.curIs(kwMINUS):
 		p.advance() // consume MINUS (alias for EXCEPT in Snowflake)
 		return ast.SetOpExcept, false, false, true
-	case kwINTERSECT:
+	case p.curIs(kwINTERSECT):
 		p.advance() // consume INTERSECT
 		return ast.SetOpIntersect, false, false, true
 	}
@@ -179,10 +176,10 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	}
 
 	// DISTINCT / ALL
-	if p.cur.Type == kwDISTINCT {
+	if p.curIs(kwDISTINCT) {
 		p.advance()
 		stmt.Distinct = true
-	} else if p.cur.Type == kwALL {
+	} else if p.curIs(kwALL) {
 		p.advance()
 		stmt.All = true
 	}
@@ -192,7 +189,7 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	// reads a select item named top, and only `SELECT TOP <n>` is the clause.
 	// https://docs.snowflake.com/en/sql-reference/reserved-keywords
 	// https://docs.snowflake.com/en/sql-reference/sql/select
-	if p.cur.Type == kwTOP && p.startsTopCount() {
+	if p.curIs(kwTOP) && p.startsTopCount() {
 		p.advance() // consume TOP
 		topExpr, err := p.parseTopCount()
 		if err != nil {
@@ -209,7 +206,7 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	stmt.Targets = targets
 
 	// FROM clause
-	if p.cur.Type == kwFROM {
+	if p.curIs(kwFROM) {
 		p.advance() // consume FROM
 		from, err := p.parseFromClause()
 		if err != nil {
@@ -219,7 +216,7 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	}
 
 	// WHERE clause
-	if p.cur.Type == kwWHERE {
+	if p.curIs(kwWHERE) {
 		p.advance() // consume WHERE
 		where, err := p.parseExpr()
 		if err != nil {
@@ -236,7 +233,7 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	}
 
 	// GROUP BY clause
-	if p.cur.Type == kwGROUP {
+	if p.curIs(kwGROUP) {
 		groupBy, err := p.parseGroupByClause()
 		if err != nil {
 			return nil, err
@@ -245,7 +242,7 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	}
 
 	// HAVING clause
-	if p.cur.Type == kwHAVING {
+	if p.curIs(kwHAVING) {
 		p.advance() // consume HAVING
 		having, err := p.parseExpr()
 		if err != nil {
@@ -255,7 +252,7 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	}
 
 	// QUALIFY clause (Snowflake-specific)
-	if p.cur.Type == kwQUALIFY {
+	if p.curIs(kwQUALIFY) {
 		p.advance() // consume QUALIFY
 		qualify, err := p.parseExpr()
 		if err != nil {
@@ -265,7 +262,7 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	}
 
 	// ORDER BY clause (reuses T1.3's parseOrderByList)
-	if p.cur.Type == kwORDER {
+	if p.curIs(kwORDER) {
 		p.advance() // consume ORDER
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
@@ -294,8 +291,8 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 // number or a session variable begins it; a name, a comma, a clause keyword or
 // `(` leaves TOP to the identifier and function-call parser.
 func (p *Parser) startsTopCount() bool {
-	switch p.peekNext().Type {
-	case tokInt, tokFloat, tokReal, tokVariable:
+	switch {
+	case p.nextIs(tokInt), p.nextIs(tokFloat), p.nextIs(tokReal), p.nextIs(tokVariable):
 		return true
 	}
 	return false
@@ -307,8 +304,8 @@ func (p *Parser) startsTopCount() bool {
 // `SELECT TOP 125 * FROM t` the `*` is the star select target, not a
 // multiplication operator applied to 125.
 func (p *Parser) parseTopCount() (ast.Node, error) {
-	switch p.cur.Type {
-	case tokInt, tokFloat, tokReal, tokVariable:
+	switch {
+	case p.curIs(tokInt), p.curIs(tokFloat), p.curIs(tokReal), p.curIs(tokVariable):
 		return p.parsePrimaryExpr()
 	default:
 		return nil, &ParseError{
@@ -329,7 +326,7 @@ func (p *Parser) parseWithSelect() (ast.Node, error) {
 	}
 
 	recursive := false
-	if p.cur.Type == kwRECURSIVE {
+	if p.curIs(kwRECURSIVE) {
 		p.advance()
 		recursive = true
 	}
@@ -366,7 +363,7 @@ func (p *Parser) parseCTEList(recursive bool) ([]*ast.CTE, error) {
 	}
 	ctes = append(ctes, cte)
 
-	for p.cur.Type == ',' {
+	for p.curIs(',') {
 		p.advance() // consume ','
 		cte, err = p.parseCTE(recursive)
 		if err != nil {
@@ -392,7 +389,7 @@ func (p *Parser) parseCTE(recursive bool) (*ast.CTE, error) {
 	}
 
 	// Optional column list: (col1, col2, ...)
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		p.advance() // consume '('
 		for {
 			col, err := p.parseIdent()
@@ -400,7 +397,7 @@ func (p *Parser) parseCTE(recursive bool) (*ast.CTE, error) {
 				return nil, err
 			}
 			cte.Columns = append(cte.Columns, col)
-			if p.cur.Type != ',' {
+			if !p.curIs(',') {
 				break
 			}
 			p.advance() // consume ','
@@ -422,7 +419,7 @@ func (p *Parser) parseCTE(recursive bool) (*ast.CTE, error) {
 
 	// The CTE body can be WITH ... SELECT [set ops] or just SELECT [set ops]
 	var query ast.Node
-	if p.cur.Type == kwWITH {
+	if p.curIs(kwWITH) {
 		query, err = p.parseWithQueryExpr()
 	} else {
 		query, err = p.parseQueryExpr()
@@ -481,7 +478,7 @@ func (p *Parser) parseSelectList() ([]*ast.SelectTarget, error) {
 	}
 	targets = append(targets, target)
 
-	for p.cur.Type == ',' {
+	for p.curIs(',') {
 		p.advance() // consume ','
 		if p.selectListTerminator() {
 			// Trailing comma before a clause terminator — allowed.
@@ -503,12 +500,12 @@ func (p *Parser) parseSelectList() ([]*ast.SelectTarget, error) {
 // deliberately narrow — only genuine list-ending tokens — so a stray comma in
 // the middle of the list (e.g. `SELECT a, , b`) still errors.
 func (p *Parser) selectListTerminator() bool {
-	switch p.cur.Type {
-	case tokEOF, ')', ';':
+	switch {
+	case p.curIs(tokEOF), p.curIs(')'), p.curIs(';'):
 		return true
-	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwQUALIFY, kwORDER,
-		kwLIMIT, kwOFFSET, kwFETCH, kwUNION, kwEXCEPT, kwMINUS, kwINTERSECT,
-		kwINTO, kwSTART, kwCONNECT:
+	case p.curIs(kwFROM), p.curIs(kwWHERE), p.curIs(kwGROUP), p.curIs(kwHAVING), p.curIs(kwQUALIFY), p.curIs(kwORDER),
+		p.curIs(kwLIMIT), p.curIs(kwOFFSET), p.curIs(kwFETCH), p.curIs(kwUNION), p.curIs(kwEXCEPT), p.curIs(kwMINUS), p.curIs(kwINTERSECT),
+		p.curIs(kwINTO), p.curIs(kwSTART), p.curIs(kwCONNECT):
 		return true
 	}
 	return false
@@ -567,19 +564,19 @@ func (p *Parser) parseSelectTarget() (*ast.SelectTarget, error) {
 		//   EXCLUDE <col> | EXCLUDE (<col>, ...)
 		//   REPLACE (<expr> AS <col>, ...)
 		//   RENAME <col> AS <alias> | RENAME (<col> AS <alias>, ...)
-		if p.cur.Type == kwEXCLUDE {
+		if p.curIs(kwEXCLUDE) {
 			p.advance() // consume EXCLUDE
 			if err := p.parseStarExclude(target); err != nil {
 				return nil, err
 			}
 		}
-		if p.cur.Type == kwREPLACE {
+		if p.curIs(kwREPLACE) {
 			p.advance() // consume REPLACE
 			if err := p.parseStarReplace(target); err != nil {
 				return nil, err
 			}
 		}
-		if p.cur.Type == kwRENAME {
+		if p.curIs(kwRENAME) {
 			p.advance() // consume RENAME
 			if err := p.parseStarRename(target); err != nil {
 				return nil, err
@@ -592,8 +589,8 @@ func (p *Parser) parseSelectTarget() (*ast.SelectTarget, error) {
 		// parseSingle ignores tokens after a completed statement, so without
 		// this check the rest of the statement — including FROM — would be
 		// dropped silently. Fail loudly instead.
-		switch p.cur.Type {
-		case kwILIKE, kwEXCLUDE, kwREPLACE, kwRENAME:
+		switch {
+		case p.curIs(kwILIKE), p.curIs(kwEXCLUDE), p.curIs(kwREPLACE), p.curIs(kwRENAME):
 			return nil, &ParseError{
 				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 				Message: "star column-transforms must appear in ILIKE/EXCLUDE, REPLACE, RENAME order",
@@ -622,7 +619,7 @@ func (p *Parser) parseSelectTarget() (*ast.SelectTarget, error) {
 //	EXCLUDE <col>
 //	EXCLUDE (<col>, <col>, ...)
 func (p *Parser) parseStarExclude(target *ast.SelectTarget) error {
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		p.advance() // consume '('
 		for {
 			// Progress guard: each iteration must consume at least one token
@@ -635,7 +632,7 @@ func (p *Parser) parseStarExclude(target *ast.SelectTarget) error {
 				return err
 			}
 			target.Exclude = append(target.Exclude, col)
-			if p.cur.Type != ',' {
+			if !p.curIs(',') {
 				break
 			}
 			p.advance() // consume ','
@@ -664,7 +661,7 @@ func (p *Parser) parseStarExclude(target *ast.SelectTarget) error {
 //	RENAME <col> AS <alias>
 //	RENAME (<col> AS <alias>, <col> AS <alias>, ...)
 func (p *Parser) parseStarRename(target *ast.SelectTarget) error {
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		p.advance() // consume '('
 		for {
 			// Progress guard: see parseStarExclude — the cursor must strictly
@@ -675,7 +672,7 @@ func (p *Parser) parseStarRename(target *ast.SelectTarget) error {
 				return err
 			}
 			target.Rename = append(target.Rename, pair)
-			if p.cur.Type != ',' {
+			if !p.curIs(',') {
 				break
 			}
 			p.advance() // consume ','
@@ -733,7 +730,7 @@ func (p *Parser) parseStarReplace(target *ast.SelectTarget) error {
 			return err
 		}
 		target.Replace = append(target.Replace, pair)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -782,7 +779,7 @@ func (p *Parser) parseFromClause() ([]ast.Node, error) {
 	}
 	items = append(items, item)
 
-	for p.cur.Type == ',' {
+	for p.curIs(',') {
 		p.advance() // consume ','
 		item, err = p.parseFromItem()
 		if err != nil {
@@ -818,17 +815,16 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 	startLoc := p.cur.Loc
 
 	// Parenthesized: subquery, VALUES row-source, or parenthesized from-item.
-	if p.cur.Type == '(' {
-		next := p.peekNext()
-		if next.Type == kwSELECT || next.Type == kwWITH || next.Type == kwVALUES {
+	if p.curIs('(') {
+		if p.nextIs(kwSELECT) || p.nextIs(kwWITH) || p.nextIs(kwVALUES) {
 			// Derived table in FROM: ( SELECT … ) | ( VALUES … ) [AS] alias
 			p.advance() // consume '('
 			var query ast.Node
 			var err error
-			switch p.cur.Type {
-			case kwWITH:
+			switch {
+			case p.curIs(kwWITH):
 				query, err = p.parseWithSelect()
-			case kwVALUES:
+			case p.curIs(kwVALUES):
 				query, err = p.parseValuesClause()
 			default:
 				query, err = p.parseSelectStmt()
@@ -861,7 +857,7 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 	}
 
 	// LATERAL prefix
-	if p.cur.Type == kwLATERAL {
+	if p.curIs(kwLATERAL) {
 		p.advance() // consume LATERAL
 		// LATERAL can be followed by a subquery, TABLE(func), or FLATTEN(...)
 		source, err := p.parsePrimarySource()
@@ -879,7 +875,7 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 	}
 
 	// TABLE(func(...)) — table function
-	if p.cur.Type == kwTABLE {
+	if p.curIs(kwTABLE) {
 		p.advance() // consume TABLE
 		if _, err := p.expect('('); err != nil {
 			return nil, err
@@ -910,7 +906,7 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 	}
 
 	// FLATTEN(...) as a bare function in FROM (common Snowflake pattern)
-	if p.cur.Type == kwFLATTEN {
+	if p.curIs(kwFLATTEN) {
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
@@ -938,7 +934,7 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 	// Snowflake accepts the inline VALUES list without the surrounding
 	// parentheses that the derived-table form above requires. VALUES is a
 	// reserved keyword, so `VALUES (` in FROM position is unambiguous.
-	if p.cur.Type == kwVALUES && p.peekNext().Type == '(' {
+	if p.curIs(kwVALUES) && p.nextIs('(') {
 		query, err := p.parseValuesClause()
 		if err != nil {
 			return nil, err
@@ -958,7 +954,7 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 	// of a `->>` result-pipe). A qualified $N (t.$1) is a column expression, not
 	// a source, and never reaches FROM position, so only the bare token is
 	// handled here.
-	if p.cur.Type == tokVariable {
+	if p.curIs(tokVariable) {
 		dollar := p.parseDollarRef(nil)
 		ref := &ast.TableRef{
 			DollarN: dollar,
@@ -1001,8 +997,8 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 		switch {
 		case joinType == ast.JoinAsof:
 			// ASOF JOIN: expect MATCH_CONDITION(expr)
-			if p.cur.Type == kwMATCH_CONDITION ||
-				(p.cur.Type == tokIdent && strings.ToUpper(p.cur.Str) == "MATCH_CONDITION") {
+			if p.curIs(kwMATCH_CONDITION) ||
+				(p.curIsUnquotedWord("MATCH_CONDITION")) {
 				p.advance() // consume MATCH_CONDITION
 				if _, err := p.expect('('); err != nil {
 					return nil, err
@@ -1017,7 +1013,7 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 				join.MatchCondition = cond
 			}
 			// ASOF may also have ON
-			if p.cur.Type == kwON {
+			if p.curIs(kwON) {
 				p.advance() // consume ON
 				onExpr, err := p.parseExpr()
 				if err != nil {
@@ -1029,7 +1025,7 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 		case joinType == ast.JoinCross || natural:
 			// CROSS JOIN and NATURAL JOIN: no condition required
 
-		case p.cur.Type == kwON:
+		case p.curIs(kwON):
 			p.advance() // consume ON
 			onExpr, err := p.parseExpr()
 			if err != nil {
@@ -1037,7 +1033,7 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 			}
 			join.On = onExpr
 
-		case p.cur.Type == kwUSING:
+		case p.curIs(kwUSING):
 			p.advance() // consume USING
 			if _, err := p.expect('('); err != nil {
 				return nil, err
@@ -1048,7 +1044,7 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 				return nil, err
 			}
 			cols = append(cols, col)
-			for p.cur.Type == ',' {
+			for p.curIs(',') {
 				p.advance() // consume ','
 				col, err = p.parseIdent()
 				if err != nil {
@@ -1074,26 +1070,25 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 // without consuming any tokens.
 func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool, bool) {
 	// NATURAL [INNER | {LEFT|RIGHT|FULL} [OUTER]] JOIN
-	if p.cur.Type == kwNATURAL {
-		next := p.peekNext()
+	if p.curIs(kwNATURAL) {
 		// NATURAL JOIN
-		if next.Type == kwJOIN {
+		if p.nextIs(kwJOIN) {
 			p.advance() // consume NATURAL
 			p.advance() // consume JOIN
 			return ast.JoinInner, true, false, true
 		}
 		// NATURAL INNER JOIN
-		if next.Type == kwINNER {
+		if p.nextIs(kwINNER) {
 			p.advance() // consume NATURAL
 			p.advance() // consume INNER
-			if p.cur.Type == kwJOIN {
+			if p.curIs(kwJOIN) {
 				p.advance() // consume JOIN
 				return ast.JoinInner, true, false, true
 			}
 			return 0, false, false, false
 		}
 		// NATURAL LEFT/RIGHT/FULL [OUTER] JOIN
-		if next.Type == kwLEFT || next.Type == kwRIGHT || next.Type == kwFULL {
+		if p.nextIs(kwLEFT) || p.nextIs(kwRIGHT) || p.nextIs(kwFULL) {
 			p.advance() // consume NATURAL
 			jt, _ := p.consumeDirectionAndJoin()
 			return jt, true, false, true
@@ -1102,25 +1097,24 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool, bool) {
 	}
 
 	// DIRECTED [INNER|LEFT|RIGHT|FULL|CROSS] JOIN
-	if p.cur.Type == kwDIRECTED {
-		next := p.peekNext()
-		switch next.Type {
-		case kwJOIN:
+	if p.curIs(kwDIRECTED) {
+		switch {
+		case p.nextIs(kwJOIN):
 			p.advance() // consume DIRECTED
 			p.advance() // consume JOIN
 			return ast.JoinInner, false, true, true
-		case kwINNER:
+		case p.nextIs(kwINNER):
 			p.advance() // consume DIRECTED
 			p.advance() // consume INNER
 			if _, err := p.expect(kwJOIN); err == nil {
 				return ast.JoinInner, false, true, true
 			}
 			return 0, false, false, false
-		case kwLEFT, kwRIGHT, kwFULL:
+		case p.nextIs(kwLEFT), p.nextIs(kwRIGHT), p.nextIs(kwFULL):
 			p.advance() // consume DIRECTED
 			jt, _ := p.consumeDirectionAndJoin()
 			return jt, false, true, true
-		case kwCROSS:
+		case p.nextIs(kwCROSS):
 			p.advance() // consume DIRECTED
 			p.advance() // consume CROSS
 			if _, err := p.expect(kwJOIN); err == nil {
@@ -1132,9 +1126,8 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool, bool) {
 	}
 
 	// ASOF JOIN
-	if p.cur.Type == kwASOF {
-		next := p.peekNext()
-		if next.Type == kwJOIN {
+	if p.curIs(kwASOF) {
+		if p.nextIs(kwJOIN) {
 			p.advance() // consume ASOF
 			p.advance() // consume JOIN
 			return ast.JoinAsof, false, false, true
@@ -1144,17 +1137,16 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool, bool) {
 
 	// INNER [DIRECTED] JOIN — Snowflake's documented placement of DIRECTED is
 	// between the join-type keyword and JOIN (t1 INNER DIRECTED JOIN t2).
-	if p.cur.Type == kwINNER {
-		next := p.peekNext()
-		if next.Type == kwJOIN {
+	if p.curIs(kwINNER) {
+		if p.nextIs(kwJOIN) {
 			p.advance() // consume INNER
 			p.advance() // consume JOIN
 			return ast.JoinInner, false, false, true
 		}
-		if next.Type == kwDIRECTED {
+		if p.nextIs(kwDIRECTED) {
 			p.advance() // consume INNER
 			p.advance() // consume DIRECTED
-			if p.cur.Type == kwJOIN {
+			if p.curIs(kwJOIN) {
 				p.advance() // consume JOIN
 				return ast.JoinInner, false, true, true
 			}
@@ -1164,7 +1156,7 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool, bool) {
 	}
 
 	// LEFT [OUTER] [DIRECTED] JOIN
-	if p.cur.Type == kwLEFT {
+	if p.curIs(kwLEFT) {
 		jt, directed := p.consumeDirectionAndJoin()
 		if jt == ast.JoinLeft {
 			return jt, false, directed, true
@@ -1173,7 +1165,7 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool, bool) {
 	}
 
 	// RIGHT [OUTER] [DIRECTED] JOIN
-	if p.cur.Type == kwRIGHT {
+	if p.curIs(kwRIGHT) {
 		jt, directed := p.consumeDirectionAndJoin()
 		if jt == ast.JoinRight {
 			return jt, false, directed, true
@@ -1182,7 +1174,7 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool, bool) {
 	}
 
 	// FULL [OUTER] [DIRECTED] JOIN
-	if p.cur.Type == kwFULL {
+	if p.curIs(kwFULL) {
 		jt, directed := p.consumeDirectionAndJoin()
 		if jt == ast.JoinFull {
 			return jt, false, directed, true
@@ -1191,9 +1183,8 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool, bool) {
 	}
 
 	// CROSS JOIN
-	if p.cur.Type == kwCROSS {
-		next := p.peekNext()
-		if next.Type == kwJOIN {
+	if p.curIs(kwCROSS) {
+		if p.nextIs(kwJOIN) {
 			p.advance() // consume CROSS
 			p.advance() // consume JOIN
 			return ast.JoinCross, false, false, true
@@ -1202,7 +1193,7 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool, bool) {
 	}
 
 	// Bare JOIN (= INNER)
-	if p.cur.Type == kwJOIN {
+	if p.curIs(kwJOIN) {
 		p.advance() // consume JOIN
 		return ast.JoinInner, false, false, true
 	}
@@ -1221,19 +1212,19 @@ func (p *Parser) consumeDirectionAndJoin() (ast.JoinType, bool) {
 	p.advance() // consume LEFT/RIGHT/FULL
 
 	// Optional OUTER
-	if p.cur.Type == kwOUTER {
+	if p.curIs(kwOUTER) {
 		p.advance() // consume OUTER
 	}
 
 	// Optional DIRECTED (Snowflake places it directly before JOIN).
 	directed := false
-	if p.cur.Type == kwDIRECTED {
+	if p.curIs(kwDIRECTED) {
 		p.advance() // consume DIRECTED
 		directed = true
 	}
 
 	// Expect JOIN
-	if p.cur.Type != kwJOIN {
+	if !p.curIs(kwJOIN) {
 		// Not a join sequence — but we already consumed tokens.
 		// This is an issue; for safety, return a sentinel and let caller handle.
 		return ast.JoinInner, false
@@ -1287,7 +1278,7 @@ func (p *Parser) parseTableSuffix(ref *ast.TableRef) error {
 	ref.Loc.End = p.prev.Loc.End
 
 	// AT | BEFORE ( … )
-	if p.cur.Type == kwAT || p.cur.Type == kwBEFORE {
+	if p.curIs(kwAT) || p.curIs(kwBEFORE) {
 		tt, err := p.parseTimeTravelClause()
 		if err != nil {
 			return err
@@ -1297,7 +1288,7 @@ func (p *Parser) parseTableSuffix(ref *ast.TableRef) error {
 	}
 
 	// CHANGES ( … ) AT|BEFORE ( … ) [END ( … )]
-	if p.cur.Type == kwCHANGES {
+	if p.curIs(kwCHANGES) {
 		ch, err := p.parseChangesClause()
 		if err != nil {
 			return err
@@ -1307,7 +1298,7 @@ func (p *Parser) parseTableSuffix(ref *ast.TableRef) error {
 	}
 
 	// MATCH_RECOGNIZE ( … )
-	if p.cur.Type == kwMATCH_RECOGNIZE {
+	if p.curIs(kwMATCH_RECOGNIZE) {
 		mr, err := p.parseMatchRecognizeClause()
 		if err != nil {
 			return err
@@ -1324,7 +1315,7 @@ func (p *Parser) parseTableSuffix(ref *ast.TableRef) error {
 	// result of the previous one, so on the second and later clauses the ref
 	// is re-rooted in place with the prior contents moved to Nested.
 	pivoted := false
-	for p.cur.Type == kwPIVOT || p.cur.Type == kwUNPIVOT {
+	for p.curIs(kwPIVOT) || p.curIs(kwUNPIVOT) {
 		if ref.Pivot != nil || ref.Unpivot != nil {
 			inner := &ast.TableRef{}
 			*inner = *ref
@@ -1333,15 +1324,15 @@ func (p *Parser) parseTableSuffix(ref *ast.TableRef) error {
 				Loc:    ast.Loc{Start: inner.Loc.Start, End: inner.Loc.End},
 			}
 		}
-		switch p.cur.Type {
-		case kwPIVOT:
+		switch {
+		case p.curIs(kwPIVOT):
 			pv, err := p.parsePivotClause()
 			if err != nil {
 				return err
 			}
 			ref.Pivot = pv
 			ref.Loc.End = pv.Loc.End
-		case kwUNPIVOT:
+		case p.curIs(kwUNPIVOT):
 			uv, err := p.parseUnpivotClause()
 			if err != nil {
 				return err
@@ -1366,7 +1357,7 @@ func (p *Parser) parseTableSuffix(ref *ast.TableRef) error {
 		// table (subquery / VALUES); a parenthesis after a plain table name is
 		// not a column list and is left for the caller. Requires an explicit
 		// alias to precede it, which the IsEmpty guard above ensures.
-		if ref.Subquery != nil && p.cur.Type == '(' {
+		if ref.Subquery != nil && p.curIs('(') {
 			cols, err := p.parseDerivedColumnList()
 			if err != nil {
 				return err
@@ -1399,7 +1390,7 @@ func (p *Parser) parseDerivedColumnList() ([]ast.Ident, error) {
 			return nil, err
 		}
 		cols = append(cols, col)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -1413,7 +1404,7 @@ func (p *Parser) parseDerivedColumnList() ([]ast.Ident, error) {
 // parseTrailingSample parses an optional SAMPLE / TABLESAMPLE clause and
 // updates ref. It is a no-op when no sampling clause is present.
 func (p *Parser) parseTrailingSample(ref *ast.TableRef) error {
-	if p.cur.Type == kwSAMPLE || p.cur.Type == kwTABLESAMPLE {
+	if p.curIs(kwSAMPLE) || p.curIs(kwTABLESAMPLE) {
 		s, err := p.parseSampleClause()
 		if err != nil {
 			return err
@@ -1437,12 +1428,12 @@ func (p *Parser) parseTrailingSample(ref *ast.TableRef) error {
 // expression parser). A bare START WITH with no following CONNECT BY is a
 // syntax error, surfaced by the CONNECT BY expect below.
 func (p *Parser) parseConnectBy(stmt *ast.SelectStmt) error {
-	if p.cur.Type != kwSTART && p.cur.Type != kwCONNECT {
+	if !p.curIs(kwSTART) && !p.curIs(kwCONNECT) {
 		return nil
 	}
 
 	// Optional START WITH <condition>.
-	if p.cur.Type == kwSTART {
+	if p.curIs(kwSTART) {
 		p.advance() // consume START
 		if _, err := p.expect(kwWITH); err != nil {
 			return err
@@ -1495,7 +1486,7 @@ func (p *Parser) parseGroupByClause() (*ast.GroupByClause, error) {
 	}
 
 	// GROUP BY ALL
-	if p.cur.Type == kwALL {
+	if p.curIs(kwALL) {
 		p.advance()
 		clause.Kind = ast.GroupByAll
 		clause.Loc.End = p.prev.Loc.End
@@ -1503,7 +1494,7 @@ func (p *Parser) parseGroupByClause() (*ast.GroupByClause, error) {
 	}
 
 	// GROUP BY CUBE (...)
-	if p.cur.Type == kwCUBE {
+	if p.curIs(kwCUBE) {
 		p.advance()
 		clause.Kind = ast.GroupByCube
 		items, err := p.parseParenExprList()
@@ -1516,7 +1507,7 @@ func (p *Parser) parseGroupByClause() (*ast.GroupByClause, error) {
 	}
 
 	// GROUP BY ROLLUP (...)
-	if p.cur.Type == kwROLLUP {
+	if p.curIs(kwROLLUP) {
 		p.advance()
 		clause.Kind = ast.GroupByRollup
 		items, err := p.parseParenExprList()
@@ -1529,10 +1520,9 @@ func (p *Parser) parseGroupByClause() (*ast.GroupByClause, error) {
 	}
 
 	// GROUP BY GROUPING SETS (...)
-	if p.cur.Type == kwGROUPING {
+	if p.curIs(kwGROUPING) {
 		// Check that the next token is SETS (keyword or ident)
-		next := p.peekNext()
-		if next.Type == kwSETS || (next.Type == tokIdent && strings.ToUpper(next.Str) == "SETS") {
+		if p.nextIs(kwSETS) || p.nextIsUnquotedWord("SETS") {
 			p.advance() // consume GROUPING
 			p.advance() // consume SETS
 			clause.Kind = ast.GroupByGroupingSets
@@ -1581,7 +1571,7 @@ func (p *Parser) parseParenExprList() ([]ast.Node, error) {
 // by consuming any LIMIT, OFFSET, and FETCH clauses in any valid order.
 func (p *Parser) parseLimitOffsetFetch(stmt *ast.SelectStmt) error {
 	// LIMIT n [OFFSET n]
-	if p.cur.Type == kwLIMIT {
+	if p.curIs(kwLIMIT) {
 		p.advance() // consume LIMIT
 		limitExpr, err := p.parseExpr()
 		if err != nil {
@@ -1589,7 +1579,7 @@ func (p *Parser) parseLimitOffsetFetch(stmt *ast.SelectStmt) error {
 		}
 		stmt.Limit = limitExpr
 
-		if p.cur.Type == kwOFFSET {
+		if p.curIs(kwOFFSET) {
 			p.advance() // consume OFFSET
 			offsetExpr, err := p.parseExpr()
 			if err != nil {
@@ -1601,7 +1591,7 @@ func (p *Parser) parseLimitOffsetFetch(stmt *ast.SelectStmt) error {
 	}
 
 	// OFFSET n [FETCH ...]
-	if p.cur.Type == kwOFFSET {
+	if p.curIs(kwOFFSET) {
 		p.advance() // consume OFFSET
 		offsetExpr, err := p.parseExpr()
 		if err != nil {
@@ -1614,11 +1604,11 @@ func (p *Parser) parseLimitOffsetFetch(stmt *ast.SelectStmt) error {
 	//
 	// FIRST/NEXT, ROW/ROWS, and ONLY are all optional noise words in
 	// Snowflake: `FETCH 123` is equivalent to `FETCH FIRST 123 ROWS ONLY`.
-	if p.cur.Type == kwFETCH {
+	if p.curIs(kwFETCH) {
 		fetchTok := p.advance() // consume FETCH
 
 		// Optional FIRST or NEXT
-		if p.cur.Type == kwFIRST || p.cur.Type == kwNEXT {
+		if p.curIs(kwFIRST) || p.curIs(kwNEXT) {
 			p.advance() // consume FIRST or NEXT
 		}
 
@@ -1629,12 +1619,12 @@ func (p *Parser) parseLimitOffsetFetch(stmt *ast.SelectStmt) error {
 		}
 
 		// Optional ROWS or ROW
-		if p.cur.Type == kwROWS || p.cur.Type == kwROW {
+		if p.curIs(kwROWS) || p.curIs(kwROW) {
 			p.advance() // consume ROWS or ROW
 		}
 
 		// Optional ONLY
-		if p.cur.Type == kwONLY {
+		if p.curIs(kwONLY) {
 			p.advance() // consume ONLY
 		}
 
@@ -1662,7 +1652,7 @@ func (p *Parser) parseLimitOffsetFetch(stmt *ast.SelectStmt) error {
 // this by checking whether the current token is a clause-starting keyword.
 func (p *Parser) parseOptionalAlias() (ast.Ident, bool) {
 	// Explicit: AS alias
-	if p.cur.Type == kwAS {
+	if p.curIs(kwAS) {
 		p.advance() // consume AS
 		id, err := p.parseIdent()
 		if err != nil {
@@ -1676,7 +1666,7 @@ func (p *Parser) parseOptionalAlias() (ast.Ident, bool) {
 	if p.inDatasetQuery && p.startsDatasetVersionClause() {
 		return ast.Ident{}, false
 	}
-	if p.cur.Type == tokIdent || p.cur.Type == tokQuotedIdent ||
+	if p.curIs(tokIdent) || p.curIs(tokQuotedIdent) ||
 		(p.cur.Type >= 700 && !keywordReserved[p.cur.Type] && !isClauseKeyword(p.cur.Type)) {
 		id, err := p.parseIdent()
 		if err != nil {

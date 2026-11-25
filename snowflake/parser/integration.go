@@ -99,7 +99,7 @@ func (p *Parser) parseCreateIntegrationStmt(start ast.Loc, orReplace, orAlter bo
 			return nil, err
 		}
 		stmt.Options = opts
-		if p.cur.Type == kwTRIGGERS {
+		if p.curIs(kwTRIGGERS) {
 			triggers, err := p.parseResourceMonitorTriggers()
 			if err != nil {
 				return nil, err
@@ -109,7 +109,7 @@ func (p *Parser) parseCreateIntegrationStmt(start ast.Loc, orReplace, orAlter bo
 
 	case ast.Connection:
 		// CREATE CONNECTION <name> [ AS REPLICA OF a.b.c ] [ COMMENT = '...' ]
-		if p.cur.Type == kwAS {
+		if p.curIs(kwAS) {
 			replica, err := p.parseConnectionReplica()
 			if err != nil {
 				return nil, err
@@ -248,18 +248,18 @@ func (p *Parser) parseAlterIntegrationStmt() (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	switch p.cur.Type {
-	case kwSET:
+	switch {
+	case p.curIs(kwSET):
 		if err := p.parseAlterIntegrationSet(stmt); err != nil {
 			return nil, err
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		if err := p.parseAlterIntegrationUnset(stmt); err != nil {
 			return nil, err
 		}
 
-	case kwTRIGGERS:
+	case p.curIs(kwTRIGGERS):
 		// ALTER RESOURCE MONITOR [ IF EXISTS ] <name> [ SET { ... } ]
 		//   [ TRIGGERS triggerDefinition [ triggerDefinition ... ] ]
 		// (https://docs.snowflake.com/en/sql-reference/sql/alter-resource-monitor):
@@ -274,23 +274,23 @@ func (p *Parser) parseAlterIntegrationStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterIntegrationSet
 		stmt.Triggers = triggers
 
-	case kwFETCH:
+	case p.curIs(kwFETCH):
 		// GIT REPOSITORY FETCH.
 		p.advance() // consume FETCH
 		stmt.Action = ast.AlterIntegrationFetch
 
-	case kwENABLE, kwDISABLE:
+	case p.curIs(kwENABLE), p.curIs(kwDISABLE):
 		// CONNECTION ENABLE/DISABLE FAILOVER [ TO ACCOUNTS a.b [, ...] ].
 		if err := p.parseAlterConnectionFailover(stmt); err != nil {
 			return nil, err
 		}
 
-	case kwPRIMARY:
+	case p.curIs(kwPRIMARY):
 		// CONNECTION PRIMARY.
 		p.advance() // consume PRIMARY
 		stmt.Action = ast.AlterIntegrationPrimary
 
-	case kwREFRESH:
+	case p.curIs(kwREFRESH):
 		// [ SECURITY ] INTEGRATION REFRESH.
 		p.parseAlterIntegrationRefresh(stmt)
 
@@ -385,8 +385,8 @@ func (p *Parser) parseAlterExternalVolumeStmt(startLoc ast.Loc) (ast.Node, error
 	}
 	stmt.Name = name
 
-	switch p.cur.Type {
-	case kwADD:
+	switch {
+	case p.curIs(kwADD):
 		// ADD STORAGE_LOCATION = ( NAME=... <provider params> )
 		p.advance() // consume ADD
 		opt, err := p.parseStorageLocationSingleOption()
@@ -396,7 +396,7 @@ func (p *Parser) parseAlterExternalVolumeStmt(startLoc ast.Loc) (ast.Node, error
 		stmt.Action = ast.AlterIntegrationAddLocation
 		stmt.Options = []*ast.CopyOption{opt}
 
-	case kwREMOVE:
+	case p.curIs(kwREMOVE):
 		// REMOVE STORAGE_LOCATION '<name>'
 		p.advance() // consume REMOVE
 		if err := p.expectStorageLocationKeyword(); err != nil {
@@ -409,7 +409,7 @@ func (p *Parser) parseAlterExternalVolumeStmt(startLoc ast.Loc) (ast.Node, error
 		stmt.Action = ast.AlterIntegrationRemoveLocation
 		stmt.Location = tok.Str
 
-	case kwUPDATE:
+	case p.curIs(kwUPDATE):
 		// UPDATE STORAGE_LOCATION = '<name>' <params...>
 		p.advance() // consume UPDATE
 		if err := p.expectStorageLocationKeyword(); err != nil {
@@ -430,7 +430,7 @@ func (p *Parser) parseAlterExternalVolumeStmt(startLoc ast.Loc) (ast.Node, error
 		stmt.Action = ast.AlterIntegrationUpdateLocation
 		stmt.Options = opts
 
-	case kwSET:
+	case p.curIs(kwSET):
 		// SET <options> — open-ended (ALLOW_WRITES / COMMENT).
 		p.advance() // consume SET
 		opts, err := p.parseIntegrationOptions()
@@ -468,11 +468,11 @@ func (p *Parser) parseAlterExternalVolumeStmt(startLoc ast.Loc) (ast.Node, error
 func (p *Parser) parseAlterIntegrationSet(stmt *ast.AlterIntegrationStmt) error {
 	p.advance() // consume SET
 
-	if stmt.Kind == ast.CatalogIntegration || (stmt.Kind == ast.ExternalAccessIntegration && p.cur.Type != kwTAG) {
+	if stmt.Kind == ast.CatalogIntegration || (stmt.Kind == ast.ExternalAccessIntegration && !p.curIs(kwTAG)) {
 		return p.parseAlterIntegrationSetProperties(stmt)
 	}
 
-	if p.cur.Type == kwTAG {
+	if p.curIs(kwTAG) {
 		tags, err := p.parseTagSetList()
 		if err != nil {
 			return err
@@ -486,7 +486,7 @@ func (p *Parser) parseAlterIntegrationSet(stmt *ast.AlterIntegrationStmt) error 
 	if err != nil {
 		return err
 	}
-	if p.cur.Type == kwTRIGGERS {
+	if p.curIs(kwTRIGGERS) {
 		triggers, err := p.parseResourceMonitorTriggers()
 		if err != nil {
 			return err
@@ -514,7 +514,7 @@ func (p *Parser) parseAlterIntegrationUnset(stmt *ast.AlterIntegrationStmt) erro
 		return p.parseAlterAccessIntegrationUnset(stmt)
 	}
 
-	if p.cur.Type == kwTAG {
+	if p.curIs(kwTAG) {
 		names, err := p.parseUnsetTagNameList()
 		if err != nil {
 			return err
@@ -542,7 +542,7 @@ func (p *Parser) parseAlterIntegrationUnset(stmt *ast.AlterIntegrationStmt) erro
 //	ENABLE FAILOVER TO ACCOUNTS <org>.<account> [ , ... ] [ IGNORE EDITION CHECK ]
 //	DISABLE FAILOVER [ TO ACCOUNTS <org>.<account> [ , ... ] ]
 func (p *Parser) parseAlterConnectionFailover(stmt *ast.AlterIntegrationStmt) error {
-	enable := p.cur.Type == kwENABLE
+	enable := p.curIs(kwENABLE)
 	p.advance() // consume ENABLE / DISABLE
 	if _, err := p.expect(kwFAILOVER); err != nil {
 		return err
@@ -563,7 +563,7 @@ func (p *Parser) parseAlterConnectionFailover(stmt *ast.AlterIntegrationStmt) er
 		}
 		stmt.Accounts = accounts
 		// Optional IGNORE EDITION CHECK.
-		if p.cur.Type == kwIGNORE {
+		if p.curIs(kwIGNORE) {
 			p.advance() // consume IGNORE
 			if _, err := p.expect(kwEDITION); err != nil {
 				return err
@@ -577,7 +577,7 @@ func (p *Parser) parseAlterConnectionFailover(stmt *ast.AlterIntegrationStmt) er
 
 	stmt.Action = ast.AlterIntegrationDisableFailover
 	// DISABLE FAILOVER [ TO ACCOUNTS ... ].
-	if p.cur.Type == kwTO {
+	if p.curIs(kwTO) {
 		p.advance() // consume TO
 		if _, err := p.expect(kwACCOUNTS); err != nil {
 			return err
@@ -601,7 +601,7 @@ func (p *Parser) parseAccountNameList() ([]*ast.ObjectName, error) {
 			return nil, err
 		}
 		names = append(names, name)
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -649,7 +649,7 @@ func (p *Parser) parseResourceMonitorTriggers() ([]*ast.ResourceMonitorTrigger, 
 	}
 
 	var triggers []*ast.ResourceMonitorTrigger
-	for p.cur.Type == kwON {
+	for p.curIs(kwON) {
 		trig, err := p.parseResourceMonitorTrigger()
 		if err != nil {
 			return nil, err
@@ -685,14 +685,14 @@ func (p *Parser) parseResourceMonitorTrigger() (*ast.ResourceMonitorTrigger, err
 		return nil, err
 	}
 
-	switch p.cur.Type {
-	case kwSUSPEND:
+	switch {
+	case p.curIs(kwSUSPEND):
 		p.advance()
 		trig.Action = "SUSPEND"
-	case kwSUSPEND_IMMEDIATE:
+	case p.curIs(kwSUSPEND_IMMEDIATE):
 		p.advance()
 		trig.Action = "SUSPEND_IMMEDIATE"
-	case kwNOTIFY:
+	case p.curIs(kwNOTIFY):
 		p.advance()
 		trig.Action = "NOTIFY"
 	default:
@@ -732,13 +732,13 @@ func (p *Parser) parseStorageLocationsOption() (*ast.CopyOption, error) {
 	}
 
 	var groups []*ast.CopyOption
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for !p.curIs(')') && !p.curIs(tokEOF) {
 		inner, err := p.parseStorageLocationGroup()
 		if err != nil {
 			return nil, err
 		}
 		groups = append(groups, inner)
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume optional ',' separator between groups
 		}
 	}
@@ -756,7 +756,7 @@ func (p *Parser) parseStorageLocationsOption() (*ast.CopyOption, error) {
 // (Name == "") whose Group holds the inner key/value entries, parsed by the
 // shared parseCopyOptionParen.
 func (p *Parser) parseStorageLocationGroup() (*ast.CopyOption, error) {
-	if p.cur.Type != '(' {
+	if !p.curIs('(') {
 		return nil, p.syntaxErrorAtCur()
 	}
 	start := p.cur.Loc.Start
@@ -796,48 +796,48 @@ func (p *Parser) parseStorageLocationSingleOption() (*ast.CopyOption, error) {
 // both spellings since a bare ALTER INTEGRATION cannot recover the original
 // subtype anyway (the semantic layer resolves it from the catalog).
 func (p *Parser) consumeIntegrationObjectKeyword() (ast.IntegrationObjectKind, error) {
-	switch p.cur.Type {
-	case kwSTORAGE:
+	switch {
+	case p.curIs(kwSTORAGE):
 		p.advance() // consume STORAGE
 		if _, err := p.expect(kwINTEGRATION); err != nil {
 			return 0, err
 		}
 		return ast.StorageIntegration, nil
-	case kwAPI:
+	case p.curIs(kwAPI):
 		p.advance() // consume API
 		if _, err := p.expect(kwINTEGRATION); err != nil {
 			return 0, err
 		}
 		return ast.APIIntegration, nil
-	case kwNOTIFICATION:
+	case p.curIs(kwNOTIFICATION):
 		p.advance() // consume NOTIFICATION
 		if _, err := p.expect(kwINTEGRATION); err != nil {
 			return 0, err
 		}
 		return ast.NotificationIntegration, nil
-	case kwSECURITY:
+	case p.curIs(kwSECURITY):
 		p.advance() // consume SECURITY
 		if _, err := p.expect(kwINTEGRATION); err != nil {
 			return 0, err
 		}
 		return ast.SecurityIntegration, nil
-	case kwINTEGRATION:
+	case p.curIs(kwINTEGRATION):
 		// Bare ALTER INTEGRATION <name> ... — subtype qualifier omitted.
 		p.advance() // consume INTEGRATION
 		return ast.StorageIntegration, nil
-	case kwRESOURCE:
+	case p.curIs(kwRESOURCE):
 		p.advance() // consume RESOURCE
 		if _, err := p.expect(kwMONITOR); err != nil {
 			return 0, err
 		}
 		return ast.ResourceMonitor, nil
-	case kwSECRET:
+	case p.curIs(kwSECRET):
 		p.advance() // consume SECRET
 		return ast.Secret, nil
-	case kwCONNECTION:
+	case p.curIs(kwCONNECTION):
 		p.advance() // consume CONNECTION
 		return ast.Connection, nil
-	case kwGIT:
+	case p.curIs(kwGIT):
 		p.advance() // consume GIT
 		if _, err := p.expect(kwREPOSITORY); err != nil {
 			return 0, err
@@ -977,8 +977,8 @@ func (p *Parser) requireIntegrationOptions(kind ast.IntegrationObjectKind, opts 
 // trailing clause: TRIGGERS (RESOURCE MONITOR), and WITH / TAG (GIT REPOSITORY's
 // [WITH] TAG). Those must not be swallowed as an option name.
 func (p *Parser) startsIntegrationOption() bool {
-	switch p.cur.Type {
-	case kwTRIGGERS, kwWITH, kwTAG:
+	switch {
+	case p.curIs(kwTRIGGERS), p.curIs(kwWITH), p.curIs(kwTAG):
 		return false
 	}
 	return p.startsCopyOption()
@@ -988,10 +988,10 @@ func (p *Parser) startsIntegrationOption() bool {
 // REPOSITORY [WITH] TAG clause (TAG directly, or WITH immediately followed by
 // TAG). Reuses the STAGE predicate semantics.
 func (p *Parser) startsIntegrationTags() bool {
-	if p.cur.Type == kwTAG {
+	if p.curIs(kwTAG) {
 		return true
 	}
-	return p.cur.Type == kwWITH && p.peekNext().Type == kwTAG
+	return p.curIs(kwWITH) && p.nextIs(kwTAG)
 }
 
 // curIsStorageLocationWord reports whether cur is the STORAGE_LOCATION option name
@@ -1013,8 +1013,8 @@ func (p *Parser) expectStorageLocationKeyword() error {
 // parseOptionalIfNotExists consumes an optional IF NOT EXISTS clause, setting
 // *flag when present. Shared by the T4.7 CREATE parsers.
 func (p *Parser) parseOptionalIfNotExists(flag *bool) error {
-	if p.cur.Type == kwIF {
-		if p.peekNext().Type == kwNOT {
+	if p.curIs(kwIF) {
+		if p.nextIs(kwNOT) {
 			p.advance() // consume IF
 			p.advance() // consume NOT
 			if _, err := p.expect(kwEXISTS); err != nil {
@@ -1029,8 +1029,8 @@ func (p *Parser) parseOptionalIfNotExists(flag *bool) error {
 // parseOptionalIfExists consumes an optional IF EXISTS clause, setting *flag when
 // present. Shared by the T4.7 ALTER parsers.
 func (p *Parser) parseOptionalIfExists(flag *bool) {
-	if p.cur.Type == kwIF {
-		if p.peekNext().Type == kwEXISTS {
+	if p.curIs(kwIF) {
+		if p.nextIs(kwEXISTS) {
 			p.advance() // consume IF
 			p.advance() // consume EXISTS
 			*flag = true
@@ -1242,6 +1242,7 @@ func (p *Parser) parseIntegrationProperties(props integrationProps) ([]*ast.Copy
 // parseIntegrationProperty reads one `KEY = value` property whose key props
 // names. cur is the key, which startsObjectProperty has seen followed by '='.
 func (p *Parser) parseIntegrationProperty(props integrationProps) (*ast.CopyOption, error) {
+	wantKeys(p, props)
 	spec, ok := props[strings.ToUpper(p.cur.Str)]
 	if !ok {
 		return nil, p.syntaxErrorAtCur()
@@ -1317,7 +1318,7 @@ func (p *Parser) parseIntegrationGroupList(opt *ast.CopyOption, keys integration
 		}
 		entry.Loc.End = p.prev.Loc.End
 		opt.Group = append(opt.Group, entry)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -1352,7 +1353,7 @@ func (p *Parser) parseIntegrationStringPairs(opt *ast.CopyOption) error {
 		// $$...$$), so that it reads apart from a word key and writes back
 		// as the same string.
 		opt.Group = append(opt.Group, &ast.CopyOption{Name: quoteIntegrationKey(key.Str), Lit: val, Loc: ast.Loc{Start: key.Loc.Start, End: val.Loc.End}})
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -1369,7 +1370,7 @@ func (p *Parser) parseIntegrationStringPairs(opt *ast.CopyOption) error {
 //	( <name> [ , ... ] )              -> Group of bare names
 func (p *Parser) parseIntegrationLeaf(opt *ast.CopyOption, shapes []objectValue) error {
 	start := p.cur.Loc.Start
-	if p.cur.Type != '(' {
+	if !p.curIs('(') {
 		if err := p.parseObjectValue(opt); err != nil {
 			return err
 		}
@@ -1383,7 +1384,7 @@ func (p *Parser) parseIntegrationLeaf(opt *ast.CopyOption, shapes []objectValue)
 					return err
 				}
 				opt.List = append(opt.List, lit)
-				if p.cur.Type != ',' {
+				if !p.curIs(',') {
 					break
 				}
 				p.advance() // consume ','
@@ -1396,7 +1397,7 @@ func (p *Parser) parseIntegrationLeaf(opt *ast.CopyOption, shapes []objectValue)
 					return err
 				}
 				opt.Group = append(opt.Group, &ast.CopyOption{Name: name, Bare: true, Loc: ast.Loc{Start: nameStart, End: p.prev.Loc.End}})
-				if p.cur.Type != ',' {
+				if !p.curIs(',') {
 					break
 				}
 				p.advance() // consume ','
@@ -1447,7 +1448,7 @@ func (p *Parser) parseAlterIntegrationSetProperties(stmt *ast.AlterIntegrationSt
 	}
 	stmt.Action = ast.AlterIntegrationSet
 	stmt.Options = opts
-	if stmt.Kind == ast.ExternalAccessIntegration && p.cur.Type == kwTAG {
+	if stmt.Kind == ast.ExternalAccessIntegration && p.curIs(kwTAG) {
 		tags, err := p.parseTagSetList()
 		if err != nil {
 			return err
@@ -1472,7 +1473,7 @@ func (p *Parser) parseAlterIntegrationSetProperties(stmt *ast.AlterIntegrationSt
 func (p *Parser) parseAlterAccessIntegrationUnset(stmt *ast.AlterIntegrationStmt) error {
 	for {
 		switch {
-		case p.cur.Type == kwTAG:
+		case p.curIs(kwTAG):
 			p.advance() // consume TAG
 			name, err := p.parseObjectName()
 			if err != nil {
@@ -1484,7 +1485,7 @@ func (p *Parser) parseAlterAccessIntegrationUnset(stmt *ast.AlterIntegrationStmt
 		default:
 			return p.syntaxErrorAtCur()
 		}
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -1501,7 +1502,7 @@ func (p *Parser) parseAlterAccessIntegrationUnset(stmt *ast.AlterIntegrationStmt
 // nothing.
 func (p *Parser) atAccessIntegrationUnsetKey() bool {
 	for _, w := range accessIntegrationUnset {
-		if isWordToken(p.cur, w) {
+		if p.curWord(w) {
 			return true
 		}
 	}

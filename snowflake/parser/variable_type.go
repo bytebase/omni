@@ -48,7 +48,7 @@ func parseCreateVariable(p *Parser, s *ast.ObjectStmt) error {
 	if err := p.parseObjectTypeClause(s, ""); err != nil {
 		return err
 	}
-	if p.cur.Type == kwDEFAULT {
+	if p.curIs(kwDEFAULT) {
 		if err := p.parseObjectDefault(s, "DEFAULT"); err != nil {
 			return err
 		}
@@ -68,14 +68,14 @@ func parseCreateVariable(p *Parser, s *ast.ObjectStmt) error {
 func parseAlterVariable(p *Parser, s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
 	switch {
-	case p.cur.Type == kwSET && p.peekNext().Type == kwDEFAULT:
+	case p.curIs(kwSET) && p.nextIs(kwDEFAULT):
 		p.advance() // consume SET
 		if err := p.parseObjectDefault(s, "SET DEFAULT"); err != nil {
 			return err
 		}
 		s.Clauses[len(s.Clauses)-1].Loc.Start = start
 		return nil
-	case p.cur.Type == kwDROP && p.peekNext().Type == kwDEFAULT:
+	case p.curIs(kwDROP) && p.nextIs(kwDEFAULT):
 		p.advance() // consume DROP
 		p.advance() // consume DEFAULT
 		p.addObjectKeywordsClause(s, "DROP DEFAULT", start)
@@ -91,7 +91,7 @@ func parseAlterVariable(p *Parser, s *ast.ObjectStmt) error {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/create-type
 func parseCreateType(p *Parser, s *ast.ObjectStmt) error {
-	if p.cur.Type != kwAS {
+	if !p.curIs(kwAS) {
 		return p.syntaxErrorAtCur()
 	}
 	if err := p.parseObjectTypeClause(s, "AS"); err != nil {

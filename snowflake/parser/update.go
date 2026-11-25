@@ -46,7 +46,7 @@ func (p *Parser) parseUpdateStmt() (*ast.UpdateStmt, error) {
 	stmt.Sets = sets
 
 	// Optional FROM clause (Snowflake extension)
-	if p.cur.Type == kwFROM {
+	if p.curIs(kwFROM) {
 		p.advance() // consume FROM
 		from, err := p.parseFromClause()
 		if err != nil {
@@ -56,7 +56,7 @@ func (p *Parser) parseUpdateStmt() (*ast.UpdateStmt, error) {
 	}
 
 	// Optional WHERE clause
-	if p.cur.Type == kwWHERE {
+	if p.curIs(kwWHERE) {
 		p.advance() // consume WHERE
 		where, err := p.parseExpr()
 		if err != nil {
@@ -79,7 +79,7 @@ func (p *Parser) parseUpdateSetList() ([]*ast.UpdateSet, error) {
 	}
 	sets = append(sets, set)
 
-	for p.cur.Type == ',' {
+	for p.curIs(',') {
 		p.advance() // consume ','
 		set, err = p.parseUpdateSet()
 		if err != nil {

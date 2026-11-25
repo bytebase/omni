@@ -108,7 +108,7 @@ func (p *Parser) parseModelFromModel(s *ast.ObjectStmt) error {
 	if _, err := p.expect(kwFROM); err != nil {
 		return err
 	}
-	if p.cur.Type == '@' {
+	if p.curIs('@') {
 		return p.parseAiStageFrom(s, start)
 	}
 	if err := p.expectWords("MODEL"); err != nil {

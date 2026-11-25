@@ -23,13 +23,13 @@ func (p *Parser) parseInsertStmt() (ast.Node, error) {
 
 	// Optional OVERWRITE
 	overwrite := false
-	if p.cur.Type == kwOVERWRITE {
+	if p.curIs(kwOVERWRITE) {
 		p.advance()
 		overwrite = true
 	}
 
 	// Dispatch: ALL or FIRST → multi-table INSERT
-	if p.cur.Type == kwALL || p.cur.Type == kwFIRST {
+	if p.curIs(kwALL) || p.curIs(kwFIRST) {
 		return p.parseInsertMultiBody(startLoc, overwrite)
 	}
 
@@ -57,7 +57,7 @@ func (p *Parser) parseInsertSingleBody(startLoc int, overwrite bool) (*ast.Inser
 	}
 
 	// Optional column list: (col1, col2, ...)
-	if p.cur.Type == '(' && p.isColumnList() {
+	if p.curIs('(') && p.isColumnList() {
 		p.advance() // consume '('
 		cols, err := p.parseIdentList()
 		if err != nil {
@@ -70,7 +70,7 @@ func (p *Parser) parseInsertSingleBody(startLoc int, overwrite bool) (*ast.Inser
 	}
 
 	// VALUES or SELECT
-	if p.cur.Type == kwVALUES {
+	if p.curIs(kwVALUES) {
 		values, err := p.parseValuesRows()
 		if err != nil {
 			return nil, err
@@ -104,7 +104,7 @@ func (p *Parser) parseInsertSingleBody(startLoc int, overwrite bool) (*ast.Inser
 //     [ELSE INTO t [(cols)] VALUES (exprs)]
 //     select_statement
 func (p *Parser) parseInsertMultiBody(startLoc int, overwrite bool) (*ast.InsertMultiStmt, error) {
-	first := p.cur.Type == kwFIRST
+	first := p.curIs(kwFIRST)
 	p.advance() // consume ALL or FIRST
 
 	stmt := &ast.InsertMultiStmt{
@@ -113,9 +113,9 @@ func (p *Parser) parseInsertMultiBody(startLoc int, overwrite bool) (*ast.Insert
 		Loc:       ast.Loc{Start: startLoc},
 	}
 
-	if p.cur.Type == kwWHEN {
+	if p.curIs(kwWHEN) {
 		// Conditional form: WHEN cond THEN INTO ... [ELSE INTO ...]
-		for p.cur.Type == kwWHEN {
+		for p.curIs(kwWHEN) {
 			p.advance() // consume WHEN
 			cond, err := p.parseExpr()
 			if err != nil {
@@ -125,7 +125,7 @@ func (p *Parser) parseInsertMultiBody(startLoc int, overwrite bool) (*ast.Insert
 				return nil, err
 			}
 			// One or more INTO clauses under this WHEN
-			for p.cur.Type == kwINTO {
+			for p.curIs(kwINTO) {
 				branch, err := p.parseInsertMultiBranch(cond)
 				if err != nil {
 					return nil, err
@@ -134,9 +134,9 @@ func (p *Parser) parseInsertMultiBody(startLoc int, overwrite bool) (*ast.Insert
 			}
 		}
 		// Optional ELSE INTO ...
-		if p.cur.Type == kwELSE {
+		if p.curIs(kwELSE) {
 			p.advance() // consume ELSE
-			for p.cur.Type == kwINTO {
+			for p.curIs(kwINTO) {
 				branch, err := p.parseInsertMultiBranch(nil)
 				if err != nil {
 					return nil, err
@@ -144,9 +144,9 @@ func (p *Parser) parseInsertMultiBody(startLoc int, overwrite bool) (*ast.Insert
 				stmt.Branches = append(stmt.Branches, branch)
 			}
 		}
-	} else if p.cur.Type == kwINTO {
+	} else if p.curIs(kwINTO) {
 		// Unconditional form: INTO t1 [(cols)] VALUES (exprs) [INTO t2 ...]
-		for p.cur.Type == kwINTO {
+		for p.curIs(kwINTO) {
 			branch, err := p.parseInsertMultiBranch(nil)
 			if err != nil {
 				return nil, err
@@ -188,7 +188,7 @@ func (p *Parser) parseInsertMultiBranch(when ast.Node) (*ast.InsertMultiBranch, 
 	}
 
 	// Optional column list
-	if p.cur.Type == '(' && p.isColumnList() {
+	if p.curIs('(') && p.isColumnList() {
 		p.advance() // consume '('
 		cols, err := p.parseIdentList()
 		if err != nil {
@@ -201,7 +201,7 @@ func (p *Parser) parseInsertMultiBranch(when ast.Node) (*ast.InsertMultiBranch, 
 	}
 
 	// Optional VALUES (exprs)
-	if p.cur.Type == kwVALUES {
+	if p.curIs(kwVALUES) {
 		p.advance() // consume VALUES
 		if _, err := p.expect('('); err != nil {
 			return nil, err
@@ -236,10 +236,9 @@ func (p *Parser) parseValuesRows() ([][]ast.Node, error) {
 	}
 	rows = append(rows, row)
 
-	for p.cur.Type == ',' {
+	for p.curIs(',') {
 		// Peek: is the next token '(' to start another row?
-		next := p.peekNext()
-		if next.Type != '(' {
+		if !p.nextIs('(') {
 			break
 		}
 		p.advance() // consume ','
@@ -271,7 +270,7 @@ func (p *Parser) parseValueRow() ([]ast.Node, error) {
 // parseInsertQuery parses the driving SELECT for an INSERT statement.
 // Supports both SELECT and WITH ... SELECT.
 func (p *Parser) parseInsertQuery() (ast.Node, error) {
-	if p.cur.Type == kwWITH {
+	if p.curIs(kwWITH) {
 		return p.parseWithQueryExpr()
 	}
 	return p.parseQueryExpr()
@@ -288,7 +287,7 @@ func (p *Parser) parseIdentList() ([]ast.Ident, error) {
 	}
 	idents = append(idents, id)
 
-	for p.cur.Type == ',' {
+	for p.curIs(',') {
 		p.advance() // consume ','
 		id, err = p.parseIdent()
 		if err != nil {
@@ -305,7 +304,6 @@ func (p *Parser) parseIdentList() ([]ast.Ident, error) {
 // It peeks at the next token: if it's a SELECT or WITH keyword, it's a
 // subquery, not a column list.
 func (p *Parser) isColumnList() bool {
-	next := p.peekNext()
 	// If the first token inside '(' is SELECT or WITH, it's a subquery.
-	return next.Type != kwSELECT && next.Type != kwWITH
+	return !p.nextIs(kwSELECT) && !p.nextIs(kwWITH)
 }

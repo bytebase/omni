@@ -72,7 +72,7 @@ func (p *Parser) parseCreateTagStmt(start ast.Loc, orReplace, orAlter bool) (ast
 	// Optional ALLOWED_VALUES '<v>' [, ...] — the one anchor the docs require
 	// first. PROPAGATE is NOT a starter for ALLOWED_VALUES, so it is captured as
 	// an ordinary option below.
-	if p.cur.Type == kwALLOWED_VALUES {
+	if p.curIs(kwALLOWED_VALUES) {
 		p.advance() // consume ALLOWED_VALUES
 		values, err := p.parseTagStringList()
 		if err != nil {
@@ -121,8 +121,8 @@ func (p *Parser) parseAlterTagStmt() (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	switch p.cur.Type {
-	case kwRENAME:
+	switch {
+	case p.curIs(kwRENAME):
 		// RENAME TO <new_name>
 		p.advance() // consume RENAME
 		if _, err := p.expect(kwTO); err != nil {
@@ -135,9 +135,9 @@ func (p *Parser) parseAlterTagStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterTagRename
 		stmt.NewName = newName
 
-	case kwADD, kwDROP:
+	case p.curIs(kwADD), p.curIs(kwDROP):
 		// { ADD | DROP } ALLOWED_VALUES '<v>' [ , ... ]
-		add := p.cur.Type == kwADD
+		add := p.curIs(kwADD)
 		p.advance() // consume ADD / DROP
 		if _, err := p.expect(kwALLOWED_VALUES); err != nil {
 			return nil, err
@@ -153,9 +153,9 @@ func (p *Parser) parseAlterTagStmt() (ast.Node, error) {
 		}
 		stmt.AllowedValues = values
 
-	case kwSET:
+	case p.curIs(kwSET):
 		p.advance() // consume SET
-		if p.cur.Type == kwMASKING {
+		if p.curIs(kwMASKING) {
 			// SET MASKING POLICY <p> [ , MASKING POLICY <p2> ... ] [ FORCE ]
 			policies, err := p.parseMaskingPolicyList()
 			if err != nil {
@@ -163,7 +163,7 @@ func (p *Parser) parseAlterTagStmt() (ast.Node, error) {
 			}
 			stmt.Action = ast.AlterTagSetMaskingPolicy
 			stmt.MaskingPolicies = policies
-			if p.cur.Type == kwFORCE {
+			if p.curIs(kwFORCE) {
 				p.advance() // consume FORCE
 				stmt.Force = true
 			}
@@ -174,9 +174,9 @@ func (p *Parser) parseAlterTagStmt() (ast.Node, error) {
 			return nil, err
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
-		if p.cur.Type == kwMASKING {
+		if p.curIs(kwMASKING) {
 			// UNSET MASKING POLICY <p> [ , MASKING POLICY <p2> ... ]
 			policies, err := p.parseMaskingPolicyList()
 			if err != nil {
@@ -211,7 +211,7 @@ func (p *Parser) parseAlterTagStmt() (ast.Node, error) {
 // ALLOWED_VALUES is lifted into AllowedValues; every other clause is open-ended.
 // SET with nothing settable is a syntax error. cur is positioned just past SET.
 func (p *Parser) parseAlterTagSet(stmt *ast.AlterTagStmt) error {
-	if p.cur.Type == kwALLOWED_VALUES {
+	if p.curIs(kwALLOWED_VALUES) {
 		p.advance() // consume ALLOWED_VALUES
 		values, err := p.parseTagStringList()
 		if err != nil {
@@ -332,8 +332,8 @@ func (p *Parser) parseCreateSemanticViewStmt(start ast.Loc, orReplace, orAlter b
 // AI_VERIFIED_QUERIES). AI_VERIFIED_QUERIES is not a reserved keyword, so it
 // lexes as an identifier and is matched by text.
 func (p *Parser) startsSemanticViewSection() bool {
-	switch p.cur.Type {
-	case kwTABLES, kwRELATIONSHIPS, kwFACTS, kwDIMENSIONS, kwMETRICS:
+	switch {
+	case p.curIs(kwTABLES), p.curIs(kwRELATIONSHIPS), p.curIs(kwFACTS), p.curIs(kwDIMENSIONS), p.curIs(kwMETRICS):
 		return true
 	}
 	return p.curIsWord("AI_VERIFIED_QUERIES")
@@ -364,10 +364,10 @@ func (p *Parser) parseSemanticViewSection() (*ast.SemanticViewSection, error) {
 // startsSemanticViewTags reports whether the current position begins a [WITH]
 // TAG clause (TAG directly, or WITH immediately followed by TAG).
 func (p *Parser) startsSemanticViewTags() bool {
-	if p.cur.Type == kwTAG {
+	if p.curIs(kwTAG) {
 		return true
 	}
-	return p.cur.Type == kwWITH && p.peekNext().Type == kwTAG
+	return p.curIs(kwWITH) && p.nextIs(kwTAG)
 }
 
 // startsSemanticViewOption reports whether the current token can begin a trailing
@@ -375,8 +375,8 @@ func (p *Parser) startsSemanticViewTags() bool {
 // the COPY option predicate minus the structural keywords that anchor a trailing
 // clause: WITH / TAG ([WITH] TAG) and COPY (COPY GRANTS).
 func (p *Parser) startsSemanticViewOption() bool {
-	switch p.cur.Type {
-	case kwWITH, kwTAG, kwCOPY:
+	switch {
+	case p.curIs(kwWITH), p.curIs(kwTAG), p.curIs(kwCOPY):
 		return false
 	}
 	return p.startsCopyOption()
@@ -391,7 +391,7 @@ func (p *Parser) parseSemanticViewOption() (*ast.CopyOption, error) {
 	// follows the keyword directly with no '='. A string literal immediately after
 	// the option name (with no intervening '=') marks this bare form; COMMENT = '…'
 	// instead has '=' as the next token and so falls through to parseCopyOption.
-	if p.peekNext().Type == tokString {
+	if p.nextIs(tokString) {
 		nameTok := p.advance() // consume the option name
 		valTok := p.advance()  // consume the string literal
 		return &ast.CopyOption{
@@ -442,8 +442,8 @@ func (p *Parser) parseAlterSemanticViewStmt() (ast.Node, error) {
 		return stmt, nil
 	}
 
-	switch p.cur.Type {
-	case kwRENAME:
+	switch {
+	case p.curIs(kwRENAME):
 		// RENAME TO <new_name>
 		p.advance() // consume RENAME
 		if _, err := p.expect(kwTO); err != nil {
@@ -456,9 +456,9 @@ func (p *Parser) parseAlterSemanticViewStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterSemanticViewRename
 		stmt.NewName = newName
 
-	case kwSET:
+	case p.curIs(kwSET):
 		p.advance() // consume SET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			// SET TAG <tag> = '<value>' [ , ... ]
 			tags, err := p.parseTagSetList()
 			if err != nil {
@@ -483,9 +483,9 @@ func (p *Parser) parseAlterSemanticViewStmt() (ast.Node, error) {
 			stmt.Options = opts
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			// UNSET TAG <tag> [ , ... ]
 			names, err := p.parseUnsetTagNameList()
 			if err != nil {
@@ -538,7 +538,7 @@ func (p *Parser) parseCreateDatasetStmt(start ast.Loc, orReplace, orAlter bool) 
 		Loc:       ast.Loc{Start: start.Start},
 	}
 
-	if p.cur.Type == kwIF {
+	if p.curIs(kwIF) {
 		if orReplace || orAlter {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -570,27 +570,27 @@ func (p *Parser) parseCreateDatasetStmt(start ast.Loc, orReplace, orAlter bool) 
 // clauses after its query: PARTITION BY, COMMENT =, or METADATA =. It
 // consumes nothing.
 func (p *Parser) startsDatasetVersionClause() bool {
-	if p.cur.Type == kwPARTITION {
-		return p.peekNext().Type == kwBY
+	if p.curIs(kwPARTITION) {
+		return p.nextIs(kwBY)
 	}
-	return (isWordToken(p.cur, "COMMENT") || isWordToken(p.cur, "METADATA")) && p.peekNext().Type == '='
+	return (p.curWord("COMMENT") || p.curWord("METADATA")) && p.nextIs('=')
 }
 
 // startsIfNotExistsDataset reports whether cur begins IF NOT EXISTS DATASET.
 // It consumes nothing.
 func (p *Parser) startsIfNotExistsDataset() bool {
-	if p.cur.Type != kwIF || p.peekNext().Type != kwNOT {
+	if !p.curIs(kwIF) || !p.nextIs(kwNOT) {
 		return false
 	}
 	snap := p.snapshot()
 	defer p.restore(snap)
 	p.advance() // IF
 	p.advance() // NOT
-	if p.cur.Type != kwEXISTS {
+	if !p.curIs(kwEXISTS) {
 		return false
 	}
 	p.advance() // EXISTS
-	return p.cur.Type == kwDATASET
+	return p.curIs(kwDATASET)
 }
 
 // ---------------------------------------------------------------------------
@@ -633,7 +633,7 @@ func (p *Parser) parseAlterDatasetStmt(start ast.Loc) (ast.Node, error) {
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
-	if p.cur.Type == tokString {
+	if p.curIs(tokString) {
 		tok := p.advance()
 		stmt.Version = ast.Ident{Name: tok.Str, Quoted: true, Loc: tok.Loc}
 	} else {
@@ -654,7 +654,7 @@ func (p *Parser) parseAlterDatasetStmt(start ast.Loc) (ast.Node, error) {
 	// last item or table takes no implicit alias that starts one of them.
 	outer := p.inDatasetQuery
 	p.inDatasetQuery = true
-	if p.cur.Type == kwWITH {
+	if p.curIs(kwWITH) {
 		stmt.Query, err = p.parseWithQueryExpr()
 	} else {
 		stmt.Query, err = p.parseQueryExpr()
@@ -663,7 +663,7 @@ func (p *Parser) parseAlterDatasetStmt(start ast.Loc) (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	if p.cur.Type == kwPARTITION {
+	if p.curIs(kwPARTITION) {
 		p.advance() // consume PARTITION
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
@@ -704,7 +704,7 @@ func (p *Parser) parseTagStringList() ([]string, error) {
 			return nil, err
 		}
 		values = append(values, tok.Str)
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -733,7 +733,7 @@ func (p *Parser) parseMaskingPolicyList() ([]*ast.ObjectName, error) {
 			return nil, err
 		}
 		policies = append(policies, name)
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}

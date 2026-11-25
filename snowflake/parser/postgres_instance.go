@@ -77,7 +77,7 @@ func parseCreatePostgresInstance(p *Parser, s *ast.ObjectStmt) error {
 			return err
 		}
 		p.addObjectKeywordsClause(s, "FORK", start).Names = []*ast.ObjectName{src}
-		if p.cur.Type == kwAT || p.cur.Type == kwBEFORE {
+		if p.curIs(kwAT) || p.curIs(kwBEFORE) {
 			if err := parsePostgresInstanceForkPoint(p, s); err != nil {
 				return err
 			}
@@ -117,10 +117,10 @@ func parsePostgresInstanceForkPoint(p *Parser, s *ast.ObjectStmt) error {
 	if _, err := p.expect('('); err != nil {
 		return err
 	}
-	switch p.cur.Type {
-	case kwTIMESTAMP:
+	switch {
+	case p.curIs(kwTIMESTAMP):
 		tt.Anchor = ast.TimeTravelTimestamp
-	case kwOFFSET:
+	case p.curIs(kwOFFSET):
 		tt.Anchor = ast.TimeTravelOffset
 	default:
 		return p.syntaxErrorAtCur()
@@ -129,7 +129,7 @@ func parsePostgresInstanceForkPoint(p *Parser, s *ast.ObjectStmt) error {
 	if _, err := p.expect(tokAssoc); err != nil {
 		return err
 	}
-	if tt.Anchor == ast.TimeTravelOffset && p.cur.Type != '-' {
+	if tt.Anchor == ast.TimeTravelOffset && !p.curIs('-') {
 		// An offset counts back from now: -N.
 		return p.syntaxErrorAtCur()
 	}
@@ -187,7 +187,7 @@ func parseAlterPostgresInstance(p *Parser, s *ast.ObjectStmt) error {
 		}
 		p.addObjectKeywordsClause(s, "RESET ACCESS FOR", start).Options = []*ast.CopyOption{lit}
 		return nil
-	case p.cur.Type == kwSET && p.peekNext().Type != kwTAG:
+	case p.curIs(kwSET) && !p.nextIs(kwTAG):
 		p.advance() // consume SET
 		c, err := p.parseObjectProperties(s, "SET", false)
 		if err != nil {
@@ -230,7 +230,7 @@ func parseAlterPostgresInstance(p *Parser, s *ast.ObjectStmt) error {
 
 // parsePostgresInstanceString reads a '<string>' into an option with no name.
 func parsePostgresInstanceString(p *Parser) (*ast.CopyOption, error) {
-	if p.cur.Type != tokString {
+	if !p.curIs(tokString) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	lit, err := p.parseCopyLiteral()

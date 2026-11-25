@@ -39,7 +39,7 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 	stmt := &ast.ShowStmt{Loc: ast.Loc{Start: start.Start}}
 
 	// SHOW GRANTS ... and SHOW FUTURE GRANTS ... are handled specially.
-	if p.cur.Type == kwGRANTS {
+	if p.curIs(kwGRANTS) {
 		p.advance() // consume GRANTS
 		if err := p.parseShowGrantsOpts(stmt); err != nil {
 			return nil, err
@@ -53,7 +53,7 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 		stmt.Loc.End = p.prev.Loc.End
 		return stmt, nil
 	}
-	if p.cur.Type == kwFUTURE && p.peekNext().Type == kwGRANTS {
+	if p.curIs(kwFUTURE) && p.nextIs(kwGRANTS) {
 		p.advance() // consume FUTURE
 		p.advance() // consume GRANTS
 		stmt.IsGrants = true
@@ -72,7 +72,7 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 	}
 
 	// Optional TERSE.
-	if p.cur.Type == kwTERSE {
+	if p.curIs(kwTERSE) {
 		p.advance()
 		stmt.Terse = true
 	}
@@ -85,13 +85,13 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 	stmt.ObjectClass = class
 
 	// Optional HISTORY.
-	if p.cur.Type == kwHISTORY {
+	if p.curIs(kwHISTORY) {
 		p.advance()
 		stmt.History = true
 	}
 
 	// Optional LIKE '<pat>'.
-	if p.cur.Type == kwLIKE {
+	if p.curIs(kwLIKE) {
 		p.advance() // consume LIKE
 		pat, err := p.expect(tokString)
 		if err != nil {
@@ -103,7 +103,7 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 
 	// Optional IN/FOR <scope>, then the clause a class writes after it.
 	bareScope := false
-	if p.cur.Type == kwIN || p.cur.Type == kwFOR {
+	if p.curIs(kwIN) || p.curIs(kwFOR) {
 		afterIn := p.peekNext().Loc.Start
 		if err := p.parseShowScope(stmt); err != nil {
 			return nil, err
@@ -116,7 +116,7 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 
 	// SHOW NODES IN COMPUTE POOL <name> [ LIKE '<pattern>' ] writes LIKE after
 	// its scope (https://docs.snowflake.com/en/sql-reference/sql/show-nodes-compute-pool).
-	if stmt.ObjectClass == "NODES" && !stmt.HasLike && p.cur.Type == kwLIKE {
+	if stmt.ObjectClass == "NODES" && !stmt.HasLike && p.curIs(kwLIKE) {
 		p.advance() // consume LIKE
 		pat, err := p.expect(tokString)
 		if err != nil {
@@ -127,7 +127,7 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 	}
 
 	// Optional STARTS WITH '<s>'.
-	if p.cur.Type == kwSTARTS {
+	if p.curIs(kwSTARTS) {
 		p.advance() // consume STARTS
 		if _, err := p.expect(kwWITH); err != nil {
 			return nil, err
@@ -141,7 +141,7 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 	}
 
 	// Optional LIMIT <n> [FROM '<s>'].
-	if p.cur.Type == kwLIMIT {
+	if p.curIs(kwLIMIT) {
 		p.advance() // consume LIMIT
 		n, err := p.expect(tokInt)
 		if err != nil {
@@ -149,7 +149,7 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 		}
 		stmt.Limit = n.Str
 		stmt.HasLimit = true
-		if p.cur.Type == kwFROM {
+		if p.curIs(kwFROM) {
 			p.advance() // consume FROM
 			from, err := p.expect(tokString)
 			if err != nil {
@@ -170,7 +170,7 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 	}
 
 	// Optional WITH PRIVILEGES <priv> [, ...].
-	if p.cur.Type == kwWITH && p.peekNext().Type == kwPRIVILEGES {
+	if p.curIs(kwWITH) && p.nextIs(kwPRIVILEGES) {
 		p.advance() // consume WITH
 		p.advance() // consume PRIVILEGES
 		privs, err := p.parseShowPrivilegeList()
@@ -215,11 +215,11 @@ func (p *Parser) parseShowObjectClass() (string, error) {
 // class run — i.e. it is a name word and not one of the structural keywords that
 // terminate the class.
 func (p *Parser) startsShowClassWord() bool {
-	switch p.cur.Type {
-	case kwHISTORY, kwLIKE, kwIN, kwFOR, kwSTARTS, kwLIMIT, kwWITH, kwOF, tokFlow, tokEOF:
+	switch {
+	case p.curIs(kwHISTORY), p.curIs(kwLIKE), p.curIs(kwIN), p.curIs(kwFOR), p.curIs(kwSTARTS), p.curIs(kwLIMIT), p.curIs(kwWITH), p.curIs(kwOF), p.curIs(tokFlow), p.curIs(tokEOF):
 		return false
 	}
-	if p.peekNext().Type == '=' {
+	if p.nextIs('=') {
 		// A filter's name (SHOW AVAILABLE LISTINGS IS_IMPORTED = TRUE).
 		return false
 	}
@@ -277,34 +277,34 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		return p.parseShowModelScope(stmt, word)
 	}
 
-	switch p.cur.Type {
-	case kwACCOUNT:
+	switch {
+	case p.curIs(kwACCOUNT):
 		p.advance()
 		stmt.Scope = ast.ShowScopeAccount
 		return nil
-	case kwDATABASE:
+	case p.curIs(kwDATABASE):
 		p.advance()
 		stmt.Scope = ast.ShowScopeDatabase
 		return p.parseOptionalScopeName(stmt)
-	case kwSCHEMA:
+	case p.curIs(kwSCHEMA):
 		p.advance()
 		stmt.Scope = ast.ShowScopeSchema
 		return p.parseOptionalScopeName(stmt)
-	case kwTABLE:
+	case p.curIs(kwTABLE):
 		p.advance()
 		stmt.Scope = ast.ShowScopeTable
 		return p.parseOptionalScopeName(stmt)
-	case kwVIEW:
+	case p.curIs(kwVIEW):
 		p.advance()
 		stmt.Scope = ast.ShowScopeView
 		return p.parseOptionalScopeName(stmt)
-	case kwEXTERNAL:
+	case p.curIs(kwEXTERNAL):
 		// FOR EXTERNAL CONSUMER <name> (sharing.go); otherwise a schema
 		// named EXTERNAL.
-		if isWordToken(p.peekNext(), "CONSUMER") {
+		if p.nextWord("CONSUMER") {
 			return p.parseShowExternalConsumerScope(stmt)
 		}
-	case kwSESSION, kwUSER, kwWAREHOUSE, kwTASK, kwAPPLICATION, kwCONNECTION:
+	case p.curIs(kwSESSION), p.curIs(kwUSER), p.curIs(kwWAREHOUSE), p.curIs(kwTASK), p.curIs(kwAPPLICATION), p.curIs(kwCONNECTION):
 		// Non-container scope keyword (SHOW PARAMETERS / SHOW ... contexts).
 		tok := p.advance()
 		stmt.Scope = ast.ShowScopeOther
@@ -322,7 +322,7 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 			return p.parseOptionalScopeName(stmt)
 		}
 		return nil
-	case kwFAILOVER, kwREPLICATION:
+	case p.curIs(kwFAILOVER), p.curIs(kwREPLICATION):
 		// IN FAILOVER GROUP <name> | IN REPLICATION GROUP <name>
 		// (SHOW DATABASES / SHOW SHARES scopes). Without this case the
 		// bare-name fallback below consumed FAILOVER/REPLICATION as a schema
@@ -345,9 +345,9 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 	// SHOW COMMITTED TASKS ... IN GRAPH <graph_name>
 	// https://docs.snowflake.com/en/sql-reference/sql/show-committed-tasks
 	// (IN GRAPH alone, or before STARTS WITH or LIMIT, is the schema GRAPH.)
-	if next := p.peekNext(); stmt.ObjectClass == "COMMITTED TASKS" && isWordToken(p.cur, "GRAPH") &&
-		(isNameWordTok(next) || next.Type == tokQuotedIdent) &&
-		next.Type != kwSTARTS && next.Type != kwLIMIT && next.Type != kwWITH {
+	if next := p.peekNext(); stmt.ObjectClass == "COMMITTED TASKS" && p.curWord("GRAPH") &&
+		(isNameWordTok(next) || p.nextIs(tokQuotedIdent)) &&
+		!p.nextIs(kwSTARTS) && !p.nextIs(kwLIMIT) && !p.nextIs(kwWITH) {
 		p.advance() // consume GRAPH
 		name, err := p.parseObjectSimpleName()
 		if err != nil {
@@ -436,8 +436,8 @@ func (p *Parser) parseOptionalScopeName(stmt *ast.ShowStmt) error {
 // name. It excludes the structural keywords that may follow a scope clause
 // (STARTS, LIMIT, the pipe, EOF) so an absent name is handled gracefully.
 func (p *Parser) startsScopeName() bool {
-	switch p.cur.Type {
-	case kwSTARTS, kwLIMIT, kwWITH, tokFlow, tokEOF, ';':
+	switch {
+	case p.curIs(kwSTARTS), p.curIs(kwLIMIT), p.curIs(kwWITH), p.curIs(tokFlow), p.curIs(tokEOF), p.curIs(';'):
 		return false
 	}
 	return p.isObjectTypeWord(p.cur.Type)
@@ -454,7 +454,7 @@ func (p *Parser) parseShowPrivilegeList() ([]*ast.Privilege, error) {
 			return nil, err
 		}
 		privs = append(privs, priv)
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -476,7 +476,7 @@ func (p *Parser) parseShowPrivilege() (*ast.Privilege, error) {
 	b.WriteString(strings.ToUpper(first.Str))
 	endLoc := first.Loc
 	for {
-		if p.cur.Type == ',' || p.cur.Type == tokFlow || p.cur.Type == tokEOF {
+		if p.curIs(',') || p.curIs(tokFlow) || p.curIs(tokEOF) {
 			break
 		}
 		if !p.isPrivilegeWord(p.cur.Type) {
@@ -496,7 +496,7 @@ func (p *Parser) parseShowPrivilege() (*ast.Privilege, error) {
 // parseShowPipe parses an optional trailing result pipe: ->> <query>. The piped
 // statement is parsed as a full top-level statement (typically a SELECT).
 func (p *Parser) parseShowPipe(stmt *ast.ShowStmt) error {
-	if p.cur.Type != tokFlow {
+	if !p.curIs(tokFlow) {
 		return nil
 	}
 	p.advance() // consume ->>
@@ -523,8 +523,8 @@ func (p *Parser) parseShowPipe(stmt *ast.ShowStmt) error {
 func (p *Parser) parseShowGrantsOpts(stmt *ast.ShowStmt) error {
 	stmt.IsGrants = true
 
-	switch p.cur.Type {
-	case kwON:
+	switch {
+	case p.curIs(kwON):
 		p.advance() // consume ON
 		target, err := p.parseGrantTarget()
 		if err != nil {
@@ -532,11 +532,11 @@ func (p *Parser) parseShowGrantsOpts(stmt *ast.ShowStmt) error {
 		}
 		stmt.GrantsOn = target
 		return nil
-	case kwTO:
+	case p.curIs(kwTO):
 		p.advance() // consume TO
 		// The page's INCLUDE HIERARCHY forms name ROLE, DATABASE ROLE or
 		// USER, so a bare role name takes no clause.
-		explicit := p.cur.Type == kwROLE || p.cur.Type == kwDATABASE || p.cur.Type == kwUSER
+		explicit := p.curIs(kwROLE) || p.curIs(kwDATABASE) || p.curIs(kwUSER)
 		grantee, err := p.parseGrantee()
 		if err != nil {
 			return err
@@ -546,7 +546,7 @@ func (p *Parser) parseShowGrantsOpts(stmt *ast.ShowStmt) error {
 			p.parseShowGrantsIncludeHierarchy(stmt)
 		}
 		return p.parseShowGrantsToShareIn(stmt)
-	case kwOF:
+	case p.curIs(kwOF):
 		p.advance() // consume OF
 		grantee, err := p.parseGrantee()
 		if err != nil {
@@ -554,7 +554,7 @@ func (p *Parser) parseShowGrantsOpts(stmt *ast.ShowStmt) error {
 		}
 		stmt.GrantsTo = grantee
 		return nil
-	case kwIN:
+	case p.curIs(kwIN):
 		// IN DCM PROJECT <name> (project.go).
 		p.advance() // consume IN
 		words := p.startsShowProjectScope("GRANTS")
@@ -577,19 +577,19 @@ func (p *Parser) parseShowGrantsOpts(stmt *ast.ShowStmt) error {
 // container); the TO grantee reuses the GRANT/REVOKE grantee grammar. Documented
 // by Snowflake (the legacy grammar only had the IN forms).
 func (p *Parser) parseShowFutureGrants(stmt *ast.ShowStmt) error {
-	switch p.cur.Type {
-	case kwIN:
+	switch {
+	case p.curIs(kwIN):
 		p.advance() // consume IN
 		// IN DCM PROJECT <name> (project.go).
 		if words := p.startsShowProjectScope("GRANTS"); words != nil {
 			return p.parseShowProjectScope(stmt, words)
 		}
 		target := &ast.GrantTarget{Kind: ast.GrantTargetAllIn}
-		switch p.cur.Type {
-		case kwDATABASE:
+		switch {
+		case p.curIs(kwDATABASE):
 			p.advance() // consume DATABASE
 			target.Container = ast.GrantContainerDatabase
-		case kwSCHEMA:
+		case p.curIs(kwSCHEMA):
 			p.advance() // consume SCHEMA
 			target.Container = ast.GrantContainerSchema
 		default:
@@ -604,9 +604,9 @@ func (p *Parser) parseShowFutureGrants(stmt *ast.ShowStmt) error {
 		stmt.GrantsOn = target
 		return nil
 
-	case kwTO:
+	case p.curIs(kwTO):
 		p.advance() // consume TO
-		explicit := p.cur.Type == kwROLE || p.cur.Type == kwDATABASE
+		explicit := p.curIs(kwROLE) || p.curIs(kwDATABASE)
 		grantee, err := p.parseGrantee()
 		if err != nil {
 			return err
@@ -649,7 +649,7 @@ func (p *Parser) parseShowGrantsIncludeHierarchy(stmt *ast.ShowStmt) {
 // GRANTS / SHOW FUTURE GRANTS statement. (Documented by Snowflake; absent from
 // the legacy grammar's show_grants rule.) Reuses the ShowStmt.Limit fields.
 func (p *Parser) parseShowLimit(stmt *ast.ShowStmt) error {
-	if p.cur.Type != kwLIMIT {
+	if !p.curIs(kwLIMIT) {
 		return nil
 	}
 	p.advance() // consume LIMIT
@@ -703,8 +703,8 @@ func (p *Parser) parseDescribeStmt(short bool) (ast.Node, error) {
 	}
 
 	// Decide whether the final `unit` is the object name or the tail of the type.
-	switch p.cur.Type {
-	case kwON:
+	switch {
+	case p.curIs(kwON):
 		// SEARCH OPTIMIZATION ON <name>: the whole unit run is the type; the name
 		// is introduced by ON.
 		typeWords = append(typeWords, strings.ToUpper(unit.String()))
@@ -718,7 +718,7 @@ func (p *Parser) parseDescribeStmt(short bool) (ast.Node, error) {
 		stmt.Loc.End = p.prev.Loc.End
 		return stmt, nil
 
-	case tokString, tokInt, tokFloat:
+	case p.curIs(tokString), p.curIs(tokInt), p.curIs(tokFloat):
 		// RESULT '<id>' / TRANSACTION <n>: the whole unit run is the type; the
 		// name is a literal.
 		typeWords = append(typeWords, strings.ToUpper(unit.String()))
@@ -753,7 +753,7 @@ func (p *Parser) parseDescribeStmt(short bool) (ast.Node, error) {
 	}
 
 	// Optional FUNCTION/PROCEDURE argument-type signature.
-	if stmt.TableArgs == nil && p.cur.Type == '(' {
+	if stmt.TableArgs == nil && p.curIs('(') {
 		sig, err := p.parseGrantSignature()
 		if err != nil {
 			return nil, err
@@ -769,7 +769,7 @@ func (p *Parser) parseDescribeStmt(short bool) (ast.Node, error) {
 	}
 
 	// Optional TYPE = <kw>.
-	if p.cur.Type == kwTYPE {
+	if p.curIs(kwTYPE) {
 		p.advance() // consume TYPE
 		if _, err := p.expect('='); err != nil {
 			return nil, err
@@ -790,8 +790,8 @@ func (p *Parser) parseDescribeStmt(short bool) (ast.Node, error) {
 // name word and not a terminator. Terminators: '(' (signature), TYPE, ON
 // (SEARCH OPTIMIZATION ON), a literal (RESULT/TRANSACTION), and EOF.
 func (p *Parser) startsDescribeNameUnit() bool {
-	switch p.cur.Type {
-	case '(', kwTYPE, kwON, tokString, tokInt, tokFloat, tokEOF, ';':
+	switch {
+	case p.curIs('('), p.curIs(kwTYPE), p.curIs(kwON), p.curIs(tokString), p.curIs(tokInt), p.curIs(tokFloat), p.curIs(tokEOF), p.curIs(';'):
 		return false
 	}
 	if p.startsListingRevision() {
@@ -803,14 +803,14 @@ func (p *Parser) startsDescribeNameUnit() bool {
 // parseDescribeNameLiteral parses a literal name for DESCRIBE RESULT '<id>' or
 // DESCRIBE TRANSACTION <num>.
 func (p *Parser) parseDescribeNameLiteral() (*ast.Literal, error) {
-	switch p.cur.Type {
-	case tokString:
+	switch {
+	case p.curIs(tokString):
 		tok := p.advance()
 		return &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}, nil
-	case tokInt:
+	case p.curIs(tokInt):
 		tok := p.advance()
 		return &ast.Literal{Kind: ast.LitInt, Value: tok.Str, Ival: tok.Ival, Loc: tok.Loc}, nil
-	case tokFloat:
+	case p.curIs(tokFloat):
 		tok := p.advance()
 		return &ast.Literal{Kind: ast.LitFloat, Value: tok.Str, Loc: tok.Loc}, nil
 	}

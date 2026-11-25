@@ -51,7 +51,7 @@ var docDrops = []docDrop{
 // startsDocDrop reports the docDrop whose keywords start at cur, the word
 // after DROP. It consumes nothing.
 func (p *Parser) startsDocDrop() *docDrop {
-	if p.cur.Type != tokIdent && p.cur.Type < 700 {
+	if !p.curIs(tokIdent) && p.cur.Type < 700 {
 		return nil
 	}
 	for i := range docDrops {

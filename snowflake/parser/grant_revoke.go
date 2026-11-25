@@ -37,13 +37,13 @@ func (p *Parser) parseGrantStmt() (ast.Node, error) {
 	start := grantTok.Loc
 
 	switch {
-	case p.cur.Type == kwOWNERSHIP:
+	case p.curIs(kwOWNERSHIP):
 		return p.parseGrantOwnership(start)
-	case p.cur.Type == kwROLE:
+	case p.curIs(kwROLE):
 		return p.parseGrantRole(start, ast.GrantedAccountRole)
-	case p.cur.Type == kwDATABASE && p.peekNext().Type == kwROLE:
+	case p.curIs(kwDATABASE) && p.nextIs(kwROLE):
 		return p.parseGrantRole(start, ast.GrantedDatabaseRole)
-	case p.cur.Type == kwAPPLICATION && p.peekNext().Type == kwROLE:
+	case p.curIs(kwAPPLICATION) && p.nextIs(kwROLE):
 		return p.parseGrantRole(start, ast.GrantedApplicationRole)
 	case p.atWords("SERVICE", "ROLE"):
 		return p.parseGrantRole(start, ast.GrantedServiceRole)
@@ -90,7 +90,7 @@ func (p *Parser) parseGrantRole(start ast.Loc, roleKind ast.GrantedRoleKind) (as
 	if _, err := p.expect(kwTO); err != nil {
 		return nil, err
 	}
-	toRole := p.cur.Type == kwROLE
+	toRole := p.curIs(kwROLE)
 	grantee, err := p.parseGrantee()
 	if err != nil {
 		return nil, err
@@ -139,7 +139,7 @@ func (p *Parser) parseGrantRole(start ast.Loc, roleKind ast.GrantedRoleKind) (as
 
 // expectStringValue consumes a string literal and returns its value.
 func (p *Parser) expectStringValue() (string, error) {
-	if p.cur.Type != tokString {
+	if !p.curIs(tokString) {
 		return "", p.syntaxErrorAtCur()
 	}
 	return p.advance().Str, nil
@@ -226,17 +226,17 @@ func (p *Parser) parseGrantOwnership(start ast.Loc) (ast.Node, error) {
 	stmt.Grantee = grantee
 
 	// Optional { REVOKE | COPY } CURRENT GRANTS.
-	switch p.cur.Type {
-	case kwREVOKE:
-		if p.peekNext().Type == kwCURRENT {
+	switch {
+	case p.curIs(kwREVOKE):
+		if p.nextIs(kwCURRENT) {
 			p.advance() // consume REVOKE
 			if err := p.expectCurrentGrants(); err != nil {
 				return nil, err
 			}
 			stmt.CurrentGrants = ast.CurrentGrantsRevoke
 		}
-	case kwCOPY:
-		if p.peekNext().Type == kwCURRENT {
+	case p.curIs(kwCOPY):
+		if p.nextIs(kwCURRENT) {
 			p.advance() // consume COPY
 			if err := p.expectCurrentGrants(); err != nil {
 				return nil, err
@@ -284,7 +284,7 @@ func (p *Parser) parseGrantPrivileges(start ast.Loc) (ast.Node, error) {
 	stmt.Grantee = grantee
 
 	// Optional WITH GRANT OPTION.
-	if p.cur.Type == kwWITH && p.peekNext().Type == kwGRANT {
+	if p.curIs(kwWITH) && p.nextIs(kwGRANT) {
 		p.advance() // consume WITH
 		p.advance() // consume GRANT
 		if _, err := p.expect(kwOPTION); err != nil {
@@ -314,13 +314,13 @@ func (p *Parser) parseRevokeStmt() (ast.Node, error) {
 	// REVOKE [DATABASE | APPLICATION] ROLE ... — a leading ROLE/DATABASE
 	// ROLE/APPLICATION ROLE is unambiguously a role revoke. GRANT OPTION FOR
 	// precedes privileges, or an APPLICATION ROLE (below).
-	if p.cur.Type == kwROLE {
+	if p.curIs(kwROLE) {
 		return p.parseRevokeRole(start, ast.GrantedAccountRole, false)
 	}
-	if p.cur.Type == kwDATABASE && p.peekNext().Type == kwROLE {
+	if p.curIs(kwDATABASE) && p.nextIs(kwROLE) {
 		return p.parseRevokeRole(start, ast.GrantedDatabaseRole, false)
 	}
-	if p.cur.Type == kwAPPLICATION && p.peekNext().Type == kwROLE {
+	if p.curIs(kwAPPLICATION) && p.nextIs(kwROLE) {
 		return p.parseRevokeRole(start, ast.GrantedApplicationRole, false)
 	}
 	if p.atWords("SERVICE", "ROLE") {
@@ -391,7 +391,7 @@ func (p *Parser) parseRevokeRole(start ast.Loc, roleKind ast.GrantedRoleKind, gr
 	if _, err := p.expect(kwFROM); err != nil {
 		return nil, err
 	}
-	fromRole := p.cur.Type == kwROLE
+	fromRole := p.curIs(kwROLE)
 	grantee, err := p.parseGrantee()
 	if err != nil {
 		return nil, err
@@ -404,11 +404,11 @@ func (p *Parser) parseRevokeRole(start ast.Loc, roleKind ast.GrantedRoleKind, gr
 	}
 
 	if roleGrantOptionTarget(roleKind, grantee, fromRole) {
-		switch p.cur.Type {
-		case kwCASCADE:
+		switch {
+		case p.curIs(kwCASCADE):
 			p.advance()
 			stmt.Cascade = true
-		case kwRESTRICT:
+		case p.curIs(kwRESTRICT):
 			p.advance()
 			stmt.Restrict = true
 		}
@@ -434,7 +434,7 @@ func (p *Parser) parseRevokePrivileges(start ast.Loc) (ast.Node, error) {
 	}
 
 	// Optional GRANT OPTION FOR.
-	if p.cur.Type == kwGRANT && p.peekNext().Type == kwOPTION {
+	if p.curIs(kwGRANT) && p.nextIs(kwOPTION) {
 		p.advance() // consume GRANT
 		p.advance() // consume OPTION
 		if _, err := p.expect(kwFOR); err != nil {
@@ -469,11 +469,11 @@ func (p *Parser) parseRevokePrivileges(start ast.Loc) (ast.Node, error) {
 	stmt.Grantee = grantee
 
 	// Optional CASCADE | RESTRICT.
-	switch p.cur.Type {
-	case kwCASCADE:
+	switch {
+	case p.curIs(kwCASCADE):
 		p.advance()
 		stmt.Cascade = true
-	case kwRESTRICT:
+	case p.curIs(kwRESTRICT):
 		p.advance()
 		stmt.Restrict = true
 	}
@@ -502,11 +502,10 @@ func (p *Parser) parsePrivilegeList() (bool, []*ast.Privilege, error) {
 	// it is immediately followed by PRIVILEGES or ON (i.e. ALL is the entire
 	// privilege spec). A privilege literally beginning with ALL is not a
 	// documented Snowflake form, so this is unambiguous.
-	if p.cur.Type == kwALL {
-		next := p.peekNext()
-		if next.Type == kwPRIVILEGES || next.Type == kwON {
+	if p.curIs(kwALL) {
+		if p.nextIs(kwPRIVILEGES) || p.nextIs(kwON) {
 			p.advance() // consume ALL
-			if p.cur.Type == kwPRIVILEGES {
+			if p.curIs(kwPRIVILEGES) {
 				p.advance() // consume PRIVILEGES
 			}
 			return true, nil, nil
@@ -521,7 +520,7 @@ func (p *Parser) parsePrivilegeList() (bool, []*ast.Privilege, error) {
 		}
 		privs = append(privs, priv)
 
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -550,7 +549,7 @@ func (p *Parser) parsePrivilege() (*ast.Privilege, error) {
 
 	for {
 		// Dotted continuation: name . name (class privilege).
-		if p.cur.Type == '.' && p.isPrivilegeWord(p.peekNext().Type) {
+		if p.curIs('.') && p.isPrivilegeWord(p.peekNext().Type) {
 			p.advance() // consume '.'
 			part := p.advance()
 			b.WriteByte('.')
@@ -559,7 +558,7 @@ func (p *Parser) parsePrivilege() (*ast.Privilege, error) {
 			continue
 		}
 		// Space-separated continuation: stop at ON / comma / structural tokens.
-		if p.cur.Type == kwON || p.cur.Type == ',' {
+		if p.curIs(kwON) || p.curIs(',') {
 			break
 		}
 		if !p.isPrivilegeWord(p.cur.Type) {
@@ -633,19 +632,19 @@ func inheritedCallerPrivileges(privs []*ast.Privilege) bool {
 func (p *Parser) parseGrantTargetFor(inheritedCaller bool) (*ast.GrantTarget, error) {
 	startLoc := p.cur.Loc
 
-	switch p.cur.Type {
-	case kwACCOUNT:
+	switch {
+	case p.curIs(kwACCOUNT):
 		p.advance() // consume ACCOUNT
 		return &ast.GrantTarget{
 			Kind: ast.GrantTargetAccount,
 			Loc:  ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End},
 		}, nil
 
-	case kwALL:
+	case p.curIs(kwALL):
 		p.advance() // consume ALL
 		return p.parseGrantTargetContainer(ast.GrantTargetAllIn, startLoc, inheritedCaller)
 
-	case kwFUTURE:
+	case p.curIs(kwFUTURE):
 		p.advance() // consume FUTURE
 		return p.parseGrantTargetContainer(ast.GrantTargetFutureIn, startLoc, false)
 
@@ -701,7 +700,7 @@ func (p *Parser) parseGrantTargetObject(startLoc ast.Loc) (*ast.GrantTarget, err
 	}
 
 	// Optional FUNCTION/PROCEDURE argument-type signature.
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		sig, err := p.parseGrantSignature()
 		if err != nil {
 			return nil, err
@@ -718,8 +717,8 @@ func (p *Parser) parseGrantTargetObject(startLoc ast.Loc) (*ast.GrantTarget, err
 // not a clause terminator. The object form's run ends at TO/FROM (the grantee
 // clause), '(' (a signature), comma, or EOF.
 func (p *Parser) startsGrantNameUnit() bool {
-	switch p.cur.Type {
-	case kwTO, kwFROM, '(', ',', tokEOF:
+	switch {
+	case p.curIs(kwTO), p.curIs(kwFROM), p.curIs('('), p.curIs(','), p.curIs(tokEOF):
 		return false
 	}
 	return p.isObjectTypeWord(p.cur.Type)
@@ -767,14 +766,14 @@ func (p *Parser) parseGrantTargetContainer(kind ast.GrantTargetKind, startLoc as
 	if _, err := p.expect(kwIN); err != nil {
 		return nil, err
 	}
-	switch p.cur.Type {
-	case kwDATABASE:
+	switch {
+	case p.curIs(kwDATABASE):
 		p.advance() // consume DATABASE
 		target.Container = ast.GrantContainerDatabase
-	case kwSCHEMA:
+	case p.curIs(kwSCHEMA):
 		p.advance() // consume SCHEMA
 		target.Container = ast.GrantContainerSchema
-	case kwACCOUNT:
+	case p.curIs(kwACCOUNT):
 		if !callerIn {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -782,7 +781,7 @@ func (p *Parser) parseGrantTargetContainer(kind ast.GrantTargetKind, startLoc as
 		target.Container = ast.GrantContainerAccount
 		target.Loc.End = p.prev.Loc.End
 		return target, nil
-	case kwAPPLICATION:
+	case p.curIs(kwAPPLICATION):
 		if !callerIn {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -820,14 +819,14 @@ func (p *Parser) parseGrantTargetContainer(kind ast.GrantTargetKind, startLoc as
 // position rather than swallowing the grantee clause. Requires at least one
 // word.
 func (p *Parser) parsePluralObjectType() (string, error) {
-	if !p.isObjectTypeWord(p.cur.Type) || p.cur.Type == kwIN {
+	if !p.isObjectTypeWord(p.cur.Type) || p.curIs(kwIN) {
 		return "", p.syntaxErrorAtCur()
 	}
 
 	var words []string
 	for p.isObjectTypeWord(p.cur.Type) {
-		switch p.cur.Type {
-		case kwIN, kwTO, kwFROM:
+		switch {
+		case p.curIs(kwIN), p.curIs(kwTO), p.curIs(kwFROM):
 			return strings.Join(words, " "), nil
 		}
 		tok := p.advance()
@@ -858,13 +857,13 @@ func (p *Parser) parseGrantSignature() ([]*ast.TypeName, error) {
 	p.advance() // consume '('
 
 	sig := []*ast.TypeName{}
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for !p.curIs(')') && !p.curIs(tokEOF) {
 		dt, err := p.parseDataType()
 		if err != nil {
 			return nil, err
 		}
 		sig = append(sig, dt)
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -892,25 +891,25 @@ func (p *Parser) parseGrantee() (*ast.Grantee, error) {
 	var kind ast.GranteeKind
 	bare := false
 
-	switch p.cur.Type {
-	case kwROLE:
+	switch {
+	case p.curIs(kwROLE):
 		p.advance() // consume ROLE
 		kind = ast.GranteeRole
-	case kwDATABASE:
+	case p.curIs(kwDATABASE):
 		p.advance() // consume DATABASE
 		if _, err := p.expect(kwROLE); err != nil {
 			return nil, err
 		}
 		kind = ast.GranteeDatabaseRole
-	case kwUSER:
+	case p.curIs(kwUSER):
 		p.advance() // consume USER
 		kind = ast.GranteeUser
-	case kwSHARE:
+	case p.curIs(kwSHARE):
 		p.advance() // consume SHARE
 		kind = ast.GranteeShare
-	case kwAPPLICATION:
+	case p.curIs(kwAPPLICATION):
 		p.advance() // consume APPLICATION
-		if p.cur.Type == kwROLE {
+		if p.curIs(kwROLE) {
 			p.advance() // consume ROLE
 			kind = ast.GranteeApplicationRole
 		} else {
@@ -935,7 +934,7 @@ func (p *Parser) parseGrantee() (*ast.Grantee, error) {
 	// SHOW GRANTS TO SNOWFLAKE.CORE.BUDGET ROLE cost.budgets.my_budget!ADMIN.
 	// Only a bare leading name can be a class name (the keyworded forms above
 	// already consumed their kind keyword).
-	if bare && p.cur.Type == kwROLE {
+	if bare && p.curIs(kwROLE) {
 		p.advance() // consume ROLE
 		instance, err := p.parseObjectName()
 		if err != nil {

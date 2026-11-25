@@ -132,7 +132,7 @@ func parseCreateExternalConsumer(p *Parser, s *ast.ObjectStmt) error {
 func parseAlterExternalConsumer(p *Parser, s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
 	for _, verb := range []string{"ADD", "MODIFY", "REMOVE", "ROTATE"} {
-		if !isWordToken(p.cur, verb) {
+		if !p.curWord(verb) {
 			continue
 		}
 		next := p.peekNext()
@@ -145,7 +145,7 @@ func parseAlterExternalConsumer(p *Parser, s *ast.ObjectStmt) error {
 		}
 		return p.parseExternalConsumerToken(s, verb, start)
 	}
-	if p.cur.Type == kwRENAME {
+	if p.curIs(kwRENAME) {
 		name, err := p.parseRenameTo()
 		if err != nil {
 			return err
@@ -214,7 +214,7 @@ func (p *Parser) parseExternalConsumerToken(s *ast.ObjectStmt, verb string, star
 		}
 		return checkObjectClauseProps(s.Kind, c, props, nil)
 	case "MODIFY":
-		if p.cur.Type == kwSET {
+		if p.curIs(kwSET) {
 			if _, err := p.parseObjectAlterCommon(s, actSet); err != nil {
 				return err
 			}
@@ -225,7 +225,7 @@ func (p *Parser) parseExternalConsumerToken(s *ast.ObjectStmt, verb string, star
 				return err
 			}
 		}
-		if unsetStart := p.cur.Loc.Start; p.cur.Type == kwUNSET {
+		if unsetStart := p.cur.Loc.Start; p.curIs(kwUNSET) {
 			p.advance() // consume UNSET
 			if err := p.expectWords("COMMENT"); err != nil {
 				return err
@@ -296,7 +296,7 @@ func parseCreateContact(p *Parser, s *ast.ObjectStmt) error {
 // https://docs.snowflake.com/en/sql-reference/sql/alter-contact
 func parseAlterContact(p *Parser, s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
-	if p.cur.Type == kwRENAME {
+	if p.curIs(kwRENAME) {
 		name, err := p.parseRenameTo()
 		if err != nil {
 			return err
@@ -323,7 +323,7 @@ func parseAlterContact(p *Parser, s *ast.ObjectStmt) error {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/create-multi-party-approval-policy
 func parseObjectAsBody(p *Parser, s *ast.ObjectStmt) error {
-	if p.cur.Type != kwAS {
+	if !p.curIs(kwAS) {
 		return p.syntaxErrorAtCur()
 	}
 	return p.parseObjectAsString(s)
@@ -336,7 +336,7 @@ func parseObjectAsBody(p *Parser, s *ast.ObjectStmt) error {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/alter-multi-party-approval-policy
 func parseAlterMultiPartyApprovalPolicy(p *Parser, s *ast.ObjectStmt) error {
-	if p.cur.Type == kwRENAME {
+	if p.curIs(kwRENAME) {
 		start := p.cur.Loc.Start
 		name, err := p.parseRenameTo()
 		if err != nil {
@@ -382,9 +382,9 @@ func parseCreateRestrictedSessionScope(p *Parser, s *ast.ObjectStmt) error {
 func parseAlterRestrictedSessionScope(p *Parser, s *ast.ObjectStmt) error {
 	start := p.cur.Loc.Start
 	switch {
-	case p.cur.Type == kwAS:
+	case p.curIs(kwAS):
 		return p.parseObjectAsString(s)
-	case (isWordToken(p.cur, "ADD") || isWordToken(p.cur, "REMOVE")) && p.peekNext().Type == kwAS:
+	case (p.curWord("ADD") || p.curWord("REMOVE")) && p.nextIs(kwAS):
 		verb := strings.ToUpper(p.advance().Str)
 		if err := p.parseObjectAsString(s); err != nil {
 			return err

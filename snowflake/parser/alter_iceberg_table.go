@@ -55,10 +55,10 @@ func (p *Parser) seqIsWords(words ...string) bool {
 //	UPGRADE TO ICEBERG VERSION <n>
 func (p *Parser) parseAlterIcebergOnlyAction(action *ast.AlterTableAction) (bool, error) {
 	switch {
-	case p.cur.Type == kwREFRESH:
+	case p.curIs(kwREFRESH):
 		p.advance() // consume REFRESH
 		action.Kind = ast.AlterTableRefresh
-		if p.cur.Type == tokString {
+		if p.curIs(tokString) {
 			s := p.advance().Str
 			action.RefreshPath = &s
 		}
@@ -70,6 +70,7 @@ func (p *Parser) parseAlterIcebergOnlyAction(action *ast.AlterTableAction) (bool
 		p.advance() // consume MANAGED
 		action.Kind = ast.AlterTableConvertToManaged
 		for p.startsAssignment() {
+			wantKeys(p, convertToManagedProperties)
 			if !convertToManagedProperties[strings.ToUpper(p.cur.Str)] {
 				return true, p.syntaxErrorAtCur()
 			}
@@ -81,7 +82,7 @@ func (p *Parser) parseAlterIcebergOnlyAction(action *ast.AlterTableAction) (bool
 		}
 		return true, nil
 
-	case p.curIsWord("OPTIMIZE") && p.peekNext().Type == '(':
+	case p.curIsWord("OPTIMIZE") && p.nextIs('('):
 		p.advance() // consume OPTIMIZE
 		p.advance() // consume '('
 		for {
@@ -90,7 +91,7 @@ func (p *Parser) parseAlterIcebergOnlyAction(action *ast.AlterTableAction) (bool
 			}
 			p.advance()
 			action.OptimizeOps = append(action.OptimizeOps, "REMOVE_POSITION_DELETES")
-			if p.cur.Type != ',' {
+			if !p.curIs(',') {
 				break
 			}
 			p.advance() // consume ','
@@ -128,9 +129,9 @@ func (p *Parser) parseAlterIcebergOnlyAction(action *ast.AlterTableAction) (bool
 		}
 		return true, nil
 
-	case p.cur.Type == kwCREATE && (p.peekIsWord("VERSION_TAG") || p.peekNext().Type == kwOR):
+	case p.curIs(kwCREATE) && (p.peekIsWord("VERSION_TAG") || p.nextIs(kwOR)):
 		p.advance() // consume CREATE
-		if p.cur.Type == kwOR {
+		if p.curIs(kwOR) {
 			p.advance() // consume OR
 			if _, err := p.expect(kwREPLACE); err != nil {
 				return true, err
@@ -141,7 +142,7 @@ func (p *Parser) parseAlterIcebergOnlyAction(action *ast.AlterTableAction) (bool
 			return true, p.syntaxErrorAtCur()
 		}
 		p.advance() // consume VERSION_TAG
-		if !action.OrReplace && p.cur.Type == kwIF {
+		if !action.OrReplace && p.curIs(kwIF) {
 			p.advance() // consume IF
 			if _, err := p.expect(kwNOT); err != nil {
 				return true, err
@@ -157,14 +158,14 @@ func (p *Parser) parseAlterIcebergOnlyAction(action *ast.AlterTableAction) (bool
 		}
 		action.Kind = ast.AlterTableCreateVersionTag
 		action.VersionTag = name
-		if p.cur.Type == kwAS {
+		if p.curIs(kwAS) {
 			if err := p.parseVersionTagAsOf(action, true); err != nil {
 				return true, err
 			}
 		}
 		return true, nil
 
-	case (p.cur.Type == kwALTER || p.cur.Type == kwREPLACE) && p.peekIsWord("VERSION_TAG") && p.versionTagNameFollows(kwAS):
+	case (p.curIs(kwALTER) || p.curIs(kwREPLACE)) && p.peekIsWord("VERSION_TAG") && p.versionTagNameFollows(kwAS):
 		verb := p.advance() // consume ALTER / REPLACE
 		p.advance()         // consume VERSION_TAG
 		name, err := p.parseObjectName()
@@ -181,10 +182,10 @@ func (p *Parser) parseAlterIcebergOnlyAction(action *ast.AlterTableAction) (bool
 		}
 		return true, nil
 
-	case p.cur.Type == kwDROP && p.peekIsWord("VERSION_TAG") && p.versionTagNameFollows(0):
+	case p.curIs(kwDROP) && p.peekIsWord("VERSION_TAG") && p.versionTagNameFollows(0):
 		p.advance() // consume DROP
 		p.advance() // consume VERSION_TAG
-		if p.cur.Type == kwIF && p.peekNext().Type == kwEXISTS {
+		if p.curIs(kwIF) && p.nextIs(kwEXISTS) {
 			p.advance() // consume IF
 			p.advance() // consume EXISTS
 			action.IfExists = true
@@ -222,19 +223,19 @@ func (p *Parser) versionTagNameFollows(then int) bool {
 	defer p.restore(snap)
 	p.advance() // consume the verb
 	p.advance() // consume VERSION_TAG
-	if then == 0 && p.cur.Type == kwIF && p.peekNext().Type == kwEXISTS {
+	if then == 0 && p.curIs(kwIF) && p.nextIs(kwEXISTS) {
 		return true
 	}
-	if !p.isColumnNameToken(p.cur.Type) && p.cur.Type != tokQuotedIdent {
+	if !p.isColumnNameToken(p.cur.Type) && !p.curIs(tokQuotedIdent) {
 		return false
 	}
 	if _, err := p.parseObjectName(); err != nil {
 		return false
 	}
 	if then == 0 {
-		return p.cur.Type != ','
+		return !p.curIs(',')
 	}
-	return p.cur.Type == then
+	return p.curIs(then)
 }
 
 // parseVersionTagAsOf parses AS OF { VERSION <id> | TIMESTAMP <n> } and, with
@@ -246,11 +247,11 @@ func (p *Parser) parseVersionTagAsOf(action *ast.AlterTableAction, retain bool) 
 	if _, err := p.expect(kwOF); err != nil {
 		return err
 	}
-	switch p.cur.Type {
-	case kwVERSION:
+	switch {
+	case p.curIs(kwVERSION):
 		p.advance() // consume VERSION
 		action.AsOfKind = "VERSION"
-		if p.cur.Type == tokInt {
+		if p.curIs(tokInt) {
 			action.AsOfValue = p.advance().Str
 		} else {
 			id, err := p.parseIdent()
@@ -259,7 +260,7 @@ func (p *Parser) parseVersionTagAsOf(action *ast.AlterTableAction, retain bool) 
 			}
 			action.AsOfValue = id.String()
 		}
-	case kwTIMESTAMP:
+	case p.curIs(kwTIMESTAMP):
 		p.advance() // consume TIMESTAMP
 		tok, err := p.expect(tokInt)
 		if err != nil {
