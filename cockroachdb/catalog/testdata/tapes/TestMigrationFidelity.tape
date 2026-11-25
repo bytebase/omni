@@ -79,6 +79,15 @@
 > exec
 | CREATE TABLE fid_m.amounts (id INT8 PRIMARY KEY, amount STRING, INDEX amounts_amount_idx (amount));
 < ok 0 -
+> exec
+| CREATE TABLE fid_m.prices (id INT8 PRIMARY KEY, price FLOAT8, CONSTRAINT prices_price_check CHECK (price > 0));
+< ok 0 -
+> exec
+| COMMENT ON CONSTRAINT prices_price_check ON fid_m.prices IS 'positive';
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_m.price_text() RETURNS STRING LANGUAGE SQL STABLE AS $$ SELECT max(price)::STRING FROM fid_m.prices $$;
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -648,6 +657,62 @@
 : string
 | fid_m
 : string
+| prices
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| prices
+: string
+| price
+: string
+| double precision
+: null
+: int64 53
+: null
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| float8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | rekey
 : string
 | replacement
@@ -1041,6 +1106,18 @@
 : string
 | fid_m
 : string
+| prices
+: string
+| prices_pkey
+: string
+| CREATE UNIQUE INDEX prices_pkey ON omni_testmigrationfidelity.fid_m.prices USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | rekey
 : string
 | rekey_pkey
@@ -1120,6 +1197,17 @@
 : string
 | CHECK ((email != ''::STRING))
 : null
+< row
+: string
+| fid_m
+: string
+| prices
+: string
+| prices_price_check
+: string
+| CHECK ((price > 0.0))
+: string
+| positive
 > query
 |
 | SELECT
@@ -1278,6 +1366,13 @@
 : string
 | fid_m
 : string
+| prices
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | rekey
 : int64 0
 : null
@@ -1383,6 +1478,24 @@
 < column "function_name" "NAME"
 < column "function_signature" "TEXT"
 < column "definition" "TEXT"
+< row
+: string
+| fid_m
+: string
+| price_text
+: string
+| price_text()
+: string
+| CREATE FUNCTION fid_m.price_text()
+| 	RETURNS STRING
+| 	STABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT max(price)::STRING FROM omni_testmigrationfidelity.fid_m.prices;
+| $$
 > query
 |
 | 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
@@ -1582,6 +1695,15 @@
 < ok 0 -
 > exec
 | CREATE TABLE fid_m.amounts (id INT8 PRIMARY KEY, amount DECIMAL, INDEX amounts_amount_idx (amount));
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.prices (id INT8 PRIMARY KEY, price DECIMAL, CONSTRAINT prices_price_check CHECK (price > 0));
+< ok 0 -
+> exec
+| COMMENT ON CONSTRAINT prices_price_check ON fid_m.prices IS 'positive';
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_m.price_text() RETURNS STRING LANGUAGE SQL STABLE AS $$ SELECT max(price)::STRING FROM fid_m.prices $$;
 < ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
@@ -2118,6 +2240,62 @@
 : string
 | fid_m
 : string
+| prices
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| prices
+: string
+| price
+: string
+| numeric
+: null
+: null
+: null
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| numeric
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | rekey
 : string
 | id
@@ -2425,6 +2603,18 @@
 : string
 | fid_m
 : string
+| prices
+: string
+| prices_pkey
+: string
+| CREATE UNIQUE INDEX prices_pkey ON omni_testmigrationfidelity.fid_m.prices USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | rekey
 : string
 | rekey_pkey
@@ -2494,6 +2684,17 @@
 : string
 | CHECK ((age >= 0))
 : null
+< row
+: string
+| fid_m
+: string
+| prices
+: string
+| prices_price_check
+: string
+| CHECK ((price > 0))
+: string
+| positive
 > query
 |
 | SELECT
@@ -2652,6 +2853,13 @@
 : string
 | fid_m
 : string
+| prices
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | rekey
 : int64 0
 : null
@@ -2747,6 +2955,24 @@
 < column "function_name" "NAME"
 < column "function_signature" "TEXT"
 < column "definition" "TEXT"
+< row
+: string
+| fid_m
+: string
+| price_text
+: string
+| price_text()
+: string
+| CREATE FUNCTION fid_m.price_text()
+| 	RETURNS STRING
+| 	STABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT max(price)::STRING FROM omni_testmigrationfidelity.fid_m.prices;
+| $$
 > query
 |
 | 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
@@ -2877,6 +3103,9 @@
 | ALTER TABLE "fid_m"."uses" DROP CONSTRAINT "uses_code_fkey";
 < ok 0 -
 > exec
+| DROP FUNCTION "fid_m"."price_text"();
+< ok 0 -
+> exec
 | DROP INDEX "fid_m"."amounts"@"amounts_amount_idx";
 < ok 0 -
 > exec
@@ -2890,6 +3119,9 @@
 < ok 0 -
 > exec
 | DROP INDEX "fid_m"."customers"@"customers_nick_idx";
+< ok 0 -
+> exec
+| ALTER TABLE "fid_m"."prices" DROP CONSTRAINT "prices_price_check";
 < ok 0 -
 > exec
 | DROP TABLE "fid_m"."gone";
@@ -2949,6 +3181,9 @@
 | ALTER TABLE "fid_m"."orders" DROP CONSTRAINT "orders_pkey", ADD CONSTRAINT "orders_pkey" PRIMARY KEY (id ASC, line ASC);
 < ok 0 -
 > exec
+| ALTER TABLE "fid_m"."prices" ALTER COLUMN "price" SET DATA TYPE double precision;
+< ok 0 -
+> exec
 | ALTER TABLE "fid_m"."rekey" DROP CONSTRAINT "rekey_pkey", ADD CONSTRAINT "rekey_pkey" PRIMARY KEY (replacement ASC);
 < ok 0 -
 > exec
@@ -2969,6 +3204,18 @@
 | );
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_m.price_text()
+| 	RETURNS STRING
+| 	STABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| SELECT max(price)::STRING FROM fid_m.prices;
+| $$;
+< ok 0 -
+> exec
 | CREATE INDEX amounts_amount_idx ON fid_m.amounts (amount ASC);
 < ok 0 -
 > exec
@@ -2985,6 +3232,9 @@
 < ok 0 -
 > exec
 | ALTER TABLE "fid_m"."customers" ADD CONSTRAINT "customers_email_check" CHECK ((email != ''::STRING));
+< ok 0 -
+> exec
+| ALTER TABLE "fid_m"."prices" ADD CONSTRAINT "prices_price_check" CHECK ((price > 0.0));
 < ok 0 -
 > exec
 | ALTER TABLE "fid_m"."orders"
@@ -3010,6 +3260,9 @@
 < ok 0 -
 > exec
 | COMMENT ON COLUMN "fid_m"."customers"."email" IS 'login';
+< ok 0 -
+> exec
+| COMMENT ON CONSTRAINT "prices_price_check" ON "fid_m"."prices" IS 'positive';
 < ok 0 -
 > exec
 | COMMENT ON TABLE "fid_new"."audit" IS 'first;
@@ -3585,6 +3838,62 @@
 : string
 | fid_m
 : string
+| prices
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| prices
+: string
+| price
+: string
+| double precision
+: null
+: int64 53
+: null
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| float8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | rekey
 : string
 | replacement
@@ -3978,6 +4287,18 @@
 : string
 | fid_m
 : string
+| prices
+: string
+| prices_pkey
+: string
+| CREATE UNIQUE INDEX prices_pkey ON omni_testmigrationfidelity.fid_m.prices USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | rekey
 : string
 | rekey_pkey
@@ -4057,6 +4378,17 @@
 : string
 | CHECK ((email != ''::STRING))
 : null
+< row
+: string
+| fid_m
+: string
+| prices
+: string
+| prices_price_check
+: string
+| CHECK ((price > 0.0))
+: string
+| positive
 > query
 |
 | SELECT
@@ -4215,6 +4547,13 @@
 : string
 | fid_m
 : string
+| prices
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | rekey
 : int64 0
 : null
@@ -4320,6 +4659,24 @@
 < column "function_name" "NAME"
 < column "function_signature" "TEXT"
 < column "definition" "TEXT"
+< row
+: string
+| fid_m
+: string
+| price_text
+: string
+| price_text()
+: string
+| CREATE FUNCTION fid_m.price_text()
+| 	RETURNS STRING
+| 	STABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT max(price)::STRING FROM omni_testmigrationfidelity.fid_m.prices;
+| $$
 > query
 |
 | 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option

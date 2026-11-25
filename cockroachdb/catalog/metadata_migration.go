@@ -686,13 +686,15 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	}
 
 	// Checks and indexes that go or change are dropped before the columns
-	// they read.
+	// they read, and so are those reading a column whose type changes, which
+	// CockroachDB cannot convert under them; they are added again after.
+	retyped := retypedColumns(old, new)
 	for _, check := range oldChecks {
-		if c := findCheck(newChecks, check.Name); c == nil || c.Expression != check.Expression {
+		if c := findCheck(newChecks, check.Name); c == nil || c.Expression != check.Expression || textReads(check.Expression, retyped) {
 			alter(phaseDropIndexes, OpDropConstraint, check.Name, "DROP CONSTRAINT "+quoteIdent(check.Name))
 		}
 	}
-	d.diffIndexes(schema, new.Name, old.Indexes, new.Indexes, retypedColumns(old, new))
+	d.diffIndexes(schema, new.Name, old.Indexes, new.Indexes, retyped)
 
 	oldKey, newKey := "", ""
 	if oldPrimary != nil {
@@ -793,7 +795,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	}
 
 	for _, check := range newChecks {
-		if c := findCheck(oldChecks, check.Name); c == nil || c.Expression != check.Expression {
+		if c := findCheck(oldChecks, check.Name); c == nil || c.Expression != check.Expression || textReads(c.Expression, retyped) {
 			alter(phaseCreateIndexes, OpAddConstraint, check.Name, fmt.Sprintf("ADD CONSTRAINT %s CHECK %s", quoteIdent(check.Name), check.Expression))
 		}
 	}
@@ -819,7 +821,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	}
 	for _, check := range newChecks {
 		oldComment := ""
-		if c := findCheck(oldChecks, check.Name); c != nil && c.Expression == check.Expression {
+		if c := findCheck(oldChecks, check.Name); c != nil && c.Expression == check.Expression && !textReads(c.Expression, retyped) {
 			oldComment = c.Comment
 		}
 		if oldComment != check.Comment {
@@ -881,7 +883,15 @@ func indexReads(index *metadatapb.IndexMetadata, columns map[string]bool) bool {
 			return true
 		}
 	}
-	tokens, ok := crparser.Tokens(index.Definition)
+	return textReads(index.Definition, columns)
+}
+
+// textReads reports whether a word of a SQL text names one of columns.
+func textReads(text string, columns map[string]bool) bool {
+	if len(columns) == 0 {
+		return false
+	}
+	tokens, ok := crparser.Tokens(text)
 	if !ok {
 		return false
 	}
@@ -971,7 +981,7 @@ func (d *differ) diffViews() {
 // planRoutines decides which source routines the migration drops: those the
 // target removes, and those it drops and creates again. A routine whose
 // definition changes, or whose body reads a relation the migration drops or
-// rebuilds, is recreated, so the relation can go while nothing reads it. A
+// rebuilds or a column whose type changes, is recreated, so the relation can go while nothing reads it. A
 // routine a kept table's default or check still calls cannot be dropped, so it
 // is replaced in place instead.
 func (d *differ) planRoutines() {
@@ -991,6 +1001,16 @@ func (d *differ) planRoutines() {
 	gone := make(map[string]bool)
 	for id := range d.rebuilt {
 		gone[id] = true
+	}
+	// A routine reading a column whose type changes is recreated too:
+	// CockroachDB cannot convert a column a routine body reads.
+	retyped := make(map[string]map[string]bool)
+	for _, schema := range d.from.schemas {
+		for _, table := range schema.Tables {
+			if target := d.to.table(schema.Name, table.Name); target != nil {
+				retyped[getObjectID(schema.Name, table.Name)] = retypedColumns(table, target)
+			}
+		}
 	}
 	for _, schema := range d.from.schemas {
 		target := d.to.byName[schema.Name]
@@ -1023,7 +1043,7 @@ func (d *differ) planRoutines() {
 			}
 			recreate := routineDefinition(function.Definition, d.from.database) != routineDefinition(newFunction.Definition, d.to.database)
 			for _, relation := range routineRelations(function.Definition) {
-				recreate = recreate || gone[relation]
+				recreate = recreate || gone[relation] || textReads(routineBody(function.Definition), retyped[relation])
 			}
 			if recreate {
 				d.recreated[getObjectID(schema.Name, metadataFuncIdentity(function))] = true
@@ -1092,6 +1112,25 @@ func (d *differ) diffRoutines() {
 				SQL: fmt.Sprintf("DROP %s %s.%s", kind, quoteIdent(schema.Name), routineSignature(function))})
 		}
 	}
+}
+
+// routineBody returns a routine's body, the words a word scan reads.
+func routineBody(definition string) string {
+	stmt, err := parseOne(strings.TrimSuffix(strings.TrimSpace(definition), ";"))
+	if err != nil {
+		return ""
+	}
+	routine, ok := stmt.(*tree.CreateRoutine)
+	if !ok {
+		return ""
+	}
+	var bodies []string
+	for _, option := range routine.Options {
+		if body, ok := option.(tree.RoutineBodyStr); ok {
+			bodies = append(bodies, string(body))
+		}
+	}
+	return strings.Join(bodies, "\n")
 }
 
 // routineRelations returns the relations a routine's body names, by object ID.

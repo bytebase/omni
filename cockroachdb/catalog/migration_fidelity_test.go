@@ -56,6 +56,9 @@ CREATE TABLE fid_m.tickets (id INT8 PRIMARY KEY, n INT8 DEFAULT nextval('fid_m.t
 CREATE TABLE fid_m.codes (id INT8 PRIMARY KEY, code STRING NOT NULL, label STRING, UNIQUE INDEX codes_code_key (code));
 CREATE TABLE fid_m.uses (id INT8 PRIMARY KEY, code STRING REFERENCES fid_m.codes (code));
 CREATE TABLE fid_m.amounts (id INT8 PRIMARY KEY, amount DECIMAL, INDEX amounts_amount_idx (amount));
+CREATE TABLE fid_m.prices (id INT8 PRIMARY KEY, price DECIMAL, CONSTRAINT prices_price_check CHECK (price > 0));
+COMMENT ON CONSTRAINT prices_price_check ON fid_m.prices IS 'positive';
+CREATE FUNCTION fid_m.price_text() RETURNS STRING LANGUAGE SQL STABLE AS $$ SELECT max(price)::STRING FROM fid_m.prices $$;
 `,
 			target: `CREATE SCHEMA fid_m;
 CREATE SCHEMA fid_new;
@@ -93,6 +96,9 @@ CREATE TABLE fid_m.tickets (id INT8 PRIMARY KEY, n INT8);
 CREATE TABLE fid_m.codes (id INT8 PRIMARY KEY, code STRING NOT NULL, label STRING, UNIQUE INDEX codes_code_key (code) STORING (label));
 CREATE TABLE fid_m.uses (id INT8 PRIMARY KEY, code STRING REFERENCES fid_m.codes (code));
 CREATE TABLE fid_m.amounts (id INT8 PRIMARY KEY, amount STRING, INDEX amounts_amount_idx (amount));
+CREATE TABLE fid_m.prices (id INT8 PRIMARY KEY, price FLOAT8, CONSTRAINT prices_price_check CHECK (price > 0));
+COMMENT ON CONSTRAINT prices_price_check ON fid_m.prices IS 'positive';
+CREATE FUNCTION fid_m.price_text() RETURNS STRING LANGUAGE SQL STABLE AS $$ SELECT max(price)::STRING FROM fid_m.prices $$;
 `,
 		},
 		{
