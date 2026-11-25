@@ -83,12 +83,12 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			return errKeyColumnDoesNotExist(ic.Name)
 		}
 	}
-	// The key's columns are looked up before its type: measured on
-	// mariadb:11.8.8, `CREATE INDEX k USING RTREE ON t(missing)` answers 1072,
-	// and `ON t(b)` over an INT column 1210.
-	if err := validateKeyTypeArguments(resolveIndexUsingType(stmt.IndexType, stmt.Options)); err != nil {
-		return err
-	}
+	// The key's columns and name are judged before its type, and its type
+	// before a repeated column: measured on mariadb:11.8.8, `CREATE INDEX k
+	// USING RTREE ON t(missing)` answers 1072, `ON t(b(1))` over an INT b 1089,
+	// `CREATE INDEX idx_d USING RTREE ON t(b)` over a table holding idx_d 1061,
+	// and `ON t(b)` and `ON t(b, b)` 1210.
+	typeErr := validateKeyTypeArguments(resolveIndexUsingType(stmt.IndexType, stmt.Options))
 	long := false
 	switch {
 	case stmt.Vector:
@@ -122,6 +122,10 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			return c.replaceIndex(tbl, stmt)
 		}
 		return errDupKeyName(stmt.IndexName)
+	}
+	if typeErr != nil {
+		*tbl = snapshot
+		return typeErr
 	}
 	if err := validateNoRepeatedKeyColumns(idxCols); err != nil {
 		*tbl = snapshot
