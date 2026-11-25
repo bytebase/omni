@@ -282,6 +282,9 @@ db.hr.employees	db.hr.employees	engine	base	public	tables	WITH RECURSIVE chain A
 name	name	engine	base	public	results	WITH RECURSIVE chain AS (SELECT id, name FROM hr.employees UNION SELECT e.id, e.name FROM hr.employees e JOIN chain c ON c.id = e.manager_id) SELECT name FROM chain
 db.hr.employees.name	~	engine	base	public	lineage	WITH RECURSIVE chain AS (SELECT id, name FROM hr.employees UNION SELECT e.id, e.name FROM hr.employees e JOIN chain c ON c.id = e.manager_id) SELECT name FROM chain
 db.hr.employees	db.hr.employees	engine	base	public	tables	WITH RECURSIVE chain AS (SELECT id, name FROM hr.employees UNION SELECT e.id, e.name FROM hr.employees e JOIN chain c ON c.id = e.manager_id) SELECT name FROM chain
+id	id	engine	base	public	results	WITH RECURSIVE c AS (SELECT id FROM customers UNION ALL SELECT id FROM customers LIMIT (SELECT count(*) FROM orders)) SELECT * FROM c
+db.public.customers.id	~	engine	base	public	lineage	WITH RECURSIVE c AS (SELECT id FROM customers UNION ALL SELECT id FROM customers LIMIT (SELECT count(*) FROM orders)) SELECT * FROM c
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	WITH RECURSIVE c AS (SELECT id FROM customers UNION ALL SELECT id FROM customers LIMIT (SELECT count(*) FROM orders)) SELECT * FROM c
 id, name	id, name	engine	base	public	results	SELECT id, name FROM customers UNION SELECT id, status FROM orders
 db.public.customers.id db.public.orders.id | db.public.customers.name db.public.orders.status	~ | ~	engine	base	public	lineage	SELECT id, name FROM customers UNION SELECT id, status FROM orders
 db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT id, name FROM customers UNION SELECT id, status FROM orders
@@ -357,6 +360,9 @@ db.public.region_counts	db.public.region_counts	engine	base	public	tables	SELECT
 region, n, name	region, n, name	engine	base	public	results	SELECT r.region, r.n, c.name FROM region_counts r JOIN customers c USING (region)
 db.public.region_counts.region | db.public.region_counts.n | db.public.customers.name	db.public.region_counts.region | db.public.region_counts.n | db.public.customers.name	engine	base	public	lineage	SELECT r.region, r.n, c.name FROM region_counts r JOIN customers c USING (region)
 db.public.customers, db.public.region_counts	db.public.customers, db.public.region_counts	engine	base	public	tables	SELECT r.region, r.n, c.name FROM region_counts r JOIN customers c USING (region)
+rowid, region	rowid, region	engine	base	public	results	SELECT rowid, region FROM public.region_counts
+db.public.region_counts.rowid | db.public.region_counts.region	db.public.region_counts.rowid | db.public.region_counts.region	engine	base	public	lineage	SELECT rowid, region FROM public.region_counts
+db.public.region_counts	db.public.region_counts	engine	base	public	tables	SELECT rowid, region FROM public.region_counts
 Id, MixedCol, lower_col	Id, MixedCol, lower_col	engine	base	public	results	SELECT "Id", "MixedCol", lower_col FROM "Mixed"."CamelTable"
 db.Mixed.CamelTable.Id | db.Mixed.CamelTable.MixedCol | db.Mixed.CamelTable.lower_col	db.Mixed.CamelTable.Id | db.Mixed.CamelTable.MixedCol | db.Mixed.CamelTable.lower_col	engine	base	public	lineage	SELECT "Id", "MixedCol", lower_col FROM "Mixed"."CamelTable"
 db.Mixed.CamelTable	db.Mixed.CamelTable	engine	base	public	tables	SELECT "Id", "MixedCol", lower_col FROM "Mixed"."CamelTable"

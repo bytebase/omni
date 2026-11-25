@@ -111,6 +111,7 @@ WITH unused AS (SELECT ssn FROM hr.employees) SELECT id FROM customers
 WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 5) SELECT n FROM r
 WITH RECURSIVE chain AS (SELECT id, manager_id, name FROM hr.employees WHERE manager_id IS NULL UNION ALL SELECT e.id, e.manager_id, e.name FROM hr.employees e JOIN chain ON e.manager_id = chain.id) SELECT * FROM chain
 WITH RECURSIVE chain AS (SELECT id, name FROM hr.employees UNION SELECT e.id, e.name FROM hr.employees e JOIN chain c ON c.id = e.manager_id) SELECT name FROM chain
+WITH RECURSIVE c AS (SELECT id FROM customers UNION ALL SELECT id FROM customers LIMIT (SELECT count(*) FROM orders)) SELECT * FROM c
 
 -- Set operations.
 SELECT id, name FROM customers UNION SELECT id, status FROM orders
@@ -140,6 +141,7 @@ SELECT * FROM hr.directory
 SELECT d.name, e.ssn FROM hr.directory d JOIN hr.employees e USING (id)
 SELECT * FROM region_counts
 SELECT r.region, r.n, c.name FROM region_counts r JOIN customers c USING (region)
+SELECT rowid, region FROM public.region_counts
 
 -- Quoted and mixed-case names.
 SELECT "Id", "MixedCol", lower_col FROM "Mixed"."CamelTable"

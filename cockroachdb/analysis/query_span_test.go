@@ -30,6 +30,15 @@ func spanTestMetadata() map[string]*metadatapb.DatabaseSchemaMetadata {
 					// A view whose sync stored no columns.
 					{Name: "v", Definition: "SELECT ssn FROM public.t"},
 					{Name: "v2", Definition: "SELECT ssn AS s, note FROM db.public.v JOIN db.public.u ON true", Columns: []*metadatapb.ColumnMetadata{column("s"), column("note")}},
+					// Synced names differ from the definition's, and in
+					// renamed_short also in number.
+					{Name: "renamed", Definition: "SELECT ssn, name FROM db.public.t", Columns: []*metadatapb.ColumnMetadata{column("a"), column("b")}},
+					{Name: "renamed_short", Definition: "SELECT ssn, name FROM db.public.t", Columns: []*metadatapb.ColumnMetadata{column("joined")}},
+				},
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+					// The sync stores no columns of a materialized view.
+					{Name: "region_counts", Definition: "SELECT name AS region, count(*) AS n FROM db.public.t GROUP BY name"},
+					{Name: "synced_mv", Definition: "SELECT x FROM db.public.gone", Columns: []*metadatapb.ColumnMetadata{column("r"), column("n"), {Name: "rowid", IsInvisible: true}}},
 				},
 			},
 			{Name: "hr", Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{column("id"), column("salary")}}}},
@@ -90,6 +99,7 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 		{"SELECT * FROM v2", []string{"s: db.public.t.ssn db.public.v.ssn db.public.v2.s", "note: db.public.u.note db.public.v2.note"}},
 		{"WITH c(k) AS (SELECT ssn FROM t) SELECT k FROM c", []string{"k: db.public.t.ssn"}},
 		{"WITH RECURSIVE r AS (SELECT id, name FROM t UNION ALL SELECT u.id, r.name FROM u JOIN r ON r.id = u.t_id) SELECT * FROM r", []string{"id: db.public.t.id db.public.u.id", "name: db.public.t.name"}},
+		{"WITH RECURSIVE c AS (WITH x AS (SELECT t_id FROM u) SELECT id FROM t UNION ALL SELECT t_id FROM x) SELECT * FROM c", []string{"id: db.public.t.id db.public.u.t_id"}},
 		{"SELECT id FROM t UNION SELECT t_id FROM u", []string{"id: db.public.t.id db.public.u.t_id"}},
 		{"SELECT name FROM t EXCEPT SELECT note FROM u", []string{"name: db.public.t.name"}},
 		{"SELECT name FROM t INTERSECT SELECT note FROM u", []string{"name: db.public.t.name db.public.u.note"}},
@@ -138,6 +148,10 @@ func TestResolveQuerySpanTables(t *testing.T) {
 		{"SELECT id FROM t WHERE EXISTS (SELECT 1 FROM u WHERE u.t_id = t.id)", analysis.Select, "db.public.t db.public.u", "db.public.t.id db.public.u.t_id"},
 		{"SELECT id FROM t JOIN u USING (id)", analysis.Select, "db.public.t db.public.u", "db.public.t.id db.public.u.id"},
 		{"SELECT name FROM t INTERSECT SELECT note FROM u", analysis.Select, "db.public.t db.public.u", "db.public.t.name db.public.u.note"},
+		// WITH RECURSIVE over a set operation that is not a UNION walks it
+		// as one.
+		{"WITH RECURSIVE c AS (SELECT name FROM t EXCEPT SELECT note FROM u) SELECT * FROM c", analysis.Select, "db.public.t db.public.u", "db.public.t.name db.public.u.note"},
+		{"WITH RECURSIVE c AS (SELECT id FROM t UNION ALL SELECT id FROM t LIMIT (SELECT max(t_id) FROM u)) SELECT * FROM c", analysis.Select, "db.public.t db.public.u", "db.public.u.t_id"},
 		{"SELECT * FROM pg_class", analysis.SelectInfoSchema, "db.pg_catalog.pg_class", ""},
 		{"SELECT * FROM information_schema.tables", analysis.SelectInfoSchema, "db.information_schema.tables", ""},
 		{"SELECT * FROM crdb_internal.jobs", analysis.SelectInfoSchema, "db.crdb_internal.jobs", ""},
@@ -300,6 +314,40 @@ func TestResolveQuerySpanDerivedColumns(t *testing.T) {
 	}
 }
 
+// TestResolveQuerySpanStoredColumns holds a relation's columns to the synced
+// metadata, and a materialized view's to its own stored columns.
+func TestResolveQuerySpanStoredColumns(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		want      []string
+	}{
+		// A materialized view the sync stored no columns for has its
+		// definition's names and CockroachDB's hidden rowid.
+		{"SELECT rowid FROM public.region_counts", []string{"rowid: db.public.region_counts.rowid"}},
+		{"SELECT * FROM region_counts", []string{"region: db.public.region_counts.region", "n: db.public.region_counts.n"}},
+		// A synced materialized view needs no definition.
+		{"SELECT * FROM synced_mv", []string{"r: db.public.synced_mv.r", "n: db.public.synced_mv.n"}},
+		{"SELECT rowid, r FROM synced_mv", []string{"rowid: db.public.synced_mv.rowid", "r: db.public.synced_mv.r"}},
+		// A view's synced names stand; where their number differs from the
+		// definition's, each reads everything the definition reads.
+		{"SELECT a, b FROM renamed", []string{"a: db.public.renamed.a db.public.t.ssn", "b: db.public.renamed.b db.public.t.name"}},
+		{"SELECT joined FROM renamed_short", []string{"joined: db.public.renamed_short.joined db.public.t.name db.public.t.ssn"}},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			span, err := resolveSpan(tc.statement)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if span.NotFoundError != nil {
+				t.Fatalf("NotFoundError %v", span.NotFoundError)
+			}
+			if diff := cmp.Diff(tc.want, lineage(span)); diff != "" {
+				t.Errorf("lineage (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 // TestResolveQuerySpanEveryClause holds that every clause's relations are
 // read, in the scope the clause sees, and that a name a query cannot resolve
 // fails it only after every relation it names is recorded.
@@ -319,6 +367,15 @@ func TestResolveQuerySpanEveryClause(t *testing.T) {
 		{"SELECT name FROM t WINDOW w AS (ORDER BY (SELECT max(note) FROM u))", analysis.Select, "db.public.t db.public.u"},
 		{"SELECT id FROM t AS OF SYSTEM TIME (SELECT '-1s' FROM u LIMIT 1)", analysis.Select, "db.public.t db.public.u"},
 		{"SELECT id FROM t, LATERAL (SELECT note FROM u WHERE u.t_id = t.id) AS l", analysis.Select, "db.public.t db.public.u"},
+		// A recursive CTE's body is walked whole: its WITH, ORDER BY and
+		// LIMIT too.
+		{"WITH RECURSIVE c AS (SELECT id FROM t UNION ALL SELECT id FROM t LIMIT (SELECT count(*) FROM u)) SELECT * FROM c", analysis.Select, "db.public.t db.public.u"},
+		{"WITH RECURSIVE c AS (SELECT id FROM t UNION ALL SELECT c.id + 1 FROM c ORDER BY (SELECT max(t_id) FROM u) LIMIT 5) SELECT * FROM c", analysis.Select, "db.public.t db.public.u"},
+		{"WITH RECURSIVE c AS (WITH x AS (SELECT t_id FROM u) SELECT id FROM t UNION ALL SELECT t_id FROM x) SELECT * FROM c", analysis.Select, "db.public.t db.public.u"},
+		// A write anywhere a query runs one makes it DML.
+		{"SELECT rank() OVER (PARTITION BY (SELECT 1 FROM [INSERT INTO u (id) VALUES (1) RETURNING id])) FROM t", analysis.DML, "db.public.t db.public.u"},
+		{"SELECT name FROM t ORDER BY (SELECT max(id) FROM [DELETE FROM u RETURNING id])", analysis.DML, "db.public.t db.public.u"},
+		{"SELECT * FROM [EXPLAIN DELETE FROM u]", analysis.Select, "db.public.u"},
 		// UPDATE and DELETE read their ORDER BY, LIMIT and BATCH.
 		{"DELETE FROM t LIMIT (SELECT count(*) FROM u)", analysis.DML, "db.public.t db.public.u"},
 		{"DELETE FROM t ORDER BY (SELECT max(note) FROM u) LIMIT 1", analysis.DML, "db.public.t db.public.u"},
@@ -372,6 +429,7 @@ func TestResolveQuerySpanEveryClause(t *testing.T) {
 	for _, statement := range []string{
 		"SELECT name FROM t ORDER BY (SELECT count(*) FROM pg_class)",
 		"DELETE FROM t LIMIT (SELECT count(*) FROM pg_class)",
+		"WITH RECURSIVE c AS (SELECT id FROM t UNION ALL SELECT id FROM t LIMIT (SELECT count(*) FROM pg_class)) SELECT * FROM c",
 		"UPDATE t SET name = 'x' ORDER BY (SELECT max(relname) FROM pg_class)",
 		// A name that fails to resolve before the system read does not hide it.
 		"SELECT nope, (SELECT count(*) FROM crdb_internal.jobs) FROM t",

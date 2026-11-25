@@ -498,6 +498,11 @@
 | {"columns":[{"name":"name"}],"tables":["db.hr.employees"]}
 > raw
 | span public
+| WITH RECURSIVE c AS (SELECT id FROM customers UNION ALL SELECT id FROM customers LIMIT (SELECT count(*) FROM orders)) SELECT * FROM c
+< raw
+| {"columns":[{"name":"id"}],"tables":["db.public.customers","db.public.orders"]}
+> raw
+| span public
 | SELECT id, name FROM customers UNION SELECT id, status FROM orders
 < raw
 | {"columns":[{"name":"id"},{"name":"name"}],"tables":["db.public.customers","db.public.orders"]}
@@ -621,6 +626,11 @@
 | SELECT r.region, r.n, c.name FROM region_counts r JOIN customers c USING (region)
 < raw
 | {"columns":[{"name":"region","source":"db.public.region_counts.region"},{"name":"n","source":"db.public.region_counts.n"},{"name":"name","source":"db.public.customers.name"}],"tables":["db.public.customers","db.public.region_counts"]}
+> raw
+| span public
+| SELECT rowid, region FROM public.region_counts
+< raw
+| {"columns":[{"name":"rowid","source":"db.public.region_counts.rowid"},{"name":"region","source":"db.public.region_counts.region"}],"tables":["db.public.region_counts"]}
 > raw
 | span public
 | SELECT "Id", "MixedCol", lower_col FROM "Mixed"."CamelTable"

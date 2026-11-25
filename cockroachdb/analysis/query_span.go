@@ -112,7 +112,10 @@ func ResolveQuerySpan(_ context.Context, statement string, opts ResolveOptions) 
 	if mixed {
 		return nil, ErrMixUserSystemTables
 	}
-	if queryType == analysis.Select && allSystem {
+	switch {
+	case queryType == analysis.Select && r.writes:
+		queryType = analysis.DML
+	case queryType == analysis.Select && allSystem:
 		queryType = analysis.SelectInfoSchema
 	}
 	span := &analysis.ResolvedSpan{
@@ -158,11 +161,9 @@ func ResolveQuerySpan(_ context.Context, statement string, opts ResolveOptions) 
 // classifyStatement returns the permission class of stmt. A SELECT whose CTEs
 // or statement sources write is DML.
 func classifyStatement(stmt tree.Statement) analysis.QueryType {
-	switch n := stmt.(type) {
+	switch stmt.(type) {
 	case *tree.Select, *tree.ParenSelect:
-		if len(getMutationTargets(n)) > 0 {
-			return analysis.DML
-		}
+		// A write it holds makes it DML, which the resolver's walk finds.
 		return analysis.Select
 	case *tree.Insert, *tree.Update, *tree.Delete, *tree.CopyFrom, *tree.CopyTo, *tree.Import, *tree.Call:
 		return analysis.DML
@@ -240,8 +241,13 @@ type spanResolver struct {
 	// readsSystem is set by a SHOW statement source, which reads system
 	// metadata without naming a relation.
 	readsSystem bool
-	notFound    *analysis.ResourceNotFoundError
-	resolveErr  error
+	// writes is set by a data change anywhere a query runs one: a CTE, a
+	// statement source, in any clause. inExplain counts the EXPLAINs being
+	// walked, whose statement does not run.
+	writes     bool
+	inExplain  int
+	notFound   *analysis.ResourceNotFoundError
+	resolveErr error
 	// metadataErr is a failure to read the metadata, which fails the
 	// statement whatever it is.
 	metadataErr error
@@ -381,11 +387,17 @@ func (r *spanResolver) addPredicates(sources analysis.ColumnSet) {
 // selectQuery resolves a query with its WITH, ORDER BY and LIMIT clauses.
 // FOR UPDATE OF names relations of the query's own FROM, so it reads nothing.
 func (r *spanResolver) selectQuery(sel *tree.Select, outer *spanScope) []spanColumn {
+	return r.selectQueryWith(sel, outer, r.selectStatement)
+}
+
+// selectQueryWith is selectQuery with body resolving the query's body in the
+// scope of its WITH clause.
+func (r *spanResolver) selectQueryWith(sel *tree.Select, outer *spanScope, body func(tree.SelectStatement, *spanScope) ([]spanColumn, *spanScope)) []spanColumn {
 	sc := outer
 	if sel.With != nil {
 		sc = r.with(sel.With, outer)
 	}
-	cols, inner := r.selectStatement(sel.Select, sc)
+	cols, inner := body(sel.Select, sc)
 	r.orderBy(sel.OrderBy, outputScope(cols, inner))
 	r.limit(sel.Limit, sc)
 	return cols
@@ -421,8 +433,8 @@ func (r *spanResolver) with(w *tree.With, outer *spanScope) *spanScope {
 			continue
 		}
 		var cols []spanColumn
-		if union, ok := sel.Select.(*tree.UnionClause); ok && w.Recursive {
-			cols = r.recursiveCTE(name, cte.Name.Cols, union, sc)
+		if union, ok := sel.Select.(*tree.UnionClause); ok && w.Recursive && union.Type == tree.UnionOp {
+			cols = r.recursiveCTE(name, cte.Name.Cols, sel, sc)
 		} else {
 			cols = r.selectQuery(sel, sc)
 		}
@@ -431,18 +443,23 @@ func (r *spanResolver) with(w *tree.With, outer *spanScope) *spanScope {
 	return sc
 }
 
-// recursiveCTE resolves a recursive CTE: its first branch, then its second
-// with the CTE bound to the columns so far, until the sources stop growing.
-func (r *spanResolver) recursiveCTE(name string, aliases tree.ColumnDefList, union *tree.UnionClause, sc *spanScope) []spanColumn {
-	cols := r.selectQuery(union.Left, sc)
-	for {
-		sc.ctes[name] = r.renameColumns(cols, aliases, nil)
-		merged := r.mergeBranches(cols, r.selectQuery(union.Right, sc))
-		if sameSources(cols, merged) {
-			return merged
+// recursiveCTE resolves a recursive CTE, whose body sel is a UNION: its first
+// branch, then its second with the CTE bound to the columns so far, until the
+// sources stop growing. The body's own WITH, ORDER BY and LIMIT are walked as
+// any query's.
+func (r *spanResolver) recursiveCTE(name string, aliases tree.ColumnDefList, sel *tree.Select, sc *spanScope) []spanColumn {
+	return r.selectQueryWith(sel, sc, func(body tree.SelectStatement, inner *spanScope) ([]spanColumn, *spanScope) {
+		union := body.(*tree.UnionClause)
+		cols := r.selectQuery(union.Left, inner)
+		for {
+			sc.ctes[name] = r.renameColumns(cols, aliases, nil)
+			merged := r.mergeBranches(cols, r.selectQuery(union.Right, inner))
+			if sameSources(cols, merged) {
+				return merged, inner
+			}
+			cols = merged
 		}
-		cols = merged
-	}
+	})
 }
 
 func sameSources(a, b []spanColumn) bool {
@@ -931,11 +948,7 @@ func (r *spanResolver) namedRelation(tn *tree.TableName) *spanRelation {
 	}
 	r.access(resource)
 	if table := db.GetTable(resource.Schema, name); table != nil {
-		for _, c := range table.GetColumns() {
-			column := resource
-			column.Column = c.GetName()
-			rel.columns = append(rel.columns, spanColumn{name: c.GetName(), sources: analysis.ColumnSet{column: true}, hidden: c.GetIsInvisible()})
-		}
+		rel.columns = storedColumns(resource, table.GetColumns())
 		if len(rel.columns) == 0 {
 			rel.opaque, rel.opaqueTable = true, &resource
 		}
@@ -947,18 +960,48 @@ func (r *spanResolver) namedRelation(tn *tree.TableName) *spanRelation {
 		}
 		for _, v := range s.GetViews() {
 			if v.GetName() == name {
-				return r.view(rel, resource, v.GetDefinition(), v.GetColumns(), true)
+				return r.view(rel, resource, v.GetDefinition(), v.GetColumns())
 			}
 		}
 		for _, v := range s.GetMaterializedViews() {
 			if v.GetName() == name {
-				// A materialized view holds its rows, so its columns are
-				// its own.
-				return r.view(rel, resource, v.GetDefinition(), v.GetColumns(), false)
+				return r.materializedView(rel, resource, v)
 			}
 		}
 	}
 	return r.missing(rel, resource)
+}
+
+// storedColumns are the columns of a relation that stores its rows, as the
+// sync recorded them, each reading itself.
+func storedColumns(resource analysis.ColumnResource, synced []*metadata.ColumnMetadata) []spanColumn {
+	var cols []spanColumn
+	for _, c := range synced {
+		column := resource
+		column.Column = c.GetName()
+		cols = append(cols, spanColumn{name: c.GetName(), sources: analysis.ColumnSet{column: true}, hidden: c.GetIsInvisible()})
+	}
+	return cols
+}
+
+// materializedView gives rel a materialized view's columns. It stores its
+// rows, so its columns are its own: the synced ones, or, where the sync
+// stored none, those its definition names and the hidden rowid CockroachDB
+// gives the table it stores them in.
+func (r *spanResolver) materializedView(rel *spanRelation, resource analysis.ColumnResource, mv *metadata.MaterializedViewMetadata) *spanRelation {
+	if synced := mv.GetColumns(); len(synced) > 0 {
+		rel.columns = storedColumns(resource, synced)
+		return rel
+	}
+	var names []*metadata.ColumnMetadata
+	for _, c := range r.definitionColumns(rel, resource, mv.GetDefinition()) {
+		names = append(names, &metadata.ColumnMetadata{Name: c.name})
+	}
+	if !rel.opaque {
+		names = append(names, &metadata.ColumnMetadata{Name: "rowid", IsInvisible: true})
+	}
+	rel.columns = storedColumns(resource, names)
+	return rel
 }
 
 // missing records a relation the metadata lacks: an access of the name as
@@ -1041,16 +1084,44 @@ func (r *spanResolver) hasSchema(database, schema string) bool {
 	return false
 }
 
-// view gives rel a view's columns from its definition: named by the synced
-// columns where they match, each reading the view's own column and, for a
-// view CockroachDB follows, the columns the definition reads for it. A
-// definition that cannot be resolved fails the statement, and its columns
-// are unknown.
-func (r *spanResolver) view(rel *spanRelation, resource analysis.ColumnResource, definition string, synced []*metadata.ColumnMetadata, follow bool) *spanRelation {
-	unknown := func(err error) *spanRelation {
+// view gives rel a view's columns, each reading the view's own column and the
+// columns its definition reads for it, as CockroachDB follows a view to its
+// tables. The columns are the synced ones, which the definition's match by
+// position; where their numbers differ, each synced column reads everything
+// the definition reads. Where the sync stored none, they are the
+// definition's.
+func (r *spanResolver) view(rel *spanRelation, resource analysis.ColumnResource, definition string, synced []*metadata.ColumnMetadata) *spanRelation {
+	defCols := r.definitionColumns(rel, resource, definition)
+	if rel.opaque {
+		return rel
+	}
+	everything := columnSources(defCols)
+	if len(synced) == 0 {
+		for _, c := range defCols {
+			synced = append(synced, &metadata.ColumnMetadata{Name: c.name})
+		}
+	}
+	for i, c := range synced {
+		own := resource
+		own.Column = c.GetName()
+		sources := everything
+		if len(synced) == len(defCols) {
+			sources = defCols[i].sources
+		}
+		rel.columns = append(rel.columns, spanColumn{name: c.GetName(), sources: union(analysis.ColumnSet{own: true}, sources), hidden: c.GetIsInvisible()})
+	}
+	return rel
+}
+
+// definitionColumns resolves a view's definition and returns its columns.
+// What the definition reads is the view's, not the statement's. A definition
+// that cannot be resolved fails the statement and leaves rel's columns
+// unknown.
+func (r *spanResolver) definitionColumns(rel *spanRelation, resource analysis.ColumnResource, definition string) []spanColumn {
+	unknown := func(err error) []spanColumn {
 		r.fail(fmt.Errorf("the definition of view %s: %w", resource.String(), err))
 		rel.opaque, rel.opaqueTable = true, &resource
-		return rel
+		return nil
 	}
 	if r.expanding[resource] {
 		return unknown(errors.New("the view refers to itself"))
@@ -1075,20 +1146,7 @@ func (r *spanResolver) view(rel *spanRelation, resource analysis.ColumnResource,
 	if before == nil && r.resolveErr != nil {
 		r.resolveErr = fmt.Errorf("the definition of view %s: %w", resource.String(), r.resolveErr)
 	}
-	for i, c := range defCols {
-		name := c.name
-		if len(synced) == len(defCols) {
-			name = synced[i].GetName()
-		}
-		own := resource
-		own.Column = name
-		sources := analysis.ColumnSet{own: true}
-		if follow {
-			sources = union(sources, c.sources)
-		}
-		rel.columns = append(rel.columns, spanColumn{name: name, sources: sources})
-	}
-	return rel
+	return defCols
 }
 
 // sources returns the columns e reads. A name it cannot resolve is recorded
@@ -1318,13 +1376,19 @@ func (r *spanResolver) statementTables(stmt tree.Statement, outer *spanScope) {
 			}
 		}
 	}
+	switch stmt.(type) {
+	case *tree.Insert, *tree.Update, *tree.Delete, *tree.CopyFrom, *tree.Import, *tree.Call:
+		r.writes = r.writes || r.inExplain == 0
+	}
 	switch n := stmt.(type) {
 	case *tree.Select:
 		r.selectQuery(n, outer)
 	case *tree.ParenSelect:
 		r.selectQuery(n.Select, outer)
 	case *tree.Explain:
+		r.inExplain++
 		r.statementTables(n.Statement, outer)
+		r.inExplain--
 	case *tree.ExplainAnalyze:
 		r.statementTables(n.Statement, outer)
 	case *tree.Insert:
@@ -1382,6 +1446,9 @@ func (r *spanResolver) statementTables(stmt tree.Statement, outer *spanScope) {
 	case *tree.Import:
 		if n.Table != nil {
 			target(n.Table)
+		}
+		for _, file := range n.Files {
+			walk(file)
 		}
 	case *tree.Call:
 		if n.Proc != nil {
