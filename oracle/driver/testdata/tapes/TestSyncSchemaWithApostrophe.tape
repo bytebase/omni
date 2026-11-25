@@ -278,7 +278,7 @@
 < column "COMMENTS" "NCHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, NUM_ROWS
+| 		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 | 		FROM all_tables
 | 		WHERE OWNER = 'omni''owner'
 | 		AND TABLE_NAME NOT IN (
@@ -289,15 +289,18 @@
 < column "OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | omni'owner
 : string
 | T
 : null
+: string
+| USERS
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, NUM_ROWS
+| 		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 | 		FROM all_object_tables
 | 		WHERE OWNER = 'omni''owner'
 | 		AND TABLE_NAME NOT IN (
@@ -308,6 +311,7 @@
 < column "OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT OWNER, TABLE_NAME, COMMENTS

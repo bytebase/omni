@@ -1392,7 +1392,7 @@
 < column "COMMENTS" "NCHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, NUM_ROWS
+| 		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 | 		FROM all_tables
 | 		WHERE OWNER = 'OMNI_APP'
 | 		AND TABLE_NAME NOT IN (
@@ -1403,75 +1403,98 @@
 < column "OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | OMNI_APP
 : string
 | PK_AUTO
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | PK_DESC
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | PK_DISABLED
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | PK_INVISIBLE
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | PK_REUSED
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | SHARED
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | UK_AUTO
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | UK_EXPRESSION
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | UK_REUSED
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | UK_UNNAMED
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | UK_VIRTUAL
 : null
+: string
+| USERS
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, NUM_ROWS
+| 		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 | 		FROM all_object_tables
 | 		WHERE OWNER = 'OMNI_APP'
 | 		AND TABLE_NAME NOT IN (
@@ -1482,6 +1505,7 @@
 < column "OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT OWNER, TABLE_NAME, COMMENTS

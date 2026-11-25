@@ -421,6 +421,9 @@ func tokensSay(toks []parser.Token, words ...string) bool {
 // neither of which an external table takes, and with an index that backs
 // no constraint, which no external table has (30657).
 func (b *builder) notExternal(r objRef) bool {
+	if b.heapTable(r) {
+		return true
+	}
 	if b.syncedPartMeta(r) == nil || b.syncedIndexMeta(r) == nil {
 		return false
 	}
@@ -433,6 +436,14 @@ func (b *builder) notExternal(r objRef) bool {
 		}
 	}
 	return false
+}
+
+// heapTable reports whether the walk knows r is a heap table of no
+// partitions: the sync gave it a tablespace (syncedTable.heap) and the
+// change has not touched its partitions.
+func (b *builder) heapTable(r objRef) bool {
+	st := b.syncedPartMeta(r)
+	return st != nil && st.heap
 }
 
 // checkIOTPartitionClause rejects IOT-only partition clauses (OVERFLOW,
@@ -574,6 +585,10 @@ func (b *builder) checkPartitionMeta(r objRef, st *syncedTable, loc ast.Loc, rng
 	// SYSTEM-partitioned tables: subpartitions, SPLIT/MERGE/COALESCE,
 	// SET INTERVAL/PARTITIONING/SUBPARTITION TEMPLATE, PARTITION FOR (...),
 	// ADD/MODIFY PARTITION with VALUES, and MODIFY PARTITIONSET.
+	if st.heap {
+		b.fail(rng, review.UnsupportedForm, "Table "+review.Code(r.written)+" is not partitioned.")
+		return true
+	}
 	if st.partType == metadata.TablePartitionMetadata_TYPE_UNSPECIFIED {
 		if st.hasForeignKey {
 			return false
@@ -911,6 +926,10 @@ func (b *builder) checkCreateIndexLocal(v *ast.CreateIndexStmt, targetRef objRef
 	}
 	if st == nil {
 		return false
+	}
+	if st.heap {
+		b.fail(rng, review.UnsupportedForm, "A LOCAL index needs a partitioned table, not "+review.Code(targetRef.written)+".")
+		return true
 	}
 	if st.partType == metadata.TablePartitionMetadata_TYPE_UNSPECIFIED {
 		// SYSTEM- and REFERENCE-partitioned tables are omitted by oracle/driver/sync.go
@@ -1531,6 +1550,10 @@ func (b *builder) checkDMLPartitionExt(o *ast.ObjectName, r objRef, pe *ast.Part
 	}
 	if st == nil {
 		return false
+	}
+	if st.heap {
+		b.fail(rng, review.UnsupportedForm, "Table "+review.Code(tr.written)+" is not partitioned.")
+		return true
 	}
 	if st.partType == metadata.TablePartitionMetadata_TYPE_UNSPECIFIED {
 		if st.hasForeignKey {

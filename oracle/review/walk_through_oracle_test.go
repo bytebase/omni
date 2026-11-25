@@ -662,8 +662,8 @@ func (e *oracleEngine) Same(claimed, stored walk.Key) bool { return claimed == s
 // back no constraint of their name, are not named SYS_, and hold a column
 // the user made; the triggers of the schema on its own tables and views;
 // its views, materialized views, sequences but identity ones, and
-// functions, procedures, and packages; and its synonyms and the public
-// ones.
+// functions, procedures, and packages; its synonyms and the public ones;
+// and each table's tablespace.
 //
 // Bytebase reads the ALL_ views; to SYSTEM they show the schema's rows as
 // the DBA_ views do, but their privilege checks cost seconds of hard parse
@@ -714,12 +714,12 @@ func walkSync(t testing.TB, conn *sql.Conn, schema, names string) *metadata.Data
 		s.MaterializedViews = append(s.MaterializedViews, mviews[v[0].String])
 	})
 	tables := make(map[string]*metadata.TableMetadata)
-	query(`SELECT table_name, 0 FROM dba_tables WHERE owner = :1
-UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1 ORDER BY 1, 2`, func(v []sql.NullString) {
+	query(`SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = :1
+UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = :1 ORDER BY 1, 2`, func(v []sql.NullString) {
 		if mviews[v[0].String] != nil {
 			return
 		}
-		tables[v[0].String] = &metadata.TableMetadata{Name: v[0].String, SkipDump: v[1].String == "1"}
+		tables[v[0].String] = &metadata.TableMetadata{Name: v[0].String, SkipDump: v[1].String == "1", Tablespace: v[2].String}
 		s.Tables = append(s.Tables, tables[v[0].String])
 	})
 	query(`SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = :1 AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name`, func(v []sql.NullString) {

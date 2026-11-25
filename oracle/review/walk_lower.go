@@ -1729,7 +1729,7 @@ func (b *builder) alterMaterializedView(v *ast.AlterMaterializedViewStmt) bool {
 						}
 						if sr, _, sok := b.resolveSynonymTable(v.Name, r); sok {
 							pkFact, _ := b.look(sr.childKey(spacePrimary, ""))
-							if b.checkIOTPartitionClause(sr, pkFact == walk.Absent, partLoc, r.rng) {
+							if b.checkIOTPartitionClause(sr, pkFact == walk.Absent || b.heapTable(sr), partLoc, r.rng) {
 								return true
 							}
 							if b.checkPartitionMeta(sr, b.syncedPartMeta(sr), partLoc, r.rng) {
@@ -1768,7 +1768,7 @@ func (b *builder) alterMaterializedView(v *ast.AlterMaterializedViewStmt) bool {
 				}
 				if kind == kindTable {
 					pkFact, _ := b.look(r.childKey(spacePrimary, ""))
-					if b.checkIOTPartitionClause(r, pkFact == walk.Absent, partLoc, r.rng) {
+					if b.checkIOTPartitionClause(r, pkFact == walk.Absent || b.heapTable(r), partLoc, r.rng) {
 						return true
 					}
 					if b.checkPartitionMeta(r, b.syncedPartMeta(r), partLoc, r.rng) {

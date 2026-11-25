@@ -680,7 +680,7 @@
 | snapshot log for master table OMNI_APP.BASE
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, NUM_ROWS
+| 		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 | 		FROM all_tables
 | 		WHERE OWNER = 'OMNI_APP'
 | 		AND TABLE_NAME NOT IN (
@@ -691,21 +691,26 @@
 < column "OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | OMNI_APP
 : string
 | BASE
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | MLOG$_BASE
 : null
+: string
+| USERS
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, NUM_ROWS
+| 		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 | 		FROM all_object_tables
 | 		WHERE OWNER = 'OMNI_APP'
 | 		AND TABLE_NAME NOT IN (
@@ -716,6 +721,7 @@
 < column "OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT OWNER, TABLE_NAME, COMMENTS

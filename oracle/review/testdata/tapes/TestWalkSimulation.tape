@@ -2733,16 +2733,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -20500,21 +20503,26 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | A
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -40905,21 +40913,26 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | A
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -60465,21 +60478,25 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | A
 : string
 | 0
+: null
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -80584,16 +80601,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -100973,16 +100993,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -119083,21 +119106,26 @@
 : string
 | A
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | A
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -140282,16 +140310,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -158248,16 +158279,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -176761,16 +176795,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -194666,16 +194703,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -212651,16 +212691,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | A
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -214165,26 +214208,33 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | DEPT
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | EMP
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | MISC
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -218660,26 +218710,33 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | AUDIT_LOG
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | CUSTOMERS
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | ORDERS
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
