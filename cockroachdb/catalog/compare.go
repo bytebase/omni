@@ -33,6 +33,9 @@ func exprKey(expr string) string {
 	if collate, ok := unparen(parsed).(*tree.CollateExpr); ok && isLiteral(collate.Expr) {
 		parsed = collate.Expr
 	}
+	// The whole expression is a column's default, whose type the column
+	// fixes.
+	parsed = stripLiteralCast(parsed)
 	parsed, _ = tree.WalkExpr(literalCastStripper{}, parsed)
 	return groupedKey(parsed)
 }
@@ -49,38 +52,44 @@ func unparen(expr tree.Expr) tree.Expr {
 
 type literalCastStripper struct{}
 
-// VisitPre keeps a cast of a cast whole: '01'::INT8::STRING is '1', and
-// stripping its inner cast would make it '01'::STRING.
-//
-// It also keeps a comparison of literals whole: there the casts choose the
-// type the literals compare as ('01'::INT8 = '1'::INT8 holds, '01' = '1' does
-// not), where a literal compared with a column takes the column's type.
+// VisitPre drops a cast or annotation on a literal only where the context
+// fixes the literal's type anyway, which is where CockroachDB adds them to
+// what it stores: a side of a comparison whose other side is not a literal
+// (s > 'a'::STRING, an IN list's elements), and a REGCLASS argument
+// (nextval('s'::REGCLASS)). Anywhere else a cast chooses a type, of an
+// overload, an operator, a COALESCE or a comparison of literals, and stays.
 func (literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) {
-	if cmp, ok := expr.(*tree.ComparisonExpr); ok && literalOperand(cmp.Left) && literalOperand(cmp.Right) {
-		return false, expr
-	}
-	// So does arithmetic on literals: the casts choose the operator's type
-	// (FLOAT8 addition rounds where DECIMAL's does not).
-	if binary, ok := expr.(*tree.BinaryExpr); ok && literalOperand(binary) {
-		return false, expr
-	}
-	// A cast argument chooses the function's overload (length('é'::BYTES)
-	// is 2, length('é'::STRING) 1), so a call with one is kept whole; the
-	// REGCLASS CockroachDB adds to nextval's argument is the one it states.
-	if call, ok := expr.(*tree.FuncExpr); ok {
-		for _, arg := range call.Exprs {
+	switch e := expr.(type) {
+	case *tree.ComparisonExpr:
+		left, right := literalOperand(e.Left), literalOperand(e.Right)
+		if left == right {
+			return true, expr
+		}
+		cmp := *e
+		if left {
+			cmp.Left = stripLiteralCast(cmp.Left)
+		} else {
+			cmp.Right = stripLiteralCast(cmp.Right)
+		}
+		return true, &cmp
+	case *tree.FuncExpr:
+		var args tree.Exprs
+		for i, arg := range e.Exprs {
 			cast, ok := unparen(arg).(*tree.CastExpr)
 			if !ok || !isLiteral(unparen(cast.Expr)) {
 				continue
 			}
-			if t, ok := tree.GetStaticallyKnownType(cast.Type); !ok || t.Family() != types.OidFamily {
-				return false, expr
+			if t, ok := tree.GetStaticallyKnownType(cast.Type); ok && t.Family() == types.OidFamily {
+				if args == nil {
+					args = append(tree.Exprs(nil), e.Exprs...)
+				}
+				args[i] = unparen(cast.Expr)
 			}
 		}
-	}
-	if cast, ok := expr.(*tree.CastExpr); ok {
-		if _, ok := unparen(cast.Expr).(*tree.CastExpr); ok {
-			return false, expr
+		if args != nil {
+			call := *e
+			call.Exprs = args
+			return true, &call
 		}
 	}
 	return true, expr
@@ -88,14 +97,6 @@ func (literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 
 func (literalCastStripper) VisitPost(expr tree.Expr) tree.Expr {
 	switch e := expr.(type) {
-	case *tree.CastExpr:
-		if isLiteral(e.Expr) && !castRounds(e) {
-			return e.Expr
-		}
-	case *tree.AnnotateTypeExpr:
-		if isLiteral(e.Expr) {
-			return e.Expr
-		}
 	case *tree.ParenExpr:
 		return e.Expr
 	case *tree.NumVal:
@@ -108,6 +109,29 @@ func (literalCastStripper) VisitPost(expr tree.Expr) tree.Expr {
 				return tree.NewNumVal(constant.MakeFromLiteral(trimmed, token.FLOAT, 0), trimmed, false)
 			}
 		}
+	}
+	return expr
+}
+
+// stripLiteralCast drops a cast or annotation on a literal, or on each of a
+// tuple's elements, unless the cast can change the literal's value.
+func stripLiteralCast(expr tree.Expr) tree.Expr {
+	switch e := unparen(expr).(type) {
+	case *tree.CastExpr:
+		if isLiteral(unparen(e.Expr)) && !castRounds(e) {
+			return unparen(e.Expr)
+		}
+	case *tree.AnnotateTypeExpr:
+		if isLiteral(unparen(e.Expr)) {
+			return unparen(e.Expr)
+		}
+	case *tree.Tuple:
+		tuple := *e
+		tuple.Exprs = make(tree.Exprs, len(e.Exprs))
+		for i, element := range e.Exprs {
+			tuple.Exprs[i] = stripLiteralCast(element)
+		}
+		return &tuple
 	}
 	return expr
 }
@@ -265,7 +289,8 @@ func routineKey(definition string) string {
 	// A parameter default is stored annotated (0:::INT8).
 	for i := range routine.Params {
 		if routine.Params[i].DefaultVal != nil {
-			routine.Params[i].DefaultVal, _ = tree.WalkExpr(literalCastStripper{}, routine.Params[i].DefaultVal)
+			// Its parameter types it, as a column types its default.
+			routine.Params[i].DefaultVal, _ = tree.WalkExpr(literalCastStripper{}, stripLiteralCast(routine.Params[i].DefaultVal))
 		}
 	}
 	var language tree.RoutineLanguage

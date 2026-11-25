@@ -480,3 +480,13 @@ CREATE VIEW public.z AS SELECT id FROM public.t;`, catalog.SDLMigrationOptions{}
 	sql := plan.SQL()
 	require.Less(t, strings.Index(sql, `CREATE VIEW "public"."z"`), strings.Index(sql, `CREATE VIEW "public"."a"`), sql)
 }
+
+// TestSDLKeysKeepTypedConditionals keeps the casts that type a COALESCE.
+func TestSDLKeysKeepTypedConditionals(t *testing.T) {
+	plan, err := catalog.BuildSDLMigrationPlan(
+		"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT COALESCE('01'::INT8, NULL)::STRING);",
+		"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT COALESCE('01'::STRING, NULL)::STRING);",
+		catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+}
