@@ -312,6 +312,9 @@ $.name	$.name ~	engine	document	document	lineage	SELECT s.o.k FROM (SELECT {"k":
 a, b	a, b	engine	document	document	results	SELECT * FROM (SELECT VALUE {"a": c.name, "b": c.nick} FROM c) s
 $.name | $.nick	$.name ~ | $.nick ~	engine	document	document	lineage	SELECT * FROM (SELECT VALUE {"a": c.name, "b": c.nick} FROM c) s
 -	~	engine	document	document	tables	SELECT * FROM (SELECT VALUE {"a": c.name, "b": c.nick} FROM c) s
+k	k	engine	document	document	results	SELECT * FROM (SELECT VALUE {"k": c.name} ?? {"k": c.nick} FROM c) s
+$.name $.nick	$.name ~	engine	document	document	lineage	SELECT * FROM (SELECT VALUE {"k": c.name} ?? {"k": c.nick} FROM c) s
+-	~	engine	document	document	tables	SELECT * FROM (SELECT VALUE {"k": c.name} ?? {"k": c.nick} FROM c) s
 k	k	engine	document	document	results	SELECT t.k FROM (SELECT VALUE [{"k": c.name}, {"k": c.nick}] FROM c) arr JOIN t IN arr
 $.name $.nick	$.name $.nick ~	engine	document	document	lineage	SELECT t.k FROM (SELECT VALUE [{"k": c.name}, {"k": c.nick}] FROM c) arr JOIN t IN arr
 -	~	engine	document	document	tables	SELECT t.k FROM (SELECT VALUE [{"k": c.name}, {"k": c.nick}] FROM c) arr JOIN t IN arr

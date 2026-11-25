@@ -64,6 +64,38 @@ func union(members []*shape) *shape {
 	return &shape{kind: unionShape, members: d}
 }
 
+// asObject is s as an object of known members, or nil: an object shape, or
+// a union of them (a ?? b over two object literals), whose members are each
+// key's members of the operands that hold it.
+func asObject(s *shape) *shape {
+	switch s.kind {
+	case objectShape:
+		return s
+	case unionShape:
+	default:
+		return nil
+	}
+	var keys []string
+	byKey := map[string][]*shape{}
+	for _, m := range s.members {
+		obj := asObject(m)
+		if obj == nil {
+			return nil
+		}
+		for _, k := range obj.keys {
+			if _, ok := byKey[k]; !ok {
+				keys = append(keys, k)
+			}
+			byKey[k] = append(byKey[k], obj.member(k))
+		}
+	}
+	out := &shape{kind: objectShape, keys: keys}
+	for _, k := range keys {
+		out.members = append(out.members, union(byKey[k]))
+	}
+	return out
+}
+
 // opaque is the shape of a value computed from members by an operator or a
 // function, whose structure is not theirs.
 func opaque(members []*shape) *shape {

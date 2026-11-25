@@ -426,6 +426,10 @@
 < raw
 | {"items":[{"a":"«$.name»","b":"«$.nick»"}]}
 > raw
+| {"op":"query","fixture":"document","statement":"SELECT * FROM (SELECT VALUE {\"k\": c.name} ?? {\"k\": c.nick} FROM c) s"}
+< raw
+| {"items":[{"k":"«$.name»"}]}
+> raw
 | {"op":"query","fixture":"document","statement":"SELECT t.k FROM (SELECT VALUE [{\"k\": c.name}, {\"k\": c.nick}] FROM c) arr JOIN t IN arr"}
 < raw
 | {"items":[{"k":"«$.name»"},{"k":"«$.nick»"}]}

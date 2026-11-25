@@ -110,10 +110,11 @@ func (a *analyzer) selectStmt(stmt *ast.SelectStmt, parent *scope) selectOutput 
 
 	var out selectOutput
 	switch {
-	case stmt.Star && first != nil && first.kind == objectShape:
+	case stmt.Star && first != nil && asObject(first) != nil:
 		// SELECT * over a subquery that returns objects of known members
 		// returns those members.
-		out.names, out.shapes = first.keys, first.members
+		obj := asObject(first)
+		out.names, out.shapes = obj.keys, obj.members
 	case stmt.Star:
 		out.star = true
 		if first != nil {

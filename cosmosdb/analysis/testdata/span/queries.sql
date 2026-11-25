@@ -124,6 +124,7 @@ SELECT VALUE s.name FROM (SELECT c.name FROM c) s
 SELECT s.k FROM (SELECT VALUE {"k": c.name} FROM c) s
 SELECT s.o.k FROM (SELECT {"k": c.name} AS o FROM c) s
 SELECT * FROM (SELECT VALUE {"a": c.name, "b": c.nick} FROM c) s
+SELECT * FROM (SELECT VALUE {"k": c.name} ?? {"k": c.nick} FROM c) s
 SELECT t.k FROM (SELECT VALUE [{"k": c.name}, {"k": c.nick}] FROM c) arr JOIN t IN arr
 
 -- Aggregates, grouping and ordering.
