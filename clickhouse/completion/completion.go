@@ -182,7 +182,13 @@ func nameKindAfter(before []parser.Token) nameKind {
 		if relationFrom(before, len(before)-1) {
 			return kindRelation
 		}
-	case parser.KwJoin, parser.KwInto, parser.KwTable, parser.KwUpdate,
+	case parser.KwUpdate:
+		// An UPDATE statement names a table; ALTER TABLE t UPDATE assigns
+		// columns.
+		if len(before) == 1 {
+			return kindRelation
+		}
+	case parser.KwJoin, parser.KwInto, parser.KwTable,
 		parser.KwDescribe, parser.KwDesc, parser.KwTruncate, parser.KwExchange:
 		return kindRelation
 	case parser.KwUse, parser.KwDatabase:
@@ -273,29 +279,37 @@ func openParen(toks []parser.Token, i int) int {
 }
 
 // tableRef is a table a statement reads or writes, with its alias, the
-// parenthesis its clause is inside (the index of the open parenthesis, -1
-// at the top level) and the UNION branch it is in there.
+// query parenthesis its clause is inside (the index of the open
+// parenthesis, -1 at the top level) and the UNION branch it is in there.
 type tableRef struct {
 	database, table, alias string
 	group, branch          int
 }
 
+// queryParen returns the index of the innermost parenthesis open before
+// toks[i] that holds a query, or -1 when none does. Other parentheses, a
+// function's arguments or a parenthesized JOIN, open no scope.
+func queryParen(toks []parser.Token, i int) int {
+	g := openParen(toks, i)
+	for g >= 0 && !startsQuery(toks[g+1:]) {
+		g = openParen(toks, g)
+	}
+	return g
+}
+
 // branchAt returns which set-operation branch toks[i] is in, counting the
-// UNION, INTERSECT and EXCEPT between queries inside its parenthesis.
+// UNION, INTERSECT and EXCEPT between queries inside its query parenthesis.
 func branchAt(toks []parser.Token, i int) int {
 	depth, branch := 0, 0
-	for j := openParen(toks, i) + 1; j < i; j++ {
+	for j := queryParen(toks, i) + 1; j < i; j++ {
 		switch toks[j].Type {
 		case parser.TokLParen:
 			depth++
 		case parser.TokRParen:
 			depth--
-		case parser.KwUnion, parser.KwIntersect:
-			if depth == 0 {
-				branch++
-			}
-		case parser.KwExcept:
-			// EXCEPT also drops columns: SELECT * EXCEPT (a).
+		case parser.KwUnion, parser.KwIntersect, parser.KwExcept:
+			// Each is also a name, and EXCEPT drops columns in SELECT *
+			// EXCEPT (a): only one a query follows separates queries.
 			if depth == 0 && startsQuery(toks[j+1:]) {
 				branch++
 			}
@@ -313,8 +327,8 @@ func startsQuery(toks []parser.Token) bool {
 }
 
 // refsInScope returns the tables in scope at byte offset caret: those whose
-// clause is inside a parenthesis that holds the caret, in the UNION branch
-// that holds it, the innermost first.
+// clause is inside a query parenthesis that holds the caret, in the UNION
+// branch that holds it, the innermost first.
 func refsInScope(toks []parser.Token, caret int) []tableRef {
 	at := 0
 	for at < len(toks) && toks[at].Pos < caret {
@@ -325,7 +339,7 @@ func refsInScope(toks []parser.Token, caret int) []tableRef {
 	type scope struct{ group, branch int }
 	var scopes []scope
 	for {
-		g := openParen(toks, at)
+		g := queryParen(toks, at)
 		scopes = append(scopes, scope{g, branchAt(toks, at)})
 		if g < 0 {
 			break
@@ -363,11 +377,19 @@ func tableRefs(toks []parser.Token) []tableRef {
 			if !relationFrom(toks, i) {
 				continue
 			}
-		case parser.KwJoin, parser.KwInto, parser.KwTable, parser.KwUpdate:
+		case parser.KwUpdate:
+			if i != 0 {
+				continue // ALTER TABLE t UPDATE
+			}
+		case parser.KwJoin, parser.KwInto, parser.KwTable:
 		default:
 			continue
 		}
-		list, group, branch := toks[i].Type == parser.KwFrom, openParen(toks, i), branchAt(toks, i)
+		list, group, branch := toks[i].Type == parser.KwFrom, queryParen(toks, i), branchAt(toks, i)
+		// FROM (a JOIN b ...) groups a join without opening a scope.
+		for i+1 < len(toks) && toks[i+1].Type == parser.TokLParen && !startsQuery(toks[i+1:]) {
+			i++
+		}
 		for {
 			ref, n := readTableRef(toks[i+1:])
 			if n == 0 {

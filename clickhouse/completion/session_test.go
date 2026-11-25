@@ -169,6 +169,16 @@ func TestCompleteSessionNames(t *testing.T) {
 		{input: "SELECT | FROM orders SAMPLE 1/10 OFFSET 1/2, users", typ: CandidateColumn, want: []string{"amount", "id", "name", "user_id"}},
 		{input: "SELECT * FROM orders FINAL, |", typ: CandidateTable, want: []string{"`back\\\\slash`", "`my-table`", "orders", "other", "users"}},
 		{input: "SELECT * FROM orders o SAMPLE 0.1, |", typ: CandidateTable, want: []string{"`back\\\\slash`", "`my-table`", "orders", "other", "users"}},
+		{input: "ALTER TABLE orders UPDATE |", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "ALTER TABLE orders UPDATE |", typ: CandidateTable},
+		{input: "UPDATE |", typ: CandidateTable, want: []string{"`back\\\\slash`", "`my-table`", "orders", "other", "users"}},
+		{input: "UPDATE orders SET | = 1", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "SELECT | FROM (orders o INNER JOIN users u ON o.user_id = u.id)", typ: CandidateColumn, want: []string{"amount", "id", "name", "user_id"}},
+		{input: "SELECT u.| FROM (orders o INNER JOIN users u ON o.user_id = u.id)", typ: CandidateColumn, want: []string{"id", "name"}},
+		{input: "SELECT count(|) FROM orders", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "SELECT |, union FROM orders", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "SELECT |, intersect FROM orders", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "(SELECT id FROM orders o) UNION ALL (SELECT o.| FROM users o)", typ: CandidateColumn, want: []string{"id", "name"}},
 		{input: "ALTER TABLE orders UPDATE amount = 0 WHERE |", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
 	} {
 		t.Run(tc.input, func(t *testing.T) {
