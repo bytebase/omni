@@ -465,10 +465,12 @@ var wrongKindShape = regexp.MustCompile(`^N is an? (.+), not an? (.+)\.$`)
 // a CREATE makes, beyond the kinds walkCodes lists.
 var takenKindShape = regexp.MustCompile(`^[A-Z][a-z ]+ N already exists\.$`)
 
-var viewQueryCode = regexp.MustCompile(`^Oracle refuses the view's query: ORA-(\d{5}):`)
+// catalogRefusal is a finding that quotes the Oracle error a check refuses
+// the statement with.
+var catalogRefusal = regexp.MustCompile(`^Oracle refuses the (?:view's query|trigger): ORA-(\d{5}):`)
 
 func (e *oracleEngine) Codes(message string) []string {
-	if c := viewQueryCode.FindStringSubmatch(message); c != nil {
+	if c := catalogRefusal.FindStringSubmatch(message); c != nil {
 		return []string{c[1]}
 	}
 	m := walkShape(message)

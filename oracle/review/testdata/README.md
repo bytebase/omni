@@ -42,8 +42,16 @@ same way: procedures, functions, packages, triggers and types with bodies, and
 DDL on the objects they read, on `programs@objects`. Oracle creates a unit it
 cannot compile, so most rows are accepted; the walk catches the refusals it
 models (an existing name, a missing object to drop, a trigger on a missing
-table), 21 / 39 refusals (53.8%), and is held to zero false positives and a
-recall floor of its own.
+table, an INSTEAD OF trigger on a table, and what `catalog.TriggerFormError`
+finds in a trigger's own text), 27 / 39 refusals (69.2%), and is held to zero
+false positives and a recall floor of its own. It leaves the rest to Oracle,
+as the sync cannot show them: types (`CREATE TYPE`, `DROP TYPE`, a column of a
+missing type), a package's body (`CREATE PACKAGE BODY` of one that has a body;
+Bytebase's sync appends it to the package's definition, the walk's sync does
+not read it), triggers on another schema's tables (`DROP TRIGGER`, `ALTER
+TRIGGER` of a missing one), whether a view is an editioning view (a `BEFORE`
+trigger on one), and other users (`CREATE PROCEDURE nope.p`). `RENAME` fails
+with 03001 for a user who does not own the schema, as the walk's does.
 
 ## Commands
 
