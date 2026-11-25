@@ -37,11 +37,7 @@ simulation database. Each fixture's build turns `tidb_enable_check_constraint`
 off first, as the catalog that loads it starts, since the setting is global
 and a fixture may turn it on.
 
-3,467 rows: 3,466 agree and 1 disagrees. The one is `ALTER TABLE people ADD
-INDEX idx_tags ((CAST(doc->'$.tags' AS UNSIGNED ARRAY)))`: the catalog writes
-the key's expression as MySQL does (``json_extract(`doc`,'$.tags')``) where TiDB
-writes ``json_extract(`doc`, _utf8mb4'$.tags')``, the gap
-`TestContainerLoadMetadataMatchesTiDB` lists for key expressions.
+3,467 rows, and all of them agree.
 
 ## Commands
 

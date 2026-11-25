@@ -179,7 +179,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 			col.Name = cr.Column
 		} else {
-			col.Expr = nodeToSQL(ic.Expr)
+			col.Expr = generationExpr(ic.Expr)
 		}
 		idxCols = append(idxCols, col)
 	}
