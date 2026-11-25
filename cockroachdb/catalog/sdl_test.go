@@ -513,6 +513,7 @@ func TestSDLStarAtCreation(t *testing.T) {
 		names = append(names, column.Name)
 	}
 	require.Equal(t, []string{"id"}, names)
+	require.Equal(t, "SELECT id FROM t", loaded.Schemas[0].Views[0].Definition)
 }
 
 // TestSDLColumnAliasRebuildsView rebuilds a view that reads a column through

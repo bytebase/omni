@@ -94,10 +94,10 @@ func star(expr tree.Expr) bool {
 	return false
 }
 
-// starNames returns a query's output names where it selects from one stored
-// relation the SDL has declared so far, a star standing for that relation's
-// visible columns as they are now, which is when CockroachDB expands it; nil
-// when it cannot tell.
+// starNames expands the stars of a query that selects from one stored
+// relation the SDL has declared so far into that relation's visible columns
+// as they are now, which is when CockroachDB expands them, and returns the
+// query's output names; nil when it cannot tell them.
 func (l *sdlLoader) starNames(query *tree.Select) []string {
 	if query.With != nil {
 		return nil
@@ -145,20 +145,32 @@ func (l *sdlLoader) starNames(query *tree.Select) []string {
 		}
 	}
 	var names []string
+	var exprs tree.SelectExprs
+	unknown := false
 	for _, expr := range sel.Exprs {
 		if star(expr.Expr) && expr.As == "" {
 			names = append(names, relation...)
+			for _, column := range relation {
+				exprs = append(exprs, tree.SelectExpr{Expr: &tree.UnresolvedName{NumParts: 1, Parts: tree.NameParts{column}}})
+			}
 			continue
 		}
+		exprs = append(exprs, expr)
 		if expr.As != "" {
 			names = append(names, string(expr.As))
 			continue
 		}
 		name, ok := outputName(expr.Expr)
 		if !ok {
-			return nil
+			unknown = true
 		}
 		names = append(names, name)
+	}
+	// The view keeps the columns the star stood for, as CockroachDB stores
+	// it, so a column the relation gains later is not one of its outputs.
+	sel.Exprs = exprs
+	if unknown {
+		return nil
 	}
 	return names
 }
@@ -884,11 +896,13 @@ func (l *sdlLoader) createView(n *tree.CreateView) error {
 	for i, name := range n.ColumnNames {
 		names[i] = string(name)
 	}
+	expanded := l.starNames(n.AsSource)
+	definition = tree.AsString(n.AsSource)
 	if len(names) == 0 {
 		names = outputNames(n.AsSource)
 	}
 	if len(names) == 0 {
-		names = l.starNames(n.AsSource)
+		names = expanded
 	}
 	var columns []*metadatapb.ColumnMetadata
 	for _, name := range names {
