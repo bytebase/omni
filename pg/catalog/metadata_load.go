@@ -921,6 +921,7 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		if err := c.DefineRelation(stmt, relKind); err != nil {
 			return err
 		}
+		c.hideColumns(o)
 		if o.external != nil {
 			if rel := c.GetRelation(o.schema, o.name); rel != nil && rel.RelKind == 'f' {
 				rel.ForeignServer = o.external.GetExternalServerName()
@@ -934,10 +935,26 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		if o.body == nil {
 			return fmt.Errorf("view %q: %w", o.name, o.bodyErr)
 		}
-		return c.DefineView(&nodes.ViewStmt{
+		stmt := &nodes.ViewStmt{
 			View:  &nodes.RangeVar{Schemaname: o.schema, Relname: o.name, Relpersistence: 'p'},
 			Query: o.body,
-		})
+		}
+		// The view's columns take the names the sync read, as a column list
+		// gives them: CockroachDB stores CREATE VIEW v (a, b) AS SELECT x, y
+		// with the definition alone, which names x and y. A list that does
+		// not fit the definition is left out.
+		if columns := o.view.GetColumns(); len(columns) > 0 {
+			aliases := &nodes.List{}
+			for _, col := range columns {
+				aliases.Items = append(aliases.Items, &nodes.String{Str: col.GetName()})
+			}
+			stmt.Aliases = aliases
+			if err := c.DefineView(stmt); err == nil {
+				return nil
+			}
+			stmt.Aliases = nil
+		}
+		return c.DefineView(stmt)
 	case metadataMatView:
 		if o.body == nil {
 			return fmt.Errorf("materialized view %q: %w", o.name, o.bodyErr)
@@ -1168,7 +1185,7 @@ func metadataTableStmt(o *metadataObject, full bool) (*nodes.CreateStmt, error) 
 		return metadataPartitionStmt(o)
 	}
 	items := make([]nodes.Node, 0, len(t.GetColumns()))
-	for _, col := range t.GetColumns() {
+	for _, col := range hiddenLast(t.GetColumns()) {
 		if col.GetName() == "" {
 			continue
 		}
@@ -1257,6 +1274,44 @@ func setColumnValueProperties(schema string, def *nodes.ColumnDef, col *metadata
 			def.Constraints = &nodes.List{}
 		}
 		def.Constraints.Items = append(def.Constraints.Items, identity)
+	}
+}
+
+// hiddenLast returns columns with the invisible ones moved after the rest,
+// where a relation keeps its hidden columns.
+func hiddenLast(columns []*metadata.ColumnMetadata) []*metadata.ColumnMetadata {
+	if !slices.ContainsFunc(columns, (*metadata.ColumnMetadata).GetIsInvisible) {
+		return columns
+	}
+	out := slices.Clone(columns)
+	slices.SortStableFunc(out, func(a, b *metadata.ColumnMetadata) int {
+		switch {
+		case a.GetIsInvisible() == b.GetIsInvisible():
+			return 0
+		case b.GetIsInvisible():
+			return -1
+		}
+		return 1
+	})
+	return out
+}
+
+// hideColumns marks the table's invisible columns hidden, as CockroachDB's
+// sync reports the rowid of a table with no primary key: * leaves them out.
+func (c *Catalog) hideColumns(o *metadataObject) {
+	rel := c.GetRelation(o.schema, o.name)
+	if rel == nil {
+		return
+	}
+	for _, col := range o.table.GetColumns() {
+		if !col.GetIsInvisible() {
+			continue
+		}
+		for _, rc := range rel.Columns {
+			if rc.Name == col.GetName() {
+				rc.Hidden = true
+			}
+		}
 	}
 }
 

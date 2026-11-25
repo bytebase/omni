@@ -351,6 +351,47 @@
     },
     {
       "name": "audit",
+      "tables": [
+        {
+          "name": "events",
+          "columns": [
+            {
+              "name": "at",
+              "position": 1,
+              "nullable": true,
+              "type": "timestamp with time zone"
+            },
+            {
+              "name": "note",
+              "position": 2,
+              "nullable": true,
+              "type": "text"
+            },
+            {
+              "name": "rowid",
+              "position": 3,
+              "default": "unique_rowid()",
+              "type": "bigint",
+              "isInvisible": true
+            }
+          ],
+          "indexes": [
+            {
+              "name": "events_pkey",
+              "expressions": [
+                "rowid"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "btree",
+              "unique": true,
+              "primary": true,
+              "definition": "CREATE UNIQUE INDEX events_pkey ON omni_testsyncdatabase.audit.events USING btree (rowid ASC)"
+            }
+          ]
+        }
+      ],
       "sequences": [
         {
           "name": "big_seq",
