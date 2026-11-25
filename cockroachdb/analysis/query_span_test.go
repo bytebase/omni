@@ -41,6 +41,22 @@ func spanTestMetadata() map[string]*metadatapb.DatabaseSchemaMetadata {
 					sqlFunction("relnames()", "RETURNS STRING LANGUAGE SQL AS $$ SELECT relname FROM pg_catalog.pg_class LIMIT 1 $$"),
 					sqlFunction("writer()", "RETURNS INT8 LANGUAGE SQL AS $$ INSERT INTO db.public.u (id) VALUES (1) RETURNING id $$"),
 					{Name: "broken", Signature: "broken()", Definition: "not a function"},
+					// Each PL/pgSQL form that returns what a query reads.
+					plpgsqlFunction("star_into()", "DECLARE x RECORD; BEGIN SELECT * INTO x FROM db.public.t LIMIT 1; RETURN x; END"),
+					plpgsqlFunction("return_query()", "BEGIN RETURN QUERY SELECT * FROM db.public.u; END"),
+					plpgsqlFunction("bound_cursor()", "DECLARE c CURSOR FOR SELECT * FROM db.public.u; x RECORD; BEGIN OPEN c; FETCH c INTO x; RETURN x; END"),
+					plpgsqlFunction("open_for()", "DECLARE c REFCURSOR; x RECORD; BEGIN OPEN c FOR SELECT * FROM db.public.u; FETCH c INTO x; RETURN x; END"),
+					plpgsqlFunction("assigned()", "DECLARE x STRING; BEGIN x := (SELECT ssn FROM db.public.t LIMIT 1); RETURN x; END"),
+					plpgsqlFunction("return_next()", "BEGIN RETURN NEXT (SELECT name FROM db.public.t LIMIT 1); END"),
+					plpgsqlFunction("returning_into()", "DECLARE x RECORD; BEGIN INSERT INTO db.public.u (id) VALUES (1) RETURNING * INTO x; RETURN x; END"),
+					plpgsqlFunction("diagnostics()", "DECLARE n INT8; BEGIN GET DIAGNOSTICS n = ROW_COUNT; RETURN n; END"),
+					plpgsqlFunction("query_execute()", "BEGIN RETURN QUERY EXECUTE 'SELECT ssn FROM db.public.t'; END"),
+					plpgsqlFunction("query_loop()", "DECLARE r RECORD; BEGIN FOR r IN SELECT * FROM db.public.t LOOP RETURN NEXT r; END LOOP; END"),
+					plpgsqlFunction("performs()", "BEGIN PERFORM ssn FROM db.public.t; END"),
+					sqlFunction("copied()", "RETURNS INT8 LANGUAGE SQL AS $$ INSERT INTO db.public.u (id) SELECT * FROM db.public.t RETURNING 1 $$"),
+					sqlFunction("deleted()", "RETURNS SETOF db.public.u LANGUAGE SQL AS $$ DELETE FROM db.public.u RETURNING * $$"),
+					// An overload whose arguments a later schema's overload matches.
+					sqlFunction("pick(i INT8)", "RETURNS STRING LANGUAGE SQL AS $$ SELECT ssn FROM db.public.t LIMIT 1 $$"),
 				},
 				Views: []*metadatapb.ViewMetadata{
 					// A view whose sync stored no columns.
@@ -58,9 +74,12 @@ func spanTestMetadata() map[string]*metadatapb.DatabaseSchemaMetadata {
 				},
 			},
 			{
-				Name:      "hr",
-				Tables:    []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{column("id"), column("salary")}}},
-				Functions: []*metadatapb.FunctionMetadata{sqlFunction("get_ssn()", "RETURNS DECIMAL LANGUAGE SQL AS $$ SELECT salary FROM db.hr.t LIMIT 1 $$")},
+				Name:   "hr",
+				Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{column("id"), column("salary")}}},
+				Functions: []*metadatapb.FunctionMetadata{
+					sqlFunction("get_ssn()", "RETURNS DECIMAL LANGUAGE SQL AS $$ SELECT salary FROM db.hr.t LIMIT 1 $$"),
+					sqlFunction("pick(s STRING)", "RETURNS DECIMAL LANGUAGE SQL AS $$ SELECT salary FROM db.hr.t LIMIT 1 $$"),
+				},
 			},
 		}},
 		"other": {Name: "other", Schemas: []*metadatapb.SchemaMetadata{
@@ -74,6 +93,10 @@ func spanTestMetadata() map[string]*metadatapb.DatabaseSchemaMetadata {
 func sqlFunction(signature, rest string) *metadatapb.FunctionMetadata {
 	name, _, _ := strings.Cut(signature, "(")
 	return &metadatapb.FunctionMetadata{Name: name, Signature: signature, Definition: "CREATE FUNCTION public." + signature + " " + rest}
+}
+
+func plpgsqlFunction(signature, body string) *metadatapb.FunctionMetadata {
+	return sqlFunction(signature, "RETURNS RECORD LANGUAGE PLpgSQL AS $$ "+body+" $$")
 }
 
 func resolveSpan(statement string) (*analysis.ResolvedSpan, error) {
@@ -530,6 +553,16 @@ func TestResolveQuerySpanFunctions(t *testing.T) {
 		{"SELECT recurse()", analysis.Select, []string{"recurse: db.public.t.ssn"}, "db.public.t"},
 		{"SELECT relnames()", analysis.SelectInfoSchema, nil, "db.pg_catalog.pg_class"},
 		{"SELECT writer()", analysis.DML, nil, "db.public.u"},
+		// Each query of a PL/pgSQL body returns what it reads, * too.
+		{"SELECT star_into()", analysis.Select, []string{"star_into: db.public.t.id db.public.t.name db.public.t.ssn"}, "db.public.t"},
+		{"SELECT return_query()", analysis.Select, []string{"return_query: db.public.u.id db.public.u.note db.public.u.t_id"}, "db.public.u"},
+		{"SELECT bound_cursor()", analysis.Select, []string{"bound_cursor: db.public.u.id db.public.u.note db.public.u.t_id"}, "db.public.u"},
+		{"SELECT open_for()", analysis.Select, []string{"open_for: db.public.u.id db.public.u.note db.public.u.t_id"}, "db.public.u"},
+		{"SELECT assigned()", analysis.Select, []string{"assigned: db.public.t.ssn"}, "db.public.t"},
+		{"SELECT return_next()", analysis.Select, []string{"return_next: db.public.t.name"}, "db.public.t"},
+		{"SELECT returning_into()", analysis.DML, nil, "db.public.u"},
+		{"SELECT diagnostics()", analysis.Select, []string{"diagnostics:"}, ""},
+		{"SELECT x.id FROM deleted() AS x(id)", analysis.DML, nil, "db.public.u"},
 		// A builtin reads only its arguments.
 		{"SELECT lower(name) FROM t", analysis.Select, []string{"lower: db.public.t.name"}, "db.public.t"},
 	} {
@@ -558,8 +591,9 @@ func TestResolveQuerySpanFunctions(t *testing.T) {
 	if span, err := resolveSpan("SELECT note_of(1)"); err != nil || columnNames(span.PredicateColumns) != "db.public.u.t_id" {
 		t.Errorf("got predicates %v, error %v", span.PredicateColumns, err)
 	}
-	// A body that cannot be analyzed fails any statement.
-	for _, statement := range []string{"SELECT dynamic()", "SELECT broken()", "DELETE FROM t WHERE ssn = dynamic()"} {
+	// A body that cannot be analyzed fails any statement, as does one with a
+	// form CockroachDB's PL/pgSQL grammar does not take.
+	for _, statement := range []string{"SELECT dynamic()", "SELECT broken()", "DELETE FROM t WHERE ssn = dynamic()", "SELECT query_execute()", "SELECT query_loop()", "SELECT performs()"} {
 		var unsupported *analysis.FunctionNotSupportedError
 		if _, err := resolveSpan(statement); !errors.As(err, &unsupported) {
 			t.Errorf("%s: got %v, want a FunctionNotSupportedError", statement, err)
@@ -654,6 +688,55 @@ func TestResolveQuerySpanEmbeddedQueries(t *testing.T) {
 	} {
 		if _, err := resolveSpan(statement); !errors.Is(err, ErrMixUserSystemTables) {
 			t.Errorf("%s: got %v, want ErrMixUserSystemTables", statement, err)
+		}
+	}
+}
+
+// TestResolveQuerySpanFunctionOverloads holds a call to every overload of its
+// name the search path reaches, since CockroachDB picks one by its arguments.
+func TestResolveQuerySpanFunctionOverloads(t *testing.T) {
+	for _, tc := range []struct {
+		searchPath, statement string
+		want                  []string
+	}{
+		{"public,hr", "SELECT pick('x')", []string{"pick: db.hr.t.salary db.public.t.ssn"}},
+		{"hr,public", "SELECT pick(1)", []string{"pick: db.hr.t.salary db.public.t.ssn"}},
+		{"public", "SELECT pick('x')", []string{"pick: db.public.t.ssn"}},
+		{"public,hr", "SELECT public.pick(1)", []string{"pick: db.public.t.ssn"}},
+	} {
+		span, err := resolveSpanIn(tc.statement, tc.searchPath)
+		if err != nil {
+			t.Errorf("%s under %s: %v", tc.statement, tc.searchPath, err)
+			continue
+		}
+		if diff := cmp.Diff(tc.want, lineage(span)); diff != "" {
+			t.Errorf("%s under %s: lineage (-want +got):\n%s", tc.statement, tc.searchPath, diff)
+		}
+	}
+}
+
+// TestResolveQuerySpanFunctionBody holds what a body returns through a
+// RETURNING list, which a writing function's DML span does not show.
+func TestResolveQuerySpanFunctionBody(t *testing.T) {
+	databases := spanTestMetadata()
+	for name, want := range map[string]string{
+		"returning_into()": "db.public.u.id db.public.u.note db.public.u.t_id",
+		"deleted()":        "db.public.u.id db.public.u.note db.public.u.t_id",
+		// Every query of a body counts, INSERT ... SELECT's rows too.
+		"copied()": "db.public.t.id db.public.t.name db.public.t.ssn",
+	} {
+		r := newSpanResolver(ResolveOptions{DefaultDatabase: "db", Catalog: Catalog{GetDatabase: func(name string) (Database, error) {
+			return protoDatabase{databases[name]}, nil
+		}}})
+		var definition *metadatapb.FunctionMetadata
+		for _, f := range databases["db"].GetSchemas()[0].GetFunctions() {
+			if f.GetSignature() == name {
+				definition = f
+			}
+		}
+		body := r.analyzeFunction(name, definition)
+		if got := columnNames(body.sources); got != want || !body.writes {
+			t.Errorf("%s: reads %q, writes %v; want %q and a write", name, got, body.writes, want)
 		}
 	}
 }

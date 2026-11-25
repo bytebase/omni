@@ -82,20 +82,7 @@ func ResolveQuerySpan(_ context.Context, statement string, opts ResolveOptions) 
 	if len(stmts) != 1 {
 		return nil, fmt.Errorf("expected exactly 1 statement, got %d", len(stmts))
 	}
-	searchPath := opts.SearchPath
-	if len(searchPath) == 0 {
-		searchPath = []string{"public"}
-	}
-	r := &spanResolver{
-		defaultDatabase: opts.DefaultDatabase,
-		searchPath:      searchPath,
-		catalog:         opts.Catalog,
-		databases:       map[string]Database{},
-		accesses:        analysis.ColumnSet{},
-		predicates:      analysis.ColumnSet{},
-		expanding:       map[analysis.ColumnResource]bool{},
-		functions:       map[string]*functionBody{},
-	}
+	r := newSpanResolver(opts)
 	stmt := stmts[0].AST
 	explain, explainAnalyze := stmt.(*tree.ExplainAnalyze)
 	if explainAnalyze {
@@ -160,6 +147,23 @@ func ResolveQuerySpan(_ context.Context, statement string, opts ResolveOptions) 
 	span.PredicateColumns = r.predicates
 	span.UnresolvedColumnsError = r.unresolvedColumns()
 	return span, nil
+}
+
+func newSpanResolver(opts ResolveOptions) *spanResolver {
+	searchPath := opts.SearchPath
+	if len(searchPath) == 0 {
+		searchPath = []string{"public"}
+	}
+	return &spanResolver{
+		defaultDatabase: opts.DefaultDatabase,
+		searchPath:      searchPath,
+		catalog:         opts.Catalog,
+		databases:       map[string]Database{},
+		accesses:        analysis.ColumnSet{},
+		predicates:      analysis.ColumnSet{},
+		expanding:       map[analysis.ColumnResource]bool{},
+		functions:       map[string]*functionBody{},
+	}
 }
 
 // classifyStatement returns the permission class of stmt. A SELECT whose CTEs
@@ -270,6 +274,15 @@ type spanResolver struct {
 func (r *spanResolver) fail(err error) {
 	if r.resolveErr == nil {
 		r.resolveErr = err
+	}
+}
+
+// output records the columns a query or a RETURNING list returns, which in a
+// function body may be what the function returns: * reads no name, so its
+// columns reach the body's reads only here.
+func (r *spanResolver) output(cols []spanColumn) {
+	if r.collect != nil {
+		r.collect = union(r.collect, columnSources(cols))
 	}
 }
 
@@ -1429,7 +1442,7 @@ func (r *spanResolver) statementTables(stmt tree.Statement, outer *spanScope) {
 	returning := func(clause tree.ReturningClause) {
 		if exprs, ok := clause.(*tree.ReturningExprs); ok {
 			for _, e := range *exprs {
-				walk(e.Expr)
+				r.output(r.selectTarget(e, sc))
 			}
 		}
 	}
@@ -1439,9 +1452,9 @@ func (r *spanResolver) statementTables(stmt tree.Statement, outer *spanScope) {
 	}
 	switch n := stmt.(type) {
 	case *tree.Select:
-		r.selectQuery(n, outer)
+		r.output(r.selectQuery(n, outer))
 	case *tree.ParenSelect:
-		r.selectQuery(n.Select, outer)
+		r.output(r.selectQuery(n.Select, outer))
 	case *tree.Explain:
 		r.inExplain++
 		r.statementTables(n.Statement, outer)
@@ -1452,7 +1465,7 @@ func (r *spanResolver) statementTables(stmt tree.Statement, outer *spanScope) {
 		// INSERT and UPSERT.
 		with(n.With)
 		if n.Rows != nil {
-			r.selectQuery(n.Rows, sc.parent)
+			r.output(r.selectQuery(n.Rows, sc.parent))
 		}
 		target(n.Table)
 		if n.OnConflict != nil {
@@ -1662,12 +1675,11 @@ func (r *spanResolver) functionReads(fn *tree.FuncExpr) analysis.ColumnSet {
 		if len(overloads) == 0 {
 			continue
 		}
-		// Every overload of the name in the first schema that has one may be
-		// the one called.
+		// CockroachDB picks an overload by its arguments across the whole
+		// search path, so every overload of the name may be the one called.
 		for _, f := range overloads {
 			reads = union(reads, r.applyBody(r.analyzeFunction(database+"."+schema+"."+f.GetSignature(), f)))
 		}
-		break
 	}
 	return reads
 }
@@ -1763,13 +1775,6 @@ func (r *spanResolver) walkFunction(definition string) error {
 		return fmt.Errorf("a function in %s", language)
 	}
 	for _, stmt := range statements {
-		if sel, ok := stmt.(*tree.Select); ok {
-			// What * returns reads no name, so the outputs count too.
-			for _, c := range r.selectQuery(sel, nil) {
-				r.collect = union(r.collect, c.sources)
-			}
-			continue
-		}
 		r.statementTables(stmt, nil)
 	}
 	return nil
