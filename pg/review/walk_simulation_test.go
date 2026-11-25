@@ -19,7 +19,7 @@ import (
 
 // TestWalkSimulation holds PostgreSQL's WALK_THROUGH to each of
 // pg/catalog's simulate.tsv suites offline (PostgreSQL 17's, PostgreSQL
-// 18's, the view queries on each, and the stored programs): each fixture is built once in the
+// 18's, and the view queries and stored programs on each): each fixture is built once in the
 // in-memory catalog, and every row is checked with no server started.
 func TestWalkSimulation(t *testing.T) {
 	for _, suite := range []struct {
@@ -33,13 +33,19 @@ func TestWalkSimulation(t *testing.T) {
 		// fell with them.
 		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.911},
 		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.909},
-		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 0.978},
-		{"pg18_queries", filepath.Join("..", "catalog", "testdata", "pg18", "queries", "simulate.tsv"), 0.978},
+		// The view queries the walk misses are what pg/catalog refuses with a
+		// code catalogCodes leaves out: a missing type, function, tablesample
+		// method or schema, and a coercion a cast could allow.
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 0.988},
+		{"pg18_queries", filepath.Join("..", "catalog", "testdata", "pg18", "queries", "simulate.tsv"), 0.988},
 		// Functions, procedures, triggers, event triggers, CALL and DO on
-		// programs@objects. The walk does not read a routine's body, so the
-		// refusals PostgreSQL makes of one at CREATE (check_function_bodies)
-		// are most of what it misses.
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.185},
+		// programs@objects. pg/catalog checks a routine's body; what is left
+		// is a missing name in one (42P01, 42703, 42704, 42883), dependencies
+		// on a dropped table or column (2BP01), and what a catalog loaded
+		// from a snapshot does not hold: a procedure's identity, an enum's
+		// labels, an event trigger.
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.535},
+		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.535},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{
@@ -77,7 +83,7 @@ func pgSimFixture(t testing.TB, fx simulate.Fixture) walktest.SimFixture {
 		}
 	}
 	target := review.Target{
-		Schema:      pgCatalogToMetadata(c),
+		Schema:      pgCatalogToMetadata(c, routineDefinitions(fx.SQL)),
 		SessionUser: "postgres",
 	}
 	objects := pgCatalogInventory(c)
@@ -124,7 +130,61 @@ func pgSimFixture(t testing.TB, fx simulate.Fixture) walktest.SimFixture {
 	}
 }
 
-func pgCatalogToMetadata(c *pgcatalog.Catalog) *metadata.DatabaseSchemaMetadata {
+// routineDefinitions returns, by schema and name in the order the fixture
+// creates them, each routine's definition as the sync stores it:
+// pg_get_functiondef's CREATE OR REPLACE FUNCTION or PROCEDURE, here the
+// fixture's own statement.
+func routineDefinitions(sql string) map[[2]string][]string {
+	out := map[[2]string][]string{}
+	list, err := parser.Parse(sql)
+	if err != nil || list == nil {
+		return out
+	}
+	for _, item := range list.Items {
+		raw, ok := item.(*ast.RawStmt)
+		if !ok {
+			continue
+		}
+		fn, ok := raw.Stmt.(*ast.CreateFunctionStmt)
+		if !ok || raw.Loc.Start < 0 || raw.Loc.End > len(sql) {
+			continue
+		}
+		parts := nameParts(fn.Funcname)
+		if len(parts) == 0 {
+			continue
+		}
+		schema := "public"
+		if len(parts) > 1 {
+			schema = parts[len(parts)-2]
+		}
+		text := strings.TrimSpace(sql[raw.Loc.Start:raw.Loc.End])
+		if !fn.IsOrReplace {
+			text = "CREATE OR REPLACE" + strings.TrimPrefix(text, "CREATE")
+		}
+		key := [2]string{schema, parts[len(parts)-1]}
+		out[key] = append(out[key], text)
+	}
+	return out
+}
+
+// viewDefinition is a view's definition as the sync reads it,
+// pg_get_viewdef with an empty search_path, which qualifies every name; ""
+// where the catalog cannot deparse it.
+func viewDefinition(c *pgcatalog.Catalog, schema, name string, materialized bool) string {
+	c.SetSearchPath(nil)
+	defer c.SetSearchPath([]string{"public"})
+	get := c.GetViewDefinition
+	if materialized {
+		get = c.GetMatViewDefinition
+	}
+	def, err := get(schema, name)
+	if err != nil {
+		return ""
+	}
+	return def
+}
+
+func pgCatalogToMetadata(c *pgcatalog.Catalog, definitions map[[2]string][]string) *metadata.DatabaseSchemaMetadata {
 	db := &metadata.DatabaseSchemaMetadata{
 		Name:       "simulation",
 		SearchPath: `"$user", public`,
@@ -325,15 +385,16 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog) *metadata.DatabaseSchemaMetadata 
 				}
 				sm.Tables = append(sm.Tables, tbl)
 			case 'v':
-				v := &metadata.ViewMetadata{Name: rel.Name}
+				v := &metadata.ViewMetadata{Name: rel.Name, Definition: viewDefinition(c, s.Name, rel.Name, false)}
 				for i, col := range rel.Columns {
 					v.Columns = append(v.Columns, colMeta(col, int32(i+1)))
 				}
 				sm.Views = append(sm.Views, v)
 			case 'm':
 				mv := &metadata.MaterializedViewMetadata{
-					Name:    rel.Name,
-					Indexes: indexMeta(rel),
+					Name:       rel.Name,
+					Definition: viewDefinition(c, s.Name, rel.Name, true),
+					Indexes:    indexMeta(rel),
 				}
 				sm.MaterializedViews = append(sm.MaterializedViews, mv)
 			case 'f':
@@ -371,6 +432,13 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog) *metadata.DatabaseSchemaMetadata 
 		}
 		for _, proc := range c.QueryPgProc(s.Name) {
 			if builtinCalls[strings.ToLower(proc.ProName)] {
+				continue
+			}
+			// The sync stores a procedure among the functions, each with
+			// its definition.
+			if defs := definitions[[2]string{s.Name, proc.ProName}]; len(defs) > 0 {
+				definitions[[2]string{s.Name, proc.ProName}] = defs[1:]
+				sm.Functions = append(sm.Functions, &metadata.FunctionMetadata{Name: proc.ProName, Definition: defs[0]})
 				continue
 			}
 			if proc.ProKind == 'p' {
