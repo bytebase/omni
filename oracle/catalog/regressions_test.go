@@ -3704,3 +3704,26 @@ func TestTriggerOnUnderivedView(t *testing.T) {
 		}
 	}
 }
+
+// A number literal returned as a DATE is PLS-00382, unless the return type
+// names a subtype an enclosing scope declares. A subtype the function's own
+// body declares is not in the signature's scope: Oracle 23.26.3 refuses that
+// function with PLS-00311, which omni does not model, so only the status is
+// pinned there.
+func TestReturnNumberAsDatetime(t *testing.T) {
+	for _, tc := range []struct{ sql, status, err string }{
+		{`CREATE FUNCTION f RETURN DATE IS BEGIN RETURN 1; END;`, "INVALID", "PLS-00382"},
+		{`CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END;`, "VALID", ""},
+		{`CREATE PROCEDURE f IS SUBTYPE "TIMESTAMP" IS NUMBER; FUNCTION g RETURN "TIMESTAMP" IS BEGIN RETURN 1; END; BEGIN NULL; END;`, "VALID", ""},
+		{`CREATE FUNCTION f RETURN TIMESTAMP IS SUBTYPE "TIMESTAMP" IS NUMBER; BEGIN RETURN 1; END;`, "INVALID", ""},
+	} {
+		c, err := LoadSQL(tc.sql)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.sql, err)
+		}
+		units := c.unitStates()
+		if len(units) != 1 || units[0].status != tc.status || (tc.err != "" && units[0].err != tc.err) {
+			t.Errorf("%s: units = %+v, want %s %s", tc.sql, units, tc.status, tc.err)
+		}
+	}
+}

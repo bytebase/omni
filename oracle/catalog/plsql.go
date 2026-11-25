@@ -27,8 +27,9 @@ type plChecker struct {
 	// function reports a function body, whose RETURN takes a value, and
 	// pipelined a pipelined function's.
 	function, pipelined bool
-	// returns is the function's return type.
-	returns *ast.TypeName
+	// returnsDatetime reports a function whose return type is the built-in
+	// DATE, TIMESTAMP or INTERVAL, resolved in the signature's scope.
+	returnsDatetime bool
 	// row holds the trigger's row names (NEW, OLD) with the table's
 	// columns, and rowTable the table's name as the trigger names it.
 	row      map[string]map[string]bool
@@ -199,8 +200,10 @@ func (c *plChecker) subprogram(params *ast.List, ret *ast.TypeName, body ast.Stm
 		}
 		seen[p.Name] = true
 	}
+	datetime := false
 	if ret != nil {
 		c.typeName(ret)
+		datetime = c.builtinDatetime(ret)
 	}
 	if body == nil {
 		return
@@ -213,10 +216,10 @@ func (c *plChecker) subprogram(params *ast.List, ret *ast.TypeName, body ast.Stm
 		}
 		c.declare(p.Name, &plSym{kind: kind, fields: c.typeFields(p.TypeName)})
 	}
-	savedFunction, savedPipelined, savedReturns := c.function, c.pipelined, c.returns
-	c.function, c.pipelined, c.returns = function, pipelined, ret
+	savedFunction, savedPipelined, savedDatetime := c.function, c.pipelined, c.returnsDatetime
+	c.function, c.pipelined, c.returnsDatetime = function, pipelined, datetime
 	c.block(body)
-	c.function, c.pipelined, c.returns = savedFunction, savedPipelined, savedReturns
+	c.function, c.pipelined, c.returnsDatetime = savedFunction, savedPipelined, savedDatetime
 	c.pop()
 }
 
