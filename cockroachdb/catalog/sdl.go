@@ -446,6 +446,9 @@ func (l *sdlLoader) createTable(n *tree.CreateTable) error {
 // addColumn adds a column a CREATE TABLE or ALTER TABLE ADD COLUMN declares,
 // with the keys, checks and foreign key it declares inline.
 func (l *sdlLoader) addColumn(schema string, table *metadatapb.TableMetadata, column *tree.ColumnTableDef) error {
+	if findColumn(table, string(column.Name)) != nil {
+		return fmt.Errorf("column %s is added twice", column.Name)
+	}
 	typ, collation := sdlType(column.Type)
 	c := &metadatapb.ColumnMetadata{
 		Name:        string(column.Name),
@@ -707,6 +710,10 @@ func (l *sdlLoader) alterTable(n *tree.AlterTable) error {
 				return err
 			}
 		case *tree.AlterTableAddColumn:
+			if c.IfNotExists && findColumn(table, string(c.ColumnDef.Name)) != nil {
+				// The engine skips it.
+				continue
+			}
 			if err := l.addColumn(schema, table, c.ColumnDef); err != nil {
 				return err
 			}

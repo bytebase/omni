@@ -23,6 +23,7 @@ func TestLoadSDLRefuses(t *testing.T) {
 		"temporary":        "CREATE TEMP TABLE t (id INT8 PRIMARY KEY)",
 		"schema rename":    "CREATE SCHEMA old; CREATE TABLE old.t (id INT8 PRIMARY KEY); ALTER SCHEMA old RENAME TO new",
 		"table twice":      "CREATE TABLE t (id INT8 PRIMARY KEY); CREATE TABLE t (id INT8 PRIMARY KEY)",
+		"column twice":     "CREATE TABLE t (id INT8 PRIMARY KEY, a STRING); ALTER TABLE t ADD COLUMN a INT8",
 		"index twice":      "CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); CREATE INDEX i ON t (a); CREATE INDEX i ON t (a)",
 		"view twice":       "CREATE VIEW v AS SELECT 1 AS n; CREATE VIEW v AS SELECT 1 AS n",
 		"view over table":  "CREATE TABLE v (id INT8 PRIMARY KEY); CREATE VIEW v AS SELECT 1 AS n",
@@ -360,7 +361,7 @@ func TestSDLRoutineUserTypes(t *testing.T) {
 func TestSDLIfNotExists(t *testing.T) {
 	source := "CREATE TABLE t (id INT8 PRIMARY KEY, a INT8, b INT8); CREATE INDEX i ON t (a); CREATE SEQUENCE s; CREATE TYPE e AS ENUM ('a'); CREATE VIEW v AS SELECT 1 AS n;"
 	plan, err := catalog.BuildSDLMigrationPlan(source, source+
-		"CREATE INDEX IF NOT EXISTS i ON t (b); CREATE SEQUENCE IF NOT EXISTS s INCREMENT 5; CREATE TYPE IF NOT EXISTS e AS ENUM ('b'); CREATE VIEW IF NOT EXISTS v AS SELECT 2 AS n;",
+		"ALTER TABLE t ADD COLUMN IF NOT EXISTS a STRING NOT NULL DEFAULT ''; CREATE INDEX IF NOT EXISTS i ON t (b); CREATE SEQUENCE IF NOT EXISTS s INCREMENT 5; CREATE TYPE IF NOT EXISTS e AS ENUM ('b'); CREATE VIEW IF NOT EXISTS v AS SELECT 2 AS n;",
 		catalog.SDLMigrationOptions{})
 	require.NoError(t, err)
 	require.Nil(t, plan, "%v", plan)
