@@ -9508,7 +9508,7 @@ func (d *ruleDeparser) deparseExpr(n nodes.Node) string {
 			return s
 		}
 		if d.b != nil && d.b.litType[v] != 0 && d.cat != nil {
-			return fmt.Sprintf("(%s)::%s", deparseRawConstVal(v.Val), d.cat.FormatType(d.b.litType[v], -1))
+			return fmt.Sprintf("(%s)::%s", deparseRawConstVal(v.Val), d.literalTypeName(d.b.litType[v]))
 		}
 		return deparseRawConstVal(v.Val)
 
@@ -10438,6 +10438,18 @@ func deparseFuncNameList(list *nodes.List) string {
 		return quoteIdentifier(stringVal(list.Items[1]))
 	}
 	return deparseQualifiedIdentList(list)
+}
+
+// literalTypeName prints the type coerceRuleLiteral gave a literal as
+// deparseTypeName prints a cast to it, so the two forms compare equal.
+func (d *ruleDeparser) literalTypeName(oid uint32) string {
+	if bt := d.cat.typeByOID[oid]; bt != nil && oid >= FirstNormalObjectId {
+		if sc := d.cat.schemas[bt.Namespace]; sc != nil && sc.Name != "public" && sc.Name != "pg_catalog" {
+			return quoteIdentifier(sc.Name) + "." + quoteIdentifier(bt.TypeName)
+		}
+		return quoteIdentifier(bt.TypeName)
+	}
+	return d.cat.FormatType(oid, -1)
 }
 
 func (d *ruleDeparser) deparseTypeName(tn *nodes.TypeName) string {

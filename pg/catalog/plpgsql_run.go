@@ -215,7 +215,7 @@ func plStraightLine(b *plast.PLBlock, out *[]plast.Node) bool {
 
 // plRunnableSQL reports whether runPLpgSQL can run a SQL statement: it
 // returns no rows (PL/pgSQL refuses one without INTO: a SELECT, VALUES or
-// TABLE, DML with RETURNING, SHOW, EXPLAIN, FETCH, EXECUTE) and names no
+// TABLE, DML with RETURNING, SHOW, EXPLAIN, FETCH, EXECUTE), is no COPY, and names no
 // FOUND, the variable every PL/pgSQL block has, which the catalog does not
 // bind.
 //
@@ -248,7 +248,9 @@ func plRunnableSQL(text string) bool {
 			if s.ReturningList != nil && len(s.ReturningList.Items) > 0 {
 				return false
 			}
-		case *nodes.VariableShowStmt, *nodes.ExplainStmt, *nodes.ExecuteStmt:
+		case *nodes.VariableShowStmt, *nodes.ExplainStmt, *nodes.ExecuteStmt, *nodes.CopyStmt:
+			// COPY to or from the client fails in PL/pgSQL, and the catalog
+			// runs no COPY.
 			return false
 		case *nodes.FetchStmt:
 			if !s.Ismove {

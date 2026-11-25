@@ -1,6 +1,9 @@
 package catalog
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestRunPLpgSQL pins what runPLpgSQL runs and what it leaves alone. The
 // programs simulate suites hold the cases PostgreSQL was asked; these are
@@ -45,6 +48,7 @@ CREATE PROCEDURE pfail() LANGUAGE plpgsql AS $$ BEGIN CREATE TABLE made_fail (a 
 		// A statement that returns rows, or names FOUND, is not run.
 		{stmt: `DO $$ BEGIN SHOW search_path; CREATE TABLE made_show (a int); END $$`, notMade: "made_show"},
 		{stmt: `DO $$ BEGIN INSERT INTO flags VALUES (found); CREATE TABLE made_found (a int); END $$`, notMade: "made_found"},
+		{stmt: `DO $$ BEGIN CREATE TABLE made_copy (a int); COPY made_copy TO STDOUT; END $$`, notMade: "made_copy"},
 		// A user-defined operator takes the literal as its own type.
 		{stmt: `CREATE FUNCTION fo(m mood) RETURNS boolean RETURN m OPERATOR(app.=) 'arbitrary'`},
 		{stmt: `CREATE FUNCTION fe(m mood) RETURNS boolean RETURN m = 'arbitrary'`, code: "22P02"},
@@ -73,5 +77,28 @@ CREATE PROCEDURE pfail() LANGUAGE plpgsql AS $$ BEGIN CREATE TABLE made_fail (a 
 		if tc.notMade != "" && public.Relations[tc.notMade] != nil {
 			t.Errorf("%s: table %s was made", tc.stmt, tc.notMade)
 		}
+	}
+}
+
+// TestLiteralTypeName pins that a literal's type prints as a cast to it
+// does: quoted, and qualified outside public.
+func TestLiteralTypeName(t *testing.T) {
+	c, err := LoadSQL(`CREATE TYPE "Mood" AS ENUM ('sad'); CREATE SCHEMA app; CREATE TYPE app.e AS ENUM ('x');`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := &ruleDeparser{cat: c}
+	for name, want := range map[string]string{"public.Mood": `"Mood"`, "app.e": "app.e"} {
+		schema, typ, _ := strings.Cut(name, ".")
+		oid := c.typeByName[typeKey{ns: c.schemaByName[schema].OID, name: typ}]
+		if oid == nil {
+			t.Fatalf("no type %s", name)
+		}
+		if got := d.literalTypeName(oid.OID); got != want {
+			t.Errorf("%s: %s, want %s", name, got, want)
+		}
+	}
+	if got := d.literalTypeName(TEXTOID); got != "text" {
+		t.Errorf("text: %s", got)
 	}
 }
