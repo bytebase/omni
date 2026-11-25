@@ -70,12 +70,6 @@ type Parser struct {
 	// rejects). It is never set for a CAST target or any general `type` position.
 	inArrayColumnSchema bool
 
-	// inFromFirstQuery is set while parsing the FROM clause of a BigQuery-only
-	// FROM-first pipe query (`FROM ...`), where Spanner does not accept the
-	// statement and BigQuery reserves QUALIFY (so bare QUALIFY is never a table
-	// alias there). Cleared when entering a nested SELECT/TABLE query.
-	inFromFirstQuery bool
-
 	// parsedSubqueries holds, by the offset of its body, every expression
 	// subquery parseSubqueryBodyRaw parsed in place. fillSubqueries attaches
 	// these instead of reparsing the body text, which reparsed every nested

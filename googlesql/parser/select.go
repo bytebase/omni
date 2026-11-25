@@ -83,12 +83,6 @@ func (p *Parser) parseQuery() (*ast.QueryStmt, error) {
 		q.With = with
 	}
 
-	// Entering a non-FROM-first query (e.g. a subquery inside a FROM-first
-	// query): clear inFromFirstQuery for the nested query body.
-	prevFromFirst := p.inFromFirstQuery
-	p.inFromFirstQuery = false
-	defer func() { p.inFromFirstQuery = prevFromFirst }()
-
 	// The query body: a query_primary or a left-recursive set-operation chain.
 	body, err := p.parseQueryPrimaryOrSetOp()
 	if err != nil {

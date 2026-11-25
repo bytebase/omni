@@ -138,9 +138,6 @@ func (p *Parser) tryParseJoinSuffix(cur ast.Node, open *[]*ast.JoinExpr) (ast.No
 			*open = (*open)[:top]
 			target.Right = cur
 		} else {
-			if p.inFromFirstQuery {
-				break
-			}
 			j, ok := cur.(*ast.JoinExpr)
 			if !ok {
 				break
@@ -529,14 +526,6 @@ func (p *Parser) parseParenTableSource() (ast.Node, error) {
 	}
 	if _, err := p.expect(int(')')); err != nil {
 		return nil, err
-	}
-	// table_primary: '(' join ')' requires an actual JOIN inside the parens
-	// in BigQuery and BigQuery FROM-first queries (`FROM (a a)` without a JOIN
-	// is a syntax error in both BigQuery and Spanner).
-	if p.inFromFirstQuery {
-		if _, ok := inner.(*ast.JoinExpr); !ok {
-			return nil, p.syntaxErrorAtCur()
-		}
 	}
 	// A parenthesized join can itself be the left of a further join / carry an
 	// alias; return it directly (the grammar's table_primary: ( join ) has no
