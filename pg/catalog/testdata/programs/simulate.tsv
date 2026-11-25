@@ -279,3 +279,47 @@ ok:c9539cd63983	ok:c9539cd63983	engine	programs@quoted	program:quoted-type	CREAT
 ok:a444e480e3ea	ok:a444e480e3ea	engine	programs@quoted	program:quoted-type	CREATE FUNCTION fq(m "Mood") RETURNS text LANGUAGE sql RETURN m::text
 ok:d5162e76b514	ok:d5162e76b514	engine	programs@quoted	program:quoted-type	CREATE FUNCTION fq() RETURNS "Mood" LANGUAGE sql AS $$SELECT 'sad'::"Mood"$$
 ok:39552d84a483	ok:39552d84a483	engine	programs@quoted	program:quoted-type	CREATE FUNCTION fq(m "Mood") RETURNS int LANGUAGE plpgsql AS $$ DECLARE x "Mood"; BEGIN x := m; RETURN 1; END $$
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE TABLE tq (a "integer")
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE TABLE tq (a "int")
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE TABLE tq (a "bigint")
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE TABLE tq (a "boolean")
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE TABLE tq (a "decimal"(5, 2))
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE TABLE tq (a "double precision")
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE TABLE tq (a "character varying"(5))
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE TABLE tq (a "timestamp with time zone")
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE TABLE tq (a pg_catalog."integer")
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE TABLE tq (a "integer"[])
+ok:4b404ff98a51	ok:4b404ff98a51	engine	programs@quoted	program:quoted-alias	CREATE TABLE tq (a "int4", b "varchar"(5), c "bool", d "char", e "float8")
+ok:8bdc70959a36	ok:8bdc70959a36	engine	programs@quoted	program:quoted-alias	CREATE TABLE tq (a integer, b double precision, c character varying(5), d timestamp with time zone)
+42704	42704	engine	programs@quoted	program:quoted-alias	ALTER TABLE "Foo" ADD COLUMN b "smallint"
+42704	42704	engine	programs@quoted	program:quoted-alias	ALTER TABLE "Foo" ALTER COLUMN a TYPE "bigint"
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE DOMAIN dq AS "integer"
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE TYPE cq AS (a "real")
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE TYPE rq AS RANGE (subtype = "integer")
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE VIEW vq AS SELECT 1::"integer" AS a
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE FUNCTION fq(a "integer") RETURNS int LANGUAGE sql RETURN a
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE FUNCTION fq() RETURNS "integer" LANGUAGE sql RETURN 1
+42704	42704	engine	programs@quoted	program:quoted-alias	CREATE FUNCTION fq() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x "integer"; BEGIN x := 1; RETURN x; END $$
+ok:f55fad912f4a	ok:f55fad912f4a	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE mood USING t::mood
+ok:7d989ca9b5fe	ok:7d989ca9b5fe	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN v TYPE mood USING v::mood
+ok:f55fad912f4a	ok:f55fad912f4a	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE mood USING notes.t::mood
+ok:f55fad912f4a	ok:f55fad912f4a	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE mood USING 'happy'
+ok:88d08a1a21e8	ok:88d08a1a21e8	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN n TYPE mood USING CASE WHEN n > 0 THEN 'happy' ELSE 'sad' END::mood
+42804	42804	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE mood
+42804	42804	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE mood USING t
+42846	42846	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE mood USING n::mood
+42703	42703	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE mood USING missing::mood
+42704	42704	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE mood USING t::nope
+ok:ed4f44f0fd61	ok:ed4f44f0fd61	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN m TYPE text
+ok:433d15053021	ok:433d15053021	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN m TYPE int USING m::text::int
+42804	42804	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE int
+ok:4f5e2b30325e	ok:4f5e2b30325e	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE int USING t::int
+ok:4f5e2b30325e	ok:4f5e2b30325e	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE int USING length(t)
+ok:77aaefc8dbbb	ok:77aaefc8dbbb	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE varchar(3) USING t
+0A000	0A000	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE int USING (SELECT 1)
+42803	42803	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE int USING count(*)
+42P20	42P20	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE int USING row_number() OVER ()
+0A000	0A000	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE int USING generate_series(1, 2)
+42P02	42P02	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER COLUMN t TYPE int USING $1
+ok:6617c4ab4a0d	ok:6617c4ab4a0d	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER t TYPE mood USING t::mood, ALTER v TYPE mood USING v::mood
+ok:49e468b1ae88	ok:49e468b1ae88	engine	programs@retype	program:alter-using	ALTER TABLE notes ALTER t TYPE mood USING t::mood, ALTER v TYPE int USING length(t)

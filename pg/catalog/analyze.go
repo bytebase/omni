@@ -1573,7 +1573,7 @@ func (ac *analyzeCtx) appendColumnsFromColdefList(
 		// pg: src/backend/parser/parse_type.c — typenameTypeMod
 		if rawMods := extractRawTypmods(coldef.TypeName.Typmods); len(rawMods) > 0 {
 			_, name := typeNameParts(coldef.TypeName)
-			typmod = encodeTypModByName(resolveAlias(name), rawMods)
+			typmod = encodeTypModByName(name, rawMods)
 		}
 		coll := ac.catalog.typeCollation(typeOID)
 		if oid := builtinCollationOIDOf(collateClauseName(coldef.CollClause)); oid != 0 && coll != 0 {
@@ -3577,6 +3577,15 @@ func (ac *analyzeCtx) transformTypeCast(tc *nodes.TypeCast) (AnalyzedExpr, error
 		return arg, nil
 	}
 
+	// A cast with no pathway is 42846 here; other callers of
+	// coerceToTargetType report their own 42804.
+	// pg: src/backend/parser/parse_expr.c — transformTypeCast
+	if srcType != UNKNOWNOID {
+		if pathway, _ := ac.catalog.FindCoercionPathway(srcType, targetOID, 'e'); pathway == CoercionNone {
+			return nil, &Error{Code: CodeCannotCoerce, Message: fmt.Sprintf(
+				"cannot cast type %s to %s", ac.catalog.typeName(srcType), ac.catalog.typeName(targetOID))}
+		}
+	}
 	result, err := ac.catalog.coerceToTargetType(arg, srcType, targetOID, 'e')
 	if err != nil {
 		return nil, err
@@ -6666,6 +6675,47 @@ func (c *Catalog) AnalyzeStandaloneExpr(expr nodes.Node, rel *Relation) (Analyze
 		query:   &Query{RangeTable: rtes},
 	}
 	return ac.transformExpr(expr)
+}
+
+// analyzeAlterColumnTransform analyzes the USING expression of ALTER COLUMN
+// TYPE against the table's columns, under EXPR_KIND_ALTER_COL_TRANSFORM: no
+// parameters, subqueries, aggregates, window functions or set-returning
+// functions.
+//
+// pg: src/backend/commands/tablecmds.c — ATPrepAlterColumnType
+// pg: src/backend/parser/parse_agg.c — check_agglevels_and_constraints
+func (c *Catalog) analyzeAlterColumnTransform(expr nodes.Node, rel *Relation) (AnalyzedExpr, error) {
+	ac := &analyzeCtx{
+		catalog: c,
+		query:   &Query{RangeTable: []*RangeTableEntry{c.buildRelationRTE(rel)}},
+		opts:    AnalyzeOptions{DisallowParams: true},
+	}
+	analyzed, err := ac.transformExpr(expr)
+	if err != nil {
+		return nil, err
+	}
+	var refusal error
+	WalkAnalyzedExpr(analyzed, func(e AnalyzedExpr) bool {
+		switch v := e.(type) {
+		case *SubLinkExpr:
+			refusal = &Error{Code: CodeFeatureNotSupported, Message: "cannot use subquery in transform expression"}
+		case *AggExpr:
+			refusal = &Error{Code: CodeGroupingError, Message: "aggregate functions are not allowed in transform expressions"}
+		case *GroupingFuncExpr:
+			refusal = &Error{Code: CodeGroupingError, Message: "grouping operations are not allowed in transform expressions"}
+		case *WindowFuncExpr:
+			refusal = &Error{Code: CodeWindowingError, Message: "window functions are not allowed in transform expressions"}
+		case *FuncCallExpr:
+			if proc := c.procByOID[v.FuncOID]; proc != nil && proc.RetSet {
+				refusal = &Error{Code: CodeFeatureNotSupported, Message: "set-returning functions are not allowed in transform expressions"}
+			}
+		}
+		return refusal == nil
+	})
+	if refusal != nil {
+		return nil, refusal
+	}
+	return analyzed, nil
 }
 
 // AnalyzeColumnDefaultExpr analyzes a column DEFAULT expression using
