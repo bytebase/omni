@@ -1,6 +1,9 @@
 package analysis
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/bytebase/omni/cosmosdb/ast"
 )
 
@@ -270,7 +273,7 @@ func (a *analyzer) selectAll(s *shape, c chain, i int) *shape {
 		for k, p := range s.leaf {
 			out[k] = extend(p, c.sels[i:])
 		}
-		r = leaf(out)
+		r = a.internLeaf(out)
 	} else {
 		out := make([]*shape, len(s.members))
 		for k, m := range s.members {
@@ -283,6 +286,33 @@ func (a *analyzer) selectAll(s *shape, c chain, i int) *shape {
 	}
 	a.selections[key] = r
 	return r
+}
+
+// internLeaf is the leaf of paths, one shape for each distinct list of
+// paths however it was reached (s.k.k, or s.k and then .k), so unions of
+// equal selections merge.
+func (a *analyzer) internLeaf(paths []FieldPath) *shape {
+	var b strings.Builder
+	for _, p := range paths {
+		for _, sel := range p {
+			b.WriteString(strconv.Itoa(sel.ArrayIndex))
+			b.WriteByte(':')
+			b.WriteString(strconv.Itoa(len(sel.Name)))
+			b.WriteByte(':')
+			b.WriteString(sel.Name)
+		}
+		b.WriteByte('|')
+	}
+	key := b.String()
+	if l, ok := a.leaves[key]; ok {
+		return l
+	}
+	l := leaf(paths)
+	if a.leaves == nil {
+		a.leaves = map[string]*shape{}
+	}
+	a.leaves[key] = l
+	return l
 }
 
 // extend returns a new path: p followed by sels, at most maxPathLen long.
