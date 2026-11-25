@@ -211,6 +211,10 @@ func TestSDLKeysKeepValues(t *testing.T) {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT pg_typeof(1::OID)::STRING);",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT pg_typeof(1)::STRING);",
 		},
+		"numeric type": {
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT pg_typeof(1.0)::STRING);",
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT pg_typeof(1)::STRING);",
+		},
 		"grouping": {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT (1 + 2) * 3);",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT 1 + 2 * 3);",
@@ -527,4 +531,16 @@ func TestSDLColumnAliasRebuildsView(t *testing.T) {
 	sql := plan.SQL()
 	require.Contains(t, sql, `DROP VIEW "public"."v"`)
 	require.Less(t, strings.Index(sql, `DROP VIEW "public"."v"`), strings.Index(sql, `ALTER COLUMN "n"`), sql)
+}
+
+// TestSDLQuotedFunctionColumn keeps a quoted function name's case in the
+// output name it infers.
+func TestSDLQuotedFunctionColumn(t *testing.T) {
+	loaded, err := catalog.LoadSDL(`CREATE FUNCTION "Quoted"() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$; CREATE VIEW v AS SELECT "Quoted"(), lower('x');`)
+	require.NoError(t, err)
+	var names []string
+	for _, column := range loaded.Schemas[0].Views[0].Columns {
+		names = append(names, column.Name)
+	}
+	require.Equal(t, []string{"Quoted", "lower"}, names)
 }

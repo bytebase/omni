@@ -984,7 +984,8 @@ func outputName(expr tree.Expr) (string, bool) {
 		if !ok {
 			return "", false
 		}
-		return strings.ToLower(name.Parts[0]), true
+		// The parser has folded an unquoted name already.
+		return name.Parts[0], true
 	case *tree.CaseExpr:
 		return "case", true
 	case *tree.DBool:

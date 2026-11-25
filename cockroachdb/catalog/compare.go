@@ -99,32 +99,26 @@ func (literalCastStripper) VisitPost(expr tree.Expr) tree.Expr {
 	switch e := expr.(type) {
 	case *tree.ParenExpr:
 		return e.Expr
-	case *tree.NumVal:
-		// CockroachDB states a number compared with a FLOAT column as a
-		// float (0 as 0.0), so a decimal point's trailing zeros go.
-		orig := e.OrigString()
-		if strings.Contains(orig, ".") && !strings.ContainsAny(orig, "eE") {
-			trimmed := strings.TrimSuffix(strings.TrimRight(orig, "0"), ".")
-			if trimmed != orig {
-				return tree.NewNumVal(constant.MakeFromLiteral(trimmed, token.FLOAT, 0), trimmed, false)
-			}
-		}
 	}
 	return expr
 }
 
 // stripLiteralCast drops a cast or annotation on a literal, or on each of a
-// tuple's elements, unless the cast can change the literal's value.
+// tuple's elements, unless the cast can change the literal's value. In the
+// same contexts a number's trailing fractional zeros go: CockroachDB states a
+// FLOAT column's default or comparand as a float (0 as 0.0).
 func stripLiteralCast(expr tree.Expr) tree.Expr {
 	switch e := unparen(expr).(type) {
 	case *tree.CastExpr:
 		if isLiteral(unparen(e.Expr)) && !castRounds(e) {
-			return unparen(e.Expr)
+			return trimZeros(unparen(e.Expr))
 		}
 	case *tree.AnnotateTypeExpr:
 		if isLiteral(unparen(e.Expr)) {
-			return unparen(e.Expr)
+			return trimZeros(unparen(e.Expr))
 		}
+	case *tree.NumVal:
+		return trimZeros(e)
 	case *tree.Tuple:
 		tuple := *e
 		tuple.Exprs = make(tree.Exprs, len(e.Exprs))
@@ -140,6 +134,23 @@ func stripLiteralCast(expr tree.Expr) tree.Expr {
 // to a type with a width, length, precision or scale (VARCHAR(1),
 // DECIMAL(3,1), TIMESTAMP(0)), to FLOAT4, to FLOAT8 of a number it cannot
 // hold exactly, or of a number with a fraction to an integer. CockroachDB adds no such cast to what it stores, so it is kept.
+// trimZeros drops a number's trailing fractional zeros.
+func trimZeros(expr tree.Expr) tree.Expr {
+	n, ok := expr.(*tree.NumVal)
+	if !ok {
+		return expr
+	}
+	orig := n.OrigString()
+	if !strings.Contains(orig, ".") || strings.ContainsAny(orig, "eE") {
+		return expr
+	}
+	trimmed := strings.TrimSuffix(strings.TrimRight(orig, "0"), ".")
+	if trimmed == orig {
+		return expr
+	}
+	return tree.NewNumVal(constant.MakeFromLiteral(trimmed, token.FLOAT, 0), trimmed, false)
+}
+
 func castRounds(cast *tree.CastExpr) bool {
 	t, ok := tree.GetStaticallyKnownType(cast.Type)
 	if !ok {
