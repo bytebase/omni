@@ -59,14 +59,17 @@ type selectOutput struct {
 	projections []Projection
 }
 
-// paths is every source of what the SELECT returns.
+// paths is every source of what the SELECT returns. They are o's own paths,
+// not copies: copying them at each level made nested scalar subqueries
+// quadratic. A caller that keeps o as well (a binding) copies before it
+// extends one, as every reader of a binding does.
 func (o selectOutput) paths() []FieldPath {
 	if o.star {
-		return copyPaths(o.starPaths)
+		return o.starPaths
 	}
 	var out []FieldPath
 	for _, p := range o.projections {
-		out = append(out, copyPaths(p.SourcePaths)...)
+		out = append(out, p.SourcePaths...)
 	}
 	return out
 }
