@@ -153,6 +153,10 @@ func (f *placeholderFinder) Visit(n ast.Node) ast.Visitor {
 		if slices.Contains(n.Columns, placeholder) {
 			f.kind = kindColumn
 		}
+	case *ast.JoinClause:
+		if slices.Contains(n.Using, placeholder) {
+			f.kind = kindColumn
+		}
 	}
 	if f.kind != kindNone {
 		f.path = slices.Clone(f.stack)
@@ -272,13 +276,28 @@ func isName(t parser.Token) bool {
 }
 
 // previousKeyword returns the last token of text upper-cased when it is a
-// keyword, and "" otherwise.
+// keyword, and "" otherwise. An IF [NOT] EXISTS before the caret is passed
+// over, so DROP TABLE IF EXISTS reads as DROP TABLE.
 func previousKeyword(text string) string {
 	toks, _ := parser.Tokenize(text)
-	if len(toks) < 2 || !isKeyword(toks[len(toks)-2]) {
+	toks = toks[:len(toks)-1] // EOF
+	word := func(i int, w string) bool {
+		return i >= 0 && isKeyword(toks[i]) && strings.EqualFold(toks[i].Str, w)
+	}
+	n := len(toks)
+	if word(n-1, "EXISTS") {
+		n--
+		if word(n-1, "NOT") {
+			n--
+		}
+		if word(n-1, "IF") {
+			n--
+		}
+	}
+	if n < 1 || !isKeyword(toks[n-1]) {
 		return ""
 	}
-	return strings.ToUpper(toks[len(toks)-2].Str)
+	return strings.ToUpper(toks[n-1].Str)
 }
 
 func startsWith(stmt, keyword string) bool {
