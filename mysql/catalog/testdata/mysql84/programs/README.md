@@ -6,15 +6,12 @@ MySQL 8.4 LTS (`../../../../testdata/pins.tsv`, role `mysql84`: `mysql:8.4.13`).
 `TestProgramSimulationMySQL84` (`../../../simulate_mysql84_test.go`) replays it
 from `../../tapes/TestProgramSimulationMySQL84.tape` with the catalog at `MySQL84`.
 
-**455 rows: 452 agree, 3 disagree.**
+**457 rows, all agree.**
 
-## Known gap
-
-The 3 rows that disagree set an event `DISABLE ON SLAVE`. MySQL 8.4 stores that
-status as `DISABLE ON REPLICA`, an arm 8.4's `opt_ev_status` adds and 8.0.46's
-lacks. `mysql/parser` holds to 8.0.46's grammar and has no version switch, so
-the catalog cannot load what 8.4 stores and the rows read as a schema
-difference. Closing them needs a version-aware parser.
+MySQL 8.4 stores an event's `DISABLE ON SLAVE` as `DISABLE ON REPLICA`, an arm
+8.4's `opt_ev_status` adds and 8.0.46's lacks. `mysql/parser` reads both, and
+the catalog stores 8.4's spelling at `MySQL84` and refuses `DISABLE ON REPLICA`
+with 8.0.46's 1064 at `MySQL80` (`../../programs/simulate.tsv`).
 
 ## Commands
 

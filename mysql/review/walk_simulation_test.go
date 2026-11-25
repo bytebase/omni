@@ -31,10 +31,11 @@ func TestWalkSimulation(t *testing.T) {
 		// misses are rows the parser already refuses (1273, 1504, 1064),
 		// which reach the review as a syntax finding.
 		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 97.0, 2341},
-		// The 9 refusals the walk misses drop a function the sync can't
+		// The 11 refusals the walk misses: 9 drop a function the sync can't
 		// rule out: unqualified, a loadable one of the name would go, and
-		// qualified, it is another database's (1305).
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 96.9, 287},
+		// qualified, it is another database's (1305). 2 are 8.0-only:
+		// mysql:8.0.46 answers 1064 to DISABLE ON REPLICA, which 8.4 adds.
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 96.3, 287},
 		// compat.tsv's queries in a view on one_table@column; 4 refusals
 		// are syntax findings, and 9 call a function a loadable one of the
 		// name or another database could hold (1305, 1584).

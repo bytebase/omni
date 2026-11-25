@@ -1836,7 +1836,7 @@ type CreateEventStmt struct {
 	Name         string
 	Schedule     *EventSchedule
 	OnCompletion string
-	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE
+	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE, DISABLE ON REPLICA
 	Comment      string
 	Body         Node   // parsed sp_proc_stmt
 	BodyText     string // raw source bytes of the body
@@ -2916,7 +2916,7 @@ type AlterEventStmt struct {
 	OnCompletion string // PRESERVE, NOT PRESERVE
 	RenameTo     string
 	RenameSchema string // database RENAME TO qualified the new name with
-	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE
+	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE, DISABLE ON REPLICA
 	Comment      string
 	Body         Node   // parsed sp_proc_stmt (nil when no DO clause)
 	BodyText     string // raw source bytes of the body

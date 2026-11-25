@@ -435,6 +435,7 @@ ok:8d211f20ab58	ok:8d211f20ab58	engine	objects@event	event:alter	ALTER EVENT utf
 ok:bb65014e23b1	ok:bb65014e23b1	engine	objects@event	event:alter	ALTER EVENT utf8mb4 ON SCHEDULE EVERY 2 HOUR STARTS '2030-06-01 00:00:00' ENDS '2031-01-01 00:00:00'
 ok:0150f8691195	ok:0150f8691195	engine	objects@event	event:alter	ALTER EVENT utf8mb4 DISABLE
 ok:9a5e84c51e75	ok:9a5e84c51e75	engine	objects@event	event:alter	ALTER EVENT utf8mb4 DISABLE ON SLAVE
+1064	1064	engine	objects@event	event:alter	ALTER EVENT utf8mb4 DISABLE ON REPLICA
 ok:720db8a7e3fe	ok:720db8a7e3fe	engine	objects@event	event:alter	ALTER EVENT utf8mb4 ON COMPLETION NOT PRESERVE
 ok:e5f6cc0ed0b1	ok:e5f6cc0ed0b1	engine	objects@event	event:alter	ALTER EVENT utf8mb4 COMMENT 'nightly'
 ok:698ddb2b224c	ok:698ddb2b224c	engine	objects@event	event:alter	ALTER EVENT utf8mb4 DO SELECT 1
@@ -455,3 +456,4 @@ ok:faeef7b6cc4d	ok:faeef7b6cc4d	engine	one_table@missing	event:create	CREATE EVE
 ok:04fc9be5a860	ok:04fc9be5a860	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY '1:30' HOUR_MINUTE STARTS '2030-01-01 00:00:00' DO COMMIT
 ok:a97b45e8a426	ok:a97b45e8a426	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO BEGIN DELETE FROM t; INSERT INTO t VALUES (1, 1, 1); END
 ok:d218b7104e9d	ok:d218b7104e9d	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON SLAVE DO COMMIT
+1064	1064	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON REPLICA DO COMMIT

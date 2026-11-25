@@ -12,6 +12,10 @@ import (
 // statement a user runs, false for an event a snapshot already holds, whose
 // times MySQL judged when it was created.
 func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt, authored bool) error {
+	status, err := c.eventStatus(stmt.Enable)
+	if err != nil {
+		return err
+	}
 	db, err := c.resolveDatabase(stmt.Schema)
 	if err != nil {
 		return err
@@ -47,7 +51,7 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt, authored bool) error 
 	}
 
 	schedule, at, timed := eventScheduleText(stmt.Schedule, loc)
-	enable := stmt.Enable
+	enable := status
 	// A one-time event whose time has passed is dropped as soon as it is
 	// created, or kept DISABLE ON COMPLETION PRESERVE (mysql:8.0.46: CREATE
 	// EVENT e ON SCHEDULE AT '2000-01-01 00:00:00' DO COMMIT leaves no event).
@@ -75,6 +79,28 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt, authored bool) error 
 	return nil
 }
 
+// eventStatus returns the status the server stores for a statement's
+// opt_ev_status, "" when it names none. MySQL 8.4 stores a replica-side
+// disabled event as DISABLE ON REPLICA whichever spelling made it (SHOW CREATE
+// EVENT on mysql:8.4.13), and 8.0 as DISABLE ON SLAVE. 8.0.46's sql_yacc.yy
+// has no DISABLE ON REPLICA arm, so at MySQL80 that spelling is a syntax error.
+func (c *Catalog) eventStatus(status string) (string, error) {
+	if status != "DISABLE ON SLAVE" && status != "DISABLE ON REPLICA" {
+		return status, nil
+	}
+	if c.session.Version >= MySQL84 {
+		return "DISABLE ON REPLICA", nil
+	}
+	if status == "DISABLE ON REPLICA" {
+		return "", &Error{
+			Code:     1064,
+			SQLState: "42000",
+			Message:  "You have an error in your SQL syntax; MySQL 8.0 has no DISABLE ON REPLICA, which MySQL 8.4 adds",
+		}
+	}
+	return status, nil
+}
+
 // validateEventSchedule refuses a schedule expression that reads a column. An
 // event's AT, EVERY, STARTS and ENDS are evaluated on their own, with no table
 // in scope, so `AT utf8mb4` names no column and MySQL answers 1054, `Unknown
@@ -100,6 +126,10 @@ func (c *Catalog) validateEventSchedule(schedule *nodes.EventSchedule) error {
 }
 
 func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
+	status, err := c.eventStatus(stmt.Enable)
+	if err != nil {
+		return err
+	}
 	db, err := c.resolveDatabase(stmt.Schema)
 	if err != nil {
 		return err
@@ -166,8 +196,8 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 	}
 
 	// Update enable/disable if specified.
-	if stmt.Enable != "" {
-		event.Enable = stmt.Enable
+	if status != "" {
+		event.Enable = status
 	}
 
 	// Update comment if specified.
@@ -219,7 +249,7 @@ func (c *Catalog) dropEvent(stmt *nodes.DropEventStmt) error {
 //
 // MySQL 8.0 SHOW CREATE EVENT format:
 //
-//	CREATE DEFINER=`root`@`%` EVENT `event_name` ON SCHEDULE schedule ON COMPLETION [NOT] PRESERVE [ENABLE|DISABLE|DISABLE ON SLAVE] [COMMENT 'string'] DO event_body
+//	CREATE DEFINER=`root`@`%` EVENT `event_name` ON SCHEDULE schedule ON COMPLETION [NOT] PRESERVE [ENABLE|DISABLE|DISABLE ON SLAVE|DISABLE ON REPLICA] [COMMENT 'string'] DO event_body
 func (c *Catalog) ShowCreateEvent(database, name string) string {
 	db := c.GetDatabase(database)
 	if db == nil {
@@ -262,8 +292,8 @@ func showCreateEvent(e *Event) string {
 	// ENABLE / DISABLE
 	if e.Enable == "DISABLE" {
 		b.WriteString(" DISABLE")
-	} else if e.Enable == "DISABLE ON SLAVE" {
-		b.WriteString(" DISABLE ON SLAVE")
+	} else if e.Enable == "DISABLE ON SLAVE" || e.Enable == "DISABLE ON REPLICA" {
+		b.WriteString(" " + e.Enable)
 	} else {
 		// MySQL default: ENABLE, shown explicitly in SHOW CREATE EVENT
 		b.WriteString(" ENABLE")
