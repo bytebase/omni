@@ -64,10 +64,10 @@ var grammarFollowers = map[string][]string{
 	"rows": {"from"},
 }
 
-// keywordBudget caps the time keyword probing takes when ctx allows longer.
-// Probing stops there and the keywords found so far are returned, so a long
-// statement never blocks a keystroke.
-const keywordBudget = 200 * time.Millisecond
+// completionBudget caps the time a completion takes when ctx allows longer.
+// The name walk and keyword probing stop there and return what they found,
+// so a long statement never blocks a keystroke.
+const completionBudget = 200 * time.Millisecond
 
 // keywordCandidates returns the keywords CockroachDB's grammar accepts after
 // prefix, by asking the vendor parser about prefix followed by each keyword.
@@ -78,8 +78,8 @@ const keywordBudget = 200 * time.Millisecond
 // not after an identifier, or the reverse.
 //
 // Reserved keywords are probed first, then column-name and type/function-name
-// keywords, then unreserved ones, so a probe cut short by the budget keeps
-// the keywords most statements need.
+// keywords, then unreserved ones, so probing cut short by ctx keeps the
+// keywords most statements need. A result cut short is not cached.
 func keywordCandidates(ctx context.Context, prefix string, objectName bool) []string {
 	prefix = probePrefix(prefix)
 	key := prefix
@@ -89,8 +89,6 @@ func keywordCandidates(ctx context.Context, prefix string, objectName bool) []st
 	if cached, ok := keywordCache.get(key); ok {
 		return cached
 	}
-	ctx, cancel := context.WithTimeout(ctx, keywordBudget)
-	defer cancel()
 	result := probeKeywords(ctx, prefix, objectName)
 	if ctx.Err() == nil {
 		keywordCache.put(key, result)

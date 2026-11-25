@@ -216,6 +216,8 @@ func TestCompleteSessionQuotingAndSearchPath(t *testing.T) {
 	analyticsCfg.DefaultSchema = "analytics"
 	got = completeAt(t, analyticsCfg, "SELECT | FROM events")
 	require.True(t, has(got, "event_id", CandidateColumn), "got %v", got)
+	got = completeAt(t, analyticsCfg, "SELECT * FROM ev|")
+	require.True(t, has(got, "events", CandidateTable), "got %v", got)
 }
 
 func TestCompleteSessionStatementIsolation(t *testing.T) {
@@ -381,9 +383,79 @@ func TestCompleteSessionMetadataMatrix(t *testing.T) {
 			want:  []Candidate{{Text: "id", Type: CandidateColumn}, {Text: "amount", Type: CandidateColumn}},
 		},
 		{
-			name:  "INSERT INTO offers tables",
-			input: "INSERT INTO |",
-			want:  []Candidate{{Text: "orders", Type: CandidateTable}, {Text: "events", Type: CandidateTable}},
+			name:   "INSERT INTO offers tables, qualified outside the search path",
+			input:  "INSERT INTO |",
+			want:   []Candidate{{Text: "orders", Type: CandidateTable}, {Text: "analytics.events", Type: CandidateTable}},
+			absent: []string{"events"},
+		},
+		{
+			name:   "a table outside the search path is offered with its schema",
+			input:  "SELECT * FROM ev|",
+			want:   []Candidate{{Text: "analytics.events", Type: CandidateTable}},
+			absent: []string{"events"},
+		},
+		{
+			name:   "an inner alias hides an outer one of the same name",
+			input:  "SELECT (SELECT o.am| FROM analytics.events AS o) FROM orders AS o",
+			absent: []string{"amount"},
+		},
+		{
+			name:   "a qualified column resolves in the innermost query",
+			input:  "SELECT (SELECT o.| FROM analytics.events AS o) FROM orders AS o",
+			want:   []Candidate{{Text: "event_id", Type: CandidateColumn}},
+			absent: []string{"amount", "id"},
+		},
+		{
+			name:  "an outer alias stays visible where no inner one hides it",
+			input: "SELECT (SELECT o.am| FROM analytics.events AS e) FROM orders AS o",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "JOIN USING offers the columns both sides have",
+			input: "SELECT * FROM orders AS a JOIN orders AS b USING (am|)",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:   "JOIN USING offers no column one side lacks",
+			input:  "SELECT * FROM orders AS a JOIN active_orders AS b USING (|)",
+			want:   []Candidate{{Text: "id", Type: CandidateColumn}, {Text: "amount", Type: CandidateColumn}},
+			absent: []string{"event_id"},
+		},
+		{
+			name:  "a function in FROM names its one column after the alias",
+			input: "SELECT g.| FROM generate_series(1, 3) AS g",
+			want:  []Candidate{{Text: "g", Type: CandidateColumn}},
+		},
+		{
+			name:  "an unaliased function in FROM is named after the function",
+			input: "SELECT generate_series.| FROM generate_series(1, 3)",
+			want:  []Candidate{{Text: "generate_series", Type: CandidateColumn}},
+		},
+		{
+			name:  "json_each returns key and value",
+			input: "SELECT j.| FROM json_each('{}') AS j",
+			want:  []Candidate{{Text: "key", Type: CandidateColumn}, {Text: "value", Type: CandidateColumn}},
+		},
+		{
+			name:  "unnest of two arrays returns two columns",
+			input: "SELECT u.| FROM unnest(ARRAY[1], ARRAY[2]) AS u(a)",
+			want:  []Candidate{{Text: "a", Type: CandidateColumn}, {Text: "unnest", Type: CandidateColumn}},
+		},
+		{
+			name:  "WITH ORDINALITY adds a column",
+			input: "SELECT g.| FROM generate_series(1, 3) WITH ORDINALITY AS g",
+			want:  []Candidate{{Text: "g", Type: CandidateColumn}, {Text: `"ordinality"`, Type: CandidateColumn}},
+		},
+		{
+			name:  "a recursive CTE's recursive term sees its non-recursive term's columns",
+			input: "WITH RECURSIVE c AS (SELECT id, amount FROM orders UNION ALL SELECT c.| FROM c) SELECT * FROM c",
+			want:  []Candidate{{Text: "id", Type: CandidateColumn}, {Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:   "a recursive CTE's column list wins",
+			input:  "WITH RECURSIVE c(x, y) AS (SELECT id, amount FROM orders UNION ALL SELECT c.| FROM c) SELECT 1",
+			want:   []Candidate{{Text: "x", Type: CandidateColumn}, {Text: "y", Type: CandidateColumn}},
+			absent: []string{"id", "amount"},
 		},
 		{
 			name:   "INSERT column list offers the target's columns",
@@ -497,6 +569,16 @@ func TestCompleteSessionMetadataMatrix(t *testing.T) {
 			name:  "ORDER BY offers output aliases",
 			input: "SELECT amount AS total FROM orders ORDER BY tot|",
 			want:  []Candidate{{Text: "total", Type: CandidateColumn}},
+		},
+		{
+			name:  "GROUP BY offers output aliases",
+			input: "SELECT amount AS total FROM orders GROUP BY tot|",
+			want:  []Candidate{{Text: "total", Type: CandidateColumn}},
+		},
+		{
+			name:  "an unaliased FROM subquery's columns are visible",
+			input: "SELECT x| FROM (SELECT 1 AS x)",
+			want:  []Candidate{{Text: "x", Type: CandidateColumn}},
 		},
 		{
 			name:   "WHERE does not offer output aliases",
@@ -820,6 +902,21 @@ func TestCompleteSessionBudget(t *testing.T) {
 	cancel()
 	got = CompleteSession(ctx, testConfig(), "SELECT * FROM orders WHERE ", 1, 27)
 	require.True(t, has(got, "amount", CandidateColumn), "got %v", got)
+}
+
+func TestCompleteSessionNestedCTEsAreLinear(t *testing.T) {
+	// Each level hides the one below behind a CTE; walking a body more than
+	// once per level would double the work with every level.
+	query := "SELECT id AS n FROM orders"
+	for range 30 {
+		query = "WITH c AS (" + query + ") SELECT n FROM c"
+	}
+	stmt := "WITH c AS (" + query + ") SELECT c.| FROM c"
+	keywordCache.reset()
+	started := time.Now()
+	got := completeAt(t, testConfig(), stmt)
+	require.Less(t, time.Since(started), time.Second)
+	require.True(t, has(got, "n", CandidateColumn), "got %v", got)
 }
 
 func TestCompleteSessionNothingToComplete(t *testing.T) {

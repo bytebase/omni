@@ -1,6 +1,7 @@
 package completion
 
 import (
+	"context"
 	"slices"
 	"strings"
 )
@@ -20,15 +21,18 @@ var patchTails = []string{
 
 // nameContextAt returns what the word at the caret names, or nil when no
 // name fits there.
-func nameContextAt(stmt string, word caretWord, cat *catalog) *nameContext {
+func nameContextAt(ctx context.Context, stmt string, word caretWord, cat *catalog) *nameContext {
 	prefix := stmt[:word.start] + placeholder
 	suffix := stmt[word.end:]
 	for _, p := range patchedTexts(prefix, suffix) {
+		if ctx.Err() != nil {
+			break
+		}
 		parsed, err := parseOne(p.text)
 		if err != nil {
 			continue
 		}
-		nc := analyzeStatement(parsed, cat)
+		nc := analyzeStatement(ctx, parsed, cat)
 		if nc == nil {
 			// The placeholder parsed as a name completion has no objects
 			// for, such as a new alias or column definition.
@@ -96,65 +100,125 @@ func closers(text string) string {
 	return string(open)
 }
 
-// nameCandidates lists the objects nc names. Hidden columns, such as the
-// rowid CockroachDB adds to a table without a primary key, are offered only
-// when the user has started typing a name.
-func nameCandidates(nc *nameContext, cat *catalog, typing bool) []Candidate {
+// nameCandidates lists the objects nc names whose names start with typed,
+// ignoring case. Schema, relation, column and index texts are final:
+// quoted as CockroachDB reads them back, or only escaped when quoted (the
+// caret is inside a double quote). Function and type texts are left to
+// formatNames. Hidden columns, such as the rowid CockroachDB adds to a table
+// without a primary key, are offered only when typed is not empty.
+func nameCandidates(nc *nameContext, cat *catalog, typed string, quoted bool) []Candidate {
 	if nc == nil {
 		return nil
 	}
 	var out []Candidate
+	add := func(name string, typ CandidateType) {
+		if hasPrefixFold(name, typed) {
+			out = append(out, Candidate{Text: QuoteIdentifierIfNeeded(name, quoted), Type: typ})
+		}
+	}
+	addRaw := func(name string, typ CandidateType) {
+		if hasPrefixFold(name, typed) {
+			out = append(out, Candidate{Text: name, Type: typ})
+		}
+	}
+	typing := typed != ""
 	switch nc.kind {
 	case kindObject:
 		if len(nc.qualifier) > 0 {
-			return relationCandidates(cat.qualifiedSchema(nc.qualifier[len(nc.qualifier)-1]))
+			if s := cat.qualifiedSchema(nc.qualifier[len(nc.qualifier)-1]); s != nil {
+				for _, r := range s.relations {
+					add(r.name, r.kind)
+				}
+			}
+			return out
 		}
 		if cat != nil {
 			for _, s := range cat.schemas {
-				out = append(out, Candidate{Text: s.name, Type: CandidateSchema})
-				out = append(out, relationCandidates(s)...)
+				add(s.name, CandidateSchema)
+				for _, r := range s.relations {
+					if cat.relation("", r.name) == r {
+						add(r.name, r.kind)
+					} else if !quoted && hasPrefixFold(r.name, typed) {
+						// Outside the search path, or behind a table of the
+						// same name earlier on it, a relation needs its schema.
+						out = append(out, Candidate{Text: QuoteIdentifierIfNeeded(s.name, false) + "." + QuoteIdentifierIfNeeded(r.name, false), Type: r.kind})
+					}
+				}
 			}
 		}
 		for _, cte := range nc.ctes {
 			if cat.relation("", cte) == nil {
-				out = append(out, Candidate{Text: cte, Type: CandidateTable})
+				add(cte, CandidateTable)
 			}
 		}
 	case kindSchema:
 		if cat != nil {
 			for _, s := range cat.schemas {
-				out = append(out, Candidate{Text: s.name, Type: CandidateSchema})
+				add(s.name, CandidateSchema)
 			}
 		}
 	case kindExpr, kindFunction:
-		a := &analyzer{cat: cat}
-		for _, src := range nc.scope {
-			if matchesQualifier(src, nc.qualifier) {
-				out = append(out, columnCandidates(a.sourceColumns(src, typing))...)
+		a := &analyzer{ctx: context.Background(), cat: cat}
+		for _, src := range resolveQualifier(nc.scope, nc.qualifier) {
+			for _, col := range a.sourceColumns(src, typing) {
+				add(col, CandidateColumn)
 			}
 		}
 		builtins := slices.Concat(builtinFunctions, specialForms())
 		for _, fn := range schemaObjects(cat, nc.qualifier, builtins, func(s *schema) []string { return s.functions }) {
-			out = append(out, Candidate{Text: fn, Type: CandidateFunction})
+			addRaw(fn, CandidateFunction)
 		}
 	case kindTargetColumn:
-		a := &analyzer{cat: cat}
-		out = columnCandidates(a.sourceColumns(*nc.target, typing))
+		a := &analyzer{ctx: context.Background(), cat: cat}
+		for _, col := range a.sourceColumns(*nc.target, typing) {
+			add(col, CandidateColumn)
+		}
+	case kindColumnList:
+		for _, col := range nc.columns {
+			add(col, CandidateColumn)
+		}
 	case kindType:
 		builtins := slices.Concat(builtinTypes, typeKeywords())
 		for _, typ := range schemaObjects(cat, nc.qualifier, builtins, func(s *schema) []string { return s.types }) {
-			out = append(out, Candidate{Text: typ, Type: CandidateType_})
+			addRaw(typ, CandidateType_)
 		}
 	case kindIndex:
 		if nc.target != nil && !nc.target.derived {
 			if rel := cat.relation(nc.target.schema, nc.target.name); rel != nil {
 				for _, idx := range rel.indexes {
-					out = append(out, Candidate{Text: idx, Type: CandidateIndex})
+					add(idx, CandidateIndex)
 				}
 			}
 		}
 	}
 	return out
+}
+
+// resolveQualifier returns the sources a column qualified by qual can come
+// from. A qualifier resolves in the innermost query that defines it, so an
+// inner alias hides an outer one of the same name.
+func resolveQualifier(scope []source, qual []string) []source {
+	if len(qual) == 0 {
+		return scope
+	}
+	var out []source
+	depth := -1
+	for _, src := range scope {
+		if !matchesQualifier(src, qual) {
+			continue
+		}
+		switch {
+		case src.depth > depth:
+			out, depth = []source{src}, src.depth
+		case src.depth == depth:
+			out = append(out, src)
+		}
+	}
+	return out
+}
+
+func hasPrefixFold(s, prefix string) bool {
+	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
 }
 
 // schemaObjects lists functions or types a name qualified by qual can
@@ -194,25 +258,6 @@ func (c *catalog) qualifiedSchema(name string) *schema {
 		return c.schema("public")
 	}
 	return nil
-}
-
-func relationCandidates(s *schema) []Candidate {
-	if s == nil {
-		return nil
-	}
-	out := make([]Candidate, 0, len(s.relations))
-	for _, r := range s.relations {
-		out = append(out, Candidate{Text: r.name, Type: r.kind})
-	}
-	return out
-}
-
-func columnCandidates(cols []string) []Candidate {
-	out := make([]Candidate, 0, len(cols))
-	for _, c := range cols {
-		out = append(out, Candidate{Text: c, Type: CandidateColumn})
-	}
-	return out
 }
 
 // matchesQualifier reports whether a column qualified by qual can come from

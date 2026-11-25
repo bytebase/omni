@@ -51,15 +51,15 @@ func TestMatchesQualifier(t *testing.T) {
 func TestNameCandidatesWithoutCatalog(t *testing.T) {
 	for _, kind := range []nameKind{kindObject, kindSchema, kindIndex, kindTargetColumn} {
 		nc := &nameContext{kind: kind, target: &source{ref: "t", name: "t"}, scope: []source{{ref: "t", name: "t"}}}
-		require.Empty(t, nameCandidates(nc, nil, false))
+		require.Empty(t, nameCandidates(nc, nil, "", false))
 	}
 	// Built-in functions and types need no catalog.
-	for _, c := range nameCandidates(&nameContext{kind: kindExpr, scope: []source{{ref: "t", name: "t"}}}, nil, false) {
+	for _, c := range nameCandidates(&nameContext{kind: kindExpr, scope: []source{{ref: "t", name: "t"}}}, nil, "", false) {
 		require.Equal(t, CandidateFunction, c.Type)
 	}
-	for _, c := range nameCandidates(&nameContext{kind: kindType}, nil, false) {
+	for _, c := range nameCandidates(&nameContext{kind: kindType}, nil, "", false) {
 		require.Equal(t, CandidateType_, c.Type)
 	}
 	nc := &nameContext{kind: kindObject, ctes: []string{"c"}}
-	require.Equal(t, []Candidate{{Text: "c", Type: CandidateTable}}, nameCandidates(nc, nil, false))
+	require.Equal(t, []Candidate{{Text: "c", Type: CandidateTable}}, nameCandidates(nc, nil, "", false))
 }

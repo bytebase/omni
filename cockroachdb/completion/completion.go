@@ -60,12 +60,10 @@ type caretWord struct {
 	quoted     bool
 }
 
-// completion is what complete found: the candidates, with function and type
-// texts final and other names still to quote, and whether the caret is
-// inside double quotes.
+// completion is what complete found: the candidates, with their final
+// texts.
 type completion struct {
 	candidates []Candidate
-	quoted     bool // the caret is inside a double-quoted identifier
 }
 
 // complete returns the candidates for the statement stmt at byte offset
@@ -77,28 +75,29 @@ func complete(ctx context.Context, stmt string, caret int, cat *catalog) complet
 		return completion{}
 	}
 	prefix := stmt[:word.start]
+	// One budget bounds the whole completion: the name walk first, then
+	// keyword probing with what is left.
+	ctx, cancel := context.WithTimeout(ctx, completionBudget)
+	defer cancel()
 
-	nc := nameContextAt(stmt, word, cat)
+	nc := nameContextAt(ctx, stmt, word, cat)
 	var out []Candidate
 	if !word.quoted && !afterQualifier(prefix) {
 		objectName := nc != nil && nc.kind == kindObject
 		for _, kw := range keywordCandidates(ctx, prefix, objectName) {
 			out = append(out, Candidate{Text: kw, Type: CandidateKeyword})
 		}
+		out = filterByPrefix(out, word.typed)
 	}
-	names := nameCandidates(nc, cat, word.typed != "")
+	names := nameCandidates(nc, cat, word.typed, word.quoted)
 	if nc != nil && nc.kind == kindType {
 		// A type keyword such as INT8 is offered once, as a type.
 		out = slices.DeleteFunc(out, func(c Candidate) bool {
 			return slices.ContainsFunc(names, func(n Candidate) bool { return strings.EqualFold(n.Text, c.Text) })
 		})
 	}
-	out = filterByPrefix(append(out, names...), word.typed)
 	call := nc != nil && nc.kind == kindExpr && !followedByParen(stmt[word.end:])
-	return completion{
-		candidates: formatNames(prefix, out, word.quoted, call),
-		quoted:     word.quoted,
-	}
+	return completion{candidates: formatNames(prefix, append(out, names...), word.quoted, call)}
 }
 
 // caretWordAt finds the word at caret. It fails when the caret is inside a

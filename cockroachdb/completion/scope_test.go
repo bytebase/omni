@@ -1,6 +1,7 @@
 package completion
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -12,7 +13,7 @@ func analyze(t *testing.T, input string) *nameContext {
 	t.Helper()
 	stmt, err := parseOne(strings.Replace(input, "|", placeholder, 1))
 	require.NoError(t, err, input)
-	return analyzeStatement(stmt, newCatalog(testMetadata(), "public"))
+	return analyzeStatement(context.Background(), stmt, newCatalog(testMetadata(), "public"))
 }
 
 func refs(sources []source) []string {

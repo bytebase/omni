@@ -46,7 +46,6 @@ func CompleteSession(ctx context.Context, cfg SessionConfig, statement string, c
 	seen := make(map[key]bool, len(got.candidates))
 	result := make([]Candidate, 0, len(got.candidates))
 	for _, c := range got.candidates {
-		c.Text = formatCandidateText(c, got.quoted)
 		k := key{c.Type, c.Text}
 		if seen[k] {
 			continue
@@ -70,16 +69,6 @@ func QuoteIdentifierIfNeeded(name string, caretInQuotes bool) string {
 	var buf bytes.Buffer
 	lexbase.EncodeRestrictedSQLIdent(&buf, name, lexbase.EncNoFlags)
 	return buf.String()
-}
-
-func formatCandidateText(c Candidate, quoted bool) string {
-	switch c.Type {
-	case CandidateKeyword, CandidateType_, CandidateFunction:
-		// complete writes function and type texts, which depend on the caret.
-		return c.Text
-	default:
-		return QuoteIdentifierIfNeeded(c.Text, quoted)
-	}
 }
 
 // lineOffsetToBytePos converts a 1-based line and 0-based UTF-16 code-unit
