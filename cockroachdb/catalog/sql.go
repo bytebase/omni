@@ -472,10 +472,14 @@ func (*funcCollector) VisitPost(expr tree.Expr) tree.Expr { return expr }
 
 // columnType returns a synced type name as CockroachDB reads it back. The
 // sync states INT4 as "integer", which CockroachDB reads as INT8 under its
-// default integer size.
+// default integer size, and a built-in array by its element type's internal
+// name ("_text"), which is written as the element type's array.
 func columnType(t string) string {
 	if t == "integer" {
 		return "INT4"
+	}
+	if element, ok := strings.CutPrefix(t, "_"); ok && element != "" && !strings.ContainsAny(element, `."`) {
+		return columnType(element) + "[]"
 	}
 	return t
 }

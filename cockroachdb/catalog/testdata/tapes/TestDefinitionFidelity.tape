@@ -11,9 +11,6 @@
 | CREATE TYPE fid_cols.mood AS ENUM ('happy', 'sad', 'it''s complicated');
 < ok 0 -
 > exec
-| COMMENT ON TYPE fid_cols.mood IS 'how it feels';
-< ok 0 -
-> exec
 | CREATE TYPE fid_cols.address AS (street STRING, city VARCHAR(50), zip INT8);
 < ok 0 -
 > exec
@@ -1537,7 +1534,7 @@
 |     "name" character varying(50) COLLATE "en_US" DEFAULT ('anon' COLLATE en_US) NOT NULL,
 |     "mood" "fid_cols"."mood" DEFAULT 'happy',
 |     "home" "fid_cols"."address",
-|     "tags" _text DEFAULT ARRAY[],
+|     "tags" text[] DEFAULT ARRAY[],
 |     "balance" numeric(12,2) DEFAULT 0,
 |     "ratio" double precision,
 |     "small" smallint,

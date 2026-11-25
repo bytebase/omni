@@ -1,0 +1,749 @@
+package catalog
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+
+	crparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
+	plpgsqlparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/plpgsql/parser"
+	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
+	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/types"
+
+	metadatapb "github.com/bytebase/omni/metadata"
+)
+
+// SDLMigrationOptions configures BuildSDLMigrationPlan.
+type SDLMigrationOptions struct {
+	// SkipSchemas lists schema names left out of the migration, such as a
+	// backup schema.
+	SkipSchemas []string
+}
+
+// BuildSDLMigrationPlan loads two SDL texts with LoadSDL and returns the
+// migration from the first to the second, or nil when they hold the same
+// schema.
+func BuildSDLMigrationPlan(sourceSDL, targetSDL string, opts SDLMigrationOptions) (*MigrationPlan, error) {
+	from, err := LoadSDL(sourceSDL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load source schema: %w", err)
+	}
+	to, err := LoadSDL(targetSDL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load target schema: %w", err)
+	}
+	plan, err := MetadataMigrationPlan(from, to, MetadataMigrationOptions(opts))
+	if err != nil || len(plan.Ops) == 0 {
+		return nil, err
+	}
+	return plan, nil
+}
+
+// LoadSDL reads a schema written as CockroachDB DDL, such as DatabaseDefinition
+// renders, into the metadata a sync would state for it. Every type, default,
+// check and index key passes through CockroachDB's formatter, so SDL written
+// by hand and SDL rendered from a sync load alike where CockroachDB would
+// store them alike. Session statements (SET, SELECT set_config) and owner
+// changes are skipped; any other statement LoadSDL does not model is an error.
+func LoadSDL(text string) (*metadatapb.DatabaseSchemaMetadata, error) {
+	stmts, err := crparser.Parse(text)
+	if err != nil {
+		return nil, err
+	}
+	l := &sdlLoader{meta: &metadatapb.DatabaseSchemaMetadata{}, schemas: make(map[string]*metadatapb.SchemaMetadata)}
+	for _, stmt := range stmts {
+		if err := l.load(stmt.AST); err != nil {
+			return nil, fmt.Errorf("%s: %w", stmt.SQL, err)
+		}
+	}
+	for _, fk := range l.keyless {
+		referenced := schemaTable(l.schema(fk.ReferencedSchema), fk.ReferencedTable)
+		if referenced == nil {
+			return nil, fmt.Errorf("foreign key %s references table %s.%s, which is not created", fk.Name, fk.ReferencedSchema, fk.ReferencedTable)
+		}
+		for _, index := range referenced.Indexes {
+			if index.Primary {
+				fk.ReferencedColumns = append(fk.ReferencedColumns, index.Expressions...)
+			}
+		}
+	}
+	return l.meta, nil
+}
+
+type sdlLoader struct {
+	meta    *metadatapb.DatabaseSchemaMetadata
+	schemas map[string]*metadatapb.SchemaMetadata
+	// keyless holds the foreign keys that name no referenced columns.
+	keyless []*metadatapb.ForeignKeyMetadata
+}
+
+func (l *sdlLoader) schema(name string) *metadatapb.SchemaMetadata {
+	if name == "" {
+		name = "public"
+	}
+	if s := l.schemas[name]; s != nil {
+		return s
+	}
+	s := &metadatapb.SchemaMetadata{Name: name}
+	l.schemas[name] = s
+	l.meta.Schemas = append(l.meta.Schemas, s)
+	return s
+}
+
+func (l *sdlLoader) load(stmt tree.Statement) error {
+	switch n := stmt.(type) {
+	case *tree.SetVar, *tree.Select, *tree.AlterTableOwner, *tree.AlterSchema:
+		return nil
+	case *tree.CreateSchema:
+		l.schema(string(n.Schema.SchemaName))
+	case *tree.CreateExtension:
+		l.meta.Extensions = append(l.meta.Extensions, &metadatapb.ExtensionMetadata{Name: n.Name.String()})
+	case *tree.CreateType:
+		return l.createType(n)
+	case *tree.CreateSequence:
+		s := l.schema(schemaOf(&n.Name))
+		sequence := &metadatapb.SequenceMetadata{Name: string(n.Name.ObjectName)}
+		if err := applySequenceOptions(sequence, n.Options, true); err != nil {
+			return err
+		}
+		s.Sequences = append(s.Sequences, sequence)
+	case *tree.AlterSequence:
+		s := l.schema(n.Name.Schema())
+		sequence := findSequence(s, n.Name.Object())
+		if sequence == nil {
+			return fmt.Errorf("sequence %s is not created", n.Name)
+		}
+		return applySequenceOptions(sequence, n.Options, false)
+	case *tree.CreateTable:
+		return l.createTable(n)
+	case *tree.CreateIndex:
+		schema := schemaOf(&n.Table)
+		table := l.relationIndexes(schema, string(n.Table.ObjectName))
+		if table == nil {
+			return fmt.Errorf("table %s is not created", n.Table.String())
+		}
+		*table = append(*table, sdlIndex(schema, string(n.Table.ObjectName), n))
+	case *tree.CreateView:
+		return l.createView(n)
+	case *tree.CreateRoutine:
+		return l.createRoutine(n)
+	case *tree.AlterTable:
+		return l.alterTable(n)
+	case *tree.CommentOnSchema:
+		l.schema(string(n.Name.SchemaName)).Comment = comment(n.Comment)
+	case *tree.CommentOnTable:
+		table := schemaTable(l.schema(n.Table.Schema()), n.Table.Object())
+		if table == nil {
+			return fmt.Errorf("table %s is not created", n.Table)
+		}
+		table.Comment = comment(n.Comment)
+	case *tree.CommentOnColumn:
+		table := schemaTable(l.schema(n.TableName.Schema()), n.TableName.Object())
+		if table == nil {
+			return fmt.Errorf("table %s is not created", n.TableName)
+		}
+		column := findColumn(table, string(n.ColumnName))
+		if column == nil {
+			return fmt.Errorf("column %s is not created", n.ColumnItem)
+		}
+		column.Comment = comment(n.Comment)
+	case *tree.CommentOnIndex:
+		index := l.findIndex(schemaOf(&n.Index.Table), string(n.Index.Table.ObjectName), string(n.Index.Index))
+		if index == nil {
+			return fmt.Errorf("index %s is not created", n.Index.String())
+		}
+		index.Comment = comment(n.Comment)
+	case *tree.CommentOnConstraint:
+		return l.commentOnConstraint(n)
+	case *tree.CommentOnType:
+		s := l.schema(n.Name.Schema())
+		for _, enum := range s.EnumTypes {
+			if enum.Name == n.Name.Object() {
+				enum.Comment = comment(n.Comment)
+				return nil
+			}
+		}
+		for _, composite := range s.CompositeTypes {
+			if composite.Name == n.Name.Object() {
+				composite.Comment = comment(n.Comment)
+				return nil
+			}
+		}
+		return fmt.Errorf("type %s is not created", n.Name)
+	default:
+		return fmt.Errorf("%s is not a schema definition statement", stmt.StatementTag())
+	}
+	return nil
+}
+
+// schemaTable finds a table of a loaded schema.
+func schemaTable(s *metadatapb.SchemaMetadata, name string) *metadatapb.TableMetadata {
+	for _, table := range s.Tables {
+		if table.Name == name {
+			return table
+		}
+	}
+	return nil
+}
+
+func comment(c *string) string {
+	if c == nil {
+		return ""
+	}
+	return *c
+}
+
+func (l *sdlLoader) createType(n *tree.CreateType) error {
+	s := l.schema(n.TypeName.Schema())
+	switch n.Variety {
+	case tree.Enum:
+		enum := &metadatapb.EnumTypeMetadata{Name: n.TypeName.Object()}
+		for _, label := range n.EnumLabels {
+			enum.Values = append(enum.Values, string(label))
+		}
+		s.EnumTypes = append(s.EnumTypes, enum)
+	case tree.Composite:
+		composite := &metadatapb.CompositeTypeMetadata{Name: n.TypeName.Object()}
+		for _, elem := range n.CompositeTypeList {
+			typ, collation := sdlType(elem.Type)
+			composite.Attributes = append(composite.Attributes, &metadatapb.CompositeTypeAttribute{Name: string(elem.Label), Type: typ, Collation: collation})
+		}
+		s.CompositeTypes = append(s.CompositeTypes, composite)
+	default:
+		return fmt.Errorf("type %s is neither an enum nor a composite type", n.TypeName)
+	}
+	return nil
+}
+
+// applySequenceOptions sets a sequence's options. A new sequence takes
+// CockroachDB's defaults for the options it leaves out.
+func applySequenceOptions(sequence *metadatapb.SequenceMetadata, options tree.SequenceOptions, create bool) error {
+	for _, option := range options {
+		value := ""
+		if option.IntVal != nil {
+			value = strconv.FormatInt(*option.IntVal, 10)
+		}
+		switch option.Name {
+		case tree.SeqOptAs:
+			sequence.DataType = option.AsIntegerType.SQLString()
+		case tree.SeqOptIncrement:
+			sequence.Increment = value
+		case tree.SeqOptMinValue:
+			sequence.MinValue = value
+		case tree.SeqOptMaxValue:
+			sequence.MaxValue = value
+		case tree.SeqOptStart:
+			sequence.Start = value
+		case tree.SeqOptCache:
+			sequence.CacheSize = value
+		case tree.SeqOptCycle:
+			sequence.Cycle = true
+		case tree.SeqOptNoCycle:
+			sequence.Cycle = false
+		case tree.SeqOptOwnedBy:
+			if option.ColumnItemVal == nil {
+				sequence.OwnerTable, sequence.OwnerColumn = "", ""
+			} else {
+				sequence.OwnerTable = option.ColumnItemVal.TableName.Object()
+				sequence.OwnerColumn = string(option.ColumnItemVal.ColumnName)
+			}
+		default:
+			return fmt.Errorf("sequence option %s is not supported", option.Name)
+		}
+	}
+	if !create {
+		return nil
+	}
+	if sequence.DataType == "" {
+		sequence.DataType = "INT8"
+	}
+	if sequence.Increment == "" {
+		sequence.Increment = "1"
+	}
+	limit := map[string]int64{"INT2": 32767, "INT4": 2147483647}[sequence.DataType]
+	if limit == 0 {
+		limit = 9223372036854775807
+	}
+	descending := strings.HasPrefix(sequence.Increment, "-")
+	if sequence.MinValue == "" {
+		sequence.MinValue = "1"
+		if descending {
+			sequence.MinValue = strconv.FormatInt(-limit-1, 10)
+		}
+	}
+	if sequence.MaxValue == "" {
+		sequence.MaxValue = strconv.FormatInt(limit, 10)
+		if descending {
+			sequence.MaxValue = "-1"
+		}
+	}
+	if sequence.Start == "" {
+		sequence.Start = sequence.MinValue
+		if descending {
+			sequence.Start = sequence.MaxValue
+		}
+	}
+	return nil
+}
+
+// sdlType returns a column type as CockroachDB's formatter writes it, with a
+// collated string's collation apart, as the sync states them.
+func sdlType(ref tree.ResolvableTypeReference) (string, string) {
+	t, ok := tree.GetStaticallyKnownType(ref)
+	if !ok {
+		return ref.SQLString(), ""
+	}
+	if t.Family() == types.CollatedStringFamily {
+		locale := t.Locale()
+		return strings.TrimSuffix(t.SQLString(), " COLLATE "+tree.NameString(locale)), locale
+	}
+	return t.SQLString(), ""
+}
+
+// sdlExpr formats an expression without its outer parentheses.
+func sdlExpr(expr tree.Expr) string {
+	for {
+		paren, ok := expr.(*tree.ParenExpr)
+		if !ok {
+			break
+		}
+		expr = paren.Expr
+	}
+	return tree.AsString(expr)
+}
+
+func (l *sdlLoader) createTable(n *tree.CreateTable) error {
+	if n.AsSource != nil {
+		return fmt.Errorf("CREATE TABLE AS is not a schema definition")
+	}
+	schema := schemaOf(&n.Table)
+	s := l.schema(schema)
+	table := &metadatapb.TableMetadata{Name: string(n.Table.ObjectName)}
+	s.Tables = append(s.Tables, table)
+	for _, def := range n.Defs {
+		if column, ok := def.(*tree.ColumnTableDef); ok {
+			if err := l.addColumn(schema, table, column); err != nil {
+				return err
+			}
+		}
+	}
+	for _, def := range n.Defs {
+		if err := l.addTableDef(schema, table, def); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// addColumn adds a column a CREATE TABLE or ALTER TABLE ADD COLUMN declares,
+// with the keys, checks and foreign key it declares inline.
+func (l *sdlLoader) addColumn(schema string, table *metadatapb.TableMetadata, column *tree.ColumnTableDef) error {
+	typ, collation := sdlType(column.Type)
+	c := &metadatapb.ColumnMetadata{
+		Name:        string(column.Name),
+		Position:    int32(len(table.Columns) + 1),
+		Type:        typ,
+		Collation:   collation,
+		Nullable:    column.Nullable.Nullability != tree.NotNull && !column.PrimaryKey.IsPrimaryKey,
+		IsInvisible: column.Hidden,
+	}
+	if column.DefaultExpr.Expr != nil {
+		c.Default = sdlExpr(column.DefaultExpr.Expr)
+	}
+	if column.IsSerial {
+		c.Default = "unique_rowid()"
+	}
+	if column.Computed.Computed {
+		generation := &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_STORED, Expression: sdlExpr(column.Computed.Expr)}
+		if column.Computed.Virtual {
+			generation.Type = metadatapb.GenerationMetadata_TYPE_VIRTUAL
+		}
+		c.Generation = generation
+	}
+	table.Columns = append(table.Columns, c)
+	if column.PrimaryKey.IsPrimaryKey {
+		index := &tree.CreateIndex{Columns: tree.IndexElemList{{Column: column.Name}}, StorageParams: column.PrimaryKey.StorageParams}
+		if column.PrimaryKey.Sharded {
+			index.Sharded = &tree.ShardedIndexDef{ShardBuckets: column.PrimaryKey.ShardBuckets}
+		}
+		addPrimaryKey(schema, table, "", index)
+	}
+	if column.Unique.IsUnique {
+		index := &tree.CreateIndex{Unique: true, Columns: tree.IndexElemList{{Column: column.Name}}, Name: column.Unique.ConstraintName}
+		table.Indexes = append(table.Indexes, sdlIndex(schema, table.Name, index))
+	}
+	for _, check := range column.CheckExprs {
+		table.CheckConstraints = append(table.CheckConstraints, sdlCheck(string(check.ConstraintName), check.Expr))
+	}
+	if column.References.Table != nil {
+		fk := &tree.ForeignKeyConstraintTableDef{
+			Name: column.References.ConstraintName, Table: *column.References.Table,
+			FromCols: tree.NameList{column.Name}, Actions: column.References.Actions, Match: column.References.Match,
+		}
+		if column.References.Col != "" {
+			fk.ToCols = tree.NameList{column.References.Col}
+		}
+		if err := l.addForeignKey(schema, table, fk); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// addTableDef adds a constraint or index a CREATE TABLE or ALTER TABLE ADD
+// CONSTRAINT declares.
+func (l *sdlLoader) addTableDef(schema string, table *metadatapb.TableMetadata, def tree.TableDef) error {
+	switch d := def.(type) {
+	case *tree.ColumnTableDef, *tree.FamilyTableDef:
+	case *tree.UniqueConstraintTableDef:
+		index := indexOf(&d.IndexTableDef)
+		if d.PrimaryKey {
+			addPrimaryKey(schema, table, string(d.Name), index)
+			return nil
+		}
+		index.Unique = true
+		table.Indexes = append(table.Indexes, sdlIndex(schema, table.Name, index))
+	case *tree.IndexTableDef:
+		table.Indexes = append(table.Indexes, sdlIndex(schema, table.Name, indexOf(d)))
+	case *tree.CheckConstraintTableDef:
+		table.CheckConstraints = append(table.CheckConstraints, sdlCheck(string(d.Name), d.Expr))
+	case *tree.ForeignKeyConstraintTableDef:
+		return l.addForeignKey(schema, table, d)
+	default:
+		return fmt.Errorf("table element %s is not supported", tree.AsString(def))
+	}
+	return nil
+}
+
+func indexOf(d *tree.IndexTableDef) *tree.CreateIndex {
+	return &tree.CreateIndex{
+		Name: d.Name, Columns: d.Columns, Sharded: d.Sharded, Storing: d.Storing, Type: d.Type,
+		PartitionByIndex: d.PartitionByIndex, StorageParams: d.StorageParams, Predicate: d.Predicate, Invisibility: d.Invisibility,
+	}
+}
+
+// addPrimaryKey adds a primary key, named as CockroachDB names it when the
+// SDL does not.
+func addPrimaryKey(schema string, table *metadatapb.TableMetadata, name string, index *tree.CreateIndex) {
+	if name == "" {
+		name = table.Name + "_pkey"
+	}
+	index.Name = tree.Name(name)
+	index.Unique = true
+	key := sdlIndex(schema, table.Name, index)
+	key.Primary = true
+	table.Indexes = append([]*metadatapb.IndexMetadata{key}, table.Indexes...)
+	for _, elem := range index.Columns {
+		if column := findColumn(table, string(elem.Column)); column != nil {
+			column.Nullable = false
+		}
+	}
+}
+
+// sdlIndex states an index as the sync does: its key list, and its definition
+// as CockroachDB formats it, with each key's direction written.
+func sdlIndex(schema, table string, n *tree.CreateIndex) *metadatapb.IndexMetadata {
+	index := &tree.CreateIndex{}
+	*index = *n
+	index.Table = tree.MakeTableNameWithSchema("", tree.Name(schema), tree.Name(table))
+	index.Table.ExplicitCatalog = false
+	index.IfNotExists = false
+	index.Concurrently = false
+	index.Columns = make(tree.IndexElemList, len(n.Columns))
+	copy(index.Columns, n.Columns)
+	var names []string
+	metadata := &metadatapb.IndexMetadata{Unique: index.Unique}
+	for i := range index.Columns {
+		elem := &index.Columns[i]
+		if elem.Direction == tree.DefaultDirection {
+			elem.Direction = tree.Ascending
+		}
+		key := string(elem.Column)
+		if elem.Expr != nil {
+			key = sdlExpr(elem.Expr)
+			names = append(names, "expr")
+		} else {
+			names = append(names, string(elem.Column))
+		}
+		metadata.Expressions = append(metadata.Expressions, key)
+		metadata.Descending = append(metadata.Descending, elem.Direction == tree.Descending)
+	}
+	if index.Name == "" {
+		suffix := "_idx"
+		if index.Unique {
+			suffix = "_key"
+		}
+		index.Name = tree.Name(table + "_" + strings.Join(names, "_") + suffix)
+	}
+	metadata.Name = string(index.Name)
+	metadata.Definition = tree.AsString(index)
+	return metadata
+}
+
+// sdlCheck states a check as the sync does, parenthesized, named as
+// CockroachDB names it when the SDL does not.
+func sdlCheck(name string, expr tree.Expr) *metadatapb.CheckConstraintMetadata {
+	if name == "" {
+		var columns []string
+		seen := make(map[string]bool)
+		tree.WalkExprConst(&columnCollector{visit: func(column string) {
+			if !seen[column] {
+				seen[column] = true
+				columns = append(columns, column)
+			}
+		}}, expr)
+		name = strings.Join(append([]string{"check"}, columns...), "_")
+	}
+	return &metadatapb.CheckConstraintMetadata{Name: name, Expression: "((" + sdlExpr(expr) + "))"}
+}
+
+type columnCollector struct{ visit func(string) }
+
+func (v *columnCollector) VisitPre(expr tree.Expr) (bool, tree.Expr) {
+	if name, ok := expr.(*tree.UnresolvedName); ok && name.NumParts == 1 && !name.Star {
+		v.visit(name.Parts[0])
+	}
+	return true, expr
+}
+
+func (*columnCollector) VisitPost(expr tree.Expr) tree.Expr { return expr }
+
+func (l *sdlLoader) addForeignKey(schema string, table *metadatapb.TableMetadata, d *tree.ForeignKeyConstraintTableDef) error {
+	fk := &metadatapb.ForeignKeyMetadata{
+		Name:             string(d.Name),
+		ReferencedSchema: schemaOf(&d.Table),
+		ReferencedTable:  string(d.Table.ObjectName),
+		OnDelete:         referenceAction(d.Actions.Delete),
+		OnUpdate:         referenceAction(d.Actions.Update),
+		MatchType:        "SIMPLE",
+	}
+	if d.Match == tree.MatchFull {
+		fk.MatchType = "FULL"
+	}
+	for _, column := range d.FromCols {
+		fk.Columns = append(fk.Columns, string(column))
+	}
+	for _, column := range d.ToCols {
+		fk.ReferencedColumns = append(fk.ReferencedColumns, string(column))
+	}
+	if len(fk.ReferencedColumns) == 0 {
+		// REFERENCES without columns names the referenced primary key, which
+		// SDL may declare later.
+		l.keyless = append(l.keyless, fk)
+	}
+	if fk.Name == "" {
+		fk.Name = table.Name + "_" + strings.Join(fk.Columns, "_") + "_fkey"
+	}
+	table.ForeignKeys = append(table.ForeignKeys, fk)
+	return nil
+}
+
+// referenceAction states a foreign key action as the sync does.
+func referenceAction(action tree.ReferenceAction) string {
+	if action == tree.NoAction {
+		return "NO ACTION"
+	}
+	return action.String()
+}
+
+func (l *sdlLoader) alterTable(n *tree.AlterTable) error {
+	schema := n.Table.Schema()
+	if schema == "" {
+		schema = "public"
+	}
+	table := schemaTable(l.schema(schema), n.Table.Object())
+	if table == nil {
+		return fmt.Errorf("table %s is not created", n.Table)
+	}
+	for _, cmd := range n.Cmds {
+		switch c := cmd.(type) {
+		case *tree.AlterTableAddConstraint:
+			if err := l.addTableDef(schema, table, c.ConstraintDef); err != nil {
+				return err
+			}
+		case *tree.AlterTableAddColumn:
+			if err := l.addColumn(schema, table, c.ColumnDef); err != nil {
+				return err
+			}
+		case *tree.AlterTableValidateConstraint:
+			// A dump validates the foreign keys it added; SDL holds them valid.
+		case *tree.AlterTableSetDefault:
+			column := findColumn(table, string(c.Column))
+			if column == nil {
+				return fmt.Errorf("column %s is not created", c.Column)
+			}
+			column.Default = ""
+			if c.Default != nil {
+				column.Default = sdlExpr(c.Default)
+			}
+		default:
+			return fmt.Errorf("ALTER TABLE %s is not a schema definition", tree.AsString(cmd))
+		}
+	}
+	return nil
+}
+
+func (l *sdlLoader) createView(n *tree.CreateView) error {
+	schema := schemaOf(&n.Name)
+	s := l.schema(schema)
+	dropCatalogs(n.AsSource)
+	definition := tree.AsString(n.AsSource)
+	var dependencies []*metadatapb.DependencyColumn
+	seen := make(map[string]bool)
+	ctx := tree.NewFmtCtx(tree.FmtSimple, tree.FmtReformatTableNames(func(ctx *tree.FmtCtx, tn *tree.TableName) {
+		dep := &metadatapb.DependencyColumn{Schema: schemaOf(tn), Table: string(tn.ObjectName)}
+		if id := getObjectID(dep.Schema, dep.Table); !seen[id] {
+			seen[id] = true
+			dependencies = append(dependencies, dep)
+		}
+		ctx.WithReformatTableNames(nil, func() { ctx.FormatNode(tn) })
+	}))
+	ctx.FormatNode(n.AsSource)
+	ctx.Close()
+	var columns []*metadatapb.ColumnMetadata
+	for _, name := range n.ColumnNames {
+		columns = append(columns, &metadatapb.ColumnMetadata{Name: string(name)})
+	}
+	if n.Materialized {
+		s.MaterializedViews = append(s.MaterializedViews, &metadatapb.MaterializedViewMetadata{Name: string(n.Name.ObjectName), Definition: definition, DependencyColumns: dependencies, Columns: columns})
+		return nil
+	}
+	s.Views = append(s.Views, &metadatapb.ViewMetadata{Name: string(n.Name.ObjectName), Definition: definition, DependencyColumns: dependencies, Columns: columns})
+	return nil
+}
+
+func (l *sdlLoader) createRoutine(n *tree.CreateRoutine) error {
+	n.Replace = false
+	for i, option := range n.Options {
+		if body, ok := option.(tree.RoutineBodyStr); ok {
+			n.Options[i] = tree.RoutineBodyStr(bodyWithoutCatalogs(string(body), n.Options))
+		}
+	}
+	schema := "public"
+	if n.Name.ExplicitSchema {
+		schema = string(n.Name.SchemaName)
+	}
+	var args []string
+	for _, param := range n.Params {
+		if param.Class == tree.RoutineParamOut {
+			continue
+		}
+		args = append(args, param.Type.SQLString())
+	}
+	name := string(n.Name.ObjectName)
+	l.schema(schema).Functions = append(l.schema(schema).Functions, &metadatapb.FunctionMetadata{
+		Name:       name,
+		Signature:  name + "(" + strings.Join(args, ", ") + ")",
+		Definition: tree.AsString(n),
+	})
+	return nil
+}
+
+func (l *sdlLoader) relationIndexes(schema, name string) *[]*metadatapb.IndexMetadata {
+	if table := schemaTable(l.schema(schema), name); table != nil {
+		return &table.Indexes
+	}
+	if view := findMaterializedView(l.schema(schema), name); view != nil {
+		return &view.Indexes
+	}
+	return nil
+}
+
+func (l *sdlLoader) findIndex(schema, table, name string) *metadatapb.IndexMetadata {
+	s := l.schema(schema)
+	var indexes []*metadatapb.IndexMetadata
+	for _, t := range s.Tables {
+		if table == "" || t.Name == table {
+			indexes = append(indexes, t.Indexes...)
+		}
+	}
+	for _, v := range s.MaterializedViews {
+		if table == "" || v.Name == table {
+			indexes = append(indexes, v.Indexes...)
+		}
+	}
+	for _, index := range indexes {
+		if index.Name == name {
+			return index
+		}
+	}
+	return nil
+}
+
+func (l *sdlLoader) commentOnConstraint(n *tree.CommentOnConstraint) error {
+	table := schemaTable(l.schema(n.Table.Schema()), n.Table.Object())
+	if table == nil {
+		return fmt.Errorf("table %s is not created", n.Table)
+	}
+	name := string(n.Constraint)
+	for _, check := range table.CheckConstraints {
+		if check.Name == name {
+			check.Comment = comment(n.Comment)
+			return nil
+		}
+	}
+	for _, fk := range table.ForeignKeys {
+		if fk.Name == name {
+			fk.Comment = comment(n.Comment)
+			return nil
+		}
+	}
+	for _, index := range table.Indexes {
+		if index.Name == name {
+			index.Comment = comment(n.Comment)
+			return nil
+		}
+	}
+	return fmt.Errorf("constraint %s is not created", name)
+}
+
+// dropCatalogs unqualifies every table name in node that names a database.
+// SDL describes one database, and a dump (SHOW CREATE) names it in every
+// relation a view reads, so the name is dropped as DatabaseDefinition drops it.
+func dropCatalogs(node tree.NodeFormatter) bool {
+	changed := false
+	ctx := tree.NewFmtCtx(tree.FmtSimple, tree.FmtReformatTableNames(func(ctx *tree.FmtCtx, tn *tree.TableName) {
+		if tn.ExplicitCatalog {
+			tn.ExplicitCatalog = false
+			tn.CatalogName = ""
+			changed = true
+		}
+		ctx.WithReformatTableNames(nil, func() { ctx.FormatNode(tn) })
+	}))
+	ctx.FormatNode(node)
+	ctx.Close()
+	return changed
+}
+
+// bodyWithoutCatalogs is a routine body with dropCatalogs applied, or the body
+// as written when it names no database or does not parse.
+func bodyWithoutCatalogs(body string, options tree.RoutineOptions) string {
+	language := ""
+	for _, option := range options {
+		if l, ok := option.(tree.RoutineLanguage); ok {
+			language = strings.ToLower(string(l))
+		}
+	}
+	switch language {
+	case "sql":
+		stmts, err := crparser.Parse(body)
+		if err != nil {
+			return body
+		}
+		changed := false
+		parts := make([]string, len(stmts))
+		for i, s := range stmts {
+			changed = dropCatalogs(s.AST) || changed
+			parts[i] = tree.AsString(s.AST) + ";"
+		}
+		if changed {
+			return "\n" + strings.Join(parts, "\n") + "\n"
+		}
+	case "plpgsql":
+		block, err := plpgsqlparser.Parse(body)
+		if err == nil && dropCatalogs(block.AST) {
+			return "\n" + tree.AsString(block.AST) + "\n"
+		}
+	}
+	return body
+}
