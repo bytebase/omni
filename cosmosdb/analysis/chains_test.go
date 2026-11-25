@@ -32,7 +32,7 @@ func TestAnalyzeChainsStayLinear(t *testing.T) {
 		{"LIKE", where("c.a" + strings.Repeat(" LIKE c.z", chain)), chain + 1, "c.z"},
 		{"IN", where("c.a" + strings.Repeat(" IN (c.z)", chain)), chain + 1, "c.z"},
 		{"projected OR", "SELECT " + strings.Repeat("c.a OR ", chain) + "c.z FROM c", chain + 1, "c.z"},
-		{"property of an OR", where("(" + strings.Repeat("c.a OR ", chain) + "c.z).x"), chain + 1, "c.z.x"},
+		{"property of an OR", where("(" + strings.Repeat("c.a OR ", chain) + "c.z).x"), chain + 1, "c.z"},
 		{"ternary", where(strings.Repeat("c.a ? c.b : ", nested) + "c.z"), 2*nested + 1, "c.z"},
 		{"function calls", where(strings.Repeat("CONCAT(", nested) + "c.a" + strings.Repeat(", c.z)", nested)), nested + 1, "c.z"},
 		{"arrays", where(strings.Repeat("[", nested) + "c.a" + strings.Repeat(", c.z]", nested)), nested + 1, "c.z"},

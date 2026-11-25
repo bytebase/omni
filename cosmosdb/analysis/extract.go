@@ -4,106 +4,112 @@ import (
 	"github.com/bytebase/omni/cosmosdb/ast"
 )
 
-// extractFieldPaths collects all field paths referenced in an expression.
-func extractFieldPaths(expr ast.ExprNode, aliases aliasMap) []FieldPath {
-	return appendFieldPaths(nil, expr, aliases)
-}
-
-// appendFieldPaths appends the field paths referenced in expr to dst, in
-// the order they occur, and returns the extended slice. Every expression
+// exprPaths appends the field paths expr's value comes from to dst, in the
+// order they occur, and returns the extended slice. Every expression
 // appends to the one slice: returning a slice per subexpression and
 // copying it into the parent's re-copied every path at each level, which
 // made a chain of n ORs take time quadratic in n (16,000 took seconds).
-func appendFieldPaths(dst []FieldPath, expr ast.ExprNode, aliases aliasMap) []FieldPath {
+func (a *analyzer) exprPaths(dst []FieldPath, expr ast.ExprNode, sc *scope) []FieldPath {
 	if expr == nil {
 		return dst
 	}
 
 	switch e := expr.(type) {
 	case *ast.ColumnRef:
-		if resolved, ok := aliases[e.Name]; ok {
-			return append(dst, copyPath(resolved))
+		if b := sc.lookup(e.Name); b != nil {
+			return append(dst, copyPaths(b.paths)...)
 		}
 		return append(dst, FieldPath{ItemSelector(e.Name)})
 
-	case *ast.DotAccessExpr:
-		start := len(dst)
-		dst = appendFieldPaths(dst, e.Expr, aliases)
-		for i := start; i < len(dst); i++ {
-			dst[i] = append(dst[i], ItemSelector(e.Property))
+	case *ast.DotAccessExpr, *ast.BracketAccessExpr:
+		if out, ok := a.resolveChain(dst, e, sc); ok {
+			return out
 		}
-		return dst
-
-	case *ast.BracketAccessExpr:
-		start := len(dst)
-		dst = appendFieldPaths(dst, e.Expr, aliases)
-		sel := bracketSelector(e.Index)
-		for i := start; i < len(dst); i++ {
-			dst[i] = append(dst[i], sel)
-		}
-		return dst
+		// A property of a computed value ({"k": c.name}.k, ARRAY(...)[0])
+		// comes from that value's sources; the selector names no stored
+		// property, so it is not appended to them.
+		return a.exprPaths(dst, accessBase(e), sc)
 
 	case *ast.BinaryExpr:
-		dst = appendFieldPaths(dst, e.Left, aliases)
-		return appendFieldPaths(dst, e.Right, aliases)
+		dst = a.exprPaths(dst, e.Left, sc)
+		return a.exprPaths(dst, e.Right, sc)
 
 	case *ast.UnaryExpr:
-		return appendFieldPaths(dst, e.Operand, aliases)
+		return a.exprPaths(dst, e.Operand, sc)
 
 	case *ast.TernaryExpr:
-		dst = appendFieldPaths(dst, e.Cond, aliases)
-		dst = appendFieldPaths(dst, e.Then, aliases)
-		return appendFieldPaths(dst, e.Else, aliases)
+		dst = a.exprPaths(dst, e.Cond, sc)
+		dst = a.exprPaths(dst, e.Then, sc)
+		return a.exprPaths(dst, e.Else, sc)
 
 	case *ast.InExpr:
-		dst = appendFieldPaths(dst, e.Expr, aliases)
+		dst = a.exprPaths(dst, e.Expr, sc)
 		for _, item := range e.List {
-			dst = appendFieldPaths(dst, item, aliases)
+			dst = a.exprPaths(dst, item, sc)
 		}
 		return dst
 
 	case *ast.BetweenExpr:
-		dst = appendFieldPaths(dst, e.Expr, aliases)
-		dst = appendFieldPaths(dst, e.Low, aliases)
-		return appendFieldPaths(dst, e.High, aliases)
+		dst = a.exprPaths(dst, e.Expr, sc)
+		dst = a.exprPaths(dst, e.Low, sc)
+		return a.exprPaths(dst, e.High, sc)
 
 	case *ast.LikeExpr:
-		dst = appendFieldPaths(dst, e.Expr, aliases)
-		dst = appendFieldPaths(dst, e.Pattern, aliases)
-		return appendFieldPaths(dst, e.Escape, aliases)
+		dst = a.exprPaths(dst, e.Expr, sc)
+		dst = a.exprPaths(dst, e.Pattern, sc)
+		return a.exprPaths(dst, e.Escape, sc)
 
 	case *ast.FuncCall:
-		return appendFieldPathsOf(dst, e.Args, aliases)
+		return a.exprPathsOf(dst, e.Args, sc)
 
 	case *ast.UDFCall:
-		return appendFieldPathsOf(dst, e.Args, aliases)
+		return a.exprPathsOf(dst, e.Args, sc)
 
 	case *ast.CreateArrayExpr:
-		return appendFieldPathsOf(dst, e.Elements, aliases)
+		return a.exprPathsOf(dst, e.Elements, sc)
 
 	case *ast.CreateObjectExpr:
 		for _, f := range e.Fields {
-			dst = appendFieldPaths(dst, f.Value, aliases)
+			dst = a.exprPaths(dst, f.Value, sc)
 		}
 		return dst
 
-	case *ast.StringLit, *ast.NumberLit, *ast.BoolLit,
-		*ast.NullLit, *ast.UndefinedLit, *ast.InfinityLit,
-		*ast.NanLit, *ast.ParamRef:
-		return dst
+	case *ast.SubLink:
+		return append(dst, a.selectStmt(e.Select, sc).paths()...)
 
-	case *ast.SubLink, *ast.ExistsExpr, *ast.ArrayExpr, *ast.SubqueryFuncExpr:
+	case *ast.ArrayExpr:
+		return append(dst, a.selectStmt(e.Select, sc).paths()...)
+
+	case *ast.SubqueryFuncExpr:
+		return append(dst, a.selectStmt(e.Select, sc).paths()...)
+
+	case *ast.ExistsExpr:
+		// EXISTS returns a boolean, which carries no value of the subquery;
+		// the subquery's predicates are still collected.
+		a.selectStmt(e.Select, sc)
 		return dst
 
 	default:
+		// Literals and parameters read no field.
 		return dst
 	}
 }
 
-// appendFieldPathsOf appends the field paths of each expression in exprs.
-func appendFieldPathsOf(dst []FieldPath, exprs []ast.ExprNode, aliases aliasMap) []FieldPath {
+// accessBase is the expression a property or index access applies to.
+func accessBase(expr ast.ExprNode) ast.ExprNode {
+	switch e := expr.(type) {
+	case *ast.DotAccessExpr:
+		return e.Expr
+	case *ast.BracketAccessExpr:
+		return e.Expr
+	}
+	return nil
+}
+
+// exprPathsOf appends the field paths of each expression in exprs.
+func (a *analyzer) exprPathsOf(dst []FieldPath, exprs []ast.ExprNode, sc *scope) []FieldPath {
 	for _, e := range exprs {
-		dst = appendFieldPaths(dst, e, aliases)
+		dst = a.exprPaths(dst, e, sc)
 	}
 	return dst
 }
