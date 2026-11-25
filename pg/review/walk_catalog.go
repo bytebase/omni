@@ -41,10 +41,11 @@ var catalogCodes = map[string]review.FindingCode{
 // first statement the catalog refuses with one of catalogCodes, when
 // catalogJudges it. It is asked only when the walk found nothing and knows
 // the search path. The replay ends, accepting, at a schema that does not
-// load in full, at any other refusal, at a rollback, and after a statement
-// that may run user code (DML, CALL, DO), whose effects the catalog does
-// not follow.
-func catalogRefusal(ctx context.Context, stmts []statement, plan *run, target review.Target, path []string, user string) *walk.Violation {
+// load in full, at any other refusal, at a rollback or SET LOCAL, at a
+// statement an event trigger may fire on, and after a statement that may
+// run user code (DML, CALL, DO) or makes an event trigger, whose effects
+// the catalog does not follow.
+func catalogRefusal(ctx context.Context, stmts []statement, plan *run, target review.Target, path []string, user string, triggerMayFire func(ast.Node) bool) *walk.Violation {
 	if target.Schema == nil || target.OtherSpecs || len(path) == 0 || user == "" && slices.Contains(path, "$user") {
 		return nil
 	}
@@ -69,9 +70,19 @@ func catalogRefusal(ctx context.Context, stmts []statement, plan *run, target re
 			return nil
 		}
 		node := stmts[st.stmt].node
+		if triggerMayFire(node) {
+			// A synced event trigger's function may change the schema or
+			// refuse the statement, which the catalog does not follow.
+			return nil
+		}
 		switch v := node.(type) {
 		case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt:
 			return nil
+		case *ast.VariableSetStmt:
+			// The catalog keeps a SET LOCAL past the end of its transaction.
+			if v.IsLocal {
+				return nil
+			}
 		case *ast.TransactionStmt:
 			// The catalog does not undo what a rollback undoes.
 			switch v.Kind {
@@ -97,7 +108,8 @@ func catalogRefusal(ctx context.Context, stmts []statement, plan *run, target re
 			return nil
 		}
 		switch node.(type) {
-		case *ast.CallStmt, *ast.DoStmt:
+		case *ast.CallStmt, *ast.DoStmt, *ast.CreateEventTrigStmt, *ast.AlterEventTrigStmt:
+			// User code ran, or an event trigger may fire on what follows.
 			return nil
 		}
 	}

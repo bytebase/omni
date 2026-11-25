@@ -3,6 +3,8 @@ package review
 import (
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
 )
@@ -49,6 +51,8 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		"BEGIN;\nCREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT 1';\nROLLBACK;\nCREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT 1';",
 		// The replay starts on the search path the change starts on.
 		"CREATE SCHEMA s;\nCREATE FUNCTION s.g() RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE FUNCTION g() RETURNS int LANGUAGE sql AS 'SELECT 1';\nSET search_path = s;",
+		// A SET LOCAL ends with its transaction.
+		"BEGIN;\nSET LOCAL search_path = s;\nCOMMIT;\nCREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;",
 		// A cast the sync does not list may allow the coercion.
 		"CREATE FUNCTION f() RETURNS date LANGUAGE sql AS 'SELECT 20260101';",
 		// A refusal of another statement ends the replay.
@@ -63,6 +67,13 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 	unknown.SessionUser = ""
 	if got := walkFindings(t, "CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;", unknown); len(got) != 0 {
 		t.Errorf("no session user: findings = %+v, want none", got)
+	}
+	// An event trigger may fire on the statement.
+	triggered := target
+	triggered.Schema = proto.Clone(target.Schema).(*metadata.DatabaseSchemaMetadata)
+	triggered.Schema.EventTriggers = []*metadata.EventTriggerMetadata{{Name: "e", Event: "ddl_command_end", Tags: []string{"CREATE TABLE"}, FunctionSchema: "public", FunctionName: "evt", Enabled: true}}
+	if got := walkFindings(t, "CREATE TABLE u (a int);\nCREATE FUNCTION f_double(y int) RETURNS int LANGUAGE sql AS 'SELECT y';", triggered); len(got) != 0 {
+		t.Errorf("event trigger: findings = %+v, want none", got)
 	}
 	// Another spec may change the database first.
 	other := target

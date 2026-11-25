@@ -63,7 +63,7 @@ func walkThrough(ctx context.Context, stmts []statement, plan *run, target revie
 	path, user := slices.Clone(w.path), w.user
 	v, err := walk.Run(ctx, len(plan.steps), snap, w.lower)
 	if v == nil && err == nil {
-		v = catalogRefusal(ctx, stmts, plan, target, path, user)
+		v = catalogRefusal(ctx, stmts, plan, target, path, user, w.eventTriggerMayFire)
 	}
 	if v != nil {
 		v.Statement = plan.steps[v.Statement].stmt
