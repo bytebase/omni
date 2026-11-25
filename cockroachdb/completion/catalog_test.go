@@ -1,0 +1,66 @@
+package completion
+
+import (
+	"testing"
+
+	metadatapb "github.com/bytebase/omni/metadata"
+	"github.com/stretchr/testify/require"
+)
+
+func TestCatalogResolvesThroughSearchPath(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{Name: "public", Tables: []*metadatapb.TableMetadata{{Name: "t"}, {Name: "only_public"}}},
+			{Name: "app", Tables: []*metadatapb.TableMetadata{{Name: "t"}, {Name: "Mixed"}}},
+		},
+	}
+	cat := newCatalog(meta, "app")
+	require.Equal(t, []string{"app", "public"}, cat.searchPath)
+	require.Same(t, cat.schema("app").relations[0], cat.relation(nil, "t"))
+	require.Same(t, cat.schema("public").relations[1], cat.relation(nil, "only_public"))
+	require.Same(t, cat.schema("public").relations[0], cat.relation([]string{"public"}, "t"))
+	require.Same(t, cat.schema("app").relations[1], cat.relation([]string{"app"}, "Mixed"))
+	// Names compare exactly: the parser has already lowercased unquoted ones.
+	require.Nil(t, cat.relation([]string{"app"}, "mixed"))
+	require.Nil(t, cat.relation([]string{"missing"}, "t"))
+
+	// A database qualifier reads its public schema; a three-part name its
+	// schema, in the current database only.
+	require.Same(t, cat.schema("public").relations[0], cat.relation([]string{"db"}, "t"))
+	require.Same(t, cat.schema("app").relations[0], cat.relation([]string{"db", "app"}, "t"))
+	require.Nil(t, cat.relation([]string{"other", "app"}, "t"))
+	require.Equal(t, "app", cat.relation(nil, "t").schema)
+
+	require.Equal(t, []string{"public"}, newCatalog(meta, "").searchPath)
+	var nilCat *catalog
+	require.Nil(t, nilCat.relation(nil, "t"))
+}
+
+func TestCatalogColumns(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "t",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "a"},
+					{Name: "rowid", IsInvisible: true},
+				},
+			}},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+				{Name: "mv", Definition: "SELECT a AS x, t.a, * FROM t"},
+				{Name: "broken", Definition: "SELEC"},
+			},
+		}},
+	}
+	cat := newCatalog(meta, "public")
+	require.Equal(t, []string{"a"}, cat.relation(nil, "t").visibleColumns())
+	var mv []string
+	for _, c := range cat.relation(nil, "mv").columns {
+		mv = append(mv, c.name)
+	}
+	require.Equal(t, []string{"x", "a", "a"}, mv)
+	require.Empty(t, cat.relation(nil, "broken").columns)
+}
