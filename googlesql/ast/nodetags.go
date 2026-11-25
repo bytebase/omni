@@ -213,6 +213,8 @@ const (
 	T_AlterProtoBundleStmt
 	T_CreatePlacementStmt
 	T_DropPlacementStmt
+	T_AlterPlacementStmt
+	T_AlterModelStmt
 
 	// DML — INSERT / UPDATE / DELETE / MERGE / TRUNCATE (parser-dml node).
 	//
@@ -659,6 +661,10 @@ func (t NodeTag) String() string {
 		return "CreatePlacementStmt"
 	case T_DropPlacementStmt:
 		return "DropPlacementStmt"
+	case T_AlterPlacementStmt:
+		return "AlterPlacementStmt"
+	case T_AlterModelStmt:
+		return "AlterModelStmt"
 	case T_DefaultExpr:
 		return "DefaultExpr"
 	case T_InsertStmt:

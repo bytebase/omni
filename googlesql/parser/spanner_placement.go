@@ -80,6 +80,62 @@ func (p *Parser) parseCreatePlacement(create Token, orReplace bool, scope string
 	return stmt, nil
 }
 
+// parseAlterPlacement parses an ALTER PLACEMENT body. The ALTER keyword has
+// been consumed; cur is at the bare word `PLACEMENT`. The reference page has
+// no ALTER PLACEMENT; the pinned emulator takes
+//
+//	ALTER PLACEMENT [IF EXISTS] name [SET OPTIONS ( placement_option [, ...] )]
+//
+// with CREATE PLACEMENT's options, none of them required, and a bare form.
+func (p *Parser) parseAlterPlacement(alter Token) (ast.Node, error) {
+	p.advance() // PLACEMENT
+
+	stmt := &ast.AlterPlacementStmt{}
+	stmt.Loc.Start = alter.Loc.Start
+
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
+	}
+	stmt.IfExists = ifExists
+
+	name, err := p.parseTablePath()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+
+	opts, err := p.parseSpannerSetOptions(placementOptions)
+	if err != nil {
+		return nil, err
+	}
+	stmt.SetOptions = opts
+
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// parseSpannerSetOptions parses an optional `SET OPTIONS ( … )` clause of a
+// Spanner ALTER and checks its options against known. A SET followed by
+// anything but OPTIONS is an error.
+func (p *Parser) parseSpannerSetOptions(known map[string]spannerOptionKind) ([]*ast.OptionsEntry, error) {
+	if p.cur.Type != kwSET {
+		return nil, nil
+	}
+	p.advance() // SET
+	if p.cur.Type != kwOPTIONS {
+		return nil, p.syntaxErrorAtCur()
+	}
+	opts, err := p.parseDDLOptionsList()
+	if err != nil {
+		return nil, err
+	}
+	if err := p.checkSpannerOptions(opts, known); err != nil {
+		return nil, err
+	}
+	return opts, nil
+}
+
 // parseDropPlacement parses a DROP PLACEMENT body. cur is at the bare word
 // `PLACEMENT`.
 func (p *Parser) parseDropPlacement(drop Token) (ast.Node, error) {

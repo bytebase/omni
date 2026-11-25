@@ -6,7 +6,7 @@ judged by BigQuery itself (`../../../bigquery/parser/testdata/README.md`).
 ## `compat.tsv`: pinned Spanner emulator verdicts
 
 `compat.tsv` holds a statement for each alternative of each rule in
-`../../testdata/GoogleSQL.g4`, then its near-misses, plus 700 hand-written
+`../../testdata/GoogleSQL.g4`, then its near-misses, plus 734 hand-written
 `suite:` rows, with omni's verdict (`googlesql/parser.Parse`) and the pinned
 Cloud Spanner emulator's (`../../testdata/pins.tsv`, `parser` role, judge
 revision 5: `gcr.io/cloud-spanner-emulator/emulator:1.5.54`, through
@@ -20,8 +20,8 @@ server in offline replay.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | One per alternative | 2,864 | 2,864 | 0 | 0 | 100.00% |
 | Near-misses | 6,573 | 6,573 | 0 | 0 | 100.00% |
-| Suites (`suite:*`) | 700 | 697 | 0 | 3 | 99.57% |
-| **All** | **10,137** | **10,134** | **0** | **3** | **99.97%** |
+| Suites (`suite:*`) | 734 | 731 | 0 | 3 | 99.59% |
+| **All** | **10,171** | **10,168** | **0** | **3** | **99.97%** |
 
 The three rows only omni accepts are documented Spanner forms the emulator's
 DDL parser lags: `ALTER SEARCH INDEX idx {ADD|DROP} STORED COLUMN c` (DDL-049)
@@ -401,7 +401,7 @@ go test ./googlesql/parser/ -run '^TestCompatibility$'
 ```
 
 Live recording against pinned `gcr.io/cloud-spanner-emulator/emulator:1.5.54`
-(about a minute for all 10,137 rows):
+(about a minute for all 10,171 rows):
 
 ```bash
 OMNI_RECORD=1 go test -v -timeout 60m ./googlesql/parser/ -run '^TestCompatibility$'

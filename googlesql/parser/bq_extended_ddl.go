@@ -165,3 +165,39 @@ func (p *Parser) parseCreateModel(create Token, orReplace bool, scope string) (a
 	p.fillSubqueries(stmt)
 	return stmt, nil
 }
+
+// parseAlterModel parses an ALTER MODEL body. The ALTER keyword has been
+// consumed; cur is at MODEL.
+//
+//	ALTER MODEL [IF EXISTS] model_name SET OPTIONS ( model_option [, ...] )
+//
+// (https://cloud.google.com/spanner/docs/reference/standard-sql/data-definition-language#alter_model).
+// The pinned emulator also parses a bare `ALTER MODEL m`, so SET OPTIONS is
+// optional here, as it is for ALTER LOCALITY GROUP.
+func (p *Parser) parseAlterModel(alter Token) (ast.Node, error) {
+	p.advance() // MODEL
+
+	stmt := &ast.AlterModelStmt{}
+	stmt.Loc.Start = alter.Loc.Start
+
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
+	}
+	stmt.IfExists = ifExists
+
+	name, err := p.parseTablePath()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+
+	opts, err := p.parseSpannerSetOptions(modelOptions)
+	if err != nil {
+		return nil, err
+	}
+	stmt.SetOptions = opts
+
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}

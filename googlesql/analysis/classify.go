@@ -140,14 +140,14 @@ func Classify(node ast.Node) QueryType {
 		*ast.CreateRoleStmt, *ast.DropRoleStmt,
 		*ast.CreateLocalityGroupStmt, *ast.AlterLocalityGroupStmt, *ast.DropLocalityGroupStmt,
 		*ast.CreateProtoBundleStmt, *ast.AlterProtoBundleStmt,
-		*ast.CreatePlacementStmt, *ast.DropPlacementStmt,
+		*ast.CreatePlacementStmt, *ast.AlterPlacementStmt, *ast.DropPlacementStmt,
 		// CREATE PROPERTY GRAPH (parser-gql node) is DDL — the legacy
 		// queryTypeListener lists create_property_graph_statement directly among the
 		// DDL forms (plugin/parser/{bigquery,spanner}/query_type.go), same as every
 		// other CREATE.
 		*ast.CreatePropertyGraphStmt,
 		// Extended GoogleSQL / BigQuery DDL statements.
-		*ast.DefineTableStmt, *ast.CreateModelStmt, *ast.CreateConnectionStmt,
+		*ast.DefineTableStmt, *ast.CreateModelStmt, *ast.AlterModelStmt, *ast.CreateConnectionStmt,
 		*ast.CreateConstantStmt, *ast.PrivilegeRestrictionStmt, *ast.AlterRowAccessPolicyStmt:
 		return DDL
 
