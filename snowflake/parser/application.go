@@ -380,7 +380,7 @@ func parseAlterApplication(p *Parser, s *ast.ObjectStmt) error {
 		return nil
 	case p.acceptWords("UNSET", "REFERENCES"):
 		c := p.addObjectKeywordsClause(s, "UNSET REFERENCES", start)
-		if p.cur.Type == '(' {
+		if p.curIs('(') {
 			opt := &ast.CopyOption{Loc: ast.Loc{Start: p.cur.Loc.Start}}
 			if err := p.parseApplicationStringList(opt, 2); err != nil {
 				return err
@@ -513,7 +513,7 @@ func applicationOptionError(o *ast.CopyOption) error {
 // follows a clause's keywords (USING '<path>', PATCH <num>), which the caller
 // consumed from start, into a clause holding it as a nameless option.
 func (p *Parser) parseApplicationLiteralClause(s *ast.ObjectStmt, keywords string, start, typ int) (*ast.ObjectClause, error) {
-	if p.cur.Type != typ {
+	if !p.curIs(typ) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	lit, err := p.parseCopyLiteral()
@@ -532,7 +532,7 @@ func (p *Parser) parseApplicationStringList(opt *ast.CopyOption, max int) error 
 		return err
 	}
 	for {
-		if p.cur.Type != tokString || (max > 0 && len(opt.List) == max) {
+		if !p.curIs(tokString) || (max > 0 && len(opt.List) == max) {
 			return p.syntaxErrorAtCur()
 		}
 		lit, err := p.parseCopyLiteral()
@@ -540,7 +540,7 @@ func (p *Parser) parseApplicationStringList(opt *ast.CopyOption, max int) error 
 			return err
 		}
 		opt.List = append(opt.List, lit)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','

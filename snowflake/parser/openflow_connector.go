@@ -144,7 +144,7 @@ func parseAlterOpenflowConnector(p *Parser, s *ast.ObjectStmt) error {
 		return noIfExists()
 	case p.acceptWords("PUSH"):
 		c := p.addObjectKeywordsClause(s, "PUSH", start)
-		if p.cur.Type == kwTO {
+		if p.curIs(kwTO) {
 			p.advance() // consume TO
 			uri, err := p.expect(tokString)
 			if err != nil {
@@ -200,7 +200,7 @@ func parseAlterOpenflowConnector(p *Parser, s *ast.ObjectStmt) error {
 // parseOpenflowConnectorComment reads an optional COMMENT = <string> into
 // clause c's options.
 func (p *Parser) parseOpenflowConnectorComment(c *ast.ObjectClause) error {
-	if !isWordToken(p.cur, "COMMENT") || p.peekNext().Type != '=' {
+	if !p.curWord("COMMENT") || !p.nextIs('=') {
 		return nil
 	}
 	o, err := p.parseObjectProperty()

@@ -46,6 +46,9 @@ type Parser struct {
 	// FROM <query>, whose trailing PARTITION BY / COMMENT = / METADATA =
 	// clauses must not be read as an implicit alias (semantic_view.go).
 	inDatasetQuery bool
+	// wants is non-nil in collection mode, where token tests at the end of
+	// input are recorded (expected.go).
+	wants *expectation
 }
 
 // advance consumes the current token and moves to the next one.
@@ -92,7 +95,7 @@ func (p *Parser) peekNext() Token {
 // and returned with ok=true. Used for optional tokens.
 func (p *Parser) match(types ...int) (Token, bool) {
 	for _, t := range types {
-		if p.cur.Type == t {
+		if p.curIs(t) {
 			return p.advance(), true
 		}
 	}
@@ -102,7 +105,7 @@ func (p *Parser) match(types ...int) (Token, bool) {
 // expect consumes the current token if it matches the expected type.
 // Otherwise returns a ParseError describing the mismatch.
 func (p *Parser) expect(tokenType int) (Token, error) {
-	if p.cur.Type == tokenType {
+	if p.curIs(tokenType) {
 		return p.advance(), nil
 	}
 	return Token{}, p.syntaxErrorAtCur()
@@ -113,7 +116,7 @@ func (p *Parser) expect(tokenType int) (Token, error) {
 // end of input"; otherwise "at or near X".
 func (p *Parser) syntaxErrorAtCur() *ParseError {
 	var msg string
-	if p.cur.Type == tokEOF {
+	if p.curIs(tokEOF) {
 		msg = "syntax error at end of input"
 	} else {
 		text := p.cur.Str
@@ -137,19 +140,19 @@ func (p *Parser) syntaxErrorAtCur() *ParseError {
 // inside a segment is to advance to EOF.
 func (p *Parser) skipToNextStatement() {
 	// Always consume at least one token to avoid infinite loops.
-	if p.cur.Type != tokEOF {
+	if !p.curIs(tokEOF) {
 		p.advance()
 	}
 	depth := 0
-	for p.cur.Type != tokEOF {
-		switch p.cur.Type {
-		case '(', '[', '{':
+	for !p.curIs(tokEOF) {
+		switch {
+		case p.curIs('('), p.curIs('['), p.curIs('{'):
 			depth++
-		case ')', ']', '}':
+		case p.curIs(')'), p.curIs(']'), p.curIs('}'):
 			if depth > 0 {
 				depth--
 			}
-		case ';':
+		case p.curIs(';'):
 			if depth == 0 {
 				p.advance()
 				return
@@ -179,7 +182,7 @@ func (p *Parser) unsupported(stmtName string) (ast.Node, error) {
 // the dispatch switch doesn't recognize. It is called from the default
 // branch of parseStmt.
 func (p *Parser) unknownStatementError() *ParseError {
-	if p.cur.Type == tokEOF {
+	if p.curIs(tokEOF) {
 		return &ParseError{
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			Message: "syntax error at end of input",
@@ -218,59 +221,59 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		return nil, err
 	}
 	defer p.leaveNesting()
-	switch p.cur.Type {
+	switch {
 	// DDL (6 cases)
-	case kwCREATE:
+	case p.curIs(kwCREATE):
 		return p.parseCreateStmt()
-	case kwALTER:
+	case p.curIs(kwALTER):
 		return p.parseAlterStmt()
-	case kwDROP:
+	case p.curIs(kwDROP):
 		return p.parseDropStmt()
-	case kwUNDROP:
+	case p.curIs(kwUNDROP):
 		return p.parseUndropStmt()
-	case kwTRUNCATE:
+	case p.curIs(kwTRUNCATE):
 		return p.parseTruncateStmt()
-	case kwCOMMENT:
+	case p.curIs(kwCOMMENT):
 		return p.parseCommentStmt()
 
 	// DML (12 cases)
-	case kwSELECT:
+	case p.curIs(kwSELECT):
 		return p.parseQueryExpr()
-	case '(':
+	case p.curIs('('):
 		// Parenthesized query expression at top level, e.g. (SELECT 1) UNION (SELECT 2).
 		// Delegate to parseQueryExpr which handles the leading '('.
 		return p.parseQueryExpr()
-	case kwWITH:
+	case p.curIs(kwWITH):
 		return p.parseWithQueryExpr()
-	case kwINSERT:
+	case p.curIs(kwINSERT):
 		return p.parseInsertStmt()
-	case kwUPDATE:
+	case p.curIs(kwUPDATE):
 		return p.parseUpdateStmt()
-	case kwDELETE:
+	case p.curIs(kwDELETE):
 		return p.parseDeleteStmt()
-	case kwMERGE:
+	case p.curIs(kwMERGE):
 		return p.parseMergeStmt()
-	case kwCOPY:
+	case p.curIs(kwCOPY):
 		return p.parseCopyStmt()
-	case kwPUT:
+	case p.curIs(kwPUT):
 		return p.parsePutStmt()
-	case kwGET:
+	case p.curIs(kwGET):
 		return p.parseGetStmt()
-	case kwLIST:
+	case p.curIs(kwLIST):
 		return p.parseListStmt(false)
-	case kwREMOVE:
+	case p.curIs(kwREMOVE):
 		return p.parseRemoveStmt(false)
-	case kwCALL:
+	case p.curIs(kwCALL):
 		return p.parseCallStmt()
 
 	// DCL (2 cases)
-	case kwGRANT:
+	case p.curIs(kwGRANT):
 		return p.parseGrantStmt()
-	case kwREVOKE:
+	case p.curIs(kwREVOKE):
 		return p.parseRevokeStmt()
 
 	// TCL (4 cases)
-	case kwBEGIN:
+	case p.curIs(kwBEGIN):
 		// BEGIN is overloaded: a TCL transaction opener
 		// (BEGIN [WORK|TRANSACTION] [NAME ...]) versus a Snowflake Scripting
 		// block (BEGIN <stmts> [EXCEPTION ...] END). Disambiguate on the token
@@ -280,29 +283,29 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseBeginStmt()
 		}
 		return p.parseScriptBlock()
-	case kwSTART:
+	case p.curIs(kwSTART):
 		return p.parseStartTransactionStmt()
-	case kwCOMMIT:
+	case p.curIs(kwCOMMIT):
 		return p.parseCommitStmt()
-	case kwROLLBACK:
+	case p.curIs(kwROLLBACK):
 		return p.parseRollbackStmt()
 
 	// Info / inspection (5 cases)
-	case kwSHOW:
+	case p.curIs(kwSHOW):
 		return p.parseShowStmt()
-	case kwDESCRIBE:
+	case p.curIs(kwDESCRIBE):
 		return p.parseDescribeStmt(false)
-	case kwDESC:
+	case p.curIs(kwDESC):
 		return p.parseDescribeStmt(true)
-	case kwEXPLAIN:
+	case p.curIs(kwEXPLAIN):
 		return p.parseExplainStmt()
-	case kwUSE:
+	case p.curIs(kwUSE):
 		return p.parseUseStmt()
 
 	// Session (2 cases)
-	case kwSET:
+	case p.curIs(kwSET):
 		return p.parseSetStmt()
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		return p.parseUnsetStmt()
 
 	// Snowflake Scripting (T7.1). A top-level DECLARE opens a scripting block
@@ -311,12 +314,12 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// only accepts them inside a block, but omni parses them structurally at
 	// the top level too (a lenient superset, flagged in the divergence ledger)
 	// so best-effort parsing of partial / extracted bodies still yields an AST.
-	case kwDECLARE:
+	case p.curIs(kwDECLARE):
 		return p.parseScriptBlock()
-	case kwIF, kwCASE, kwFOR, kwRETURN, kwCONTINUE,
-		kwSCRIPT_WHILE, kwSCRIPT_LOOP, kwSCRIPT_REPEAT, kwSCRIPT_LET,
-		kwSCRIPT_BREAK, kwSCRIPT_EXIT, kwSCRIPT_ITERATE, kwSCRIPT_RAISE,
-		kwSCRIPT_OPEN, kwSCRIPT_CLOSE, kwFETCH:
+	case p.curIs(kwIF), p.curIs(kwCASE), p.curIs(kwFOR), p.curIs(kwRETURN), p.curIs(kwCONTINUE),
+		p.curIs(kwSCRIPT_WHILE), p.curIs(kwSCRIPT_LOOP), p.curIs(kwSCRIPT_REPEAT), p.curIs(kwSCRIPT_LET),
+		p.curIs(kwSCRIPT_BREAK), p.curIs(kwSCRIPT_EXIT), p.curIs(kwSCRIPT_ITERATE), p.curIs(kwSCRIPT_RAISE),
+		p.curIs(kwSCRIPT_OPEN), p.curIs(kwSCRIPT_CLOSE), p.curIs(kwFETCH):
 		return p.parseScriptStatement()
 
 	default:
@@ -324,7 +327,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		// (IMMEDIATE / TASK) is likewise absent from the keyword table.
 		// Snowflake's lexer (and omni's) does not reserve any of them, so they
 		// arrive as plain identifiers and are dispatched here by uppercased text.
-		if p.cur.Type == tokIdent {
+		p.wantWords("LS", "RM", "EXECUTE")
+		if p.curIs(tokIdent) {
 			switch strings.ToUpper(p.cur.Str) {
 			case "LS":
 				return p.parseListStmt(true)
@@ -359,7 +363,7 @@ func (p *Parser) parseTopStmt() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	for p.cur.Type == tokFlow {
+	for p.curIs(tokFlow) {
 		p.advance() // consume '->>'
 		query, qerr := p.parseQueryExpr()
 		if qerr != nil {
@@ -515,7 +519,7 @@ func parseSegment(segText string, baseOffset int, strictTrailing bool) (ast.Node
 	p.advance() // prime cur with the first token
 
 	var result ast.Node
-	if p.cur.Type != tokEOF {
+	if !p.curIs(tokEOF) {
 		first := p.cur.Loc
 		node, err := p.parseTopStmt()
 		if err == nil && treeTooHigh(node, p.prev.Loc.End-first.Start) {
@@ -539,10 +543,10 @@ func parseSegment(segText string, baseOffset int, strictTrailing bool) (ast.Node
 			// silently — report it at the first stray token, then recover
 			// to the next statement boundary so the rest of the tail
 			// (including any lex errors in it) is still scanned.
-			for p.cur.Type == ';' {
+			for p.curIs(';') {
 				p.advance()
 			}
-			if p.cur.Type != tokEOF {
+			if !p.curIs(tokEOF) {
 				p.errors = append(p.errors, *p.syntaxErrorAtCur())
 				p.skipToNextStatement()
 			}

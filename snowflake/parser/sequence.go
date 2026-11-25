@@ -56,17 +56,17 @@ func (p *Parser) parseCreateSequenceStmt(start ast.Loc, orReplace, orAlter bool)
 	stmt.Name = name
 
 	// Optional leading WITH connector (CREATE SEQUENCE <name> WITH START ...).
-	if p.cur.Type == kwWITH {
+	if p.curIs(kwWITH) {
 		p.advance() // consume WITH
 	}
 
 	// START [ WITH ] [ = ] <n>.
-	if p.cur.Type == kwSTART {
+	if p.curIs(kwSTART) {
 		p.advance() // consume START
-		if p.cur.Type == kwWITH {
+		if p.curIs(kwWITH) {
 			p.advance() // consume WITH
 		}
-		if p.cur.Type == '=' {
+		if p.curIs('=') {
 			p.advance() // consume '='
 		}
 		v, err := p.parseSignedInt()
@@ -77,12 +77,12 @@ func (p *Parser) parseCreateSequenceStmt(start ast.Loc, orReplace, orAlter bool)
 	}
 
 	// INCREMENT [ BY ] [ = ] <n>.
-	if p.cur.Type == kwINCREMENT {
+	if p.curIs(kwINCREMENT) {
 		p.advance() // consume INCREMENT
-		if p.cur.Type == kwBY {
+		if p.curIs(kwBY) {
 			p.advance() // consume BY
 		}
-		if p.cur.Type == '=' {
+		if p.curIs('=') {
 			p.advance() // consume '='
 		}
 		v, err := p.parseSignedInt()
@@ -98,7 +98,7 @@ func (p *Parser) parseCreateSequenceStmt(start ast.Loc, orReplace, orAlter bool)
 	}
 
 	// COMMENT = '<string_literal>'.
-	if p.cur.Type == kwCOMMENT {
+	if p.curIs(kwCOMMENT) {
 		c, err := p.parseCommentEqString()
 		if err != nil {
 			return nil, err
@@ -135,8 +135,8 @@ func (p *Parser) parseAlterSequenceStmt() (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	switch p.cur.Type {
-	case kwRENAME:
+	switch {
+	case p.curIs(kwRENAME):
 		// RENAME TO <new_name>.
 		p.advance() // consume RENAME
 		if _, err := p.expect(kwTO); err != nil {
@@ -149,7 +149,7 @@ func (p *Parser) parseAlterSequenceStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterSequenceRename
 		stmt.NewName = newName
 
-	case kwINCREMENT:
+	case p.curIs(kwINCREMENT):
 		// Bare (SET-less) INCREMENT [ BY ] [ = ] <n>.
 		incr, err := p.parseSequenceIncrementClause()
 		if err != nil {
@@ -158,10 +158,10 @@ func (p *Parser) parseAlterSequenceStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterSequenceSetIncrement
 		stmt.Increment = &incr
 
-	case kwSET:
+	case p.curIs(kwSET):
 		p.advance() // consume SET
 		// SET may carry INCREMENT, or { ORDER | NOORDER } and/or COMMENT.
-		if p.cur.Type == kwINCREMENT {
+		if p.curIs(kwINCREMENT) {
 			incr, err := p.parseSequenceIncrementClause()
 			if err != nil {
 				return nil, err
@@ -177,7 +177,7 @@ func (p *Parser) parseAlterSequenceStmt() (ast.Node, error) {
 			stmt.Order = order
 			sawSomething = true
 		}
-		if p.cur.Type == kwCOMMENT {
+		if p.curIs(kwCOMMENT) {
 			c, err := p.parseCommentEqString()
 			if err != nil {
 				return nil, err
@@ -190,7 +190,7 @@ func (p *Parser) parseAlterSequenceStmt() (ast.Node, error) {
 		}
 		stmt.Action = ast.AlterSequenceSet
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		// UNSET COMMENT.
 		p.advance() // consume UNSET
 		if _, err := p.expect(kwCOMMENT); err != nil {
@@ -210,10 +210,10 @@ func (p *Parser) parseAlterSequenceStmt() (ast.Node, error) {
 // signed value. cur is the INCREMENT keyword.
 func (p *Parser) parseSequenceIncrementClause() (int64, error) {
 	p.advance() // consume INCREMENT
-	if p.cur.Type == kwBY {
+	if p.curIs(kwBY) {
 		p.advance() // consume BY
 	}
-	if p.cur.Type == '=' {
+	if p.curIs('=') {
 		p.advance() // consume '='
 	}
 	return p.parseSignedInt()
@@ -230,11 +230,11 @@ func (p *Parser) parseSequenceIncrementClause() (int64, error) {
 // which includes negatives.
 func (p *Parser) parseSignedInt() (int64, error) {
 	neg := false
-	switch p.cur.Type {
-	case '-':
+	switch {
+	case p.curIs('-'):
 		neg = true
 		p.advance() // consume '-'
-	case '+':
+	case p.curIs('+'):
 		p.advance() // consume '+'
 	}
 	tok, err := p.expect(tokInt)
@@ -251,12 +251,12 @@ func (p *Parser) parseSignedInt() (int64, error) {
 // (*bool, true) when present (true for ORDER, false for NOORDER) and (nil, false)
 // when the current token is neither.
 func (p *Parser) parseOptionalOrderNoorder() (*bool, bool) {
-	switch p.cur.Type {
-	case kwORDER:
+	switch {
+	case p.curIs(kwORDER):
 		p.advance()
 		b := true
 		return &b, true
-	case kwNOORDER:
+	case p.curIs(kwNOORDER):
 		p.advance()
 		b := false
 		return &b, true

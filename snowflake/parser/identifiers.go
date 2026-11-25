@@ -10,10 +10,10 @@ import "github.com/bytebase/omni/snowflake/ast"
 // Returns a ParseError if the current token is none of the above.
 func (p *Parser) parseIdent() (ast.Ident, error) {
 	switch {
-	case p.cur.Type == tokIdent:
+	case p.curIs(tokIdent):
 		tok := p.advance()
 		return ast.Ident{Name: tok.Str, Quoted: false, Loc: tok.Loc}, nil
-	case p.cur.Type == tokQuotedIdent:
+	case p.curIs(tokQuotedIdent):
 		tok := p.advance()
 		return ast.Ident{Name: tok.Str, Quoted: true, Loc: tok.Loc}, nil
 	case p.cur.Type >= 700 && !keywordReserved[p.cur.Type]:
@@ -31,11 +31,11 @@ func (p *Parser) parseIdent() (ast.Ident, error) {
 // tokQuotedIdent — NOT non-reserved keywords. Used in contexts where
 // keyword-as-identifier is not allowed (rare in Snowflake).
 func (p *Parser) parseIdentStrict() (ast.Ident, error) {
-	switch p.cur.Type {
-	case tokIdent:
+	switch {
+	case p.curIs(tokIdent):
 		tok := p.advance()
 		return ast.Ident{Name: tok.Str, Quoted: false, Loc: tok.Loc}, nil
-	case tokQuotedIdent:
+	case p.curIs(tokQuotedIdent):
 		tok := p.advance()
 		return ast.Ident{Name: tok.Str, Quoted: true, Loc: tok.Loc}, nil
 	}
@@ -52,10 +52,10 @@ func (p *Parser) parseIdentStrict() (ast.Ident, error) {
 // used as object-name components in a dotted path (e.g. mydb.schema.t1).
 func (p *Parser) parseNamePart() (ast.Ident, error) {
 	switch {
-	case p.cur.Type == tokIdent:
+	case p.curIs(tokIdent):
 		tok := p.advance()
 		return ast.Ident{Name: tok.Str, Quoted: false, Loc: tok.Loc}, nil
-	case p.cur.Type == tokQuotedIdent:
+	case p.curIs(tokQuotedIdent):
 		tok := p.advance()
 		return ast.Ident{Name: tok.Str, Quoted: true, Loc: tok.Loc}, nil
 	case p.cur.Type >= 700:
@@ -89,7 +89,7 @@ func (p *Parser) parseNamePart() (ast.Ident, error) {
 func (p *Parser) parseObjectName() (*ast.ObjectName, error) {
 	var first ast.Ident
 	var err error
-	if p.cur.Type == kwIDENTIFIER && p.peekNext().Type == '(' {
+	if p.curIs(kwIDENTIFIER) && p.nextIs('(') {
 		first, err = p.parseIdentifierFuncPart()
 	} else {
 		first, err = p.parseNamePart()
@@ -98,7 +98,7 @@ func (p *Parser) parseObjectName() (*ast.ObjectName, error) {
 		return nil, err
 	}
 
-	if p.cur.Type != '.' {
+	if !p.curIs('.') {
 		// 1-part name.
 		return &ast.ObjectName{
 			Name: first,
@@ -112,7 +112,7 @@ func (p *Parser) parseObjectName() (*ast.ObjectName, error) {
 		return nil, err
 	}
 
-	if p.cur.Type != '.' {
+	if !p.curIs('.') {
 		// 2-part name: schema.table.
 		return &ast.ObjectName{
 			Schema: first,
@@ -193,7 +193,7 @@ func ParseObjectName(input string) (*ast.ObjectName, []ParseError) {
 	}
 
 	// Check for trailing tokens (should be EOF).
-	if p.cur.Type != tokEOF {
+	if !p.curIs(tokEOF) {
 		return obj, []ParseError{{
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			Message: "unexpected token after object name",

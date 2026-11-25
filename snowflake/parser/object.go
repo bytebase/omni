@@ -70,9 +70,20 @@ func registerObject(f *objectForm) {
 }
 
 // matchObjectForm reports the registered object whose keywords start at cur,
-// preferring the longest. It consumes nothing.
-func (p *Parser) matchObjectForm() *objectForm {
-	if p.cur.Type != tokIdent && p.cur.Type < 700 {
+// preferring the longest. It consumes nothing. In collection mode the first
+// keyword of each object want accepts is recorded; want only narrows what is
+// recorded, since the caller judges the match.
+func (p *Parser) matchObjectForm(want func(*objectForm) bool) *objectForm {
+	if p.collecting(p.cur) {
+		for _, forms := range objectForms {
+			for _, f := range forms {
+				if want(f) {
+					p.wants.words[f.words[0]] = true
+				}
+			}
+		}
+	}
+	if !p.curIs(tokIdent) && p.cur.Type < 700 {
 		return nil
 	}
 	var best *objectForm
@@ -84,6 +95,14 @@ func (p *Parser) matchObjectForm() *objectForm {
 	return best
 }
 
+func formCreates(f *objectForm) bool    { return f.create != nil }
+func formAlters(f *objectForm) bool     { return f.alter != nil }
+func formSecure(f *objectForm) bool     { return f.create != nil && f.secure }
+func formTemp(f *objectForm) bool       { return f.create != nil && f.temp }
+func formTempSecure(f *objectForm) bool { return f.create != nil && f.temp && f.secure }
+func formDrops(f *objectForm) bool      { return f.drop }
+func formUndrops(f *objectForm) bool    { return f.undrop }
+
 // isWordToken reports whether t is the word upper as SQL spells it: an
 // unquoted identifier or a keyword whose uppercased text is upper. A string or
 // a quoted identifier never stands for a keyword.
@@ -94,13 +113,13 @@ func isWordToken(t Token, upper string) bool {
 // atWords reports whether the tokens from cur on spell words, each an
 // unquoted identifier or a keyword (isWordToken). It consumes nothing.
 func (p *Parser) atWords(words ...string) bool {
-	if !isWordToken(p.cur, words[0]) {
+	if !p.curWord(words[0]) {
 		return false
 	}
 	if len(words) == 1 {
 		return true
 	}
-	if !isWordToken(p.peekNext(), words[1]) {
+	if !p.nextWord(words[1]) {
 		return false
 	}
 	if len(words) == 2 {
@@ -111,7 +130,7 @@ func (p *Parser) atWords(words ...string) bool {
 	p.advance()
 	p.advance()
 	for _, w := range words[2:] {
-		if !isWordToken(p.cur, w) {
+		if !p.curWord(w) {
 			return false
 		}
 		p.advance()
@@ -134,7 +153,7 @@ func (p *Parser) acceptWords(words ...string) bool {
 // expectWords consumes words, or fails at the first token that differs.
 func (p *Parser) expectWords(words ...string) error {
 	for _, w := range words {
-		if !isWordToken(p.cur, w) {
+		if !p.curWord(w) {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()
@@ -232,7 +251,7 @@ func (p *Parser) parseObjectSimpleNameList() ([]*ast.ObjectName, error) {
 			return nil, err
 		}
 		names = append(names, name)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			return names, nil
 		}
 		p.advance() // consume ','
@@ -441,7 +460,7 @@ func allStrings(lits []*ast.Literal) bool {
 // The key is an unquoted identifier or a keyword: a property's name is never
 // quoted.
 func (p *Parser) startsObjectProperty() bool {
-	return (p.cur.Type == tokIdent || p.cur.Type >= 700) && p.peekNext().Type == '='
+	return (p.curIs(tokIdent) || p.cur.Type >= 700) && p.nextIs('=')
 }
 
 // parseObjectProperties reads a run of `KEY = value` properties and
@@ -464,7 +483,7 @@ func (p *Parser) parseObjectPropertiesWith(s *ast.ObjectStmt, keywords string, n
 	for {
 		tagStart := p.cur
 		switch {
-		case keywords == "" && p.startsWithTags() && (p.cur.Type == kwWITH || p.peekNext().Type == '('):
+		case keywords == "" && p.startsWithTags() && (p.curIs(kwWITH) || p.nextIs('(')):
 			// [ WITH ] TAG ( <tag> = '<value>' [ , ... ] ) is a CREATE's; an
 			// ALTER sets tags with SET TAG <tag> = '<value>'.
 			if c.Tags != nil {
@@ -483,7 +502,7 @@ func (p *Parser) parseObjectPropertiesWith(s *ast.ObjectStmt, keywords string, n
 				return nil, err
 			}
 			c.Tags = tags
-		case keywords == "SET" && p.cur.Type == kwTAG && p.peekNext().Type != '(':
+		case keywords == "SET" && p.curIs(kwTAG) && !p.nextIs('('):
 			// Some pages list TAG <tag> = '<value>' [ , ... ] among SET's
 			// properties (ALTER COMPUTE POOL).
 			if c.Tags != nil {
@@ -543,7 +562,7 @@ const (
 func (p *Parser) parseObjectAlterCommon(s *ast.ObjectStmt, allow objectActions) (bool, error) {
 	start := p.cur.Loc.Start
 	switch {
-	case p.cur.Type == kwSET && p.peekNext().Type == kwTAG && allow&actSetTag != 0:
+	case p.curIs(kwSET) && p.nextIs(kwTAG) && allow&actSetTag != 0:
 		p.advance() // consume SET
 		p.advance() // consume TAG
 		tags, err := p.parseObjectTagList()
@@ -552,7 +571,7 @@ func (p *Parser) parseObjectAlterCommon(s *ast.ObjectStmt, allow objectActions) 
 		}
 		s.Clauses = append(s.Clauses, &ast.ObjectClause{Keywords: "SET TAG", Tags: tags, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}})
 		return true, nil
-	case p.cur.Type == kwSET && allow&actSet != 0:
+	case p.curIs(kwSET) && allow&actSet != 0:
 		p.advance() // consume SET
 		c, err := p.parseObjectProperties(s, "SET", true)
 		if err != nil {
@@ -560,7 +579,7 @@ func (p *Parser) parseObjectAlterCommon(s *ast.ObjectStmt, allow objectActions) 
 		}
 		c.Loc.Start = start
 		return true, nil
-	case p.cur.Type == kwUNSET && p.peekNext().Type == kwTAG && allow&actUnsetTag != 0:
+	case p.curIs(kwUNSET) && p.nextIs(kwTAG) && allow&actUnsetTag != 0:
 		p.advance() // consume UNSET
 		p.advance() // consume TAG
 		names, err := p.parseObjectNameList()
@@ -569,7 +588,7 @@ func (p *Parser) parseObjectAlterCommon(s *ast.ObjectStmt, allow objectActions) 
 		}
 		s.Clauses = append(s.Clauses, &ast.ObjectClause{Keywords: "UNSET TAG", Names: names, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}})
 		return true, nil
-	case p.cur.Type == kwUNSET && allow&actUnset != 0:
+	case p.curIs(kwUNSET) && allow&actUnset != 0:
 		p.advance() // consume UNSET
 		keys, err := p.parseObjectUnsetKeys()
 		if err != nil {
@@ -577,7 +596,7 @@ func (p *Parser) parseObjectAlterCommon(s *ast.ObjectStmt, allow objectActions) 
 		}
 		s.Clauses = append(s.Clauses, &ast.ObjectClause{Keywords: "UNSET", Keys: keys, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}})
 		return true, nil
-	case p.cur.Type == kwRENAME && allow&actRename != 0:
+	case p.curIs(kwRENAME) && allow&actRename != 0:
 		name, err := p.parseRenameTo()
 		if err != nil {
 			return true, err
@@ -627,7 +646,7 @@ func (p *Parser) parseObjectTagList() ([]*ast.TagAssignment, error) {
 			return nil, err
 		}
 		tags = append(tags, &ast.TagAssignment{Name: name, Value: val.Str})
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			return tags, nil
 		}
 		p.advance() // consume ','
@@ -667,18 +686,18 @@ func (p *Parser) parseObjectProperty() (*ast.CopyOption, error) {
 //
 // Unlike COPY's options, a list needs its commas and an entry its value.
 func (p *Parser) parseObjectValue(opt *ast.CopyOption) error {
-	switch p.cur.Type {
-	case tokString, tokInt, tokFloat, tokReal:
+	switch {
+	case p.curIs(tokString), p.curIs(tokInt), p.curIs(tokFloat), p.curIs(tokReal):
 		lit, err := p.parseCopyLiteral()
 		if err != nil {
 			return err
 		}
 		opt.Lit = lit
 		return nil
-	case '(':
+	case p.curIs('('):
 		return p.parseObjectValueParen(opt)
 	}
-	if p.cur.Type == '-' && (p.peekNext().Type == tokInt || p.peekNext().Type == tokFloat || p.peekNext().Type == tokReal) {
+	if p.curIs('-') && (p.nextIs(tokInt) || p.nextIs(tokFloat) || p.nextIs(tokReal)) {
 		minus := p.advance()
 		lit, err := p.parseCopyLiteral()
 		if err != nil {
@@ -706,15 +725,15 @@ func (p *Parser) parseObjectWord() (string, error) {
 	var b strings.Builder
 	for {
 		switch {
-		case p.cur.Type == tokQuotedIdent:
+		case p.curIs(tokQuotedIdent):
 			tok := p.advance()
 			b.WriteString(p.srcSlice(tok.Loc.Start, tok.Loc.End))
-		case p.cur.Type == tokIdent || p.cur.Type >= 700:
+		case p.curIs(tokIdent) || p.cur.Type >= 700:
 			b.WriteString(strings.ToUpper(p.advance().Str))
 		default:
 			return "", p.syntaxErrorAtCur()
 		}
-		if p.cur.Type != '.' {
+		if !p.curIs('.') {
 			return b.String(), nil
 		}
 		p.advance() // consume '.'
@@ -730,12 +749,12 @@ func (p *Parser) parseObjectValueParen(opt *ast.CopyOption) error {
 	defer p.leaveNesting()
 	p.advance()                     // consume '('
 	opt.Group = []*ast.CopyOption{} // "()" is recorded as an empty group
-	if p.cur.Type == ')' {
+	if p.curIs(')') {
 		p.advance()
 		return nil
 	}
 	// A list of literals: ( 's' [ , ... ] ).
-	if p.curIsLiteral() && p.peekNext().Type != '=' {
+	if p.curIsLiteral() && !p.nextIs('=') {
 		opt.Group = nil
 		for {
 			lit, err := p.parseCopyLiteral()
@@ -743,7 +762,7 @@ func (p *Parser) parseObjectValueParen(opt *ast.CopyOption) error {
 				return err
 			}
 			opt.List = append(opt.List, lit)
-			if p.cur.Type != ',' {
+			if !p.curIs(',') {
 				break
 			}
 			p.advance() // consume ','
@@ -754,12 +773,12 @@ func (p *Parser) parseObjectValueParen(opt *ast.CopyOption) error {
 	for {
 		entry := &ast.CopyOption{Loc: ast.Loc{Start: p.cur.Loc.Start}}
 		switch {
-		case p.cur.Type == '(':
+		case p.curIs('('):
 			// A list of groups: ACCEPTED_TOKENS = ( ( ... ) , ( ... ) ).
 			if err := p.parseObjectValueParen(entry); err != nil {
 				return err
 			}
-		case (p.cur.Type == tokString || p.startsObjectProperty()) && p.peekNext().Type == '=':
+		case (p.curIs(tokString) || p.startsObjectProperty()) && p.nextIs('='):
 			key := p.advance()
 			entry.Name = strings.ToUpper(key.Str)
 			if key.Type == tokString {
@@ -784,7 +803,7 @@ func (p *Parser) parseObjectValueParen(opt *ast.CopyOption) error {
 		}
 		entry.Loc.End = p.prev.Loc.End
 		opt.Group = append(opt.Group, entry)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -813,11 +832,11 @@ func (p *Parser) parseObjectAsQuery(s *ast.ObjectStmt) error {
 func (p *Parser) parseObjectUnsetKeys() ([]string, error) {
 	var keys []string
 	for {
-		if p.cur.Type != tokIdent && p.cur.Type < 700 {
+		if !p.curIs(tokIdent) && p.cur.Type < 700 {
 			return nil, p.syntaxErrorAtCur()
 		}
 		keys = append(keys, strings.ToUpper(p.advance().Str))
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			return keys, nil
 		}
 		p.advance() // consume ','

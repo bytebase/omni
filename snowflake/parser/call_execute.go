@@ -67,14 +67,14 @@ func (p *Parser) parseCallStmt() (ast.Node, error) {
 	}
 
 	// An empty argument list, CALL p(), has none.
-	for p.cur.Type != ')' || len(stmt.Args) > 0 {
+	for !p.curIs(')') || len(stmt.Args) > 0 {
 		arg, err := p.parseCallArg()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Args = append(stmt.Args, arg)
 
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -84,7 +84,7 @@ func (p *Parser) parseCallStmt() (ast.Node, error) {
 		return nil, err
 	}
 	// INTO :<snowflake_scripting_variable>
-	if p.cur.Type == kwINTO {
+	if p.curIs(kwINTO) {
 		p.advance() // consume INTO
 		if _, err := p.expect(':'); err != nil {
 			return nil, err
@@ -106,7 +106,7 @@ func (p *Parser) parseCallArg() (*ast.CallArg, error) {
 	start := p.cur.Loc.Start
 
 	// Named argument: <name> => <expr>.
-	if p.isIdentToken() && p.peekNext().Type == tokAssoc {
+	if p.isIdentToken() && p.nextIs(tokAssoc) {
 		name, err := p.parseIdent()
 		if err != nil {
 			return nil, err
@@ -139,8 +139,8 @@ func (p *Parser) parseCallArg() (*ast.CallArg, error) {
 // SELECT / WITH is parsed as a query expression. (The legacy expr_list rule does
 // not allow this; docs win.)
 func (p *Parser) parseCallArgValue() (ast.Node, error) {
-	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-		if p.cur.Type == kwWITH {
+	if p.curIs(kwSELECT) || p.curIs(kwWITH) {
+		if p.curIs(kwWITH) {
 			return p.parseWithQueryExpr()
 		}
 		return p.parseQueryExpr()
@@ -164,10 +164,10 @@ func (p *Parser) parseExecuteStmt() (ast.Node, error) {
 	if p.startsExecuteProject() {
 		return p.parseExecuteProject(execTok.Loc) // project.go
 	}
-	switch p.cur.Type {
-	case kwIMMEDIATE:
+	switch {
+	case p.curIs(kwIMMEDIATE):
 		return p.parseExecuteImmediateStmt(execTok.Loc)
-	case kwTASK:
+	case p.curIs(kwTASK):
 		if p.startsTaskGraph() {
 			// EXECUTE TASK GRAPH <name>, or a task named GRAPH.
 			return p.parseTaskOrGraph(func() (ast.Node, error) {
@@ -177,7 +177,7 @@ func (p *Parser) parseExecuteStmt() (ast.Node, error) {
 			})
 		}
 		return p.parseExecuteTaskStmt(execTok.Loc, false)
-	case kwALERT:
+	case p.curIs(kwALERT):
 		// EXECUTE ALERT <name>
 		// https://docs.snowflake.com/en/sql-reference/sql/execute-alert
 		p.advance() // consume ALERT
@@ -213,10 +213,10 @@ func (p *Parser) parseExecuteImmediateStmt(start ast.Loc) (ast.Node, error) {
 	}
 
 	switch {
-	case p.cur.Type == kwFROM:
+	case p.curIs(kwFROM):
 		return p.parseExecuteImmediateFrom(stmt)
 
-	case p.cur.Type == tokVariable:
+	case p.curIs(tokVariable):
 		// $<session_variable>. The lexer strips the leading $; Str is the name.
 		varTok := p.advance()
 		stmt.Source = ast.ExecImmSessionVar
@@ -252,7 +252,7 @@ func (p *Parser) parseExecuteImmediateStmt(start ast.Loc) (ast.Node, error) {
 	}
 
 	// Optional USING ( <bind_variable> [ , ... ] ).
-	if p.cur.Type == kwUSING {
+	if p.curIs(kwUSING) {
 		p.advance() // consume USING
 		using, end, err := p.parseExecImmUsing()
 		if err != nil {
@@ -276,22 +276,22 @@ func (p *Parser) parseExecuteImmediateStmt(start ast.Loc) (ast.Node, error) {
 func (p *Parser) parseExecuteImmediateFrom(stmt *ast.ExecuteImmediateStmt) (ast.Node, error) {
 	p.advance() // consume FROM
 	stmt.Source = ast.ExecImmFrom
-	switch p.cur.Type {
-	case '@':
+	switch {
+	case p.curIs('@'):
 		// An absolute path: a file on a stage.
 		file, err := p.parseStagedFilePath()
 		if err != nil {
 			return nil, err
 		}
 		stmt.File = file
-	case tokString:
+	case p.curIs(tokString):
 		// A path relative to the file that runs this statement.
 		tok := p.advance()
 		stmt.File = p.srcSlice(tok.Loc.Start, tok.Loc.End)
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
-	if p.cur.Type == kwUSING {
+	if p.curIs(kwUSING) {
 		p.advance() // consume USING
 		vars, err := p.parseNamedArgList()
 		if err != nil {
@@ -304,7 +304,7 @@ func (p *Parser) parseExecuteImmediateFrom(stmt *ast.ExecuteImmediateStmt) (ast.
 		if _, err := p.expect('='); err != nil {
 			return nil, err
 		}
-		if !isWordToken(p.cur, "TRUE") && !isWordToken(p.cur, "FALSE") {
+		if !p.curWord("TRUE") && !p.curWord("FALSE") {
 			return nil, p.syntaxErrorAtCur()
 		}
 		stmt.DryRun = strings.ToUpper(p.advance().Str)
@@ -320,7 +320,7 @@ func (p *Parser) parseExecuteImmediateFrom(stmt *ast.ExecuteImmediateStmt) (ast.
 func (p *Parser) parseStagedFilePath() (string, error) {
 	at := p.advance() // consume '@'
 	end := at.Loc.End
-	for p.cur.Loc.Start == end && (p.cur.Type == '-' || p.isStagePathToken(p.cur.Type)) {
+	for p.cur.Loc.Start == end && (p.curIs('-') || p.isStagePathToken(p.cur.Type)) {
 		end = p.cur.Loc.End
 		p.advance()
 	}
@@ -338,7 +338,7 @@ func (p *Parser) parseStagedFilePath() (string, error) {
 // begins with a single quote in the source, so the source byte is consulted as
 // well.
 func (p *Parser) curIsStringOrDollarBody() bool {
-	if p.cur.Type == tokString {
+	if p.curIs(tokString) {
 		return true
 	}
 	i := p.cur.Loc.Start - p.base
@@ -464,7 +464,7 @@ func (p *Parser) parseExecImmUsing() ([]ast.Ident, int, error) {
 		}
 		binds = append(binds, name)
 
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -506,7 +506,7 @@ func (p *Parser) parseExecuteTaskStmt(start ast.Loc, graph bool) (ast.Node, erro
 	stmt.Name = name
 
 	switch {
-	case p.cur.Type == kwRETRY:
+	case p.curIs(kwRETRY):
 		p.advance() // consume RETRY
 		if p.acceptWords("GRAPH", "RUN", "GROUP") {
 			group, err := p.expect(tokString)
@@ -521,7 +521,7 @@ func (p *Parser) parseExecuteTaskStmt(start ast.Loc, graph bool) (ast.Node, erro
 		}
 		stmt.RetryLast = true
 
-	case p.cur.Type == kwUSING:
+	case p.curIs(kwUSING):
 		p.advance() // consume USING
 		if !p.curIsWord("CONFIG") {
 			return nil, p.syntaxErrorAtCur()
@@ -530,7 +530,7 @@ func (p *Parser) parseExecuteTaskStmt(start ast.Loc, graph bool) (ast.Node, erro
 		if _, err := p.expect('='); err != nil {
 			return nil, err
 		}
-		if p.cur.Type != tokString {
+		if !p.curIs(tokString) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		cfgTok := p.advance() // consume the config string literal
@@ -561,14 +561,14 @@ func (p *Parser) parseExplainStmt() (ast.Node, error) {
 	}
 
 	// Optional USING { TABULAR | JSON | TEXT }.
-	if p.cur.Type == kwUSING {
+	if p.curIs(kwUSING) {
 		p.advance() // consume USING
-		switch p.cur.Type {
-		case kwTABULAR:
+		switch {
+		case p.curIs(kwTABULAR):
 			stmt.Format = ast.ExplainTabular
-		case kwJSON:
+		case p.curIs(kwJSON):
 			stmt.Format = ast.ExplainJSON
-		case kwTEXT:
+		case p.curIs(kwTEXT):
 			stmt.Format = ast.ExplainText
 		default:
 			return nil, p.syntaxErrorAtCur()

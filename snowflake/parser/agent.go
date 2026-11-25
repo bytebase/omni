@@ -66,7 +66,7 @@ func parseCreateAgent(p *Parser, s *ast.ObjectStmt) error {
 	if _, err := p.expect(kwFROM); err != nil {
 		return err
 	}
-	if p.cur.Type == '@' {
+	if p.curIs('@') {
 		// The stage form takes neither TEMP/TEMPORARY nor properties other than COMMENT.
 		if s.Temporary {
 			return &ParseError{Position: start, End: p.cur.Loc.End, Message: "syntax error: TEMPORARY is not documented with FROM @stage"}

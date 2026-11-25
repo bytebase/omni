@@ -126,7 +126,7 @@ func (p *Parser) parseNotebookExecuteProperties(s *ast.ObjectStmt) (*ast.ObjectC
 		key := p.advance()
 		p.advance() // consume '='
 		opt := &ast.CopyOption{Name: "ARGUMENTS", Loc: ast.Loc{Start: key.Loc.Start}}
-		if colon := p.cur; colon.Type == ':' && p.peekNext().Type == tokIdent && p.peekNext().Loc.Start == colon.Loc.End {
+		if colon := p.cur; p.curIs(':') && p.nextIs(tokIdent) && p.peekNext().Loc.Start == colon.Loc.End {
 			p.advance() // consume ':'
 			opt.Words = ":" + strings.ToUpper(p.advance().Str)
 		} else if err := p.parseObjectValue(opt); err != nil {
@@ -163,7 +163,7 @@ func parseCreateNotebook(p *Parser, s *ast.ObjectStmt) error {
 	if p.startsNotebookProjectName(s) {
 		return p.parseCreateNotebookProject(s)
 	}
-	if p.cur.Type == kwFROM {
+	if p.curIs(kwFROM) {
 		if err := p.parseStreamlitFrom(s, false); err != nil {
 			return err
 		}
@@ -183,12 +183,12 @@ func (p *Parser) startsNotebookProjectName(s *ast.ObjectStmt) bool {
 		return false
 	}
 	switch {
-	case p.cur.Type == kwIF:
-		return p.peekNext().Type == kwNOT
-	case p.cur.Type == kwFROM || p.startsObjectProperty():
+	case p.curIs(kwIF):
+		return p.nextIs(kwNOT)
+	case p.curIs(kwFROM) || p.startsObjectProperty():
 		return false
 	}
-	return p.cur.Type == tokIdent || p.cur.Type == tokQuotedIdent || p.cur.Type >= 700
+	return p.curIs(tokIdent) || p.curIs(tokQuotedIdent) || p.cur.Type >= 700
 }
 
 // parseCreateNotebookProject reads, from the project's name on,
@@ -214,7 +214,7 @@ func (p *Parser) parseCreateNotebookProject(s *ast.ObjectStmt) error {
 		return err
 	}
 	s.Name = name
-	if p.cur.Type != kwFROM {
+	if !p.curIs(kwFROM) {
 		return p.syntaxErrorAtCur()
 	}
 	if err := p.parseStreamlitFrom(s, false); err != nil {
@@ -280,8 +280,8 @@ func parseAlterNotebook(p *Parser, s *ast.ObjectStmt) error {
 func (p *Parser) parseExecuteNotebook(start ast.Loc) (ast.Node, error) {
 	p.advance() // consume NOTEBOOK
 	s := &ast.ObjectStmt{Verb: "EXECUTE", Kind: "NOTEBOOK", Loc: ast.Loc{Start: start.Start}}
-	project := p.curIsWord("PROJECT") && p.cur.Type != tokQuotedIdent && p.peekNext().Type != '(' &&
-		p.peekNext().Type != '.'
+	project := p.curIsWord("PROJECT") && !p.curIs(tokQuotedIdent) && !p.nextIs('(') &&
+		!p.nextIs('.')
 	if project {
 		p.advance() // consume PROJECT
 		s.Kind = "NOTEBOOK PROJECT"
@@ -310,17 +310,17 @@ func (p *Parser) parseExecuteNotebook(start ast.Loc) (ast.Node, error) {
 		return nil, err
 	}
 	args := &ast.CopyOption{Loc: ast.Loc{Start: argsStart}, List: []*ast.Literal{}}
-	for p.cur.Type != ')' {
+	for !p.curIs(')') {
 		arg, err := p.parseNotebookArgument()
 		if err != nil {
 			return nil, err
 		}
 		args.List = append(args.List, arg)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
-		if p.cur.Type == ')' {
+		if p.curIs(')') {
 			return nil, p.syntaxErrorAtCur()
 		}
 	}
@@ -337,18 +337,18 @@ func (p *Parser) parseExecuteNotebook(start ast.Loc) (ast.Node, error) {
 // literal the page says the notebook receives as NULL (a number, TRUE,
 // FALSE or NULL), kept with its own type.
 func (p *Parser) parseNotebookArgument() (*ast.Literal, error) {
-	switch p.cur.Type {
-	case kwTRUE, kwFALSE:
+	switch {
+	case p.curIs(kwTRUE), p.curIs(kwFALSE):
 		tok := p.advance()
 		return &ast.Literal{Kind: ast.LitBool, Bval: tok.Type == kwTRUE, Value: strings.ToUpper(tok.Str), Loc: tok.Loc}, nil
-	case kwNULL:
+	case p.curIs(kwNULL):
 		tok := p.advance()
 		return &ast.Literal{Kind: ast.LitNull, Value: "NULL", Loc: tok.Loc}, nil
-	case tokString, tokInt, tokFloat, tokReal:
+	case p.curIs(tokString), p.curIs(tokInt), p.curIs(tokFloat), p.curIs(tokReal):
 		return p.parseCopyLiteral()
-	case '-':
-		switch p.peekNext().Type {
-		case tokInt, tokFloat, tokReal:
+	case p.curIs('-'):
+		switch {
+		case p.nextIs(tokInt), p.nextIs(tokFloat), p.nextIs(tokReal):
 			minus := p.advance()
 			lit, err := p.parseCopyLiteral()
 			if err != nil {

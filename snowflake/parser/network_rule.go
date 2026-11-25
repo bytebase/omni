@@ -61,7 +61,7 @@ func (p *Parser) parseCreateNetworkRuleStmt(start ast.Loc, orReplace bool) (ast.
 
 	// IF NOT EXISTS (lenient; the official grammar omits it, but it is accepted
 	// here to mirror the other CREATE-object parsers).
-	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
+	if p.curIs(kwIF) && p.nextIs(kwNOT) {
 		p.advance() // consume IF
 		p.advance() // consume NOT
 		if _, err := p.expect(kwEXISTS); err != nil {
@@ -112,7 +112,7 @@ func (p *Parser) parseAlterNetworkRuleStmt() (ast.Node, error) {
 	stmt := &ast.AlterNetworkRuleStmt{Loc: ast.Loc{Start: netTok.Loc.Start}}
 
 	// Optional IF EXISTS.
-	if p.cur.Type == kwIF && p.peekNext().Type == kwEXISTS {
+	if p.curIs(kwIF) && p.nextIs(kwEXISTS) {
 		p.advance() // consume IF
 		p.advance() // consume EXISTS
 		stmt.IfExists = true
@@ -126,8 +126,8 @@ func (p *Parser) parseAlterNetworkRuleStmt() (ast.Node, error) {
 	stmt.Name = name
 
 	// Action branch.
-	switch p.cur.Type {
-	case kwSET:
+	switch {
+	case p.curIs(kwSET):
 		p.advance() // consume SET
 		opts, err := p.parseNetworkRuleOptions()
 		if err != nil {
@@ -140,7 +140,7 @@ func (p *Parser) parseAlterNetworkRuleStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterNetworkRuleSet
 		stmt.Options = opts
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
 		keys, err := p.parseNetworkRuleUnsetKeys()
 		if err != nil {
@@ -178,7 +178,7 @@ func (p *Parser) parseNetworkRuleOptions() ([]*ast.CopyOption, error) {
 			return nil, err
 		}
 		opts = append(opts, opt)
-		if p.cur.Loc.Start == before && p.cur.Type != tokEOF {
+		if p.cur.Loc.Start == before && !p.curIs(tokEOF) {
 			// No forward progress on a non-EOF token: abort rather than spin.
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -196,7 +196,7 @@ func (p *Parser) parseNetworkRuleUnsetKeys() ([]string, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		keys = append(keys, strings.ToUpper(p.advance().Str))
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}

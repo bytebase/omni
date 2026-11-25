@@ -58,8 +58,8 @@ func (p *Parser) parseCreateFileFormatStmt(start ast.Loc, orReplace, orAlter, te
 	}
 
 	// IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		if p.peekNext().Type == kwNOT {
+	if p.curIs(kwIF) {
+		if p.nextIs(kwNOT) {
 			p.advance() // consume IF
 			p.advance() // consume NOT
 			if _, err := p.expect(kwEXISTS); err != nil {
@@ -83,7 +83,7 @@ func (p *Parser) parseCreateFileFormatStmt(start ast.Loc, orReplace, orAlter, te
 	// token that does not begin an option.
 	for p.startsCopyOption() {
 		// TYPE = <fmt> is the structural anchor; capture it into Type, not Options.
-		if p.cur.Type == kwTYPE {
+		if p.curIs(kwTYPE) {
 			if err := p.parseFileFormatType(&stmt.Type, &stmt.TypeLoc); err != nil {
 				return nil, err
 			}
@@ -124,8 +124,8 @@ func (p *Parser) parseAlterFileFormatStmt() (ast.Node, error) {
 	stmt := &ast.AlterFileFormatStmt{Loc: ast.Loc{Start: startLoc.Start}}
 
 	// Optional IF EXISTS
-	if p.cur.Type == kwIF {
-		if p.peekNext().Type == kwEXISTS {
+	if p.curIs(kwIF) {
+		if p.nextIs(kwEXISTS) {
 			p.advance() // consume IF
 			p.advance() // consume EXISTS
 			stmt.IfExists = true
@@ -140,8 +140,8 @@ func (p *Parser) parseAlterFileFormatStmt() (ast.Node, error) {
 	stmt.Name = name
 
 	// Action branch.
-	switch p.cur.Type {
-	case kwRENAME:
+	switch {
+	case p.curIs(kwRENAME):
 		// RENAME TO <new_name>
 		p.advance() // consume RENAME
 		if _, err := p.expect(kwTO); err != nil {
@@ -154,7 +154,7 @@ func (p *Parser) parseAlterFileFormatStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterFileFormatRename
 		stmt.NewName = newName
 
-	case kwSET:
+	case p.curIs(kwSET):
 		// SET <formatTypeOptions> [ COMMENT = '...' ] — unparenthesized, open-ended
 		// KEY = value params. A TYPE clause is not settable post-creation, so it is
 		// captured (open-ended) like any other option rather than lifted out.
@@ -192,11 +192,11 @@ func (p *Parser) parseAlterFileFormatStmt() (ast.Node, error) {
 // FILE and FORMAT tokens. On entry cur is the FILE_FORMAT or FILE keyword
 // (callers dispatch on exactly those). Mirrors the DROP FILE FORMAT handling.
 func (p *Parser) consumeFileFormatKeyword() error {
-	switch p.cur.Type {
-	case kwFILE_FORMAT:
+	switch {
+	case p.curIs(kwFILE_FORMAT):
 		p.advance() // consume FILE_FORMAT (single keyword token)
 		return nil
-	case kwFILE:
+	case p.curIs(kwFILE):
 		p.advance() // consume FILE
 		if _, err := p.expect(kwFORMAT); err != nil {
 			return err
@@ -222,7 +222,7 @@ func (p *Parser) parseFileFormatType(typ *string, loc *ast.Loc) error {
 	}
 
 	// Quoted form: TYPE = 'CSV'.
-	if p.cur.Type == tokString {
+	if p.curIs(tokString) {
 		tok := p.advance()
 		*typ = strings.ToUpper(tok.Str)
 		*loc = tok.Loc

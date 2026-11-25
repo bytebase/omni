@@ -26,8 +26,8 @@ func (p *Parser) parseCreateViewStmt(start ast.Loc, orReplace, orAlter, secure, 
 	}
 
 	// IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		if p.peekNext().Type == kwNOT {
+	if p.curIs(kwIF) {
+		if p.nextIs(kwNOT) {
 			p.advance() // consume IF
 			p.advance() // consume NOT
 			if _, err := p.expect(kwEXISTS); err != nil {
@@ -45,7 +45,7 @@ func (p *Parser) parseCreateViewStmt(start ast.Loc, orReplace, orAlter, secure, 
 	stmt.Name = name
 
 	// Optional ( column_list_with_comment )
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		cols, err := p.parseViewColumnList()
 		if err != nil {
 			return nil, err
@@ -84,7 +84,7 @@ func (p *Parser) parseCreateViewStmt(start ast.Loc, orReplace, orAlter, secure, 
 // parseViewQuery parses the query body after AS in CREATE VIEW / CREATE MATERIALIZED VIEW.
 // Handles both plain SELECT and WITH ... SELECT (CTE) forms.
 func (p *Parser) parseViewQuery() (ast.Node, error) {
-	if p.cur.Type == kwWITH {
+	if p.curIs(kwWITH) {
 		return p.parseWithQueryExpr()
 	}
 	return p.parseQueryExpr()
@@ -103,7 +103,7 @@ func (p *Parser) parseViewColumnList() ([]*ast.ViewColumn, error) {
 	}
 
 	var cols []*ast.ViewColumn
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	for !p.curIs(')') && !p.curIs(tokEOF) {
 		col := &ast.ViewColumn{Loc: p.cur.Loc}
 		name, err := p.parseIdent()
 		if err != nil {
@@ -118,7 +118,7 @@ func (p *Parser) parseViewColumnList() ([]*ast.ViewColumn, error) {
 		col.Loc.End = p.prev.Loc.End
 		cols = append(cols, col)
 
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 		} else {
 			break
@@ -137,11 +137,14 @@ func (p *Parser) parseViewColumnProperties(col *ast.ViewColumn) error {
 	for {
 		// A WITH here leads only to MASKING, PROJECTION or TAG.
 		next := p.cur
-		if p.cur.Type == kwWITH {
+		if p.curIs(kwWITH) {
 			next = p.peekNext()
+			p.wantNextWords("MASKING", "PROJECTION", "TAG")
+		} else {
+			p.wantWords("MASKING", "PROJECTION", "TAG")
 		}
 		switch {
-		case p.cur.Type == kwCOMMENT:
+		case p.curIs(kwCOMMENT):
 			p.advance() // consume COMMENT
 			tok, err := p.expect(tokString)
 			if err != nil {
@@ -150,14 +153,14 @@ func (p *Parser) parseViewColumnProperties(col *ast.ViewColumn) error {
 			s := tok.Str
 			col.Comment = &s
 		case next.Type == kwMASKING || next.Type == kwTAG:
-			if p.cur.Type == kwWITH {
+			if p.curIs(kwWITH) {
 				p.advance() // consume WITH
 			}
 			if err := p.parseViewColChain(col); err != nil {
 				return err
 			}
 		case next.Type == tokIdent && strings.EqualFold(next.Str, "PROJECTION"):
-			if p.cur.Type == kwWITH {
+			if p.curIs(kwWITH) {
 				p.advance() // consume WITH
 			}
 			p.advance() // consume PROJECTION
@@ -191,11 +194,10 @@ func (p *Parser) parseViewCols() ([]*ast.ViewColumn, error) {
 		// to detect this pattern. Use the heuristic: if cur is an identifier
 		// and next is WITH, and the token after WITH is MASKING or TAG —
 		// consume a view_col. Otherwise stop.
-		if p.cur.Type != tokIdent {
+		if !p.curIs(tokIdent) {
 			break
 		}
-		next := p.peekNext()
-		if next.Type != kwWITH {
+		if !p.nextIs(kwWITH) {
 			break
 		}
 
@@ -214,7 +216,7 @@ func (p *Parser) parseViewCols() ([]*ast.ViewColumn, error) {
 		p.advance() // consume WITH
 
 		// Now cur should be MASKING or TAG to be a valid view_col.
-		if p.cur.Type != kwMASKING && p.cur.Type != kwTAG {
+		if !p.curIs(kwMASKING) && !p.curIs(kwTAG) {
 			// This is not a view_col — we over-consumed. This shouldn't happen in
 			// practice because well-formed SQL has WITH [ROW|TAG|COPY|MASKING] here,
 			// and ROW/COPY lead to statement-level properties, not column bindings.
@@ -247,8 +249,8 @@ func (p *Parser) parseViewCols() ([]*ast.ViewColumn, error) {
 // consumed and cur is at MASKING or TAG.
 func (p *Parser) parseViewColChain(col *ast.ViewColumn) error {
 	for {
-		switch p.cur.Type {
-		case kwMASKING:
+		switch {
+		case p.curIs(kwMASKING):
 			// MASKING POLICY name [USING (col, ...)]
 			p.advance() // consume MASKING
 			if _, err := p.expect(kwPOLICY); err != nil {
@@ -261,7 +263,7 @@ func (p *Parser) parseViewColChain(col *ast.ViewColumn) error {
 			col.MaskingPolicy = policyName
 
 			// Optional USING (col [, col ...])
-			if p.cur.Type == kwUSING {
+			if p.curIs(kwUSING) {
 				p.advance() // consume USING
 				using, err := p.parseIdentListInParens()
 				if err != nil {
@@ -271,14 +273,14 @@ func (p *Parser) parseViewColChain(col *ast.ViewColumn) error {
 			}
 
 			// Check for optional WITH TAG following
-			if p.cur.Type == kwWITH && p.peekNext().Type == kwTAG {
+			if p.curIs(kwWITH) && p.nextIs(kwTAG) {
 				p.advance() // consume WITH
 				// fall through to kwTAG case on next iteration
 				continue
 			}
 			return nil
 
-		case kwTAG:
+		case p.curIs(kwTAG):
 			tags, err := p.parseTagAssignments()
 			if err != nil {
 				return err
@@ -286,7 +288,7 @@ func (p *Parser) parseViewColChain(col *ast.ViewColumn) error {
 			col.Tags = append(col.Tags, tags...)
 
 			// Check for optional WITH MASKING following
-			if p.cur.Type == kwWITH && p.peekNext().Type == kwMASKING {
+			if p.curIs(kwWITH) && p.nextIs(kwMASKING) {
 				p.advance() // consume WITH
 				continue
 			}
@@ -330,11 +332,10 @@ func (p *Parser) parseViewProperties(stmt interface{}) error {
 			}
 			continue
 		}
-		switch p.cur.Type {
-		case kwWITH:
-			next := p.peekNext()
-			switch next.Type {
-			case kwTAG:
+		switch {
+		case p.curIs(kwWITH):
+			switch {
+			case p.nextIs(kwTAG):
 				// WITH TAG (name = 'val', ...)
 				p.advance() // consume WITH
 				tags, err := p.parseTagAssignments()
@@ -351,7 +352,7 @@ func (p *Parser) parseViewProperties(stmt interface{}) error {
 				return nil
 			}
 
-		case kwTAG:
+		case p.curIs(kwTAG):
 			// TAG (...) without WITH prefix
 			tags, err := p.parseTagAssignments()
 			if err != nil {
@@ -364,7 +365,7 @@ func (p *Parser) parseViewProperties(stmt interface{}) error {
 				s.Tags = append(s.Tags, tags...)
 			}
 
-		case kwCOPY:
+		case p.curIs(kwCOPY):
 			// COPY GRANTS | COPY TAGS | COPY = ( ... )
 			if !p.startsCopyClause() {
 				return nil
@@ -382,10 +383,10 @@ func (p *Parser) parseViewProperties(stmt interface{}) error {
 				}
 			}
 
-		case kwCOMMENT:
+		case p.curIs(kwCOMMENT):
 			// COMMENT = 'text'
 			p.advance() // consume COMMENT
-			if p.cur.Type == '=' {
+			if p.curIs('=') {
 				p.advance() // consume '='
 			}
 			tok, err := p.expect(tokString)
@@ -400,15 +401,15 @@ func (p *Parser) parseViewProperties(stmt interface{}) error {
 				v.Comment = &s
 			}
 
-		case kwCHANGE_TRACKING:
+		case p.curIs(kwCHANGE_TRACKING):
 			// CHANGE_TRACKING [=] { TRUE | FALSE } — consume and discard, mirroring
 			// the CREATE TABLE handling in create_table.go. Documented for CREATE
 			// VIEW (official create-view example_11 / example_13).
 			p.advance() // consume CHANGE_TRACKING
-			if p.cur.Type == '=' {
+			if p.curIs('=') {
 				p.advance() // consume optional '='
 			}
-			if p.cur.Type == kwTRUE || p.cur.Type == kwFALSE {
+			if p.curIs(kwTRUE) || p.curIs(kwFALSE) {
 				p.advance()
 			} else {
 				return p.syntaxErrorAtCur()
@@ -474,8 +475,8 @@ func (p *Parser) parseCreateMaterializedViewStmt(start ast.Loc, orReplace, orAlt
 	}
 
 	// IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		if p.peekNext().Type == kwNOT {
+	if p.curIs(kwIF) {
+		if p.nextIs(kwNOT) {
 			p.advance() // consume IF
 			p.advance() // consume NOT
 			if _, err := p.expect(kwEXISTS); err != nil {
@@ -493,7 +494,7 @@ func (p *Parser) parseCreateMaterializedViewStmt(start ast.Loc, orReplace, orAlt
 	stmt.Name = name
 
 	// Optional ( column_list_with_comment )
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		cols, err := p.parseViewColumnList()
 		if err != nil {
 			return nil, err
@@ -514,12 +515,12 @@ func (p *Parser) parseCreateMaterializedViewStmt(start ast.Loc, orReplace, orAlt
 	}
 
 	// Optional CLUSTER BY [LINEAR] (exprs)
-	if p.cur.Type == kwCLUSTER {
+	if p.curIs(kwCLUSTER) {
 		p.advance() // consume CLUSTER
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
 		}
-		if p.cur.Type == kwLINEAR {
+		if p.curIs(kwLINEAR) {
 			p.advance() // consume LINEAR
 			stmt.Linear = true
 		}
@@ -561,8 +562,8 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 	stmt := &ast.AlterViewStmt{Loc: ast.Loc{Start: altTok.Loc.Start}}
 
 	// Optional IF EXISTS
-	if p.cur.Type == kwIF {
-		if p.peekNext().Type == kwEXISTS {
+	if p.curIs(kwIF) {
+		if p.nextIs(kwEXISTS) {
 			p.advance() // consume IF
 			p.advance() // consume EXISTS
 			stmt.IfExists = true
@@ -577,8 +578,8 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 	stmt.Name = name
 
 	// Action branch
-	switch p.cur.Type {
-	case kwRENAME:
+	switch {
+	case p.curIs(kwRENAME):
 		// RENAME TO new_name
 		p.advance() // consume RENAME
 		if _, err := p.expect(kwTO); err != nil {
@@ -591,25 +592,25 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterViewRename
 		stmt.NewName = newName
 
-	case kwSET:
+	case p.curIs(kwSET):
 		setTok := p.advance() // consume SET
-		switch p.cur.Type {
-		case kwCHANGE_TRACKING:
+		switch {
+		case p.curIs(kwCHANGE_TRACKING):
 			// SET CHANGE_TRACKING = { TRUE | FALSE }
 			p.advance() // consume CHANGE_TRACKING
 			if _, err := p.expect('='); err != nil {
 				return nil, err
 			}
-			if p.cur.Type != kwTRUE && p.cur.Type != kwFALSE {
+			if !p.curIs(kwTRUE) && !p.curIs(kwFALSE) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			stmt.ChangeTracking = p.advance().Type == kwTRUE
 			stmt.Action = ast.AlterViewSetChangeTracking
 
-		case kwCOMMENT:
+		case p.curIs(kwCOMMENT):
 			// SET COMMENT = '...'
 			p.advance() // consume COMMENT
-			if p.cur.Type == '=' {
+			if p.curIs('=') {
 				p.advance() // consume '='
 			}
 			tok, err := p.expect(tokString)
@@ -620,12 +621,12 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 			stmt.Action = ast.AlterViewSetComment
 			stmt.Comment = &s
 
-		case kwSECURE:
+		case p.curIs(kwSECURE):
 			p.advance() // consume SECURE
 			stmt.Action = ast.AlterViewSetSecure
 			stmt.Secure = true
 
-		case kwTAG:
+		case p.curIs(kwTAG):
 			// SET TAG name = 'val' [, ...] | SET TAG (name = 'val', ...)
 			tags, err := p.parseSetTagClause()
 			if err != nil {
@@ -634,7 +635,7 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 			stmt.Action = ast.AlterViewSetTag
 			stmt.Tags = tags
 
-		case kwJOIN:
+		case p.curIs(kwJOIN):
 			// SET JOIN POLICY name [ FORCE ] [ { ALLOWED | ENFORCED } JOIN KEYS ( col, ... ) ]
 			if err := p.parseAlterViewSetJoinPolicy(stmt); err != nil {
 				return nil, err
@@ -673,18 +674,18 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 			}
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		unsetTok := p.advance() // consume UNSET
-		switch p.cur.Type {
-		case kwCOMMENT:
+		switch {
+		case p.curIs(kwCOMMENT):
 			p.advance() // consume COMMENT
 			stmt.Action = ast.AlterViewUnsetComment
 
-		case kwSECURE:
+		case p.curIs(kwSECURE):
 			p.advance() // consume SECURE
 			stmt.Action = ast.AlterViewUnsetSecure
 
-		case kwTAG:
+		case p.curIs(kwTAG):
 			// UNSET TAG name [, ...] | UNSET TAG (name, ...)
 			names, err := p.parseUnsetTagClause()
 			if err != nil {
@@ -693,7 +694,7 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 			stmt.Action = ast.AlterViewUnsetTag
 			stmt.UnsetTags = names
 
-		case kwJOIN:
+		case p.curIs(kwJOIN):
 			// UNSET JOIN POLICY
 			p.advance() // consume JOIN
 			if _, err := p.expect(kwPOLICY); err != nil {
@@ -731,10 +732,10 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 			}
 		}
 
-	case kwADD, kwDROP, kwMODIFY, kwALTER:
+	case p.curIs(kwADD), p.curIs(kwDROP), p.curIs(kwMODIFY), p.curIs(kwALTER):
 		verb := p.cur
 		switch {
-		case verb.Type != kwALTER && p.verbStartsDataMetricFunction():
+		case !p.curIs(kwALTER) && p.verbStartsDataMetricFunction():
 			// { ADD | DROP | MODIFY } DATA METRIC FUNCTION ...
 			p.advance() // consume the verb
 			kind := ast.DataMetricAdd
@@ -760,7 +761,7 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 			if err := p.parseAlterViewDropRowAccessPolicy(stmt); err != nil {
 				return nil, err
 			}
-		case p.peekNext().Type == kwROW:
+		case p.nextIs(kwROW):
 			p.advance() // consume ADD
 			if err := p.parseAlterViewAddRowAccessPolicy(stmt); err != nil {
 				return nil, err
@@ -851,10 +852,10 @@ func (p *Parser) parseAlterViewColumnActions(stmt *ast.AlterViewStmt) error {
 //	  [ [ WITH ] PROJECTION POLICY <p> ]
 //	  [ [ WITH ] TAG ( <tag> = '<value>' [ , ... ] ) ]
 func (p *Parser) parseAlterViewAddColumn(stmt *ast.AlterViewStmt) error {
-	if p.cur.Type == kwCOLUMN {
+	if p.curIs(kwCOLUMN) {
 		p.advance() // consume COLUMN
 	}
-	if p.cur.Type == kwIF {
+	if p.curIs(kwIF) {
 		p.advance() // consume IF
 		if _, err := p.expect(kwNOT); err != nil {
 			return err
@@ -878,13 +879,13 @@ func (p *Parser) parseAlterViewAddColumn(stmt *ast.AlterViewStmt) error {
 
 	// [ WITH ] precedes each clause; the clauses come in the documented order.
 	withThen := func(word string) bool {
-		if p.cur.Type == kwWITH {
+		if p.curIs(kwWITH) {
 			return p.peekIsWord(word)
 		}
 		return p.curIsWord(word)
 	}
 	if withThen("MASKING") {
-		if p.cur.Type == kwWITH {
+		if p.curIs(kwWITH) {
 			p.advance() // consume WITH
 		}
 		p.advance() // consume MASKING
@@ -894,7 +895,7 @@ func (p *Parser) parseAlterViewAddColumn(stmt *ast.AlterViewStmt) error {
 		if stmt.MaskingPolicy, err = p.parseObjectName(); err != nil {
 			return err
 		}
-		if p.cur.Type == kwUSING {
+		if p.curIs(kwUSING) {
 			p.advance() // consume USING
 			if stmt.MaskingUsing, err = p.parseIdentListInParens(); err != nil {
 				return err
@@ -906,7 +907,7 @@ func (p *Parser) parseAlterViewAddColumn(stmt *ast.AlterViewStmt) error {
 		}
 	}
 	if withThen("PROJECTION") {
-		if p.cur.Type == kwWITH {
+		if p.curIs(kwWITH) {
 			p.advance() // consume WITH
 		}
 		if err := p.expectPolicyWord(); err != nil {
@@ -917,7 +918,7 @@ func (p *Parser) parseAlterViewAddColumn(stmt *ast.AlterViewStmt) error {
 		}
 	}
 	if withThen("TAG") {
-		if p.cur.Type == kwWITH {
+		if p.curIs(kwWITH) {
 			p.advance() // consume WITH
 		}
 		if stmt.Tags, err = p.parseTagAssignments(); err != nil {
@@ -946,7 +947,7 @@ func (p *Parser) parseAlterViewColumnAction() (*ast.AlterViewColumnAction, error
 	action := &ast.AlterViewColumnAction{Loc: ast.Loc{Start: p.cur.Loc.Start}}
 
 	// Optional COLUMN keyword
-	if p.cur.Type == kwCOLUMN {
+	if p.curIs(kwCOLUMN) {
 		p.advance() // consume COLUMN
 	}
 	colName, err := p.parseIdent()
@@ -955,11 +956,11 @@ func (p *Parser) parseAlterViewColumnAction() (*ast.AlterViewColumnAction, error
 	}
 	action.Column = colName
 
-	switch p.cur.Type {
-	case kwSET:
+	switch {
+	case p.curIs(kwSET):
 		p.advance() // consume SET
-		switch p.cur.Type {
-		case kwMASKING:
+		switch {
+		case p.curIs(kwMASKING):
 			// SET MASKING POLICY policy_name [USING (col, ...)] [FORCE]
 			p.advance() // consume MASKING
 			if _, err := p.expect(kwPOLICY); err != nil {
@@ -973,7 +974,7 @@ func (p *Parser) parseAlterViewColumnAction() (*ast.AlterViewColumnAction, error
 			action.MaskingPolicy = policyName
 
 			// Optional USING (col, ...)
-			if p.cur.Type == kwUSING {
+			if p.curIs(kwUSING) {
 				p.advance() // consume USING
 				using, err := p.parseIdentListInParens()
 				if err != nil {
@@ -983,12 +984,12 @@ func (p *Parser) parseAlterViewColumnAction() (*ast.AlterViewColumnAction, error
 			}
 
 			// Optional FORCE
-			if p.cur.Type == kwFORCE {
+			if p.curIs(kwFORCE) {
 				p.advance() // consume FORCE
 				action.Force = true
 			}
 
-		case kwTAG:
+		case p.curIs(kwTAG):
 			tags, err := p.parseSetTagClause()
 			if err != nil {
 				return nil, err
@@ -1010,23 +1011,23 @@ func (p *Parser) parseAlterViewColumnAction() (*ast.AlterViewColumnAction, error
 			}
 			action.Action = ast.AlterViewColumnSetProjectionPolicy
 			action.ProjectionPolicy = policyName
-			if p.cur.Type == kwFORCE {
+			if p.curIs(kwFORCE) {
 				p.advance() // consume FORCE
 				action.Force = true
 			}
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
-		switch p.cur.Type {
-		case kwMASKING:
+		switch {
+		case p.curIs(kwMASKING):
 			p.advance() // consume MASKING
 			if _, err := p.expect(kwPOLICY); err != nil {
 				return nil, err
 			}
 			action.Action = ast.AlterViewColumnUnsetMaskingPolicy
 
-		case kwTAG:
+		case p.curIs(kwTAG):
 			names, err := p.parseUnsetTagClause()
 			if err != nil {
 				return nil, err
@@ -1070,7 +1071,7 @@ func (p *Parser) parseAlterViewSetJoinPolicy(stmt *ast.AlterViewStmt) error {
 	}
 	stmt.Action = ast.AlterViewSetJoinPolicy
 	stmt.PolicyName = name
-	if p.cur.Type == kwFORCE {
+	if p.curIs(kwFORCE) {
 		p.advance() // consume FORCE
 		stmt.PolicyForce = true
 	}
@@ -1080,7 +1081,7 @@ func (p *Parser) parseAlterViewSetJoinPolicy(stmt *ast.AlterViewStmt) error {
 	if p.curIsWord("ALLOWED") {
 		kind = "ALLOWED"
 		p.advance() // consume ALLOWED
-	} else if p.cur.Type == kwENFORCED {
+	} else if p.curIs(kwENFORCED) {
 		kind = "ENFORCED"
 		p.advance() // consume ENFORCED
 	}
@@ -1123,8 +1124,8 @@ func (p *Parser) parseAlterMaterializedViewStmt() (ast.Node, error) {
 	stmt.Name = name
 
 	// Action branch
-	switch p.cur.Type {
-	case kwRENAME:
+	switch {
+	case p.curIs(kwRENAME):
 		// RENAME TO new_name
 		p.advance() // consume RENAME
 		if _, err := p.expect(kwTO); err != nil {
@@ -1137,13 +1138,13 @@ func (p *Parser) parseAlterMaterializedViewStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterMVRename
 		stmt.NewName = newName
 
-	case kwCLUSTER:
+	case p.curIs(kwCLUSTER):
 		// CLUSTER BY (exprs)
 		p.advance() // consume CLUSTER
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
 		}
-		if p.cur.Type == kwLINEAR {
+		if p.curIs(kwLINEAR) {
 			p.advance() // consume LINEAR
 			stmt.Linear = true
 		}
@@ -1160,7 +1161,7 @@ func (p *Parser) parseAlterMaterializedViewStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterMVClusterBy
 		stmt.ClusterBy = exprs
 
-	case kwDROP:
+	case p.curIs(kwDROP):
 		// DROP CLUSTERING KEY
 		p.advance() // consume DROP
 		if _, err := p.expect(kwCLUSTERING); err != nil {
@@ -1171,34 +1172,34 @@ func (p *Parser) parseAlterMaterializedViewStmt() (ast.Node, error) {
 		}
 		stmt.Action = ast.AlterMVDropClusteringKey
 
-	case kwSUSPEND:
+	case p.curIs(kwSUSPEND):
 		// SUSPEND [RECLUSTER]
 		p.advance() // consume SUSPEND
-		if p.cur.Type == kwRECLUSTER {
+		if p.curIs(kwRECLUSTER) {
 			p.advance() // consume RECLUSTER
 			stmt.Action = ast.AlterMVSuspendRecluster
 		} else {
 			stmt.Action = ast.AlterMVSuspend
 		}
 
-	case kwRESUME:
+	case p.curIs(kwRESUME):
 		// RESUME [RECLUSTER]
 		p.advance() // consume RESUME
-		if p.cur.Type == kwRECLUSTER {
+		if p.curIs(kwRECLUSTER) {
 			p.advance() // consume RECLUSTER
 			stmt.Action = ast.AlterMVResumeRecluster
 		} else {
 			stmt.Action = ast.AlterMVResume
 		}
 
-	case kwSET:
+	case p.curIs(kwSET):
 		// SET SECURE [ CONTACT ... ] [ COMMENT = '...' ]
 		// SET CONTACT purpose = contact [ , ... ] [ COMMENT = '...' ]
 		// SET COMMENT = '...'
 		// SET DATA_METRIC_SCHEDULE = '...'
 		setTok := p.advance() // consume SET
 		switch {
-		case p.cur.Type == kwSECURE:
+		case p.curIs(kwSECURE):
 			p.advance() // consume SECURE
 			stmt.Action = ast.AlterMVSetSecure
 			stmt.Secure = true
@@ -1210,7 +1211,7 @@ func (p *Parser) parseAlterMaterializedViewStmt() (ast.Node, error) {
 			if err := p.parseAlterMVContactComment(stmt); err != nil {
 				return nil, err
 			}
-		case p.cur.Type == kwCOMMENT:
+		case p.curIs(kwCOMMENT):
 			stmt.Action = ast.AlterMVSetComment
 			if err := p.parseAlterMVContactComment(stmt); err != nil {
 				return nil, err
@@ -1226,14 +1227,14 @@ func (p *Parser) parseAlterMaterializedViewStmt() (ast.Node, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		// UNSET { SECURE | CONTACT purpose | COMMENT | DATA_METRIC_SCHEDULE }
 		unsetTok := p.advance() // consume UNSET
 		switch {
-		case p.cur.Type == kwSECURE:
+		case p.curIs(kwSECURE):
 			p.advance() // consume SECURE
 			stmt.Action = ast.AlterMVUnsetSecure
-		case p.cur.Type == kwCOMMENT:
+		case p.curIs(kwCOMMENT):
 			p.advance() // consume COMMENT
 			stmt.Action = ast.AlterMVUnsetComment
 		case p.curIsWord("CONTACT"):
@@ -1277,9 +1278,9 @@ func (p *Parser) parseAlterMVContactComment(stmt *ast.AlterMaterializedViewStmt)
 	} else if stmt.Action == ast.AlterMVSetContact {
 		return p.syntaxErrorAtCur()
 	}
-	if p.cur.Type == kwCOMMENT {
-		p.advance()            // consume COMMENT
-		if p.cur.Type == '=' { // omni has always read the '=' as optional here
+	if p.curIs(kwCOMMENT) {
+		p.advance()       // consume COMMENT
+		if p.curIs('=') { // omni has always read the '=' as optional here
 			p.advance()
 		}
 		tok, err := p.expect(tokString)

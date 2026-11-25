@@ -119,7 +119,7 @@ func (p *Parser) parseCreateAggregateFunctionStmt(start ast.Loc, orReplace, orAl
 	}
 	stmt.Args = args
 
-	if p.cur.Type == kwCOPY && p.peekNext().Type == kwGRANTS {
+	if p.curIs(kwCOPY) && p.nextIs(kwGRANTS) {
 		p.advance() // consume COPY
 		p.advance() // consume GRANTS
 		stmt.CopyGrants = true
@@ -134,7 +134,7 @@ func (p *Parser) parseCreateAggregateFunctionStmt(start ast.Loc, orReplace, orAl
 
 	seen := map[string]bool{}
 	var hasNullInput, hasVolatility bool
-	for p.cur.Type != kwAS {
+	for !p.curIs(kwAS) {
 		tok := p.cur
 		switch {
 		case p.acceptWords("LANGUAGE"):
@@ -196,8 +196,8 @@ doneProps:
 			return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: " + req + " is required"}
 		}
 	}
-	if p.cur.Type == kwAS {
-		if next := p.peekNext(); next.Type == kwBEGIN || next.Type == kwDECLARE {
+	if p.curIs(kwAS) {
+		if next := p.peekNext(); p.nextIs(kwBEGIN) || p.nextIs(kwDECLARE) {
 			return nil, syntaxErrorAtTok(next)
 		}
 		body, dollar, end, err := p.parseRoutineBody()
@@ -276,11 +276,11 @@ func (p *Parser) parseCreateProcedureStmt(start ast.Loc, orReplace, orAlter, sec
 // startsProcedureScopedTable reports whether cur, after CREATE [ OR REPLACE ]
 // PROCEDURE, begins SCOPED { TEMP | TEMPORARY } TABLE. It consumes nothing.
 func (p *Parser) startsProcedureScopedTable() bool {
-	if !tokIsWord(p.cur, "SCOPED") {
+	if !p.curNameWord("SCOPED") {
 		return false
 	}
-	switch p.peekNext().Type {
-	case kwTEMP, kwTEMPORARY:
+	switch {
+	case p.nextIs(kwTEMP), p.nextIs(kwTEMPORARY):
 		return true
 	}
 	return false
@@ -329,7 +329,7 @@ func (p *Parser) parseProcedureScopedTable(start ast.Loc, orReplace bool) (ast.N
 			DataType: typ,
 			Loc:      ast.Loc{Start: col.Loc.Start, End: typ.Loc.End},
 		})
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -386,7 +386,7 @@ func (p *Parser) parseCreateRoutineBody(start ast.Loc, kind ast.RoutineKind, orR
 	// (https://docs.snowflake.com/en/sql-reference/sql/create-function,
 	// https://docs.snowflake.com/en/sql-reference/sql/create-procedure).
 	if (kind == ast.RoutineFunction || kind == ast.RoutineProcedure) &&
-		p.cur.Type == kwCOPY && p.peekNext().Type == kwGRANTS {
+		p.curIs(kwCOPY) && p.nextIs(kwGRANTS) {
 		p.advance() // consume COPY
 		p.advance() // consume GRANTS
 		stmt.CopyGrants = true
@@ -407,7 +407,7 @@ func (p *Parser) parseCreateRoutineBody(start ast.Loc, kind ast.RoutineKind, orR
 	// CALLED ON NULL INPUT / RETURNS NULL ON NULL INPUT phrases), stopping at AS
 	// or at EXECUTE (which introduces EXECUTE AS, not a property).
 	for {
-		if p.cur.Type == kwAS {
+		if p.curIs(kwAS) {
 			break
 		}
 		if p.curIsWord("EXECUTE") {
@@ -433,7 +433,7 @@ func (p *Parser) parseCreateRoutineBody(start ast.Loc, kind ast.RoutineKind, orR
 
 	// Optional AS <body>. A function may have no body (handler-only); when AS is
 	// present the body is mandatory.
-	if p.cur.Type == kwAS {
+	if p.curIs(kwAS) {
 		body, dollar, end, err := p.parseRoutineBody()
 		if err != nil {
 			return nil, err
@@ -460,7 +460,7 @@ func (p *Parser) parseRoutineArgList(modes bool) ([]*ast.RoutineArg, error) {
 	}
 
 	// Empty arg list.
-	if p.cur.Type == ')' {
+	if p.curIs(')') {
 		p.advance() // consume ')'
 		return nil, nil
 	}
@@ -473,7 +473,7 @@ func (p *Parser) parseRoutineArgList(modes bool) ([]*ast.RoutineArg, error) {
 		}
 		args = append(args, arg)
 
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -504,7 +504,7 @@ func (p *Parser) parseRoutineArg(modes bool) (*ast.RoutineArg, error) {
 	mode := ""
 	if modes {
 		for _, m := range routineArgModes {
-			if isWordToken(p.cur, m) {
+			if p.curWord(m) {
 				mode = m
 				p.advance() // consume the mode
 				break
@@ -525,7 +525,7 @@ func (p *Parser) parseRoutineArg(modes bool) (*ast.RoutineArg, error) {
 	}
 
 	// Optional DEFAULT <expr>.
-	if p.cur.Type == kwDEFAULT {
+	if p.curIs(kwDEFAULT) {
 		p.advance() // consume DEFAULT
 		def, err := p.parseExpr()
 		if err != nil {
@@ -548,7 +548,7 @@ func (p *Parser) parseRoutineArg(modes bool) (*ast.RoutineArg, error) {
 // [ NOT ] NULL nullability modifier is accepted on the scalar form (the docs and
 // the corpus show `RETURNS FLOAT NOT NULL`).
 func (p *Parser) parseRoutineReturns(stmt *ast.CreateRoutineStmt) error {
-	if p.cur.Type == kwTABLE {
+	if p.curIs(kwTABLE) {
 		p.advance() // consume TABLE
 		cols, err := p.parseRoutineTableColumns()
 		if err != nil {
@@ -569,14 +569,14 @@ func (p *Parser) parseRoutineReturns(stmt *ast.CreateRoutineStmt) error {
 	stmt.ReturnType = typ
 
 	// Optional [ NOT ] NULL nullability modifier.
-	switch p.cur.Type {
-	case kwNOT:
-		if p.peekNext().Type == kwNULL {
+	switch {
+	case p.curIs(kwNOT):
+		if p.nextIs(kwNULL) {
 			p.advance() // consume NOT
 			p.advance() // consume NULL
 			stmt.ReturnNotNull = true
 		}
-	case kwNULL:
+	case p.curIs(kwNULL):
 		p.advance() // consume NULL
 		stmt.ReturnNull = true
 	}
@@ -594,7 +594,7 @@ func (p *Parser) parseRoutineTableColumns() ([]*ast.RoutineTableColumn, error) {
 		return nil, err
 	}
 
-	if p.cur.Type == ')' {
+	if p.curIs(')') {
 		p.advance() // consume ')'
 		return []*ast.RoutineTableColumn{}, nil
 	}
@@ -615,7 +615,7 @@ func (p *Parser) parseRoutineTableColumns() ([]*ast.RoutineTableColumn, error) {
 			Loc:  ast.Loc{Start: name.Loc.Start, End: typ.Loc.End},
 		})
 
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -638,13 +638,13 @@ func (p *Parser) parseRoutineExecuteAs(dst *ast.ExecuteAs) error {
 		return err
 	}
 	switch {
-	case p.cur.Type == kwCALLER:
+	case p.curIs(kwCALLER):
 		p.advance()
 		*dst = ast.ExecuteAsCaller
-	case p.cur.Type == kwOWNER:
+	case p.curIs(kwOWNER):
 		p.advance()
 		*dst = ast.ExecuteAsOwner
-	case isWordToken(p.cur, "RESTRICTED") && p.peekNext().Type == kwCALLER:
+	case p.curWord("RESTRICTED") && p.nextIs(kwCALLER):
 		// EXECUTE AS RESTRICTED CALLER
 		// (https://docs.snowflake.com/en/sql-reference/sql/create-procedure,
 		// https://docs.snowflake.com/en/sql-reference/sql/alter-procedure).
@@ -685,7 +685,7 @@ func (p *Parser) parseRoutineBody() (body string, dollar bool, end int, err erro
 	asTok := p.advance() // consume AS; cur is now the body's first token
 	_ = asTok
 
-	if p.cur.Type == tokEOF {
+	if p.curIs(tokEOF) {
 		// AS with no body is a syntax error.
 		return "", false, 0, p.syntaxErrorAtCur()
 	}
@@ -705,7 +705,7 @@ func (p *Parser) parseRoutineBody() (body string, dollar bool, end int, err erro
 	// Body for parity with the quoted forms. A leading BEGIN here is unambiguously
 	// a block opener (we are in a routine body, not at the statement top where
 	// BEGIN could start a transaction).
-	if p.cur.Type == kwDECLARE || p.cur.Type == kwBEGIN {
+	if p.curIs(kwDECLARE) || p.curIs(kwBEGIN) {
 		if _, berr := p.parseScriptBlock(); berr != nil {
 			return "", false, 0, berr
 		}
@@ -860,8 +860,8 @@ func (p *Parser) parseAlterRoutineBody(procedure bool) (ast.Node, error) {
 	stmt.ArgTypes = argTypes
 
 	// Action.
-	switch p.cur.Type {
-	case kwRENAME:
+	switch {
+	case p.curIs(kwRENAME):
 		p.advance() // consume RENAME
 		if _, err := p.expect(kwTO); err != nil {
 			return nil, err
@@ -873,9 +873,9 @@ func (p *Parser) parseAlterRoutineBody(procedure bool) (ast.Node, error) {
 		stmt.Action = ast.AlterRoutineRename
 		stmt.NewName = newName
 
-	case kwSET:
+	case p.curIs(kwSET):
 		p.advance() // consume SET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			// SET TAG <tag> = '<value>' [ , ... ]
 			// https://docs.snowflake.com/en/sql-reference/sql/alter-function
 			p.advance() // consume TAG
@@ -894,9 +894,9 @@ func (p *Parser) parseAlterRoutineBody(procedure bool) (ast.Node, error) {
 		stmt.Action = ast.AlterRoutineSet
 		stmt.Options = opts
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			// UNSET TAG <tag> [ , ... ]
 			p.advance() // consume TAG
 			names, err := p.parseObjectNameList()
@@ -942,7 +942,7 @@ func (p *Parser) parseRoutineArgTypeList() ([]*ast.TypeName, error) {
 		return nil, err
 	}
 
-	if p.cur.Type == ')' {
+	if p.curIs(')') {
 		p.advance() // consume ')'
 		return nil, nil
 	}
@@ -955,7 +955,7 @@ func (p *Parser) parseRoutineArgTypeList() ([]*ast.TypeName, error) {
 		}
 		types = append(types, typ)
 
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}

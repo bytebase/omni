@@ -54,7 +54,7 @@ func (p *Parser) parseCreateWarehouseStmt(start ast.Loc, orReplace, orAlter bool
 	}
 
 	// IF NOT EXISTS
-	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
+	if p.curIs(kwIF) && p.nextIs(kwNOT) {
 		p.advance() // consume IF
 		p.advance() // consume NOT
 		if _, err := p.expect(kwEXISTS); err != nil {
@@ -74,7 +74,7 @@ func (p *Parser) parseCreateWarehouseStmt(start ast.Loc, orReplace, orAlter bool
 	// WAREHOUSE_SIZE=...). It is purely cosmetic and only consumed when it does
 	// NOT introduce a [WITH] TAG clause (WITH TAG anchors the tag clause, handled
 	// by the property/tag loop below).
-	if p.cur.Type == kwWITH && p.peekNext().Type != kwTAG {
+	if p.curIs(kwWITH) && !p.nextIs(kwTAG) {
 		p.advance() // consume the cosmetic leading WITH
 	}
 
@@ -102,7 +102,7 @@ func (p *Parser) parseCreateWarehouseStmt(start ast.Loc, orReplace, orAlter bool
 		} else {
 			break
 		}
-		if p.cur.Loc.Start == before && p.cur.Type != tokEOF {
+		if p.cur.Loc.Start == before && !p.curIs(tokEOF) {
 			// No forward progress on a non-EOF token: abort rather than spin.
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -181,7 +181,7 @@ func (p *Parser) parseCreateInteractiveWarehouseStmt(start ast.Loc, orReplace bo
 	}
 	stmt.Name = name
 
-	if tokIsWord(p.cur, "TABLES") {
+	if p.curNameWord("TABLES") {
 		p.advance() // consume TABLES
 		tables, err := p.parseWarehouseTableList()
 		if err != nil {
@@ -211,7 +211,7 @@ func (p *Parser) parseCreateInteractiveWarehouseStmt(start ast.Loc, orReplace bo
 			}
 			stmt.Tags = tags
 			phase = phaseParams
-		case p.cur.Type == kwWITH:
+		case p.curIs(kwWITH):
 			// WITH introduces the properties, so it comes before the first.
 			if phase != phaseProps || len(stmt.Options) > 0 {
 				return nil, p.syntaxErrorAtCur()
@@ -266,7 +266,7 @@ func (p *Parser) parseAlterWarehouseStmt() (ast.Node, error) {
 	stmt := &ast.AlterWarehouseStmt{Loc: ast.Loc{Start: whTok.Loc.Start}}
 
 	// Optional IF EXISTS.
-	if p.cur.Type == kwIF && p.peekNext().Type == kwEXISTS {
+	if p.curIs(kwIF) && p.nextIs(kwEXISTS) {
 		p.advance() // consume IF
 		p.advance() // consume EXISTS
 		stmt.IfExists = true
@@ -283,8 +283,8 @@ func (p *Parser) parseAlterWarehouseStmt() (ast.Node, error) {
 	}
 
 	// Action branch.
-	switch p.cur.Type {
-	case kwENABLE, kwDISABLE:
+	switch {
+	case p.curIs(kwENABLE), p.curIs(kwDISABLE):
 		if stmt.Name == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -293,21 +293,21 @@ func (p *Parser) parseAlterWarehouseStmt() (ast.Node, error) {
 			stmt.Action = ast.AlterWarehouseDisable
 		}
 
-	case kwSUSPEND:
+	case p.curIs(kwSUSPEND):
 		p.advance() // consume SUSPEND
 		stmt.Action = ast.AlterWarehouseSuspend
 
-	case kwRESUME:
+	case p.curIs(kwRESUME):
 		p.advance() // consume RESUME
 		stmt.Action = ast.AlterWarehouseResume
 		// Optional IF SUSPENDED.
-		if p.cur.Type == kwIF && p.peekNext().Type == kwSUSPENDED {
+		if p.curIs(kwIF) && p.nextIs(kwSUSPENDED) {
 			p.advance() // consume IF
 			p.advance() // consume SUSPENDED
 			stmt.ResumeIfSuspended = true
 		}
 
-	case kwABORT:
+	case p.curIs(kwABORT):
 		// ABORT ALL QUERIES
 		p.advance() // consume ABORT
 		if _, err := p.expect(kwALL); err != nil {
@@ -318,7 +318,7 @@ func (p *Parser) parseAlterWarehouseStmt() (ast.Node, error) {
 		}
 		stmt.Action = ast.AlterWarehouseAbort
 
-	case kwRENAME:
+	case p.curIs(kwRENAME):
 		// RENAME TO <new_name>
 		p.advance() // consume RENAME
 		if _, err := p.expect(kwTO); err != nil {
@@ -331,9 +331,9 @@ func (p *Parser) parseAlterWarehouseStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterWarehouseRename
 		stmt.NewName = newName
 
-	case kwSET:
+	case p.curIs(kwSET):
 		p.advance() // consume SET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			// SET TAG <tag> = '<value>' [ , ... ] — unparenthesized assignment list
 			// (reuses the stage SET TAG helper). Anchored before the open-ended
 			// property run so a literal property named TAG cannot shadow it.
@@ -357,9 +357,9 @@ func (p *Parser) parseAlterWarehouseStmt() (ast.Node, error) {
 			stmt.Options = opts
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			// UNSET TAG <tag> [ , ... ] — unparenthesized name list (reuses the
 			// stage UNSET TAG helper). Anchored before the open-ended key run so a
 			// `UNSET TAG t` is not mis-read as unsetting keys "TAG" and "t".
@@ -379,7 +379,7 @@ func (p *Parser) parseAlterWarehouseStmt() (ast.Node, error) {
 			stmt.UnsetKeys = keys
 		}
 
-	case kwADD:
+	case p.curIs(kwADD):
 		// ADD TABLES ( <id> [ , ... ] )
 		p.advance() // consume ADD
 		if _, err := p.expect(kwTABLES); err != nil {
@@ -392,7 +392,7 @@ func (p *Parser) parseAlterWarehouseStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterWarehouseAddTables
 		stmt.Tables = ids
 
-	case kwREMOVE, kwDROP:
+	case p.curIs(kwREMOVE), p.curIs(kwDROP):
 		// { REMOVE | DROP } TABLES ( <id> [ , ... ] )
 		p.advance() // consume REMOVE / DROP
 		if _, err := p.expect(kwTABLES); err != nil {
@@ -430,10 +430,10 @@ func (p *Parser) parseAlterWarehouseStmt() (ast.Node, error) {
 func (p *Parser) startsNamelessWarehouseAction() bool {
 	next := p.peekNext().Type
 	end := next == tokEOF || next == ';' || next == tokFlow
-	switch p.cur.Type {
-	case kwSUSPEND:
+	switch {
+	case p.curIs(kwSUSPEND):
 		return end
-	case kwRESUME:
+	case p.curIs(kwRESUME):
 		if end {
 			return true
 		}
@@ -444,8 +444,8 @@ func (p *Parser) startsNamelessWarehouseAction() bool {
 		defer p.restore(snap)
 		p.advance() // RESUME
 		p.advance() // IF
-		return p.cur.Type == kwSUSPENDED
-	case kwABORT:
+		return p.curIs(kwSUSPENDED)
+	case p.curIs(kwABORT):
 		return next == kwALL
 	}
 	return false
@@ -472,7 +472,7 @@ func (p *Parser) parseWarehouseOptions() ([]*ast.CopyOption, error) {
 			return nil, err
 		}
 		opts = append(opts, opt)
-		if p.cur.Loc.Start == before && p.cur.Type != tokEOF {
+		if p.cur.Loc.Start == before && !p.curIs(tokEOF) {
 			return nil, p.syntaxErrorAtCur()
 		}
 	}
@@ -483,8 +483,8 @@ func (p *Parser) parseWarehouseOptions() ([]*ast.CopyOption, error) {
 // property. It is the COPY option predicate minus WITH and TAG, which anchor the
 // trailing [WITH] TAG clause and must not be swallowed as a property name.
 func (p *Parser) startsWarehouseOption() bool {
-	switch p.cur.Type {
-	case kwWITH, kwTAG:
+	switch {
+	case p.curIs(kwWITH), p.curIs(kwTAG):
 		return false
 	}
 	return p.startsCopyOption()
@@ -493,17 +493,17 @@ func (p *Parser) startsWarehouseOption() bool {
 // startsWarehouseTags reports whether the current position begins a [WITH] TAG
 // clause: either the TAG keyword directly, or WITH immediately followed by TAG.
 func (p *Parser) startsWarehouseTags() bool {
-	if p.cur.Type == kwTAG {
+	if p.curIs(kwTAG) {
 		return true
 	}
-	return p.cur.Type == kwWITH && p.peekNext().Type == kwTAG
+	return p.curIs(kwWITH) && p.nextIs(kwTAG)
 }
 
 // parseWarehouseWithTags parses a [WITH] TAG (...) clause and returns the tag
 // assignments. It accepts both the WITH TAG and the bare TAG spellings. The
 // caller must have confirmed startsWarehouseTags.
 func (p *Parser) parseWarehouseWithTags() ([]*ast.TagAssignment, error) {
-	if p.cur.Type == kwWITH {
+	if p.curIs(kwWITH) {
 		p.advance() // consume WITH (peekNext == TAG guaranteed by startsWarehouseTags)
 	}
 	return p.parseTagAssignments()
@@ -519,7 +519,7 @@ func (p *Parser) parseWarehouseUnsetKeys() ([]string, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		keys = append(keys, strings.ToUpper(p.advance().Str))
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -542,7 +542,7 @@ func (p *Parser) parseWarehouseTableList() ([]*ast.ObjectName, error) {
 			return nil, err
 		}
 		ids = append(ids, id)
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}

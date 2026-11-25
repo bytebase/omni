@@ -111,7 +111,7 @@ func parseAlterService(p *Parser, s *ast.ObjectStmt) error {
 	case p.acceptWords("RESUME"):
 		p.addObjectKeywordsClause(s, "RESUME", start)
 		return nil
-	case p.cur.Type == kwFROM:
+	case p.curIs(kwFROM):
 		return p.parseServiceSpecification(s, true)
 	case p.atWords("RESTORE", "VOLUME"):
 		return p.parseServiceRestoreVolume(s)
@@ -158,7 +158,7 @@ func (p *Parser) parseServiceRestoreVolume(s *ast.ObjectStmt) error {
 			Lit: &ast.Literal{Kind: ast.LitInt, Value: tok.Str, Ival: tok.Ival, Loc: tok.Loc},
 			Loc: tok.Loc,
 		})
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -255,7 +255,7 @@ func (p *Parser) parseExecuteJobService(start ast.Loc) (ast.Node, error) {
 	if _, err := p.expect(kwFROM); err != nil {
 		return nil, err
 	}
-	if p.cur.Type == '@' {
+	if p.curIs('@') {
 		stage, err := p.parseServiceStage()
 		if err != nil {
 			return nil, err
@@ -266,7 +266,7 @@ func (p *Parser) parseExecuteJobService(start ast.Loc) (ast.Node, error) {
 			return nil, err
 		}
 		var q ast.Node
-		if p.cur.Type == kwWITH {
+		if p.curIs(kwWITH) {
 			q, err = p.parseWithQueryExpr()
 		} else {
 			q, err = p.parseQueryExpr()
@@ -375,8 +375,8 @@ func (p *Parser) parseServiceSpecification(s *ast.ObjectStmt, bareFile bool) err
 	var opts []*ast.CopyOption
 	keywords := "FROM"
 	switch {
-	case p.cur.Type == '@' || (bareFile && p.startsServiceSpecFile()):
-		if p.cur.Type == '@' {
+	case p.curIs('@') || (bareFile && p.startsServiceSpecFile()):
+		if p.curIs('@') {
 			stage, err := p.parseServiceStage()
 			if err != nil {
 				return err
@@ -417,8 +417,8 @@ func (p *Parser) parseServiceSpecification(s *ast.ObjectStmt, bareFile bool) err
 // startsServiceSpecFile reports whether cur begins SPECIFICATION_FILE = or
 // SPECIFICATION_TEMPLATE_FILE =. It consumes nothing.
 func (p *Parser) startsServiceSpecFile() bool {
-	return (isWordToken(p.cur, "SPECIFICATION_FILE") || isWordToken(p.cur, "SPECIFICATION_TEMPLATE_FILE")) &&
-		p.peekNext().Type == '='
+	return (p.curWord("SPECIFICATION_FILE") || p.curWord("SPECIFICATION_TEMPLATE_FILE")) &&
+		p.nextIs('=')
 }
 
 // parseServiceStage reads @[<namespace>.]<stage_name>[/<path>] into a
@@ -477,7 +477,7 @@ func (p *Parser) parseServiceUsing(s *ast.ObjectStmt) error {
 		if _, err := p.expect(tokAssoc); err != nil {
 			return err
 		}
-		if p.cur.Type == '(' {
+		if p.curIs('(') {
 			return p.syntaxErrorAtCur()
 		}
 		// A template variable's name is case-sensitive: keep it as written.
@@ -488,7 +488,7 @@ func (p *Parser) parseServiceUsing(s *ast.ObjectStmt) error {
 		}
 		arg.Loc.End = p.prev.Loc.End
 		c.Options = append(c.Options, arg)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','

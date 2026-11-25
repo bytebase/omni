@@ -83,7 +83,7 @@ func parseCreateOrganizationListing(p *Parser, s *ast.ObjectStmt) error {
 func (p *Parser) parseCreateListing(s *ast.ObjectStmt, external bool) error {
 	start := p.cur.Loc.Start
 	switch {
-	case p.cur.Type == kwSHARE:
+	case p.curIs(kwSHARE):
 		p.advance() // consume SHARE
 		name, err := p.parseObjectSimpleName()
 		if err != nil {
@@ -97,13 +97,13 @@ func (p *Parser) parseCreateListing(s *ast.ObjectStmt, external bool) error {
 		}
 		p.addObjectKeywordsClause(s, "APPLICATION PACKAGE", start).Names = []*ast.ObjectName{name}
 	}
-	from := p.cur.Type == kwFROM
-	switch p.cur.Type {
-	case kwAS:
+	from := p.curIs(kwFROM)
+	switch {
+	case p.curIs(kwAS):
 		if err := p.parseObjectAsString(s); err != nil {
 			return err
 		}
-	case kwFROM:
+	case p.curIs(kwFROM):
 		if err := p.parseObjectKeywordString(s, "FROM"); err != nil {
 			return err
 		}
@@ -134,7 +134,7 @@ func (p *Parser) parseObjectKeywordString(s *ast.ObjectStmt, keyword string) err
 	if err := p.expectWords(keyword); err != nil {
 		return err
 	}
-	if p.cur.Type != tokString {
+	if !p.curIs(tokString) {
 		return p.syntaxErrorAtCur()
 	}
 	lit, err := p.parseCopyLiteral()
@@ -172,7 +172,7 @@ func parseAlterListing(p *Parser, s *ast.ObjectStmt) error {
 	case p.acceptWords("REVIEW"):
 		p.addObjectKeywordsClause(s, "REVIEW", start)
 		return nil
-	case p.cur.Type == kwAS:
+	case p.curIs(kwAS):
 		if err := p.parseObjectAsString(s); err != nil {
 			return err
 		}
@@ -183,7 +183,7 @@ func parseAlterListing(p *Parser, s *ast.ObjectStmt) error {
 	case p.atWords("ADD", "TARGETS"), p.atWords("REMOVE", "TARGETS"):
 		verb := p.advance().Str
 		p.advance() // consume TARGETS
-		if p.cur.Type != tokString {
+		if !p.curIs(tokString) {
 			return p.syntaxErrorAtCur()
 		}
 		lit, err := p.parseCopyLiteral()
@@ -193,9 +193,9 @@ func parseAlterListing(p *Parser, s *ast.ObjectStmt) error {
 		c := p.addObjectKeywordsClause(s, strings.ToUpper(verb)+" TARGETS", start)
 		c.Options = []*ast.CopyOption{{Lit: lit, Loc: lit.Loc}}
 		return nil
-	case p.cur.Type == kwRENAME:
+	case p.curIs(kwRENAME):
 		return p.parseObjectRenameSimple(s)
-	case p.cur.Type == kwSET:
+	case p.curIs(kwSET):
 		// SET COMMENT = '<string>' alone.
 		p.advance() // consume SET
 		if !p.curIsWord("COMMENT") || !p.startsObjectProperty() {
@@ -234,7 +234,7 @@ func parseAlterListing(p *Parser, s *ast.ObjectStmt) error {
 			return &ParseError{Position: props.Loc.Start, End: props.Loc.End, Message: "syntax error: ADD VERSION takes COMMENT alone"}
 		}
 		return nil
-	case p.cur.Type == tokEOF || p.cur.Type == ';':
+	case p.curIs(tokEOF) || p.curIs(';'):
 		// ALTER LISTING <name> with no action: the page writes the action
 		// in brackets.
 		return nil
@@ -245,7 +245,7 @@ func parseAlterListing(p *Parser, s *ast.ObjectStmt) error {
 // startsListingRevision reports whether cur begins DESC LISTING's
 // REVISION = ...: the word REVISION followed by '='. It consumes nothing.
 func (p *Parser) startsListingRevision() bool {
-	return isWordToken(p.cur, "REVISION") && p.peekNext().Type == '='
+	return p.curWord("REVISION") && p.nextIs('=')
 }
 
 // parseDescribeListingRevision reads
@@ -277,7 +277,7 @@ func (p *Parser) parseDescribeListingRevision(stmt *ast.DescribeStmt) error {
 // https://docs.snowflake.com/en/sql-reference/sql/show-available-listings
 func (p *Parser) parseShowAvailableListingsFilters(stmt *ast.ShowStmt) error {
 	for _, f := range []string{"IS_IMPORTED", "IS_ORGANIZATION", "IS_SHARED_WITH_ME"} {
-		if !isWordToken(p.cur, f) || p.peekNext().Type != '=' {
+		if !p.curWord(f) || !p.nextIs('=') {
 			continue
 		}
 		p.advance() // consume the filter

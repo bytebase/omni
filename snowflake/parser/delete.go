@@ -38,7 +38,7 @@ func (p *Parser) parseDeleteStmt() (*ast.DeleteStmt, error) {
 	}
 
 	// Optional USING clause
-	if p.cur.Type == kwUSING {
+	if p.curIs(kwUSING) {
 		p.advance() // consume USING
 		using, err := p.parseTableOrQueryList()
 		if err != nil {
@@ -48,7 +48,7 @@ func (p *Parser) parseDeleteStmt() (*ast.DeleteStmt, error) {
 	}
 
 	// Optional WHERE clause
-	if p.cur.Type == kwWHERE {
+	if p.curIs(kwWHERE) {
 		p.advance() // consume WHERE
 		where, err := p.parseExpr()
 		if err != nil {
@@ -74,7 +74,7 @@ func (p *Parser) parseTableOrQueryList() ([]ast.Node, error) {
 	}
 	items = append(items, item)
 
-	for p.cur.Type == ',' {
+	for p.curIs(',') {
 		p.advance() // consume ','
 		item, err = p.parseFromItem()
 		if err != nil {

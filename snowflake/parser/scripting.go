@@ -66,8 +66,8 @@ func (p *Parser) leaveScript() { p.scriptDepth-- }
 // block. This keeps every documented TCL BEGIN form working while routing a
 // `BEGIN <statement> ... END` body to the scripting parser.
 func (p *Parser) beginIsTransaction() bool {
-	switch p.peekNext().Type {
-	case kwWORK, kwTRANSACTION, kwNAME, ';', tokEOF:
+	switch {
+	case p.nextIs(kwWORK), p.nextIs(kwTRANSACTION), p.nextIs(kwNAME), p.nextIs(';'), p.nextIs(tokEOF):
 		return true
 	default:
 		return false
@@ -92,7 +92,7 @@ func (p *Parser) parseScriptBlock() (ast.Node, error) {
 	stmt := &ast.ScriptBlockStmt{Loc: ast.Loc{Start: start}}
 
 	// Optional DECLARE section.
-	if p.cur.Type == kwDECLARE {
+	if p.curIs(kwDECLARE) {
 		p.advance() // consume DECLARE
 		decls, err := p.parseScriptDeclarationList()
 		if err != nil {
@@ -112,7 +112,7 @@ func (p *Parser) parseScriptBlock() (ast.Node, error) {
 	stmt.Body = body
 
 	// Optional EXCEPTION section.
-	if p.cur.Type == kwSCRIPT_EXCEPTION {
+	if p.curIs(kwSCRIPT_EXCEPTION) {
 		p.advance() // consume EXCEPTION
 		handlers, err := p.parseScriptExceptionHandlers()
 		if err != nil {
@@ -145,8 +145,8 @@ func (p *Parser) parseScriptBlock() (ast.Node, error) {
 // tryParseScriptLabel must NOT consume the outer END (a non-reserved keyword)
 // as a label, which would leave the outer block unterminated.
 func (p *Parser) tryParseScriptLabel() (ast.Ident, bool) {
-	switch p.cur.Type {
-	case tokIdent, tokQuotedIdent:
+	switch {
+	case p.curIs(tokIdent), p.curIs(tokQuotedIdent):
 		tok := p.advance()
 		return ast.Ident{Name: tok.Str, Quoted: tok.Type == tokQuotedIdent, Loc: tok.Loc}, true
 	default:
@@ -166,8 +166,8 @@ func (p *Parser) tryParseScriptLabel() (ast.Ident, bool) {
 // Per the docs every declaration (including the last) is `;`-terminated.
 func (p *Parser) parseScriptDeclarationList() ([]ast.Node, error) {
 	var decls []ast.Node
-	for p.cur.Type != kwBEGIN {
-		if p.cur.Type == tokEOF {
+	for !p.curIs(kwBEGIN) {
+		if p.curIs(tokEOF) {
 			return nil, p.unterminated("DECLARE section (expected BEGIN)")
 		}
 		startPos := p.cur.Loc.Start
@@ -205,8 +205,8 @@ func (p *Parser) parseScriptDeclaration() (*ast.ScriptDeclaration, error) {
 	}
 	decl := &ast.ScriptDeclaration{Name: name, Loc: ast.Loc{Start: name.Loc.Start, End: name.Loc.End}}
 
-	switch p.cur.Type {
-	case kwSCRIPT_CURSOR:
+	switch {
+	case p.curIs(kwSCRIPT_CURSOR):
 		p.advance() // consume CURSOR
 		if _, err := p.expect(kwFOR); err != nil {
 			return nil, err
@@ -219,7 +219,7 @@ func (p *Parser) parseScriptDeclaration() (*ast.ScriptDeclaration, error) {
 		decl.Query = q
 		decl.Loc.End = ast.NodeLoc(q).End
 
-	case kwSCRIPT_RESULTSET:
+	case p.curIs(kwSCRIPT_RESULTSET):
 		p.advance() // consume RESULTSET
 		decl.Kind = ast.ScriptDeclResultset
 		// Optional { DEFAULT | := } [ ASYNC ] ( <query> ).
@@ -235,11 +235,11 @@ func (p *Parser) parseScriptDeclaration() (*ast.ScriptDeclaration, error) {
 			decl.Loc.End = p.prev.Loc.End
 		}
 
-	case kwSCRIPT_EXCEPTION:
+	case p.curIs(kwSCRIPT_EXCEPTION):
 		p.advance() // consume EXCEPTION
 		decl.Kind = ast.ScriptDeclException
 		// Optional ( <number>, '<message>' ).
-		if p.cur.Type == '(' {
+		if p.curIs('(') {
 			args, end, err := p.parseScriptParenExprList()
 			if err != nil {
 				return nil, err
@@ -284,7 +284,7 @@ func (p *Parser) parseScriptDeclaration() (*ast.ScriptDeclaration, error) {
 //
 // Returns whether ASYNC was present, the query node, and the end offset.
 func (p *Parser) parseResultsetValue() (async bool, query ast.Node, end int, err error) {
-	if p.cur.Type == kwSCRIPT_ASYNC {
+	if p.curIs(kwSCRIPT_ASYNC) {
 		p.advance() // consume ASYNC
 		async = true
 	}
@@ -313,13 +313,13 @@ func (p *Parser) parseResultsetValue() (async bool, query ast.Node, end int, err
 //	WHEN OTHER THEN <stmts>
 func (p *Parser) parseScriptExceptionHandlers() ([]ast.Node, error) {
 	var handlers []ast.Node
-	for p.cur.Type == kwWHEN {
+	for p.curIs(kwWHEN) {
 		startPos := p.cur.Loc.Start
 		whenTok := p.advance() // consume WHEN
 
 		h := &ast.ScriptExceptionHandler{Loc: ast.Loc{Start: whenTok.Loc.Start}}
 
-		if p.cur.Type == kwSCRIPT_OTHER {
+		if p.curIs(kwSCRIPT_OTHER) {
 			p.advance() // consume OTHER
 			h.Other = true
 		} else {
@@ -330,7 +330,7 @@ func (p *Parser) parseScriptExceptionHandlers() ([]ast.Node, error) {
 					return nil, err
 				}
 				h.Names = append(h.Names, n)
-				if p.cur.Type != kwOR {
+				if !p.curIs(kwOR) {
 					break
 				}
 				p.advance() // consume OR
@@ -374,7 +374,7 @@ func (p *Parser) parseScriptExceptionHandlers() ([]ast.Node, error) {
 func (p *Parser) parseScriptStatementList(terminators ...int) ([]ast.Node, error) {
 	var stmts []ast.Node
 	for {
-		if p.cur.Type == tokEOF {
+		if p.curIs(tokEOF) {
 			return nil, p.unterminated("scripting block")
 		}
 		if p.isScriptTerminator(p.cur.Type, terminators) {
@@ -395,14 +395,14 @@ func (p *Parser) parseScriptStatementList(terminators ...int) ([]ast.Node, error
 
 		// Consume the statement separator. A statement may be immediately
 		// followed by a terminator with no trailing ';' (lenient).
-		if p.cur.Type == ';' {
+		if p.curIs(';') {
 			p.advance()
 			continue
 		}
 		if p.isScriptTerminator(p.cur.Type, terminators) {
 			return stmts, nil
 		}
-		if p.cur.Type == tokEOF {
+		if p.curIs(tokEOF) {
 			return nil, p.unterminated("scripting block")
 		}
 		// Anything else after a complete statement (and not a separator /
@@ -441,40 +441,40 @@ func (p *Parser) parseScriptStatement() (ast.Node, error) {
 	}
 	defer p.leaveScript()
 
-	switch p.cur.Type {
-	case kwDECLARE:
+	switch {
+	case p.curIs(kwDECLARE):
 		return p.parseScriptBlock()
-	case kwBEGIN:
+	case p.curIs(kwBEGIN):
 		// A bare BEGIN inside a block always opens a nested scripting block
 		// (transaction control is not a scripting statement). Route directly.
 		return p.parseScriptBlock()
-	case kwIF:
+	case p.curIs(kwIF):
 		return p.parseScriptIf()
-	case kwCASE:
+	case p.curIs(kwCASE):
 		return p.parseScriptCase()
-	case kwFOR:
+	case p.curIs(kwFOR):
 		return p.parseScriptFor()
-	case kwSCRIPT_WHILE:
+	case p.curIs(kwSCRIPT_WHILE):
 		return p.parseScriptWhile()
-	case kwSCRIPT_REPEAT:
+	case p.curIs(kwSCRIPT_REPEAT):
 		return p.parseScriptRepeat()
-	case kwSCRIPT_LOOP:
+	case p.curIs(kwSCRIPT_LOOP):
 		return p.parseScriptLoop()
-	case kwSCRIPT_BREAK, kwSCRIPT_EXIT:
+	case p.curIs(kwSCRIPT_BREAK), p.curIs(kwSCRIPT_EXIT):
 		return p.parseScriptBreak()
-	case kwCONTINUE, kwSCRIPT_ITERATE:
+	case p.curIs(kwCONTINUE), p.curIs(kwSCRIPT_ITERATE):
 		return p.parseScriptContinue()
-	case kwRETURN:
+	case p.curIs(kwRETURN):
 		return p.parseScriptReturn()
-	case kwSCRIPT_RAISE:
+	case p.curIs(kwSCRIPT_RAISE):
 		return p.parseScriptRaise()
-	case kwSCRIPT_LET:
+	case p.curIs(kwSCRIPT_LET):
 		return p.parseScriptLet()
-	case kwSCRIPT_OPEN:
+	case p.curIs(kwSCRIPT_OPEN):
 		return p.parseScriptOpen()
-	case kwFETCH:
+	case p.curIs(kwFETCH):
 		return p.parseScriptFetch()
-	case kwSCRIPT_CLOSE:
+	case p.curIs(kwSCRIPT_CLOSE):
 		return p.parseScriptClose()
 	default:
 		// Either an assignment (<var> := <expr>) or a nested SQL statement.
@@ -492,7 +492,7 @@ func (p *Parser) parseScriptStatement() (ast.Node, error) {
 // token begins the `:=` assignment operator (a ':' followed by '='). cur is the
 // candidate target identifier.
 func (p *Parser) assignFollows() bool {
-	return p.peekNext().Type == ':'
+	return p.nextIs(':')
 }
 
 // parseScriptAssign parses `<var> := <expr>`. cur is the target identifier.
@@ -532,8 +532,8 @@ func (p *Parser) parseScriptLet() (ast.Node, error) {
 	}
 	stmt := &ast.ScriptLetStmt{Name: name, Loc: ast.Loc{Start: letTok.Loc.Start}}
 
-	switch p.cur.Type {
-	case kwSCRIPT_CURSOR:
+	switch {
+	case p.curIs(kwSCRIPT_CURSOR):
 		p.advance() // consume CURSOR
 		if _, err := p.expect(kwFOR); err != nil {
 			return nil, err
@@ -546,7 +546,7 @@ func (p *Parser) parseScriptLet() (ast.Node, error) {
 		stmt.Query = q
 		stmt.Loc.End = ast.NodeLoc(q).End
 
-	case kwSCRIPT_RESULTSET:
+	case p.curIs(kwSCRIPT_RESULTSET):
 		p.advance() // consume RESULTSET
 		stmt.Kind = ast.ScriptDeclResultset
 		if !p.tryParseAssignOp() {
@@ -603,7 +603,7 @@ func (p *Parser) parseScriptIf() (ast.Node, error) {
 	stmt.Branches = append(stmt.Branches, branch)
 
 	// Zero or more ELSEIF arms.
-	for p.cur.Type == kwSCRIPT_ELSEIF {
+	for p.curIs(kwSCRIPT_ELSEIF) {
 		p.advance() // consume ELSEIF
 		b, err := p.parseScriptIfBranch()
 		if err != nil {
@@ -613,7 +613,7 @@ func (p *Parser) parseScriptIf() (ast.Node, error) {
 	}
 
 	// Optional ELSE.
-	if p.cur.Type == kwELSE {
+	if p.curIs(kwELSE) {
 		p.advance() // consume ELSE
 		body, err := p.parseScriptStatementList(kwEND)
 		if err != nil {
@@ -672,7 +672,7 @@ func (p *Parser) parseScriptCase() (ast.Node, error) {
 	stmt := &ast.ScriptCaseStmt{Loc: ast.Loc{Start: caseTok.Loc.Start}}
 
 	// Optional operand (simple CASE). Searched CASE begins directly with WHEN.
-	if p.cur.Type != kwWHEN {
+	if !p.curIs(kwWHEN) {
 		operand, err := p.parseExpr()
 		if err != nil {
 			return nil, err
@@ -681,7 +681,7 @@ func (p *Parser) parseScriptCase() (ast.Node, error) {
 	}
 
 	// One or more WHEN <expr> THEN <stmts> arms.
-	for p.cur.Type == kwWHEN {
+	for p.curIs(kwWHEN) {
 		startPos := p.cur.Loc.Start
 		p.advance() // consume WHEN
 		match, err := p.parseExpr()
@@ -707,7 +707,7 @@ func (p *Parser) parseScriptCase() (ast.Node, error) {
 	}
 
 	// Optional ELSE.
-	if p.cur.Type == kwELSE {
+	if p.curIs(kwELSE) {
 		p.advance() // consume ELSE
 		body, err := p.parseScriptStatementList(kwEND)
 		if err != nil {
@@ -720,7 +720,7 @@ func (p *Parser) parseScriptCase() (ast.Node, error) {
 	if _, err := p.expect(kwEND); err != nil {
 		return nil, err
 	}
-	if p.cur.Type == kwCASE {
+	if p.curIs(kwCASE) {
 		p.advance() // consume optional CASE
 	}
 
@@ -755,7 +755,7 @@ func (p *Parser) parseScriptFor() (ast.Node, error) {
 	}
 
 	// REVERSE forces the counter form.
-	if p.cur.Type == kwSCRIPT_REVERSE {
+	if p.curIs(kwSCRIPT_REVERSE) {
 		p.advance() // consume REVERSE
 		stmt.Kind = ast.ScriptForCounter
 		stmt.Reverse = true
@@ -813,8 +813,8 @@ func (p *Parser) parseScriptFor() (ast.Node, error) {
 // (DO / LOOP). A counter range instead has `TO` (or a larger expression) after
 // the start value, so the loop opener does not immediately follow.
 func (p *Parser) scriptForSourceFollows() bool {
-	switch p.peekNext().Type {
-	case kwDO, kwSCRIPT_LOOP:
+	switch {
+	case p.nextIs(kwDO), p.nextIs(kwSCRIPT_LOOP):
 		return true
 	default:
 		return false
@@ -1012,7 +1012,7 @@ func (p *Parser) parseScriptOpen() (ast.Node, error) {
 	}
 	stmt := &ast.ScriptOpenStmt{Cursor: name, Loc: ast.Loc{Start: openTok.Loc.Start, End: name.Loc.End}}
 
-	if p.cur.Type == kwUSING {
+	if p.curIs(kwUSING) {
 		p.advance() // consume USING
 		args, end, err := p.parseScriptParenExprList()
 		if err != nil {
@@ -1043,7 +1043,7 @@ func (p *Parser) parseScriptFetch() (ast.Node, error) {
 		}
 		stmt.Into = append(stmt.Into, v)
 		stmt.Loc.End = v.Loc.End
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -1073,7 +1073,7 @@ func (p *Parser) parseScriptClose() (ast.Node, error) {
 // by the docs. The returned node is the inner condition expression (the
 // surrounding ParenExpr is preserved so the source round-trips).
 func (p *Parser) parseScriptParenCondition() (ast.Node, error) {
-	if p.cur.Type != '(' {
+	if !p.curIs('(') {
 		return nil, p.syntaxErrorAtCur()
 	}
 	// parseExpr handles a leading '(' as a ParenExpr, keeping the parens in the
@@ -1085,8 +1085,8 @@ func (p *Parser) parseScriptParenCondition() (ast.Node, error) {
 // It accepts SELECT, WITH ... SELECT, and a parenthesized query, reusing the
 // engine's query-expression parser.
 func (p *Parser) parseScriptQuery() (ast.Node, error) {
-	switch p.cur.Type {
-	case kwWITH:
+	switch {
+	case p.curIs(kwWITH):
 		return p.parseWithQueryExpr()
 	default:
 		return p.parseQueryExpr()
@@ -1100,7 +1100,7 @@ func (p *Parser) parseScriptParenExprList() ([]ast.Node, int, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, 0, err
 	}
-	if p.cur.Type == ')' {
+	if p.curIs(')') {
 		closeTok := p.advance()
 		return nil, closeTok.Loc.End, nil
 	}
@@ -1111,7 +1111,7 @@ func (p *Parser) parseScriptParenExprList() ([]ast.Node, int, error) {
 			return nil, 0, err
 		}
 		args = append(args, e)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -1128,20 +1128,20 @@ func (p *Parser) parseScriptParenExprList() ([]ast.Node, int, error) {
 // whether a declaration / LET has reached its value (so the optional type slot
 // is skipped).
 func (p *Parser) startsAssignOp() bool {
-	if p.cur.Type == kwDEFAULT {
+	if p.curIs(kwDEFAULT) {
 		return true
 	}
-	return p.cur.Type == ':' && p.peekNext().Type == '='
+	return p.curIs(':') && p.nextIs('=')
 }
 
 // tryParseAssignOp consumes an assignment operator — `:=` or the DEFAULT keyword
 // — if present, and reports whether one was consumed.
 func (p *Parser) tryParseAssignOp() bool {
-	if p.cur.Type == kwDEFAULT {
+	if p.curIs(kwDEFAULT) {
 		p.advance() // consume DEFAULT
 		return true
 	}
-	if p.cur.Type == ':' && p.peekNext().Type == '=' {
+	if p.curIs(':') && p.nextIs('=') {
 		p.advance() // consume ':'
 		p.advance() // consume '='
 		return true
@@ -1153,9 +1153,9 @@ func (p *Parser) tryParseAssignOp() bool {
 // statement (RETURN / RAISE) without a value — i.e. a statement separator,
 // terminator keyword, or EOF follows immediately.
 func (p *Parser) scriptExprEnds() bool {
-	switch p.cur.Type {
-	case ';', tokEOF,
-		kwEND, kwELSE, kwSCRIPT_ELSEIF, kwWHEN, kwSCRIPT_UNTIL:
+	switch {
+	case p.curIs(';'), p.curIs(tokEOF),
+		p.curIs(kwEND), p.curIs(kwELSE), p.curIs(kwSCRIPT_ELSEIF), p.curIs(kwWHEN), p.curIs(kwSCRIPT_UNTIL):
 		return true
 	default:
 		return false
@@ -1165,8 +1165,8 @@ func (p *Parser) scriptExprEnds() bool {
 // expectLoopOpener consumes the loop-body opener DO or LOOP (shared by FOR /
 // WHILE). Returns a syntax error if neither is present.
 func (p *Parser) expectLoopOpener() (Token, error) {
-	switch p.cur.Type {
-	case kwDO, kwSCRIPT_LOOP:
+	switch {
+	case p.curIs(kwDO), p.curIs(kwSCRIPT_LOOP):
 		return p.advance(), nil
 	default:
 		return Token{}, p.syntaxErrorAtCur()
@@ -1175,8 +1175,8 @@ func (p *Parser) expectLoopOpener() (Token, error) {
 
 // expectForLoopCloser consumes the FOR-loop closer FOR or LOOP after END.
 func (p *Parser) expectForLoopCloser() (Token, error) {
-	switch p.cur.Type {
-	case kwFOR, kwSCRIPT_LOOP:
+	switch {
+	case p.curIs(kwFOR), p.curIs(kwSCRIPT_LOOP):
 		return p.advance(), nil
 	default:
 		return Token{}, p.syntaxErrorAtCur()
@@ -1185,8 +1185,8 @@ func (p *Parser) expectForLoopCloser() (Token, error) {
 
 // expectWhileLoopCloser consumes the WHILE-loop closer WHILE or LOOP after END.
 func (p *Parser) expectWhileLoopCloser() (Token, error) {
-	switch p.cur.Type {
-	case kwSCRIPT_WHILE, kwSCRIPT_LOOP:
+	switch {
+	case p.curIs(kwSCRIPT_WHILE), p.curIs(kwSCRIPT_LOOP):
 		return p.advance(), nil
 	default:
 		return Token{}, p.syntaxErrorAtCur()

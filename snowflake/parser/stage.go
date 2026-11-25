@@ -51,8 +51,8 @@ func (p *Parser) parseCreateStageStmt(start ast.Loc, orReplace, orAlter, tempora
 	}
 
 	// IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		if p.peekNext().Type == kwNOT {
+	if p.curIs(kwIF) {
+		if p.nextIs(kwNOT) {
 			p.advance() // consume IF
 			p.advance() // consume NOT
 			if _, err := p.expect(kwEXISTS); err != nil {
@@ -119,8 +119,8 @@ func (p *Parser) parseAlterStageStmt() (ast.Node, error) {
 	stmt := &ast.AlterStageStmt{Loc: ast.Loc{Start: altTok.Loc.Start}}
 
 	// Optional IF EXISTS
-	if p.cur.Type == kwIF {
-		if p.peekNext().Type == kwEXISTS {
+	if p.curIs(kwIF) {
+		if p.nextIs(kwEXISTS) {
 			p.advance() // consume IF
 			p.advance() // consume EXISTS
 			stmt.IfExists = true
@@ -135,8 +135,8 @@ func (p *Parser) parseAlterStageStmt() (ast.Node, error) {
 	stmt.Name = name
 
 	// Action branch.
-	switch p.cur.Type {
-	case kwRENAME:
+	switch {
+	case p.curIs(kwRENAME):
 		// RENAME TO <new_name>
 		p.advance() // consume RENAME
 		if _, err := p.expect(kwTO); err != nil {
@@ -149,9 +149,9 @@ func (p *Parser) parseAlterStageStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterStageRename
 		stmt.NewName = newName
 
-	case kwSET:
+	case p.curIs(kwSET):
 		p.advance() // consume SET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			// SET TAG <tag> = '<value>' [, ...]
 			tags, err := p.parseTagSetList()
 			if err != nil {
@@ -173,9 +173,9 @@ func (p *Parser) parseAlterStageStmt() (ast.Node, error) {
 			stmt.Options = opts
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			// UNSET TAG <tag> [, ...]
 			names, err := p.parseUnsetTagNameList()
 			if err != nil {
@@ -195,7 +195,7 @@ func (p *Parser) parseAlterStageStmt() (ast.Node, error) {
 			stmt.UnsetProps = props
 		}
 
-	case kwREFRESH:
+	case p.curIs(kwREFRESH):
 		// REFRESH [ SUBPATH = '<relative-path>' ]
 		p.advance() // consume REFRESH
 		stmt.Action = ast.AlterStageRefresh
@@ -246,8 +246,8 @@ func (p *Parser) parseStageOptions() ([]*ast.CopyOption, error) {
 // It is the COPY option predicate minus WITH and TAG, which anchor the trailing
 // [WITH] TAG clause and must not be swallowed as an option name.
 func (p *Parser) startsStageOption() bool {
-	switch p.cur.Type {
-	case kwWITH, kwTAG:
+	switch {
+	case p.curIs(kwWITH), p.curIs(kwTAG):
 		return false
 	}
 	return p.startsCopyOption()
@@ -257,10 +257,10 @@ func (p *Parser) startsStageOption() bool {
 // clause: either the TAG keyword directly, or WITH immediately followed by TAG
 // (a WITH not followed by TAG is not a tag clause and is left for the caller).
 func (p *Parser) startsStageTags() bool {
-	if p.cur.Type == kwTAG {
+	if p.curIs(kwTAG) {
 		return true
 	}
-	return p.cur.Type == kwWITH && p.peekNext().Type == kwTAG
+	return p.curIs(kwWITH) && p.nextIs(kwTAG)
 }
 
 // parseStageWithTags parses a [WITH] TAG (...) clause and returns the tag
@@ -269,7 +269,7 @@ func (p *Parser) startsStageTags() bool {
 // startsStageTags; calling it otherwise yields a syntax error from
 // parseTagAssignments.
 func (p *Parser) parseStageWithTags() ([]*ast.TagAssignment, error) {
-	if p.cur.Type == kwWITH {
+	if p.curIs(kwWITH) {
 		p.advance() // consume WITH (peekNext == TAG guaranteed by startsStageTags)
 	}
 	return p.parseTagAssignments()
@@ -299,7 +299,7 @@ func (p *Parser) parseTagSetList() ([]*ast.TagAssignment, error) {
 		}
 		tags = append(tags, &ast.TagAssignment{Name: tagName, Value: valueTok.Str})
 
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -324,7 +324,7 @@ func (p *Parser) parseUnsetTagNameList() ([]*ast.ObjectName, error) {
 		}
 		names = append(names, name)
 
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -348,7 +348,7 @@ func (p *Parser) parseStageUnsetProps() ([]string, error) {
 		}
 		props = append(props, prop)
 
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}

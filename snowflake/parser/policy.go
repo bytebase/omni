@@ -171,7 +171,7 @@ var docPolicies = []*docPolicy{
 // startsDocPolicy reports the policy whose <kind> POLICY keywords start at
 // cur, when it is one this file reads. It consumes nothing.
 func (p *Parser) startsDocPolicy() *docPolicy {
-	if p.cur.Type != tokIdent && p.cur.Type < 700 {
+	if !p.curIs(tokIdent) && p.cur.Type < 700 {
 		return nil
 	}
 	for _, d := range docPolicies {
@@ -233,7 +233,7 @@ func (p *Parser) parseCreateDocPolicy(start ast.Loc, orReplace, orAlter bool, d 
 		if _, err := p.expect(kwRETURNS); err != nil {
 			return nil, err
 		}
-		if !isWordToken(p.cur, d.returns) {
+		if !p.curWord(d.returns) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		ret := p.advance()
@@ -263,7 +263,7 @@ func (p *Parser) parseCreateDocPolicy(start ast.Loc, orReplace, orAlter bool, d 
 		return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: SCHEDULE is required"}
 	}
 
-	if d.definition && (p.cur.Type == kwAS || d.kind == ast.PolicyIngress) {
+	if d.definition && (p.curIs(kwAS) || d.kind == ast.PolicyIngress) {
 		def, err := p.parsePolicyDefinition()
 		if err != nil {
 			return nil, err
@@ -303,7 +303,7 @@ func (p *Parser) parseAlterDocPolicy(start ast.Loc, d *docPolicy) (ast.Node, err
 
 	tagStart := p.cur
 	switch {
-	case p.cur.Type == kwRENAME && d.rename:
+	case p.curIs(kwRENAME) && d.rename:
 		newName, err := p.parseRenameTo()
 		if err != nil {
 			return nil, err
@@ -311,7 +311,7 @@ func (p *Parser) parseAlterDocPolicy(start ast.Loc, d *docPolicy) (ast.Node, err
 		stmt.Action = ast.AlterPolicyRename
 		stmt.NewName = newName
 
-	case p.cur.Type == kwSET && p.peekNext().Type == kwTAG && d.tags:
+	case p.curIs(kwSET) && p.nextIs(kwTAG) && d.tags:
 		if stmt.IfExists && !d.tagsIfExists {
 			return nil, syntaxErrorAtTok(tagStart)
 		}
@@ -324,7 +324,7 @@ func (p *Parser) parseAlterDocPolicy(start ast.Loc, d *docPolicy) (ast.Node, err
 		stmt.Action = ast.AlterPolicySetTag
 		stmt.Tags = tags
 
-	case p.cur.Type == kwUNSET && p.peekNext().Type == kwTAG && d.tags:
+	case p.curIs(kwUNSET) && p.nextIs(kwTAG) && d.tags:
 		if stmt.IfExists && !d.tagsIfExists {
 			return nil, syntaxErrorAtTok(tagStart)
 		}
@@ -337,7 +337,7 @@ func (p *Parser) parseAlterDocPolicy(start ast.Loc, d *docPolicy) (ast.Node, err
 		stmt.Action = ast.AlterPolicyUnsetTag
 		stmt.UnsetTags = names
 
-	case p.cur.Type == kwSET && p.peekNext().Type == kwBODY && d.returns != "":
+	case p.curIs(kwSET) && p.nextIs(kwBODY) && d.returns != "":
 		p.advance() // consume SET
 		p.advance() // consume BODY
 		if _, err := p.expect(tokArrow); err != nil {
@@ -350,18 +350,18 @@ func (p *Parser) parseAlterDocPolicy(start ast.Loc, d *docPolicy) (ast.Node, err
 		stmt.Action = ast.AlterPolicySetBody
 		stmt.Body = body
 
-	case p.cur.Type == kwSET:
+	case p.curIs(kwSET):
 		p.advance() // consume SET
 		// FEATURE's SET may carry its AS '<definition>' alone; every other
 		// SET names a property.
-		need := !d.definition || d.kind == ast.PolicyIngress || p.cur.Type != kwAS
+		need := !d.definition || d.kind == ast.PolicyIngress || !p.curIs(kwAS)
 		opts, err := p.parsePolicyProps(d.set, need)
 		if err != nil {
 			return nil, err
 		}
 		stmt.Action = ast.AlterPolicySet
 		stmt.Options = opts
-		if d.definition && p.cur.Type == kwAS {
+		if d.definition && p.curIs(kwAS) {
 			def, err := p.parsePolicyDefinition()
 			if err != nil {
 				return nil, err
@@ -369,7 +369,7 @@ func (p *Parser) parseAlterDocPolicy(start ast.Loc, d *docPolicy) (ast.Node, err
 			stmt.Definition = def
 		}
 
-	case p.cur.Type == kwAS && d.definition:
+	case p.curIs(kwAS) && d.definition:
 		def, err := p.parsePolicyDefinition()
 		if err != nil {
 			return nil, err
@@ -377,7 +377,7 @@ func (p *Parser) parseAlterDocPolicy(start ast.Loc, d *docPolicy) (ast.Node, err
 		stmt.Action = ast.AlterPolicyAs
 		stmt.Definition = def
 
-	case p.cur.Type == kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
 		unsetStart := p.cur
 		keys, err := p.parseObjectUnsetKeys()

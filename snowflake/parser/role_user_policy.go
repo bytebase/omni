@@ -75,7 +75,7 @@ func (p *Parser) parseCreateRoleStmt(start ast.Loc, orReplace, orAlter, database
 
 	// CREATE [ OR REPLACE ] DATABASE ROLE [ IF NOT EXISTS ] <name> CLONE <source_role>
 	// (https://docs.snowflake.com/en/sql-reference/sql/create-clone).
-	if p.cur.Type == kwCLONE {
+	if p.curIs(kwCLONE) {
 		if !database || orAlter || (orReplace && stmt.IfNotExists) || !name.Database.IsEmpty() {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -97,7 +97,7 @@ func (p *Parser) parseCreateRoleStmt(start ast.Loc, orReplace, orAlter, database
 
 	// Trailing COMMENT / [WITH] TAG, in either order.
 	for {
-		if p.cur.Type == kwCOMMENT {
+		if p.curIs(kwCOMMENT) {
 			if err := p.parseEqComment(&stmt.Comment); err != nil {
 				return nil, err
 			}
@@ -290,7 +290,7 @@ func (p *Parser) parsePolicyArgs() ([]*ast.PolicyArg, error) {
 			Loc:      ast.Loc{Start: name.Loc.Start, End: dt.Loc.End},
 		})
 
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -332,8 +332,8 @@ func (p *Parser) parseAlterRoleStmt(database bool) (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	switch p.cur.Type {
-	case kwRENAME:
+	switch {
+	case p.curIs(kwRENAME):
 		newName, err := p.parseRenameTo()
 		if err != nil {
 			return nil, err
@@ -341,9 +341,9 @@ func (p *Parser) parseAlterRoleStmt(database bool) (ast.Node, error) {
 		stmt.Action = ast.AlterRoleRename
 		stmt.NewName = newName
 
-	case kwSET:
+	case p.curIs(kwSET):
 		p.advance() // consume SET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			tags, err := p.parseTagSetList()
 			if err != nil {
 				return nil, err
@@ -352,7 +352,7 @@ func (p *Parser) parseAlterRoleStmt(database bool) (ast.Node, error) {
 			stmt.Tags = tags
 		} else {
 			// SET COMMENT = '...'
-			if p.cur.Type != kwCOMMENT {
+			if !p.curIs(kwCOMMENT) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			if err := p.parseEqComment(&stmt.Comment); err != nil {
@@ -361,9 +361,9 @@ func (p *Parser) parseAlterRoleStmt(database bool) (ast.Node, error) {
 			stmt.Action = ast.AlterRoleSetComment
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			names, err := p.parseUnsetTagNameList()
 			if err != nil {
 				return nil, err
@@ -372,7 +372,7 @@ func (p *Parser) parseAlterRoleStmt(database bool) (ast.Node, error) {
 			stmt.UnsetTags = names
 		} else {
 			// UNSET COMMENT (the only unsettable role property).
-			if p.cur.Type != kwCOMMENT {
+			if !p.curIs(kwCOMMENT) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			p.advance() // consume COMMENT
@@ -433,7 +433,7 @@ func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
 	}
 
 	switch {
-	case p.cur.Type == kwRENAME:
+	case p.curIs(kwRENAME):
 		newName, err := p.parseRenameTo()
 		if err != nil {
 			return nil, err
@@ -441,7 +441,7 @@ func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterUserRename
 		stmt.NewName = newName
 
-	case p.cur.Type == kwRESET:
+	case p.curIs(kwRESET):
 		// RESET PASSWORD
 		p.advance() // consume RESET
 		if _, err := p.expect(kwPASSWORD); err != nil {
@@ -449,7 +449,7 @@ func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
 		}
 		stmt.Action = ast.AlterUserResetPassword
 
-	case p.cur.Type == kwABORT:
+	case p.curIs(kwABORT):
 		// ABORT ALL QUERIES
 		p.advance() // consume ABORT
 		if _, err := p.expect(kwALL); err != nil {
@@ -460,7 +460,7 @@ func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
 		}
 		stmt.Action = ast.AlterUserAbortQueries
 
-	case p.cur.Type == kwADD && p.peekNext().Type == kwDELEGATED:
+	case p.curIs(kwADD) && p.nextIs(kwDELEGATED):
 		// ADD DELEGATED AUTHORIZATION OF ROLE <r> TO SECURITY INTEGRATION <i>
 		rawStart := p.cur.Loc.Start
 		if err := p.parseAddDelegatedAuthorization(); err != nil {
@@ -469,7 +469,7 @@ func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterUserAddDelegated
 		stmt.Raw = p.srcSlice(rawStart, p.prev.Loc.End)
 
-	case p.cur.Type == kwREMOVE && p.peekNext().Type == kwDELEGATED:
+	case p.curIs(kwREMOVE) && p.nextIs(kwDELEGATED):
 		// REMOVE DELEGATED { AUTHORIZATION OF ROLE <r> | AUTHORIZATIONS
 		//   [ OF ANY ROLE ] } FROM SECURITY INTEGRATION <i>
 		rawStart := p.cur.Loc.Start
@@ -479,16 +479,16 @@ func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterUserRemoveDelegated
 		stmt.Raw = p.srcSlice(rawStart, p.prev.Loc.End)
 
-	case p.cur.Type == kwADD, p.cur.Type == kwREMOVE, p.cur.Type == kwMODIFY,
+	case p.curIs(kwADD), p.curIs(kwREMOVE), p.curIs(kwMODIFY),
 		p.curIsUnquotedWord("ROTATE"), p.curIsUnquotedWord("ENROLL"):
 		if err := p.parseAlterUserCredential(stmt); err != nil {
 			return nil, err
 		}
 
-	case p.cur.Type == kwSET:
+	case p.curIs(kwSET):
 		p.advance() // consume SET
 		switch {
-		case p.cur.Type == kwTAG:
+		case p.curIs(kwTAG):
 			tags, err := p.parseTagSetList()
 			if err != nil {
 				return nil, err
@@ -503,7 +503,7 @@ func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
 			}
 			stmt.Action = ast.AlterUserSetPolicy
 			stmt.PolicyName = name
-			if p.cur.Type == kwFORCE {
+			if p.curIs(kwFORCE) {
 				p.advance() // consume FORCE
 				stmt.Force = true
 			}
@@ -520,10 +520,10 @@ func (p *Parser) parseAlterUserStmt() (ast.Node, error) {
 			stmt.Options = opts
 		}
 
-	case p.cur.Type == kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
 		switch {
-		case p.cur.Type == kwTAG:
+		case p.curIs(kwTAG):
 			names, err := p.parseUnsetTagNameList()
 			if err != nil {
 				return nil, err
@@ -561,7 +561,7 @@ func (p *Parser) omitsAlterUserName() bool {
 		return false
 	}
 	next := p.peekNext()
-	return next.Type != '.' && !isAlterUserActionWord(next)
+	return !p.nextIs('.') && !isAlterUserActionWord(next)
 }
 
 // isAlterUserActionWord reports whether tok is a word that can begin an ALTER
@@ -582,7 +582,11 @@ func isAlterUserActionWord(tok Token) bool {
 // curIsUnquotedWord reports whether cur is the unquoted identifier upper (a
 // word the lexer does not keywordize), so a double-quoted name never matches.
 func (p *Parser) curIsUnquotedWord(upper string) bool {
-	return p.cur.Type == tokIdent && strings.ToUpper(p.cur.Str) == upper
+	if p.curIs(tokIdent) && strings.ToUpper(p.cur.Str) == upper {
+		return true
+	}
+	p.wantWords(upper)
+	return false
 }
 
 // startsUserPolicy reports whether cur begins the policy-kind words of ALTER
@@ -592,11 +596,11 @@ func (p *Parser) curIsUnquotedWord(upper string) bool {
 // statement names its user (named): its page writes `ALTER USER <name>`
 // (https://docs.snowflake.com/en/sql-reference/sql/alter-user-set-ingress-policy).
 func (p *Parser) startsUserPolicy(named bool) bool {
-	if p.peekNext().Type != kwPOLICY {
+	if !p.nextIs(kwPOLICY) {
 		return false
 	}
 	switch {
-	case p.cur.Type == kwPASSWORD, p.cur.Type == kwSESSION:
+	case p.curIs(kwPASSWORD), p.curIs(kwSESSION):
 		return true
 	case p.curIsUnquotedWord("AUTHENTICATION"):
 		return true
@@ -663,8 +667,8 @@ func (p *Parser) parseRemoveDelegatedAuthorization() error {
 	if _, err := p.expect(kwDELEGATED); err != nil {
 		return err
 	}
-	switch p.cur.Type {
-	case kwAUTHORIZATION:
+	switch {
+	case p.curIs(kwAUTHORIZATION):
 		p.advance() // consume AUTHORIZATION
 		if _, err := p.expect(kwOF); err != nil {
 			return err
@@ -675,11 +679,11 @@ func (p *Parser) parseRemoveDelegatedAuthorization() error {
 		if _, err := p.parseObjectName(); err != nil {
 			return err
 		}
-	case kwAUTHORIZATIONS:
+	case p.curIs(kwAUTHORIZATIONS):
 		p.advance() // consume AUTHORIZATIONS
 		// AUTHORIZATIONS OF ANY ROLE is the same removal written out
 		// (https://docs.snowflake.com/en/sql-reference/sql/alter-user).
-		if p.cur.Type == kwOF {
+		if p.curIs(kwOF) {
 			p.advance() // consume OF
 			if _, err := p.expect(kwANY); err != nil {
 				return err
@@ -740,8 +744,8 @@ func (p *Parser) parseAlterPolicyStmt(startLoc ast.Loc, kind ast.PolicyKind) (as
 	}
 	stmt.Name = name
 
-	switch p.cur.Type {
-	case kwRENAME:
+	switch {
+	case p.curIs(kwRENAME):
 		newName, err := p.parseRenameTo()
 		if err != nil {
 			return nil, err
@@ -749,10 +753,10 @@ func (p *Parser) parseAlterPolicyStmt(startLoc ast.Loc, kind ast.PolicyKind) (as
 		stmt.Action = ast.AlterPolicyRename
 		stmt.NewName = newName
 
-	case kwSET:
+	case p.curIs(kwSET):
 		p.advance() // consume SET
 		switch {
-		case p.cur.Type == kwBODY:
+		case p.curIs(kwBODY):
 			// SET BODY -> <expr> (MASKING / ROW ACCESS).
 			p.advance() // consume BODY
 			if _, err := p.expect(tokArrow); err != nil {
@@ -764,7 +768,7 @@ func (p *Parser) parseAlterPolicyStmt(startLoc ast.Loc, kind ast.PolicyKind) (as
 			}
 			stmt.Action = ast.AlterPolicySetBody
 			stmt.Body = body
-		case p.cur.Type == kwTAG:
+		case p.curIs(kwTAG):
 			tags, err := p.parseTagSetList()
 			if err != nil {
 				return nil, err
@@ -784,9 +788,9 @@ func (p *Parser) parseAlterPolicyStmt(startLoc ast.Loc, kind ast.PolicyKind) (as
 			stmt.Options = opts
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			names, err := p.parseUnsetTagNameList()
 			if err != nil {
 				return nil, err
@@ -803,7 +807,7 @@ func (p *Parser) parseAlterPolicyStmt(startLoc ast.Loc, kind ast.PolicyKind) (as
 			stmt.UnsetProps = props
 		}
 
-	case kwADD, kwREMOVE:
+	case p.curIs(kwADD), p.curIs(kwREMOVE):
 		if kind != ast.PolicyNetwork || stmt.IfExists {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -811,7 +815,7 @@ func (p *Parser) parseAlterPolicyStmt(startLoc ast.Loc, kind ast.PolicyKind) (as
 		if p.advance().Type == kwREMOVE {
 			stmt.Action = ast.AlterPolicyRemove
 		}
-		if !(p.atWords("ALLOWED_NETWORK_RULE_LIST") || p.atWords("BLOCKED_NETWORK_RULE_LIST")) || p.peekNext().Type != '=' {
+		if !(p.atWords("ALLOWED_NETWORK_RULE_LIST") || p.atWords("BLOCKED_NETWORK_RULE_LIST")) || !p.nextIs('=') {
 			return nil, p.syntaxErrorAtCur()
 		}
 		opt, err := p.parseObjectProperty()
@@ -847,15 +851,15 @@ func (p *Parser) parseAlterPolicyStmt(startLoc ast.Loc, kind ast.PolicyKind) (as
 // intervening ACCESS) is confirmed so non-policy statements (e.g. ALTER NETWORK
 // RULE, ALTER SESSION) are not misrouted.
 func (p *Parser) startsPolicyKeyword() bool {
-	switch p.cur.Type {
-	case kwMASKING, kwSESSION, kwPASSWORD, kwNETWORK:
-		return p.peekNext().Type == kwPOLICY
-	case kwROW:
+	switch {
+	case p.curIs(kwMASKING), p.curIs(kwSESSION), p.curIs(kwPASSWORD), p.curIs(kwNETWORK):
+		return p.nextIs(kwPOLICY)
+	case p.curIs(kwROW):
 		// ROW ACCESS POLICY — only the ROW + ACCESS prefix is checkable with one
 		// token of lookahead; consumePolicyKeywords validates the POLICY keyword.
-		return p.peekNext().Type == kwACCESS
+		return p.nextIs(kwACCESS)
 	}
-	return p.curIsWord("AUTHENTICATION") && p.peekNext().Type == kwPOLICY
+	return p.curIsWord("AUTHENTICATION") && p.nextIs(kwPOLICY)
 }
 
 // consumePolicyKeywords consumes the policy-kind keyword(s) and the trailing
@@ -863,14 +867,14 @@ func (p *Parser) startsPolicyKeyword() bool {
 // policy-kind word. Returns a syntax error if the token sequence is not a valid
 // policy prefix.
 func (p *Parser) consumePolicyKeywords() (ast.PolicyKind, error) {
-	switch p.cur.Type {
-	case kwMASKING:
+	switch {
+	case p.curIs(kwMASKING):
 		p.advance() // consume MASKING
 		if _, err := p.expect(kwPOLICY); err != nil {
 			return 0, err
 		}
 		return ast.PolicyMasking, nil
-	case kwROW:
+	case p.curIs(kwROW):
 		p.advance() // consume ROW
 		if _, err := p.expect(kwACCESS); err != nil {
 			return 0, err
@@ -879,19 +883,19 @@ func (p *Parser) consumePolicyKeywords() (ast.PolicyKind, error) {
 			return 0, err
 		}
 		return ast.PolicyRowAccess, nil
-	case kwSESSION:
+	case p.curIs(kwSESSION):
 		p.advance() // consume SESSION
 		if _, err := p.expect(kwPOLICY); err != nil {
 			return 0, err
 		}
 		return ast.PolicySession, nil
-	case kwPASSWORD:
+	case p.curIs(kwPASSWORD):
 		p.advance() // consume PASSWORD
 		if _, err := p.expect(kwPOLICY); err != nil {
 			return 0, err
 		}
 		return ast.PolicyPassword, nil
-	case kwNETWORK:
+	case p.curIs(kwNETWORK):
 		p.advance() // consume NETWORK
 		if _, err := p.expect(kwPOLICY); err != nil {
 			return 0, err
@@ -913,8 +917,8 @@ func (p *Parser) consumePolicyKeywords() (ast.PolicyKind, error) {
 // option. It is the COPY option predicate minus WITH and TAG, which anchor the
 // trailing [WITH] TAG clause and must not be swallowed as an option name.
 func (p *Parser) startsUserOption() bool {
-	switch p.cur.Type {
-	case kwWITH, kwTAG:
+	switch {
+	case p.curIs(kwWITH), p.curIs(kwTAG):
 		return false
 	}
 	return p.startsCopyOption()
@@ -923,16 +927,16 @@ func (p *Parser) startsUserOption() bool {
 // startsWithTags reports whether the current position begins a [WITH] TAG
 // clause: either the TAG keyword directly, or WITH immediately followed by TAG.
 func (p *Parser) startsWithTags() bool {
-	if p.cur.Type == kwTAG {
+	if p.curIs(kwTAG) {
 		return true
 	}
-	return p.cur.Type == kwWITH && p.peekNext().Type == kwTAG
+	return p.curIs(kwWITH) && p.nextIs(kwTAG)
 }
 
 // parseWithTags parses a [WITH] TAG ( <tag> = '<value>' [ , ... ] ) clause and
 // returns the tag assignments. The caller must have confirmed startsWithTags.
 func (p *Parser) parseWithTags() ([]*ast.TagAssignment, error) {
-	if p.cur.Type == kwWITH {
+	if p.curIs(kwWITH) {
 		p.advance() // consume WITH (peekNext == TAG guaranteed by startsWithTags)
 	}
 	return p.parseTagAssignments()
@@ -952,7 +956,7 @@ func (p *Parser) parseUnsetPropertyNames() ([]string, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		names = append(names, strings.ToUpper(p.advance().Str))
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -963,7 +967,7 @@ func (p *Parser) parseUnsetPropertyNames() ([]string, error) {
 
 // parseIfNotExists consumes an optional IF NOT EXISTS clause, setting *flag.
 func (p *Parser) parseIfNotExists(flag *bool) error {
-	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
+	if p.curIs(kwIF) && p.nextIs(kwNOT) {
 		p.advance() // consume IF
 		p.advance() // consume NOT
 		if _, err := p.expect(kwEXISTS); err != nil {
@@ -976,7 +980,7 @@ func (p *Parser) parseIfNotExists(flag *bool) error {
 
 // parseIfExists consumes an optional IF EXISTS clause, setting *flag.
 func (p *Parser) parseIfExists(flag *bool) error {
-	if p.cur.Type == kwIF && p.peekNext().Type == kwEXISTS {
+	if p.curIs(kwIF) && p.nextIs(kwEXISTS) {
 		p.advance() // consume IF
 		p.advance() // consume EXISTS
 		*flag = true
@@ -1000,7 +1004,7 @@ func (p *Parser) parseRenameTo() (*ast.ObjectName, error) {
 // merged DDL.
 func (p *Parser) parseEqComment(dst **string) error {
 	p.advance() // consume COMMENT
-	if p.cur.Type == '=' {
+	if p.curIs('=') {
 		p.advance() // consume '='
 	}
 	tok, err := p.expect(tokString)

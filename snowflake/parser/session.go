@@ -35,8 +35,8 @@ func (p *Parser) parseUseStmt() (ast.Node, error) {
 
 	stmt := &ast.UseStmt{Loc: ast.Loc{Start: start.Start}}
 
-	switch p.cur.Type {
-	case kwROLE:
+	switch {
+	case p.curIs(kwROLE):
 		p.advance() // consume ROLE
 		stmt.Kind = ast.UseRole
 		name, err := p.parseObjectName()
@@ -45,7 +45,7 @@ func (p *Parser) parseUseStmt() (ast.Node, error) {
 		}
 		stmt.Name = name
 
-	case kwWAREHOUSE:
+	case p.curIs(kwWAREHOUSE):
 		p.advance() // consume WAREHOUSE
 		stmt.Kind = ast.UseWarehouse
 		name, err := p.parseObjectName()
@@ -54,7 +54,7 @@ func (p *Parser) parseUseStmt() (ast.Node, error) {
 		}
 		stmt.Name = name
 
-	case kwDATABASE:
+	case p.curIs(kwDATABASE):
 		p.advance() // consume DATABASE
 		stmt.Kind = ast.UseDatabase
 		name, err := p.parseObjectName()
@@ -63,7 +63,7 @@ func (p *Parser) parseUseStmt() (ast.Node, error) {
 		}
 		stmt.Name = name
 
-	case kwSCHEMA:
+	case p.curIs(kwSCHEMA):
 		p.advance() // consume SCHEMA
 		stmt.Kind = ast.UseSchema
 		name, err := p.parseObjectName()
@@ -72,7 +72,7 @@ func (p *Parser) parseUseStmt() (ast.Node, error) {
 		}
 		stmt.Name = name
 
-	case kwSECONDARY:
+	case p.curIs(kwSECONDARY):
 		p.advance() // consume SECONDARY
 		if _, err := p.expect(kwROLES); err != nil {
 			return nil, err
@@ -108,11 +108,11 @@ func (p *Parser) parseUseStmt() (ast.Node, error) {
 // ALL/NONE are returned uppercased verbatim. A role-name list is comma-joined.
 // On entry the ROLES keyword has already been consumed.
 func (p *Parser) parseSecondaryRoles() (string, error) {
-	switch p.cur.Type {
-	case kwALL:
+	switch {
+	case p.curIs(kwALL):
 		p.advance()
 		return "ALL", nil
-	case kwNONE:
+	case p.curIs(kwNONE):
 		p.advance()
 		return "NONE", nil
 	}
@@ -128,7 +128,7 @@ func (p *Parser) parseSecondaryRoles() (string, error) {
 			return "", err
 		}
 		roles = append(roles, name.String())
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -153,7 +153,7 @@ func (p *Parser) parseSetStmt() (ast.Node, error) {
 
 	stmt := &ast.SetStmt{Loc: ast.Loc{Start: start.Start}}
 
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		// SET ( v1, v2, ... ) = ( e1, e2, ... )
 		stmt.Paren = true
 		names, nameLocs, err := p.parseParenIdentList()
@@ -222,7 +222,7 @@ func (p *Parser) parseParenIdentList() ([]ast.Ident, []ast.Loc, error) {
 		}
 		names = append(names, name)
 		locs = append(locs, name.Loc)
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -253,7 +253,7 @@ func (p *Parser) parseUnsetStmt() (ast.Node, error) {
 
 	stmt := &ast.UnsetStmt{Loc: ast.Loc{Start: start.Start}}
 
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		stmt.Paren = true
 		names, _, err := p.parseParenIdentList()
 		if err != nil {

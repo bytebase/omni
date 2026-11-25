@@ -98,7 +98,7 @@ func (p *Parser) parseAlterUserCredential(stmt *ast.AlterUserStmt) error {
 
 	// ADD MFA METHOD OTP takes nothing but an optional COUNT = <n>.
 	if kind == ast.UserCredentialMFAMethod {
-		if p.cur.Type == kwCOUNT && p.peekNext().Type == '=' {
+		if p.curIs(kwCOUNT) && p.nextIs('=') {
 			opt, err := p.parseCopyOption()
 			if err != nil {
 				return err
@@ -116,7 +116,7 @@ func (p *Parser) parseAlterUserCredential(stmt *ast.AlterUserStmt) error {
 	case ast.UserCredentialWorkloadIdentity:
 		lead = "TYPE"
 	}
-	if lead != "" && (!p.curIsWord(lead) || p.peekNext().Type != '=') {
+	if lead != "" && (!p.curIsWord(lead) || !p.nextIs('=')) {
 		return p.syntaxErrorAtCur()
 	}
 	opts, err := p.parseUserOptions()
@@ -134,7 +134,7 @@ func (p *Parser) parseAlterUserCredential(stmt *ast.AlterUserStmt) error {
 // to fail as a trailing token.
 func (p *Parser) parseUserOptions() ([]*ast.CopyOption, error) {
 	var opts []*ast.CopyOption
-	for p.startsCopyOption() && p.peekNext().Type == '=' {
+	for p.startsCopyOption() && p.nextIs('=') {
 		opt, err := p.parseCopyOption()
 		if err != nil {
 			return nil, err
@@ -149,7 +149,7 @@ func (p *Parser) parseUserOptions() ([]*ast.CopyOption, error) {
 // IDENTITY, or MFA METHOD. ROTATE takes only KEY PAIR and the token.
 func (p *Parser) parseUserCredentialKind(rotate bool) (ast.UserCredentialKind, error) {
 	switch {
-	case p.cur.Type == kwKEY:
+	case p.curIs(kwKEY):
 		p.advance() // consume KEY
 		if !p.curIsUnquotedWord("PAIR") {
 			return 0, p.syntaxErrorAtCur()
@@ -192,17 +192,17 @@ func (p *Parser) parseUserCredentialKind(rotate bool) (ast.UserCredentialKind, e
 func (p *Parser) parseModifyUserCredential(stmt *ast.AlterUserStmt) error {
 	mfa := stmt.Credential == ast.UserCredentialMFAMethod
 	switch {
-	case p.cur.Type == kwRENAME && !mfa:
+	case p.curIs(kwRENAME) && !mfa:
 		newName, err := p.parseRenameTo()
 		if err != nil {
 			return err
 		}
 		stmt.Action = ast.AlterUserModifyCredentialRename
 		stmt.NewName = newName
-	case p.cur.Type == kwSET:
+	case p.curIs(kwSET):
 		p.advance() // consume SET
 		if mfa {
-			if !p.curIsWord("COMMENT") || p.peekNext().Type != '=' {
+			if !p.curIsWord("COMMENT") || !p.nextIs('=') {
 				return p.syntaxErrorAtCur()
 			}
 			opt, err := p.parseCopyOption()
@@ -221,7 +221,7 @@ func (p *Parser) parseModifyUserCredential(stmt *ast.AlterUserStmt) error {
 			stmt.Options = opts
 		}
 		stmt.Action = ast.AlterUserModifyCredentialSet
-	case p.cur.Type == kwUNSET && !mfa:
+	case p.curIs(kwUNSET) && !mfa:
 		p.advance() // consume UNSET
 		props, err := p.parseUnsetPropertyNames()
 		if err != nil {

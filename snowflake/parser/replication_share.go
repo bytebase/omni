@@ -57,7 +57,7 @@ import (
 //	CREATE [ OR REPLACE ] { FAILOVER | REPLICATION } GROUP [ IF NOT EXISTS ] <name>
 //	  AS REPLICA OF <org>.<source_account>.<name>
 func (p *Parser) parseCreateReplicationGroupStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
-	failover := p.cur.Type == kwFAILOVER
+	failover := p.curIs(kwFAILOVER)
 	p.advance() // consume FAILOVER / REPLICATION
 	if _, err := p.expect(kwGROUP); err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func (p *Parser) parseCreateReplicationGroupStmt(start ast.Loc, orReplace, orAlt
 	stmt.Name = name
 
 	// Secondary form: AS REPLICA OF <org>.<account>.<name>.
-	if p.cur.Type == kwAS {
+	if p.curIs(kwAS) {
 		p.advance() // consume AS
 		if _, err := p.expect(kwREPLICA); err != nil {
 			return nil, err
@@ -111,7 +111,7 @@ func (p *Parser) parseCreateReplicationGroupStmt(start ast.Loc, orReplace, orAlt
 			stmt.Tags = append(stmt.Tags, tags...)
 			continue
 		}
-		if p.cur.Type == kwIGNORE {
+		if p.curIs(kwIGNORE) {
 			if err := p.parseIgnoreEditionCheck(); err != nil {
 				return nil, err
 			}
@@ -142,7 +142,7 @@ func (p *Parser) parseCreateReplicationGroupStmt(start ast.Loc, orReplace, orAlt
 // consumed; cur is the FAILOVER or REPLICATION keyword (followed by GROUP).
 func (p *Parser) parseAlterReplicationGroupStmt() (ast.Node, error) {
 	startLoc := p.cur.Loc // object keyword anchors Loc.Start (ALTER convention)
-	failover := p.cur.Type == kwFAILOVER
+	failover := p.curIs(kwFAILOVER)
 	p.advance() // consume FAILOVER / REPLICATION
 	if _, err := p.expect(kwGROUP); err != nil {
 		return nil, err
@@ -158,8 +158,8 @@ func (p *Parser) parseAlterReplicationGroupStmt() (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	switch p.cur.Type {
-	case kwRENAME:
+	switch {
+	case p.curIs(kwRENAME):
 		// RENAME TO <new_name>
 		p.advance() // consume RENAME
 		if _, err := p.expect(kwTO); err != nil {
@@ -172,17 +172,17 @@ func (p *Parser) parseAlterReplicationGroupStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterGroupRename
 		stmt.NewName = newName
 
-	case kwSET:
+	case p.curIs(kwSET):
 		if err := p.parseAlterGroupSet(stmt); err != nil {
 			return nil, err
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		if err := p.parseAlterGroupUnset(stmt); err != nil {
 			return nil, err
 		}
 
-	case kwADD:
+	case p.curIs(kwADD):
 		// ADD <name-list> TO ALLOWED_{DATABASES|EXTERNAL_VOLUMES|SHARES|ACCOUNTS} [ IGNORE EDITION CHECK ]
 		p.advance() // consume ADD
 		names, err := p.parseObjectNameList()
@@ -204,14 +204,14 @@ func (p *Parser) parseAlterReplicationGroupStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterGroupAdd
 		stmt.Names = names
 		stmt.ListTarget = target
-		if p.cur.Type == kwIGNORE && target != "ALLOWED_EXTERNAL_VOLUMES" {
+		if p.curIs(kwIGNORE) && target != "ALLOWED_EXTERNAL_VOLUMES" {
 			if err := p.parseIgnoreEditionCheck(); err != nil {
 				return nil, err
 			}
 			stmt.IgnoreEditionCheck = true
 		}
 
-	case kwREMOVE:
+	case p.curIs(kwREMOVE):
 		// REMOVE <name-list> FROM ALLOWED_{DATABASES|EXTERNAL_VOLUMES|SHARES|ACCOUNTS}
 		p.advance() // consume REMOVE
 		names, err := p.parseObjectNameList()
@@ -234,18 +234,18 @@ func (p *Parser) parseAlterReplicationGroupStmt() (ast.Node, error) {
 		stmt.Names = names
 		stmt.ListTarget = target
 
-	case kwMOVE:
+	case p.curIs(kwMOVE):
 		// MOVE { DATABASES | EXTERNAL VOLUMES | SHARES } <name-list> TO { FAILOVER | REPLICATION } GROUP <name>
 		p.advance() // consume MOVE
 		switch {
-		case p.cur.Type == kwDATABASES:
+		case p.curIs(kwDATABASES):
 			p.advance()
 			stmt.MoveKind = "DATABASES"
-		case p.cur.Type == kwEXTERNAL && isWordToken(p.peekNext(), "VOLUMES"):
+		case p.curIs(kwEXTERNAL) && p.nextWord("VOLUMES"):
 			p.advance() // consume EXTERNAL
 			p.advance() // consume VOLUMES
 			stmt.MoveKind = "EXTERNAL VOLUMES"
-		case p.cur.Type == kwSHARES:
+		case p.curIs(kwSHARES):
 			p.advance()
 			stmt.MoveKind = "SHARES"
 		default:
@@ -264,9 +264,9 @@ func (p *Parser) parseAlterReplicationGroupStmt() (ast.Node, error) {
 			return nil, err
 		}
 		// TO { FAILOVER | REPLICATION } GROUP <name>.
-		switch p.cur.Type {
-		case kwFAILOVER, kwREPLICATION:
-			if stmt.MoveKind == "EXTERNAL VOLUMES" && (p.cur.Type == kwFAILOVER) != failover {
+		switch {
+		case p.curIs(kwFAILOVER), p.curIs(kwREPLICATION):
+			if stmt.MoveKind == "EXTERNAL VOLUMES" && (p.curIs(kwFAILOVER)) != failover {
 				return nil, p.syntaxErrorAtCur()
 			}
 			p.advance()
@@ -289,23 +289,23 @@ func (p *Parser) parseAlterReplicationGroupStmt() (ast.Node, error) {
 		stmt.Names = names
 		stmt.MoveTo = moveTo
 
-	case kwREFRESH:
+	case p.curIs(kwREFRESH):
 		p.advance() // consume REFRESH
 		stmt.Action = ast.AlterGroupRefresh
 
-	case kwPRIMARY:
+	case p.curIs(kwPRIMARY):
 		p.advance() // consume PRIMARY
 		stmt.Action = ast.AlterGroupPrimary
 
-	case kwSUSPEND:
+	case p.curIs(kwSUSPEND):
 		p.advance() // consume SUSPEND
 		stmt.Action = ast.AlterGroupSuspend
-		if p.cur.Type == kwIMMEDIATE {
+		if p.curIs(kwIMMEDIATE) {
 			p.advance() // consume IMMEDIATE
 			stmt.Immediate = true
 		}
 
-	case kwRESUME:
+	case p.curIs(kwRESUME):
 		p.advance() // consume RESUME
 		stmt.Action = ast.AlterGroupResume
 
@@ -325,7 +325,7 @@ func (p *Parser) parseAlterReplicationGroupStmt() (ast.Node, error) {
 func (p *Parser) parseAlterGroupSet(stmt *ast.AlterReplicationGroupStmt) error {
 	p.advance() // consume SET
 
-	if p.cur.Type == kwTAG {
+	if p.curIs(kwTAG) {
 		tags, err := p.parseTagSetList()
 		if err != nil {
 			return err
@@ -356,7 +356,7 @@ func (p *Parser) parseAlterGroupSet(stmt *ast.AlterReplicationGroupStmt) error {
 func (p *Parser) parseAlterGroupUnset(stmt *ast.AlterReplicationGroupStmt) error {
 	p.advance() // consume UNSET
 
-	if p.cur.Type == kwTAG {
+	if p.curIs(kwTAG) {
 		names, err := p.parseUnsetTagNameList()
 		if err != nil {
 			return err
@@ -387,7 +387,7 @@ func (p *Parser) parseAlterGroupUnset(stmt *ast.AlterReplicationGroupStmt) error
 //	CREATE ACCOUNT <name> ADMIN_NAME = ... <space-separated params...>
 //	CREATE [ OR REPLACE ] MANAGED ACCOUNT <name> ADMIN_NAME = ..., <comma-separated params...>
 func (p *Parser) parseCreateAccountStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
-	managed := p.cur.Type == kwMANAGED
+	managed := p.curIs(kwMANAGED)
 	if managed {
 		p.advance() // consume MANAGED
 	}
@@ -450,7 +450,7 @@ func (p *Parser) parseAlterAccountStmt() (ast.Node, error) {
 	// https://docs.snowflake.com/en/sql-reference/sql/alter-account
 	if p.atWords("ADD", "ORGANIZATION", "USER", "GROUP") || p.atWords("REMOVE", "ORGANIZATION", "USER", "GROUP") {
 		stmt.Action = ast.AlterAccountAddOrganizationUserGroup
-		if p.cur.Type == kwREMOVE {
+		if p.curIs(kwREMOVE) {
 			stmt.Action = ast.AlterAccountRemoveOrganizationUserGroup
 		}
 		for range 4 {
@@ -467,7 +467,7 @@ func (p *Parser) parseAlterAccountStmt() (ast.Node, error) {
 
 	// Cross-account form: a name precedes the action when the next token is not
 	// SET / UNSET.
-	if p.cur.Type != kwSET && p.cur.Type != kwUNSET {
+	if !p.curIs(kwSET) && !p.curIs(kwUNSET) {
 		name, err := p.parseObjectName()
 		if err != nil {
 			return nil, err
@@ -475,18 +475,18 @@ func (p *Parser) parseAlterAccountStmt() (ast.Node, error) {
 		stmt.Name = name
 	}
 
-	switch p.cur.Type {
-	case kwSET:
+	switch {
+	case p.curIs(kwSET):
 		if err := p.parseAlterAccountSet(stmt); err != nil {
 			return nil, err
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		if err := p.parseAlterAccountUnset(stmt); err != nil {
 			return nil, err
 		}
 
-	case kwRENAME:
+	case p.curIs(kwRENAME):
 		// <name> RENAME TO <new_name> [ SAVE_OLD_URL = { TRUE | FALSE } ].
 		p.advance() // consume RENAME
 		if _, err := p.expect(kwTO); err != nil {
@@ -498,7 +498,7 @@ func (p *Parser) parseAlterAccountStmt() (ast.Node, error) {
 		}
 		stmt.Action = ast.AlterAccountRename
 		stmt.NewName = newName
-		if p.cur.Type == kwSAVE_OLD_URL {
+		if p.curIs(kwSAVE_OLD_URL) {
 			p.advance() // consume SAVE_OLD_URL
 			if _, err := p.expect('='); err != nil {
 				return nil, err
@@ -510,13 +510,13 @@ func (p *Parser) parseAlterAccountStmt() (ast.Node, error) {
 			stmt.SaveOldURL = &b
 		}
 
-	case kwDROP:
+	case p.curIs(kwDROP):
 		// <name> DROP OLD [ ORGANIZATION ] URL.
 		p.advance() // consume DROP
 		if _, err := p.expect(kwOLD); err != nil {
 			return nil, err
 		}
-		if p.cur.Type == kwORGANIZATION {
+		if p.curIs(kwORGANIZATION) {
 			p.advance() // consume ORGANIZATION
 			stmt.Organization = true
 		}
@@ -542,7 +542,7 @@ func (p *Parser) parseAlterAccountStmt() (ast.Node, error) {
 func (p *Parser) parseAlterAccountSet(stmt *ast.AlterAccountStmt) error {
 	p.advance() // consume SET
 
-	if p.cur.Type == kwTAG {
+	if p.curIs(kwTAG) {
 		tags, err := p.parseTagSetList()
 		if err != nil {
 			return err
@@ -559,7 +559,7 @@ func (p *Parser) parseAlterAccountSet(stmt *ast.AlterAccountStmt) error {
 	// SET CONTACT <purpose> = <contact_name> [ , ... ]; a CONTACT followed by
 	// '=' is a parameter of that name.
 	// https://docs.snowflake.com/en/sql-reference/sql/alter-account
-	if p.curIsWord("CONTACT") && p.peekNext().Type != '=' {
+	if p.curIsWord("CONTACT") && !p.nextIs('=') {
 		p.advance() // consume CONTACT
 		contacts, err := p.parseAccountContacts()
 		if err != nil {
@@ -600,7 +600,7 @@ func (p *Parser) parseAlterAccountSet(stmt *ast.AlterAccountStmt) error {
 func (p *Parser) parseAlterAccountUnset(stmt *ast.AlterAccountStmt) error {
 	p.advance() // consume UNSET
 
-	if p.cur.Type == kwTAG {
+	if p.curIs(kwTAG) {
 		names, err := p.parseUnsetTagNameList()
 		if err != nil {
 			return err
@@ -652,7 +652,7 @@ func (p *Parser) parseAlterAccountSetPolicy(stmt *ast.AlterAccountStmt) error {
 
 	// SET MAINTENANCE POLICY <name> [ FORCE ] FOR ALL APPLICATIONS writes FORCE
 	// before its scope.
-	if kind == "MAINTENANCE POLICY" && p.cur.Type == kwFORCE {
+	if kind == "MAINTENANCE POLICY" && p.curIs(kwFORCE) {
 		p.advance() // consume FORCE
 		stmt.Force = true
 	}
@@ -662,7 +662,7 @@ func (p *Parser) parseAlterAccountSetPolicy(stmt *ast.AlterAccountStmt) error {
 	}
 	stmt.PolicyScope = scope
 	// Optional trailing FORCE.
-	if !stmt.Force && kind != "MAINTENANCE POLICY" && p.cur.Type == kwFORCE {
+	if !stmt.Force && kind != "MAINTENANCE POLICY" && p.curIs(kwFORCE) {
 		p.advance() // consume FORCE
 		stmt.Force = true
 	}
@@ -692,7 +692,7 @@ func (p *Parser) parseAccountContacts() ([]*ast.GroupOption, error) {
 			Values: []string{contact.Normalize()},
 			Loc:    ast.Loc{Start: purpose.Loc.Start, End: contact.Loc.End},
 		})
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			return contacts, nil
 		}
 		p.advance() // consume ','
@@ -708,14 +708,14 @@ func (p *Parser) parseAccountContacts() ([]*ast.GroupOption, error) {
 // `SET <param> = value` whose param happens to share a prefix.
 func (p *Parser) startsAccountPolicy() bool {
 	switch {
-	case p.cur.Type == kwSESSION, p.cur.Type == kwPACKAGES, p.cur.Type == kwPASSWORD:
-		return p.peekNext().Type == kwPOLICY
+	case p.curIs(kwSESSION), p.curIs(kwPACKAGES), p.curIs(kwPASSWORD):
+		return p.nextIs(kwPOLICY)
 	case p.curIsWord("AUTHENTICATION"), p.curIsWord("FEATURE"):
-		return p.peekNext().Type == kwPOLICY
+		return p.nextIs(kwPOLICY)
 	case p.curIsWord("INGRESS"), p.curIsWord("MAINTENANCE"):
 		// https://docs.snowflake.com/en/sql-reference/sql/alter-account-set-ingress-policy
 		// https://docs.snowflake.com/en/sql-reference/sql/alter-account
-		return p.peekNext().Type == kwPOLICY
+		return p.nextIs(kwPOLICY)
 	}
 	// DATA MOVEMENT POLICY
 	// (https://docs.snowflake.com/en/sql-reference/sql/alter-account).
@@ -766,7 +766,7 @@ func (p *Parser) parseAccountPolicyScope(kind string) (string, error) {
 			return strings.Join(words, " "), nil
 		}
 	}
-	if rule.required || p.cur.Type == kwFOR {
+	if rule.required || p.curIs(kwFOR) {
 		return "", p.syntaxErrorAtCur()
 	}
 	return "", nil
@@ -838,10 +838,10 @@ func (p *Parser) parseAlterShareStmt() (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	switch p.cur.Type {
-	case kwADD, kwREMOVE:
+	switch {
+	case p.curIs(kwADD), p.curIs(kwREMOVE):
 		// { ADD | REMOVE } ACCOUNTS = <a> [ , ... ] [ SHARE_RESTRICTIONS = ... ]
-		add := p.cur.Type == kwADD
+		add := p.curIs(kwADD)
 		p.advance() // consume ADD / REMOVE
 		if _, err := p.expect(kwACCOUNTS); err != nil {
 			return nil, err
@@ -859,7 +859,7 @@ func (p *Parser) parseAlterShareStmt() (ast.Node, error) {
 			stmt.Action = ast.AlterShareRemove
 		}
 		stmt.Accounts = accounts
-		if p.cur.Type == kwSHARE_RESTRICTIONS {
+		if p.curIs(kwSHARE_RESTRICTIONS) {
 			p.advance() // consume SHARE_RESTRICTIONS
 			if _, err := p.expect('='); err != nil {
 				return nil, err
@@ -871,12 +871,12 @@ func (p *Parser) parseAlterShareStmt() (ast.Node, error) {
 			stmt.ShareRestrictions = &b
 		}
 
-	case kwSET:
+	case p.curIs(kwSET):
 		if err := p.parseAlterShareSet(stmt); err != nil {
 			return nil, err
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		if err := p.parseAlterShareUnset(stmt); err != nil {
 			return nil, err
 		}
@@ -896,7 +896,7 @@ func (p *Parser) parseAlterShareStmt() (ast.Node, error) {
 func (p *Parser) parseAlterShareSet(stmt *ast.AlterShareStmt) error {
 	p.advance() // consume SET
 
-	if p.cur.Type == kwTAG {
+	if p.curIs(kwTAG) {
 		tags, err := p.parseTagSetList()
 		if err != nil {
 			return err
@@ -910,7 +910,7 @@ func (p *Parser) parseAlterShareSet(stmt *ast.AlterShareStmt) error {
 	settable := false
 
 	// Optional ACCOUNTS = <a> [ , ... ].
-	if p.cur.Type == kwACCOUNTS {
+	if p.curIs(kwACCOUNTS) {
 		p.advance() // consume ACCOUNTS
 		if _, err := p.expect('='); err != nil {
 			return err
@@ -948,7 +948,7 @@ func (p *Parser) parseAlterShareSet(stmt *ast.AlterShareStmt) error {
 func (p *Parser) parseAlterShareUnset(stmt *ast.AlterShareStmt) error {
 	p.advance() // consume UNSET
 
-	if p.cur.Type == kwTAG {
+	if p.curIs(kwTAG) {
 		names, err := p.parseUnsetTagNameList()
 		if err != nil {
 			return err
@@ -987,7 +987,7 @@ func (p *Parser) parseGroupOptions() ([]*ast.GroupOption, error) {
 			return nil, err
 		}
 		opts = append(opts, opt)
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume optional ',' separator (CREATE MANAGED ACCOUNT)
 		}
 	}
@@ -999,14 +999,14 @@ func (p *Parser) parseGroupOptions() ([]*ast.GroupOption, error) {
 // anchor a trailing clause (WITH / TAG for [WITH] TAG, IGNORE for IGNORE EDITION
 // CHECK) are excluded so they are not swallowed as an option name.
 func (p *Parser) startsGroupOption() bool {
-	switch p.cur.Type {
-	case kwWITH, kwTAG, kwIGNORE:
+	switch {
+	case p.curIs(kwWITH), p.curIs(kwTAG), p.curIs(kwIGNORE):
 		return false
 	}
-	if p.cur.Type == tokIdent || p.cur.Type == tokQuotedIdent {
+	if p.curIs(tokIdent) || p.curIs(tokQuotedIdent) {
 		return true
 	}
-	if p.cur.Type == tokEOF || p.cur.Type == ';' {
+	if p.curIs(tokEOF) || p.curIs(';') {
 		return false
 	}
 	return p.cur.Type >= 700
@@ -1015,10 +1015,10 @@ func (p *Parser) startsGroupOption() bool {
 // startsGroupTags reports whether the current position begins a [WITH] TAG
 // clause: the TAG keyword directly, or WITH immediately followed by TAG.
 func (p *Parser) startsGroupTags() bool {
-	if p.cur.Type == kwTAG {
+	if p.curIs(kwTAG) {
 		return true
 	}
-	return p.cur.Type == kwWITH && p.peekNext().Type == kwTAG
+	return p.curIs(kwWITH) && p.nextIs(kwTAG)
 }
 
 // parseGroupOption parses one `KEY = <value>` option. The value is either a
@@ -1049,18 +1049,18 @@ func (p *Parser) parseGroupOption() (*ast.GroupOption, error) {
 	}
 
 	// A string/number literal value.
-	switch p.cur.Type {
-	case tokString:
+	switch {
+	case p.curIs(tokString):
 		tok := p.advance()
 		opt.Lit = &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}
 		opt.Loc.End = tok.Loc.End
 		return opt, nil
-	case tokInt:
+	case p.curIs(tokInt):
 		tok := p.advance()
 		opt.Lit = &ast.Literal{Kind: ast.LitInt, Value: tok.Str, Ival: tok.Ival, Loc: tok.Loc}
 		opt.Loc.End = tok.Loc.End
 		return opt, nil
-	case tokFloat, tokReal:
+	case p.curIs(tokFloat), p.curIs(tokReal):
 		tok := p.advance()
 		opt.Lit = &ast.Literal{Kind: ast.LitFloat, Value: tok.Str, Loc: tok.Loc}
 		opt.Loc.End = tok.Loc.End
@@ -1071,7 +1071,7 @@ func (p *Parser) parseGroupOption() (*ast.GroupOption, error) {
 	//   LOGIN_IDP_REDIRECT = ( <interface> = <security_integration> [ , ... ] )
 	//   DOMAIN_NAMES = ( '<domain>' [ , ... ] )
 	// https://docs.snowflake.com/en/sql-reference/sql/alter-account
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		switch opt.Name {
 		case "LOGIN_IDP_REDIRECT":
 			return p.parseGroupOptionPairs(opt)
@@ -1113,7 +1113,7 @@ func (p *Parser) parseGroupOptionPairs(opt *ast.GroupOption) (*ast.GroupOption, 
 			Values: []string{val.Normalize()},
 			Loc:    ast.Loc{Start: key.Loc.Start, End: val.Loc.End},
 		})
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -1135,7 +1135,7 @@ func (p *Parser) parseGroupOptionStrings(opt *ast.GroupOption) (*ast.GroupOption
 			return nil, err
 		}
 		opt.List = append(opt.List, &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc})
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -1190,7 +1190,7 @@ func (p *Parser) parseGroupValueList(list bool) ([]string, int, error) {
 		}
 		values = append(values, elem)
 		end = elemEnd
-		if list && p.cur.Type == ',' {
+		if list && p.curIs(',') {
 			p.advance() // consume ',' list separator
 			continue
 		}
@@ -1219,7 +1219,7 @@ func (p *Parser) parseGroupValueElement() (string, int, error) {
 	for {
 		// Adjacency-joined dotted / '$' continuations (no intervening space):
 		// dotted account names (org.account) and $-segments.
-		if (p.cur.Type == '.' || p.cur.Type == '$') && p.cur.Loc.Start == end {
+		if (p.curIs('.') || p.curIs('$')) && p.cur.Loc.Start == end {
 			sep := p.advance()
 			b.WriteString(p.srcSlice(sep.Loc.Start, sep.Loc.End))
 			end = sep.Loc.End
@@ -1252,15 +1252,15 @@ func (p *Parser) parseGroupValueElement() (string, int, error) {
 // followed by '=' starts the next option; the WITH / TAG / IGNORE anchors and
 // any non-word token end the element.
 func (p *Parser) continuesGroupElement() bool {
-	switch p.cur.Type {
-	case kwWITH, kwTAG, kwIGNORE:
+	switch {
+	case p.curIs(kwWITH), p.curIs(kwTAG), p.curIs(kwIGNORE):
 		return false
 	}
 	if !p.isOptionWord(p.cur.Type) {
 		return false
 	}
 	// A word followed by '=' is the next option name, not a continuation.
-	return p.peekNext().Type != '='
+	return !p.nextIs('=')
 }
 
 // ---------------------------------------------------------------------------
@@ -1278,7 +1278,7 @@ func (p *Parser) parseObjectNameList() ([]*ast.ObjectName, error) {
 			return nil, err
 		}
 		names = append(names, name)
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -1293,16 +1293,16 @@ func (p *Parser) parseObjectNameList() ([]*ast.ObjectName, error) {
 // text.
 func (p *Parser) parseAllowedListKeyword() (string, error) {
 	switch {
-	case p.cur.Type == kwALLOWED_DATABASES:
+	case p.curIs(kwALLOWED_DATABASES):
 		p.advance()
 		return "ALLOWED_DATABASES", nil
-	case isWordToken(p.cur, "ALLOWED_EXTERNAL_VOLUMES"):
+	case p.curWord("ALLOWED_EXTERNAL_VOLUMES"):
 		p.advance()
 		return "ALLOWED_EXTERNAL_VOLUMES", nil
-	case p.cur.Type == kwALLOWED_SHARES:
+	case p.curIs(kwALLOWED_SHARES):
 		p.advance()
 		return "ALLOWED_SHARES", nil
-	case p.cur.Type == kwALLOWED_ACCOUNTS:
+	case p.curIs(kwALLOWED_ACCOUNTS):
 		p.advance()
 		return "ALLOWED_ACCOUNTS", nil
 	default:

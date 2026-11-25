@@ -24,7 +24,7 @@ const dataMetricClauseCap = 1024
 // (after ADD, DROP or MODIFY). DATA is a non-reserved keyword that can also be
 // a column name, so METRIC must follow.
 func (p *Parser) startsDataMetricFunction() bool {
-	return p.cur.Type == kwDATA && p.peekNext().Type == kwMETRIC
+	return p.curIs(kwDATA) && p.nextIs(kwMETRIC)
 }
 
 // startsDataMetricSchedule reports whether cur is DATA_METRIC_SCHEDULE (after
@@ -81,7 +81,7 @@ func (p *Parser) parseDataMetricFunctionAction(kind ast.DataMetricActionKind, st
 			return nil, err
 		}
 		act.Functions = append(act.Functions, clause)
-		if p.cur.Type != ',' || !p.commaStartsDataMetricClause() {
+		if !p.curIs(',') || !p.commaStartsDataMetricClause() {
 			break
 		}
 		p.advance() // consume ','
@@ -100,7 +100,7 @@ func (p *Parser) commaStartsDataMetricClause() bool {
 	if _, err := p.parseObjectName(); err != nil {
 		return false
 	}
-	return p.cur.Type == kwON || p.cur.Type == kwSET
+	return p.curIs(kwON) || p.curIs(kwSET)
 }
 
 // commaStartsExpectation reports whether the ',' at cur is followed by another
@@ -112,7 +112,7 @@ func (p *Parser) commaStartsExpectation() bool {
 	if _, err := p.parseIdent(); err != nil {
 		return false
 	}
-	return p.cur.Type == '('
+	return p.curIs('(')
 }
 
 // parseDataMetricFunctionClause parses one `<metric> ...` clause of a data
@@ -127,7 +127,7 @@ func (p *Parser) parseDataMetricFunctionClause(kind ast.DataMetricActionKind) (*
 
 	// MODIFY DATA METRIC FUNCTION <metric> SET
 	//   { ANOMALY_DETECTION = ... | SENSITIVITY = ... | DATA_QUALITY_NOTIFICATION = ... } [ ... ]
-	if kind == ast.DataMetricModify && p.cur.Type == kwSET {
+	if kind == ast.DataMetricModify && p.curIs(kwSET) {
 		p.advance() // consume SET
 		var opts []*ast.CopyOption
 		for p.curIsWord("ANOMALY_DETECTION") || p.curIsWord("SENSITIVITY") || p.curIsWord("DATA_QUALITY_NOTIFICATION") {
@@ -175,11 +175,11 @@ func (p *Parser) parseDataMetricArgs(clause *ast.DataMetricFunctionClause) error
 		return err
 	}
 	clause.HasOn = true
-	for i := 0; i > 0 || p.cur.Type != ')'; i++ {
+	for i := 0; i > 0 || !p.curIs(')'); i++ {
 		if i >= dataMetricClauseCap {
 			return p.syntaxErrorAtCur()
 		}
-		if p.cur.Type == kwTABLE {
+		if p.curIs(kwTABLE) {
 			p.advance() // consume TABLE
 			ref, err := p.parseObjectName()
 			if err != nil {
@@ -198,7 +198,7 @@ func (p *Parser) parseDataMetricArgs(clause *ast.DataMetricFunctionClause) error
 			return err
 		}
 		clause.Columns = append(clause.Columns, col)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		p.advance() // consume ','
@@ -217,7 +217,7 @@ func (p *Parser) parseDataMetricArgs(clause *ast.DataMetricFunctionClause) error
 //	[ ANOMALY_DETECTION = { TRUE | FALSE } ]
 //	[ SENSITIVITY = { 'LOW' | 'MEDIUM' | 'HIGH' } ]
 func (p *Parser) parseDataMetricAddOptions(clause *ast.DataMetricFunctionClause) error {
-	if p.cur.Type == kwWITHIN {
+	if p.curIs(kwWITHIN) {
 		p.advance() // consume WITHIN
 		if _, err := p.expect(kwGROUP); err != nil {
 			return err
@@ -227,7 +227,7 @@ func (p *Parser) parseDataMetricAddOptions(clause *ast.DataMetricFunctionClause)
 			return err
 		}
 		clause.WithinGroup = cols
-		if p.cur.Type == kwGROUP && p.peekNext().Type == kwLIMIT {
+		if p.curIs(kwGROUP) && p.nextIs(kwLIMIT) {
 			p.advance() // consume GROUP
 			p.advance() // consume LIMIT
 			tok, err := p.expect(tokInt)
@@ -238,7 +238,7 @@ func (p *Parser) parseDataMetricAddOptions(clause *ast.DataMetricFunctionClause)
 			clause.GroupLimit = &n
 		}
 	}
-	if p.curIsWord("FILTER") && p.peekNext().Type == '(' {
+	if p.curIsWord("FILTER") && p.nextIs('(') {
 		if err := p.parseDataMetricFilter(clause, false); err != nil {
 			return err
 		}
@@ -251,7 +251,7 @@ func (p *Parser) parseDataMetricAddOptions(clause *ast.DataMetricFunctionClause)
 		}
 		clause.Expectations = exps
 	}
-	if p.curIsWord("EXECUTE") && p.peekNext().Type == kwAS {
+	if p.curIsWord("EXECUTE") && p.nextIs(kwAS) {
 		p.advance() // consume EXECUTE
 		p.advance() // consume AS
 		if _, err := p.expect(kwROLE); err != nil {
@@ -283,13 +283,13 @@ func (p *Parser) parseDataMetricAddOptions(clause *ast.DataMetricFunctionClause)
 //	FILTER ( [ <expr> ] )
 func (p *Parser) parseDataMetricModifyChange(clause *ast.DataMetricFunctionClause) error {
 	switch {
-	case p.cur.Type == kwSUSPEND:
+	case p.curIs(kwSUSPEND):
 		p.advance()
 		clause.Modify = ast.DataMetricModifySuspend
-	case p.cur.Type == kwRESUME:
+	case p.curIs(kwRESUME):
 		p.advance()
 		clause.Modify = ast.DataMetricModifyResume
-	case p.cur.Type == kwADD || p.cur.Type == kwMODIFY || p.cur.Type == kwDROP:
+	case p.curIs(kwADD) || p.curIs(kwMODIFY) || p.curIs(kwDROP):
 		verb := p.cur.Type
 		p.advance() // consume ADD / MODIFY / DROP
 		if !p.curIsWord("EXPECTATION") {
@@ -328,7 +328,7 @@ func (p *Parser) parseDataMetricFilter(clause *ast.DataMetricFunctionClause, all
 		return err
 	}
 	clause.HasFilter = true
-	if !(allowEmpty && p.cur.Type == ')') {
+	if !(allowEmpty && p.curIs(')')) {
 		expr, err := p.parseExpr()
 		if err != nil {
 			return err
@@ -370,7 +370,7 @@ func (p *Parser) parseDataMetricExpectations(withExpr bool) ([]*ast.DataMetricEx
 		}
 		exp.Loc = ast.Loc{Start: start, End: p.prev.Loc.End}
 		exps = append(exps, exp)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		if withExpr && !p.commaStartsExpectation() {
@@ -391,7 +391,7 @@ func (p *Parser) parseDataMetricExpectations(withExpr bool) ([]*ast.DataMetricEx
 // A property whose value the pages document (propertyValues) must have one of
 // those values; any other property keeps the open-ended value forms.
 func (p *Parser) parseAssignment() (*ast.CopyOption, error) {
-	if !p.startsCopyOption() || p.peekNext().Type != '=' {
+	if !p.startsCopyOption() || !p.nextIs('=') {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if err := p.checkPropertyValue(); err != nil {
@@ -489,7 +489,7 @@ func (p *Parser) checkPropertyValue() error {
 	p.advance() // consume '='
 	val := p.cur
 	next := p.peekNext().Type
-	if val.Type == tokString {
+	if p.curIs(tokString) {
 		if spec.anyString || slices.Contains(spec.strs, strings.ToUpper(val.Str)) {
 			p.restore(snap)
 			return nil
@@ -506,7 +506,7 @@ func (p *Parser) checkPropertyValue() error {
 
 // startsAssignment reports whether cur begins a `KEY = <value>` property.
 func (p *Parser) startsAssignment() bool {
-	return p.startsCopyOption() && p.peekNext().Type == '='
+	return p.startsCopyOption() && p.nextIs('=')
 }
 
 // ---------------------------------------------------------------------------
@@ -524,7 +524,7 @@ func (p *Parser) startsAssignment() bool {
 // `<tag> =` follows, so a column list (`..., <col> SET TAG ...`) is left to the
 // caller. cur is TAG.
 func (p *Parser) parseSetTagClause() ([]*ast.TagAssignment, error) {
-	if p.peekNext().Type == '(' {
+	if p.nextIs('(') {
 		return p.parseTagAssignments()
 	}
 	p.advance() // consume TAG
@@ -542,7 +542,7 @@ func (p *Parser) parseSetTagClause() ([]*ast.TagAssignment, error) {
 			return nil, err
 		}
 		tags = append(tags, &ast.TagAssignment{Name: name, Value: val.Str})
-		if p.cur.Type != ',' || !p.commaStartsTagAssignment() {
+		if !p.curIs(',') || !p.commaStartsTagAssignment() {
 			return tags, nil
 		}
 		p.advance() // consume ','
@@ -554,7 +554,7 @@ func (p *Parser) parseSetTagClause() ([]*ast.TagAssignment, error) {
 // followed by `<col> { SET | UNSET }` belongs to the caller's column list. cur
 // is TAG.
 func (p *Parser) parseUnsetTagClause() ([]*ast.ObjectName, error) {
-	if p.peekNext().Type == '(' {
+	if p.nextIs('(') {
 		return p.parseUnsetTagList()
 	}
 	p.advance() // consume TAG
@@ -565,7 +565,7 @@ func (p *Parser) parseUnsetTagClause() ([]*ast.ObjectName, error) {
 			return nil, err
 		}
 		names = append(names, name)
-		if p.cur.Type != ',' || !p.commaStartsUnsetTagName() {
+		if !p.curIs(',') || !p.commaStartsUnsetTagName() {
 			return names, nil
 		}
 		p.advance() // consume ','
@@ -581,7 +581,7 @@ func (p *Parser) commaStartsTagAssignment() bool {
 	if _, err := p.parseObjectName(); err != nil {
 		return false
 	}
-	return p.cur.Type == '='
+	return p.curIs('=')
 }
 
 // commaStartsUnsetTagName reports whether the ',' at cur is followed by another
@@ -590,7 +590,7 @@ func (p *Parser) commaStartsUnsetTagName() bool {
 	snap := p.snapshot()
 	defer p.restore(snap)
 	p.advance() // consume ','
-	if p.cur.Type == kwCOLUMN {
+	if p.curIs(kwCOLUMN) {
 		// `, COLUMN <col> ...`: the next column action. (parseObjectName would
 		// take the reserved COLUMN as a name part.)
 		return false
@@ -598,7 +598,7 @@ func (p *Parser) commaStartsUnsetTagName() bool {
 	if _, err := p.parseObjectName(); err != nil {
 		return false
 	}
-	return p.cur.Type != kwSET && p.cur.Type != kwUNSET
+	return !p.curIs(kwSET) && !p.curIs(kwUNSET)
 }
 
 // ---------------------------------------------------------------------------
@@ -631,7 +631,7 @@ func (p *Parser) parseSetAggregationPolicy() (*ast.ObjectName, []ast.Ident, bool
 		}
 	}
 	force := false
-	if p.cur.Type == kwFORCE {
+	if p.curIs(kwFORCE) {
 		p.advance() // consume FORCE
 		force = true
 	}
@@ -641,7 +641,7 @@ func (p *Parser) parseSetAggregationPolicy() (*ast.ObjectName, []ast.Ident, bool
 // startsPolicyWord reports whether cur is the given policy-kind word (an
 // identifier such as AGGREGATION or PROJECTION) followed by POLICY.
 func (p *Parser) startsPolicyWord(word string) bool {
-	return p.curIsWord(word) && p.peekNext().Type == kwPOLICY
+	return p.curIsWord(word) && p.nextIs(kwPOLICY)
 }
 
 // expectPolicyWord consumes `<word> POLICY`; the caller checked startsPolicyWord.
@@ -661,7 +661,7 @@ func (p *Parser) expectPolicyWord() error {
 func (p *Parser) parseContactValue() (string, error) {
 	p.advance() // consume CONTACT
 	start := p.cur.Loc.Start
-	paren := p.cur.Type == '('
+	paren := p.curIs('(')
 	if paren {
 		p.advance() // consume '('
 	}
@@ -675,7 +675,7 @@ func (p *Parser) parseContactValue() (string, error) {
 		if _, err := p.parseObjectName(); err != nil {
 			return "", err
 		}
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			break
 		}
 		if !paren && !p.commaStartsContactEntry() {
@@ -700,7 +700,7 @@ func (p *Parser) commaStartsContactEntry() bool {
 	if _, err := p.parseIdent(); err != nil {
 		return false
 	}
-	return p.cur.Type == '='
+	return p.curIs('=')
 }
 
 // parseUnsetContact parses CONTACT <purpose> after UNSET and returns
@@ -748,7 +748,7 @@ func (p *Parser) parseAddRowAccessPolicyTail() (*ast.ObjectName, []ast.Ident, er
 // and reports all for the second form. With legacy, DROP ROW ACCESS POLICIES
 // (no ALL), which omni has always read for views, is the second form too.
 func (p *Parser) parseDropRowAccessPolicyTail(legacy bool) (all bool, name, addName *ast.ObjectName, addCols []ast.Ident, err error) {
-	if p.cur.Type == kwALL {
+	if p.curIs(kwALL) {
 		p.advance() // consume ALL
 		for _, t := range []int{kwROW, kwACCESS, kwPOLICIES} {
 			if _, err := p.expect(t); err != nil {
@@ -762,7 +762,7 @@ func (p *Parser) parseDropRowAccessPolicyTail(legacy bool) (all bool, name, addN
 			return false, nil, nil, nil, err
 		}
 	}
-	if legacy && p.cur.Type == kwPOLICIES {
+	if legacy && p.curIs(kwPOLICIES) {
 		p.advance()
 		return true, nil, nil, nil, nil
 	}
@@ -773,7 +773,7 @@ func (p *Parser) parseDropRowAccessPolicyTail(legacy bool) (all bool, name, addN
 		return false, nil, nil, nil, err
 	}
 	// The documented drop-and-add combination.
-	if p.cur.Type == ',' && p.peekNext().Type == kwADD {
+	if p.curIs(',') && p.nextIs(kwADD) {
 		p.advance() // consume ','
 		p.advance() // consume ADD
 		if addName, addCols, err = p.parseAddRowAccessPolicyTail(); err != nil {
@@ -797,7 +797,7 @@ func (p *Parser) parseColumnPolicyActions() ([]*ast.AlterViewColumnAction, error
 			return nil, err
 		}
 		actions = append(actions, action)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			return actions, nil
 		}
 		p.advance() // consume ','

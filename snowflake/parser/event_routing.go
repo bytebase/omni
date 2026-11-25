@@ -50,7 +50,7 @@ func parseCreateEventRoutingTable(p *Parser, s *ast.ObjectStmt) error {
 			return err
 		}
 		c.Options = append(c.Options, rule)
-		if !p.startsEventRuleName() || p.peekNext().Type != '=' {
+		if !p.startsEventRuleName() || !p.nextIs('=') {
 			break
 		}
 	}
@@ -79,7 +79,7 @@ func parseAlterEventRoutingTable(p *Parser, s *ast.ObjectStmt) error {
 		start = p.cur.Loc.Start
 	}
 	switch {
-	case p.cur.Type == kwSET && isWordToken(p.peekNext(), "RULES"):
+	case p.curIs(kwSET) && p.nextWord("RULES"):
 		p.advance() // consume SET
 		p.advance() // consume RULES
 		c := p.addObjectKeywordsClause(s, "SET RULES", start)
@@ -89,14 +89,14 @@ func parseAlterEventRoutingTable(p *Parser, s *ast.ObjectStmt) error {
 				return err
 			}
 			c.Options = append(c.Options, rule)
-			if p.cur.Type != ',' {
+			if !p.curIs(',') {
 				break
 			}
 			p.advance() // consume ','
 		}
 		c.Loc.End = p.prev.Loc.End
 		return nil
-	case p.cur.Type == kwSET && isWordToken(p.peekNext(), "RULE"):
+	case p.curIs(kwSET) && p.nextWord("RULE"):
 		p.advance() // consume SET
 		p.advance() // consume RULE
 		name, err := p.parseEventRuleName()
@@ -121,7 +121,7 @@ func parseAlterEventRoutingTable(p *Parser, s *ast.ObjectStmt) error {
 		c.Names = []*ast.ObjectName{name}
 		c.Options = settings
 		return nil
-	case p.cur.Type == kwUNSET && isWordToken(p.peekNext(), "RULE"):
+	case p.curIs(kwUNSET) && p.nextWord("RULE"):
 		p.advance() // consume UNSET
 		p.advance() // consume RULE
 		name, err := p.parseEventRuleName()
@@ -140,7 +140,7 @@ func parseAlterEventRoutingTable(p *Parser, s *ast.ObjectStmt) error {
 		}
 		p.addObjectKeywordsClause(s, "MODIFY RULE", start).Names = []*ast.ObjectName{name}
 		renameStart := p.cur.Loc.Start
-		if p.cur.Type != kwRENAME {
+		if !p.curIs(kwRENAME) {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance() // consume RENAME
@@ -161,7 +161,7 @@ func parseAlterEventRoutingTable(p *Parser, s *ast.ObjectStmt) error {
 // identifier, a quoted identifier, or a keyword (the CREATE page's example
 // names a rule default). It consumes nothing.
 func (p *Parser) startsEventRuleName() bool {
-	return p.cur.Type == tokIdent || p.cur.Type == tokQuotedIdent || p.cur.Type >= 700
+	return p.curIs(tokIdent) || p.curIs(tokQuotedIdent) || p.cur.Type >= 700
 }
 
 // parseEventRuleName reads a rule's one-part name (startsEventRuleName).
@@ -189,7 +189,7 @@ func (p *Parser) parseEventRule() (*ast.CopyOption, error) {
 	if _, err := p.expect('='); err != nil {
 		return nil, err
 	}
-	if p.cur.Type != '(' {
+	if !p.curIs('(') {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if err := p.parseObjectValueParen(rule); err != nil {

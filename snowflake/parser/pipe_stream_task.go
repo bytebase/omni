@@ -68,7 +68,7 @@ func (p *Parser) parseCreatePipeStmt(start ast.Loc, orReplace, orAlter bool) (as
 
 	// Config options precede AS. AS is a keyword that startsCopyOption would
 	// otherwise treat as an option name, so the loop stops explicitly at AS.
-	for p.cur.Type != kwAS && p.startsCopyOption() {
+	for !p.curIs(kwAS) && p.startsCopyOption() {
 		opt, err := p.parseCopyOption()
 		if err != nil {
 			return nil, err
@@ -97,7 +97,7 @@ func (p *Parser) parseCreatePipeStmt(start ast.Loc, orReplace, orAlter bool) (as
 // corpus). A leading '(' is consumed and its matching ')' is required after the
 // COPY body; otherwise the COPY is parsed bare. cur must be '(' or COPY.
 func (p *Parser) parseParenthesizedCopy() (ast.Node, error) {
-	if p.cur.Type == '(' {
+	if p.curIs('(') {
 		p.advance() // consume '('
 		copyNode, err := p.parseCopyStmt()
 		if err != nil {
@@ -137,10 +137,10 @@ func (p *Parser) parseAlterPipeStmt() (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	switch p.cur.Type {
-	case kwSET:
+	switch {
+	case p.curIs(kwSET):
 		p.advance() // consume SET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			tags, err := p.parseTagSetList()
 			if err != nil {
 				return nil, err
@@ -161,9 +161,9 @@ func (p *Parser) parseAlterPipeStmt() (ast.Node, error) {
 			stmt.Options = opts
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			names, err := p.parseUnsetTagNameList()
 			if err != nil {
 				return nil, err
@@ -179,7 +179,7 @@ func (p *Parser) parseAlterPipeStmt() (ast.Node, error) {
 			stmt.UnsetProps = props
 		}
 
-	case kwREFRESH:
+	case p.curIs(kwREFRESH):
 		// REFRESH [ PREFIX = '<path>' ] [ MODIFIED_AFTER = '<timestamp>' ] — both
 		// optional, captured open-ended.
 		p.advance() // consume REFRESH
@@ -241,7 +241,7 @@ func (p *Parser) parseCreateStreamStmt(start ast.Loc, orReplace, orAlter bool) (
 
 	// CLONE form: CREATE STREAM <name> CLONE <source> [ COPY GRANTS ]
 	// [ COPY = ( GRANTS ) ].
-	if p.cur.Type == kwCLONE {
+	if p.curIs(kwCLONE) {
 		p.advance() // consume CLONE
 		src, err := p.parseObjectName()
 		if err != nil {
@@ -253,7 +253,7 @@ func (p *Parser) parseCreateStreamStmt(start ast.Loc, orReplace, orAlter bool) (
 			p.advance() // consume GRANTS
 			stmt.CopyGrants = true
 		}
-		if p.cur.Type == kwCOPY && p.peekNext().Type == '=' {
+		if p.curIs(kwCOPY) && p.nextIs('=') {
 			opt, err := p.parseCopyOption()
 			if err != nil {
 				return nil, err
@@ -291,21 +291,21 @@ func (p *Parser) parseCreateStreamStmt(start ast.Loc, orReplace, orAlter bool) (
 	if _, err := p.expect(kwON); err != nil {
 		return nil, err
 	}
-	switch p.cur.Type {
-	case kwTABLE:
+	switch {
+	case p.curIs(kwTABLE):
 		p.advance() // consume TABLE
 		stmt.SourceKind = ast.StreamOnTable
-	case kwVIEW:
+	case p.curIs(kwVIEW):
 		p.advance() // consume VIEW
 		stmt.SourceKind = ast.StreamOnView
-	case kwSTAGE:
+	case p.curIs(kwSTAGE):
 		p.advance() // consume STAGE
 		stmt.SourceKind = ast.StreamOnStage
-	case kwEXTERNAL, kwEVENT, kwDYNAMIC:
+	case p.curIs(kwEXTERNAL), p.curIs(kwEVENT), p.curIs(kwDYNAMIC):
 		stmt.SourceKind = ast.StreamOnExternalTable
-		if p.cur.Type == kwEVENT {
+		if p.curIs(kwEVENT) {
 			stmt.SourceKind = ast.StreamOnEventTable
-		} else if p.cur.Type == kwDYNAMIC {
+		} else if p.curIs(kwDYNAMIC) {
 			stmt.SourceKind = ast.StreamOnDynamicTable
 		}
 		p.advance() // consume EXTERNAL / EVENT / DYNAMIC
@@ -324,7 +324,7 @@ func (p *Parser) parseCreateStreamStmt(start ast.Loc, orReplace, orAlter bool) (
 	// Optional { AT | BEFORE } ( <key> => <value> ) time-travel clause. Parsed
 	// inline/open-ended (not via the T5.3 query-clauses node).
 	// A stream on an event or dynamic table takes none.
-	if (p.cur.Type == kwAT || p.cur.Type == kwBEFORE) &&
+	if (p.curIs(kwAT) || p.curIs(kwBEFORE)) &&
 		stmt.SourceKind != ast.StreamOnEventTable && stmt.SourceKind != ast.StreamOnDynamicTable {
 		tt, err := p.parseStreamTimeTravel()
 		if err != nil {
@@ -390,16 +390,16 @@ func (p *Parser) parseStreamTimeTravel() (*ast.StreamTimeTravel, error) {
 // startsStreamWithTags reports whether cur begins a [WITH] TAG clause: the TAG
 // keyword directly, or WITH immediately followed by TAG.
 func (p *Parser) startsStreamWithTags() bool {
-	if p.cur.Type == kwTAG {
+	if p.curIs(kwTAG) {
 		return true
 	}
-	return p.cur.Type == kwWITH && p.peekNext().Type == kwTAG
+	return p.curIs(kwWITH) && p.nextIs(kwTAG)
 }
 
 // parseStreamWithTags parses a [WITH] TAG (...) clause, accepting both the WITH
 // TAG and bare TAG spellings. The caller must have confirmed startsStreamWithTags.
 func (p *Parser) parseStreamWithTags() ([]*ast.TagAssignment, error) {
-	if p.cur.Type == kwWITH {
+	if p.curIs(kwWITH) {
 		p.advance() // consume WITH (peekNext == TAG guaranteed by caller)
 	}
 	return p.parseTagAssignments()
@@ -408,7 +408,7 @@ func (p *Parser) parseStreamWithTags() ([]*ast.TagAssignment, error) {
 // startsCopyGrants reports whether cur begins a COPY GRANTS clause (COPY
 // immediately followed by GRANTS).
 func (p *Parser) startsCopyGrants() bool {
-	return p.cur.Type == kwCOPY && p.peekNext().Type == kwGRANTS
+	return p.curIs(kwCOPY) && p.nextIs(kwGRANTS)
 }
 
 // ---------------------------------------------------------------------------
@@ -436,10 +436,10 @@ func (p *Parser) parseAlterStreamStmt() (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	switch p.cur.Type {
-	case kwSET:
+	switch {
+	case p.curIs(kwSET):
 		p.advance() // consume SET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			tags, err := p.parseTagSetList()
 			if err != nil {
 				return nil, err
@@ -455,9 +455,9 @@ func (p *Parser) parseAlterStreamStmt() (ast.Node, error) {
 			stmt.Options = opts
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			names, err := p.parseUnsetTagNameList()
 			if err != nil {
 				return nil, err
@@ -521,7 +521,7 @@ func (p *Parser) parseCreateTaskStmt(start ast.Loc, orReplace, orAlter bool) (as
 	stmt.Name = name
 
 	// CLONE form: CREATE [OR REPLACE] TASK <name> CLONE <source_task>.
-	if p.cur.Type == kwCLONE {
+	if p.curIs(kwCLONE) {
 		p.advance() // consume CLONE
 		src, err := p.parseObjectName()
 		if err != nil {
@@ -542,7 +542,7 @@ func (p *Parser) parseCreateTaskStmt(start ast.Loc, orReplace, orAlter bool) (as
 	}
 
 	// WITH CONTACT ( <purpose> = <contact> [ , ... ] ) follows the tags.
-	if p.cur.Type == kwWITH && isWordToken(p.peekNext(), "CONTACT") {
+	if p.curIs(kwWITH) && p.nextWord("CONTACT") {
 		p.advance() // consume WITH
 		p.advance() // consume CONTACT
 		group, err := p.parseTaskGraphGroup(false, false)
@@ -560,15 +560,15 @@ func (p *Parser) parseCreateTaskStmt(start ast.Loc, orReplace, orAlter bool) (as
 	// keywords startsCopyOption would treat as option names, so they are matched
 	// before the option branch.
 	for {
-		switch p.cur.Type {
-		case kwAFTER:
+		switch {
+		case p.curIs(kwAFTER):
 			after, err := p.parseTaskAfterList()
 			if err != nil {
 				return nil, err
 			}
 			stmt.After = after
 			continue
-		case kwWHEN:
+		case p.curIs(kwWHEN):
 			p.advance() // consume WHEN
 			when, err := p.parseExpr()
 			if err != nil {
@@ -576,7 +576,7 @@ func (p *Parser) parseCreateTaskStmt(start ast.Loc, orReplace, orAlter bool) (as
 			}
 			stmt.When = when
 			continue
-		case kwAS:
+		case p.curIs(kwAS):
 			// fallthrough out of the loop below
 		default:
 			if start := p.cur.Loc.Start; p.acceptWords("EXECUTE", "AS", "USER") {
@@ -620,7 +620,7 @@ func (p *Parser) parseCreateTaskStmt(start ast.Loc, orReplace, orAlter bool) (as
 // startsTaskOption reports whether cur begins a task's `KEY = value` option.
 // A task has no value-less options.
 func (p *Parser) startsTaskOption() bool {
-	return p.startsCopyOption() && p.peekNext().Type == '='
+	return p.startsCopyOption() && p.nextIs('=')
 }
 
 // skipTaskOptionComma consumes the ',' that separates session parameters
@@ -628,7 +628,7 @@ func (p *Parser) startsTaskOption() bool {
 // be followed by another `KEY = value`.
 // https://docs.snowflake.com/en/sql-reference/sql/create-task
 func (p *Parser) skipTaskOptionComma(opt *ast.CopyOption) error {
-	if p.cur.Type != ',' {
+	if !p.curIs(',') {
 		return nil
 	}
 	p.advance() // consume ','
@@ -648,7 +648,7 @@ func (p *Parser) parseTaskSetOptions() ([]*ast.CopyOption, error) {
 	for {
 		start := p.cur.Loc.Start
 		switch {
-		case isWordToken(p.cur, "CONTACT") && isNameWordTok(p.peekNext()):
+		case p.curWord("CONTACT") && isNameWordTok(p.peekNext()):
 			p.advance() // consume CONTACT
 			group := &ast.CopyOption{}
 			for {
@@ -657,7 +657,7 @@ func (p *Parser) parseTaskSetOptions() ([]*ast.CopyOption, error) {
 					return nil, err
 				}
 				group.Group = append(group.Group, e)
-				if p.cur.Type != ',' || !p.commaStartsContactEntry() {
+				if !p.curIs(',') || !p.commaStartsContactEntry() {
 					break
 				}
 				p.advance() // consume ','
@@ -697,7 +697,7 @@ func (p *Parser) parseTaskUnsetList() ([]string, error) {
 	var props []string
 	for {
 		switch {
-		case isWordToken(p.cur, "CONTACT") && isNameWordTok(p.peekNext()):
+		case p.curWord("CONTACT") && isNameWordTok(p.peekNext()):
 			p.advance() // consume CONTACT
 			props = append(props, "CONTACT "+strings.ToUpper(p.advance().Str))
 		case p.acceptWords("EXECUTE", "AS", "USER"):
@@ -707,7 +707,7 @@ func (p *Parser) parseTaskUnsetList() ([]string, error) {
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			return props, nil
 		}
 		p.advance() // consume ','
@@ -729,7 +729,7 @@ func (p *Parser) parseTaskAfterList() ([]*ast.ObjectName, error) {
 			return nil, err
 		}
 		names = append(names, name)
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -770,16 +770,16 @@ func (p *Parser) parseAlterTaskStmt() (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	switch p.cur.Type {
-	case kwRESUME:
+	switch {
+	case p.curIs(kwRESUME):
 		p.advance()
 		stmt.Action = ast.AlterTaskResume
 
-	case kwSUSPEND:
+	case p.curIs(kwSUSPEND):
 		p.advance()
 		stmt.Action = ast.AlterTaskSuspend
 
-	case kwADD:
+	case p.curIs(kwADD):
 		p.advance() // consume ADD
 		after, err := p.parseTaskAfterList()
 		if err != nil {
@@ -788,9 +788,9 @@ func (p *Parser) parseAlterTaskStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterTaskAddAfter
 		stmt.After = after
 
-	case kwREMOVE:
+	case p.curIs(kwREMOVE):
 		p.advance() // consume REMOVE
-		if p.cur.Type == kwWHEN {
+		if p.curIs(kwWHEN) {
 			// REMOVE WHEN
 			p.advance() // consume WHEN
 			stmt.Action = ast.AlterTaskRemoveWhen
@@ -803,9 +803,9 @@ func (p *Parser) parseAlterTaskStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterTaskRemoveAfter
 		stmt.After = after
 
-	case kwSET:
+	case p.curIs(kwSET):
 		p.advance() // consume SET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			tags, err := p.parseTagSetList()
 			if err != nil {
 				return nil, err
@@ -821,9 +821,9 @@ func (p *Parser) parseAlterTaskStmt() (ast.Node, error) {
 			stmt.Options = opts
 		}
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			names, err := p.parseUnsetTagNameList()
 			if err != nil {
 				return nil, err
@@ -839,10 +839,10 @@ func (p *Parser) parseAlterTaskStmt() (ast.Node, error) {
 			stmt.UnsetProps = props
 		}
 
-	case kwMODIFY:
+	case p.curIs(kwMODIFY):
 		p.advance() // consume MODIFY
-		switch p.cur.Type {
-		case kwAS:
+		switch {
+		case p.curIs(kwAS):
 			p.advance() // consume AS
 			body, raw, err := p.parseEmbeddedBody()
 			if err != nil {
@@ -851,7 +851,7 @@ func (p *Parser) parseAlterTaskStmt() (ast.Node, error) {
 			stmt.Action = ast.AlterTaskModifyAs
 			stmt.Body = body
 			stmt.BodyRaw = raw
-		case kwWHEN:
+		case p.curIs(kwWHEN):
 			p.advance() // consume WHEN
 			when, err := p.parseExpr()
 			if err != nil {
@@ -913,7 +913,7 @@ func (p *Parser) parseCreateAlertStmt(start ast.Loc, orReplace, orAlter bool) (a
 	stmt.Name = name
 
 	// CREATE [ OR REPLACE ] ALERT <name> CLONE <source_alert>
-	if p.cur.Type == kwCLONE && !stmt.IfNotExists && !orAlter {
+	if p.curIs(kwCLONE) && !stmt.IfNotExists && !orAlter {
 		p.advance() // consume CLONE
 		src, err := p.parseObjectName()
 		if err != nil {
@@ -928,7 +928,7 @@ func (p *Parser) parseCreateAlertStmt(start ast.Loc, orReplace, orAlter bool) (a
 	//   [ <option> ... ]
 	// CREATE OR ALTER ALERT <name> FROM TEMPLATE ... creates or re-renders a
 	// templated alert; the page gives it no WITH TAG and no IF NOT EXISTS.
-	if p.cur.Type == kwFROM && !(orAlter && stmt.IfNotExists) {
+	if p.curIs(kwFROM) && !(orAlter && stmt.IfNotExists) {
 		p.advance() // consume FROM
 		if err := p.expectWords("TEMPLATE"); err != nil {
 			return nil, err
@@ -965,7 +965,7 @@ func (p *Parser) parseCreateAlertStmt(start ast.Loc, orReplace, orAlter bool) (a
 
 	// Config options precede IF. IF is a keyword startsCopyOption would treat as
 	// an option name, so the loop stops explicitly at IF.
-	for p.cur.Type != kwIF && p.startsCopyOption() {
+	for !p.curIs(kwIF) && p.startsCopyOption() {
 		opt, err := p.parseCopyOption()
 		if err != nil {
 			return nil, err
@@ -1060,20 +1060,20 @@ func (p *Parser) parseAlertTemplateOptions(need bool) ([]*ast.CopyOption, error)
 func (p *Parser) parseAlertCondition() (ast.Node, string, error) {
 	condStartAbs := p.cur.Loc.Start
 
-	switch p.cur.Type {
-	case kwSELECT, '(':
+	switch {
+	case p.curIs(kwSELECT), p.curIs('('):
 		node, err := p.parseQueryExpr()
 		if err != nil {
 			return nil, "", err
 		}
 		return node, p.srcSlice(condStartAbs, p.prev.Loc.End), nil
-	case kwWITH:
+	case p.curIs(kwWITH):
 		node, err := p.parseWithQueryExpr()
 		if err != nil {
 			return nil, "", err
 		}
 		return node, p.srcSlice(condStartAbs, p.prev.Loc.End), nil
-	case kwSHOW:
+	case p.curIs(kwSHOW):
 		node, err := p.parseShowStmt()
 		if err != nil {
 			return nil, "", err
@@ -1096,14 +1096,14 @@ func (p *Parser) parseAlertCondition() (ast.Node, string, error) {
 func (p *Parser) captureBalancedRaw(startAbs int) string {
 	depth := 0
 	endAbs := startAbs
-	for p.cur.Type != tokEOF {
-		if p.cur.Type == ')' && depth == 0 {
+	for !p.curIs(tokEOF) {
+		if p.curIs(')') && depth == 0 {
 			break
 		}
-		switch p.cur.Type {
-		case '(':
+		switch {
+		case p.curIs('('):
 			depth++
-		case ')':
+		case p.curIs(')'):
 			depth--
 		}
 		endAbs = p.cur.Loc.End
@@ -1143,16 +1143,16 @@ func (p *Parser) parseAlterAlertStmt() (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	switch p.cur.Type {
-	case kwRESUME:
+	switch {
+	case p.curIs(kwRESUME):
 		p.advance()
 		stmt.Action = ast.AlterAlertResume
 
-	case kwSUSPEND:
+	case p.curIs(kwSUSPEND):
 		p.advance()
 		stmt.Action = ast.AlterAlertSuspend
 
-	case kwFROM:
+	case p.curIs(kwFROM):
 		// FROM TEMPLATE <template> SET <option> [ ... ]
 		p.advance() // consume FROM
 		if err := p.expectWords("TEMPLATE"); err != nil {
@@ -1173,9 +1173,9 @@ func (p *Parser) parseAlterAlertStmt() (ast.Node, error) {
 		stmt.Template = tmpl
 		stmt.Options = opts
 
-	case kwSET:
+	case p.curIs(kwSET):
 		p.advance() // consume SET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			tags, err := p.parseTagSetList()
 			if err != nil {
 				return nil, err
@@ -1191,9 +1191,9 @@ func (p *Parser) parseAlterAlertStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterAlertSet
 		stmt.Options = opts
 
-	case kwUNSET:
+	case p.curIs(kwUNSET):
 		p.advance() // consume UNSET
-		if p.cur.Type == kwTAG {
+		if p.curIs(kwTAG) {
 			names, err := p.parseUnsetTagNameList()
 			if err != nil {
 				return nil, err
@@ -1209,10 +1209,10 @@ func (p *Parser) parseAlterAlertStmt() (ast.Node, error) {
 		stmt.Action = ast.AlterAlertUnset
 		stmt.UnsetProps = props
 
-	case kwMODIFY:
+	case p.curIs(kwMODIFY):
 		p.advance() // consume MODIFY
-		switch p.cur.Type {
-		case kwCONDITION:
+		switch {
+		case p.curIs(kwCONDITION):
 			// MODIFY CONDITION EXISTS ( <query> )
 			p.advance() // consume CONDITION
 			if _, err := p.expect(kwEXISTS); err != nil {
@@ -1231,7 +1231,7 @@ func (p *Parser) parseAlterAlertStmt() (ast.Node, error) {
 			stmt.Action = ast.AlterAlertModifyCondition
 			stmt.Condition = cond
 			stmt.ConditionRaw = condRaw
-		case kwACTION:
+		case p.curIs(kwACTION):
 			// MODIFY ACTION <action>
 			p.advance() // consume ACTION
 			action, raw, err := p.parseEmbeddedBody()
@@ -1269,7 +1269,7 @@ func (p *Parser) parseAlterAlertStmt() (ast.Node, error) {
 // of its body. (F3's Split keeps a `… AS BEGIN … END;` body as one segment, so
 // the remaining tokens are exactly the body.)
 func (p *Parser) parseEmbeddedBody() (ast.Node, string, error) {
-	if p.cur.Type == tokEOF {
+	if p.curIs(tokEOF) {
 		// AS / THEN with no body is a syntax error.
 		return nil, "", p.syntaxErrorAtCur()
 	}
@@ -1277,7 +1277,7 @@ func (p *Parser) parseEmbeddedBody() (ast.Node, string, error) {
 
 	// A BEGIN / DECLARE opener is a scripting block parseStmt cannot parse; go
 	// straight to verbatim capture without attempting (and erroring) parseStmt.
-	if p.cur.Type != kwBEGIN && p.cur.Type != kwDECLARE {
+	if !p.curIs(kwBEGIN) && !p.curIs(kwDECLARE) {
 		snap := p.snapshot()
 		node, err := p.parseStmt()
 		if err == nil && node != nil {
@@ -1295,7 +1295,7 @@ func (p *Parser) parseEmbeddedBody() (ast.Node, string, error) {
 // returns the verbatim source text from startAbs to the end of the last token.
 func (p *Parser) captureRawToEOF(startAbs int) string {
 	endAbs := startAbs
-	for p.cur.Type != tokEOF {
+	for !p.curIs(tokEOF) {
 		endAbs = p.cur.Loc.End
 		p.advance()
 	}
@@ -1367,7 +1367,7 @@ func (p *Parser) parseUnsetPropertyList() ([]string, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		props = append(props, strings.ToUpper(p.advance().Str))
-		if p.cur.Type == ',' {
+		if p.curIs(',') {
 			p.advance() // consume ','
 			continue
 		}
@@ -1379,7 +1379,7 @@ func (p *Parser) parseUnsetPropertyList() ([]string, error) {
 // parseIfNotExistsInto consumes an optional IF NOT EXISTS prefix, setting *dst
 // when present. cur should be just past the object-type keyword.
 func (p *Parser) parseIfNotExistsInto(dst *bool) error {
-	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
+	if p.curIs(kwIF) && p.nextIs(kwNOT) {
 		p.advance() // consume IF
 		p.advance() // consume NOT
 		if _, err := p.expect(kwEXISTS); err != nil {
@@ -1393,7 +1393,7 @@ func (p *Parser) parseIfNotExistsInto(dst *bool) error {
 // parseIfExistsInto consumes an optional IF EXISTS prefix, setting *dst when
 // present. cur should be just past the object-type keyword.
 func (p *Parser) parseIfExistsInto(dst *bool) error {
-	if p.cur.Type == kwIF && p.peekNext().Type == kwEXISTS {
+	if p.curIs(kwIF) && p.nextIs(kwEXISTS) {
 		p.advance() // consume IF
 		p.advance() // consume EXISTS
 		*dst = true

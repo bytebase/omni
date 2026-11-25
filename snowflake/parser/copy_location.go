@@ -119,7 +119,7 @@ func (p *Parser) parseCopyLocationParams(cloud locationCloud) ([]*ast.CopyOption
 
 // atCopyLocationParam reports whether cur begins `name =`, name unquoted.
 func (p *Parser) atCopyLocationParam(name string) bool {
-	return isWordToken(p.cur, name) && p.peekNext().Type == '='
+	return p.curWord(name) && p.nextIs('=')
 }
 
 // copyLocationCredentials are the keys a cloud's CREDENTIALS takes.
@@ -153,11 +153,11 @@ func (p *Parser) parseCopyLocationGroup() (*ast.CopyOption, error) {
 		return nil, err
 	}
 	opt.Group = []*ast.CopyOption{}
-	for p.cur.Type != ')' {
-		if len(opt.Group) > 0 && p.cur.Type == ',' && p.peekNext().Type != ')' {
+	for !p.curIs(')') {
+		if len(opt.Group) > 0 && p.curIs(',') && !p.nextIs(')') {
 			p.advance() // consume ','
 		}
-		if !(p.cur.Type == tokIdent || p.cur.Type >= 700) || p.peekNext().Type != '=' {
+		if !(p.curIs(tokIdent) || p.cur.Type >= 700) || !p.nextIs('=') {
 			return nil, p.syntaxErrorAtCur()
 		}
 		k := p.advance()

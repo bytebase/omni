@@ -69,7 +69,7 @@ func parseAlterExperiment(p *Parser, s *ast.ObjectStmt) error {
 	start = p.cur.Loc.Start
 	switch verb {
 	case "COMMIT":
-		if p.cur.Type == kwWITH {
+		if p.curIs(kwWITH) {
 			p.advance() // consume WITH
 			return p.parseExperimentStatus(s, "WITH", start, "FINISHED", "FAILED", "CANCELLED")
 		}

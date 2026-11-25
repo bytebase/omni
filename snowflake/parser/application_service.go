@@ -83,7 +83,7 @@ func parseCreateApplicationService(p *Parser, s *ast.ObjectStmt) error {
 	if _, err := p.parseApplicationNamedClause(s, "PACKAGE", start); err != nil {
 		return err
 	}
-	if start := p.cur.Loc.Start; p.curIsWord("VERSION") && p.peekNext().Type != '=' {
+	if start := p.cur.Loc.Start; p.curIsWord("VERSION") && !p.nextIs('=') {
 		p.advance() // consume VERSION
 		if _, err := p.parseApplicationNamedClause(s, "VERSION", start); err != nil {
 			return err

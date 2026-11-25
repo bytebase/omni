@@ -417,7 +417,7 @@ func (p *Parser) parseAlterDataProtectionSet(s *ast.ObjectStmt, word string, all
 // <word> IDENTIFIER into a clause of keywords, whose one nameless option holds
 // the string.
 func (p *Parser) parseDataProtectionIdentifier(s *ast.ObjectStmt, keywords string, start int) error {
-	if p.cur.Type != tokString {
+	if !p.curIs(tokString) {
 		return p.syntaxErrorAtCur()
 	}
 	lit, err := p.parseCopyLiteral()
@@ -461,7 +461,7 @@ func parseAlterSnapshotPolicy(p *Parser, s *ast.ObjectStmt) error {
 // or fails. Without actSetTag, a SET that names tags (SET TAG ..., or TAG
 // among SET's properties) fails too.
 func (p *Parser) parseAlterObjectActions(s *ast.ObjectStmt, allow objectActions) error {
-	if allow&actSetTag == 0 && p.cur.Type == kwSET && p.peekNext().Type == kwTAG {
+	if allow&actSetTag == 0 && p.curIs(kwSET) && p.nextIs(kwTAG) {
 		p.advance() // consume SET
 		return p.syntaxErrorAtCur()
 	}
@@ -520,7 +520,7 @@ func parseCreateSnapshot(p *Parser, s *ast.ObjectStmt) error {
 	if err := p.expectWords("INSTANCE"); err != nil {
 		return err
 	}
-	if p.cur.Type != tokInt {
+	if !p.curIs(tokInt) {
 		return p.syntaxErrorAtCur()
 	}
 	lit, err := p.parseCopyLiteral()
@@ -634,7 +634,7 @@ func parseAlterDataMovementPolicy(p *Parser, s *ast.ObjectStmt) error {
 //
 // https://docs.snowflake.com/en/sql-reference/sql/alter-data-movement-rule
 func parseAlterDataMovementRule(p *Parser, s *ast.ObjectStmt) error {
-	if p.cur.Type == kwSET && isWordToken(p.peekNext(), "MAX_ROWS") {
+	if p.curIs(kwSET) && p.nextWord("MAX_ROWS") {
 		start := p.advance().Loc.Start // consume SET
 		return p.parseMaxRowsBody(s, "SET MAX_ROWS AS", start)
 	}

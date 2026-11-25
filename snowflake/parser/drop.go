@@ -14,7 +14,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 
 	// An object read by its documented shape (object.go) whose page documents
 	// DROP <kind> [ IF EXISTS ] <name>.
-	if f := p.matchObjectForm(); f != nil && f.drop {
+	if f := p.matchObjectForm(formDrops); f != nil && f.drop {
 		for range f.words {
 			p.advance()
 		}
@@ -27,12 +27,12 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		}
 		ds := node.(*ast.DropStmt)
 		ds.Object = f.kind
-		if f.dropCascade && p.cur.Type == kwCASCADE {
+		if f.dropCascade && p.curIs(kwCASCADE) {
 			p.advance() // consume CASCADE
 			ds.Cascade = true
 			ds.Loc.End = p.prev.Loc.End
 		}
-		if f.dropForce && p.cur.Type == kwFORCE {
+		if f.dropForce && p.curIs(kwFORCE) {
 			p.advance() // consume FORCE
 			ds.Force = true
 			ds.Loc.End = p.prev.Loc.End
@@ -40,7 +40,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		return ds, nil
 	}
 	// DROP INDEX [ IF EXISTS ] <table_name>.<index_name> (index.go).
-	if p.cur.Type == kwINDEX {
+	if p.curIs(kwINDEX) {
 		p.advance() // consume INDEX
 		return p.parseDropIndexStmt(start)
 	}
@@ -57,8 +57,8 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		return p.parseDocDrop(start, d)
 	}
 
-	switch p.cur.Type {
-	case kwDATABASE:
+	switch {
+	case p.curIs(kwDATABASE):
 		// DROP DATABASE ROLE [ IF EXISTS ] <name>
 		// (https://docs.snowflake.com/en/sql-reference/sql/drop-database-role),
 		// whose name a database may qualify.
@@ -82,19 +82,19 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		// DATABASE handled by T2.1; parseDropDatabaseStmt consumes DATABASE.
 		return p.parseDropDatabaseStmt()
 
-	case kwSCHEMA:
+	case p.curIs(kwSCHEMA):
 		// SCHEMA handled by T2.1; parseDropSchemaStmt consumes SCHEMA.
 		return p.parseDropSchemaStmt()
 
-	case kwTABLE:
+	case p.curIs(kwTABLE):
 		p.advance() // consume TABLE
 		return p.parseDropTableStmt(start, false)
 
-	case kwVIEW:
+	case p.curIs(kwVIEW):
 		p.advance() // consume VIEW
 		return p.parseDropObject(ast.DropView, start, true, false)
 
-	case kwMATERIALIZED:
+	case p.curIs(kwMATERIALIZED):
 		// MATERIALIZED VIEW
 		p.advance() // consume MATERIALIZED
 		if _, err := p.expect(kwVIEW); err != nil {
@@ -102,7 +102,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		}
 		return p.parseDropObject(ast.DropMaterializedView, start, true, false)
 
-	case kwDYNAMIC:
+	case p.curIs(kwDYNAMIC):
 		// DROP DYNAMIC TABLE [ IF EXISTS ] <name>
 		// (https://docs.snowflake.com/en/sql-reference/sql/drop-dynamic-table)
 		p.advance() // consume DYNAMIC
@@ -111,7 +111,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		}
 		return p.parseDropObject(ast.DropDynamicTable, start, true, false)
 
-	case kwEXTERNAL:
+	case p.curIs(kwEXTERNAL):
 		// EXTERNAL TABLE
 		p.advance() // consume EXTERNAL
 		if _, err := p.expect(kwTABLE); err != nil {
@@ -119,11 +119,11 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		}
 		return p.parseDropObject(ast.DropExternalTable, start, true, true)
 
-	case kwSTREAM:
+	case p.curIs(kwSTREAM):
 		p.advance() // consume STREAM
 		return p.parseDropObject(ast.DropStream, start, true, false)
 
-	case kwTASK:
+	case p.curIs(kwTASK):
 		// DROP TASK, or DROP TASK GRAPH (task_graph.go).
 		task := func() (ast.Node, error) {
 			p.advance() // consume TASK
@@ -143,19 +143,19 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		}
 		return task()
 
-	case kwSEQUENCE:
+	case p.curIs(kwSEQUENCE):
 		p.advance() // consume SEQUENCE
 		return p.parseDropObject(ast.DropSequence, start, true, true)
 
-	case kwSTAGE:
+	case p.curIs(kwSTAGE):
 		p.advance() // consume STAGE
 		return p.parseDropObject(ast.DropStage, start, true, false)
 
-	case kwFILE_FORMAT:
+	case p.curIs(kwFILE_FORMAT):
 		p.advance() // consume FILE_FORMAT (single keyword token)
 		return p.parseDropObject(ast.DropFileFormat, start, true, false)
 
-	case kwFILE:
+	case p.curIs(kwFILE):
 		// FILE FORMAT — two-word form using separate FILE and FORMAT tokens
 		p.advance() // consume FILE
 		if _, err := p.expect(kwFORMAT); err != nil {
@@ -163,31 +163,31 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		}
 		return p.parseDropObject(ast.DropFileFormat, start, true, false)
 
-	case kwFUNCTION:
+	case p.curIs(kwFUNCTION):
 		p.advance() // consume FUNCTION
 		return p.parseDropObject(ast.DropFunction, start, true, false)
 
-	case kwPROCEDURE:
+	case p.curIs(kwPROCEDURE):
 		p.advance() // consume PROCEDURE
 		return p.parseDropObject(ast.DropProcedure, start, true, false)
 
-	case kwPIPE:
+	case p.curIs(kwPIPE):
 		p.advance() // consume PIPE
 		return p.parseDropObject(ast.DropPipe, start, true, false)
 
-	case kwTAG:
+	case p.curIs(kwTAG):
 		p.advance() // consume TAG
 		return p.parseDropObject(ast.DropTag, start, true, false)
 
-	case kwROLE:
+	case p.curIs(kwROLE):
 		p.advance() // consume ROLE
 		return p.parseDropObject(ast.DropRole, start, true, false)
 
-	case kwWAREHOUSE:
+	case p.curIs(kwWAREHOUSE):
 		p.advance() // consume WAREHOUSE
 		return p.parseDropObject(ast.DropWarehouse, start, true, false)
 
-	case kwNETWORK:
+	case p.curIs(kwNETWORK):
 		// DROP NETWORK RULE (gap-network-rule) and DROP NETWORK POLICY. NETWORK is
 		// reserved but RULE is not, so NETWORK RULE lexes as kwNETWORK followed by a
 		// "RULE" identifier; POLICY is a reserved keyword, so NETWORK POLICY lexes as
@@ -197,22 +197,22 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 			p.advance() // consume RULE
 			return p.parseDropObject(ast.DropNetworkRule, start, true, false)
 		}
-		if p.peekNext().Type == kwPOLICY {
+		if p.nextIs(kwPOLICY) {
 			p.advance() // consume NETWORK
 			p.advance() // consume POLICY
 			return p.parseDropObject(ast.DropNetworkPolicy, start, true, false)
 		}
 		return p.unsupportedDrop()
 
-	case kwALERT:
+	case p.curIs(kwALERT):
 		p.advance() // consume ALERT
 		return p.parseDropObject(ast.DropAlert, start, true, false)
 
-	case kwCONNECTION:
+	case p.curIs(kwCONNECTION):
 		p.advance() // consume CONNECTION
 		return p.parseDropObject(ast.DropConnection, start, true, false)
 
-	case kwFAILOVER:
+	case p.curIs(kwFAILOVER):
 		// FAILOVER GROUP
 		p.advance() // consume FAILOVER
 		if _, err := p.expect(kwGROUP); err != nil {
@@ -220,7 +220,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		}
 		return p.parseDropObject(ast.DropFailoverGroup, start, true, false)
 
-	case kwMANAGED:
+	case p.curIs(kwMANAGED):
 		// MANAGED ACCOUNT
 		p.advance() // consume MANAGED
 		if _, err := p.expect(kwACCOUNT); err != nil {
@@ -228,7 +228,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		}
 		return p.parseDropObject(ast.DropManagedAccount, start, true, false)
 
-	case kwMASKING:
+	case p.curIs(kwMASKING):
 		// MASKING POLICY
 		p.advance() // consume MASKING
 		if _, err := p.expect(kwPOLICY); err != nil {
@@ -236,7 +236,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		}
 		return p.parseDropObject(ast.DropMaskingPolicy, start, true, false)
 
-	case kwREPLICATION:
+	case p.curIs(kwREPLICATION):
 		// REPLICATION GROUP
 		p.advance() // consume REPLICATION
 		if _, err := p.expect(kwGROUP); err != nil {
@@ -244,7 +244,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		}
 		return p.parseDropObject(ast.DropReplicationGroup, start, true, false)
 
-	case kwRESOURCE:
+	case p.curIs(kwRESOURCE):
 		// RESOURCE MONITOR
 		p.advance() // consume RESOURCE
 		if _, err := p.expect(kwMONITOR); err != nil {
@@ -252,7 +252,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		}
 		return p.parseDropObject(ast.DropResourceMonitor, start, true, false)
 
-	case kwROW:
+	case p.curIs(kwROW):
 		// ROW ACCESS POLICY
 		p.advance() // consume ROW
 		if _, err := p.expect(kwACCESS); err != nil {
@@ -263,7 +263,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		}
 		return p.parseDropObject(ast.DropRowAccessPolicy, start, true, false)
 
-	case kwSESSION:
+	case p.curIs(kwSESSION):
 		// SESSION POLICY
 		p.advance() // consume SESSION
 		if _, err := p.expect(kwPOLICY); err != nil {
@@ -271,18 +271,18 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		}
 		return p.parseDropObject(ast.DropSessionPolicy, start, true, false)
 
-	case kwSHARE:
+	case p.curIs(kwSHARE):
 		p.advance() // consume SHARE
 		return p.parseDropObject(ast.DropShare, start, true, false)
 
-	case kwUSER:
+	case p.curIs(kwUSER):
 		p.advance() // consume USER
 		return p.parseDropObject(ast.DropUser, start, true, false)
 
 	default:
 		// DROP ICEBERG TABLE. ICEBERG is not a reserved keyword, so it is
 		// matched by text and only before TABLE.
-		if p.curIsWord("ICEBERG") && p.peekNext().Type == kwTABLE {
+		if p.curIsWord("ICEBERG") && p.nextIs(kwTABLE) {
 			p.advance() // consume ICEBERG
 			p.advance() // consume TABLE
 			return p.parseDropTableStmt(start, true)
@@ -323,9 +323,8 @@ func (p *Parser) parseDropObject(kind ast.DropObjectKind, start ast.Loc, ifExist
 	}
 
 	// Optional IF EXISTS
-	if ifExistsOK && p.cur.Type == kwIF {
-		next := p.peekNext()
-		if next.Type == kwEXISTS {
+	if ifExistsOK && p.curIs(kwIF) {
+		if p.nextIs(kwEXISTS) {
 			p.advance() // consume IF
 			p.advance() // consume EXISTS
 			stmt.IfExists = true
@@ -351,16 +350,16 @@ func (p *Parser) parseDropObject(kind ast.DropObjectKind, start ast.Loc, ifExist
 
 	// Optional argument-type signature for FUNCTION / PROCEDURE overload
 	// disambiguation: DROP FUNCTION f(NUMBER, VARCHAR) / DROP PROCEDURE p().
-	if (kind == ast.DropFunction || kind == ast.DropProcedure) && stmt.TableArgs == nil && p.cur.Type == '(' {
+	if (kind == ast.DropFunction || kind == ast.DropProcedure) && stmt.TableArgs == nil && p.curIs('(') {
 		p.advance() // consume '('
 		stmt.HasArgs = true
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		for !p.curIs(')') && !p.curIs(tokEOF) {
 			argType, err := p.parseDataType()
 			if err != nil {
 				return nil, err
 			}
 			stmt.ArgTypes = append(stmt.ArgTypes, argType)
-			if p.cur.Type == ',' {
+			if p.curIs(',') {
 				p.advance() // consume ','
 				continue
 			}
@@ -373,11 +372,11 @@ func (p *Parser) parseDropObject(kind ast.DropObjectKind, start ast.Loc, ifExist
 
 	// Optional CASCADE | RESTRICT
 	if cascadeOK {
-		switch p.cur.Type {
-		case kwCASCADE:
+		switch {
+		case p.curIs(kwCASCADE):
 			p.advance()
 			stmt.Cascade = true
-		case kwRESTRICT:
+		case p.curIs(kwRESTRICT):
 			p.advance()
 			stmt.Restrict = true
 		}
@@ -399,7 +398,7 @@ func (p *Parser) parseUndropStmt() (ast.Node, error) {
 
 	// An object read by its documented shape (object.go) whose page documents
 	// UNDROP <kind> <name>.
-	if f := p.matchObjectForm(); f != nil && f.undrop {
+	if f := p.matchObjectForm(formUndrops); f != nil && f.undrop {
 		for range f.words {
 			p.advance()
 		}
@@ -420,20 +419,20 @@ func (p *Parser) parseUndropStmt() (ast.Node, error) {
 		return us, nil
 	}
 
-	switch p.cur.Type {
-	case kwDATABASE:
+	switch {
+	case p.curIs(kwDATABASE):
 		// DATABASE handled by T2.1; parseUndropDatabaseStmt consumes DATABASE.
 		return p.parseUndropDatabaseStmt()
 
-	case kwSCHEMA:
+	case p.curIs(kwSCHEMA):
 		// SCHEMA handled by T2.1; parseUndropSchemaStmt consumes SCHEMA.
 		return p.parseUndropSchemaStmt()
 
-	case kwTABLE:
+	case p.curIs(kwTABLE):
 		p.advance() // consume TABLE
 		return p.parseUndropObject(ast.UndropTable, start)
 
-	case kwDYNAMIC:
+	case p.curIs(kwDYNAMIC):
 		// UNDROP DYNAMIC TABLE
 		p.advance() // consume DYNAMIC
 		if _, err := p.expect(kwTABLE); err != nil {
@@ -441,7 +440,7 @@ func (p *Parser) parseUndropStmt() (ast.Node, error) {
 		}
 		return p.parseUndropObject(ast.UndropDynamicTable, start)
 
-	case kwTAG:
+	case p.curIs(kwTAG):
 		p.advance() // consume TAG
 		return p.parseUndropObject(ast.UndropTag, start)
 
@@ -451,7 +450,7 @@ func (p *Parser) parseUndropStmt() (ast.Node, error) {
 		}
 		// UNDROP ICEBERG TABLE
 		// (https://docs.snowflake.com/en/sql-reference/sql/undrop-iceberg-table).
-		if p.curIsWord("ICEBERG") && p.peekNext().Type == kwTABLE {
+		if p.curIsWord("ICEBERG") && p.nextIs(kwTABLE) {
 			p.advance() // consume ICEBERG
 			p.advance() // consume TABLE
 			node, err := p.parseUndropObject(ast.UndropTable, start)
@@ -521,15 +520,15 @@ func (p *Parser) parseDropTableStmt(start ast.Loc, iceberg bool) (ast.Node, erro
 // statement, CASCADE or RESTRICT, which would make ROLE the name of the
 // database DROP DATABASE drops. It consumes nothing.
 func (p *Parser) startsDropDatabaseRole() bool {
-	if p.cur.Type != kwDATABASE || p.peekNext().Type != kwROLE {
+	if !p.curIs(kwDATABASE) || !p.nextIs(kwROLE) {
 		return false
 	}
 	snap := p.snapshot()
 	defer p.restore(snap)
 	p.advance() // DATABASE
 	p.advance() // ROLE
-	switch p.cur.Type {
-	case tokEOF, ';', tokFlow, kwCASCADE, kwRESTRICT:
+	switch {
+	case p.curIs(tokEOF), p.curIs(';'), p.curIs(tokFlow), p.curIs(kwCASCADE), p.curIs(kwRESTRICT):
 		return false
 	}
 	return true

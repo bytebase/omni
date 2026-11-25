@@ -107,9 +107,9 @@ func (p *Parser) showClassScopeNameFollows(n int, parens bool) bool {
 		p.advance()
 	}
 	if parens {
-		return p.cur.Type == '('
+		return p.curIs('(')
 	}
-	return p.startsScopeName() && p.cur.Type != kwLIKE && p.cur.Type != kwFOR
+	return p.startsScopeName() && !p.curIs(kwLIKE) && !p.curIs(kwFOR)
 }
 
 // showClassClause is a trailing clause a class's page writes after its scope.
@@ -214,7 +214,7 @@ func (p *Parser) parseShowOfType(stmt *ast.ShowStmt) error {
 			return err
 		}
 		stmt.OfTypes = append(stmt.OfTypes, id)
-		if p.cur.Type != ',' {
+		if !p.curIs(',') {
 			return nil
 		}
 		p.advance() // consume ','
