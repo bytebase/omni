@@ -464,6 +464,10 @@ func (l *sdlLoader) addColumn(schema string, table *metadatapb.TableMetadata, co
 	if column.DefaultExpr.Expr != nil {
 		c.Default = sdlExpr(column.DefaultExpr.Expr)
 	}
+	if column.GeneratedIdentity.IsGeneratedAsIdentity {
+		// The sync reads no identity, so a migration could not keep one.
+		return fmt.Errorf("column %s: an identity column is not supported", column.Name)
+	}
 	if column.OnUpdateExpr.Expr != nil {
 		// The sync reads no ON UPDATE, so a migration could not keep one.
 		return fmt.Errorf("column %s: ON UPDATE is not supported", column.Name)

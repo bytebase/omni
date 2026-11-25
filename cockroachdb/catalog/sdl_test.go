@@ -22,6 +22,7 @@ func TestLoadSDLRefuses(t *testing.T) {
 		"locality":           "CREATE TABLE t (id INT8 PRIMARY KEY) LOCALITY GLOBAL",
 		"temporary":          "CREATE TEMP TABLE t (id INT8 PRIMARY KEY)",
 		"temporary sequence": "CREATE TEMP SEQUENCE s",
+		"identity":           "CREATE TABLE t (id INT8 GENERATED ALWAYS AS IDENTITY PRIMARY KEY)",
 		"temporary view":     "CREATE TEMP VIEW v AS SELECT 1 AS n",
 		"schema rename":      "CREATE SCHEMA old; CREATE TABLE old.t (id INT8 PRIMARY KEY); ALTER SCHEMA old RENAME TO new",
 		"table twice":        "CREATE TABLE t (id INT8 PRIMARY KEY); CREATE TABLE t (id INT8 PRIMARY KEY)",
