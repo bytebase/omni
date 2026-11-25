@@ -17,9 +17,9 @@ import (
 // written by hand, as CockroachDB would store them. They are for comparison
 // only; what a migration writes is the target's own text.
 
-// exprKey is an expression without what CockroachDB adds to the literals it
-// stores (”::STRING, 's.seq'::REGCLASS, a collated column's COLLATE) or
-// takes off them (ARRAY[]::STRING[]), and without parentheses.
+// exprKey is a check's or a predicate's expression without what CockroachDB
+// adds to the literals it stores ('a'::STRING compared with a column,
+// 's.seq'::REGCLASS), and without parentheses.
 func exprKey(expr string) string {
 	if strings.TrimSpace(expr) == "" {
 		return ""
@@ -28,16 +28,91 @@ func exprKey(expr string) string {
 	if err != nil {
 		return expr
 	}
-	// CockroachDB adds COLLATE to a collated column's literal default as a
-	// whole; inside an expression a collation is the expression's own.
+	parsed, _ = tree.WalkExpr(literalCastStripper{}, parsed)
+	return groupedKey(parsed)
+}
+
+// defaultKey is exprKey for a default of type typ. CockroachDB folds a cast
+// of a literal to the column's own type ('x'::STRING to 'x'), adds COLLATE to
+// a collated column's literal and takes ARRAY[]::STRING[] down to ARRAY[], so
+// those go; a cast to another type converts the value first ('2020-01-01
+// 12:34:56'::DATE in a TIMESTAMP is midnight) and stays.
+func defaultKey(expr, typ string) string {
+	if strings.TrimSpace(expr) == "" {
+		return ""
+	}
+	parsed, err := crparser.ParseExpr(expr)
+	if err != nil {
+		return expr
+	}
 	if collate, ok := unparen(parsed).(*tree.CollateExpr); ok && isLiteral(collate.Expr) {
 		parsed = collate.Expr
 	}
-	// The whole expression is a column's default, whose type the column
-	// fixes.
-	parsed = stripLiteralCast(parsed)
+	parsed = stripDefaultCast(parsed, typ)
 	parsed, _ = tree.WalkExpr(literalCastStripper{}, parsed)
 	return groupedKey(parsed)
+}
+
+// stripDefaultCast drops a default's cast or annotation on a literal where it
+// names the default's own type, or for an annotation the literal's own.
+func stripDefaultCast(expr tree.Expr, typ string) tree.Expr {
+	switch e := unparen(expr).(type) {
+	case *tree.CastExpr:
+		if isLiteral(unparen(e.Expr)) && !castRounds(e) && (sameType(e.Type, typ) || emptyArray(e)) {
+			return trimZeros(unparen(e.Expr))
+		}
+	case *tree.AnnotateTypeExpr:
+		if isLiteral(unparen(e.Expr)) && (sameType(e.Type, typ) || ownType(unparen(e.Expr), e.Type)) {
+			return trimZeros(unparen(e.Expr))
+		}
+	case *tree.NumVal:
+		return trimZeros(e)
+	}
+	return expr
+}
+
+// sameType reports whether a cast's type is typ, a type as the sync states
+// it.
+func sameType(ref tree.ResolvableTypeReference, typ string) bool {
+	t, ok := tree.GetStaticallyKnownType(ref)
+	if !ok || typ == "" {
+		return false
+	}
+	other, err := crparser.GetTypeFromValidSQLSyntax(typ)
+	if err != nil {
+		return false
+	}
+	o, ok := tree.GetStaticallyKnownType(other)
+	return ok && t.Identical(o)
+}
+
+// emptyArray reports whether a cast is of an empty ARRAY[], whose element
+// type the cast only names.
+func emptyArray(cast *tree.CastExpr) bool {
+	array, ok := unparen(cast.Expr).(*tree.Array)
+	return ok && len(array.Exprs) == 0
+}
+
+// ownType reports whether an annotation names the type a literal takes on
+// its own: STRING for a string, INT8 for an integer, DECIMAL for a number
+// with a fraction, BOOL for a boolean.
+func ownType(literal tree.Expr, ref tree.ResolvableTypeReference) bool {
+	t, ok := tree.GetStaticallyKnownType(ref)
+	if !ok {
+		return false
+	}
+	switch l := literal.(type) {
+	case *tree.StrVal:
+		return t.Identical(types.String)
+	case *tree.NumVal:
+		if strings.ContainsAny(l.OrigString(), ".eE") {
+			return t.Identical(types.Decimal)
+		}
+		return t.Identical(types.Int)
+	case *tree.DBool:
+		return t.Identical(types.Bool)
+	}
+	return false
 }
 
 func unparen(expr tree.Expr) tree.Expr {
@@ -301,7 +376,7 @@ func routineKey(definition string) string {
 	for i := range routine.Params {
 		if routine.Params[i].DefaultVal != nil {
 			// Its parameter types it, as a column types its default.
-			routine.Params[i].DefaultVal, _ = tree.WalkExpr(literalCastStripper{}, stripLiteralCast(routine.Params[i].DefaultVal))
+			routine.Params[i].DefaultVal, _ = tree.WalkExpr(literalCastStripper{}, stripDefaultCast(routine.Params[i].DefaultVal, routine.Params[i].Type.SQLString()))
 		}
 	}
 	var language tree.RoutineLanguage

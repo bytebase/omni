@@ -922,7 +922,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 		}
 		if detached && column.Default != "" {
 			alter(defaultPhase, OpAlterColumn, column.Name, col+"SET DEFAULT "+defaultExpression(column.Default))
-		} else if !detached && exprKey(oldColumn.Default) != exprKey(column.Default) {
+		} else if !detached && defaultKey(oldColumn.Default, oldColumn.Type) != defaultKey(column.Default, column.Type) {
 			if column.Default == "" {
 				alter(phaseAlterTables, OpAlterColumn, column.Name, col+"DROP DEFAULT")
 			} else {
