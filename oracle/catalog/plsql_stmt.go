@@ -104,6 +104,7 @@ func (c *plChecker) stmt(n ast.StmtNode) {
 			c.fail("PLS-00503", "RETURN <value> statement required for this return from function")
 		default:
 			c.expr(s.Expr)
+			c.returnFits(s.Expr)
 		}
 	case *ast.PLSQLGoto:
 		if !c.labels[s.Label] {
@@ -146,6 +147,23 @@ func (c *plChecker) stmt(n ast.StmtNode) {
 		c.sql(s)
 	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt:
 		c.sql(s)
+	}
+}
+
+// returnFits fails a function that returns a number literal as a datetime
+// (PLS-00382, expression is of wrong type): Oracle converts no NUMBER to a
+// DATE, TIMESTAMP or INTERVAL implicitly.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/Data-Type-Comparison-Rules.html (Implicit Data Conversion)
+func (c *plChecker) returnFits(x ast.ExprNode) {
+	if _, ok := x.(*ast.NumberLiteral); !ok {
+		return
+	}
+	switch typeWord(c.returns) {
+	case "DATE", "TIMESTAMP", "INTERVAL":
+		if !c.returns.IsPercType && !c.returns.IsPercRowtype {
+			c.fail("PLS-00382", "expression is of wrong type")
+		}
 	}
 }
 

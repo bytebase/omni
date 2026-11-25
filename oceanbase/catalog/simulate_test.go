@@ -57,9 +57,10 @@ var simulationFixtures = []string{
 
 // simulationFamilies are the leading words of the statements the file holds:
 // DDL on tables, indexes and views, whose whole effect is in the database a
-// row reads back. Statements on databases, sequences, materialized views and
-// their logs, outlines, tablegroups, accounts and the server are not
-// simulated here yet: what they change is outside that database, or
+// row reads back. Sequences have a suite of their own,
+// testdata/sequences/simulate.tsv. Statements on databases, materialized
+// views and their logs, outlines, tablegroups, accounts and the server are
+// not simulated here yet: what they change is outside that database, or
 // OceanBase has no SHOW CREATE for it.
 var simulationFamilies = []string{
 	"ALTER TABLE ", "CREATE TABLE ", "DROP TABLE ", "RENAME TABLE ", "TRUNCATE ",
