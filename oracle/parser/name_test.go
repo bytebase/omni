@@ -258,3 +258,33 @@ func newTestParser(sql string) *Parser {
 	p.advance()
 	return p
 }
+
+// TestParseObjectNameDottedDBLink holds a database link's name whole: its
+// domains and its connection qualifier, with the name's range ending at
+// the link's last token.
+func TestParseObjectNameDottedDBLink(t *testing.T) {
+	for _, tc := range []struct {
+		in, link string
+	}{
+		{"hr.employees@remote.example.com", "REMOTE.EXAMPLE.COM"},
+		{"employees@remote@inst", "REMOTE@INST"},
+		{`employees@remote.example.com@"Inst"`, "REMOTE.EXAMPLE.COM@Inst"},
+	} {
+		p := newTestParser(tc.in + " x")
+		obj, err := p.parseObjectName()
+		if err != nil {
+			t.Fatalf("%s: %v", tc.in, err)
+		}
+		if obj.DBLink != tc.link {
+			t.Errorf("%s: dblink %q, want %q", tc.in, obj.DBLink, tc.link)
+		}
+		if obj.Loc.End != len(tc.in) {
+			t.Errorf("%s: Loc.End %d, want %d", tc.in, obj.Loc.End, len(tc.in))
+		}
+	}
+	for _, in := range []string{"employees@remote.", "employees@remote@"} {
+		if _, err := newTestParser(in).parseObjectName(); err == nil {
+			t.Errorf("%s: parsed, want an error", in)
+		}
+	}
+}

@@ -18955,6 +18955,21 @@
 | CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
 < ok 0 0
 > exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -38689,6 +38704,21 @@
 > exec
 | CREATE INDEX a_c_idx ON a (c)
 < ok 0 0
+> exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
 > exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < error
@@ -58593,6 +58623,21 @@
 > exec
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
+> exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
 > exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < error
@@ -78714,6 +78759,21 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -98686,6 +98746,21 @@
 | CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;
 < ok 0 0
 > exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < ok 1 0
 > exec
@@ -117155,6 +117230,21 @@
 > exec
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
+> exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
 > exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < ok 1 0
@@ -138003,6 +138093,21 @@
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
 > exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < ok 1 0
 > exec
@@ -156394,6 +156499,21 @@
 > exec
 | CREATE SEQUENCE a
 < ok 0 0
+> exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
 > exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < error
@@ -174851,6 +174971,21 @@
 | CREATE SYNONYM a FOR t
 < ok 0 0
 > exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < ok 1 0
 > exec
@@ -192811,6 +192946,21 @@
 > exec
 | CREATE FUNCTION a RETURN NUMBER IS BEGIN RETURN 1; END;
 < ok 0 0
+> exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
 > exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < error
@@ -210806,6 +210956,21 @@
 > exec
 | CREATE TYPE a AS OBJECT (a NUMBER)
 < ok 0 0
+> exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
 > exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < error

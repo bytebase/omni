@@ -1220,10 +1220,12 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		}
 	}
 
-	if p.cur.Type == '@' {
+	// A name's own link ends at its connection qualifier: Oracle takes no
+	// second one (t@l@q@x).
+	if p.cur.Type == '@' && name.DBLink == "" {
 		p.advance()
 		var parseErr973 error
-		tr.Dblink, parseErr973 = p.parseIdentifier()
+		tr.Dblink, parseErr973 = p.parseDBLinkName(p.parseIdentifier)
 		if parseErr973 !=
 
 			// Flashback query: VERSIONS BETWEEN ... AND ... or AS OF SCN/TIMESTAMP

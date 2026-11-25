@@ -163,10 +163,12 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 		}
 	}
 
-	if p.cur.Type == '@' {
+	// A name's own link ends at its connection qualifier: Oracle takes no
+	// second one (t@l@q@x).
+	if p.cur.Type == '@' && (stmt.Table == nil || stmt.Table.DBLink == "") {
 		p.advance()
 		var parseErr777 error
-		stmt.Dblink, parseErr777 = p.parseIdentifier()
+		stmt.Dblink, parseErr777 = p.parseDBLinkName(p.parseIdentifier)
 		if parseErr777 !=
 
 			// Optional alias
