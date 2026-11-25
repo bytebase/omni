@@ -421,11 +421,8 @@ func (c *Catalog) createTableAs(n *parser.CreateTableAsStmt) error {
 	if err != nil {
 		return err
 	}
-	if n.ColumnAliases != nil {
-		if len(n.ColumnAliases) != len(cols) {
-			return errorf("MISMATCHED_COLUMN_ALIASES", "Column alias list has %d entries but relation has %d columns", len(n.ColumnAliases), len(cols))
-		}
-		for i, a := range n.ColumnAliases {
+	for i, a := range n.ColumnAliases {
+		if i < len(cols) {
 			cols[i].Name = fold(a)
 		}
 	}
@@ -440,17 +437,12 @@ func (c *Catalog) createTableAs(n *parser.CreateTableAsStmt) error {
 	return nil
 }
 
-// namedColumns refuses a query output column with no name, or a name twice.
+// namedColumns refuses a query output column with no name.
 func namedColumns(cols []*Column) error {
-	seen := map[string]bool{}
 	for i, col := range cols {
 		if col.Name == "" {
 			return errorf("MISSING_COLUMN_NAME", "Column name not specified at position %d", i+1)
 		}
-		if seen[col.Name] {
-			return errorf("DUPLICATE_COLUMN_NAME", "Column name '%s' specified more than once", col.Name)
-		}
-		seen[col.Name] = true
 	}
 	return nil
 }

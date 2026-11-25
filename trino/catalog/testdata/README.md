@@ -32,11 +32,13 @@ it cannot type has no type.
 
 - The type of an expression other than a column, a literal or a DATE
   literal: functions, aggregates, arithmetic, CASE, casts.
-- The refusals Trino's analyzer makes of a query's shape: an alias list
-  (`AS x(a)`, a WITH query's) whose width is not the relation's, set
-  operation sides of different widths or types, GROUP BY and window
-  rules.
-- The columns of UNNEST, LATERAL and table functions.
+- Every refusal Trino's analyzer makes of a query but a missing catalog,
+  schema or table and an output column with no name: a column no relation
+  holds or two do, an alias list (`AS x(a)`, a WITH query's) whose width is
+  not the relation's, set operation sides of different widths or types,
+  two output columns of one name, GROUP BY and window rules.
+- The columns of UNNEST, LATERAL, table functions and a recursive WITH
+  query, and the coalesced columns of a NATURAL join.
 
 ## Commands
 

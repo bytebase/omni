@@ -31,9 +31,8 @@ type scopeRel struct {
 
 // queryColumns returns the output columns of a CREATE TABLE AS or view
 // query: a name (empty when Trino would make one up) and a type (empty when
-// omni does not know it). It reports what Trino's analyzer refuses about
-// the relations a query reads: a missing catalog, schema or table, and a
-// column no relation has.
+// omni does not know it). It refuses only a relation a query reads that is
+// missing: its catalog, schema or table.
 func (c *Catalog) queryColumns(q *parser.Query) ([]*Column, error) {
 	return c.typeQuery(q, map[string][]*Column{})
 }
@@ -48,6 +47,11 @@ func (c *Catalog) typeQuery(q *parser.Query, ctes map[string][]*Column) ([]*Colu
 			inner[k] = v
 		}
 		for _, cte := range q.With.CTEs {
+			if q.With.Recursive {
+				// A recursive term reads its own query, whose columns
+				// omni leaves unknown.
+				inner[fold(cte.Name)] = nil
+			}
 			cols, err := c.typeQuery(cte.Query, inner)
 			if err != nil {
 				return nil, err
@@ -121,11 +125,8 @@ func (c *Catalog) typeSpec(spec *parser.QuerySpec, ctes map[string][]*Column) ([
 					}
 				}
 			}
-			if len(item.Aliases) > 0 {
-				if len(item.Aliases) != len(cols) {
-					return nil, errorf("MISMATCHED_COLUMN_ALIASES", "Column alias list has %d entries but relation has %d columns available", len(item.Aliases), len(cols))
-				}
-				for i, a := range item.Aliases {
+			for i, a := range item.Aliases {
+				if i < len(cols) {
 					cols[i].Name = fold(a)
 				}
 			}
@@ -152,7 +153,7 @@ func (c *Catalog) addRelation(scope *queryScope, rel parser.Relation, ctes map[s
 		if err := c.addRelation(scope, n.Inner, ctes); err != nil {
 			return err
 		}
-		if len(scope.rels) > before+1 {
+		if n.Alias != nil && len(scope.rels) > before+1 {
 			// An alias on a parenthesized join names one relation of all
 			// the join's columns.
 			cols := joinedColumns(scope.rels[before:], before)
@@ -273,10 +274,7 @@ func (s *queryScope) typeExpr(e parser.Expr) (*Column, error) {
 				col = &Column{Name: field, Nullable: true}
 				continue
 			}
-			typ, ok := rowField(col.Type, field)
-			if !ok {
-				return nil, errorf("COLUMN_NOT_FOUND", "Column '%s' cannot be resolved", field)
-			}
+			typ, _ := rowField(col.Type, field)
 			col = &Column{Name: field, Type: typ, Nullable: true}
 		}
 		return col, nil
@@ -462,8 +460,9 @@ func valuesColumns(v *parser.ValuesQuery) []*Column {
 }
 
 // column resolves a column reference, qualified by a relation's names or
-// not. An unqualified name two relations hold is ambiguous, but a USING
-// column, which the join holds once.
+// not, to the first relation that holds it; a USING column is the left
+// side's. A name no relation holds, or one a relation of unknown columns
+// may, has no type: Exec refuses no reference (see testdata/README.md).
 func (s *queryScope) column(qualifier []string, name string) (*Column, error) {
 	known := true
 	var found *Column
@@ -478,19 +477,15 @@ func (s *queryScope) column(qualifier []string, name string) (*Column, error) {
 			if col.Name != name {
 				continue
 			}
-			if found != nil {
-				return nil, errorf("AMBIGUOUS_NAME", "Column '%s' is ambiguous", name)
+			if found == nil {
+				found = &Column{Name: col.Name, Type: col.Type, Nullable: true}
 			}
-			found = &Column{Name: col.Name, Type: col.Type, Nullable: true}
 		}
 	}
-	switch {
-	case found != nil:
+	if found != nil && known {
 		return found, nil
-	case !known:
-		return &Column{Name: name, Nullable: true}, nil
 	}
-	return nil, errorf("COLUMN_NOT_FOUND", "Column '%s' cannot be resolved", strings.Join(append(append([]string{}, qualifier...), name), "."))
+	return &Column{Name: name, Nullable: true}, nil
 }
 
 // literalType is the type Trino gives a literal.

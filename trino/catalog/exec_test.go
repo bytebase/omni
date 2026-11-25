@@ -123,8 +123,8 @@ func TestExecQueryShapes(t *testing.T) {
 }
 
 // TestExecQueryReferences pins how a query's column references resolve:
-// qualified by schema and table, through parentheses, a qualified star
-// with aliases, and an unqualified name two relations hold.
+// qualified by schema and table, through parentheses, and a qualified star
+// with aliases.
 func TestExecQueryReferences(t *testing.T) {
 	c := New()
 	s := c.EnsureCatalog("memory").EnsureSchema("s")
@@ -146,11 +146,6 @@ func TestExecQueryReferences(t *testing.T) {
 		if got := strings.Join(s.GetTable(table).ColumnNames(), ","); got != want {
 			t.Errorf("%s's columns = %s, want %s", table, got, want)
 		}
-	}
-	results, _ := c.Exec("CREATE TABLE q5 AS SELECT id FROM t CROSS JOIN r", nil)
-	var e *Error
-	if len(results) != 1 || !errors.As(results[0].Error, &e) || e.Name != "AMBIGUOUS_NAME" {
-		t.Errorf("an ambiguous id: got %+v, want AMBIGUOUS_NAME", results)
 	}
 }
 
@@ -178,6 +173,10 @@ func TestExecParenJoinAndViewContext(t *testing.T) {
 		"CREATE TABLE cu (one, two, three, four) AS SELECT * FROM x, ul JOIN ur USING (id)",
 		"CREATE TABLE rowt (p ROW(\"a b\" integer))",
 		"CREATE VIEW rowv AS SELECT p.\"a b\" FROM rowt",
+		// Shapes Exec takes without typing them, as Trino takes them.
+		"CREATE TABLE pj AS SELECT l.a, r.b FROM (l CROSS JOIN r)",
+		"CREATE TABLE nj AS SELECT * FROM ul NATURAL JOIN ur",
+		"CREATE TABLE rec AS WITH RECURSIVE nums(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM nums WHERE n < 3) SELECT n FROM nums",
 	} {
 		if results, err := c.Exec(sql, nil); err != nil || len(results) != 1 || results[0].Error != nil {
 			t.Fatalf("%s: got %+v, %v", sql, results, err)
@@ -204,5 +203,8 @@ func TestExecParenJoinAndViewContext(t *testing.T) {
 	}
 	if cols := s.GetView("rowv").Columns(); len(cols) != 1 || cols[0].Type != "integer" {
 		t.Errorf("rowv's columns = %+v, want an integer", cols)
+	}
+	if got := strings.Join(s.GetTable("pj").ColumnNames(), ","); got != "a,b" {
+		t.Errorf("pj's columns = %s, want a,b", got)
 	}
 }
