@@ -143,8 +143,8 @@ func (c *Catalog) truncateTable(stmt *nodes.TruncateStmt) error {
 		// A table another table's foreign key references is not truncated
 		// while foreign_key_checks is on (v8.5.5: TRUNCATE TABLE customers
 		// under orders' fk_customer is 1701). A key of the table to itself
-		// does not count.
-		if c.foreignKeyChecks {
+		// does not count, and no key references a local temporary table.
+		if c.foreignKeyChecks && !tbl.Temporary {
 			for _, ref := range c.referencingForeignKeys(tbl) {
 				if ref.child == tbl {
 					continue

@@ -209,8 +209,10 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 				if te.ResOrigDB != "" {
 					origDB = c.GetDatabase(te.ResOrigDB)
 				}
+				// A view reads the schema's table, never a local temporary
+				// table that shadows it in the session.
 				if origDB != nil {
-					if tbl := origDB.GetTable(te.ResOrigTable); tbl != nil {
+					if tbl := origDB.Tables[toLower(te.ResOrigTable)]; tbl != nil {
 						if srcCol := tbl.GetColumn(te.ResOrigCol); srcCol != nil {
 							col.Type = srcCol.ColumnType
 						}
@@ -256,7 +258,7 @@ func resolveSetOpColumnTypeExpr(c *Catalog, db *Database, q *Query, idx int) (st
 				origDB = c.GetDatabase(te.ResOrigDB)
 			}
 			if origDB != nil {
-				if tbl := origDB.GetTable(te.ResOrigTable); tbl != nil {
+				if tbl := origDB.Tables[toLower(te.ResOrigTable)]; tbl != nil {
 					if srcCol := tbl.GetColumn(te.ResOrigCol); srcCol != nil {
 						return srcCol.ColumnType, te.Expr
 					}
@@ -582,7 +584,7 @@ func resolveVarExprColumnType(c *Catalog, db *Database, q *Query, e *VarExprQ) s
 			origDB = c.GetDatabase(rte.DBName)
 		}
 		if origDB != nil {
-			if tbl := origDB.GetTable(rte.TableName); tbl != nil {
+			if tbl := origDB.Tables[toLower(rte.TableName)]; tbl != nil {
 				if col := tbl.GetColumn(rte.ColNames[e.AttNum-1]); col != nil {
 					return col.ColumnType
 				}
@@ -756,7 +758,7 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 					origDB = c.GetDatabase(rte.DBName)
 				}
 				if origDB != nil {
-					if tbl := origDB.GetTable(rte.TableName); tbl != nil {
+					if tbl := origDB.Tables[toLower(rte.TableName)]; tbl != nil {
 						if col := tbl.GetColumn(rte.ColNames[e.AttNum-1]); col != nil {
 							return parseColumnResolvedType(col.ColumnType)
 						}
