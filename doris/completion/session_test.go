@@ -153,6 +153,10 @@ func TestCompleteSession(t *testing.T) {
 		{name: "union arm in scope", text: "SELECT id FROM orders UNION SELECT na| FROM customers", want: typed(CandidateColumn, "name")},
 		{name: "unfinished nested expression", text: "SELECT * FROM orders WHERE ((am|", want: typed(CandidateColumn, "amount")},
 		{name: "catalog-qualified table", text: "SELECT o.am| FROM internal.db.orders o", want: typed(CandidateColumn, "amount")},
+		{name: "unfinished clause after the caret", text: "SELECT am| FROM orders WHERE", want: typed(CandidateColumn, "amount")},
+		{name: "create table as select list", text: "CREATE TABLE t AS SELECT am| FROM orders", want: typed(CandidateColumn, "amount")},
+		{name: "create table as subquery", text: "CREATE TABLE t AS SELECT * FROM orders WHERE id IN (SELECT na| FROM customers)", want: typed(CandidateColumn, "name")},
+		{name: "lexical scope after an unaliased table", text: "SELECT * FROM orders JOIN customers ON ((na|", want: typed(CandidateColumn, "name")},
 		{name: "unclosed subquery keywords", text: "SELECT * FROM (SELECT id |", has: kw("FROM"), not: kw("ON")},
 		{name: "derived table", text: "SELECT * FROM (SELECT * FROM cu|", want: typed(CandidateTable, "customers")},
 

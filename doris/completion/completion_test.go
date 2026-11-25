@@ -135,6 +135,9 @@ func TestInnermostQuery(t *testing.T) {
 		{"SELECT * FROM t WHERE a IN (SELECT b FROM u WHERE c IN (1, |)) AND d", "SELECT b FROM u WHERE c IN (1, |)"},
 		{"SELECT (SELECT 1) + |", "SELECT (SELECT 1) + |"},
 		{"SELECT count(|) FROM t", "SELECT count(|) FROM t"},
+		{"CREATE TABLE t AS SELECT | FROM u", "SELECT | FROM u"},
+		{"CREATE TABLE t AS SELECT * FROM u WHERE a IN (SELECT | FROM v)", "SELECT | FROM v"},
+		{"CREATE TABLE t (a INT) COMMENT 'x' AS |", "CREATE TABLE t (a INT) COMMENT 'x' AS |"},
 		{"WITH c AS (WITH d AS (SELECT 1) SELECT | FROM d) SELECT 1", "WITH d AS (SELECT 1) SELECT | FROM d"},
 	}
 	for _, tc := range tests {

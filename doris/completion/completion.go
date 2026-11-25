@@ -74,9 +74,10 @@ func complete(stmt string, caret int, cat *catalog) []Candidate {
 	return out
 }
 
-// innermostQuery narrows stmt to the innermost parenthesized query holding
-// caret: the text after its '(' up to its ')' or the end of stmt. A '('
-// opens a query when SELECT or WITH follows it.
+// innermostQuery narrows stmt to the innermost query the parser keeps as raw
+// text that holds caret: a parenthesized query, the text after its '(' up
+// to its ')' or the end of stmt, where SELECT or WITH follows the '('; or
+// the query of CREATE ... AS SELECT.
 func innermostQuery(stmt string, caret int) (string, int) {
 	toks, _ := parser.Tokenize(stmt)
 	type group struct {
@@ -84,7 +85,16 @@ func innermostQuery(stmt string, caret int) (string, int) {
 		query     bool
 	}
 	var open []group
+	// queryStart is where the query of CREATE ... AS SELECT starts, which
+	// the parser keeps as raw text too.
+	queryStart := -1
+	createStmt := len(toks) > 0 && isKeyword(toks[0]) && strings.EqualFold(toks[0].Str, "CREATE")
 	for i, t := range toks {
+		if createStmt && queryStart < 0 && len(open) == 0 && isKeyword(t) && strings.EqualFold(t.Str, "AS") {
+			if name := parser.TokenName(toks[i+1].Kind); (name == "SELECT" || name == "WITH") && toks[i+1].Loc.Start < caret {
+				queryStart = toks[i+1].Loc.Start
+			}
+		}
 		if t.Loc.Start >= caret || parser.TokenName(t.Kind) == "EOF" {
 			break
 		}
@@ -102,6 +112,9 @@ func innermostQuery(stmt string, caret int) (string, int) {
 	for i := len(open) - 1; i >= 0; i-- {
 		if !open[i].query {
 			continue
+		}
+		if open[i].bodyStart < queryStart {
+			break // the CTAS query holds this group
 		}
 		start := open[i].bodyStart
 		end := len(stmt)
@@ -121,6 +134,9 @@ func innermostQuery(stmt string, caret int) (string, int) {
 			}
 		}
 		return stmt[start:end], caret - start
+	}
+	if queryStart >= 0 {
+		return stmt[queryStart:], caret - queryStart
 	}
 	return stmt, caret
 }

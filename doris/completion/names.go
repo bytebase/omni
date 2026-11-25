@@ -54,12 +54,15 @@ func nameContextAt(stmt string, word caretWord) *nameContext {
 
 	prefix := stmt[:word.start] + placeholder
 	var root ast.Node
-	for i, tail := range append([]string{stmt[word.end:]}, placeholderTails...) {
-		if i > 0 && tail == "" && word.end == len(stmt) {
+	rest := stmt[word.end:]
+	truncated := false
+	for i, tail := range append([]string{rest}, placeholderTails...) {
+		if i > 0 && tail == "" && rest == "" {
 			continue // the same text as the first try
 		}
 		if file, err := parser.Parse(prefix + tail); err == nil && len(file.Stmts) == 1 {
 			root = file.Stmts[0]
+			truncated = i > 0 && strings.TrimSpace(rest) != ""
 			break
 		}
 	}
@@ -67,6 +70,11 @@ func nameContextAt(stmt string, word caretWord) *nameContext {
 		var block ast.Node
 		nc.kind, block = placeholderAt(root)
 		collectScope(root, block, nc)
+		if truncated {
+			// The parse dropped the text after the caret, and with it the
+			// FROM items a select list reads.
+			nc.scope = append(nc.scope, lexicalScope(rest)...)
+		}
 	} else {
 		nc.scope = lexicalScope(stmt[:qualStart])
 		if expressionStart(stmt[:qualStart]) {
@@ -268,14 +276,16 @@ func lexicalScope(text string) []tableItem {
 			continue
 		}
 		item := tableItem{parts: parts}
-		if j < len(toks) && isKeyword(toks[j]) && strings.EqualFold(toks[j].Str, "AS") {
-			j++
+		i = j - 1 // the token after the name is read again unless it is the alias
+		k := j
+		if k < len(toks) && isKeyword(toks[k]) && strings.EqualFold(toks[k].Str, "AS") {
+			k++
 		}
-		if j < len(toks) && isName(toks[j]) && !parser.IsReserved(toks[j].Kind) {
-			item.alias = toks[j].Str
+		if k < len(toks) && isName(toks[k]) && !parser.IsReserved(toks[k].Kind) {
+			item.alias = toks[k].Str
+			i = k
 		}
 		out = append(out, item)
-		i = j
 	}
 	return out
 }
