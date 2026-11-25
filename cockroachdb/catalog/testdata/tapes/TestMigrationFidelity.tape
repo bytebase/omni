@@ -76,6 +76,9 @@
 > exec
 | CREATE TABLE fid_m.uses (id INT8 PRIMARY KEY, code STRING REFERENCES fid_m.codes (code));
 < ok 0 -
+> exec
+| CREATE TABLE fid_m.amounts (id INT8 PRIMARY KEY, amount STRING, INDEX amounts_amount_idx (amount));
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -187,6 +190,62 @@
 < column "is_hidden" "TEXT"
 < column "generation_expression" "TEXT"
 < column "attgenerated" "CHAR"
+< row
+: string
+| fid_m
+: string
+| amounts
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| amounts
+: string
+| amount
+: string
+| text
+: null
+: null
+: null
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -865,6 +924,29 @@
 : string
 | fid_m
 : string
+| amounts
+: string
+| amounts_amount_idx
+: string
+| CREATE INDEX amounts_amount_idx ON omni_testmigrationfidelity.fid_m.amounts USING btree (amount ASC)
+: null
+: null
+< row
+: string
+| fid_m
+: string
+| amounts
+: string
+| amounts_pkey
+: string
+| CREATE UNIQUE INDEX amounts_pkey ON omni_testmigrationfidelity.fid_m.amounts USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | codes
 : string
 | codes_code_key
@@ -1156,6 +1238,13 @@
 < column "tablename" "NAME"
 < column "estimate" "INT8"
 < column "comment" "TEXT"
+< row
+: string
+| fid_m
+: string
+| amounts
+: int64 0
+: null
 < row
 : string
 | fid_m
@@ -1491,6 +1580,9 @@
 > exec
 | CREATE TABLE fid_m.uses (id INT8 PRIMARY KEY, code STRING REFERENCES fid_m.codes (code));
 < ok 0 -
+> exec
+| CREATE TABLE fid_m.amounts (id INT8 PRIMARY KEY, amount DECIMAL, INDEX amounts_amount_idx (amount));
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -1599,6 +1691,62 @@
 < column "is_hidden" "TEXT"
 < column "generation_expression" "TEXT"
 < column "attgenerated" "CHAR"
+< row
+: string
+| fid_m
+: string
+| amounts
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| amounts
+: string
+| amount
+: string
+| numeric
+: null
+: null
+: null
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| numeric
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -2161,6 +2309,29 @@
 : string
 | fid_m
 : string
+| amounts
+: string
+| amounts_amount_idx
+: string
+| CREATE INDEX amounts_amount_idx ON omni_testmigrationfidelity.fid_m.amounts USING btree (amount ASC)
+: null
+: null
+< row
+: string
+| fid_m
+: string
+| amounts
+: string
+| amounts_pkey
+: string
+| CREATE UNIQUE INDEX amounts_pkey ON omni_testmigrationfidelity.fid_m.amounts USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | codes
 : string
 | codes_code_key
@@ -2445,6 +2616,13 @@
 : string
 | fid_m
 : string
+| amounts
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | codes
 : int64 0
 : null
@@ -2699,6 +2877,9 @@
 | ALTER TABLE "fid_m"."uses" DROP CONSTRAINT "uses_code_fkey";
 < ok 0 -
 > exec
+| DROP INDEX "fid_m"."amounts"@"amounts_amount_idx";
+< ok 0 -
+> exec
 | DROP INDEX "fid_m"."codes"@"codes_code_key" CASCADE;
 < ok 0 -
 > exec
@@ -2736,6 +2917,9 @@
 < ok 0 -
 > exec
 | ALTER SEQUENCE "fid_m"."ids" INCREMENT BY 2;
+< ok 0 -
+> exec
+| ALTER TABLE "fid_m"."amounts" ALTER COLUMN "amount" SET DATA TYPE text;
 < ok 0 -
 > exec
 | ALTER TABLE "fid_m"."customers" ALTER COLUMN "email" DROP NOT NULL;
@@ -2783,6 +2967,9 @@
 |     "customer_id" bigint,
 |     "id" bigint DEFAULT nextval('fid_m.ids'::REGCLASS)
 | );
+< ok 0 -
+> exec
+| CREATE INDEX amounts_amount_idx ON fid_m.amounts (amount ASC);
 < ok 0 -
 > exec
 | CREATE UNIQUE INDEX codes_code_key ON fid_m.codes (code ASC) STORING (label);
@@ -2940,6 +3127,62 @@
 < column "is_hidden" "TEXT"
 < column "generation_expression" "TEXT"
 < column "attgenerated" "CHAR"
+< row
+: string
+| fid_m
+: string
+| amounts
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| amounts
+: string
+| amount
+: string
+| text
+: null
+: null
+: null
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -3618,6 +3861,29 @@
 : string
 | fid_m
 : string
+| amounts
+: string
+| amounts_amount_idx
+: string
+| CREATE INDEX amounts_amount_idx ON omni_testmigrationfidelity.fid_m.amounts USING btree (amount ASC)
+: null
+: null
+< row
+: string
+| fid_m
+: string
+| amounts
+: string
+| amounts_pkey
+: string
+| CREATE UNIQUE INDEX amounts_pkey ON omni_testmigrationfidelity.fid_m.amounts USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | codes
 : string
 | codes_code_key
@@ -3909,6 +4175,13 @@
 < column "tablename" "NAME"
 < column "estimate" "INT8"
 < column "comment" "TEXT"
+< row
+: string
+| fid_m
+: string
+| amounts
+: int64 0
+: null
 < row
 : string
 | fid_m

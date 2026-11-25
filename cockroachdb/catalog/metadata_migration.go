@@ -587,7 +587,7 @@ func (d *differ) cascadedForeignKeys() map[string]bool {
 						newIndex = candidate
 					}
 				}
-				if newIndex == nil || newIndex.Primary || !sameIndex(schema.Name, table.Name, newIndex, index) {
+				if newIndex == nil || newIndex.Primary || !sameIndex(schema.Name, table.Name, newIndex, index) || indexReads(index, retypedColumns(table, target)) {
 					dropped[getObjectID(schema.Name, table.Name)+objectIDSeparator+columnSet(index.Expressions)] = true
 				}
 			}
@@ -692,7 +692,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 			alter(phaseDropIndexes, OpDropConstraint, check.Name, "DROP CONSTRAINT "+quoteIdent(check.Name))
 		}
 	}
-	d.diffIndexes(schema, new.Name, old.Indexes, new.Indexes)
+	d.diffIndexes(schema, new.Name, old.Indexes, new.Indexes, retypedColumns(old, new))
 
 	oldKey, newKey := "", ""
 	if oldPrimary != nil {
@@ -854,6 +854,45 @@ func findCheck(checks []*metadatapb.CheckConstraintMetadata, name string) *metad
 	return nil
 }
 
+// retypedColumns returns the columns of a kept table whose type changes.
+// CockroachDB cannot rewrite a column an index reads, so such an index is
+// dropped before the change and created again after it.
+func retypedColumns(old, new *metadatapb.TableMetadata) map[string]bool {
+	retyped := make(map[string]bool)
+	for _, column := range old.Columns {
+		newColumn := findColumn(new, column.Name)
+		if newColumn != nil && (columnType(newColumn.Type) != columnType(column.Type) || newColumn.Collation != column.Collation) {
+			retyped[column.Name] = true
+		}
+	}
+	return retyped
+}
+
+// indexReads reports whether an index reads any of columns: as a key, a
+// stored column, or in an expression or predicate. A word of its definition
+// that names a column counts, which may rebuild an index needlessly but never
+// leaves one in a column's way.
+func indexReads(index *metadatapb.IndexMetadata, columns map[string]bool) bool {
+	if len(columns) == 0 || index == nil {
+		return false
+	}
+	for _, expression := range index.Expressions {
+		if columns[expression] {
+			return true
+		}
+	}
+	tokens, ok := crparser.Tokens(index.Definition)
+	if !ok {
+		return false
+	}
+	for _, token := range tokens {
+		if columns[token.Str] {
+			return true
+		}
+	}
+	return false
+}
+
 // sameIndex reports whether two indexes of schema.table are the same index.
 func sameIndex(schema, table string, a, b *metadatapb.IndexMetadata) bool {
 	return indexStatement(schema, table, a) == indexStatement(schema, table, b)
@@ -862,7 +901,7 @@ func sameIndex(schema, table string, a, b *metadatapb.IndexMetadata) bool {
 // diffIndexes drops the secondary indexes of a kept table or materialized view
 // that go or change, creates those that come or change, and sets index
 // comments. A primary key changes through ALTER TABLE.
-func (d *differ) diffIndexes(schema, table string, oldIndexes, newIndexes []*metadatapb.IndexMetadata) {
+func (d *differ) diffIndexes(schema, table string, oldIndexes, newIndexes []*metadatapb.IndexMetadata, retyped map[string]bool) {
 	find := func(indexes []*metadatapb.IndexMetadata, name string) *metadatapb.IndexMetadata {
 		for _, index := range indexes {
 			if index.Name == name {
@@ -876,7 +915,7 @@ func (d *differ) diffIndexes(schema, table string, oldIndexes, newIndexes []*met
 			continue
 		}
 		newIndex := find(newIndexes, index.Name)
-		if newIndex == nil || newIndex.Primary || !sameIndex(schema, table, newIndex, index) {
+		if newIndex == nil || newIndex.Primary || !sameIndex(schema, table, newIndex, index) || indexReads(index, retyped) {
 			sql := fmt.Sprintf("DROP INDEX %s.%s@%s", quoteIdent(schema), quoteIdent(table), quoteIdent(index.Name))
 			if index.Unique {
 				// A unique index may back a UNIQUE constraint, which
@@ -888,7 +927,7 @@ func (d *differ) diffIndexes(schema, table string, oldIndexes, newIndexes []*met
 	}
 	for _, index := range newIndexes {
 		oldIndex := find(oldIndexes, index.Name)
-		if !index.Primary && (oldIndex == nil || oldIndex.Primary || !sameIndex(schema, table, oldIndex, index)) {
+		if !index.Primary && (oldIndex == nil || oldIndex.Primary || !sameIndex(schema, table, oldIndex, index) || indexReads(oldIndex, retyped)) {
 			d.add(phaseCreateIndexes, MigrationOp{Type: OpCreateIndex, SchemaName: schema, ObjectName: index.Name, ParentObject: table, SQL: indexStatement(schema, table, index)})
 			oldIndex = nil
 		}
@@ -922,7 +961,7 @@ func (d *differ) diffViews() {
 					SQL: fmt.Sprintf("DROP MATERIALIZED VIEW %s.%s", quoteIdent(object.schema), quoteIdent(object.materializedView.Name))})
 				continue
 			}
-			d.diffIndexes(object.schema, target.Name, materializedViewIndexes(object.materializedView), materializedViewIndexes(target))
+			d.diffIndexes(object.schema, target.Name, materializedViewIndexes(object.materializedView), materializedViewIndexes(target), nil)
 		}
 	}
 	slices.Reverse(drops)

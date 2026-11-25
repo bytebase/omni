@@ -55,6 +55,7 @@ CREATE SEQUENCE fid_m.ticket_seq;
 CREATE TABLE fid_m.tickets (id INT8 PRIMARY KEY, n INT8 DEFAULT nextval('fid_m.ticket_seq'));
 CREATE TABLE fid_m.codes (id INT8 PRIMARY KEY, code STRING NOT NULL, label STRING, UNIQUE INDEX codes_code_key (code));
 CREATE TABLE fid_m.uses (id INT8 PRIMARY KEY, code STRING REFERENCES fid_m.codes (code));
+CREATE TABLE fid_m.amounts (id INT8 PRIMARY KEY, amount DECIMAL, INDEX amounts_amount_idx (amount));
 `,
 			target: `CREATE SCHEMA fid_m;
 CREATE SCHEMA fid_new;
@@ -91,6 +92,7 @@ CREATE TABLE fid_m.rekey (replacement INT8 PRIMARY KEY);
 CREATE TABLE fid_m.tickets (id INT8 PRIMARY KEY, n INT8);
 CREATE TABLE fid_m.codes (id INT8 PRIMARY KEY, code STRING NOT NULL, label STRING, UNIQUE INDEX codes_code_key (code) STORING (label));
 CREATE TABLE fid_m.uses (id INT8 PRIMARY KEY, code STRING REFERENCES fid_m.codes (code));
+CREATE TABLE fid_m.amounts (id INT8 PRIMARY KEY, amount STRING, INDEX amounts_amount_idx (amount));
 `,
 		},
 		{
