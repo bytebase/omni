@@ -81,7 +81,8 @@ func nameContextAt(stmt string, word caretWord, outer string) *nameContext {
 			nc.scope = append(nc.scope, lexicalScope(rest)...)
 		}
 	} else {
-		nc.scope = lexicalScope(stmt[:qualStart])
+		// The FROM a select list reads follows the caret.
+		nc.scope = append(lexicalScope(stmt[:qualStart]), lexicalScope(rest)...)
 		if expressionStart(stmt[:qualStart]) {
 			nc.kind = kindColumn
 		}

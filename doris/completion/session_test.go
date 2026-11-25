@@ -173,6 +173,7 @@ func TestCompleteSession(t *testing.T) {
 		{name: "alias in order by", text: "SELECT amount AS total FROM orders ORDER BY tot|", want: typed(CandidateColumn, "total")},
 		{name: "alias in group by", text: "SELECT amount AS total FROM orders GROUP BY tot|", want: typed(CandidateColumn, "total")},
 		{name: "alias not in where", text: "SELECT amount AS total FROM orders WHERE tot|", want: nil},
+		{name: "fallback reads after the caret", text: "SELECT ((am| FROM orders", want: typed(CandidateColumn, "amount")},
 		{name: "unclosed subquery keywords", text: "SELECT * FROM (SELECT id |", has: kw("FROM"), not: kw("ON")},
 		{name: "derived table", text: "SELECT * FROM (SELECT * FROM cu|", want: typed(CandidateTable, "customers")},
 
