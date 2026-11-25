@@ -27,12 +27,16 @@ func TestWalkSimulation(t *testing.T) {
 		path      string
 		minRecall float64
 	}{
-		// The rows parser/testdata/compat.tsv gives an optional clause at
-		// every site repeat the walk's misses on the same statements without
-		// it (ALL IN TABLESPACE, DROP TYPE on a missing type), so the floors
-		// fell with them.
-		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.911},
-		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.909},
+		// The DDL the walk misses names what the sync does not list: a
+		// type that is no table, enum, range or composite (a domain, a base
+		// or shell type, an enum with no labels), a tablespace, a role, an
+		// aggregate (which ROUTINE and COMMENT ON FUNCTION also name), a
+		// policy, an operator class, operator, access method or collation,
+		// PostgreSQL 18's NOT NULL constraint names, and a typed table's
+		// type. parser/testdata/compat.tsv repeats each statement once per
+		// optional clause, so these are most of the misses.
+		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.9116},
+		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.9099},
 		// The view queries the walk misses are what pg/catalog refuses with a
 		// code catalogCodes leaves out: a missing type, function, tablesample
 		// method or schema, and a coercion a cast could allow.
@@ -388,6 +392,9 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog, definitions map[[2]string][]strin
 				v := &metadata.ViewMetadata{Name: rel.Name, Definition: viewDefinition(c, s.Name, rel.Name, false)}
 				for i, col := range rel.Columns {
 					v.Columns = append(v.Columns, colMeta(col, int32(i+1)))
+				}
+				for _, tr := range c.TriggersOf(rel.OID) {
+					v.Triggers = append(v.Triggers, &metadata.TriggerMetadata{Name: tr.Name})
 				}
 				sm.Views = append(sm.Views, v)
 			case 'm':
