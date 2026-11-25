@@ -165,6 +165,9 @@ func TestCompleteSession(t *testing.T) {
 		{name: "insert columns second", text: "INSERT INTO orders (id, cu|", want: typed(CandidateColumn, "customer_id")},
 		{name: "catalog-qualified relation", text: "SELECT * FROM internal.db.ord|", want: typed(CandidateTable, "`order items`", "orders")},
 		{name: "catalog-qualified column", text: "SELECT internal.db.orders.am| FROM internal.db.orders", want: typed(CandidateColumn, "amount")},
+		{name: "lexical comma list", text: "SELECT * FROM orders, customers WHERE ((na|", want: typed(CandidateColumn, "name")},
+		{name: "nested cte not visible", text: "WITH recent AS (WITH orders AS (SELECT 1) SELECT * FROM orders) SELECT am| FROM orders", want: typed(CandidateColumn, "amount")},
+		{name: "cte of own block visible", text: "WITH recent AS (WITH orders AS (SELECT 1 AS x) SELECT am| FROM orders) SELECT 1", want: nil},
 		{name: "unclosed subquery keywords", text: "SELECT * FROM (SELECT id |", has: kw("FROM"), not: kw("ON")},
 		{name: "derived table", text: "SELECT * FROM (SELECT * FROM cu|", want: typed(CandidateTable, "customers")},
 

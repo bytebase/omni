@@ -22,7 +22,7 @@ func testDatabases() map[string]*metadatapb.DatabaseSchemaMetadata {
 			Tables: []*metadatapb.TableMetadata{
 				{Name: "orders", Columns: []*metadatapb.ColumnMetadata{col("id", "BIGINT"), col("customer_id", "BIGINT"), col("amount", "DECIMAL(10,2)")}},
 				{Name: "customers", Columns: []*metadatapb.ColumnMetadata{col("id", "BIGINT"), col("name", "VARCHAR(64)")}},
-				{Name: "order items", Columns: []*metadatapb.ColumnMetadata{col("qty", "INT"), col("select", "INT")}},
+				{Name: "order items", Columns: []*metadatapb.ColumnMetadata{col("qty", "INT"), col("select", "INT"), col("1qty", "INT")}},
 			},
 			Views:             []*metadatapb.ViewMetadata{{Name: "v_orders", Columns: []*metadatapb.ColumnMetadata{col("id", "BIGINT")}}},
 			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{Name: "mv_totals", Columns: []*metadatapb.ColumnMetadata{col("total", "DECIMAL(10,2)")}}},
@@ -165,6 +165,10 @@ func TestCompleteSession(t *testing.T) {
 		{name: "insert columns second", text: "INSERT INTO orders (id, cu|", want: typed(CandidateColumn, "customer_id")},
 		{name: "catalog-qualified relation", text: "SELECT * FROM default_catalog.db.ord|", want: typed(CandidateTable, "`order items`", "orders")},
 		{name: "catalog-qualified column", text: "SELECT default_catalog.db.orders.am| FROM default_catalog.db.orders", want: typed(CandidateColumn, "amount")},
+		{name: "lexical comma list", text: "SELECT * FROM orders, customers WHERE ((na|", want: typed(CandidateColumn, "name")},
+		{name: "nested cte not visible", text: "WITH recent AS (WITH orders AS (SELECT 1) SELECT * FROM orders) SELECT am| FROM orders", want: typed(CandidateColumn, "amount")},
+		{name: "cte of own block visible", text: "WITH recent AS (WITH orders AS (SELECT 1 AS x) SELECT am| FROM orders) SELECT 1", want: nil},
+		{name: "dot identifier column", text: "SELECT o.1q| FROM `order items` o", want: typed(CandidateColumn, "`1qty`")},
 		{name: "unclosed subquery keywords", text: "SELECT * FROM (SELECT id |", has: kw("FROM"), not: kw("ON")},
 		{name: "derived table", text: "SELECT * FROM (SELECT * FROM cu|", want: typed(CandidateTable, "customers")},
 

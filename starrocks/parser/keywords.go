@@ -1453,6 +1453,7 @@ func buildTokenNames() map[TokenKind]string {
 	m[tokString] = "STRING"
 	m[tokIdent] = "IDENT"
 	m[tokQuotedIdent] = "QUOTED_IDENT"
+	m[tokDotIdent] = "DOT_IDENTIFIER"
 	m[tokHexLiteral] = "HEX_LITERAL"
 	m[tokBitLiteral] = "BIT_LITERAL"
 	m[tokPlaceholder] = "PLACEHOLDER"

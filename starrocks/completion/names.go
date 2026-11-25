@@ -70,8 +70,9 @@ func nameContextAt(stmt string, word caretWord, outer string) *nameContext {
 	}
 	if root != nil {
 		var block ast.Node
-		nc.kind, block = placeholderAt(root)
-		collectScope(root, block, nc)
+		var path []ast.Node
+		nc.kind, block, path = placeholderAt(root)
+		collectScope(root, block, path, nc)
 		if truncated {
 			// The parse dropped the text after the caret, and with it the
 			// FROM items a select list reads.
@@ -86,7 +87,7 @@ func nameContextAt(stmt string, word caretWord, outer string) *nameContext {
 	if outer != "" {
 		if file, err := parser.Parse(outer); err == nil && len(file.Stmts) == 1 {
 			outerScope := &nameContext{}
-			collectScope(file.Stmts[0], nil, outerScope)
+			collectScope(file.Stmts[0], nil, nil, outerScope)
 			nc.outer = outerScope.scope
 			nc.ctes = append(nc.ctes, outerScope.ctes...)
 		} else {
@@ -103,8 +104,9 @@ func nameContextAt(stmt string, word caretWord, outer string) *nameContext {
 // placeholderAt finds the placeholder in root: a FROM item's name is a
 // relation, a column reference or an UPDATE assignment's target a column.
 // block is the query block holding it, whose FROM items are in scope: the
-// innermost SELECT, UPDATE or DELETE around it, or root.
-func placeholderAt(root ast.Node) (kind nameKind, block ast.Node) {
+// innermost SELECT, UPDATE, DELETE or INSERT around it, or root. path is the
+// nodes from root to the placeholder.
+func placeholderAt(root ast.Node) (kind nameKind, block ast.Node, path []ast.Node) {
 	f := &placeholderFinder{}
 	ast.Walk(f, root)
 	block = root
@@ -114,7 +116,7 @@ func placeholderAt(root ast.Node) (kind nameKind, block ast.Node) {
 			block = n
 		}
 	}
-	return f.kind, block
+	return f.kind, block, f.path
 }
 
 // placeholderFinder walks to the node holding the placeholder, keeping the
@@ -163,14 +165,20 @@ func endsWithPlaceholder(name *ast.ObjectName) bool {
 	return name != nil && len(name.Parts) > 0 && name.Parts[len(name.Parts)-1] == placeholder
 }
 
-// collectScope records the tables block reads and every CTE name in root.
-// A CTE's query and another arm of a set operation are other blocks, and a
-// subquery is raw text in the AST, so only the block's own FROM items and
-// DML target are collected. A nil block collects every block's tables.
-func collectScope(root, block ast.Node, nc *nameContext) {
+// collectScope records the tables block reads and the CTE names visible
+// on path, the nodes from root to the caret. A CTE's query and another arm
+// of a set operation are other blocks, and a subquery is raw text in the
+// AST, so only the block's own FROM items and DML target are collected. A
+// nil block collects every block's tables, and a nil path the CTEs of
+// root's own WITH.
+func collectScope(root, block ast.Node, path []ast.Node, nc *nameContext) {
 	ast.Inspect(root, func(n ast.Node) bool {
-		if cte, ok := n.(*ast.CTE); ok {
-			nc.ctes = append(nc.ctes, cte.Name)
+		switch n := n.(type) {
+		case *ast.CTE:
+			nc.ctes = append(nc.ctes, n.Name)
+			return slices.Contains(path, ast.Node(n))
+		case *ast.SelectStmt, *ast.SetOpStmt:
+			return n == root || slices.Contains(path, n)
 		}
 		return true
 	})
@@ -287,33 +295,49 @@ func lexicalScope(text string) []tableItem {
 		if !isKeyword(toks[i]) || !tableKeywords[strings.ToUpper(toks[i].Str)] {
 			continue
 		}
-		j := i + 1
-		var parts []string
-		for j < len(toks) && isName(toks[j]) && !parser.IsReserved(toks[j].Kind) {
-			parts = append(parts, toks[j].Str)
-			if j+2 < len(toks) && toks[j+1].Kind == '.' {
-				j += 2
-				continue
+		// A FROM list goes on past each comma.
+		for j := i + 1; ; j++ {
+			item, next, ok := lexicalItem(toks, j)
+			if !ok {
+				break
 			}
-			j++
-			break
+			out = append(out, item)
+			i = next - 1
+			if next >= len(toks) || toks[next].Kind != ',' {
+				break
+			}
+			j = next
 		}
-		if len(parts) == 0 {
-			continue
-		}
-		item := tableItem{parts: parts}
-		i = j - 1 // the token after the name is read again unless it is the alias
-		k := j
-		if k < len(toks) && isKeyword(toks[k]) && strings.EqualFold(toks[k].Str, "AS") {
-			k++
-		}
-		if k < len(toks) && isName(toks[k]) && !parser.IsReserved(toks[k].Kind) {
-			item.alias = toks[k].Str
-			i = k
-		}
-		out = append(out, item)
 	}
 	return out
+}
+
+// lexicalItem reads a table name and its alias at toks[j], and returns the
+// index of the token after them.
+func lexicalItem(toks []parser.Token, j int) (tableItem, int, bool) {
+	var parts []string
+	for j < len(toks) && isName(toks[j]) && !parser.IsReserved(toks[j].Kind) {
+		parts = append(parts, toks[j].Str)
+		if j+2 < len(toks) && toks[j+1].Kind == '.' {
+			j += 2
+			continue
+		}
+		j++
+		break
+	}
+	if len(parts) == 0 {
+		return tableItem{}, j, false
+	}
+	item := tableItem{parts: parts}
+	k := j
+	if k < len(toks) && isKeyword(toks[k]) && strings.EqualFold(toks[k].Str, "AS") {
+		k++
+	}
+	if k < len(toks) && isName(toks[k]) && !parser.IsReserved(toks[k].Kind) {
+		item.alias = toks[k].Str
+		j = k + 1
+	}
+	return item, j, true
 }
 
 // nameCandidates returns the names nc offers, unquoted.

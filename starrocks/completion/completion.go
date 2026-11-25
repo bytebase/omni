@@ -155,6 +155,9 @@ func caretWordAt(stmt string, caret int) (caretWord, bool) {
 		switch name := parser.TokenName(last.Kind); {
 		case name == "IDENT" || isKeyword(last):
 			return caretWord{start: last.Loc.Start, end: wordEnd(stmt, caret), typed: prefix[last.Loc.Start:]}, true
+		case name == "DOT_IDENTIFIER":
+			// .1a is one token: the word is the part after the dot.
+			return caretWord{start: last.Loc.Start + 1, end: wordEnd(stmt, caret), typed: prefix[last.Loc.Start+1:]}, true
 		case name == "INVALID" && prefix[last.Loc.Start] == '`':
 			typed := strings.ReplaceAll(prefix[last.Loc.Start+1:], "``", "`")
 			return caretWord{start: last.Loc.Start, end: quotedEnd(stmt, caret), typed: typed, quoted: true}, true
