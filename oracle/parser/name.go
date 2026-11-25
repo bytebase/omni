@@ -99,6 +99,8 @@ func (p *Parser) parseObjectNameWith(parseComponent func() (string, error)) (*no
 		// Check for schema.object
 	}
 	if name == "" {
+		// No name here: an empty range where one would start.
+		obj.Loc.End = start
 		return obj, nil
 	}
 
