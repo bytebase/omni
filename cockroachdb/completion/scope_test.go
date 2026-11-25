@@ -68,7 +68,13 @@ func TestAnalyzeStatementKinds(t *testing.T) {
 		{input: "SELECT 1 IS OF (|)", kind: kindType},
 		{input: "ALTER TABLE orders ADD CHECK (amount::| > 0)", kind: kindType, scope: []string{"orders"}},
 		{input: "ALTER TABLE orders ADD CHECK (| > 0)", kind: kindExpr, scope: []string{"orders"}},
-		{input: "ALTER TABLE orders ALTER COLUMN amount SET DEFAULT |", kind: kindExpr, scope: []string{"orders"}},
+		// A DEFAULT may reference no column.
+		{input: "ALTER TABLE orders ALTER COLUMN amount SET DEFAULT |", kind: kindExpr},
+		{input: "ALTER TABLE orders ADD COLUMN x INT DEFAULT |", kind: kindExpr},
+		{input: "ALTER TABLE orders ADD COLUMN x INT AS (|) STORED", kind: kindExpr, scope: []string{"orders"}},
+		{input: "CREATE TABLE t (a INT, b INT AS (|) STORED)", kind: kindExpr, scope: []string{"t"}},
+		{input: "CREATE TABLE t (a INT, CHECK (|))", kind: kindExpr, scope: []string{"t"}},
+		{input: "CREATE TABLE t (a INT DEFAULT |)", kind: kindExpr},
 		{input: "CREATE TABLE t (a INT DEFAULT 1::|)", kind: kindType},
 	}
 	for _, tc := range tests {

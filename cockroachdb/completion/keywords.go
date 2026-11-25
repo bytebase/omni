@@ -66,8 +66,9 @@ var grammarFollowers = map[string][]string{
 
 // completionBudget caps the time a completion takes when ctx allows longer.
 // The name walk and keyword probing stop there and return what they found,
-// so a long statement never blocks a keystroke.
-const completionBudget = 200 * time.Millisecond
+// so a long statement never blocks a keystroke. Tests raise it, so their
+// answers do not depend on the machine's load.
+var completionBudget = 200 * time.Millisecond
 
 // keywordCandidates returns the keywords CockroachDB's grammar accepts after
 // prefix, by asking the vendor parser about prefix followed by each keyword.

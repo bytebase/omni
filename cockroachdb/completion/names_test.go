@@ -38,13 +38,19 @@ func countOf(list []string, s string) int {
 }
 
 func TestMatchesQualifier(t *testing.T) {
-	src := source{ref: "o", schema: "public", name: "orders"}
+	src := source{ref: "o", qual: nil, home: "public", name: "orders"}
 	require.True(t, matchesQualifier(src, nil))
-	require.True(t, matchesQualifier(src, []string{"O"}))
+	require.True(t, matchesQualifier(src, []string{"o"}))
+	// "O" is a quoted name, not o.
+	require.False(t, matchesQualifier(src, []string{"O"}))
+	// An alias hides the table's own name.
 	require.False(t, matchesQualifier(src, []string{"orders"}))
-	require.True(t, matchesQualifier(src, []string{"public", "orders"}))
-	require.False(t, matchesQualifier(src, []string{"other", "orders"}))
-	require.True(t, matchesQualifier(source{ref: "orders", name: "orders"}, []string{"anything", "orders"}))
+	require.False(t, matchesQualifier(src, []string{"public", "orders"}))
+
+	table := source{ref: "orders", qual: []string{"db"}, home: "public", name: "orders"}
+	require.True(t, matchesQualifier(table, []string{"public", "orders"}))
+	require.True(t, matchesQualifier(table, []string{"db", "public", "orders"}))
+	require.False(t, matchesQualifier(table, []string{"other", "orders"}))
 	require.False(t, matchesQualifier(source{ref: "c", derived: true}, []string{"s", "c"}))
 }
 

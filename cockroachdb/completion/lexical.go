@@ -62,7 +62,8 @@ func lexicalSources(stmt string) []source {
 			}
 			src := source{name: parts[len(parts)-1], ref: parts[len(parts)-1]}
 			if len(parts) >= 2 {
-				src.schema = parts[len(parts)-2]
+				src.qual = parts[max(0, len(parts)-3) : len(parts)-1]
+				src.home = parts[len(parts)-2]
 			}
 			if j < len(toks) && toks[j].str == "as" && toks[j].id != lexbase.IDENT {
 				j++

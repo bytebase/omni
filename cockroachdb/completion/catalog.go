@@ -2,7 +2,6 @@ package completion
 
 import (
 	"slices"
-	"strings"
 
 	metadatapb "github.com/bytebase/omni/metadata"
 )
@@ -22,6 +21,7 @@ type schema struct {
 }
 
 type relation struct {
+	schema  string
 	name    string
 	kind    CandidateType
 	columns []column
@@ -71,13 +71,16 @@ func newCatalog(meta *metadatapb.DatabaseSchemaMetadata, defaultSchema string) *
 		for _, enum := range s.GetEnumTypes() {
 			sc.types = append(sc.types, enum.GetName())
 		}
+		for _, rel := range sc.relations {
+			rel.schema = sc.name
+		}
 		cat.schemas = append(cat.schemas, sc)
 	}
 	// CockroachDB's sync leaves a materialized view's columns empty; its
 	// definition's select list names them.
 	for _, s := range meta.GetSchemas() {
 		for _, mv := range s.GetMaterializedViews() {
-			rel := cat.relation(s.GetName(), mv.GetName())
+			rel := cat.relation([]string{s.GetName()}, mv.GetName())
 			if rel == nil || len(rel.columns) > 0 {
 				continue
 			}
@@ -97,8 +100,8 @@ func columnsOf(cols []*metadatapb.ColumnMetadata) []column {
 	return out
 }
 
-// schema returns the schema named name, matching exactly before ignoring
-// case.
+// schema returns the schema named name. Names compare exactly: the parser
+// has already lowercased an unquoted name and kept a quoted one as written.
 func (c *catalog) schema(name string) *schema {
 	if c == nil {
 		return nil
@@ -108,22 +111,41 @@ func (c *catalog) schema(name string) *schema {
 			return s
 		}
 	}
-	for _, s := range c.schemas {
-		if strings.EqualFold(s.name, name) {
+	return nil
+}
+
+// schemaOf resolves the qualifier of an object name as CockroachDB does:
+// [schema] names a schema of the current database, or else the public
+// schema of a database of that name; [database, schema] names a schema of
+// that database. Only the current database's metadata is known.
+func (c *catalog) schemaOf(qual []string) *schema {
+	if c == nil {
+		return nil
+	}
+	switch len(qual) {
+	case 1:
+		if s := c.schema(qual[0]); s != nil {
 			return s
+		}
+		if qual[0] == c.database {
+			return c.schema("public")
+		}
+	case 2:
+		if qual[0] == c.database {
+			return c.schema(qual[1])
 		}
 	}
 	return nil
 }
 
-// relation resolves schemaName.name, or name through the search path when
-// schemaName is empty.
-func (c *catalog) relation(schemaName, name string) *relation {
+// relation resolves name qualified by qual, or, unqualified, in pg_catalog
+// and then along the search path.
+func (c *catalog) relation(qual []string, name string) *relation {
 	if c == nil {
 		return nil
 	}
-	if schemaName != "" {
-		return c.schema(schemaName).relation(name)
+	if len(qual) > 0 {
+		return c.schemaOf(qual).relation(name)
 	}
 	if slices.Contains(builtinRelations, name) {
 		// pg_catalog comes before the search path, and the metadata does
@@ -144,11 +166,6 @@ func (s *schema) relation(name string) *relation {
 	}
 	for _, r := range s.relations {
 		if r.name == name {
-			return r
-		}
-	}
-	for _, r := range s.relations {
-		if strings.EqualFold(r.name, name) {
 			return r
 		}
 	}

@@ -671,6 +671,36 @@ func TestCompleteSessionMetadataMatrix(t *testing.T) {
 			want:  []Candidate{{Text: "total", Type: CandidateColumn}},
 		},
 		{
+			name:  "a database-qualified table resolves in public",
+			input: "SELECT o.| FROM db.orders AS o",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "a three-part table name resolves",
+			input: "SELECT o.| FROM db.analytics.events AS o",
+			want:  []Candidate{{Text: "event_id", Type: CandidateColumn}},
+		},
+		{
+			name:  "a schema-qualified column matches a database-qualified table",
+			input: "SELECT public.orders.am| FROM db.orders",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "a database-qualified table's indexes",
+			input: "SELECT * FROM db.orders@ord|",
+			want:  []Candidate{{Text: "orders_amount_idx", Type: CandidateIndex}},
+		},
+		{
+			name:  "a quoted alias does not hide an unquoted one",
+			input: `SELECT (SELECT o.am| FROM analytics.events AS "O") FROM orders AS o`,
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:   "a quoted qualifier names only its quoted alias",
+			input:  `SELECT "O".am| FROM orders AS o`,
+			absent: []string{"amount"},
+		},
+		{
 			name:   "WHERE does not offer output aliases",
 			input:  "SELECT amount AS total FROM orders WHERE tot|",
 			absent: []string{"total"},
@@ -860,6 +890,66 @@ func TestCompleteSessionCockroachDBSyntax(t *testing.T) {
 			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
 		},
 		{
+			name:  "computed column sees the declared columns",
+			input: "CREATE TABLE t (amount INT, doubled INT AS (am| * 2) STORED)",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "CHECK sees the declared columns",
+			input: "CREATE TABLE t (amount INT, CHECK (t.am| > 0))",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:   "DEFAULT sees no column",
+			input:  "CREATE TABLE t (amount INT, d INT DEFAULT am|)",
+			absent: []string{"amount"},
+		},
+		{
+			name:   "SET DEFAULT sees no column",
+			input:  "ALTER TABLE orders ALTER COLUMN id SET DEFAULT am|",
+			absent: []string{"amount"},
+		},
+		{
+			name:  "unfinished RENAME COLUMN offers the table's columns",
+			input: "ALTER TABLE orders RENAME COLUMN am|",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "unfinished DROP COLUMN offers the table's columns",
+			input: "ALTER TABLE orders DROP COLUMN am|",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "unfinished ALTER COLUMN offers the table's columns",
+			input: "ALTER TABLE orders ALTER COLUMN am|",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "unfinished CREATE INDEX column list offers the table's columns",
+			input: "CREATE INDEX ON orders (am|",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "unfinished STORING offers the table's columns",
+			input: "CREATE INDEX ON orders (id) STORING (am|",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "unfinished COMMENT ON COLUMN offers the table's columns",
+			input: "COMMENT ON COLUMN orders.am|",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "unfinished INSERT column list offers the table's columns",
+			input: "INSERT INTO orders (am|",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "unfinished UPDATE SET offers the table's columns",
+			input: "UPDATE orders SET am|",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
 			name:  "statement source",
 			input: "SELECT * FROM [SHOW COLUMNS FROM |]",
 			want:  []Candidate{{Text: "orders", Type: CandidateTable}},
@@ -979,14 +1069,27 @@ func TestCompleteSessionBuiltins(t *testing.T) {
 }
 
 func TestCompleteSessionBudget(t *testing.T) {
-	// A long sum collapses into nothing shorter, so keyword probing runs into
-	// its budget; the columns still come back.
+	// A long sum collapses into nothing shorter, so probing every keyword
+	// after it takes seconds. Cut short by the budget, completion returns
+	// fewer keywords, and the columns still.
 	stmt := "SELECT * FROM orders WHERE amount = 0" + strings.Repeat(" + 1", 4000) + " AND "
+	countKeywords := func(cands []Candidate) int {
+		n := 0
+		for _, c := range cands {
+			if c.Type == CandidateKeyword {
+				n++
+			}
+		}
+		return n
+	}
 	keywordCache.reset()
-	started := time.Now()
+	all := CompleteSession(context.Background(), testConfig(), stmt, 1, len(stmt))
+
+	withBudget(t, time.Millisecond)
+	keywordCache.reset()
 	got := CompleteSession(context.Background(), testConfig(), stmt, 1, len(stmt))
-	require.Less(t, time.Since(started), 2*time.Second)
 	require.True(t, has(got, "amount", CandidateColumn), "got %v", got)
+	require.Less(t, countKeywords(got), countKeywords(all))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -1002,11 +1105,19 @@ func TestCompleteSessionNestedCTEsAreLinear(t *testing.T) {
 		query = "WITH c AS (" + query + ") SELECT n FROM c"
 	}
 	stmt := "WITH c AS (" + query + ") SELECT c.| FROM c"
+	// A walk that doubles per level runs out of a second long before it
+	// reaches the outer query; a linear one takes about a millisecond.
+	withBudget(t, time.Second)
 	keywordCache.reset()
-	started := time.Now()
 	got := completeAt(t, testConfig(), stmt)
-	require.Less(t, time.Since(started), time.Second)
 	require.True(t, has(got, "n", CandidateColumn), "got %v", got)
+}
+
+// withBudget sets completionBudget for the rest of the test.
+func withBudget(t *testing.T, budget time.Duration) {
+	saved := completionBudget
+	completionBudget = budget
+	t.Cleanup(func() { completionBudget = saved })
 }
 
 func TestCompleteSessionNothingToComplete(t *testing.T) {

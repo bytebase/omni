@@ -17,15 +17,24 @@ func TestCatalogResolvesThroughSearchPath(t *testing.T) {
 	}
 	cat := newCatalog(meta, "app")
 	require.Equal(t, []string{"app", "public"}, cat.searchPath)
-	require.Same(t, cat.schema("app").relations[0], cat.relation("", "t"))
-	require.Same(t, cat.schema("public").relations[1], cat.relation("", "only_public"))
-	require.Same(t, cat.schema("public").relations[0], cat.relation("public", "t"))
-	require.Same(t, cat.schema("app").relations[1], cat.relation("app", "mixed"))
-	require.Nil(t, cat.relation("missing", "t"))
+	require.Same(t, cat.schema("app").relations[0], cat.relation(nil, "t"))
+	require.Same(t, cat.schema("public").relations[1], cat.relation(nil, "only_public"))
+	require.Same(t, cat.schema("public").relations[0], cat.relation([]string{"public"}, "t"))
+	require.Same(t, cat.schema("app").relations[1], cat.relation([]string{"app"}, "Mixed"))
+	// Names compare exactly: the parser has already lowercased unquoted ones.
+	require.Nil(t, cat.relation([]string{"app"}, "mixed"))
+	require.Nil(t, cat.relation([]string{"missing"}, "t"))
+
+	// A database qualifier reads its public schema; a three-part name its
+	// schema, in the current database only.
+	require.Same(t, cat.schema("public").relations[0], cat.relation([]string{"db"}, "t"))
+	require.Same(t, cat.schema("app").relations[0], cat.relation([]string{"db", "app"}, "t"))
+	require.Nil(t, cat.relation([]string{"other", "app"}, "t"))
+	require.Equal(t, "app", cat.relation(nil, "t").schema)
 
 	require.Equal(t, []string{"public"}, newCatalog(meta, "").searchPath)
 	var nilCat *catalog
-	require.Nil(t, nilCat.relation("", "t"))
+	require.Nil(t, nilCat.relation(nil, "t"))
 }
 
 func TestCatalogColumns(t *testing.T) {
@@ -47,11 +56,11 @@ func TestCatalogColumns(t *testing.T) {
 		}},
 	}
 	cat := newCatalog(meta, "public")
-	require.Equal(t, []string{"a"}, cat.relation("", "t").visibleColumns())
+	require.Equal(t, []string{"a"}, cat.relation(nil, "t").visibleColumns())
 	var mv []string
-	for _, c := range cat.relation("", "mv").columns {
+	for _, c := range cat.relation(nil, "mv").columns {
 		mv = append(mv, c.name)
 	}
 	require.Equal(t, []string{"x", "a", "a"}, mv)
-	require.Empty(t, cat.relation("", "broken").columns)
+	require.Empty(t, cat.relation(nil, "broken").columns)
 }

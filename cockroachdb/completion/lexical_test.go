@@ -10,7 +10,7 @@ func TestLexicalSources(t *testing.T) {
 	got := lexicalSources(`SELECT x FROM orders o, analytics.events AS e JOIN "Order Items" oi ON a = = b WHERE`)
 	require.Equal(t, []source{
 		{ref: "o", name: "orders"},
-		{ref: "e", schema: "analytics", name: "events"},
+		{ref: "e", qual: []string{"analytics"}, home: "analytics", name: "events"},
 		{ref: "oi", name: "Order Items"},
 	}, got)
 

@@ -7,7 +7,9 @@ import (
 )
 
 // patchTails complete a statement the caret leaves unfinished, such as
-// UPDATE t SET | or INSERT INTO |, so the placeholder can be parsed in place.
+// UPDATE t SET |, INSERT INTO |, ALTER TABLE t RENAME COLUMN |, ALTER
+// COLUMN | or COMMENT ON COLUMN t.|, so the placeholder can be parsed in
+// place.
 var patchTails = []string{
 	"",
 	" TRUE",
@@ -17,6 +19,9 @@ var patchTails = []string{
 	" ON TRUE",
 	" (omni_completion_ident)",
 	" AS omni_completion_ident",
+	" TO omni_completion_ident",
+	" DROP DEFAULT",
+	" IS 'x'",
 }
 
 // nameContextAt returns what the word at the caret names, or nil when no
@@ -137,7 +142,7 @@ func nameCandidates(nc *nameContext, cat *catalog, typed string, quoted bool) []
 	switch nc.kind {
 	case kindObject:
 		if len(nc.qualifier) > 0 {
-			if s := cat.qualifiedSchema(nc.qualifier[len(nc.qualifier)-1]); s != nil {
+			if s := cat.schemaOf(nc.qualifier); s != nil {
 				for _, r := range s.relations {
 					add(r.name, r.kind)
 				}
@@ -148,7 +153,7 @@ func nameCandidates(nc *nameContext, cat *catalog, typed string, quoted bool) []
 			for _, s := range cat.schemas {
 				add(s.name, CandidateSchema)
 				for _, r := range s.relations {
-					if cat.relation("", r.name) == r {
+					if cat.relation(nil, r.name) == r {
 						add(r.name, r.kind)
 					} else if !quoted && hasPrefixFold(r.name, typed) {
 						out = append(out, pendingName{Candidate: Candidate{Text: QuoteIdentifierIfNeeded(s.name, false) + "." + QuoteIdentifierIfNeeded(r.name, false), Type: r.kind}})
@@ -157,7 +162,7 @@ func nameCandidates(nc *nameContext, cat *catalog, typed string, quoted bool) []
 			}
 		}
 		for _, cte := range nc.ctes {
-			if cat.relation("", cte) == nil {
+			if cat.relation(nil, cte) == nil {
 				add(cte, CandidateTable)
 			}
 		}
@@ -193,7 +198,7 @@ func nameCandidates(nc *nameContext, cat *catalog, typed string, quoted bool) []
 		addObjects(schemaObjects(cat, nc.qualifier, builtins, func(s *schema) []string { return s.types }), CandidateType_)
 	case kindIndex:
 		if nc.target != nil && !nc.target.derived {
-			if rel := cat.relation(nc.target.schema, nc.target.name); rel != nil {
+			if rel := cat.relation(nc.target.qual, nc.target.name); rel != nil {
 				for _, idx := range rel.indexes {
 					add(idx, CandidateIndex)
 				}
@@ -272,14 +277,14 @@ func schemaObjects(cat *catalog, qual []string, builtins []string, own func(*sch
 				}
 			}
 		}
-	case 1:
-		if strings.EqualFold(qual[0], "pg_catalog") {
+	default:
+		if qual[len(qual)-1] == "pg_catalog" {
 			for _, b := range builtins {
 				out = append(out, schemaObject{name: b})
 			}
 			return out
 		}
-		if s := cat.qualifiedSchema(qual[0]); s != nil {
+		if s := cat.schemaOf(qual); s != nil {
 			for _, name := range own(s) {
 				out = append(out, schemaObject{name: name})
 			}
@@ -288,31 +293,17 @@ func schemaObjects(cat *catalog, qual []string, builtins []string, own func(*sch
 	return out
 }
 
-// qualifiedSchema resolves the qualifier of an object name: a schema, or the
-// current database, which CockroachDB reads as db.public.
-func (c *catalog) qualifiedSchema(name string) *schema {
-	if c == nil {
-		return nil
-	}
-	if s := c.schema(name); s != nil {
-		return s
-	}
-	if name == c.database {
-		return c.schema("public")
-	}
-	return nil
-}
-
 // matchesQualifier reports whether a column qualified by qual can come from
-// src: t names the alias or table, s.t the schema-qualified table.
+// src: t names its alias or table name, s.t and d.s.t its table by the
+// schema it resolved in. Names compare exactly, as the parser left them.
 func matchesQualifier(src source, qual []string) bool {
 	switch len(qual) {
 	case 0:
 		return true
 	case 1:
-		return src.ref == qual[0] || strings.EqualFold(src.ref, qual[0])
+		return src.ref == qual[0]
 	default:
 		t, s := qual[len(qual)-1], qual[len(qual)-2]
-		return !src.derived && strings.EqualFold(src.name, t) && (src.schema == "" || strings.EqualFold(src.schema, s))
+		return !src.derived && src.ref == src.name && src.name == t && src.home == s
 	}
 }

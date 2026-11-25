@@ -38,9 +38,10 @@ const (
 // source is a relation a name can reference: a catalog relation or a derived
 // one (CTE, subquery, function) with its own columns.
 type source struct {
-	ref     string // the alias, or the relation's own name
-	schema  string // the catalog relation's schema; "" resolves by search path
-	name    string // the catalog relation's name; "" for a derived source
+	ref     string   // the alias, or the relation's own name
+	qual    []string // the catalog relation's qualifier as written; nil resolves by search path
+	home    string   // the schema the catalog relation resolved in, if it did
+	name    string   // the catalog relation's name; "" for a derived source
 	columns []string
 	derived bool
 	// depth is the nesting level of the query whose FROM holds the source,
@@ -119,10 +120,7 @@ func tableNameContext(stmt tree.Statement) (found *nameContext) {
 		}
 		switch {
 		case string(tn.ObjectName) == placeholder:
-			found = &nameContext{kind: kindObject}
-			if tn.ExplicitSchema {
-				found.qualifier = []string{string(tn.SchemaName)}
-			}
+			found = &nameContext{kind: kindObject, qualifier: tableQualifier(tn)}
 		case tn.ExplicitSchema && string(tn.SchemaName) == placeholder:
 			found = &nameContext{kind: kindSchema}
 		}
@@ -274,13 +272,17 @@ func (a *analyzer) statement(stmt tree.Statement, outer []source) []string {
 		if s.AsSource != nil {
 			a.query(s.AsSource, outer)
 		}
-		for _, e := range createTableExprs(s) {
-			a.expr(e, outer)
-		}
+		a.createTable(s, outer)
 	case *tree.CreateIndex:
 		a.createIndex(s)
 	case *tree.AlterTable:
 		a.alterTable(s)
+	case *tree.CommentOnColumn:
+		if s.ColumnItem != nil && s.ColumnItem.TableName != nil && string(s.ColumnItem.ColumnName) == placeholder {
+			tn := s.ColumnItem.TableName.ToTableName()
+			target := a.tableSource(&tn, "")
+			a.targetColumn(tree.NameList{s.ColumnItem.ColumnName}, &target)
+		}
 	}
 	return nil
 }
@@ -640,10 +642,7 @@ func (a *analyzer) tableSource(tn *tree.TableName, alias string) source {
 	if a.search && a.found == nil {
 		switch {
 		case name == placeholder:
-			a.found = &nameContext{kind: kindObject, ctes: a.visibleCTEs()}
-			if tn.ExplicitSchema {
-				a.found.qualifier = []string{string(tn.SchemaName)}
-			}
+			a.found = &nameContext{kind: kindObject, ctes: a.visibleCTEs(), qualifier: tableQualifier(tn)}
 		case tn.ExplicitSchema && string(tn.SchemaName) == placeholder:
 			a.found = &nameContext{kind: kindSchema}
 		}
@@ -661,11 +660,23 @@ func (a *analyzer) tableSource(tn *tree.TableName, alias string) source {
 			}
 		}
 	}
-	src := source{ref: ref, name: name, depth: a.depth}
-	if tn.ExplicitSchema {
-		src.schema = string(tn.SchemaName)
+	src := source{ref: ref, name: name, qual: tableQualifier(tn), depth: a.depth}
+	if rel := a.cat.relation(src.qual, name); rel != nil {
+		src.home = rel.schema
 	}
 	return src
+}
+
+// tableQualifier is the qualifier tn was written with: none, [schema], or
+// [database, schema].
+func tableQualifier(tn *tree.TableName) []string {
+	switch {
+	case tn.ExplicitCatalog:
+		return []string{string(tn.CatalogName), string(tn.SchemaName)}
+	case tn.ExplicitSchema:
+		return []string{string(tn.SchemaName)}
+	}
+	return nil
 }
 
 // visibleCTEs names the CTEs the WITH clauses open at this point define.
@@ -874,57 +885,57 @@ func (a *analyzer) alterTable(s *tree.AlterTable) {
 			return
 		}
 	}
-	for _, e := range alterTableExprs(s) {
-		a.expr(e, []source{target})
-	}
-}
-
-// columnDefExprs returns the expressions of a column definition.
-func columnDefExprs(def *tree.ColumnTableDef) []tree.Expr {
-	if def == nil {
-		return nil
-	}
-	exprs := []tree.Expr{def.DefaultExpr.Expr, def.OnUpdateExpr.Expr, def.Computed.Expr}
-	for _, check := range def.CheckExprs {
-		exprs = append(exprs, check.Expr)
-	}
-	return exprs
-}
-
-// alterTableExprs returns the expressions an ALTER TABLE evaluates against
-// its table: defaults, checks, computed columns and USING conversions.
-func alterTableExprs(s *tree.AlterTable) []tree.Expr {
-	var exprs []tree.Expr
 	for _, cmd := range s.Cmds {
 		switch c := cmd.(type) {
 		case *tree.AlterTableAddColumn:
-			exprs = append(exprs, columnDefExprs(c.ColumnDef)...)
+			a.columnDef(c.ColumnDef, []source{target})
 		case *tree.AlterTableAddConstraint:
 			if check, ok := c.ConstraintDef.(*tree.CheckConstraintTableDef); ok {
-				exprs = append(exprs, check.Expr)
+				a.expr(check.Expr, []source{target})
 			}
 		case *tree.AlterTableSetDefault:
-			exprs = append(exprs, c.Default)
+			a.expr(c.Default, nil)
 		case *tree.AlterTableAlterColumnType:
-			exprs = append(exprs, c.Using)
+			a.expr(c.Using, []source{target})
 		}
 	}
-	return exprs
 }
 
-// createTableExprs returns the expressions of a CREATE TABLE's column and
-// table definitions.
-func createTableExprs(s *tree.CreateTable) []tree.Expr {
-	var exprs []tree.Expr
+// createTable walks a CREATE TABLE's expressions. Computed columns and
+// CHECK constraints read the columns the statement declares, by their own
+// names or qualified by the table's.
+func (a *analyzer) createTable(s *tree.CreateTable, outer []source) {
+	own := source{ref: string(s.Table.ObjectName), derived: true, depth: a.depth + 1}
+	for _, def := range s.Defs {
+		if col, ok := def.(*tree.ColumnTableDef); ok {
+			own.columns = append(own.columns, string(col.Name))
+		}
+	}
+	scope := append([]source{own}, outer...)
 	for _, def := range s.Defs {
 		switch d := def.(type) {
 		case *tree.ColumnTableDef:
-			exprs = append(exprs, columnDefExprs(d)...)
+			a.columnDef(d, scope)
 		case *tree.CheckConstraintTableDef:
-			exprs = append(exprs, d.Expr)
+			a.expr(d.Expr, scope)
 		}
 	}
-	return exprs
+}
+
+// columnDef walks a column definition's expressions: its computed value and
+// CHECK constraints see scope, while DEFAULT and ON UPDATE may reference no
+// column (CockroachDB refuses "variable sub-expressions" there), so only
+// functions are offered in them.
+func (a *analyzer) columnDef(def *tree.ColumnTableDef, scope []source) {
+	if def == nil {
+		return
+	}
+	a.expr(def.DefaultExpr.Expr, nil)
+	a.expr(def.OnUpdateExpr.Expr, nil)
+	a.expr(def.Computed.Expr, scope)
+	for _, check := range def.CheckExprs {
+		a.expr(check.Expr, scope)
+	}
 }
 
 // starColumns expands a star select expression: * to the output columns of
@@ -1011,7 +1022,7 @@ func (a *analyzer) sourceColumns(src source, withHidden bool) []string {
 	if src.derived {
 		return src.columns
 	}
-	rel := a.cat.relation(src.schema, src.name)
+	rel := a.cat.relation(src.qual, src.name)
 	if rel == nil {
 		return nil
 	}
