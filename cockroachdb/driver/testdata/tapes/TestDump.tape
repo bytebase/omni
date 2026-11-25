@@ -689,7 +689,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"
@@ -1542,7 +1542,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"

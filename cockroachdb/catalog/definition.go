@@ -295,9 +295,14 @@ func orderObjects(schemas []*metadatapb.SchemaMetadata) []objectRef {
 				exprs = append(exprs, check.Expression)
 			}
 			for _, expr := range exprs {
-				for _, name := range calledFunctions(expr) {
-					for _, functionID := range functionsByName[name] {
-						graph.AddEdge(functionID, id)
+				for _, call := range expressionCalls(expr) {
+					called, ambiguous := calledOverloads(call, functionsByName)
+					for _, functionID := range called {
+						if ambiguous {
+							graph.AddSoftEdge(functionID, id)
+						} else {
+							graph.AddEdge(functionID, id)
+						}
 					}
 				}
 			}

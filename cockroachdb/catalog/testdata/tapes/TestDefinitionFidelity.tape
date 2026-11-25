@@ -1347,7 +1347,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"
@@ -2876,7 +2876,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"
@@ -4731,7 +4731,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"
@@ -6900,7 +6900,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"
@@ -7228,6 +7228,15 @@
 | CREATE TABLE fid_a.uses_k (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_a.k());
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_a.p() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_a.t_p (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_a.p());
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_a.p(n INT8) RETURNS INT8 LANGUAGE SQL AS $$ SELECT count(*) + n FROM fid_a.t_p $$;
+< ok 0 -
+> exec
 | CREATE VIEW "Fid Mixed".family AS SELECT p.id, c.id AS child FROM fid_a.parents AS p JOIN "Fid Mixed"."Children" AS c ON c."Parent Id" = p.id;
 < ok 0 -
 > query
@@ -7518,6 +7527,63 @@
 : string
 | fid_a
 : string
+| t_p
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_a
+: string
+| t_p
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_a.p()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_a
+: string
 | uses_g
 : string
 | id
@@ -7678,6 +7744,18 @@
 : string
 | fid_a
 : string
+| t_p
+: string
+| t_p_pkey
+: string
+| CREATE UNIQUE INDEX t_p_pkey ON omni_testdefinitionfidelity.fid_a.t_p USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_a
+: string
 | uses_g
 : string
 | uses_g_pkey
@@ -7805,6 +7883,13 @@
 | fid_a
 : string
 | parents
+: int64 0
+: null
+< row
+: string
+| fid_a
+: string
+| t_p
 : int64 0
 : null
 < row
@@ -7951,7 +8036,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"
@@ -8082,6 +8167,42 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT fid_a.h(1:::INT8);
+| $$
+< row
+: string
+| fid_a
+: string
+| p
+: string
+| p()
+: string
+| CREATE FUNCTION fid_a.p()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 1;
+| $$
+< row
+: string
+| fid_a
+: string
+| p
+: string
+| p(int8)
+: string
+| CREATE FUNCTION fid_a.p(n INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT count(*) + n FROM omni_testdefinitionfidelity.fid_a.t_p;
 | $$
 > query
 |
@@ -8306,6 +8427,18 @@
 | $$;
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_a.p()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 1;
+| $$;
+< ok 0 -
+> exec
 | CREATE TABLE "fid_a"."parents" (
 |     "id" bigint NOT NULL,
 |     CONSTRAINT "parents_pkey" PRIMARY KEY (id ASC)
@@ -8314,6 +8447,25 @@
 > exec
 | CREATE VIEW "Fid Mixed"."family" ("id", "child") AS 
 | SELECT p.id, c.id AS child FROM fid_a.parents AS p JOIN "Fid Mixed"."Children" AS c ON c."Parent Id" = p.id;
+< ok 0 -
+> exec
+| CREATE TABLE "fid_a"."t_p" (
+|     "id" bigint NOT NULL,
+|     "v" bigint DEFAULT fid_a.p(),
+|     CONSTRAINT "t_p_pkey" PRIMARY KEY (id ASC)
+| );
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_a.p(n INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| SELECT count(*) + n FROM fid_a.t_p;
+| $$;
 < ok 0 -
 > exec
 | CREATE TABLE "fid_a"."uses_g" (
@@ -8622,6 +8774,63 @@
 : string
 | fid_a
 : string
+| t_p
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_a
+: string
+| t_p
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_a.p()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_a
+: string
 | uses_g
 : string
 | id
@@ -8782,6 +8991,18 @@
 : string
 | fid_a
 : string
+| t_p
+: string
+| t_p_pkey
+: string
+| CREATE UNIQUE INDEX t_p_pkey ON omni_testdefinitionfidelity.fid_a.t_p USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_a
+: string
 | uses_g
 : string
 | uses_g_pkey
@@ -8909,6 +9130,13 @@
 | fid_a
 : string
 | parents
+: int64 0
+: null
+< row
+: string
+| fid_a
+: string
+| t_p
 : int64 0
 : null
 < row
@@ -9055,7 +9283,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"
@@ -9186,6 +9414,42 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT fid_a.h(1:::INT8);
+| $$
+< row
+: string
+| fid_a
+: string
+| p
+: string
+| p()
+: string
+| CREATE FUNCTION fid_a.p()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 1;
+| $$
+< row
+: string
+| fid_a
+: string
+| p
+: string
+| p(int8)
+: string
+| CREATE FUNCTION fid_a.p(n INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT count(*) + n FROM omni_testdefinitionfidelity.fid_a.t_p;
 | $$
 > query
 |

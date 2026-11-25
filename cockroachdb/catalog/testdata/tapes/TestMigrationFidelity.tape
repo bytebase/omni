@@ -2077,7 +2077,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"
@@ -4419,7 +4419,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"
@@ -6901,7 +6901,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"
@@ -8948,7 +8948,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"
@@ -11268,7 +11268,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"
@@ -11460,24 +11460,6 @@
 : string
 | ov
 : string
-| ov(int8)
-: string
-| CREATE FUNCTION fid_v.ov(n INT8)
-| 	RETURNS INT8
-| 	VOLATILE
-| 	NOT LEAKPROOF
-| 	CALLED ON NULL INPUT
-| 	LANGUAGE SQL
-| 	SECURITY INVOKER
-| 	AS $$
-| 	SELECT fid_v.ov() + n;
-| $$
-< row
-: string
-| fid_v
-: string
-| ov
-: string
 | ov()
 : string
 | CREATE FUNCTION fid_v.ov()
@@ -11489,6 +11471,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT 1;
+| $$
+< row
+: string
+| fid_v
+: string
+| ov
+: string
+| ov(int8)
+: string
+| CREATE FUNCTION fid_v.ov(n INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_v.ov() + n;
 | $$
 < row
 : string
@@ -13748,7 +13748,7 @@
 | left join pg_language l on p.prolang = l.oid
 | left join pg_type t on t.oid = p.prorettype 
 | where n.nspname not in ('crdb_internal','information_schema','pg_catalog','pg_extension')
-| order by function_schema, function_name;
+| order by function_schema, function_name, function_signature;
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"

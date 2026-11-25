@@ -1174,7 +1174,7 @@ left join pg_namespace n on p.pronamespace = n.oid
 left join pg_language l on p.prolang = l.oid
 left join pg_type t on t.oid = p.prorettype ` + fmt.Sprintf(`
 where n.nspname not in (%s)
-order by function_schema, function_name;`, crrawanalysis.SystemSchemaWhereClause)
+order by function_schema, function_name, function_signature;`, crrawanalysis.SystemSchemaWhereClause)
 
 // getFunctions gets all functions of a database.
 func getFunctions(txn *sql.Tx) (map[string][]*metadatapb.FunctionMetadata, error) {

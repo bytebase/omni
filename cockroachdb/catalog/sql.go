@@ -412,6 +412,20 @@ func calledOverloads(call routineCall, byName map[string][]string) ([]string, bo
 	return candidates, len(candidates) > 1
 }
 
+// expressionCalls returns the calls expr makes, with their argument counts.
+func expressionCalls(expr string) []routineCall {
+	if strings.TrimSpace(expr) == "" {
+		return nil
+	}
+	parsed, err := crparser.ParseExpr(expr)
+	if err != nil {
+		return nil
+	}
+	v := &funcCollector{}
+	tree.WalkExprConst(v, parsed)
+	return v.calls
+}
+
 // calledFunctions returns the names of the functions expr calls, unquoted,
 // schema-qualified where expr qualifies them.
 func calledFunctions(expr string) []string {
@@ -427,7 +441,10 @@ func calledFunctions(expr string) []string {
 	return v.names
 }
 
-type funcCollector struct{ names []string }
+type funcCollector struct {
+	names []string
+	calls []routineCall
+}
 
 func (v *funcCollector) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 	if call, ok := expr.(*tree.FuncExpr); ok {
@@ -439,6 +456,7 @@ func (v *funcCollector) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 				key = name.Parts[1] + "." + key
 			}
 			v.names = append(v.names, key)
+			v.calls = append(v.calls, routineCall{name: key, args: len(call.Exprs)})
 		}
 	}
 	return true, expr

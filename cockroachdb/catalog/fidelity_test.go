@@ -148,6 +148,9 @@ CREATE FUNCTION fid_a.h(n INT8) RETURNS INT8 LANGUAGE SQL AS $$ SELECT n $$;
 CREATE FUNCTION fid_a.k() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.h(1:::INT8) $$;
 CREATE FUNCTION fid_a.h(s STRING) RETURNS STRING LANGUAGE SQL AS $$ SELECT fid_a.k()::STRING || s $$;
 CREATE TABLE fid_a.uses_k (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_a.k());
+CREATE FUNCTION fid_a.p() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
+CREATE TABLE fid_a.t_p (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_a.p());
+CREATE FUNCTION fid_a.p(n INT8) RETURNS INT8 LANGUAGE SQL AS $$ SELECT count(*) + n FROM fid_a.t_p $$;
 CREATE VIEW "Fid Mixed".family AS SELECT p.id, c.id AS child FROM fid_a.parents AS p JOIN "Fid Mixed"."Children" AS c ON c."Parent Id" = p.id;
 `,
 		},

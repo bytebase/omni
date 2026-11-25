@@ -709,8 +709,15 @@ func (d *differ) diffTables() error {
 			}
 			if target == nil {
 				var calls []string
-				for _, name := range tableCalls(table) {
-					calls = append(calls, callPrefix+"-1:"+name)
+				for _, column := range table.Columns {
+					for _, call := range expressionCalls(column.Default) {
+						calls = append(calls, fmt.Sprintf("%s%d:%s", callPrefix, call.args, call.name))
+					}
+				}
+				for _, check := range table.CheckConstraints {
+					for _, call := range expressionCalls(check.Expression) {
+						calls = append(calls, fmt.Sprintf("%s%d:%s", callPrefix, call.args, call.name))
+					}
 				}
 				d.addDrop(getObjectID(schema.Name, table.Name), MigrationOp{Type: OpDropTable, SchemaName: schema.Name, ObjectName: table.Name,
 					SQL: fmt.Sprintf("DROP TABLE %s.%s", quoteIdent(schema.Name), quoteIdent(table.Name))}, calls)
@@ -1347,18 +1354,6 @@ func returnType(definition string) string {
 		text = "SETOF " + text
 	}
 	return text
-}
-
-// tableCalls returns the routines a table's defaults and checks call.
-func tableCalls(table *metadatapb.TableMetadata) []string {
-	var names []string
-	for _, column := range table.Columns {
-		names = append(names, calledFunctions(column.Default)...)
-	}
-	for _, check := range table.CheckConstraints {
-		names = append(names, calledFunctions(check.Expression)...)
-	}
-	return names
 }
 
 // diffRoutines drops the routines planRoutines chose, in the order
