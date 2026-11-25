@@ -51,6 +51,16 @@ type parser struct {
 	noLambdaBefore int          // token index bound caching failed unparenthesized lambda lookahead
 	noIntervalAt   map[int]bool // token positions where INTERVAL expr unit lookahead failed
 	noCaseAt       map[int]bool // token positions where CASE operand WHEN lookahead failed
+
+	// probeAt, when probing, is the byte offset of the keyword
+	// ExpectedKeywords tries; wants collects the words isWordAt tests at the
+	// end of input.
+	probing bool
+	probeAt int
+	wants   map[string]bool
+	// furthest is the furthest offset of an error the parser made, kept or
+	// dropped by a speculative parse.
+	furthest int
 }
 
 func (p *parser) ensure(idx int) {
@@ -65,6 +75,9 @@ func (p *parser) ensure(idx int) {
 			p.tokens = append(p.tokens, Token{Type: TokIllegal, Pos: pos, End: pos})
 			p.eof = true
 			return
+		}
+		if p.probing && tok.Pos == p.probeAt && tok.Type != TokEOF {
+			tok.probe = true
 		}
 		p.tokens = append(p.tokens, tok)
 		if tok.Type == TokEOF {
@@ -135,6 +148,7 @@ func (p *parser) errAt(tok Token, msg string) error {
 	if tok.Type == TokIllegal && p.lexErr != nil {
 		return p.lexErr
 	}
+	p.furthest = max(p.furthest, tok.Pos)
 	return &ParseError{Message: msg, Position: tok.Pos}
 }
 
@@ -347,6 +361,9 @@ func attachOutputClause(stmt Statement, out *OutputClause) {
 // In ClickHouse, almost all keywords (except NULL, INF/INFINITY, NAN) are valid
 // unquoted identifiers in identifier positions.
 func isIdentifier(tok Token) bool {
+	if tok.probe {
+		return false
+	}
 	switch tok.Type {
 	case TokIdent, TokQuotedIdent:
 		return true
@@ -355,6 +372,17 @@ func isIdentifier(tok Token) bool {
 	default:
 		return tok.IsKeyword()
 	}
+}
+
+// IsIdentifier reports whether tok can be read as an identifier, as most
+// ClickHouse keywords can.
+func IsIdentifier(tok Token) bool {
+	return isIdentifier(tok)
+}
+
+// IsBareAlias reports whether tok can be an alias without AS.
+func IsBareAlias(tok Token) bool {
+	return isBareAlias(tok)
 }
 
 func isIdentifierOrNull(tok Token) bool {
@@ -420,6 +448,9 @@ func (p *parser) parseTableIdentifier() (db, table string, err error) {
 // keywords cannot act as implicit aliases, while interval units, IS, and
 // literal keywords (NULL, TRUE, FALSE, INF, NAN) are accepted as bare aliases.
 func isBareAlias(tok Token) bool {
+	if tok.probe {
+		return false
+	}
 	if tok.Type == TokIdent || tok.Type == TokQuotedIdent {
 		return true
 	}

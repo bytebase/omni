@@ -307,6 +307,10 @@ type Token struct {
 	Val  string // decoded text (for strings/quoted idents) or raw text
 	Pos  int    // start byte offset
 	End  int    // end byte offset (exclusive)
+
+	// probe marks the keyword ExpectedKeywords tries at the caret, which may
+	// be read only as a keyword, never as an identifier.
+	probe bool
 }
 
 // IsKeyword reports whether t is a keyword token.
