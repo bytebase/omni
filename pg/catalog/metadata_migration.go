@@ -3339,7 +3339,13 @@ func builtinTypeWins(reference typeReference, relations map[string]bool, searchP
 	if reference.object.quoted && reference.object.name != strings.ToLower(reference.object.name) {
 		return false
 	}
-	if !builtinType(reference.object.name) {
+	// The grammar spells an unquoted SQL-standard name (integer) by its
+	// pg_catalog name (int4); a quoted one names a type of that exact name.
+	name := reference.object.name
+	if !reference.object.quoted {
+		name = resolveAlias(name)
+	}
+	if !builtinType(name) {
 		return false
 	}
 	pgCatalogIndex := slices.Index(searchPath, "pg_catalog")

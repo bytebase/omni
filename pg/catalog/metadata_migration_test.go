@@ -8109,3 +8109,22 @@ func round37ExecErr(c *Catalog, sql string) error {
 	}
 	return nil
 }
+
+// TestUnresolvedUserAllowsBuiltinAliasSpelling covers a user type that shares
+// an unquoted SQL-standard type name (integer, boolean): the grammar maps that
+// spelling to pg_catalog's int4 and bool, so the column's type does not bind
+// through $user, and the migration is not ambiguous.
+func TestUnresolvedUserAllowsBuiltinAliasSpelling(t *testing.T) {
+	for _, name := range []string{"integer", "boolean", "bigint"} {
+		meta := &metadatapb.DatabaseSchemaMetadata{
+			SearchPath: `"$user", public`,
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name:      "public",
+				EnumTypes: []*metadatapb.EnumTypeMetadata{{Name: name, Values: []string{"a"}}},
+				Tables:    []*metadatapb.TableMetadata{pgTable("t", 0, &metadatapb.ColumnMetadata{Name: "id", Type: name})},
+			}},
+		}
+		paths := []string{"$user", "public"}
+		require.NoError(t, rejectAmbiguousUserTypes(meta, meta, paths, paths, map[string]bool{"bbdataarchive": true}), name)
+	}
+}
