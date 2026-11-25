@@ -29,6 +29,9 @@ type nameContext struct {
 	outer     []tableItem // the FROM items of the statement around a subquery
 	ctes      []string    // the names of the CTEs, the query's and the outer statement's
 	aliases   []string    // the select list's aliases, where the caret's clause sees them
+	// using, for a caret in JOIN ... USING (...), holds the tables of the
+	// join's two operands: a column there must be in both.
+	using *[2][]tableItem
 }
 
 // tableItem is a table the query reads: its name parts and its alias.
@@ -75,6 +78,11 @@ func nameContextAt(stmt string, word caretWord, outer string) *nameContext {
 		nc.kind, block, path = placeholderAt(root)
 		collectScope(root, block, path, nc)
 		nc.aliases = visibleAliases(block, path)
+		if n := len(path); n > 0 {
+			if j, ok := path[n-1].(*ast.JoinClause); ok {
+				nc.using = &[2][]tableItem{tablesUnder(j.Left), tablesUnder(j.Right)}
+			}
+		}
 		if truncated {
 			// The parse dropped the text after the caret, and with it the
 			// FROM items a select list reads.
@@ -238,6 +246,18 @@ func collectScope(root, block ast.Node, path []ast.Node, nc *nameContext) {
 		}
 		return true
 	})
+}
+
+// tablesUnder returns the tables named in a FROM item.
+func tablesUnder(n ast.Node) []tableItem {
+	var out []tableItem
+	ast.Inspect(n, func(n ast.Node) bool {
+		if n, ok := n.(*ast.TableRef); ok && n.Subquery == nil && n.Name != nil {
+			out = append(out, tableItem{parts: n.Name.Parts, alias: n.Alias})
+		}
+		return true
+	})
+	return out
 }
 
 // visibleAliases returns the select list's aliases when the caret is in
@@ -425,6 +445,9 @@ func nameCandidates(nc *nameContext, cat *catalog) []Candidate {
 	case kindColumn:
 		switch len(nc.qualifier) {
 		case 0:
+			if nc.using != nil {
+				return usingColumns(nc, cat)
+			}
 			for _, item := range nc.scope {
 				out = append(out, cat.columns(item.parts, nc.ctes)...)
 			}
@@ -452,6 +475,26 @@ func nameCandidates(nc *nameContext, cat *catalog) []Candidate {
 		case 2, 3:
 			// db.t. or catalog.db.t.
 			out = append(out, cat.columns(nc.qualifier, nil)...)
+		}
+	}
+	return out
+}
+
+// usingColumns returns the columns of the join's right operand that its
+// left operand has too.
+func usingColumns(nc *nameContext, cat *catalog) []Candidate {
+	left := map[string]bool{}
+	for _, item := range nc.using[0] {
+		for _, c := range cat.columns(item.parts, nc.ctes) {
+			left[strings.ToLower(c.Text)] = true
+		}
+	}
+	var out []Candidate
+	for _, item := range nc.using[1] {
+		for _, c := range cat.columns(item.parts, nc.ctes) {
+			if left[strings.ToLower(c.Text)] {
+				out = append(out, c)
+			}
 		}
 	}
 	return out

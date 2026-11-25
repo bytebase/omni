@@ -170,6 +170,7 @@ func TestCompleteSession(t *testing.T) {
 		{name: "cte of own block visible", text: "WITH recent AS (WITH orders AS (SELECT 1 AS x) SELECT am| FROM orders) SELECT 1", want: nil},
 		{name: "dot identifier column", text: "SELECT o.1q| FROM `order items` o", want: typed(CandidateColumn, "`1qty`")},
 		{name: "join using", text: "SELECT * FROM orders JOIN customers USING (i|)", want: typed(CandidateColumn, "id")},
+		{name: "join using shared only", text: "SELECT * FROM orders JOIN customers USING (cu|)", want: nil},
 		{name: "drop table if exists", text: "DROP TABLE IF EXISTS ord|", want: typed(CandidateTable, "`order items`", "orders")},
 		{name: "alias in order by", text: "SELECT amount AS total FROM orders ORDER BY tot|", want: typed(CandidateColumn, "total")},
 		{name: "alias in group by", text: "SELECT amount AS total FROM orders GROUP BY tot|", want: typed(CandidateColumn, "total")},
