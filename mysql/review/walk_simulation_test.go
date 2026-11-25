@@ -31,19 +31,22 @@ func TestWalkSimulation(t *testing.T) {
 		// misses are rows the parser already refuses (1273, 1504, 1064),
 		// which reach the review as a syntax finding.
 		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 97.0, 2341},
-		// Two programs rows are 8.0-only refusals the walk doesn't model:
+		// The 11 refusals the walk misses: 9 drop a function the sync can't
+		// rule out: unqualified, a loadable one of the name would go, and
+		// qualified, it is another database's (1305). 2 are 8.0-only:
 		// mysql:8.0.46 answers 1064 to DISABLE ON REPLICA, which 8.4 adds.
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 96.0, 287},
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 96.3, 287},
 		// compat.tsv's queries in a view on one_table@column; 4 refusals
-		// are syntax findings.
-		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 93.5, 220},
+		// are syntax findings, and 9 call a function a loadable one of the
+		// name or another database could hold (1305, 1584).
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 94.4, 222},
 		// The ddl rows on mysql:8.4.13, with seven 8.4-only refusals (6125,
 		// 1063) the walk doesn't model: it judges every server alike.
 		{"mysql84", filepath.Join("..", "catalog", "testdata", "mysql84", "simulate.tsv"), 96.5, 2341},
 		// The programs and queries rows on mysql:8.4.13, which refuses the
 		// same rows as 8.0.
-		{"mysql84_programs", filepath.Join("..", "catalog", "testdata", "mysql84", "programs", "simulate.tsv"), 96.5, 287},
-		{"mysql84_queries", filepath.Join("..", "catalog", "testdata", "mysql84", "queries", "simulate.tsv"), 93.5, 221},
+		{"mysql84_programs", filepath.Join("..", "catalog", "testdata", "mysql84", "programs", "simulate.tsv"), 96.9, 287},
+		{"mysql84_queries", filepath.Join("..", "catalog", "testdata", "mysql84", "queries", "simulate.tsv"), 94.4, 222},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{

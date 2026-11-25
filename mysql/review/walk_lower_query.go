@@ -375,6 +375,16 @@ func (b *builder) columnsFail(sc blockScope, expr ast.Node, rng review.Range) bo
 		return true
 	})
 	for _, c := range refs {
+		if c.Star && c.Table != "" && sc.table != nil && b.qualifies(sc, c) == qualMiss {
+			// MySQL expands a qualified star against the block's tables
+			// and answers 1051 for one it doesn't read (mysql:8.0.46).
+			name := ident(c.Table) + ".*"
+			if c.Schema != "" {
+				name = ident(c.Schema) + "." + name
+			}
+			b.fail(rng, nil, review.ObjectNotFound, "The select list's "+review.Code(name)+" names a table its query block doesn't read.")
+			return true
+		}
 		if c.Star || c.Column == "" || niladicNames[strings.ToLower(c.Column)] || outsideASCII(c.Column) {
 			continue
 		}

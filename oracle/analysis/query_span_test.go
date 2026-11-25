@@ -133,7 +133,7 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 // element's name.
 func TestResolveQuerySpanDerivedAnalyticView(t *testing.T) {
 	span := resolve(t, "SELECT * FROM ANALYTIC VIEW(USING V)")
-	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true}, span.SourceColumns)
+	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true, {Database: "DB", Table: "T"}: true}, span.SourceColumns)
 	require.Equal(t, []string{"A", "S"}, []string{span.Results[0].Name, span.Results[1].Name})
 	require.Equal(t, column("DB", "T", "A"), span.Results[0].SourceColumns)
 	require.Equal(t, ColumnSet{
@@ -142,11 +142,11 @@ func TestResolveQuerySpanDerivedAnalyticView(t *testing.T) {
 	}, span.Results[1].SourceColumns)
 
 	span = resolve(t, "SELECT * FROM ANALYTIC VIEW(USING V) AV WHERE AV.A = 1")
-	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true}, span.SourceColumns)
+	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true, {Database: "DB", Table: "T"}: true}, span.SourceColumns)
 	require.Equal(t, []string{"A", "S"}, []string{span.Results[0].Name, span.Results[1].Name})
 
 	span = resolve(t, "WITH AV ANALYTIC VIEW AS(USING V) SELECT A FROM AV")
-	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true}, span.SourceColumns)
+	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true, {Database: "DB", Table: "T"}: true}, span.SourceColumns)
 	require.Equal(t, []QuerySpanResult{{Name: "A", SourceColumns: column("DB", "T", "A")}}, span.Results)
 
 	// ADD MEASURES adds a column to the derived view, beside the base's, and
@@ -206,7 +206,8 @@ func TestResolveQuerySpanDerivedAnalyticView(t *testing.T) {
 
 func TestResolveQuerySpanDatabaseLink(t *testing.T) {
 	span := resolve(t, "SELECT * FROM RV@LINK")
-	require.Equal(t, ColumnSet{{Instance: "B", Server: "LINK", Database: "R", Table: "RV"}: true}, span.SourceColumns)
+	// What the remote view reads is named through the link too.
+	require.Equal(t, ColumnSet{{Instance: "B", Server: "LINK", Database: "R", Table: "RV"}: true, {Instance: "B", Server: "LINK", Database: "R", Table: "RT"}: true}, span.SourceColumns)
 	require.Equal(t, []QuerySpanResult{{Name: "X", SourceColumns: column("R", "RT", "X")}}, span.Results)
 
 	span = resolve(t, "SELECT * FROM T@NOWHERE")
@@ -266,7 +267,7 @@ func TestResolveQuerySpanSynonym(t *testing.T) {
 	}
 
 	span := resolve("SELECT S FROM SV")
-	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true}, span.SourceColumns)
+	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true, {Database: "DB", Table: "T"}: true}, span.SourceColumns)
 	require.Equal(t, ColumnSet{
 		{Database: "DB", Table: "T", Column: "A"}: true,
 		{Database: "DB", Table: "T", Column: "B"}: true,

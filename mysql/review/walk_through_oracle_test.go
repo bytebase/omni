@@ -385,6 +385,7 @@ var walkCodes = []struct {
 	{func(m, _ string) bool { return strings.HasPrefix(m, "A view's query can't hold an `INTO` clause") }, []string{"1350"}},
 	{func(m, _ string) bool { return strings.Contains(m, " takes a number, not ") }, []string{"1327"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "The locking clause names ") }, []string{"3568"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "The select list's ") }, []string{"1051"}},
 	// Table options (walk_lower_options.go).
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Character set ") && strings.HasSuffix(m, " doesn't exist.")
