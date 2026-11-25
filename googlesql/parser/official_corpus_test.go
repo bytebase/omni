@@ -48,7 +48,7 @@ import (
 //     v2 migration store and are the to-do list for a future grammar fix. Each is
 //     annotated with the oracle verdict that proves it is a real gap.
 //
-// Coverage: 160 of the 185 Spanner blocks parse clean, 25 skipped (see the
+// Coverage: 161 of the 185 Spanner blocks parse clean, 24 skipped (see the
 // counts on each bucket below). (The vector-array column-type block spanner/ddl.md#51 graduated
 // from the skip-list when googlesql/maint-vector-array-type wired the ARRAY
 // vector-length parameter; spanner/expressions.md#6 stays skipped as DOC-REJECTED
@@ -168,12 +168,6 @@ var officialCorpusSkips = map[string]string{
 	"spanner/datatypes.md#13": "FRAGMENT: DT-014 bare proto-typed `col1` column-def snippet, not a statement",
 	"spanner/datatypes.md#14": "FRAGMENT: DT-015 bare INTERVAL literal example, not a statement",
 	"spanner/datatypes.md#15": "FRAGMENT: DT-016 bare proto-enum `col1` column-def snippet, not a statement",
-
-	// ========================== OUT-OF-SCOPE (2) ==========================
-	// Pure-ZetaSQL / dialect-extension forms the legacy bytebase ANTLR grammar
-	// never implemented and no migration node owns. omni's reject preserves
-	// legacy parity.
-	"spanner/ddl.md#38": "OUT-OF-SCOPE: ALTER MODEL … SET OPTIONS — ML model DDL, no migration node",
 
 	// ========================== DOC-REJECTED (6) ==========================
 	// One statement in the block is REJECTED by the live Spanner oracle too, so

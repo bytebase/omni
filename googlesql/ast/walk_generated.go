@@ -50,6 +50,20 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.SetOptions {
 			Walk(v, c)
 		}
+	case *AlterModelStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.SetOptions {
+			Walk(v, c)
+		}
+	case *AlterPlacementStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.SetOptions {
+			Walk(v, c)
+		}
 	case *AlterRowAccessPolicyStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)

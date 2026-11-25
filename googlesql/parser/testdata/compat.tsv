@@ -9895,6 +9895,40 @@ accept	accept	engine	suite:spanner-ddl	DROP PLACEMENT `p`
 reject	reject	engine	suite:spanner-ddl	DROP PLACEMENT
 reject	reject	engine	suite:spanner-ddl	DROP PLACEMENT p CASCADE
 reject	reject	engine	suite:spanner-ddl	DROP PLACEMENT p zzz
+accept	accept	engine	suite:spanner-ddl	ALTER MODEL TextEmbedder SET OPTIONS (default_batch_size = 5)
+accept	accept	engine	suite:spanner-ddl	ALTER MODEL IF EXISTS m SET OPTIONS (endpoint = '//x')
+accept	accept	engine	suite:spanner-ddl	ALTER MODEL s.m SET OPTIONS (endpoints = ['//a', '//b'])
+accept	accept	engine	suite:spanner-ddl	ALTER MODEL m SET OPTIONS (endpoint = NULL)
+reject	reject	engine	suite:spanner-ddl	ALTER MODEL m SET OPTIONS ()
+reject	reject	engine	suite:spanner-ddl	ALTER MODEL m SET OPTIONS (x = 1)
+reject	reject	engine	suite:spanner-ddl	ALTER MODEL m SET OPTIONS (endpoint = 1)
+reject	reject	engine	suite:spanner-ddl	ALTER MODEL m SET OPTIONS (endpoint = '//x', endpoint = '//y')
+reject	reject	engine	suite:spanner-ddl	ALTER MODEL m SET OPTIONS (endpoint = PROTO)
+reject	reject	engine	suite:spanner-ddl	ALTER MODEL m SET OPTIONS (endpoint = '//x') zzz
+reject	reject	engine	suite:spanner-ddl	ALTER MODEL m SET OPTIONS endpoint = '//x'
+reject	reject	engine	suite:spanner-ddl	ALTER MODEL m OPTIONS (endpoint = '//x')
+reject	reject	engine	suite:spanner-ddl	ALTER MODEL m SET (endpoint = '//x')
+accept	accept	engine	suite:spanner-ddl	ALTER MODEL m
+reject	reject	engine	suite:spanner-ddl	ALTER MODEL
+reject	reject	engine	suite:spanner-ddl	ALTER MODEL m SET OPTIONS (endpoint = '//x'), SET OPTIONS (default_batch_size = 1)
+reject	reject	engine	suite:spanner-ddl	ALTER MODEL m RENAME TO n
+reject	reject	engine	suite:spanner-ddl	ALTER MODEL m SET OPTIONS (default_batch_size = 'x')
+accept	accept	engine	suite:spanner-ddl	ALTER PLACEMENT p SET OPTIONS (default_leader = 'us-east1')
+accept	accept	engine	suite:spanner-ddl	ALTER PLACEMENT p SET OPTIONS (default_leader = NULL)
+accept	accept	engine	suite:spanner-ddl	ALTER PLACEMENT p SET OPTIONS (instance_partition = 'x')
+reject	reject	engine	suite:spanner-ddl	ALTER PLACEMENT p SET OPTIONS (x = 1)
+reject	reject	engine	suite:spanner-ddl	ALTER PLACEMENT p SET OPTIONS (default_leader = 1)
+reject	reject	engine	suite:spanner-ddl	ALTER PLACEMENT p SET OPTIONS (default_leader = 'a', default_leader = 'b')
+reject	reject	engine	suite:spanner-ddl	ALTER PLACEMENT p SET OPTIONS ()
+accept	accept	engine	suite:spanner-ddl	ALTER PLACEMENT IF EXISTS p SET OPTIONS (default_leader = 'us-east1')
+accept	accept	engine	suite:spanner-ddl	ALTER PLACEMENT s.p SET OPTIONS (default_leader = 'us-east1')
+accept	accept	engine	suite:spanner-ddl	ALTER PLACEMENT `p` SET OPTIONS (default_leader = 'us-east1')
+accept	accept	engine	suite:spanner-ddl	ALTER PLACEMENT p
+reject	reject	engine	suite:spanner-ddl	ALTER PLACEMENT
+reject	reject	engine	suite:spanner-ddl	ALTER PLACEMENT p SET OPTIONS (default_leader = 'us-east1') zzz
+reject	reject	engine	suite:spanner-ddl	ALTER PLACEMENT p OPTIONS (default_leader = 'us-east1')
+reject	reject	engine	suite:spanner-ddl	ALTER PLACEMENT p SET (default_leader = 'us-east1')
+reject	reject	engine	suite:spanner-ddl	ALTER PLACEMENT p RENAME TO q
 accept	accept	engine	suite:utility	BEGIN
 accept	accept	engine	suite:utility	BEGIN TRANSACTION
 accept	accept	engine	suite:utility	START TRANSACTION
