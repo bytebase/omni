@@ -19,7 +19,7 @@ import (
 
 // TestWalkSimulation holds PostgreSQL's WALK_THROUGH to each of
 // pg/catalog's simulate.tsv suites offline (PostgreSQL 17's, PostgreSQL
-// 18's, the view queries, and the stored programs): each fixture is built once in the
+// 18's, the view queries on each, and the stored programs): each fixture is built once in the
 // in-memory catalog, and every row is checked with no server started.
 func TestWalkSimulation(t *testing.T) {
 	for _, suite := range []struct {
@@ -34,6 +34,7 @@ func TestWalkSimulation(t *testing.T) {
 		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.911},
 		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.909},
 		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 0.978},
+		{"pg18_queries", filepath.Join("..", "catalog", "testdata", "pg18", "queries", "simulate.tsv"), 0.978},
 		// Functions, procedures, triggers, event triggers, CALL and DO on
 		// programs@objects. The walk does not read a routine's body, so the
 		// refusals PostgreSQL makes of one at CREATE (check_function_bodies)

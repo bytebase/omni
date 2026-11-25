@@ -1,0 +1,1153 @@
+# pin: pg18 postgres:18.7-alpine sha256:75dcac3dfb1cd01ca3536910bbc84128759362f8b118bf8c55b38a94f68f3b73 REL_18_7
+# columns: omni, expected, source, fixture, rule, statement
+42703	42703	engine	one_table@column	stmt/SelectStmt!insert	CREATE VIEW _v AS SELECT zzz
+42703	42703	engine	one_table@column	opt_asc_desc/ASC	CREATE VIEW _v AS SELECT ORDER BY a ASC
+42703	42703	engine	one_table@column	opt_asc_desc/DESC	CREATE VIEW _v AS SELECT ORDER BY a DESC
+42703	42703	engine	one_table@column	opt_asc_desc/%empty	CREATE VIEW _v AS SELECT ORDER BY a
+42703	42703	engine	one_table@column	opt_nulls_order/NULLS_LA_FIRST_P	CREATE VIEW _v AS SELECT ORDER BY a NULLS FIRST
+42703	42703	engine	one_table@column	opt_nulls_order/NULLS_LA_LAST_P	CREATE VIEW _v AS SELECT ORDER BY a NULLS LAST
+ok:8302ae078cbc	ok:8302ae078cbc	engine	one_table@column	opt_nowait_or_skip/NOWAIT	CREATE VIEW _v AS SELECT FOR UPDATE NOWAIT
+ok:8302ae078cbc	ok:8302ae078cbc	engine	one_table@column	opt_nowait_or_skip/SKIP_LOCKED	CREATE VIEW _v AS SELECT FOR UPDATE SKIP LOCKED
+ok:8302ae078cbc	ok:8302ae078cbc	engine	one_table@column	opt_nowait_or_skip/%empty	CREATE VIEW _v AS SELECT FOR UPDATE
+42703	42703	engine	one_table@column	select_no_parens/select_clause_sort_clause!drop-2	CREATE VIEW _v AS SELECT BY a
+42703	42703	engine	one_table@column	select_no_parens/select_clause_opt_sort_clause_for_locking_clause_opt_select_limit!drop-2	CREATE VIEW _v AS SELECT UPDATE
+42703	42703	engine	one_table@column	select_no_parens/select_clause_opt_sort_clause_select_limit_opt_for_locking_clause	CREATE VIEW _v AS SELECT LIMIT a
+ok:b2d578149ef2	ok:b2d578149ef2	engine	one_table@column	select_clause/simple_select	CREATE VIEW _v AS SELECT UNION SELECT
+42703	42703	engine	one_table@column	select_clause/simple_select!insert	CREATE VIEW _v AS SELECT zzz UNION SELECT
+42703	42703	engine	one_table@column	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause	CREATE VIEW _v AS SELECT DISTINCT a
+42703	42703	engine	one_table@column	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause!insert	CREATE VIEW _v AS SELECT DISTINCT a zzz
+42703	42703	engine	one_table@column	simple_select/select_clause_UNION_set_quantifier_select_clause!insert	CREATE VIEW _v AS SELECT UNION SELECT zzz
+ok:53b28818f0bf	ok:53b28818f0bf	engine	one_table@column	simple_select/select_clause_INTERSECT_set_quantifier_select_clause	CREATE VIEW _v AS SELECT INTERSECT SELECT
+42703	42703	engine	one_table@column	simple_select/select_clause_INTERSECT_set_quantifier_select_clause!insert	CREATE VIEW _v AS SELECT INTERSECT SELECT zzz
+ok:1a2318639a72	ok:1a2318639a72	engine	one_table@column	simple_select/select_clause_EXCEPT_set_quantifier_select_clause	CREATE VIEW _v AS SELECT EXCEPT SELECT
+42703	42703	engine	one_table@column	simple_select/select_clause_EXCEPT_set_quantifier_select_clause!insert	CREATE VIEW _v AS SELECT EXCEPT SELECT zzz
+0A000	0A000	engine	one_table@column	into_clause/INTO_OptTempTableName	CREATE VIEW _v AS SELECT INTO a
+42703	42703	engine	one_table@column	into_clause/INTO_OptTempTableName!swap	CREATE VIEW _v AS SELECT INVOKER a
+0A000	0A000	engine	one_table@column	OptTempTableName/TEMPORARY_opt_table_qualified_name	CREATE VIEW _v AS SELECT INTO TEMPORARY a
+0A000	0A000	engine	one_table@column	OptTempTableName/TEMPORARY_opt_table_qualified_name!drop-2	CREATE VIEW _v AS SELECT INTO TEMPORARY
+0A000	0A000	engine	one_table@column	OptTempTableName/TEMPORARY_opt_table_qualified_name+opt_table	CREATE VIEW _v AS SELECT INTO TEMPORARY TABLE a
+0A000	0A000	engine	one_table@column	OptTempTableName/TEMP_opt_table_qualified_name	CREATE VIEW _v AS SELECT INTO TEMP a
+0A000	0A000	engine	one_table@column	OptTempTableName/TEMP_opt_table_qualified_name!drop-2	CREATE VIEW _v AS SELECT INTO TEMP
+0A000	0A000	engine	one_table@column	OptTempTableName/TEMP_opt_table_qualified_name+opt_table	CREATE VIEW _v AS SELECT INTO TEMP TABLE a
+0A000	0A000	engine	one_table@column	OptTempTableName/LOCAL_TEMPORARY_opt_table_qualified_name	CREATE VIEW _v AS SELECT INTO LOCAL TEMPORARY a
+0A000	0A000	engine	one_table@column	OptTempTableName/LOCAL_TEMPORARY_opt_table_qualified_name+opt_table	CREATE VIEW _v AS SELECT INTO LOCAL TEMPORARY TABLE a
+0A000	0A000	engine	one_table@column	OptTempTableName/LOCAL_TEMP_opt_table_qualified_name	CREATE VIEW _v AS SELECT INTO LOCAL TEMP a
+0A000	0A000	engine	one_table@column	OptTempTableName/LOCAL_TEMP_opt_table_qualified_name+opt_table	CREATE VIEW _v AS SELECT INTO LOCAL TEMP TABLE a
+0A000	0A000	engine	one_table@column	OptTempTableName/GLOBAL_TEMPORARY_opt_table_qualified_name	CREATE VIEW _v AS SELECT INTO GLOBAL TEMPORARY a
+0A000	0A000	engine	one_table@column	OptTempTableName/GLOBAL_TEMPORARY_opt_table_qualified_name+opt_table	CREATE VIEW _v AS SELECT INTO GLOBAL TEMPORARY TABLE a
+0A000	0A000	engine	one_table@column	OptTempTableName/GLOBAL_TEMP_opt_table_qualified_name	CREATE VIEW _v AS SELECT INTO GLOBAL TEMP a
+0A000	0A000	engine	one_table@column	OptTempTableName/GLOBAL_TEMP_opt_table_qualified_name+opt_table	CREATE VIEW _v AS SELECT INTO GLOBAL TEMP TABLE a
+0A000	0A000	engine	one_table@column	OptTempTableName/UNLOGGED_opt_table_qualified_name	CREATE VIEW _v AS SELECT INTO UNLOGGED a
+0A000	0A000	engine	one_table@column	OptTempTableName/UNLOGGED_opt_table_qualified_name!drop-2	CREATE VIEW _v AS SELECT INTO UNLOGGED
+0A000	0A000	engine	one_table@column	OptTempTableName/UNLOGGED_opt_table_qualified_name+opt_table	CREATE VIEW _v AS SELECT INTO UNLOGGED TABLE a
+0A000	0A000	engine	one_table@column	OptTempTableName/TABLE_qualified_name	CREATE VIEW _v AS SELECT INTO TABLE a
+ok:cd964642c37a	ok:cd964642c37a	engine	one_table@column	set_quantifier/ALL	CREATE VIEW _v AS SELECT UNION ALL SELECT
+ok:b2d578149ef2	ok:b2d578149ef2	engine	one_table@column	set_quantifier/DISTINCT	CREATE VIEW _v AS SELECT UNION DISTINCT SELECT
+42703	42703	engine	one_table@column	distinct_clause/DISTINCT!insert	CREATE VIEW _v AS SELECT DISTINCT zzz a
+42703	42703	engine	one_table@column	distinct_clause/DISTINCT_ON_(_expr_list_)	CREATE VIEW _v AS SELECT DISTINCT ON(a) a
+42703	42703	engine	one_table@column	distinct_clause/DISTINCT_ON_(_expr_list_)!drop-2	CREATE VIEW _v AS SELECT DISTINCT(a) a
+42703	42703	engine	one_table@column	distinct_clause/DISTINCT_ON_(_expr_list_)!insert	CREATE VIEW _v AS SELECT DISTINCT ON(a) zzz a
+ok:8302ae078cbc	ok:8302ae078cbc	engine	one_table@column	opt_all_clause/ALL	CREATE VIEW _v AS SELECT ALL
+42703	42703	engine	one_table@column	opt_all_clause/ALL!insert	CREATE VIEW _v AS SELECT ALL zzz
+42703	42703	engine	one_table@column	opt_all_clause/ALL!swap	CREATE VIEW _v AS SELECT ALSO
+42703	42703	engine	one_table@column	opt_sort_clause/sort_clause	CREATE VIEW _v AS SELECT ORDER BY a FOR UPDATE
+42703	42703	engine	one_table@column	opt_sort_clause/sort_clause!drop-1	CREATE VIEW _v AS SELECT BY a FOR UPDATE
+42703	42703	engine	one_table@column	opt_sort_clause/%empty!insert	CREATE VIEW _v AS SELECT zzz FOR UPDATE
+42703	42703	engine	one_table@column	sortby_list/sortby_list_,_sortby	CREATE VIEW _v AS SELECT ORDER BY a, a
+42703	42703	engine	one_table@column	sortby/a_expr_USING_qual_all_Op_opt_nulls_order	CREATE VIEW _v AS SELECT ORDER BY a USING ~
+42703	42703	engine	one_table@column	select_limit/limit_clause_offset_clause	CREATE VIEW _v AS SELECT LIMIT a OFFSET a
+42703	42703	engine	one_table@column	select_limit/limit_clause_offset_clause!drop-1	CREATE VIEW _v AS SELECT a OFFSET a
+42703	42703	engine	one_table@column	select_limit/limit_clause_offset_clause!swap	CREATE VIEW _v AS SELECT LISTEN a OFFSET a
+42703	42703	engine	one_table@column	select_limit/offset_clause_limit_clause	CREATE VIEW _v AS SELECT OFFSET a LIMIT a
+42703	42703	engine	one_table@column	select_limit/offset_clause_limit_clause!drop-1	CREATE VIEW _v AS SELECT a LIMIT a
+42703	42703	engine	one_table@column	select_limit/offset_clause_limit_clause!swap	CREATE VIEW _v AS SELECT OIDS a LIMIT a
+42703	42703	engine	one_table@column	select_limit/limit_clause!swap	CREATE VIEW _v AS SELECT LISTEN a
+42703	42703	engine	one_table@column	select_limit/offset_clause	CREATE VIEW _v AS SELECT OFFSET a
+42703	42703	engine	one_table@column	select_limit/offset_clause!swap	CREATE VIEW _v AS SELECT OIDS a
+42703	42703	engine	one_table@column	opt_select_limit/select_limit	CREATE VIEW _v AS SELECT FOR UPDATE LIMIT a
+42703	42703	engine	one_table@column	limit_clause/LIMIT_select_limit_value_,_select_offset_value!swap	CREATE VIEW _v AS SELECT LISTEN a, a
+42703	42703	engine	one_table@column	limit_clause/FETCH_first_or_next_select_fetch_first_value_row_or_rows_ONLY	CREATE VIEW _v AS SELECT FETCH FIRST a ROW ONLY
+ok:4d82e398ce92	ok:4d82e398ce92	engine	one_table@column	limit_clause/FETCH_first_or_next_row_or_rows_ONLY	CREATE VIEW _v AS SELECT FETCH FIRST ROW ONLY
+42703	42703	engine	one_table@column	offset_clause/OFFSET_select_fetch_first_value_row_or_rows	CREATE VIEW _v AS SELECT OFFSET a ROW
+42703	42703	engine	one_table@column	offset_clause/OFFSET_select_fetch_first_value_row_or_rows!drop-2	CREATE VIEW _v AS SELECT OFFSET ROW
+ok:0f5465eb2bd4	ok:0f5465eb2bd4	engine	one_table@column	select_limit_value/ALL	CREATE VIEW _v AS SELECT LIMIT ALL
+42703	42703	engine	one_table@column	select_limit_value/ALL!swap	CREATE VIEW _v AS SELECT LIMIT ALSO
+ok:dfa5b0c29212	ok:dfa5b0c29212	engine	one_table@column	select_fetch_first_value/+_I_or_F_const	CREATE VIEW _v AS SELECT OFFSET + 1 ROW
+ok:4d5922f5cf0e	ok:4d5922f5cf0e	engine	one_table@column	select_fetch_first_value/+_I_or_F_const!drop-1	CREATE VIEW _v AS SELECT OFFSET 1 ROW
+42703	42703	engine	one_table@column	select_fetch_first_value/+_I_or_F_const!drop-2	CREATE VIEW _v AS SELECT OFFSET + ROW
+ok:b1b1cd4cf7e2	ok:b1b1cd4cf7e2	engine	one_table@column	select_fetch_first_value/-_I_or_F_const	CREATE VIEW _v AS SELECT OFFSET - 1 ROW
+42703	42703	engine	one_table@column	select_fetch_first_value/-_I_or_F_const!drop-2	CREATE VIEW _v AS SELECT OFFSET - ROW
+ok:8cf6967d3d21	ok:8cf6967d3d21	engine	one_table@column	I_or_F_const/FCONST	CREATE VIEW _v AS SELECT OFFSET + 1.5 ROW
+42703	42703	engine	one_table@column	row_or_rows/ROWS	CREATE VIEW _v AS SELECT OFFSET a ROWS
+42703	42703	engine	one_table@column	first_or_next/FIRST_P!insert	CREATE VIEW _v AS SELECT FETCH FIRST zzz ROW ONLY
+ok:4d82e398ce92	ok:4d82e398ce92	engine	one_table@column	first_or_next/NEXT	CREATE VIEW _v AS SELECT FETCH NEXT ROW ONLY
+42703	42703	engine	one_table@column	first_or_next/NEXT!insert	CREATE VIEW _v AS SELECT FETCH NEXT zzz ROW ONLY
+42703	42703	engine	one_table@column	group_clause/GROUP_P_BY_set_quantifier_group_by_list	CREATE VIEW _v AS SELECT GROUP BY a
+42703	42703	engine	one_table@column	group_by_list/group_by_list_,_group_by_item	CREATE VIEW _v AS SELECT GROUP BY a, a
+ok:de54aed57c4b	ok:de54aed57c4b	engine	one_table@column	group_by_item/empty_grouping_set	CREATE VIEW _v AS SELECT GROUP BY()
+42703	42703	engine	one_table@column	group_by_item/cube_clause	CREATE VIEW _v AS SELECT GROUP BY CUBE(a)
+42703	42703	engine	one_table@column	group_by_item/cube_clause!drop-1	CREATE VIEW _v AS SELECT GROUP BY(a)
+42703	42703	engine	one_table@column	group_by_item/cube_clause!swap	CREATE VIEW _v AS SELECT GROUP BY CURRENT(a)
+42703	42703	engine	one_table@column	group_by_item/rollup_clause	CREATE VIEW _v AS SELECT GROUP BY ROLLUP(a)
+42703	42703	engine	one_table@column	group_by_item/rollup_clause!swap	CREATE VIEW _v AS SELECT GROUP BY ROUTINE(a)
+42703	42703	engine	one_table@column	group_by_item/grouping_sets_clause	CREATE VIEW _v AS SELECT GROUP BY GROUPING SETS(a)
+42703	42703	engine	one_table@column	group_by_item/grouping_sets_clause!drop-1	CREATE VIEW _v AS SELECT GROUP BY SETS(a)
+42703	42703	engine	one_table@column	group_by_item/grouping_sets_clause!drop-2	CREATE VIEW _v AS SELECT GROUP BY GROUPING(a)
+42703	42703	engine	one_table@column	having_clause/HAVING_a_expr	CREATE VIEW _v AS SELECT HAVING a
+42703	42703	engine	one_table@column	having_clause/HAVING_a_expr!swap	CREATE VIEW _v AS SELECT HEADER a
+42703	42703	engine	one_table@column	for_locking_clause/for_locking_items!swap	CREATE VIEW _v AS SELECT FORCE UPDATE
+ok:8302ae078cbc	ok:8302ae078cbc	engine	one_table@column	for_locking_clause/FOR_READ_ONLY	CREATE VIEW _v AS SELECT FOR READ ONLY
+42703	42703	engine	one_table@column	for_locking_clause/FOR_READ_ONLY!drop-1	CREATE VIEW _v AS SELECT READ ONLY
+42703	42703	engine	one_table@column	opt_for_locking_clause/for_locking_clause	CREATE VIEW _v AS SELECT LIMIT a FOR UPDATE
+ok:8302ae078cbc	ok:8302ae078cbc	engine	one_table@column	for_locking_items/for_locking_items_for_locking_item	CREATE VIEW _v AS SELECT FOR UPDATE FOR UPDATE
+42703	42703	engine	one_table@column	for_locking_items/for_locking_items_for_locking_item!drop-1	CREATE VIEW _v AS SELECT UPDATE FOR UPDATE
+42703	42703	engine	one_table@column	for_locking_items/for_locking_items_for_locking_item!swap	CREATE VIEW _v AS SELECT FORCE UPDATE FOR UPDATE
+ok:8302ae078cbc	ok:8302ae078cbc	engine	one_table@column	for_locking_strength/FOR_NO_KEY_UPDATE	CREATE VIEW _v AS SELECT FOR NO KEY UPDATE
+ok:8302ae078cbc	ok:8302ae078cbc	engine	one_table@column	for_locking_strength/FOR_SHARE	CREATE VIEW _v AS SELECT FOR SHARE
+42703	42703	engine	one_table@column	for_locking_strength/FOR_SHARE!drop-1	CREATE VIEW _v AS SELECT SHARE
+42703	42703	engine	one_table@column	for_locking_strength/FOR_SHARE!swap	CREATE VIEW _v AS SELECT FORCE SHARE
+ok:8302ae078cbc	ok:8302ae078cbc	engine	one_table@column	for_locking_strength/FOR_KEY_SHARE	CREATE VIEW _v AS SELECT FOR KEY SHARE
+42703	42703	engine	one_table@column	for_locking_strength/FOR_KEY_SHARE!drop-1	CREATE VIEW _v AS SELECT KEY SHARE
+42P01	42P01	engine	one_table@column	locked_rels_list/OF_qualified_name_list	CREATE VIEW _v AS SELECT FOR UPDATE OF a
+ok:8990c5533eca	ok:8990c5533eca	engine	one_table@column	from_clause/FROM_from_list	CREATE VIEW _v AS SELECT FROM a
+ok:098c5a5ce79c	ok:098c5a5ce79c	engine	one_table@column	from_clause/FROM_from_list!insert	CREATE VIEW _v AS SELECT FROM a zzz
+42712	42712	engine	one_table@column	from_list/from_list_,_table_ref	CREATE VIEW _v AS SELECT FROM a, a
+ok:6fadd2b7ed65	ok:6fadd2b7ed65	engine	one_table@column	from_list/from_list_,_table_ref!insert	CREATE VIEW _v AS SELECT FROM a, a zzz
+42704	42704	engine	one_table@column	table_ref/relation_expr_opt_alias_clause_tablesample_clause	CREATE VIEW _v AS SELECT FROM a TABLESAMPLE a(a)
+ok:6f273d2907bc	ok:6f273d2907bc	engine	one_table@column	table_ref/func_table_func_alias_clause	CREATE VIEW _v AS SELECT FROM CURRENT_DATE
+ok:cd51762edf1d	ok:cd51762edf1d	engine	one_table@column	table_ref/func_table_func_alias_clause!insert	CREATE VIEW _v AS SELECT FROM CURRENT_DATE zzz
+ok:d97e4e93905d	ok:d97e4e93905d	engine	one_table@column	table_ref/func_table_func_alias_clause!swap	CREATE VIEW _v AS SELECT FROM CURRENT_ROLE
+ok:d92c67f58a9e	ok:d92c67f58a9e	engine	one_table@column	table_ref/LATERAL_P_func_table_func_alias_clause	CREATE VIEW _v AS SELECT FROM LATERAL CURRENT_DATE
+ok:fe4111f06c00	ok:fe4111f06c00	engine	one_table@column	table_ref/LATERAL_P_func_table_func_alias_clause!insert	CREATE VIEW _v AS SELECT FROM LATERAL CURRENT_DATE zzz
+42703	42703	engine	one_table@column	table_ref/xmltable_opt_alias_clause	CREATE VIEW _v AS SELECT FROM XMLTABLE(a PASSING a COLUMNS a a)
+42703	42703	engine	one_table@column	table_ref/xmltable_opt_alias_clause!insert	CREATE VIEW _v AS SELECT FROM XMLTABLE(a PASSING a COLUMNS a a) zzz
+42703	42703	engine	one_table@column	table_ref/LATERAL_P_xmltable_opt_alias_clause	CREATE VIEW _v AS SELECT FROM LATERAL XMLTABLE(a PASSING a COLUMNS a a)
+42703	42703	engine	one_table@column	table_ref/LATERAL_P_xmltable_opt_alias_clause!insert	CREATE VIEW _v AS SELECT FROM LATERAL XMLTABLE(a PASSING a COLUMNS a a) zzz
+ok:c88be7d86aef	ok:c88be7d86aef	engine	one_table@column	table_ref/select_with_parens_opt_alias_clause	CREATE VIEW _v AS SELECT FROM(SELECT)
+ok:e5ba2941f81c	ok:e5ba2941f81c	engine	one_table@column	table_ref/select_with_parens_opt_alias_clause!insert	CREATE VIEW _v AS SELECT FROM(SELECT) zzz
+ok:bc76f5032ccb	ok:bc76f5032ccb	engine	one_table@column	table_ref/LATERAL_P_select_with_parens_opt_alias_clause	CREATE VIEW _v AS SELECT FROM LATERAL(SELECT)
+ok:3e26f3cc8891	ok:3e26f3cc8891	engine	one_table@column	table_ref/LATERAL_P_select_with_parens_opt_alias_clause!insert	CREATE VIEW _v AS SELECT FROM LATERAL(SELECT) zzz
+42712	42712	engine	one_table@column	table_ref/joined_table	CREATE VIEW _v AS SELECT FROM a CROSS JOIN a
+ok:c0bc8b76234e	ok:c0bc8b76234e	engine	one_table@column	table_ref/joined_table!insert	CREATE VIEW _v AS SELECT FROM a CROSS JOIN a zzz
+42712	42712	engine	one_table@column	table_ref/(_joined_table_)_alias_clause	CREATE VIEW _v AS SELECT FROM(a CROSS JOIN a) a
+42712	42712	engine	one_table@column	joined_table/(_joined_table_)	CREATE VIEW _v AS SELECT FROM(a CROSS JOIN a)
+42712	42712	engine	one_table@column	joined_table/(_joined_table_)!insert	CREATE VIEW _v AS SELECT FROM(a CROSS JOIN a) zzz
+42712	42712	engine	one_table@column	joined_table/table_ref_join_type_JOIN_table_ref_join_qual	CREATE VIEW _v AS SELECT FROM a FULL JOIN a ON a
+42702	42702	engine	one_table@column	joined_table/table_ref_join_type_JOIN_table_ref_join_qual!swap	CREATE VIEW _v AS SELECT FROM a FUNCTION JOIN a ON a
+42712	42712	engine	one_table@column	joined_table/table_ref_JOIN_table_ref_join_qual	CREATE VIEW _v AS SELECT FROM a JOIN a ON a
+42712	42712	engine	one_table@column	joined_table/table_ref_NATURAL_join_type_JOIN_table_ref	CREATE VIEW _v AS SELECT FROM a NATURAL FULL JOIN a
+ok:e966282ad466	ok:e966282ad466	engine	one_table@column	joined_table/table_ref_NATURAL_join_type_JOIN_table_ref!insert	CREATE VIEW _v AS SELECT FROM a NATURAL FULL JOIN a zzz
+42712	42712	engine	one_table@column	joined_table/table_ref_NATURAL_JOIN_table_ref	CREATE VIEW _v AS SELECT FROM a NATURAL JOIN a
+ok:d3eb048f1e1a	ok:d3eb048f1e1a	engine	one_table@column	joined_table/table_ref_NATURAL_JOIN_table_ref!insert	CREATE VIEW _v AS SELECT FROM a NATURAL JOIN a zzz
+ok:5abac91445a3	ok:5abac91445a3	engine	one_table@column	alias_clause/AS_ColId_(_name_list_)	CREATE VIEW _v AS SELECT FROM a AS a(a)
+ok:e02d66069390	ok:e02d66069390	engine	one_table@column	alias_clause/AS_ColId	CREATE VIEW _v AS SELECT FROM a AS a
+ok:5abac91445a3	ok:5abac91445a3	engine	one_table@column	alias_clause/ColId_(_name_list_)	CREATE VIEW _v AS SELECT FROM a a(a)
+42703	42703	engine	one_table@column	alias_clause/ColId_(_name_list_)!drop-1	CREATE VIEW _v AS SELECT FROM a(a)
+ok:e02d66069390	ok:e02d66069390	engine	one_table@column	alias_clause/ColId	CREATE VIEW _v AS SELECT FROM a a
+42712	42712	engine	one_table@column	opt_alias_clause_for_join_using/AS_ColId	CREATE VIEW _v AS SELECT FROM a JOIN a USING(a) AS a
+42712	42712	engine	one_table@column	opt_alias_clause_for_join_using/%empty	CREATE VIEW _v AS SELECT FROM a JOIN a USING(a)
+ok:50f70c992686	ok:50f70c992686	engine	one_table@column	func_alias_clause/alias_clause	CREATE VIEW _v AS SELECT FROM CURRENT_DATE a
+42601	42601	engine	one_table@column	func_alias_clause/AS_(_TableFuncElementList_)	CREATE VIEW _v AS SELECT FROM CURRENT_DATE AS(a a)
+42601	42601	engine	one_table@column	func_alias_clause/AS_ColId_(_TableFuncElementList_)	CREATE VIEW _v AS SELECT FROM CURRENT_DATE AS a(a a)
+ok:50f70c992686	ok:50f70c992686	engine	one_table@column	func_alias_clause/AS_ColId_(_TableFuncElementList_)!drop-4	CREATE VIEW _v AS SELECT FROM CURRENT_DATE AS a(a)
+42601	42601	engine	one_table@column	func_alias_clause/ColId_(_TableFuncElementList_)	CREATE VIEW _v AS SELECT FROM CURRENT_DATE a(a a)
+ok:50f70c992686	ok:50f70c992686	engine	one_table@column	func_alias_clause/ColId_(_TableFuncElementList_)!drop-3	CREATE VIEW _v AS SELECT FROM CURRENT_DATE a(a)
+42712	42712	engine	one_table@column	join_type/LEFT_opt_outer	CREATE VIEW _v AS SELECT FROM a NATURAL LEFT JOIN a
+42712	42712	engine	one_table@column	join_type/RIGHT_opt_outer	CREATE VIEW _v AS SELECT FROM a NATURAL RIGHT JOIN a
+42712	42712	engine	one_table@column	join_type/INNER_P	CREATE VIEW _v AS SELECT FROM a NATURAL INNER JOIN a
+42712	42712	engine	one_table@column	opt_outer/OUTER_P	CREATE VIEW _v AS SELECT FROM a NATURAL FULL OUTER JOIN a
+42704	42704	engine	one_table@column	opt_repeatable_clause/REPEATABLE_(_a_expr_)	CREATE VIEW _v AS SELECT FROM a TABLESAMPLE a(a) REPEATABLE(a)
+ok:6f273d2907bc	ok:6f273d2907bc	engine	one_table@column	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality	CREATE VIEW _v AS SELECT FROM ROWS FROM(CURRENT_DATE)
+42883	42883	engine	one_table@column	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality!drop-2	CREATE VIEW _v AS SELECT FROM ROWS(CURRENT_DATE)
+ok:cd51762edf1d	ok:cd51762edf1d	engine	one_table@column	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality!insert	CREATE VIEW _v AS SELECT FROM ROWS FROM(CURRENT_DATE) zzz
+ok:d97e4e93905d	ok:d97e4e93905d	engine	one_table@column	rowsfrom_item/func_expr_windowless_opt_col_def_list!swap	CREATE VIEW _v AS SELECT FROM ROWS FROM(CURRENT_ROLE)
+ok:6aae9c3a8ba0	ok:6aae9c3a8ba0	engine	one_table@column	rowsfrom_list/rowsfrom_list_,_rowsfrom_item	CREATE VIEW _v AS SELECT FROM ROWS FROM(CURRENT_DATE, CURRENT_DATE)
+ok:dc0ebfa8980a	ok:dc0ebfa8980a	engine	one_table@column	rowsfrom_list/rowsfrom_list_,_rowsfrom_item!swap	CREATE VIEW _v AS SELECT FROM ROWS FROM(CURRENT_ROLE, CURRENT_DATE)
+42601	42601	engine	one_table@column	opt_col_def_list/AS_(_TableFuncElementList_)	CREATE VIEW _v AS SELECT FROM ROWS FROM(CURRENT_DATE AS(a a))
+ok:876085238e7a	ok:876085238e7a	engine	one_table@column	opt_ordinality/WITH_LA_ORDINALITY	CREATE VIEW _v AS SELECT FROM CURRENT_DATE WITH ORDINALITY
+ok:c8a99b435352	ok:c8a99b435352	engine	one_table@column	opt_ordinality/WITH_LA_ORDINALITY!drop-1	CREATE VIEW _v AS SELECT FROM CURRENT_DATE ORDINALITY
+ok:93f682467a2c	ok:93f682467a2c	engine	one_table@column	opt_ordinality/WITH_LA_ORDINALITY!insert	CREATE VIEW _v AS SELECT FROM CURRENT_DATE WITH ORDINALITY zzz
+42703	42703	engine	one_table@column	where_clause/WHERE_a_expr	CREATE VIEW _v AS SELECT WHERE a
+42703	42703	engine	one_table@column	where_clause/WHERE_a_expr!swap	CREATE VIEW _v AS SELECT WHITESPACE a
+42703	42703	engine	one_table@column	xmltable/XMLTABLE_(_XMLNAMESPACES_(_xml_namespace_list_)_,_c_expr_xmlexists_argument_COLUMNS_xmltable_column_list_)	CREATE VIEW _v AS SELECT FROM XMLTABLE(XMLNAMESPACES(DEFAULT a), a PASSING a COLUMNS a a)
+42703	42703	engine	one_table@column	xmltable/XMLTABLE_(_XMLNAMESPACES_(_xml_namespace_list_)_,_c_expr_xmlexists_argument_COLUMNS_xmltable_column_list_)!insert	CREATE VIEW _v AS SELECT FROM XMLTABLE(XMLNAMESPACES(DEFAULT a), a PASSING a COLUMNS a a) zzz
+42703	42703	engine	one_table@column	xmltable_column_list/xmltable_column_list_,_xmltable_column_el	CREATE VIEW _v AS SELECT FROM XMLTABLE(a PASSING a COLUMNS a a, a a)
+42703	42703	engine	one_table@column	xmltable_column_el/ColId_Typename_xmltable_column_option_list	CREATE VIEW _v AS SELECT FROM XMLTABLE(a PASSING a COLUMNS a a NULL)
+42703	42703	engine	one_table@column	xmltable_column_el/ColId_FOR_ORDINALITY	CREATE VIEW _v AS SELECT FROM XMLTABLE(a PASSING a COLUMNS a FOR ORDINALITY)
+42703	42703	engine	one_table@column	xmltable_column_el/ColId_FOR_ORDINALITY!drop-2	CREATE VIEW _v AS SELECT FROM XMLTABLE(a PASSING a COLUMNS a ORDINALITY)
+42703	42703	engine	one_table@column	xmltable_column_option_el/DEFAULT_b_expr	CREATE VIEW _v AS SELECT FROM XMLTABLE(a PASSING a COLUMNS a a DEFAULT a)
+42703	42703	engine	one_table@column	xmltable_column_option_el/NOT_NULL_P	CREATE VIEW _v AS SELECT FROM XMLTABLE(a PASSING a COLUMNS a a NOT NULL)
+42703	42703	engine	one_table@column	xmltable_column_option_el/PATH_b_expr	CREATE VIEW _v AS SELECT FROM XMLTABLE(a PASSING a COLUMNS a a PATH a)
+42703	42703	engine	one_table@column	xml_namespace_list/xml_namespace_list_,_xml_namespace_el	CREATE VIEW _v AS SELECT FROM XMLTABLE(XMLNAMESPACES(DEFAULT a, DEFAULT a), a PASSING a COLUMNS a a)
+42703	42703	engine	one_table@column	xml_namespace_el/b_expr_AS_ColLabel	CREATE VIEW _v AS SELECT FROM XMLTABLE(XMLNAMESPACES(a AS a), a PASSING a COLUMNS a a)
+22P02	22P02	engine	one_table@column	ConstTypename/Numeric	CREATE VIEW _v AS SELECT INT 's'
+22P02	22P02	engine	one_table@column	ConstTypename/Numeric!swap	CREATE VIEW _v AS SELECT INTEGER 's'
+22P02	22P02	engine	one_table@column	ConstTypename/ConstBit	CREATE VIEW _v AS SELECT BIT 's'
+22P02	22P02	engine	one_table@column	ConstTypename/ConstBit!swap	CREATE VIEW _v AS SELECT BOOLEAN 's'
+ok:a3a44a0f7a81	ok:a3a44a0f7a81	engine	one_table@column	ConstTypename/ConstCharacter	CREATE VIEW _v AS SELECT CHARACTER 's'
+42704	42704	engine	one_table@column	ConstTypename/ConstCharacter!swap	CREATE VIEW _v AS SELECT CHARACTERISTICS 's'
+22007	22007	engine	one_table@column	ConstTypename/ConstDatetime	CREATE VIEW _v AS SELECT TIMESTAMP 's'
+22P02	22P02	engine	one_table@column	ConstTypename/JsonType	CREATE VIEW _v AS SELECT JSON 's'
+22P02	22P02	engine	one_table@column	ConstBit/BitWithLength	CREATE VIEW _v AS SELECT BIT(a) 's'
+ok:f18f2a1884d4	ok:f18f2a1884d4	engine	one_table@column	ConstCharacter/CharacterWithLength	CREATE VIEW _v AS SELECT CHARACTER(1) 's'
+42704	42704	engine	one_table@column	ConstCharacter/CharacterWithLength!swap	CREATE VIEW _v AS SELECT CHARACTERISTICS(1) 's'
+42703	42703	engine	one_table@column	a_expr/c_expr	CREATE VIEW _v AS SELECT a
+42703	42703	engine	one_table@column	a_expr/c_expr!insert	CREATE VIEW _v AS SELECT a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_TYPECAST_Typename	CREATE VIEW _v AS SELECT a :: a
+42703	42703	engine	one_table@column	a_expr/a_expr_TYPECAST_Typename!insert	CREATE VIEW _v AS SELECT a :: a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_COLLATE_any_name	CREATE VIEW _v AS SELECT a COLLATE a
+42703	42703	engine	one_table@column	a_expr/a_expr_COLLATE_any_name!insert	CREATE VIEW _v AS SELECT a COLLATE a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_AT_TIME_ZONE_a_expr	CREATE VIEW _v AS SELECT a AT TIME ZONE a
+42703	42703	engine	one_table@column	a_expr/a_expr_AT_TIME_ZONE_a_expr!insert	CREATE VIEW _v AS SELECT a AT TIME ZONE a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_AT_LOCAL	CREATE VIEW _v AS SELECT a AT LOCAL
+42703	42703	engine	one_table@column	a_expr/a_expr_AT_LOCAL!drop-1	CREATE VIEW _v AS SELECT AT LOCAL
+42703	42703	engine	one_table@column	a_expr/a_expr_AT_LOCAL!insert	CREATE VIEW _v AS SELECT a AT LOCAL zzz
+42703	42703	engine	one_table@column	a_expr/+_a_expr	CREATE VIEW _v AS SELECT + a
+42703	42703	engine	one_table@column	a_expr/+_a_expr!insert	CREATE VIEW _v AS SELECT + a zzz
+42703	42703	engine	one_table@column	a_expr/-_a_expr	CREATE VIEW _v AS SELECT - a
+42703	42703	engine	one_table@column	a_expr/-_a_expr!insert	CREATE VIEW _v AS SELECT - a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_+_a_expr	CREATE VIEW _v AS SELECT a + a
+42703	42703	engine	one_table@column	a_expr/a_expr_+_a_expr!insert	CREATE VIEW _v AS SELECT a + a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_-_a_expr	CREATE VIEW _v AS SELECT a - a
+42703	42703	engine	one_table@column	a_expr/a_expr_-_a_expr!insert	CREATE VIEW _v AS SELECT a - a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_*_a_expr	CREATE VIEW _v AS SELECT a * a
+42703	42703	engine	one_table@column	a_expr/a_expr_*_a_expr!insert	CREATE VIEW _v AS SELECT a * a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_/_a_expr	CREATE VIEW _v AS SELECT a / a
+42703	42703	engine	one_table@column	a_expr/a_expr_/_a_expr!insert	CREATE VIEW _v AS SELECT a / a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_%_a_expr	CREATE VIEW _v AS SELECT a % a
+42703	42703	engine	one_table@column	a_expr/a_expr_%_a_expr!insert	CREATE VIEW _v AS SELECT a % a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_^_a_expr	CREATE VIEW _v AS SELECT a ^ a
+42703	42703	engine	one_table@column	a_expr/a_expr_^_a_expr!insert	CREATE VIEW _v AS SELECT a ^ a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_<_a_expr	CREATE VIEW _v AS SELECT a < a
+42703	42703	engine	one_table@column	a_expr/a_expr_<_a_expr!insert	CREATE VIEW _v AS SELECT a < a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_>_a_expr	CREATE VIEW _v AS SELECT a > a
+42703	42703	engine	one_table@column	a_expr/a_expr_>_a_expr!insert	CREATE VIEW _v AS SELECT a > a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_=_a_expr	CREATE VIEW _v AS SELECT a = a
+42703	42703	engine	one_table@column	a_expr/a_expr_=_a_expr!insert	CREATE VIEW _v AS SELECT a = a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_LESS_EQUALS_a_expr	CREATE VIEW _v AS SELECT a <= a
+42703	42703	engine	one_table@column	a_expr/a_expr_LESS_EQUALS_a_expr!insert	CREATE VIEW _v AS SELECT a <= a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_GREATER_EQUALS_a_expr	CREATE VIEW _v AS SELECT a >= a
+42703	42703	engine	one_table@column	a_expr/a_expr_GREATER_EQUALS_a_expr!insert	CREATE VIEW _v AS SELECT a >= a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_EQUALS_a_expr	CREATE VIEW _v AS SELECT a <> a
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_EQUALS_a_expr!insert	CREATE VIEW _v AS SELECT a <> a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_qual_Op_a_expr	CREATE VIEW _v AS SELECT a ~ a
+42703	42703	engine	one_table@column	a_expr/a_expr_qual_Op_a_expr!insert	CREATE VIEW _v AS SELECT a ~ a zzz
+42703	42703	engine	one_table@column	a_expr/qual_Op_a_expr	CREATE VIEW _v AS SELECT ~ a
+42703	42703	engine	one_table@column	a_expr/qual_Op_a_expr!insert	CREATE VIEW _v AS SELECT ~ a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_AND_a_expr	CREATE VIEW _v AS SELECT a AND a
+42703	42703	engine	one_table@column	a_expr/a_expr_AND_a_expr!insert	CREATE VIEW _v AS SELECT a AND a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_OR_a_expr	CREATE VIEW _v AS SELECT a OR a
+42703	42703	engine	one_table@column	a_expr/a_expr_OR_a_expr!insert	CREATE VIEW _v AS SELECT a OR a zzz
+42703	42703	engine	one_table@column	a_expr/NOT_a_expr	CREATE VIEW _v AS SELECT NOT a
+42703	42703	engine	one_table@column	a_expr/NOT_a_expr!insert	CREATE VIEW _v AS SELECT NOT a zzz
+42703	42703	engine	one_table@column	a_expr/NOT_a_expr!swap	CREATE VIEW _v AS SELECT NOTHING a
+42703	42703	engine	one_table@column	a_expr/a_expr_LIKE_a_expr	CREATE VIEW _v AS SELECT a LIKE a
+42703	42703	engine	one_table@column	a_expr/a_expr_LIKE_a_expr!insert	CREATE VIEW _v AS SELECT a LIKE a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_LIKE_a_expr_ESCAPE_a_expr	CREATE VIEW _v AS SELECT a LIKE a ESCAPE a
+42703	42703	engine	one_table@column	a_expr/a_expr_LIKE_a_expr_ESCAPE_a_expr!drop-3	CREATE VIEW _v AS SELECT a LIKE ESCAPE a
+42703	42703	engine	one_table@column	a_expr/a_expr_LIKE_a_expr_ESCAPE_a_expr!drop-4	CREATE VIEW _v AS SELECT a LIKE a a
+42703	42703	engine	one_table@column	a_expr/a_expr_LIKE_a_expr_ESCAPE_a_expr!insert	CREATE VIEW _v AS SELECT a LIKE a ESCAPE a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_LIKE_a_expr	CREATE VIEW _v AS SELECT a NOT LIKE a
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_LIKE_a_expr!insert	CREATE VIEW _v AS SELECT a NOT LIKE a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr	CREATE VIEW _v AS SELECT a NOT LIKE a ESCAPE a
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!drop-4	CREATE VIEW _v AS SELECT a NOT LIKE ESCAPE a
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!drop-5	CREATE VIEW _v AS SELECT a NOT LIKE a a
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_LIKE_a_expr_ESCAPE_a_expr!insert	CREATE VIEW _v AS SELECT a NOT LIKE a ESCAPE a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_ILIKE_a_expr	CREATE VIEW _v AS SELECT a ILIKE a
+42703	42703	engine	one_table@column	a_expr/a_expr_ILIKE_a_expr!insert	CREATE VIEW _v AS SELECT a ILIKE a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_ILIKE_a_expr_ESCAPE_a_expr	CREATE VIEW _v AS SELECT a ILIKE a ESCAPE a
+42703	42703	engine	one_table@column	a_expr/a_expr_ILIKE_a_expr_ESCAPE_a_expr!drop-3	CREATE VIEW _v AS SELECT a ILIKE ESCAPE a
+42703	42703	engine	one_table@column	a_expr/a_expr_ILIKE_a_expr_ESCAPE_a_expr!drop-4	CREATE VIEW _v AS SELECT a ILIKE a a
+42703	42703	engine	one_table@column	a_expr/a_expr_ILIKE_a_expr_ESCAPE_a_expr!insert	CREATE VIEW _v AS SELECT a ILIKE a ESCAPE a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_ILIKE_a_expr	CREATE VIEW _v AS SELECT a NOT ILIKE a
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_ILIKE_a_expr!insert	CREATE VIEW _v AS SELECT a NOT ILIKE a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_ILIKE_a_expr_ESCAPE_a_expr	CREATE VIEW _v AS SELECT a NOT ILIKE a ESCAPE a
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_ILIKE_a_expr_ESCAPE_a_expr!drop-4	CREATE VIEW _v AS SELECT a NOT ILIKE ESCAPE a
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_ILIKE_a_expr_ESCAPE_a_expr!drop-5	CREATE VIEW _v AS SELECT a NOT ILIKE a a
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_ILIKE_a_expr_ESCAPE_a_expr!insert	CREATE VIEW _v AS SELECT a NOT ILIKE a ESCAPE a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_SIMILAR_TO_a_expr	CREATE VIEW _v AS SELECT a SIMILAR TO a
+42703	42703	engine	one_table@column	a_expr/a_expr_SIMILAR_TO_a_expr!insert	CREATE VIEW _v AS SELECT a SIMILAR TO a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_SIMILAR_TO_a_expr_ESCAPE_a_expr	CREATE VIEW _v AS SELECT a SIMILAR TO a ESCAPE a
+42703	42703	engine	one_table@column	a_expr/a_expr_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-4	CREATE VIEW _v AS SELECT a SIMILAR TO ESCAPE a
+42703	42703	engine	one_table@column	a_expr/a_expr_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-5	CREATE VIEW _v AS SELECT a SIMILAR TO a a
+42703	42703	engine	one_table@column	a_expr/a_expr_SIMILAR_TO_a_expr_ESCAPE_a_expr!insert	CREATE VIEW _v AS SELECT a SIMILAR TO a ESCAPE a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr	CREATE VIEW _v AS SELECT a NOT SIMILAR TO a
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr!insert	CREATE VIEW _v AS SELECT a NOT SIMILAR TO a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr	CREATE VIEW _v AS SELECT a NOT SIMILAR TO a ESCAPE a
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-5	CREATE VIEW _v AS SELECT a NOT SIMILAR TO ESCAPE a
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!drop-6	CREATE VIEW _v AS SELECT a NOT SIMILAR TO a a
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_SIMILAR_TO_a_expr_ESCAPE_a_expr!insert	CREATE VIEW _v AS SELECT a NOT SIMILAR TO a ESCAPE a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NULL_P	CREATE VIEW _v AS SELECT a IS NULL
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NULL_P!insert	CREATE VIEW _v AS SELECT a IS NULL zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NULL_P!swap	CREATE VIEW _v AS SELECT a ISNULL NULL
+42703	42703	engine	one_table@column	a_expr/a_expr_ISNULL	CREATE VIEW _v AS SELECT a ISNULL
+42703	42703	engine	one_table@column	a_expr/a_expr_ISNULL!insert	CREATE VIEW _v AS SELECT a ISNULL zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_NULL_P	CREATE VIEW _v AS SELECT a IS NOT NULL
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_NULL_P!insert	CREATE VIEW _v AS SELECT a IS NOT NULL zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_NOTNULL	CREATE VIEW _v AS SELECT a NOTNULL
+42703	42703	engine	one_table@column	a_expr/a_expr_NOTNULL!insert	CREATE VIEW _v AS SELECT a NOTNULL zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_TRUE_P	CREATE VIEW _v AS SELECT a IS TRUE
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_TRUE_P!insert	CREATE VIEW _v AS SELECT a IS TRUE zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_TRUE_P!swap	CREATE VIEW _v AS SELECT a ISNULL TRUE
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_TRUE_P	CREATE VIEW _v AS SELECT a IS NOT TRUE
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_TRUE_P!insert	CREATE VIEW _v AS SELECT a IS NOT TRUE zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_FALSE_P	CREATE VIEW _v AS SELECT a IS FALSE
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_FALSE_P!insert	CREATE VIEW _v AS SELECT a IS FALSE zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_FALSE_P!swap	CREATE VIEW _v AS SELECT a ISNULL FALSE
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_FALSE_P	CREATE VIEW _v AS SELECT a IS NOT FALSE
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_FALSE_P!insert	CREATE VIEW _v AS SELECT a IS NOT FALSE zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_UNKNOWN	CREATE VIEW _v AS SELECT a IS UNKNOWN
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_UNKNOWN!insert	CREATE VIEW _v AS SELECT a IS UNKNOWN zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_UNKNOWN!swap	CREATE VIEW _v AS SELECT a ISNULL UNKNOWN
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_UNKNOWN	CREATE VIEW _v AS SELECT a IS NOT UNKNOWN
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_UNKNOWN!insert	CREATE VIEW _v AS SELECT a IS NOT UNKNOWN zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_DISTINCT_FROM_a_expr	CREATE VIEW _v AS SELECT a IS DISTINCT FROM a
+ok:8550ebd54383	ok:8550ebd54383	engine	one_table@column	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!drop-2	CREATE VIEW _v AS SELECT a DISTINCT FROM a
+ok:b5b382601c98	ok:b5b382601c98	engine	one_table@column	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!drop-3	CREATE VIEW _v AS SELECT a IS FROM a
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!insert	CREATE VIEW _v AS SELECT a IS DISTINCT FROM a zzz
+ok:e7cfadb70ce6	ok:e7cfadb70ce6	engine	one_table@column	a_expr/a_expr_IS_DISTINCT_FROM_a_expr!swap	CREATE VIEW _v AS SELECT a ISNULL DISTINCT FROM a
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr	CREATE VIEW _v AS SELECT a IS NOT DISTINCT FROM a
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_DISTINCT_FROM_a_expr!insert	CREATE VIEW _v AS SELECT a IS NOT DISTINCT FROM a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_BETWEEN_opt_asymmetric_b_expr_AND_a_expr	CREATE VIEW _v AS SELECT a BETWEEN a AND a
+42703	42703	engine	one_table@column	a_expr/a_expr_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!insert	CREATE VIEW _v AS SELECT a BETWEEN a AND a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr	CREATE VIEW _v AS SELECT a NOT BETWEEN a AND a
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!insert	CREATE VIEW _v AS SELECT a NOT BETWEEN a AND a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr	CREATE VIEW _v AS SELECT a BETWEEN SYMMETRIC a AND a
+42703	42703	engine	one_table@column	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!insert	CREATE VIEW _v AS SELECT a BETWEEN SYMMETRIC a AND a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_BETWEEN_SYMMETRIC_b_expr_AND_a_expr	CREATE VIEW _v AS SELECT a NOT BETWEEN SYMMETRIC a AND a
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!insert	CREATE VIEW _v AS SELECT a NOT BETWEEN SYMMETRIC a AND a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IN_P_in_expr	CREATE VIEW _v AS SELECT a IN(SELECT)
+42703	42703	engine	one_table@column	a_expr/a_expr_IN_P_in_expr!insert	CREATE VIEW _v AS SELECT a IN(SELECT) zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_IN_P_in_expr	CREATE VIEW _v AS SELECT a NOT IN(SELECT)
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_IN_P_in_expr!insert	CREATE VIEW _v AS SELECT a NOT IN(SELECT) zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_subquery_Op_sub_type_select_with_parens	CREATE VIEW _v AS SELECT a ~ ANY(SELECT)
+42703	42703	engine	one_table@column	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!drop-3	CREATE VIEW _v AS SELECT a ~(SELECT)
+42703	42703	engine	one_table@column	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!insert	CREATE VIEW _v AS SELECT a ~ ANY(SELECT) zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_subquery_Op_sub_type_select_with_parens!swap	CREATE VIEW _v AS SELECT a ~ ARRAY(SELECT)
+42703	42703	engine	one_table@column	a_expr/a_expr_subquery_Op_sub_type_(_a_expr_)	CREATE VIEW _v AS SELECT a ~ ANY(a)
+42703	42703	engine	one_table@column	a_expr/a_expr_subquery_Op_sub_type_(_a_expr_)!drop-3	CREATE VIEW _v AS SELECT a ~(a)
+42703	42703	engine	one_table@column	a_expr/a_expr_subquery_Op_sub_type_(_a_expr_)!insert	CREATE VIEW _v AS SELECT a ~ ANY(a) zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_DOCUMENT_P	CREATE VIEW _v AS SELECT a IS DOCUMENT
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_DOCUMENT_P!insert	CREATE VIEW _v AS SELECT a IS DOCUMENT zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_DOCUMENT_P!swap	CREATE VIEW _v AS SELECT a ISNULL DOCUMENT
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_DOCUMENT_P	CREATE VIEW _v AS SELECT a IS NOT DOCUMENT
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_DOCUMENT_P!insert	CREATE VIEW _v AS SELECT a IS NOT DOCUMENT zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NORMALIZED	CREATE VIEW _v AS SELECT a IS NORMALIZED
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NORMALIZED!insert	CREATE VIEW _v AS SELECT a IS NORMALIZED zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NORMALIZED!swap	CREATE VIEW _v AS SELECT a ISNULL NORMALIZED
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_unicode_normal_form_NORMALIZED	CREATE VIEW _v AS SELECT a IS NFC NORMALIZED
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_unicode_normal_form_NORMALIZED!insert	CREATE VIEW _v AS SELECT a IS NFC NORMALIZED zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_NORMALIZED	CREATE VIEW _v AS SELECT a IS NOT NORMALIZED
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_NORMALIZED!insert	CREATE VIEW _v AS SELECT a IS NOT NORMALIZED zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED	CREATE VIEW _v AS SELECT a IS NOT NFC NORMALIZED
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED!insert	CREATE VIEW _v AS SELECT a IS NOT NFC NORMALIZED zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_json_predicate_type_constraint_json_key_uniqueness_constraint_opt	CREATE VIEW _v AS SELECT a IS JSON
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!insert	CREATE VIEW _v AS SELECT a IS JSON zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!swap	CREATE VIEW _v AS SELECT a ISNULL JSON
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt	CREATE VIEW _v AS SELECT a IS NOT JSON
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!insert	CREATE VIEW _v AS SELECT a IS NOT JSON zzz
+42601	42601	engine	one_table@column	a_expr/DEFAULT	CREATE VIEW _v AS SELECT DEFAULT
+42601	42601	engine	one_table@column	a_expr/DEFAULT!insert	CREATE VIEW _v AS SELECT DEFAULT zzz
+42703	42703	engine	one_table@column	a_expr/DEFAULT!swap	CREATE VIEW _v AS SELECT DEFAULTS
+ok:426ca661a87e	ok:426ca661a87e	engine	one_table@column	c_expr/AexprConst	CREATE VIEW _v AS SELECT 1
+ok:67ac5781c692	ok:67ac5781c692	engine	one_table@column	c_expr/AexprConst!insert	CREATE VIEW _v AS SELECT 1 zzz
+42P02	42P02	engine	one_table@column	c_expr/PARAM_opt_indirection	CREATE VIEW _v AS SELECT $1
+42P02	42P02	engine	one_table@column	c_expr/PARAM_opt_indirection!insert	CREATE VIEW _v AS SELECT $1 zzz
+42703	42703	engine	one_table@column	c_expr/case_expr	CREATE VIEW _v AS SELECT CASE WHEN a THEN a END
+42703	42703	engine	one_table@column	c_expr/case_expr!insert	CREATE VIEW _v AS SELECT CASE WHEN a THEN a END zzz
+ok:33fa299bb6aa	ok:33fa299bb6aa	engine	one_table@column	c_expr/func_expr	CREATE VIEW _v AS SELECT CURRENT_DATE
+ok:fa4ad286b601	ok:fa4ad286b601	engine	one_table@column	c_expr/func_expr!insert	CREATE VIEW _v AS SELECT CURRENT_DATE zzz
+ok:7a40861063f3	ok:7a40861063f3	engine	one_table@column	c_expr/EXISTS_select_with_parens	CREATE VIEW _v AS SELECT EXISTS(SELECT)
+ok:bd4e3ba0a7ec	ok:bd4e3ba0a7ec	engine	one_table@column	c_expr/EXISTS_select_with_parens!insert	CREATE VIEW _v AS SELECT EXISTS(SELECT) zzz
+42601	42601	engine	one_table@column	c_expr/ARRAY_select_with_parens	CREATE VIEW _v AS SELECT ARRAY(SELECT)
+42601	42601	engine	one_table@column	c_expr/ARRAY_select_with_parens!insert	CREATE VIEW _v AS SELECT ARRAY(SELECT) zzz
+42P18	42P18	engine	one_table@column	c_expr/ARRAY_array_expr	CREATE VIEW _v AS SELECT ARRAY [ ]
+42P18	42P18	engine	one_table@column	c_expr/ARRAY_array_expr!insert	CREATE VIEW _v AS SELECT ARRAY [ ] zzz
+42P16	42P16	engine	one_table@column	c_expr/explicit_row	CREATE VIEW _v AS SELECT ROW()
+42P16	42P16	engine	one_table@column	c_expr/explicit_row!insert	CREATE VIEW _v AS SELECT ROW() zzz
+42883	42883	engine	one_table@column	c_expr/explicit_row!swap	CREATE VIEW _v AS SELECT ROWS()
+42703	42703	engine	one_table@column	c_expr/GROUPING_(_expr_list_)	CREATE VIEW _v AS SELECT GROUPING(a)
+42703	42703	engine	one_table@column	c_expr/GROUPING_(_expr_list_)!insert	CREATE VIEW _v AS SELECT GROUPING(a) zzz
+42703	42703	engine	one_table@column	c_expr/GROUPING_(_expr_list_)!swap	CREATE VIEW _v AS SELECT GROUPS(a)
+42883	42883	engine	one_table@column	func_expr/func_application_within_group_clause_filter_clause_over_clause	CREATE VIEW _v AS SELECT a()
+42883	42883	engine	one_table@column	func_expr/func_application_within_group_clause_filter_clause_over_clause!insert	CREATE VIEW _v AS SELECT a() zzz
+42703	42703	engine	one_table@column	func_expr/json_aggregate_func_filter_clause_over_clause	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a)
+42703	42703	engine	one_table@column	func_expr/json_aggregate_func_filter_clause_over_clause!insert	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) zzz
+42883	42883	engine	one_table@column	func_expr_windowless/func_application	CREATE VIEW _v AS SELECT FROM a()
+42883	42883	engine	one_table@column	func_expr_windowless/func_application!insert	CREATE VIEW _v AS SELECT FROM a() zzz
+42703	42703	engine	one_table@column	func_expr_windowless/json_aggregate_func	CREATE VIEW _v AS SELECT FROM JSON_ARRAYAGG(a)
+42703	42703	engine	one_table@column	func_expr_windowless/json_aggregate_func!insert	CREATE VIEW _v AS SELECT FROM JSON_ARRAYAGG(a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/COLLATION_FOR_(_a_expr_)	CREATE VIEW _v AS SELECT COLLATION FOR(a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/COLLATION_FOR_(_a_expr_)!drop-2	CREATE VIEW _v AS SELECT COLLATION(a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/COLLATION_FOR_(_a_expr_)!insert	CREATE VIEW _v AS SELECT COLLATION FOR(a) zzz
+ok:0b3f16ed4447	ok:0b3f16ed4447	engine	one_table@column	func_expr_common_subexpr/CURRENT_TIME	CREATE VIEW _v AS SELECT CURRENT_TIME
+ok:24164154ddb1	ok:24164154ddb1	engine	one_table@column	func_expr_common_subexpr/CURRENT_TIME!insert	CREATE VIEW _v AS SELECT CURRENT_TIME zzz
+ok:3c9ff7576c21	ok:3c9ff7576c21	engine	one_table@column	func_expr_common_subexpr/CURRENT_TIME_(_Iconst_)	CREATE VIEW _v AS SELECT CURRENT_TIME(1)
+ok:aa326cc3085a	ok:aa326cc3085a	engine	one_table@column	func_expr_common_subexpr/CURRENT_TIME_(_Iconst_)!insert	CREATE VIEW _v AS SELECT CURRENT_TIME(1) zzz
+ok:b72cf125c37f	ok:b72cf125c37f	engine	one_table@column	func_expr_common_subexpr/CURRENT_TIMESTAMP	CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP
+ok:550a2fbac426	ok:550a2fbac426	engine	one_table@column	func_expr_common_subexpr/CURRENT_TIMESTAMP!insert	CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP zzz
+ok:8c169c29acb5	ok:8c169c29acb5	engine	one_table@column	func_expr_common_subexpr/CURRENT_TIMESTAMP_(_Iconst_)	CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP(1)
+ok:957f073f16f1	ok:957f073f16f1	engine	one_table@column	func_expr_common_subexpr/CURRENT_TIMESTAMP_(_Iconst_)!insert	CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP(1) zzz
+ok:d6f728b1d35c	ok:d6f728b1d35c	engine	one_table@column	func_expr_common_subexpr/LOCALTIME	CREATE VIEW _v AS SELECT LOCALTIME
+ok:b4d4a6c85678	ok:b4d4a6c85678	engine	one_table@column	func_expr_common_subexpr/LOCALTIME!insert	CREATE VIEW _v AS SELECT LOCALTIME zzz
+ok:843c1ea5dedb	ok:843c1ea5dedb	engine	one_table@column	func_expr_common_subexpr/LOCALTIME_(_Iconst_)	CREATE VIEW _v AS SELECT LOCALTIME(1)
+ok:99b107831f88	ok:99b107831f88	engine	one_table@column	func_expr_common_subexpr/LOCALTIME_(_Iconst_)!insert	CREATE VIEW _v AS SELECT LOCALTIME(1) zzz
+ok:f7a7f7f80910	ok:f7a7f7f80910	engine	one_table@column	func_expr_common_subexpr/LOCALTIMESTAMP	CREATE VIEW _v AS SELECT LOCALTIMESTAMP
+ok:4927aa5ab28d	ok:4927aa5ab28d	engine	one_table@column	func_expr_common_subexpr/LOCALTIMESTAMP!insert	CREATE VIEW _v AS SELECT LOCALTIMESTAMP zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/LOCALTIMESTAMP!swap	CREATE VIEW _v AS SELECT LOCATION
+ok:91a2394199d8	ok:91a2394199d8	engine	one_table@column	func_expr_common_subexpr/LOCALTIMESTAMP_(_Iconst_)	CREATE VIEW _v AS SELECT LOCALTIMESTAMP(1)
+ok:ce0d29fb77f0	ok:ce0d29fb77f0	engine	one_table@column	func_expr_common_subexpr/LOCALTIMESTAMP_(_Iconst_)!insert	CREATE VIEW _v AS SELECT LOCALTIMESTAMP(1) zzz
+42883	42883	engine	one_table@column	func_expr_common_subexpr/LOCALTIMESTAMP_(_Iconst_)!swap	CREATE VIEW _v AS SELECT LOCATION(1)
+ok:9debc50e7143	ok:9debc50e7143	engine	one_table@column	func_expr_common_subexpr/CURRENT_ROLE	CREATE VIEW _v AS SELECT CURRENT_ROLE
+ok:5cf0cf59eda4	ok:5cf0cf59eda4	engine	one_table@column	func_expr_common_subexpr/CURRENT_ROLE!insert	CREATE VIEW _v AS SELECT CURRENT_ROLE zzz
+ok:87d9b8141921	ok:87d9b8141921	engine	one_table@column	func_expr_common_subexpr/CURRENT_USER	CREATE VIEW _v AS SELECT CURRENT_USER
+ok:e09abe319ed1	ok:e09abe319ed1	engine	one_table@column	func_expr_common_subexpr/CURRENT_USER!insert	CREATE VIEW _v AS SELECT CURRENT_USER zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/CURRENT_USER!swap	CREATE VIEW _v AS SELECT CURSOR
+ok:613044e15c47	ok:613044e15c47	engine	one_table@column	func_expr_common_subexpr/SESSION_USER	CREATE VIEW _v AS SELECT SESSION_USER
+ok:f643eaaf45f2	ok:f643eaaf45f2	engine	one_table@column	func_expr_common_subexpr/SESSION_USER!insert	CREATE VIEW _v AS SELECT SESSION_USER zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/SESSION_USER!swap	CREATE VIEW _v AS SELECT SET
+ok:4e94456dd0aa	ok:4e94456dd0aa	engine	one_table@column	func_expr_common_subexpr/SYSTEM_USER	CREATE VIEW _v AS SELECT SYSTEM_USER
+ok:6f36786d9d65	ok:6f36786d9d65	engine	one_table@column	func_expr_common_subexpr/SYSTEM_USER!insert	CREATE VIEW _v AS SELECT SYSTEM_USER zzz
+ok:18d0b6532639	ok:18d0b6532639	engine	one_table@column	func_expr_common_subexpr/USER	CREATE VIEW _v AS SELECT USER
+ok:1af77b3b3fa4	ok:1af77b3b3fa4	engine	one_table@column	func_expr_common_subexpr/USER!insert	CREATE VIEW _v AS SELECT USER zzz
+ok:5455c4f42797	ok:5455c4f42797	engine	one_table@column	func_expr_common_subexpr/CURRENT_CATALOG	CREATE VIEW _v AS SELECT CURRENT_CATALOG
+ok:181c47d4747d	ok:181c47d4747d	engine	one_table@column	func_expr_common_subexpr/CURRENT_CATALOG!insert	CREATE VIEW _v AS SELECT CURRENT_CATALOG zzz
+ok:72b8abf0a916	ok:72b8abf0a916	engine	one_table@column	func_expr_common_subexpr/CURRENT_SCHEMA	CREATE VIEW _v AS SELECT CURRENT_SCHEMA
+ok:b5295eac4b58	ok:b5295eac4b58	engine	one_table@column	func_expr_common_subexpr/CURRENT_SCHEMA!insert	CREATE VIEW _v AS SELECT CURRENT_SCHEMA zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/CAST_(_a_expr_AS_Typename_)	CREATE VIEW _v AS SELECT CAST(a AS a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/CAST_(_a_expr_AS_Typename_)!insert	CREATE VIEW _v AS SELECT CAST(a AS a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/EXTRACT_(_extract_list_)	CREATE VIEW _v AS SELECT EXTRACT(a FROM a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/EXTRACT_(_extract_list_)!insert	CREATE VIEW _v AS SELECT EXTRACT(a FROM a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/NORMALIZE_(_a_expr_)	CREATE VIEW _v AS SELECT NORMALIZE(a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/NORMALIZE_(_a_expr_)!insert	CREATE VIEW _v AS SELECT NORMALIZE(a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/NORMALIZE_(_a_expr_)!swap	CREATE VIEW _v AS SELECT NORMALIZED(a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)	CREATE VIEW _v AS SELECT NORMALIZE(a, NFC)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)!insert	CREATE VIEW _v AS SELECT NORMALIZE(a, NFC) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)!swap	CREATE VIEW _v AS SELECT NORMALIZED(a, NFC)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/OVERLAY_(_overlay_list_)	CREATE VIEW _v AS SELECT OVERLAY(a PLACING a FROM a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/OVERLAY_(_overlay_list_)!insert	CREATE VIEW _v AS SELECT OVERLAY(a PLACING a FROM a) zzz
+42883	42883	engine	one_table@column	func_expr_common_subexpr/OVERLAY_(_func_arg_list_opt_)	CREATE VIEW _v AS SELECT OVERLAY()
+42883	42883	engine	one_table@column	func_expr_common_subexpr/OVERLAY_(_func_arg_list_opt_)!insert	CREATE VIEW _v AS SELECT OVERLAY() zzz
+42883	42883	engine	one_table@column	func_expr_common_subexpr/OVERLAY_(_func_arg_list_opt_)!swap	CREATE VIEW _v AS SELECT OVERRIDING()
+42703	42703	engine	one_table@column	func_expr_common_subexpr/POSITION_(_position_list_)	CREATE VIEW _v AS SELECT POSITION(a IN a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/POSITION_(_position_list_)!insert	CREATE VIEW _v AS SELECT POSITION(a IN a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/SUBSTRING_(_substr_list_)	CREATE VIEW _v AS SELECT SUBSTRING(a FROM a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/SUBSTRING_(_substr_list_)!insert	CREATE VIEW _v AS SELECT SUBSTRING(a FROM a) zzz
+42883	42883	engine	one_table@column	func_expr_common_subexpr/SUBSTRING_(_func_arg_list_opt_)	CREATE VIEW _v AS SELECT SUBSTRING()
+42883	42883	engine	one_table@column	func_expr_common_subexpr/SUBSTRING_(_func_arg_list_opt_)!insert	CREATE VIEW _v AS SELECT SUBSTRING() zzz
+42883	42883	engine	one_table@column	func_expr_common_subexpr/SUBSTRING_(_func_arg_list_opt_)!swap	CREATE VIEW _v AS SELECT SUPPORT()
+42703	42703	engine	one_table@column	func_expr_common_subexpr/TREAT_(_a_expr_AS_Typename_)	CREATE VIEW _v AS SELECT TREAT(a AS a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/TREAT_(_a_expr_AS_Typename_)!insert	CREATE VIEW _v AS SELECT TREAT(a AS a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/TRIM_(_BOTH_trim_list_)	CREATE VIEW _v AS SELECT TRIM(BOTH a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/TRIM_(_BOTH_trim_list_)!insert	CREATE VIEW _v AS SELECT TRIM(BOTH a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/TRIM_(_LEADING_trim_list_)	CREATE VIEW _v AS SELECT TRIM(LEADING a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/TRIM_(_LEADING_trim_list_)!insert	CREATE VIEW _v AS SELECT TRIM(LEADING a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/TRIM_(_TRAILING_trim_list_)	CREATE VIEW _v AS SELECT TRIM(TRAILING a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/TRIM_(_TRAILING_trim_list_)!insert	CREATE VIEW _v AS SELECT TRIM(TRAILING a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/TRIM_(_trim_list_)	CREATE VIEW _v AS SELECT TRIM(a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/TRIM_(_trim_list_)!insert	CREATE VIEW _v AS SELECT TRIM(a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/NULLIF_(_a_expr_,_a_expr_)	CREATE VIEW _v AS SELECT NULLIF(a, a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/NULLIF_(_a_expr_,_a_expr_)!insert	CREATE VIEW _v AS SELECT NULLIF(a, a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/NULLIF_(_a_expr_,_a_expr_)!swap	CREATE VIEW _v AS SELECT NULLS(a, a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/COALESCE_(_expr_list_)	CREATE VIEW _v AS SELECT COALESCE(a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/COALESCE_(_expr_list_)!insert	CREATE VIEW _v AS SELECT COALESCE(a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/GREATEST_(_expr_list_)	CREATE VIEW _v AS SELECT GREATEST(a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/GREATEST_(_expr_list_)!insert	CREATE VIEW _v AS SELECT GREATEST(a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/LEAST_(_expr_list_)	CREATE VIEW _v AS SELECT LEAST(a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/LEAST_(_expr_list_)!insert	CREATE VIEW _v AS SELECT LEAST(a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/LEAST_(_expr_list_)!swap	CREATE VIEW _v AS SELECT LEFT(a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)	CREATE VIEW _v AS SELECT XMLCONCAT(a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLCONCAT_(_expr_list_)!insert	CREATE VIEW _v AS SELECT XMLCONCAT(a) zzz
+ok:93a434a30541	ok:93a434a30541	engine	one_table@column	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)	CREATE VIEW _v AS SELECT XMLELEMENT(NAME a)
+ok:a42e1d7fed9a	ok:a42e1d7fed9a	engine	one_table@column	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_)!insert	CREATE VIEW _v AS SELECT XMLELEMENT(NAME a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)	CREATE VIEW _v AS SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a))
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!drop-6	CREATE VIEW _v AS SELECT XMLELEMENT(NAME a,(a))
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_)!insert	CREATE VIEW _v AS SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a)) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)	CREATE VIEW _v AS SELECT XMLELEMENT(NAME a, a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_expr_list_)!insert	CREATE VIEW _v AS SELECT XMLELEMENT(NAME a, a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)	CREATE VIEW _v AS SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a), a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!drop-6	CREATE VIEW _v AS SELECT XMLELEMENT(NAME a,(a), a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLELEMENT_(_NAME_P_ColLabel_,_xml_attributes_,_expr_list_)!insert	CREATE VIEW _v AS SELECT XMLELEMENT(NAME a, XMLATTRIBUTES(a), a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argument_)	CREATE VIEW _v AS SELECT XMLEXISTS(a PASSING a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLEXISTS_(_c_expr_xmlexists_argument_)!insert	CREATE VIEW _v AS SELECT XMLEXISTS(a PASSING a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)	CREATE VIEW _v AS SELECT XMLFOREST(a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLFOREST_(_xml_attribute_list_)!insert	CREATE VIEW _v AS SELECT XMLFOREST(a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)	CREATE VIEW _v AS SELECT XMLPARSE(DOCUMENT a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLPARSE_(_document_or_content_a_expr_xml_whitespace_option_)!insert	CREATE VIEW _v AS SELECT XMLPARSE(DOCUMENT a) zzz
+ok:942dcba5cf04	ok:942dcba5cf04	engine	one_table@column	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)	CREATE VIEW _v AS SELECT XMLPI(NAME a)
+ok:49704a607f99	ok:49704a607f99	engine	one_table@column	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_)!insert	CREATE VIEW _v AS SELECT XMLPI(NAME a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)	CREATE VIEW _v AS SELECT XMLPI(NAME a, a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLPI_(_NAME_P_ColLabel_,_a_expr_)!insert	CREATE VIEW _v AS SELECT XMLPI(NAME a, a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)	CREATE VIEW _v AS SELECT XMLROOT(a, VERSION a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLROOT_(_a_expr_,_xml_root_version_opt_xml_root_standalone_)!insert	CREATE VIEW _v AS SELECT XMLROOT(a, VERSION a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLSERIALIZE_(_document_or_content_a_expr_AS_SimpleTypename_xml_indent_option_)	CREATE VIEW _v AS SELECT XMLSERIALIZE(DOCUMENT a AS a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/XMLSERIALIZE_(_document_or_content_a_expr_AS_SimpleTypename_xml_indent_option_)!insert	CREATE VIEW _v AS SELECT XMLSERIALIZE(DOCUMENT a AS a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_OBJECT_(_func_arg_list_)	CREATE VIEW _v AS SELECT JSON_OBJECT(a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_OBJECT_(_func_arg_list_)!insert	CREATE VIEW _v AS SELECT JSON_OBJECT(a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)	CREATE VIEW _v AS SELECT JSON_OBJECT(a VALUE a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_OBJECT(a VALUE a) zzz
+ok:3139ca3ffb56	ok:3139ca3ffb56	engine	one_table@column	func_expr_common_subexpr/JSON_OBJECT_(_json_returning_clause_opt_)	CREATE VIEW _v AS SELECT JSON_OBJECT()
+ok:eb91dce5d3cb	ok:eb91dce5d3cb	engine	one_table@column	func_expr_common_subexpr/JSON_OBJECT_(_json_returning_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_OBJECT() zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_json_value_expr_list_json_array_constructor_null_clause_opt_json_returning_clause_opt_)	CREATE VIEW _v AS SELECT JSON_ARRAY(a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_json_value_expr_list_json_array_constructor_null_clause_opt_json_returning_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_ARRAY(a) zzz
+42601	42601	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_select_no_parens_json_format_clause_opt_json_returning_clause_opt_)	CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT)
+42601	42601	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_select_no_parens_json_format_clause_opt_json_returning_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT) zzz
+ok:68722c215031	ok:68722c215031	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_json_returning_clause_opt_)	CREATE VIEW _v AS SELECT JSON_ARRAY()
+ok:ca1bd8038723	ok:ca1bd8038723	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_json_returning_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_ARRAY() zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)	CREATE VIEW _v AS SELECT JSON(a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)!insert	CREATE VIEW _v AS SELECT JSON(a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_SCALAR_(_a_expr_)	CREATE VIEW _v AS SELECT JSON_SCALAR(a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_SCALAR_(_a_expr_)!insert	CREATE VIEW _v AS SELECT JSON_SCALAR(a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)	CREATE VIEW _v AS SELECT JSON_SERIALIZE(a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_SERIALIZE(a) zzz
+42601	42601	engine	one_table@column	func_expr_common_subexpr/MERGE_ACTION_(_)	CREATE VIEW _v AS SELECT MERGE_ACTION()
+42601	42601	engine	one_table@column	func_expr_common_subexpr/MERGE_ACTION_(_)!insert	CREATE VIEW _v AS SELECT MERGE_ACTION() zzz
+42883	42883	engine	one_table@column	func_expr_common_subexpr/MERGE_ACTION_(_)!swap	CREATE VIEW _v AS SELECT METHOD()
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)	CREATE VIEW _v AS SELECT JSON_QUERY(a, a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_QUERY(a, a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)	CREATE VIEW _v AS SELECT JSON_EXISTS(a, a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_EXISTS(a, a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)!swap	CREATE VIEW _v AS SELECT JSON_OBJECT(a, a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)	CREATE VIEW _v AS SELECT JSON_VALUE(a, a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_VALUE(a, a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)!swap	CREATE VIEW _v AS SELECT KEEP(a, a)
+42703	42703	engine	one_table@column	xml_root_version/VERSION_P_NO_VALUE_P	CREATE VIEW _v AS SELECT XMLROOT(a, VERSION NO VALUE)
+42703	42703	engine	one_table@column	xml_root_version/VERSION_P_NO_VALUE_P!drop-2	CREATE VIEW _v AS SELECT XMLROOT(a, VERSION VALUE)
+42703	42703	engine	one_table@column	xml_root_version/VERSION_P_NO_VALUE_P!drop-3	CREATE VIEW _v AS SELECT XMLROOT(a, VERSION NO)
+42703	42703	engine	one_table@column	opt_xml_root_standalone/,_STANDALONE_P_YES_P	CREATE VIEW _v AS SELECT XMLROOT(a, VERSION a, STANDALONE YES)
+42703	42703	engine	one_table@column	opt_xml_root_standalone/,_STANDALONE_P_NO	CREATE VIEW _v AS SELECT XMLROOT(a, VERSION a, STANDALONE NO)
+42703	42703	engine	one_table@column	opt_xml_root_standalone/,_STANDALONE_P_NO_VALUE_P	CREATE VIEW _v AS SELECT XMLROOT(a, VERSION a, STANDALONE NO VALUE)
+42703	42703	engine	one_table@column	xml_attributes/XMLATTRIBUTES_(_xml_attribute_list_)!swap	CREATE VIEW _v AS SELECT XMLELEMENT(NAME a, XMLCONCAT(a))
+42703	42703	engine	one_table@column	xml_attribute_list/xml_attribute_list_,_xml_attribute_el	CREATE VIEW _v AS SELECT XMLFOREST(a, a)
+42703	42703	engine	one_table@column	xml_attribute_el/a_expr_AS_ColLabel	CREATE VIEW _v AS SELECT XMLFOREST(a AS a)
+42703	42703	engine	one_table@column	xml_indent_option/INDENT	CREATE VIEW _v AS SELECT XMLSERIALIZE(DOCUMENT a AS a INDENT)
+42703	42703	engine	one_table@column	xml_indent_option/NO_INDENT	CREATE VIEW _v AS SELECT XMLSERIALIZE(DOCUMENT a AS a NO INDENT)
+42703	42703	engine	one_table@column	xml_whitespace_option/PRESERVE_WHITESPACE_P	CREATE VIEW _v AS SELECT XMLPARSE(DOCUMENT a PRESERVE WHITESPACE)
+42703	42703	engine	one_table@column	xml_whitespace_option/STRIP_P_WHITESPACE_P	CREATE VIEW _v AS SELECT XMLPARSE(DOCUMENT a STRIP WHITESPACE)
+42703	42703	engine	one_table@column	xmlexists_argument/PASSING_c_expr_xml_passing_mech	CREATE VIEW _v AS SELECT XMLEXISTS(a PASSING a BY REF)
+42703	42703	engine	one_table@column	xmlexists_argument/PASSING_xml_passing_mech_c_expr	CREATE VIEW _v AS SELECT XMLEXISTS(a PASSING BY REF a)
+42703	42703	engine	one_table@column	xmlexists_argument/PASSING_xml_passing_mech_c_expr_xml_passing_mech	CREATE VIEW _v AS SELECT XMLEXISTS(a PASSING BY REF a BY REF)
+42703	42703	engine	one_table@column	xml_passing_mech/BY_VALUE_P	CREATE VIEW _v AS SELECT XMLEXISTS(a PASSING a BY VALUE)
+42703	42703	engine	one_table@column	within_group_clause/WITHIN_GROUP_P_(_sort_clause_)	CREATE VIEW _v AS SELECT a() WITHIN GROUP(ORDER BY a)
+42703	42703	engine	one_table@column	within_group_clause/WITHIN_GROUP_P_(_sort_clause_)!insert	CREATE VIEW _v AS SELECT a() WITHIN GROUP(ORDER BY a) zzz
+42703	42703	engine	one_table@column	filter_clause/FILTER_(_WHERE_a_expr_)	CREATE VIEW _v AS SELECT a() FILTER(WHERE a)
+42703	42703	engine	one_table@column	filter_clause/FILTER_(_WHERE_a_expr_)!insert	CREATE VIEW _v AS SELECT a() FILTER(WHERE a) zzz
+ok:fe81c3432380	ok:fe81c3432380	engine	one_table@column	window_clause/WINDOW_window_definition_list	CREATE VIEW _v AS SELECT WINDOW a AS()
+42P20	42P20	engine	one_table@column	window_definition_list/window_definition_list_,_window_definition	CREATE VIEW _v AS SELECT WINDOW a AS(), a AS()
+42883	42883	engine	one_table@column	over_clause/OVER_window_specification	CREATE VIEW _v AS SELECT a() OVER()
+42883	42883	engine	one_table@column	over_clause/OVER_window_specification!insert	CREATE VIEW _v AS SELECT a() OVER() zzz
+42883	42883	engine	one_table@column	over_clause/OVER_ColId	CREATE VIEW _v AS SELECT a() OVER a
+42883	42883	engine	one_table@column	over_clause/OVER_ColId!drop-1	CREATE VIEW _v AS SELECT a() a
+42883	42883	engine	one_table@column	over_clause/OVER_ColId!insert	CREATE VIEW _v AS SELECT a() OVER a zzz
+42704	42704	engine	one_table@column	opt_existing_window_name/ColId	CREATE VIEW _v AS SELECT WINDOW a AS(a)
+42704	42704	engine	one_table@column	opt_existing_window_name/%empty!insert	CREATE VIEW _v AS SELECT WINDOW a AS(zzz)
+42703	42703	engine	one_table@column	opt_partition_clause/PARTITION_BY_expr_list	CREATE VIEW _v AS SELECT WINDOW a AS(PARTITION BY a)
+ok:9c067d3748d7	ok:9c067d3748d7	engine	one_table@column	opt_frame_clause/RANGE_frame_extent_opt_window_exclusion_clause	CREATE VIEW _v AS SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING)
+ok:6edc7be59762	ok:6edc7be59762	engine	one_table@column	opt_frame_clause/ROWS_frame_extent_opt_window_exclusion_clause	CREATE VIEW _v AS SELECT WINDOW a AS(ROWS UNBOUNDED PRECEDING)
+42P20	42P20	engine	one_table@column	opt_frame_clause/GROUPS_frame_extent_opt_window_exclusion_clause	CREATE VIEW _v AS SELECT WINDOW a AS(GROUPS UNBOUNDED PRECEDING)
+42P20	42P20	engine	one_table@column	frame_extent/frame_bound!swap	CREATE VIEW _v AS SELECT WINDOW a AS(RANGE UNCOMMITTED PRECEDING)
+ok:17f754cc7026	ok:17f754cc7026	engine	one_table@column	frame_bound/CURRENT_P_ROW	CREATE VIEW _v AS SELECT WINDOW a AS(RANGE CURRENT ROW)
+42P20	42P20	engine	one_table@column	frame_bound/a_expr_PRECEDING	CREATE VIEW _v AS SELECT WINDOW a AS(RANGE a PRECEDING)
+ok:fec6a8d171a4	ok:fec6a8d171a4	engine	one_table@column	opt_window_exclusion_clause/EXCLUDE_CURRENT_P_ROW	CREATE VIEW _v AS SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING EXCLUDE CURRENT ROW)
+ok:390d3e9e8868	ok:390d3e9e8868	engine	one_table@column	opt_window_exclusion_clause/EXCLUDE_GROUP_P	CREATE VIEW _v AS SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING EXCLUDE GROUP)
+ok:25ac57403e29	ok:25ac57403e29	engine	one_table@column	opt_window_exclusion_clause/EXCLUDE_TIES	CREATE VIEW _v AS SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING EXCLUDE TIES)
+ok:9c067d3748d7	ok:9c067d3748d7	engine	one_table@column	opt_window_exclusion_clause/EXCLUDE_NO_OTHERS	CREATE VIEW _v AS SELECT WINDOW a AS(RANGE UNBOUNDED PRECEDING EXCLUDE NO OTHERS)
+42703	42703	engine	one_table@column	explicit_row/ROW_(_expr_list_)	CREATE VIEW _v AS SELECT ROW(a)
+42703	42703	engine	one_table@column	explicit_row/ROW_(_expr_list_)!insert	CREATE VIEW _v AS SELECT ROW(a) zzz
+42703	42703	engine	one_table@column	explicit_row/ROW_(_expr_list_)!swap	CREATE VIEW _v AS SELECT ROWS(a)
+42703	42703	engine	one_table@column	sub_type/SOME	CREATE VIEW _v AS SELECT a ~ SOME(SELECT)
+42703	42703	engine	one_table@column	sub_type/ALL	CREATE VIEW _v AS SELECT a ~ ALL(SELECT)
+42703	42703	engine	one_table@column	qual_Op/Op!insert	CREATE VIEW _v AS SELECT ~ zzz a
+42703	42703	engine	one_table@column	qual_Op/OPERATOR_(_any_operator_)	CREATE VIEW _v AS SELECT OPERATOR(~) a
+42703	42703	engine	one_table@column	qual_Op/OPERATOR_(_any_operator_)!insert	CREATE VIEW _v AS SELECT OPERATOR(~) zzz a
+42703	42703	engine	one_table@column	qual_all_Op/OPERATOR_(_any_operator_)	CREATE VIEW _v AS SELECT ORDER BY a USING OPERATOR(~)
+42703	42703	engine	one_table@column	subquery_Op/OPERATOR_(_any_operator_)	CREATE VIEW _v AS SELECT a OPERATOR(~) ANY(SELECT)
+42703	42703	engine	one_table@column	subquery_Op/LIKE	CREATE VIEW _v AS SELECT a LIKE ANY(SELECT)
+42703	42703	engine	one_table@column	subquery_Op/NOT_LA_LIKE	CREATE VIEW _v AS SELECT a NOT LIKE ANY(SELECT)
+42703	42703	engine	one_table@column	subquery_Op/ILIKE	CREATE VIEW _v AS SELECT a ILIKE ANY(SELECT)
+42703	42703	engine	one_table@column	subquery_Op/NOT_LA_ILIKE	CREATE VIEW _v AS SELECT a NOT ILIKE ANY(SELECT)
+42703	42703	engine	one_table@column	func_arg_list_opt/func_arg_list	CREATE VIEW _v AS SELECT OVERLAY(a)
+42703	42703	engine	one_table@column	func_arg_list_opt/%empty!insert	CREATE VIEW _v AS SELECT OVERLAY(zzz)
+42703	42703	engine	one_table@column	array_expr/[_expr_list_]	CREATE VIEW _v AS SELECT ARRAY [ a ]
+42703	42703	engine	one_table@column	array_expr/[_expr_list_]!insert	CREATE VIEW _v AS SELECT ARRAY [ a ] zzz
+42P18	42P18	engine	one_table@column	array_expr/[_array_expr_list_]	CREATE VIEW _v AS SELECT ARRAY [ [ ] ]
+42P18	42P18	engine	one_table@column	array_expr/[_array_expr_list_]!insert	CREATE VIEW _v AS SELECT ARRAY [ [ ] ] zzz
+42P18	42P18	engine	one_table@column	array_expr_list/array_expr_list_,_array_expr	CREATE VIEW _v AS SELECT ARRAY [ [ ], [ ] ]
+42703	42703	engine	one_table@column	extract_arg/YEAR_P	CREATE VIEW _v AS SELECT EXTRACT(YEAR FROM a)
+42703	42703	engine	one_table@column	extract_arg/MONTH_P	CREATE VIEW _v AS SELECT EXTRACT(MONTH FROM a)
+42703	42703	engine	one_table@column	extract_arg/DAY_P	CREATE VIEW _v AS SELECT EXTRACT(DAY FROM a)
+42703	42703	engine	one_table@column	extract_arg/HOUR_P	CREATE VIEW _v AS SELECT EXTRACT(HOUR FROM a)
+42703	42703	engine	one_table@column	extract_arg/MINUTE_P	CREATE VIEW _v AS SELECT EXTRACT(MINUTE FROM a)
+42703	42703	engine	one_table@column	extract_arg/SECOND_P	CREATE VIEW _v AS SELECT EXTRACT(SECOND FROM a)
+42703	42703	engine	one_table@column	extract_arg/Sconst	CREATE VIEW _v AS SELECT EXTRACT('s' FROM a)
+42703	42703	engine	one_table@column	unicode_normal_form/NFD	CREATE VIEW _v AS SELECT a IS NFD NORMALIZED
+42703	42703	engine	one_table@column	unicode_normal_form/NFKC	CREATE VIEW _v AS SELECT a IS NFKC NORMALIZED
+42703	42703	engine	one_table@column	unicode_normal_form/NFKD	CREATE VIEW _v AS SELECT a IS NFKD NORMALIZED
+42703	42703	engine	one_table@column	overlay_list/a_expr_PLACING_a_expr_FROM_a_expr_FOR_a_expr	CREATE VIEW _v AS SELECT OVERLAY(a PLACING a FROM a FOR a)
+42703	42703	engine	one_table@column	substr_list/a_expr_FROM_a_expr_FOR_a_expr	CREATE VIEW _v AS SELECT SUBSTRING(a FROM a FOR a)
+42703	42703	engine	one_table@column	substr_list/a_expr_FOR_a_expr_FROM_a_expr	CREATE VIEW _v AS SELECT SUBSTRING(a FOR a FROM a)
+42703	42703	engine	one_table@column	substr_list/a_expr_FOR_a_expr	CREATE VIEW _v AS SELECT SUBSTRING(a FOR a)
+42703	42703	engine	one_table@column	substr_list/a_expr_SIMILAR_a_expr_ESCAPE_a_expr	CREATE VIEW _v AS SELECT SUBSTRING(a SIMILAR a ESCAPE a)
+42703	42703	engine	one_table@column	trim_list/a_expr_FROM_expr_list	CREATE VIEW _v AS SELECT TRIM(a FROM a)
+42703	42703	engine	one_table@column	trim_list/FROM_expr_list	CREATE VIEW _v AS SELECT TRIM(FROM a)
+42703	42703	engine	one_table@column	in_expr/select_with_parens!swap	CREATE VIEW _v AS SELECT a IN(SEQUENCE)
+42703	42703	engine	one_table@column	in_expr/(_expr_list_)	CREATE VIEW _v AS SELECT a IN(a)
+42703	42703	engine	one_table@column	in_expr/(_expr_list_)!insert	CREATE VIEW _v AS SELECT a IN(a) zzz
+42703	42703	engine	one_table@column	when_clause_list/when_clause_list_when_clause	CREATE VIEW _v AS SELECT CASE WHEN a THEN a WHEN a THEN a END
+42703	42703	engine	one_table@column	case_default/ELSE_a_expr	CREATE VIEW _v AS SELECT CASE WHEN a THEN a ELSE a END
+42703	42703	engine	one_table@column	case_arg/a_expr	CREATE VIEW _v AS SELECT CASE a WHEN a THEN a END
+42703	42703	engine	one_table@column	case_arg/%empty!insert	CREATE VIEW _v AS SELECT CASE zzz WHEN a THEN a END
+42P01	42P01	engine	one_table@column	columnref/ColId_indirection	CREATE VIEW _v AS SELECT a.a
+42P01	42P01	engine	one_table@column	columnref/ColId_indirection!insert	CREATE VIEW _v AS SELECT a.a zzz
+42P02	42P02	engine	one_table@column	opt_indirection/opt_indirection_indirection_el	CREATE VIEW _v AS SELECT $1.a
+42P02	42P02	engine	one_table@column	opt_indirection/opt_indirection_indirection_el!drop-1	CREATE VIEW _v AS SELECT $1 a
+42P02	42P02	engine	one_table@column	opt_indirection/opt_indirection_indirection_el!insert	CREATE VIEW _v AS SELECT $1.a zzz
+42703	42703	engine	one_table@column	opt_asymmetric/ASYMMETRIC	CREATE VIEW _v AS SELECT a BETWEEN ASYMMETRIC a AND a
+42703	42703	engine	one_table@column	json_passing_clause_opt/PASSING_json_arguments	CREATE VIEW _v AS SELECT JSON_QUERY(a, a PASSING a AS a)
+42703	42703	engine	one_table@column	json_arguments/json_arguments_,_json_argument	CREATE VIEW _v AS SELECT JSON_QUERY(a, a PASSING a AS a, a AS a)
+42703	42703	engine	one_table@column	json_wrapper_behavior/WITHOUT_WRAPPER	CREATE VIEW _v AS SELECT JSON_QUERY(a, a WITHOUT WRAPPER)
+42703	42703	engine	one_table@column	json_wrapper_behavior/WITHOUT_ARRAY_WRAPPER	CREATE VIEW _v AS SELECT JSON_QUERY(a, a WITHOUT ARRAY WRAPPER)
+42703	42703	engine	one_table@column	json_wrapper_behavior/WITH_WRAPPER	CREATE VIEW _v AS SELECT JSON_QUERY(a, a WITH WRAPPER)
+42703	42703	engine	one_table@column	json_wrapper_behavior/WITH_ARRAY_WRAPPER	CREATE VIEW _v AS SELECT JSON_QUERY(a, a WITH ARRAY WRAPPER)
+42703	42703	engine	one_table@column	json_wrapper_behavior/WITH_CONDITIONAL_ARRAY_WRAPPER	CREATE VIEW _v AS SELECT JSON_QUERY(a, a WITH CONDITIONAL ARRAY WRAPPER)
+42703	42703	engine	one_table@column	json_wrapper_behavior/WITH_UNCONDITIONAL_ARRAY_WRAPPER	CREATE VIEW _v AS SELECT JSON_QUERY(a, a WITH UNCONDITIONAL ARRAY WRAPPER)
+42703	42703	engine	one_table@column	json_wrapper_behavior/WITH_CONDITIONAL_WRAPPER	CREATE VIEW _v AS SELECT JSON_QUERY(a, a WITH CONDITIONAL WRAPPER)
+42703	42703	engine	one_table@column	json_wrapper_behavior/WITH_UNCONDITIONAL_WRAPPER	CREATE VIEW _v AS SELECT JSON_QUERY(a, a WITH UNCONDITIONAL WRAPPER)
+42703	42703	engine	one_table@column	json_behavior/DEFAULT_a_expr	CREATE VIEW _v AS SELECT JSON_QUERY(a, a DEFAULT a ON EMPTY)
+42703	42703	engine	one_table@column	json_behavior/json_behavior_type	CREATE VIEW _v AS SELECT JSON_QUERY(a, a ERROR ON EMPTY)
+42703	42703	engine	one_table@column	json_behavior_type/NULL_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, a NULL ON EMPTY)
+42601	42601	engine	one_table@column	json_behavior_type/TRUE_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, a TRUE ON EMPTY)
+42601	42601	engine	one_table@column	json_behavior_type/FALSE_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, a FALSE ON EMPTY)
+42601	42601	engine	one_table@column	json_behavior_type/UNKNOWN	CREATE VIEW _v AS SELECT JSON_QUERY(a, a UNKNOWN ON EMPTY)
+42703	42703	engine	one_table@column	json_behavior_type/EMPTY_P_ARRAY	CREATE VIEW _v AS SELECT JSON_QUERY(a, a EMPTY ARRAY ON EMPTY)
+42703	42703	engine	one_table@column	json_behavior_type/EMPTY_P_OBJECT_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, a EMPTY OBJECT ON EMPTY)
+42703	42703	engine	one_table@column	json_behavior_type/EMPTY_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, a EMPTY ON EMPTY)
+42703	42703	engine	one_table@column	json_behavior_clause_opt/json_behavior_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, a ERROR ON ERROR)
+42703	42703	engine	one_table@column	json_behavior_clause_opt/json_behavior_ON_EMPTY_P_json_behavior_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, a ERROR ON EMPTY ERROR ON ERROR)
+42703	42703	engine	one_table@column	json_on_error_clause_opt/json_behavior_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_EXISTS(a, a ERROR ON ERROR)
+42703	42703	engine	one_table@column	json_format_clause/FORMAT_LA_JSON	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a FORMAT JSON)
+42703	42703	engine	one_table@column	json_quotes_clause_opt/KEEP_QUOTES_ON_SCALAR_STRING_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, a KEEP QUOTES ON SCALAR STRING)
+42703	42703	engine	one_table@column	json_quotes_clause_opt/KEEP_QUOTES	CREATE VIEW _v AS SELECT JSON_QUERY(a, a KEEP QUOTES)
+42703	42703	engine	one_table@column	json_quotes_clause_opt/OMIT_QUOTES_ON_SCALAR_STRING_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, a OMIT QUOTES ON SCALAR STRING)
+42703	42703	engine	one_table@column	json_quotes_clause_opt/OMIT_QUOTES	CREATE VIEW _v AS SELECT JSON_QUERY(a, a OMIT QUOTES)
+42846	42846	engine	one_table@column	json_returning_clause_opt/RETURNING_Typename_json_format_clause_opt	CREATE VIEW _v AS SELECT JSON_OBJECT(RETURNING a)
+42703	42703	engine	one_table@column	json_returning_clause_opt/%empty!insert	CREATE VIEW _v AS SELECT JSON_OBJECT(zzz)
+42703	42703	engine	one_table@column	json_predicate_type_constraint/JSON_VALUE_P	CREATE VIEW _v AS SELECT a IS JSON VALUE
+42703	42703	engine	one_table@column	json_predicate_type_constraint/JSON_VALUE_P!insert	CREATE VIEW _v AS SELECT a IS JSON VALUE zzz
+42703	42703	engine	one_table@column	json_predicate_type_constraint/JSON_ARRAY	CREATE VIEW _v AS SELECT a IS JSON ARRAY
+42703	42703	engine	one_table@column	json_predicate_type_constraint/JSON_ARRAY!insert	CREATE VIEW _v AS SELECT a IS JSON ARRAY zzz
+42703	42703	engine	one_table@column	json_predicate_type_constraint/JSON_OBJECT_P	CREATE VIEW _v AS SELECT a IS JSON OBJECT
+42703	42703	engine	one_table@column	json_predicate_type_constraint/JSON_OBJECT_P!insert	CREATE VIEW _v AS SELECT a IS JSON OBJECT zzz
+42703	42703	engine	one_table@column	json_predicate_type_constraint/JSON_SCALAR	CREATE VIEW _v AS SELECT a IS JSON SCALAR
+42703	42703	engine	one_table@column	json_predicate_type_constraint/JSON_SCALAR!insert	CREATE VIEW _v AS SELECT a IS JSON SCALAR zzz
+42703	42703	engine	one_table@column	json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS	CREATE VIEW _v AS SELECT a IS JSON WITH UNIQUE KEYS
+42703	42703	engine	one_table@column	json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS!insert	CREATE VIEW _v AS SELECT a IS JSON WITH UNIQUE KEYS zzz
+42703	42703	engine	one_table@column	json_key_uniqueness_constraint_opt/WITH_UNIQUE	CREATE VIEW _v AS SELECT a IS JSON WITH UNIQUE
+42703	42703	engine	one_table@column	json_key_uniqueness_constraint_opt/WITH_UNIQUE!drop-1	CREATE VIEW _v AS SELECT a IS JSON UNIQUE
+42703	42703	engine	one_table@column	json_key_uniqueness_constraint_opt/WITH_UNIQUE!insert	CREATE VIEW _v AS SELECT a IS JSON WITH UNIQUE zzz
+42703	42703	engine	one_table@column	json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE_KEYS	CREATE VIEW _v AS SELECT a IS JSON WITHOUT UNIQUE KEYS
+42703	42703	engine	one_table@column	json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE_KEYS!insert	CREATE VIEW _v AS SELECT a IS JSON WITHOUT UNIQUE KEYS zzz
+42703	42703	engine	one_table@column	json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE	CREATE VIEW _v AS SELECT a IS JSON WITHOUT UNIQUE
+42703	42703	engine	one_table@column	json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE!insert	CREATE VIEW _v AS SELECT a IS JSON WITHOUT UNIQUE zzz
+42703	42703	engine	one_table@column	json_name_and_value_list/json_name_and_value_list_,_json_name_and_value	CREATE VIEW _v AS SELECT JSON_OBJECT(a VALUE a, a VALUE a)
+42703	42703	engine	one_table@column	json_name_and_value/c_expr_VALUE_P_json_value_expr	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a VALUE a)
+42703	42703	engine	one_table@column	json_name_and_value/a_expr_:_json_value_expr	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a : a)
+42703	42703	engine	one_table@column	json_object_constructor_null_clause_opt/NULL_P_ON_NULL_P	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a VALUE a NULL ON NULL)
+42703	42703	engine	one_table@column	json_object_constructor_null_clause_opt/ABSENT_ON_NULL_P	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a VALUE a ABSENT ON NULL)
+42703	42703	engine	one_table@column	json_array_constructor_null_clause_opt/NULL_P_ON_NULL_P	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a NULL ON NULL)
+42703	42703	engine	one_table@column	json_array_constructor_null_clause_opt/ABSENT_ON_NULL_P	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a ABSENT ON NULL)
+42703	42703	engine	one_table@column	json_value_expr_list/json_value_expr_list_,_json_value_expr	CREATE VIEW _v AS SELECT JSON_ARRAY(a, a)
+42703	42703	engine	one_table@column	json_aggregate_func/JSON_OBJECTAGG_(_json_name_and_value_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a VALUE a) zzz
+42703	42703	engine	one_table@column	json_array_aggregate_order_by_clause_opt/ORDER_BY_sortby_list	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a ORDER BY a)
+42703	42703	engine	one_table@column	target_list/target_list_,_target_el	CREATE VIEW _v AS SELECT a, a
+42703	42703	engine	one_table@column	target_list/target_list_,_target_el!insert	CREATE VIEW _v AS SELECT a, a zzz
+42703	42703	engine	one_table@column	target_el/a_expr_AS_ColLabel	CREATE VIEW _v AS SELECT a AS a
+42703	42703	engine	one_table@column	target_el/a_expr_BareColLabel	CREATE VIEW _v AS SELECT a a
+42601	42601	engine	one_table@column	target_el/*	CREATE VIEW _v AS SELECT *
+22P02	22P02	engine	one_table@column	func_name/type_function_name	CREATE VIEW _v AS SELECT a 's'
+3F000	3F000	engine	one_table@column	func_name/ColId_indirection	CREATE VIEW _v AS SELECT a.a 's'
+ok:f1617cee3d7f	ok:f1617cee3d7f	engine	one_table@column	AexprConst/FCONST	CREATE VIEW _v AS SELECT 1.5
+ok:8e274c024167	ok:8e274c024167	engine	one_table@column	AexprConst/FCONST!insert	CREATE VIEW _v AS SELECT 1.5 zzz
+ok:53dc7ac5ccec	ok:53dc7ac5ccec	engine	one_table@column	AexprConst/Sconst	CREATE VIEW _v AS SELECT 's'
+ok:39fbe29f9aba	ok:39fbe29f9aba	engine	one_table@column	AexprConst/Sconst!insert	CREATE VIEW _v AS SELECT 's' zzz
+ok:7b81f13c6388	ok:7b81f13c6388	engine	one_table@column	AexprConst/BCONST	CREATE VIEW _v AS SELECT B'1'
+ok:6915b93a8a5d	ok:6915b93a8a5d	engine	one_table@column	AexprConst/BCONST!insert	CREATE VIEW _v AS SELECT B'1' zzz
+ok:dc40ef1fda7f	ok:dc40ef1fda7f	engine	one_table@column	AexprConst/XCONST	CREATE VIEW _v AS SELECT X'1F'
+ok:1d5e6a6434a6	ok:1d5e6a6434a6	engine	one_table@column	AexprConst/XCONST!insert	CREATE VIEW _v AS SELECT X'1F' zzz
+22P02	22P02	engine	one_table@column	AexprConst/func_name_Sconst!insert	CREATE VIEW _v AS SELECT a 's' zzz
+42601	42601	engine	one_table@column	AexprConst/func_name_(_func_arg_list_opt_sort_clause_)_Sconst	CREATE VIEW _v AS SELECT a(a) 's'
+42703	42703	engine	one_table@column	AexprConst/func_name_(_func_arg_list_opt_sort_clause_)_Sconst!drop-5	CREATE VIEW _v AS SELECT a(a)
+42601	42601	engine	one_table@column	AexprConst/func_name_(_func_arg_list_opt_sort_clause_)_Sconst!insert	CREATE VIEW _v AS SELECT a(a) 's' zzz
+42703	42703	engine	one_table@column	AexprConst/ConstTypename_Sconst!drop-2	CREATE VIEW _v AS SELECT INT
+22P02	22P02	engine	one_table@column	AexprConst/ConstTypename_Sconst!insert	CREATE VIEW _v AS SELECT INT 's' zzz
+22007	22007	engine	one_table@column	AexprConst/ConstInterval_Sconst_opt_interval	CREATE VIEW _v AS SELECT INTERVAL 's'
+42703	42703	engine	one_table@column	AexprConst/ConstInterval_Sconst_opt_interval!drop-2	CREATE VIEW _v AS SELECT INTERVAL
+22007	22007	engine	one_table@column	AexprConst/ConstInterval_Sconst_opt_interval!insert	CREATE VIEW _v AS SELECT INTERVAL 's' zzz
+22007	22007	engine	one_table@column	AexprConst/ConstInterval_(_Iconst_)_Sconst	CREATE VIEW _v AS SELECT INTERVAL(1) 's'
+22007	22007	engine	one_table@column	AexprConst/ConstInterval_(_Iconst_)_Sconst!insert	CREATE VIEW _v AS SELECT INTERVAL(1) 's' zzz
+ok:e6365d936fb4	ok:e6365d936fb4	engine	one_table@column	AexprConst/TRUE_P	CREATE VIEW _v AS SELECT TRUE
+ok:2a3de5b342b6	ok:2a3de5b342b6	engine	one_table@column	AexprConst/TRUE_P!insert	CREATE VIEW _v AS SELECT TRUE zzz
+42703	42703	engine	one_table@column	AexprConst/TRUE_P!swap	CREATE VIEW _v AS SELECT TRUNCATE
+ok:2a7ea1e54f7f	ok:2a7ea1e54f7f	engine	one_table@column	AexprConst/FALSE_P	CREATE VIEW _v AS SELECT FALSE
+ok:16a6e83c60e4	ok:16a6e83c60e4	engine	one_table@column	AexprConst/FALSE_P!insert	CREATE VIEW _v AS SELECT FALSE zzz
+42703	42703	engine	one_table@column	AexprConst/FALSE_P!swap	CREATE VIEW _v AS SELECT FAMILY
+ok:fc36b485f61c	ok:fc36b485f61c	engine	one_table@column	AexprConst/NULL_P	CREATE VIEW _v AS SELECT NULL
+ok:f702cce3587f	ok:f702cce3587f	engine	one_table@column	AexprConst/NULL_P!insert	CREATE VIEW _v AS SELECT NULL zzz
+42703	42703	engine	one_table@column	AexprConst/NULL_P!swap	CREATE VIEW _v AS SELECT NULLIF
+42703	42703	engine	one_table@column	BareColLabel/bare_label_keyword	CREATE VIEW _v AS SELECT a ABORT
+42703	42703	engine	one_table@column	bare_label_keyword/ABSENT	CREATE VIEW _v AS SELECT a ABSENT
+42703	42703	engine	one_table@column	bare_label_keyword/ABSOLUTE_P	CREATE VIEW _v AS SELECT a ABSOLUTE
+42703	42703	engine	one_table@column	bare_label_keyword/ACCESS	CREATE VIEW _v AS SELECT a ACCESS
+42703	42703	engine	one_table@column	bare_label_keyword/ACTION	CREATE VIEW _v AS SELECT a ACTION
+42703	42703	engine	one_table@column	bare_label_keyword/ADD_P	CREATE VIEW _v AS SELECT a ADD
+42703	42703	engine	one_table@column	bare_label_keyword/ADMIN	CREATE VIEW _v AS SELECT a ADMIN
+42703	42703	engine	one_table@column	bare_label_keyword/AFTER	CREATE VIEW _v AS SELECT a AFTER
+42703	42703	engine	one_table@column	bare_label_keyword/AGGREGATE	CREATE VIEW _v AS SELECT a AGGREGATE
+42703	42703	engine	one_table@column	bare_label_keyword/ALL	CREATE VIEW _v AS SELECT a ALL
+42703	42703	engine	one_table@column	bare_label_keyword/ALSO	CREATE VIEW _v AS SELECT a ALSO
+42703	42703	engine	one_table@column	bare_label_keyword/ALTER	CREATE VIEW _v AS SELECT a ALTER
+42703	42703	engine	one_table@column	bare_label_keyword/ALWAYS	CREATE VIEW _v AS SELECT a ALWAYS
+42703	42703	engine	one_table@column	bare_label_keyword/ANALYSE	CREATE VIEW _v AS SELECT a ANALYSE
+42703	42703	engine	one_table@column	bare_label_keyword/ANALYZE	CREATE VIEW _v AS SELECT a ANALYZE
+42703	42703	engine	one_table@column	bare_label_keyword/AND	CREATE VIEW _v AS SELECT a AND
+42703	42703	engine	one_table@column	bare_label_keyword/AND!insert	CREATE VIEW _v AS SELECT a AND zzz
+42703	42703	engine	one_table@column	bare_label_keyword/ANY	CREATE VIEW _v AS SELECT a ANY
+42703	42703	engine	one_table@column	bare_label_keyword/ASC	CREATE VIEW _v AS SELECT a ASC
+42703	42703	engine	one_table@column	bare_label_keyword/ASENSITIVE	CREATE VIEW _v AS SELECT a ASENSITIVE
+42703	42703	engine	one_table@column	bare_label_keyword/ASSERTION	CREATE VIEW _v AS SELECT a ASSERTION
+42703	42703	engine	one_table@column	bare_label_keyword/ASSIGNMENT	CREATE VIEW _v AS SELECT a ASSIGNMENT
+42703	42703	engine	one_table@column	bare_label_keyword/ASYMMETRIC	CREATE VIEW _v AS SELECT a ASYMMETRIC
+42703	42703	engine	one_table@column	bare_label_keyword/AT	CREATE VIEW _v AS SELECT a AT
+42703	42703	engine	one_table@column	bare_label_keyword/ATOMIC	CREATE VIEW _v AS SELECT a ATOMIC
+42703	42703	engine	one_table@column	bare_label_keyword/ATTACH	CREATE VIEW _v AS SELECT a ATTACH
+42703	42703	engine	one_table@column	bare_label_keyword/ATTRIBUTE	CREATE VIEW _v AS SELECT a ATTRIBUTE
+42703	42703	engine	one_table@column	bare_label_keyword/AUTHORIZATION	CREATE VIEW _v AS SELECT a AUTHORIZATION
+42703	42703	engine	one_table@column	bare_label_keyword/BACKWARD	CREATE VIEW _v AS SELECT a BACKWARD
+42703	42703	engine	one_table@column	bare_label_keyword/BEFORE	CREATE VIEW _v AS SELECT a BEFORE
+42703	42703	engine	one_table@column	bare_label_keyword/BEGIN_P	CREATE VIEW _v AS SELECT a BEGIN
+42703	42703	engine	one_table@column	bare_label_keyword/BETWEEN	CREATE VIEW _v AS SELECT a BETWEEN
+42703	42703	engine	one_table@column	bare_label_keyword/BIGINT	CREATE VIEW _v AS SELECT a BIGINT
+42703	42703	engine	one_table@column	bare_label_keyword/BINARY	CREATE VIEW _v AS SELECT a BINARY
+42703	42703	engine	one_table@column	bare_label_keyword/BIT	CREATE VIEW _v AS SELECT a BIT
+42703	42703	engine	one_table@column	bare_label_keyword/BOOLEAN_P	CREATE VIEW _v AS SELECT a BOOLEAN
+42703	42703	engine	one_table@column	bare_label_keyword/BOTH	CREATE VIEW _v AS SELECT a BOTH
+42703	42703	engine	one_table@column	bare_label_keyword/BREADTH	CREATE VIEW _v AS SELECT a BREADTH
+42703	42703	engine	one_table@column	bare_label_keyword/BY	CREATE VIEW _v AS SELECT a BY
+42703	42703	engine	one_table@column	bare_label_keyword/CACHE	CREATE VIEW _v AS SELECT a CACHE
+42703	42703	engine	one_table@column	bare_label_keyword/CALL	CREATE VIEW _v AS SELECT a CALL
+42703	42703	engine	one_table@column	bare_label_keyword/CALLED	CREATE VIEW _v AS SELECT a CALLED
+42703	42703	engine	one_table@column	bare_label_keyword/CASCADE	CREATE VIEW _v AS SELECT a CASCADE
+42703	42703	engine	one_table@column	bare_label_keyword/CASCADED	CREATE VIEW _v AS SELECT a CASCADED
+42703	42703	engine	one_table@column	bare_label_keyword/CASE	CREATE VIEW _v AS SELECT a CASE
+42703	42703	engine	one_table@column	bare_label_keyword/CAST	CREATE VIEW _v AS SELECT a CAST
+42703	42703	engine	one_table@column	bare_label_keyword/CATALOG_P	CREATE VIEW _v AS SELECT a CATALOG
+42703	42703	engine	one_table@column	bare_label_keyword/CHAIN	CREATE VIEW _v AS SELECT a CHAIN
+42703	42703	engine	one_table@column	bare_label_keyword/CHARACTERISTICS	CREATE VIEW _v AS SELECT a CHARACTERISTICS
+42703	42703	engine	one_table@column	bare_label_keyword/CHECK	CREATE VIEW _v AS SELECT a CHECK
+42703	42703	engine	one_table@column	bare_label_keyword/CHECKPOINT	CREATE VIEW _v AS SELECT a CHECKPOINT
+42703	42703	engine	one_table@column	bare_label_keyword/CLASS	CREATE VIEW _v AS SELECT a CLASS
+42703	42703	engine	one_table@column	bare_label_keyword/CLOSE	CREATE VIEW _v AS SELECT a CLOSE
+42703	42703	engine	one_table@column	bare_label_keyword/CLUSTER	CREATE VIEW _v AS SELECT a CLUSTER
+42703	42703	engine	one_table@column	bare_label_keyword/COALESCE	CREATE VIEW _v AS SELECT a COALESCE
+42703	42703	engine	one_table@column	bare_label_keyword/COLLATE	CREATE VIEW _v AS SELECT a COLLATE
+42703	42703	engine	one_table@column	bare_label_keyword/COLLATE!insert	CREATE VIEW _v AS SELECT a COLLATE zzz
+42703	42703	engine	one_table@column	bare_label_keyword/COLLATION	CREATE VIEW _v AS SELECT a COLLATION
+42703	42703	engine	one_table@column	bare_label_keyword/COLUMN	CREATE VIEW _v AS SELECT a COLUMN
+42703	42703	engine	one_table@column	bare_label_keyword/COLUMNS	CREATE VIEW _v AS SELECT a COLUMNS
+42703	42703	engine	one_table@column	bare_label_keyword/COMMENT	CREATE VIEW _v AS SELECT a COMMENT
+42703	42703	engine	one_table@column	bare_label_keyword/COMMENTS	CREATE VIEW _v AS SELECT a COMMENTS
+42703	42703	engine	one_table@column	bare_label_keyword/COMMIT	CREATE VIEW _v AS SELECT a COMMIT
+42703	42703	engine	one_table@column	bare_label_keyword/COMMITTED	CREATE VIEW _v AS SELECT a COMMITTED
+42703	42703	engine	one_table@column	bare_label_keyword/COMPRESSION	CREATE VIEW _v AS SELECT a COMPRESSION
+42703	42703	engine	one_table@column	bare_label_keyword/CONCURRENTLY	CREATE VIEW _v AS SELECT a CONCURRENTLY
+42703	42703	engine	one_table@column	bare_label_keyword/CONDITIONAL	CREATE VIEW _v AS SELECT a CONDITIONAL
+42703	42703	engine	one_table@column	bare_label_keyword/CONFIGURATION	CREATE VIEW _v AS SELECT a CONFIGURATION
+42703	42703	engine	one_table@column	bare_label_keyword/CONFLICT	CREATE VIEW _v AS SELECT a CONFLICT
+42703	42703	engine	one_table@column	bare_label_keyword/CONNECTION	CREATE VIEW _v AS SELECT a CONNECTION
+42703	42703	engine	one_table@column	bare_label_keyword/CONSTRAINT	CREATE VIEW _v AS SELECT a CONSTRAINT
+42703	42703	engine	one_table@column	bare_label_keyword/CONSTRAINTS	CREATE VIEW _v AS SELECT a CONSTRAINTS
+42703	42703	engine	one_table@column	bare_label_keyword/CONTENT_P	CREATE VIEW _v AS SELECT a CONTENT
+42703	42703	engine	one_table@column	bare_label_keyword/CONTINUE_P	CREATE VIEW _v AS SELECT a CONTINUE
+42703	42703	engine	one_table@column	bare_label_keyword/CONVERSION_P	CREATE VIEW _v AS SELECT a CONVERSION
+42703	42703	engine	one_table@column	bare_label_keyword/COPY	CREATE VIEW _v AS SELECT a COPY
+42703	42703	engine	one_table@column	bare_label_keyword/COST	CREATE VIEW _v AS SELECT a COST
+42703	42703	engine	one_table@column	bare_label_keyword/CROSS	CREATE VIEW _v AS SELECT a CROSS
+42703	42703	engine	one_table@column	bare_label_keyword/CSV	CREATE VIEW _v AS SELECT a CSV
+42703	42703	engine	one_table@column	bare_label_keyword/CUBE	CREATE VIEW _v AS SELECT a CUBE
+42703	42703	engine	one_table@column	bare_label_keyword/CURRENT_P	CREATE VIEW _v AS SELECT a CURRENT
+42703	42703	engine	one_table@column	bare_label_keyword/CURRENT_CATALOG	CREATE VIEW _v AS SELECT a CURRENT_CATALOG
+42703	42703	engine	one_table@column	bare_label_keyword/CURRENT_DATE	CREATE VIEW _v AS SELECT a CURRENT_DATE
+42703	42703	engine	one_table@column	bare_label_keyword/CURRENT_ROLE	CREATE VIEW _v AS SELECT a CURRENT_ROLE
+42703	42703	engine	one_table@column	bare_label_keyword/CURRENT_SCHEMA	CREATE VIEW _v AS SELECT a CURRENT_SCHEMA
+42703	42703	engine	one_table@column	bare_label_keyword/CURRENT_TIME	CREATE VIEW _v AS SELECT a CURRENT_TIME
+42703	42703	engine	one_table@column	bare_label_keyword/CURRENT_TIMESTAMP	CREATE VIEW _v AS SELECT a CURRENT_TIMESTAMP
+42703	42703	engine	one_table@column	bare_label_keyword/CURRENT_USER	CREATE VIEW _v AS SELECT a CURRENT_USER
+42703	42703	engine	one_table@column	bare_label_keyword/CURSOR	CREATE VIEW _v AS SELECT a CURSOR
+42703	42703	engine	one_table@column	bare_label_keyword/CYCLE	CREATE VIEW _v AS SELECT a CYCLE
+42703	42703	engine	one_table@column	bare_label_keyword/DATA_P	CREATE VIEW _v AS SELECT a DATA
+42703	42703	engine	one_table@column	bare_label_keyword/DATABASE	CREATE VIEW _v AS SELECT a DATABASE
+42703	42703	engine	one_table@column	bare_label_keyword/DEALLOCATE	CREATE VIEW _v AS SELECT a DEALLOCATE
+42703	42703	engine	one_table@column	bare_label_keyword/DEC	CREATE VIEW _v AS SELECT a DEC
+42703	42703	engine	one_table@column	bare_label_keyword/DECIMAL_P	CREATE VIEW _v AS SELECT a DECIMAL
+42703	42703	engine	one_table@column	bare_label_keyword/DECLARE	CREATE VIEW _v AS SELECT a DECLARE
+42703	42703	engine	one_table@column	bare_label_keyword/DEFAULT	CREATE VIEW _v AS SELECT a DEFAULT
+42703	42703	engine	one_table@column	bare_label_keyword/DEFAULTS	CREATE VIEW _v AS SELECT a DEFAULTS
+42703	42703	engine	one_table@column	bare_label_keyword/DEFERRABLE	CREATE VIEW _v AS SELECT a DEFERRABLE
+42703	42703	engine	one_table@column	bare_label_keyword/DEFERRED	CREATE VIEW _v AS SELECT a DEFERRED
+42703	42703	engine	one_table@column	bare_label_keyword/DEFINER	CREATE VIEW _v AS SELECT a DEFINER
+42703	42703	engine	one_table@column	bare_label_keyword/DELETE_P	CREATE VIEW _v AS SELECT a DELETE
+42703	42703	engine	one_table@column	bare_label_keyword/DELIMITER	CREATE VIEW _v AS SELECT a DELIMITER
+42703	42703	engine	one_table@column	bare_label_keyword/DELIMITERS	CREATE VIEW _v AS SELECT a DELIMITERS
+42703	42703	engine	one_table@column	bare_label_keyword/DEPENDS	CREATE VIEW _v AS SELECT a DEPENDS
+42703	42703	engine	one_table@column	bare_label_keyword/DEPTH	CREATE VIEW _v AS SELECT a DEPTH
+42703	42703	engine	one_table@column	bare_label_keyword/DESC	CREATE VIEW _v AS SELECT a DESC
+42703	42703	engine	one_table@column	bare_label_keyword/DETACH	CREATE VIEW _v AS SELECT a DETACH
+42703	42703	engine	one_table@column	bare_label_keyword/DICTIONARY	CREATE VIEW _v AS SELECT a DICTIONARY
+42703	42703	engine	one_table@column	bare_label_keyword/DISABLE_P	CREATE VIEW _v AS SELECT a DISABLE
+42703	42703	engine	one_table@column	bare_label_keyword/DISCARD	CREATE VIEW _v AS SELECT a DISCARD
+42703	42703	engine	one_table@column	bare_label_keyword/DISTINCT	CREATE VIEW _v AS SELECT a DISTINCT
+42703	42703	engine	one_table@column	bare_label_keyword/DO	CREATE VIEW _v AS SELECT a DO
+42703	42703	engine	one_table@column	bare_label_keyword/DOCUMENT_P	CREATE VIEW _v AS SELECT a DOCUMENT
+42703	42703	engine	one_table@column	bare_label_keyword/DOMAIN_P	CREATE VIEW _v AS SELECT a DOMAIN
+42703	42703	engine	one_table@column	bare_label_keyword/DOUBLE_P	CREATE VIEW _v AS SELECT a DOUBLE
+42703	42703	engine	one_table@column	bare_label_keyword/DROP	CREATE VIEW _v AS SELECT a DROP
+42703	42703	engine	one_table@column	bare_label_keyword/EACH	CREATE VIEW _v AS SELECT a EACH
+42703	42703	engine	one_table@column	bare_label_keyword/ELSE	CREATE VIEW _v AS SELECT a ELSE
+42703	42703	engine	one_table@column	bare_label_keyword/EMPTY_P	CREATE VIEW _v AS SELECT a EMPTY
+42703	42703	engine	one_table@column	bare_label_keyword/ENABLE_P	CREATE VIEW _v AS SELECT a ENABLE
+42703	42703	engine	one_table@column	bare_label_keyword/ENCODING	CREATE VIEW _v AS SELECT a ENCODING
+42703	42703	engine	one_table@column	bare_label_keyword/ENCRYPTED	CREATE VIEW _v AS SELECT a ENCRYPTED
+42703	42703	engine	one_table@column	bare_label_keyword/END_P	CREATE VIEW _v AS SELECT a END
+42703	42703	engine	one_table@column	bare_label_keyword/ENUM_P	CREATE VIEW _v AS SELECT a ENUM
+42703	42703	engine	one_table@column	bare_label_keyword/ERROR_P	CREATE VIEW _v AS SELECT a ERROR
+42703	42703	engine	one_table@column	bare_label_keyword/ESCAPE	CREATE VIEW _v AS SELECT a ESCAPE
+42703	42703	engine	one_table@column	bare_label_keyword/EVENT	CREATE VIEW _v AS SELECT a EVENT
+42703	42703	engine	one_table@column	bare_label_keyword/EXCLUDE	CREATE VIEW _v AS SELECT a EXCLUDE
+42703	42703	engine	one_table@column	bare_label_keyword/EXCLUDING	CREATE VIEW _v AS SELECT a EXCLUDING
+42703	42703	engine	one_table@column	bare_label_keyword/EXCLUSIVE	CREATE VIEW _v AS SELECT a EXCLUSIVE
+42703	42703	engine	one_table@column	bare_label_keyword/EXECUTE	CREATE VIEW _v AS SELECT a EXECUTE
+42703	42703	engine	one_table@column	bare_label_keyword/EXISTS	CREATE VIEW _v AS SELECT a EXISTS
+42703	42703	engine	one_table@column	bare_label_keyword/EXPLAIN	CREATE VIEW _v AS SELECT a EXPLAIN
+42703	42703	engine	one_table@column	bare_label_keyword/EXPRESSION	CREATE VIEW _v AS SELECT a EXPRESSION
+42703	42703	engine	one_table@column	bare_label_keyword/EXTENSION	CREATE VIEW _v AS SELECT a EXTENSION
+42703	42703	engine	one_table@column	bare_label_keyword/EXTERNAL	CREATE VIEW _v AS SELECT a EXTERNAL
+42703	42703	engine	one_table@column	bare_label_keyword/EXTRACT	CREATE VIEW _v AS SELECT a EXTRACT
+42703	42703	engine	one_table@column	bare_label_keyword/FALSE_P	CREATE VIEW _v AS SELECT a FALSE
+42703	42703	engine	one_table@column	bare_label_keyword/FAMILY	CREATE VIEW _v AS SELECT a FAMILY
+42703	42703	engine	one_table@column	bare_label_keyword/FINALIZE	CREATE VIEW _v AS SELECT a FINALIZE
+42703	42703	engine	one_table@column	bare_label_keyword/FIRST_P	CREATE VIEW _v AS SELECT a FIRST
+42703	42703	engine	one_table@column	bare_label_keyword/FLOAT_P	CREATE VIEW _v AS SELECT a FLOAT
+42703	42703	engine	one_table@column	bare_label_keyword/FOLLOWING	CREATE VIEW _v AS SELECT a FOLLOWING
+42703	42703	engine	one_table@column	bare_label_keyword/FORCE	CREATE VIEW _v AS SELECT a FORCE
+42703	42703	engine	one_table@column	bare_label_keyword/FOREIGN	CREATE VIEW _v AS SELECT a FOREIGN
+42703	42703	engine	one_table@column	bare_label_keyword/FORMAT	CREATE VIEW _v AS SELECT a FORMAT
+42703	42703	engine	one_table@column	bare_label_keyword/FORWARD	CREATE VIEW _v AS SELECT a FORWARD
+42703	42703	engine	one_table@column	bare_label_keyword/FREEZE	CREATE VIEW _v AS SELECT a FREEZE
+42703	42703	engine	one_table@column	bare_label_keyword/FULL	CREATE VIEW _v AS SELECT a FULL
+42703	42703	engine	one_table@column	bare_label_keyword/FUNCTION	CREATE VIEW _v AS SELECT a FUNCTION
+42703	42703	engine	one_table@column	bare_label_keyword/FUNCTIONS	CREATE VIEW _v AS SELECT a FUNCTIONS
+42703	42703	engine	one_table@column	bare_label_keyword/GENERATED	CREATE VIEW _v AS SELECT a GENERATED
+42703	42703	engine	one_table@column	bare_label_keyword/GLOBAL	CREATE VIEW _v AS SELECT a GLOBAL
+42703	42703	engine	one_table@column	bare_label_keyword/GRANTED	CREATE VIEW _v AS SELECT a GRANTED
+42703	42703	engine	one_table@column	bare_label_keyword/GREATEST	CREATE VIEW _v AS SELECT a GREATEST
+42703	42703	engine	one_table@column	bare_label_keyword/GROUPING	CREATE VIEW _v AS SELECT a GROUPING
+42703	42703	engine	one_table@column	bare_label_keyword/GROUPS	CREATE VIEW _v AS SELECT a GROUPS
+42703	42703	engine	one_table@column	bare_label_keyword/HANDLER	CREATE VIEW _v AS SELECT a HANDLER
+42703	42703	engine	one_table@column	bare_label_keyword/HEADER_P	CREATE VIEW _v AS SELECT a HEADER
+42703	42703	engine	one_table@column	bare_label_keyword/HOLD	CREATE VIEW _v AS SELECT a HOLD
+42703	42703	engine	one_table@column	bare_label_keyword/IDENTITY_P	CREATE VIEW _v AS SELECT a IDENTITY
+42703	42703	engine	one_table@column	bare_label_keyword/IF_P	CREATE VIEW _v AS SELECT a IF
+42703	42703	engine	one_table@column	bare_label_keyword/ILIKE	CREATE VIEW _v AS SELECT a ILIKE
+42703	42703	engine	one_table@column	bare_label_keyword/ILIKE!insert	CREATE VIEW _v AS SELECT a ILIKE zzz
+42703	42703	engine	one_table@column	bare_label_keyword/IMMEDIATE	CREATE VIEW _v AS SELECT a IMMEDIATE
+42703	42703	engine	one_table@column	bare_label_keyword/IMMUTABLE	CREATE VIEW _v AS SELECT a IMMUTABLE
+42703	42703	engine	one_table@column	bare_label_keyword/IMPLICIT_P	CREATE VIEW _v AS SELECT a IMPLICIT
+42703	42703	engine	one_table@column	bare_label_keyword/IMPORT_P	CREATE VIEW _v AS SELECT a IMPORT
+42703	42703	engine	one_table@column	bare_label_keyword/IN_P	CREATE VIEW _v AS SELECT a IN
+42703	42703	engine	one_table@column	bare_label_keyword/INCLUDE	CREATE VIEW _v AS SELECT a INCLUDE
+42703	42703	engine	one_table@column	bare_label_keyword/INCLUDING	CREATE VIEW _v AS SELECT a INCLUDING
+42703	42703	engine	one_table@column	bare_label_keyword/INCREMENT	CREATE VIEW _v AS SELECT a INCREMENT
+42703	42703	engine	one_table@column	bare_label_keyword/INDENT	CREATE VIEW _v AS SELECT a INDENT
+42703	42703	engine	one_table@column	bare_label_keyword/INDEX	CREATE VIEW _v AS SELECT a INDEX
+42703	42703	engine	one_table@column	bare_label_keyword/INDEXES	CREATE VIEW _v AS SELECT a INDEXES
+42703	42703	engine	one_table@column	bare_label_keyword/INHERIT	CREATE VIEW _v AS SELECT a INHERIT
+42703	42703	engine	one_table@column	bare_label_keyword/INHERITS	CREATE VIEW _v AS SELECT a INHERITS
+42703	42703	engine	one_table@column	bare_label_keyword/INITIALLY	CREATE VIEW _v AS SELECT a INITIALLY
+42703	42703	engine	one_table@column	bare_label_keyword/INLINE_P	CREATE VIEW _v AS SELECT a INLINE
+42703	42703	engine	one_table@column	bare_label_keyword/INNER_P	CREATE VIEW _v AS SELECT a INNER
+42703	42703	engine	one_table@column	bare_label_keyword/INOUT	CREATE VIEW _v AS SELECT a INOUT
+42703	42703	engine	one_table@column	bare_label_keyword/INPUT_P	CREATE VIEW _v AS SELECT a INPUT
+42703	42703	engine	one_table@column	bare_label_keyword/INSENSITIVE	CREATE VIEW _v AS SELECT a INSENSITIVE
+42703	42703	engine	one_table@column	bare_label_keyword/INSERT	CREATE VIEW _v AS SELECT a INSERT
+42703	42703	engine	one_table@column	bare_label_keyword/INSTEAD	CREATE VIEW _v AS SELECT a INSTEAD
+42703	42703	engine	one_table@column	bare_label_keyword/INT_P	CREATE VIEW _v AS SELECT a INT
+42703	42703	engine	one_table@column	bare_label_keyword/INTEGER	CREATE VIEW _v AS SELECT a INTEGER
+42703	42703	engine	one_table@column	bare_label_keyword/INTERVAL	CREATE VIEW _v AS SELECT a INTERVAL
+42703	42703	engine	one_table@column	bare_label_keyword/INVOKER	CREATE VIEW _v AS SELECT a INVOKER
+42703	42703	engine	one_table@column	bare_label_keyword/IS	CREATE VIEW _v AS SELECT a IS
+42703	42703	engine	one_table@column	bare_label_keyword/ISOLATION	CREATE VIEW _v AS SELECT a ISOLATION
+42703	42703	engine	one_table@column	bare_label_keyword/JOIN	CREATE VIEW _v AS SELECT a JOIN
+42703	42703	engine	one_table@column	bare_label_keyword/JSON	CREATE VIEW _v AS SELECT a JSON
+42703	42703	engine	one_table@column	bare_label_keyword/JSON_ARRAY	CREATE VIEW _v AS SELECT a JSON_ARRAY
+42703	42703	engine	one_table@column	bare_label_keyword/JSON_ARRAYAGG	CREATE VIEW _v AS SELECT a JSON_ARRAYAGG
+42703	42703	engine	one_table@column	bare_label_keyword/JSON_EXISTS	CREATE VIEW _v AS SELECT a JSON_EXISTS
+42703	42703	engine	one_table@column	bare_label_keyword/JSON_OBJECT	CREATE VIEW _v AS SELECT a JSON_OBJECT
+42703	42703	engine	one_table@column	bare_label_keyword/JSON_OBJECTAGG	CREATE VIEW _v AS SELECT a JSON_OBJECTAGG
+42703	42703	engine	one_table@column	bare_label_keyword/JSON_QUERY	CREATE VIEW _v AS SELECT a JSON_QUERY
+42703	42703	engine	one_table@column	bare_label_keyword/JSON_SCALAR	CREATE VIEW _v AS SELECT a JSON_SCALAR
+42703	42703	engine	one_table@column	bare_label_keyword/JSON_SERIALIZE	CREATE VIEW _v AS SELECT a JSON_SERIALIZE
+42703	42703	engine	one_table@column	bare_label_keyword/JSON_TABLE	CREATE VIEW _v AS SELECT a JSON_TABLE
+42703	42703	engine	one_table@column	bare_label_keyword/JSON_VALUE	CREATE VIEW _v AS SELECT a JSON_VALUE
+42703	42703	engine	one_table@column	bare_label_keyword/KEEP	CREATE VIEW _v AS SELECT a KEEP
+42703	42703	engine	one_table@column	bare_label_keyword/KEY	CREATE VIEW _v AS SELECT a KEY
+42703	42703	engine	one_table@column	bare_label_keyword/KEYS	CREATE VIEW _v AS SELECT a KEYS
+42703	42703	engine	one_table@column	bare_label_keyword/LABEL	CREATE VIEW _v AS SELECT a LABEL
+42703	42703	engine	one_table@column	bare_label_keyword/LANGUAGE	CREATE VIEW _v AS SELECT a LANGUAGE
+42703	42703	engine	one_table@column	bare_label_keyword/LARGE_P	CREATE VIEW _v AS SELECT a LARGE
+42703	42703	engine	one_table@column	bare_label_keyword/LAST_P	CREATE VIEW _v AS SELECT a LAST
+42703	42703	engine	one_table@column	bare_label_keyword/LATERAL_P	CREATE VIEW _v AS SELECT a LATERAL
+42703	42703	engine	one_table@column	bare_label_keyword/LEADING	CREATE VIEW _v AS SELECT a LEADING
+42703	42703	engine	one_table@column	bare_label_keyword/LEAKPROOF	CREATE VIEW _v AS SELECT a LEAKPROOF
+42703	42703	engine	one_table@column	bare_label_keyword/LEAST	CREATE VIEW _v AS SELECT a LEAST
+42703	42703	engine	one_table@column	bare_label_keyword/LEFT	CREATE VIEW _v AS SELECT a LEFT
+42703	42703	engine	one_table@column	bare_label_keyword/LEVEL	CREATE VIEW _v AS SELECT a LEVEL
+42703	42703	engine	one_table@column	bare_label_keyword/LIKE	CREATE VIEW _v AS SELECT a LIKE
+42703	42703	engine	one_table@column	bare_label_keyword/LIKE!insert	CREATE VIEW _v AS SELECT a LIKE zzz
+42703	42703	engine	one_table@column	bare_label_keyword/LISTEN	CREATE VIEW _v AS SELECT a LISTEN
+42703	42703	engine	one_table@column	bare_label_keyword/LOAD	CREATE VIEW _v AS SELECT a LOAD
+42703	42703	engine	one_table@column	bare_label_keyword/LOCAL	CREATE VIEW _v AS SELECT a LOCAL
+42703	42703	engine	one_table@column	bare_label_keyword/LOCALTIME	CREATE VIEW _v AS SELECT a LOCALTIME
+42703	42703	engine	one_table@column	bare_label_keyword/LOCALTIMESTAMP	CREATE VIEW _v AS SELECT a LOCALTIMESTAMP
+42703	42703	engine	one_table@column	bare_label_keyword/LOCATION	CREATE VIEW _v AS SELECT a LOCATION
+42703	42703	engine	one_table@column	bare_label_keyword/LOCK_P	CREATE VIEW _v AS SELECT a LOCK
+42703	42703	engine	one_table@column	bare_label_keyword/LOCKED	CREATE VIEW _v AS SELECT a LOCKED
+42703	42703	engine	one_table@column	bare_label_keyword/LOGGED	CREATE VIEW _v AS SELECT a LOGGED
+42703	42703	engine	one_table@column	bare_label_keyword/MAPPING	CREATE VIEW _v AS SELECT a MAPPING
+42703	42703	engine	one_table@column	bare_label_keyword/MATCH	CREATE VIEW _v AS SELECT a MATCH
+42703	42703	engine	one_table@column	bare_label_keyword/MATCHED	CREATE VIEW _v AS SELECT a MATCHED
+42703	42703	engine	one_table@column	bare_label_keyword/MATERIALIZED	CREATE VIEW _v AS SELECT a MATERIALIZED
+42703	42703	engine	one_table@column	bare_label_keyword/MAXVALUE	CREATE VIEW _v AS SELECT a MAXVALUE
+42703	42703	engine	one_table@column	bare_label_keyword/MERGE	CREATE VIEW _v AS SELECT a MERGE
+42703	42703	engine	one_table@column	bare_label_keyword/MERGE_ACTION	CREATE VIEW _v AS SELECT a MERGE_ACTION
+42703	42703	engine	one_table@column	bare_label_keyword/METHOD	CREATE VIEW _v AS SELECT a METHOD
+42703	42703	engine	one_table@column	bare_label_keyword/MINVALUE	CREATE VIEW _v AS SELECT a MINVALUE
+42703	42703	engine	one_table@column	bare_label_keyword/MODE	CREATE VIEW _v AS SELECT a MODE
+42703	42703	engine	one_table@column	bare_label_keyword/MOVE	CREATE VIEW _v AS SELECT a MOVE
+42703	42703	engine	one_table@column	bare_label_keyword/NAME_P	CREATE VIEW _v AS SELECT a NAME
+42703	42703	engine	one_table@column	bare_label_keyword/NAMES	CREATE VIEW _v AS SELECT a NAMES
+42703	42703	engine	one_table@column	bare_label_keyword/NATIONAL	CREATE VIEW _v AS SELECT a NATIONAL
+42703	42703	engine	one_table@column	bare_label_keyword/NATURAL	CREATE VIEW _v AS SELECT a NATURAL
+42703	42703	engine	one_table@column	bare_label_keyword/NCHAR	CREATE VIEW _v AS SELECT a NCHAR
+42703	42703	engine	one_table@column	bare_label_keyword/NESTED	CREATE VIEW _v AS SELECT a NESTED
+42703	42703	engine	one_table@column	bare_label_keyword/NEW	CREATE VIEW _v AS SELECT a NEW
+42703	42703	engine	one_table@column	bare_label_keyword/NEXT	CREATE VIEW _v AS SELECT a NEXT
+42703	42703	engine	one_table@column	bare_label_keyword/NFC	CREATE VIEW _v AS SELECT a NFC
+42703	42703	engine	one_table@column	bare_label_keyword/NFD	CREATE VIEW _v AS SELECT a NFD
+42703	42703	engine	one_table@column	bare_label_keyword/NFKC	CREATE VIEW _v AS SELECT a NFKC
+42703	42703	engine	one_table@column	bare_label_keyword/NFKD	CREATE VIEW _v AS SELECT a NFKD
+42703	42703	engine	one_table@column	bare_label_keyword/NO	CREATE VIEW _v AS SELECT a NO
+42703	42703	engine	one_table@column	bare_label_keyword/NONE	CREATE VIEW _v AS SELECT a NONE
+42703	42703	engine	one_table@column	bare_label_keyword/NORMALIZE	CREATE VIEW _v AS SELECT a NORMALIZE
+42703	42703	engine	one_table@column	bare_label_keyword/NORMALIZED	CREATE VIEW _v AS SELECT a NORMALIZED
+42703	42703	engine	one_table@column	bare_label_keyword/NOT	CREATE VIEW _v AS SELECT a NOT
+42703	42703	engine	one_table@column	bare_label_keyword/NOTHING	CREATE VIEW _v AS SELECT a NOTHING
+42703	42703	engine	one_table@column	bare_label_keyword/NOTIFY	CREATE VIEW _v AS SELECT a NOTIFY
+42703	42703	engine	one_table@column	bare_label_keyword/NOWAIT	CREATE VIEW _v AS SELECT a NOWAIT
+42703	42703	engine	one_table@column	bare_label_keyword/NULL_P	CREATE VIEW _v AS SELECT a NULL
+42703	42703	engine	one_table@column	bare_label_keyword/NULLIF	CREATE VIEW _v AS SELECT a NULLIF
+42703	42703	engine	one_table@column	bare_label_keyword/NULLS_P	CREATE VIEW _v AS SELECT a NULLS
+42703	42703	engine	one_table@column	bare_label_keyword/NUMERIC	CREATE VIEW _v AS SELECT a NUMERIC
+42703	42703	engine	one_table@column	bare_label_keyword/OBJECT_P	CREATE VIEW _v AS SELECT a OBJECT
+42703	42703	engine	one_table@column	bare_label_keyword/OF	CREATE VIEW _v AS SELECT a OF
+42703	42703	engine	one_table@column	bare_label_keyword/OFF	CREATE VIEW _v AS SELECT a OFF
+42703	42703	engine	one_table@column	bare_label_keyword/OIDS	CREATE VIEW _v AS SELECT a OIDS
+42703	42703	engine	one_table@column	bare_label_keyword/OLD	CREATE VIEW _v AS SELECT a OLD
+42703	42703	engine	one_table@column	bare_label_keyword/OMIT	CREATE VIEW _v AS SELECT a OMIT
+42703	42703	engine	one_table@column	bare_label_keyword/ONLY	CREATE VIEW _v AS SELECT a ONLY
+42703	42703	engine	one_table@column	bare_label_keyword/OPERATOR	CREATE VIEW _v AS SELECT a OPERATOR
+42703	42703	engine	one_table@column	bare_label_keyword/OPTION	CREATE VIEW _v AS SELECT a OPTION
+42703	42703	engine	one_table@column	bare_label_keyword/OPTIONS	CREATE VIEW _v AS SELECT a OPTIONS
+42703	42703	engine	one_table@column	bare_label_keyword/OR	CREATE VIEW _v AS SELECT a OR
+42703	42703	engine	one_table@column	bare_label_keyword/OR!insert	CREATE VIEW _v AS SELECT a OR zzz
+42703	42703	engine	one_table@column	bare_label_keyword/ORDINALITY	CREATE VIEW _v AS SELECT a ORDINALITY
+42703	42703	engine	one_table@column	bare_label_keyword/OTHERS	CREATE VIEW _v AS SELECT a OTHERS
+42703	42703	engine	one_table@column	bare_label_keyword/OUT_P	CREATE VIEW _v AS SELECT a OUT
+42703	42703	engine	one_table@column	bare_label_keyword/OUTER_P	CREATE VIEW _v AS SELECT a OUTER
+42703	42703	engine	one_table@column	bare_label_keyword/OVERLAY	CREATE VIEW _v AS SELECT a OVERLAY
+42703	42703	engine	one_table@column	bare_label_keyword/OVERRIDING	CREATE VIEW _v AS SELECT a OVERRIDING
+42703	42703	engine	one_table@column	bare_label_keyword/OWNED	CREATE VIEW _v AS SELECT a OWNED
+42703	42703	engine	one_table@column	bare_label_keyword/OWNER	CREATE VIEW _v AS SELECT a OWNER
+42703	42703	engine	one_table@column	bare_label_keyword/PARALLEL	CREATE VIEW _v AS SELECT a PARALLEL
+42703	42703	engine	one_table@column	bare_label_keyword/PARAMETER	CREATE VIEW _v AS SELECT a PARAMETER
+42703	42703	engine	one_table@column	bare_label_keyword/PARSER	CREATE VIEW _v AS SELECT a PARSER
+42703	42703	engine	one_table@column	bare_label_keyword/PARTIAL	CREATE VIEW _v AS SELECT a PARTIAL
+42703	42703	engine	one_table@column	bare_label_keyword/PARTITION	CREATE VIEW _v AS SELECT a PARTITION
+42703	42703	engine	one_table@column	bare_label_keyword/PASSING	CREATE VIEW _v AS SELECT a PASSING
+42703	42703	engine	one_table@column	bare_label_keyword/PASSWORD	CREATE VIEW _v AS SELECT a PASSWORD
+42703	42703	engine	one_table@column	bare_label_keyword/PATH	CREATE VIEW _v AS SELECT a PATH
+42703	42703	engine	one_table@column	bare_label_keyword/PLACING	CREATE VIEW _v AS SELECT a PLACING
+42703	42703	engine	one_table@column	bare_label_keyword/PLAN	CREATE VIEW _v AS SELECT a PLAN
+42703	42703	engine	one_table@column	bare_label_keyword/PLANS	CREATE VIEW _v AS SELECT a PLANS
+42703	42703	engine	one_table@column	bare_label_keyword/POLICY	CREATE VIEW _v AS SELECT a POLICY
+42703	42703	engine	one_table@column	bare_label_keyword/POSITION	CREATE VIEW _v AS SELECT a POSITION
+42703	42703	engine	one_table@column	bare_label_keyword/PRECEDING	CREATE VIEW _v AS SELECT a PRECEDING
+42703	42703	engine	one_table@column	bare_label_keyword/PREPARE	CREATE VIEW _v AS SELECT a PREPARE
+42703	42703	engine	one_table@column	bare_label_keyword/PREPARED	CREATE VIEW _v AS SELECT a PREPARED
+42703	42703	engine	one_table@column	bare_label_keyword/PRESERVE	CREATE VIEW _v AS SELECT a PRESERVE
+42703	42703	engine	one_table@column	bare_label_keyword/PRIMARY	CREATE VIEW _v AS SELECT a PRIMARY
+42703	42703	engine	one_table@column	bare_label_keyword/PRIOR	CREATE VIEW _v AS SELECT a PRIOR
+42703	42703	engine	one_table@column	bare_label_keyword/PRIVILEGES	CREATE VIEW _v AS SELECT a PRIVILEGES
+42703	42703	engine	one_table@column	bare_label_keyword/PROCEDURAL	CREATE VIEW _v AS SELECT a PROCEDURAL
+42703	42703	engine	one_table@column	bare_label_keyword/PROCEDURE	CREATE VIEW _v AS SELECT a PROCEDURE
+42703	42703	engine	one_table@column	bare_label_keyword/PROCEDURES	CREATE VIEW _v AS SELECT a PROCEDURES
+42703	42703	engine	one_table@column	bare_label_keyword/PROGRAM	CREATE VIEW _v AS SELECT a PROGRAM
+42703	42703	engine	one_table@column	bare_label_keyword/PUBLICATION	CREATE VIEW _v AS SELECT a PUBLICATION
+42703	42703	engine	one_table@column	bare_label_keyword/QUOTE	CREATE VIEW _v AS SELECT a QUOTE
+42703	42703	engine	one_table@column	bare_label_keyword/QUOTES	CREATE VIEW _v AS SELECT a QUOTES
+42703	42703	engine	one_table@column	bare_label_keyword/RANGE	CREATE VIEW _v AS SELECT a RANGE
+42703	42703	engine	one_table@column	bare_label_keyword/READ	CREATE VIEW _v AS SELECT a READ
+42703	42703	engine	one_table@column	bare_label_keyword/REAL	CREATE VIEW _v AS SELECT a REAL
+42703	42703	engine	one_table@column	bare_label_keyword/REASSIGN	CREATE VIEW _v AS SELECT a REASSIGN
+42703	42703	engine	one_table@column	bare_label_keyword/RECHECK	CREATE VIEW _v AS SELECT a RECHECK
+42703	42703	engine	one_table@column	bare_label_keyword/RECURSIVE	CREATE VIEW _v AS SELECT a RECURSIVE
+42703	42703	engine	one_table@column	bare_label_keyword/REF_P	CREATE VIEW _v AS SELECT a REF
+42703	42703	engine	one_table@column	bare_label_keyword/REFERENCES	CREATE VIEW _v AS SELECT a REFERENCES
+42703	42703	engine	one_table@column	bare_label_keyword/REFERENCING	CREATE VIEW _v AS SELECT a REFERENCING
+42703	42703	engine	one_table@column	bare_label_keyword/REFRESH	CREATE VIEW _v AS SELECT a REFRESH
+42703	42703	engine	one_table@column	bare_label_keyword/REINDEX	CREATE VIEW _v AS SELECT a REINDEX
+42703	42703	engine	one_table@column	bare_label_keyword/RELATIVE_P	CREATE VIEW _v AS SELECT a RELATIVE
+42703	42703	engine	one_table@column	bare_label_keyword/RELEASE	CREATE VIEW _v AS SELECT a RELEASE
+42703	42703	engine	one_table@column	bare_label_keyword/RENAME	CREATE VIEW _v AS SELECT a RENAME
+42703	42703	engine	one_table@column	bare_label_keyword/REPEATABLE	CREATE VIEW _v AS SELECT a REPEATABLE
+42703	42703	engine	one_table@column	bare_label_keyword/REPLACE	CREATE VIEW _v AS SELECT a REPLACE
+42703	42703	engine	one_table@column	bare_label_keyword/REPLICA	CREATE VIEW _v AS SELECT a REPLICA
+42703	42703	engine	one_table@column	bare_label_keyword/RESET	CREATE VIEW _v AS SELECT a RESET
+42703	42703	engine	one_table@column	bare_label_keyword/RESTART	CREATE VIEW _v AS SELECT a RESTART
+42703	42703	engine	one_table@column	bare_label_keyword/RESTRICT	CREATE VIEW _v AS SELECT a RESTRICT
+42703	42703	engine	one_table@column	bare_label_keyword/RETURN	CREATE VIEW _v AS SELECT a RETURN
+42703	42703	engine	one_table@column	bare_label_keyword/RETURNS	CREATE VIEW _v AS SELECT a RETURNS
+42703	42703	engine	one_table@column	bare_label_keyword/REVOKE	CREATE VIEW _v AS SELECT a REVOKE
+42703	42703	engine	one_table@column	bare_label_keyword/RIGHT	CREATE VIEW _v AS SELECT a RIGHT
+42703	42703	engine	one_table@column	bare_label_keyword/ROLE	CREATE VIEW _v AS SELECT a ROLE
+42703	42703	engine	one_table@column	bare_label_keyword/ROLLBACK	CREATE VIEW _v AS SELECT a ROLLBACK
+42703	42703	engine	one_table@column	bare_label_keyword/ROLLUP	CREATE VIEW _v AS SELECT a ROLLUP
+42703	42703	engine	one_table@column	bare_label_keyword/ROUTINE	CREATE VIEW _v AS SELECT a ROUTINE
+42703	42703	engine	one_table@column	bare_label_keyword/ROUTINES	CREATE VIEW _v AS SELECT a ROUTINES
+42703	42703	engine	one_table@column	bare_label_keyword/ROW	CREATE VIEW _v AS SELECT a ROW
+42703	42703	engine	one_table@column	bare_label_keyword/ROWS	CREATE VIEW _v AS SELECT a ROWS
+42703	42703	engine	one_table@column	bare_label_keyword/RULE	CREATE VIEW _v AS SELECT a RULE
+42703	42703	engine	one_table@column	bare_label_keyword/SAVEPOINT	CREATE VIEW _v AS SELECT a SAVEPOINT
+42703	42703	engine	one_table@column	bare_label_keyword/SCALAR	CREATE VIEW _v AS SELECT a SCALAR
+42703	42703	engine	one_table@column	bare_label_keyword/SCHEMA	CREATE VIEW _v AS SELECT a SCHEMA
+42703	42703	engine	one_table@column	bare_label_keyword/SCHEMAS	CREATE VIEW _v AS SELECT a SCHEMAS
+42703	42703	engine	one_table@column	bare_label_keyword/SCROLL	CREATE VIEW _v AS SELECT a SCROLL
+42703	42703	engine	one_table@column	bare_label_keyword/SEARCH	CREATE VIEW _v AS SELECT a SEARCH
+42703	42703	engine	one_table@column	bare_label_keyword/SECURITY	CREATE VIEW _v AS SELECT a SECURITY
+42703	42703	engine	one_table@column	bare_label_keyword/SELECT	CREATE VIEW _v AS SELECT a SELECT
+42703	42703	engine	one_table@column	bare_label_keyword/SEQUENCE	CREATE VIEW _v AS SELECT a SEQUENCE
+42703	42703	engine	one_table@column	bare_label_keyword/SEQUENCES	CREATE VIEW _v AS SELECT a SEQUENCES
+42703	42703	engine	one_table@column	bare_label_keyword/SERIALIZABLE	CREATE VIEW _v AS SELECT a SERIALIZABLE
+42703	42703	engine	one_table@column	bare_label_keyword/SERVER	CREATE VIEW _v AS SELECT a SERVER
+42703	42703	engine	one_table@column	bare_label_keyword/SESSION	CREATE VIEW _v AS SELECT a SESSION
+42703	42703	engine	one_table@column	bare_label_keyword/SESSION_USER	CREATE VIEW _v AS SELECT a SESSION_USER
+42703	42703	engine	one_table@column	bare_label_keyword/SET	CREATE VIEW _v AS SELECT a SET
+42703	42703	engine	one_table@column	bare_label_keyword/SETOF	CREATE VIEW _v AS SELECT a SETOF
+42703	42703	engine	one_table@column	bare_label_keyword/SETS	CREATE VIEW _v AS SELECT a SETS
+42703	42703	engine	one_table@column	bare_label_keyword/SHARE	CREATE VIEW _v AS SELECT a SHARE
+42703	42703	engine	one_table@column	bare_label_keyword/SHOW	CREATE VIEW _v AS SELECT a SHOW
+42703	42703	engine	one_table@column	bare_label_keyword/SIMILAR	CREATE VIEW _v AS SELECT a SIMILAR
+42703	42703	engine	one_table@column	bare_label_keyword/SIMPLE	CREATE VIEW _v AS SELECT a SIMPLE
+42703	42703	engine	one_table@column	bare_label_keyword/SKIP	CREATE VIEW _v AS SELECT a SKIP
+42703	42703	engine	one_table@column	bare_label_keyword/SMALLINT	CREATE VIEW _v AS SELECT a SMALLINT
+42703	42703	engine	one_table@column	bare_label_keyword/SNAPSHOT	CREATE VIEW _v AS SELECT a SNAPSHOT
+42703	42703	engine	one_table@column	bare_label_keyword/SOME	CREATE VIEW _v AS SELECT a SOME
+42703	42703	engine	one_table@column	bare_label_keyword/SOURCE	CREATE VIEW _v AS SELECT a SOURCE
+42703	42703	engine	one_table@column	bare_label_keyword/SQL_P	CREATE VIEW _v AS SELECT a SQL
+42703	42703	engine	one_table@column	bare_label_keyword/STABLE	CREATE VIEW _v AS SELECT a STABLE
+42703	42703	engine	one_table@column	bare_label_keyword/STANDALONE_P	CREATE VIEW _v AS SELECT a STANDALONE
+42703	42703	engine	one_table@column	bare_label_keyword/START	CREATE VIEW _v AS SELECT a START
+42703	42703	engine	one_table@column	bare_label_keyword/STATEMENT	CREATE VIEW _v AS SELECT a STATEMENT
+42703	42703	engine	one_table@column	bare_label_keyword/STATISTICS	CREATE VIEW _v AS SELECT a STATISTICS
+42703	42703	engine	one_table@column	bare_label_keyword/STDIN	CREATE VIEW _v AS SELECT a STDIN
+42703	42703	engine	one_table@column	bare_label_keyword/STDOUT	CREATE VIEW _v AS SELECT a STDOUT
+42703	42703	engine	one_table@column	bare_label_keyword/STORAGE	CREATE VIEW _v AS SELECT a STORAGE
+42703	42703	engine	one_table@column	bare_label_keyword/STORED	CREATE VIEW _v AS SELECT a STORED
+42703	42703	engine	one_table@column	bare_label_keyword/STRICT_P	CREATE VIEW _v AS SELECT a STRICT
+42703	42703	engine	one_table@column	bare_label_keyword/STRING_P	CREATE VIEW _v AS SELECT a STRING
+42703	42703	engine	one_table@column	bare_label_keyword/STRIP_P	CREATE VIEW _v AS SELECT a STRIP
+42703	42703	engine	one_table@column	bare_label_keyword/SUBSCRIPTION	CREATE VIEW _v AS SELECT a SUBSCRIPTION
+42703	42703	engine	one_table@column	bare_label_keyword/SUBSTRING	CREATE VIEW _v AS SELECT a SUBSTRING
+42703	42703	engine	one_table@column	bare_label_keyword/SUPPORT	CREATE VIEW _v AS SELECT a SUPPORT
+42703	42703	engine	one_table@column	bare_label_keyword/SYMMETRIC	CREATE VIEW _v AS SELECT a SYMMETRIC
+42703	42703	engine	one_table@column	bare_label_keyword/SYSID	CREATE VIEW _v AS SELECT a SYSID
+42703	42703	engine	one_table@column	bare_label_keyword/SYSTEM_P	CREATE VIEW _v AS SELECT a SYSTEM
+42703	42703	engine	one_table@column	bare_label_keyword/SYSTEM_USER	CREATE VIEW _v AS SELECT a SYSTEM_USER
+42703	42703	engine	one_table@column	bare_label_keyword/TABLE	CREATE VIEW _v AS SELECT a TABLE
+42703	42703	engine	one_table@column	bare_label_keyword/TABLES	CREATE VIEW _v AS SELECT a TABLES
+42703	42703	engine	one_table@column	bare_label_keyword/TABLESAMPLE	CREATE VIEW _v AS SELECT a TABLESAMPLE
+42703	42703	engine	one_table@column	bare_label_keyword/TABLESPACE	CREATE VIEW _v AS SELECT a TABLESPACE
+42703	42703	engine	one_table@column	bare_label_keyword/TARGET	CREATE VIEW _v AS SELECT a TARGET
+42703	42703	engine	one_table@column	bare_label_keyword/TEMP	CREATE VIEW _v AS SELECT a TEMP
+42703	42703	engine	one_table@column	bare_label_keyword/TEMPLATE	CREATE VIEW _v AS SELECT a TEMPLATE
+42703	42703	engine	one_table@column	bare_label_keyword/TEMPORARY	CREATE VIEW _v AS SELECT a TEMPORARY
+42703	42703	engine	one_table@column	bare_label_keyword/TEXT_P	CREATE VIEW _v AS SELECT a TEXT
+42703	42703	engine	one_table@column	bare_label_keyword/THEN	CREATE VIEW _v AS SELECT a THEN
+42703	42703	engine	one_table@column	bare_label_keyword/TIES	CREATE VIEW _v AS SELECT a TIES
+42703	42703	engine	one_table@column	bare_label_keyword/TIME	CREATE VIEW _v AS SELECT a TIME
+42703	42703	engine	one_table@column	bare_label_keyword/TIMESTAMP	CREATE VIEW _v AS SELECT a TIMESTAMP
+42703	42703	engine	one_table@column	bare_label_keyword/TRAILING	CREATE VIEW _v AS SELECT a TRAILING
+42703	42703	engine	one_table@column	bare_label_keyword/TRANSACTION	CREATE VIEW _v AS SELECT a TRANSACTION
+42703	42703	engine	one_table@column	bare_label_keyword/TRANSFORM	CREATE VIEW _v AS SELECT a TRANSFORM
+42703	42703	engine	one_table@column	bare_label_keyword/TREAT	CREATE VIEW _v AS SELECT a TREAT
+42703	42703	engine	one_table@column	bare_label_keyword/TRIGGER	CREATE VIEW _v AS SELECT a TRIGGER
+42703	42703	engine	one_table@column	bare_label_keyword/TRIM	CREATE VIEW _v AS SELECT a TRIM
+42703	42703	engine	one_table@column	bare_label_keyword/TRUE_P	CREATE VIEW _v AS SELECT a TRUE
+42703	42703	engine	one_table@column	bare_label_keyword/TRUNCATE	CREATE VIEW _v AS SELECT a TRUNCATE
+42703	42703	engine	one_table@column	bare_label_keyword/TRUSTED	CREATE VIEW _v AS SELECT a TRUSTED
+42703	42703	engine	one_table@column	bare_label_keyword/TYPE_P	CREATE VIEW _v AS SELECT a TYPE
+42703	42703	engine	one_table@column	bare_label_keyword/TYPES_P	CREATE VIEW _v AS SELECT a TYPES
+42703	42703	engine	one_table@column	bare_label_keyword/UESCAPE	CREATE VIEW _v AS SELECT a UESCAPE
+42703	42703	engine	one_table@column	bare_label_keyword/UNBOUNDED	CREATE VIEW _v AS SELECT a UNBOUNDED
+42703	42703	engine	one_table@column	bare_label_keyword/UNCOMMITTED	CREATE VIEW _v AS SELECT a UNCOMMITTED
+42703	42703	engine	one_table@column	bare_label_keyword/UNCONDITIONAL	CREATE VIEW _v AS SELECT a UNCONDITIONAL
+42703	42703	engine	one_table@column	bare_label_keyword/UNENCRYPTED	CREATE VIEW _v AS SELECT a UNENCRYPTED
+42703	42703	engine	one_table@column	bare_label_keyword/UNIQUE	CREATE VIEW _v AS SELECT a UNIQUE
+42703	42703	engine	one_table@column	bare_label_keyword/UNKNOWN	CREATE VIEW _v AS SELECT a UNKNOWN
+42703	42703	engine	one_table@column	bare_label_keyword/UNLISTEN	CREATE VIEW _v AS SELECT a UNLISTEN
+42703	42703	engine	one_table@column	bare_label_keyword/UNLOGGED	CREATE VIEW _v AS SELECT a UNLOGGED
+42703	42703	engine	one_table@column	bare_label_keyword/UNTIL	CREATE VIEW _v AS SELECT a UNTIL
+42703	42703	engine	one_table@column	bare_label_keyword/UPDATE	CREATE VIEW _v AS SELECT a UPDATE
+42703	42703	engine	one_table@column	bare_label_keyword/USER	CREATE VIEW _v AS SELECT a USER
+42703	42703	engine	one_table@column	bare_label_keyword/USING	CREATE VIEW _v AS SELECT a USING
+42703	42703	engine	one_table@column	bare_label_keyword/VACUUM	CREATE VIEW _v AS SELECT a VACUUM
+42703	42703	engine	one_table@column	bare_label_keyword/VALID	CREATE VIEW _v AS SELECT a VALID
+42703	42703	engine	one_table@column	bare_label_keyword/VALIDATE	CREATE VIEW _v AS SELECT a VALIDATE
+42703	42703	engine	one_table@column	bare_label_keyword/VALIDATOR	CREATE VIEW _v AS SELECT a VALIDATOR
+42703	42703	engine	one_table@column	bare_label_keyword/VALUE_P	CREATE VIEW _v AS SELECT a VALUE
+42703	42703	engine	one_table@column	bare_label_keyword/VALUES	CREATE VIEW _v AS SELECT a VALUES
+42703	42703	engine	one_table@column	bare_label_keyword/VARCHAR	CREATE VIEW _v AS SELECT a VARCHAR
+42703	42703	engine	one_table@column	bare_label_keyword/VARIADIC	CREATE VIEW _v AS SELECT a VARIADIC
+42703	42703	engine	one_table@column	bare_label_keyword/VERBOSE	CREATE VIEW _v AS SELECT a VERBOSE
+42703	42703	engine	one_table@column	bare_label_keyword/VERSION_P	CREATE VIEW _v AS SELECT a VERSION
+42703	42703	engine	one_table@column	bare_label_keyword/VIEW	CREATE VIEW _v AS SELECT a VIEW
+42703	42703	engine	one_table@column	bare_label_keyword/VIEWS	CREATE VIEW _v AS SELECT a VIEWS
+42703	42703	engine	one_table@column	bare_label_keyword/VOLATILE	CREATE VIEW _v AS SELECT a VOLATILE
+42703	42703	engine	one_table@column	bare_label_keyword/WHEN	CREATE VIEW _v AS SELECT a WHEN
+42703	42703	engine	one_table@column	bare_label_keyword/WHITESPACE_P	CREATE VIEW _v AS SELECT a WHITESPACE
+42703	42703	engine	one_table@column	bare_label_keyword/WORK	CREATE VIEW _v AS SELECT a WORK
+42703	42703	engine	one_table@column	bare_label_keyword/WRAPPER	CREATE VIEW _v AS SELECT a WRAPPER
+42703	42703	engine	one_table@column	bare_label_keyword/WRITE	CREATE VIEW _v AS SELECT a WRITE
+42703	42703	engine	one_table@column	bare_label_keyword/XML_P	CREATE VIEW _v AS SELECT a XML
+42703	42703	engine	one_table@column	bare_label_keyword/XMLATTRIBUTES	CREATE VIEW _v AS SELECT a XMLATTRIBUTES
+42703	42703	engine	one_table@column	bare_label_keyword/XMLCONCAT	CREATE VIEW _v AS SELECT a XMLCONCAT
+42703	42703	engine	one_table@column	bare_label_keyword/XMLELEMENT	CREATE VIEW _v AS SELECT a XMLELEMENT
+42703	42703	engine	one_table@column	bare_label_keyword/XMLEXISTS	CREATE VIEW _v AS SELECT a XMLEXISTS
+42703	42703	engine	one_table@column	bare_label_keyword/XMLFOREST	CREATE VIEW _v AS SELECT a XMLFOREST
+42703	42703	engine	one_table@column	bare_label_keyword/XMLNAMESPACES	CREATE VIEW _v AS SELECT a XMLNAMESPACES
+42703	42703	engine	one_table@column	bare_label_keyword/XMLPARSE	CREATE VIEW _v AS SELECT a XMLPARSE
+42703	42703	engine	one_table@column	bare_label_keyword/XMLPI	CREATE VIEW _v AS SELECT a XMLPI
+42703	42703	engine	one_table@column	bare_label_keyword/XMLROOT	CREATE VIEW _v AS SELECT a XMLROOT
+42703	42703	engine	one_table@column	bare_label_keyword/XMLSERIALIZE	CREATE VIEW _v AS SELECT a XMLSERIALIZE
+42703	42703	engine	one_table@column	bare_label_keyword/XMLTABLE	CREATE VIEW _v AS SELECT a XMLTABLE
+42703	42703	engine	one_table@column	bare_label_keyword/YES_P	CREATE VIEW _v AS SELECT a YES
+42703	42703	engine	one_table@column	bare_label_keyword/ZONE	CREATE VIEW _v AS SELECT a ZONE
