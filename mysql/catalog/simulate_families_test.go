@@ -392,6 +392,7 @@ var eventRows = families(map[string][]familyRow{
 		{"event:alter", "ALTER EVENT utf8mb4 ON SCHEDULE EVERY 2 HOUR STARTS '2030-06-01 00:00:00' ENDS '2031-01-01 00:00:00'"},
 		{"event:alter", "ALTER EVENT utf8mb4 DISABLE"},
 		{"event:alter", "ALTER EVENT utf8mb4 DISABLE ON SLAVE"},
+		{"event:alter", "ALTER EVENT utf8mb4 DISABLE ON REPLICA"},
 		{"event:alter", "ALTER EVENT utf8mb4 ON COMPLETION NOT PRESERVE"},
 		{"event:alter", "ALTER EVENT utf8mb4 COMMENT 'nightly'"},
 		{"event:alter", "ALTER EVENT utf8mb4 DO SELECT 1"},
@@ -414,6 +415,7 @@ var eventRows = families(map[string][]familyRow{
 		{"event:create", "CREATE EVENT nightly ON SCHEDULE EVERY '1:30' HOUR_MINUTE STARTS '2030-01-01 00:00:00' DO COMMIT"},
 		{"event:create", "CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO BEGIN DELETE FROM t; INSERT INTO t VALUES (1, 1, 1); END"},
 		{"event:create", "CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON SLAVE DO COMMIT"},
+		{"event:create", "CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON REPLICA DO COMMIT"},
 	},
 })
 

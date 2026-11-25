@@ -1014,6 +1014,17 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	noFinding(t, "CREATE VIEW v OF pair_t WITH OBJECT IDENTIFIER (x) AS SELECT 1, 2 FROM dual;", rich)
 	noFinding(t, "CREATE VIEW v AS SELECT d.*, q.a FROM nokey_rich d, (WITH nokey_rich AS (SELECT 1 a FROM dual) SELECT a FROM nokey_rich) q;", rich)
 	noFinding(t, "CREATE VIEW v AS SELECT deptno FROM (SELECT 1 deptno FROM dual) GROUP BY 1;", rich)
+	// Group-function errors hold when the query calls built-in functions
+	// alone; a call the catalog does not know may be a user-defined aggregate.
+	oneFinding(t, "CREATE VIEW v AS SELECT name, COUNT(*) c FROM plain;", 0, "Oracle refuses the view's query: ORA-00937: not a single-group group function.", rich)
+	oneFinding(t, "CREATE VIEW v AS SELECT val, name, COUNT(*) c FROM plain GROUP BY val;", 0, "Oracle refuses the view's query: ORA-00979: \"NAME\": must appear in the GROUP BY clause or be used in an aggregate function.", rich)
+	oneFinding(t, "CREATE VIEW v AS SELECT val FROM plain WHERE SUM(id) > 1 GROUP BY val;", 0, "Oracle refuses the view's query: ORA-00934: group function is not allowed here.", rich)
+	oneFinding(t, "CREATE VIEW v AS SELECT MAX(AVG(id)) m FROM plain;", 0, "Oracle refuses the view's query: ORA-00978: nested group function without GROUP BY.", rich)
+	noFinding(t, "CREATE VIEW v AS SELECT val, myagg(id) m FROM plain GROUP BY val;", rich)
+	noFinding(t, "CREATE VIEW v AS SELECT name, shop.f(1) x, COUNT(*) c FROM plain;", rich)
+	noFinding(t, "CREATE VIEW v AS SELECT val, nosuch, COUNT(*) c FROM plain GROUP BY val;", rich)
+	noFinding(t, "CREATE VIEW v AS SELECT val, USER u, SYSDATE d, COUNT(*) c FROM plain GROUP BY val;", rich)
+	noFinding(t, "CREATE VIEW v AS SELECT val v2, UPPER(name) u, COUNT(*) c FROM plain GROUP BY val, UPPER(name) ORDER BY c;", rich)
 	// The change drops the column first: the catalog is not asked.
 	noFinding(t, "ALTER TABLE nokey_rich DROP COLUMN a;\nCREATE VIEW v AS SELECT a FROM nokey_rich, part_range;", rich)
 	noFinding(t, "CREATE INDEX IF NOT EXISTS ix_plain_val ON plain (val);", rich)

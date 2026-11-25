@@ -331,12 +331,11 @@ func TestResolveQuerySpanAccessTables(t *testing.T) {
 		{"WITH x AS (SELECT a FROM t1) DELETE FROM t WHERE a IN (SELECT a FROM x)", set(table("db", "t"), table("db", "t1"))},
 		{"UPDATE t SET a = (SELECT a FROM t1)", set(table("db", "t"), table("db", "t1"))},
 		{"INSERT INTO t (a) VALUES ((SELECT a FROM t1))", set(table("db", "t"), table("db", "t1"))},
-		// A view names what it reads in another database, where SQL Server
-		// checks the reader's permission, and not what it reads in its own.
-		{"SELECT a FROM v_filtered", set(table("db", "v_filtered"))},
+		// A view names the user tables and views it reads, in any database.
+		{"SELECT a FROM v_filtered", set(table("db", "v_filtered"), table("db", "t"))},
 		{"SELECT a FROM v_other", set(table("db", "v_other"), table("other", "t2"))},
-		{"SELECT a FROM v_via", set(table("db", "v_via"), table("other", "t2"))},
-		{"SELECT a FROM v_back", set(table("db", "v_back"), table("other", "v_back"), table("db", "t"))},
+		{"SELECT a FROM v_via", set(table("db", "v_via"), table("db", "v_other"), table("other", "t2"))},
+		{"SELECT a FROM v_back", set(table("db", "v_back"), table("other", "v_back"), table("db", "t"), table("other", "t3"))},
 		{"SELECT name FROM v_sys", set(table("db", "v_sys"))},
 	}
 	for _, tc := range tests {
