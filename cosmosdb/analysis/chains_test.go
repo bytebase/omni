@@ -41,6 +41,7 @@ func TestAnalyzeChainsStayLinear(t *testing.T) {
 		{"a binding doubled at every level", "SELECT VALUE s FROM " + strings.Repeat(`(SELECT VALUE {"a": s, "b": s} FROM `, nested/10) + "(SELECT VALUE c.z FROM c) s" + strings.Repeat(") s", nested/10), 1, "c.z"},
 		{"a sum of a binding doubled at every level", "SELECT VALUE s FROM " + strings.Repeat("(SELECT VALUE s + s FROM ", nested/10) + "(SELECT VALUE c.z FROM c) s" + strings.Repeat(") s", nested/10), 1, "c.z"},
 		{"a computed binding doubled at every level", "SELECT VALUE s FROM " + strings.Repeat("(SELECT VALUE (s + s).k FROM ", nested/10) + "(SELECT VALUE c.z FROM c) s" + strings.Repeat(") s", nested/10), 1, "c.z" + strings.Repeat(".k", 127)},
+		{"selectors through a union shared at every level", "SELECT VALUE s" + strings.Repeat(".k", 300) + " FROM " + strings.Repeat(`(SELECT VALUE s ?? {"k": s} FROM `, 300) + "(SELECT VALUE c.z FROM c) s" + strings.Repeat(") s", 300), 301, "c.z"},
 		{"elements of nested arrays", where(strings.Repeat("[", nested) + "c.z" + strings.Repeat("][0]", nested)), 1, "c.z"},
 		{"ternary", where(strings.Repeat("c.a ? c.b : ", nested) + "c.z"), 2*nested + 1, "c.z"},
 		{"function calls", where(strings.Repeat("CONCAT(", nested) + "c.a" + strings.Repeat(", c.z)", nested)), nested + 1, "c.z"},

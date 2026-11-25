@@ -53,6 +53,8 @@ func Analyze(stmt *ast.SelectStmt) *QueryAnalysis {
 // them and never changed once built; Analyze copies what it returns.
 type analyzer struct {
 	predicates []FieldPath
+	elements   map[*shape]*shape
+	selections map[selection]*shape
 }
 
 // selectOutput is what one SELECT returns: its items' names and shapes, or,
@@ -174,7 +176,7 @@ func (a *analyzer) register(te ast.TableExpr, sc *scope) *shape {
 		name, b = src.Alias, a.source(src.Source, sc)
 	case *ast.ArrayIterationExpr:
 		// The alias names each element of what IN reads.
-		name, b = src.Alias, a.source(src.Source, sc).element()
+		name, b = src.Alias, a.element(a.source(src.Source, sc))
 	default:
 		// An unaliased source is named by its last identifier: FROM c binds
 		// c, FROM c.address binds address.
@@ -221,7 +223,7 @@ func (a *analyzer) source(te ast.TableExpr, sc *scope) *shape {
 	case *ast.AliasedTableExpr:
 		return a.source(src.Source, sc)
 	case *ast.ArrayIterationExpr:
-		return a.source(src.Source, sc).element()
+		return a.element(a.source(src.Source, sc))
 	}
 	return leaf(nil)
 }

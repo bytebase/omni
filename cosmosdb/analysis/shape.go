@@ -109,64 +109,100 @@ func (s *shape) member(name string) *shape {
 }
 
 // element is the shape of each element of the value, which IN iterates.
-func (s *shape) element() *shape {
+// It is memoized per shape, so iterating a shared value walks it once.
+func (a *analyzer) element(s *shape) *shape {
+	if e, ok := a.elements[s]; ok {
+		return e
+	}
+	var e *shape
 	switch s.kind {
 	case elementsShape:
-		return s.members[0]
+		e = s.members[0]
+	case arrayShape:
+		// Each element keeps its own shape: [{"k": c.a}, {"k": c.b}]
+		// iterates values whose k is c.a or c.b.
+		e = union(s.members)
 	case unionShape:
 		out := make([]*shape, len(s.members))
 		for i, m := range s.members {
-			out[i] = m.element()
+			out[i] = a.element(m)
 		}
-		return union(out)
-	case arrayShape:
-		if len(s.members) == 1 {
-			return s.members[0]
-		}
-		return leaf(s.paths(nil))
+		e = union(out)
+	default:
+		// A stored array's elements are read at its own path: array
+		// indexes name no property a policy can be set on.
+		e = s
 	}
-	// A stored array's elements are read at its own path: array indexes
-	// name no property a policy can be set on.
-	return s
+	if a.elements == nil {
+		a.elements = map[*shape]*shape{}
+	}
+	a.elements[s] = e
+	return e
 }
 
-// selectFrom applies sels to the value s, in order.
-func (s *shape) selectFrom(sels []Selector) *shape {
-	for i, sel := range sels {
-		switch {
-		case s.kind == objectShape && !sel.IsArray():
-			if s = s.member(sel.Name); s == nil {
-				return leaf(nil)
-			}
-		case s.kind == arrayShape && sel.IsArray():
-			if sel.ArrayIndex >= len(s.members) {
-				return leaf(nil)
-			}
-			s = s.members[sel.ArrayIndex]
-		case s.kind == elementsShape && sel.IsArray():
-			s = s.members[0]
-		case s.kind == unionShape:
-			// The rest selects from each operand.
-			out := make([]*shape, len(s.members))
-			for k, m := range s.members {
-				out[k] = m.selectFrom(sels[i:])
-			}
-			return union(out)
-		case s.kind == leafShape:
-			// The rest selects a stored property of each source.
-			rest := sels[i:]
-			out := make([]FieldPath, len(s.leaf))
-			for k, p := range s.leaf {
-				out[k] = extend(p, rest)
-			}
-			return leaf(out)
-		default:
-			// A selector a built value does not answer by structure (an index
-			// of an object, a name of an array) selects from all its sources.
-			return leaf(s.paths(nil)).selectFrom(sels[i:])
-		}
+// selection identifies sels applied to a shape: sels is a suffix of one
+// chain's selectors, named by its first element and its length.
+type selection struct {
+	shape *shape
+	first *Selector
+	n     int
+}
+
+// selectFrom applies sels to the value s, in order. It is memoized per
+// shape and suffix of selectors, so selecting through a shape that several
+// unions share builds each result once.
+func (a *analyzer) selectFrom(s *shape, sels []Selector) *shape {
+	if len(sels) == 0 {
+		return s
 	}
-	return s
+	key := selection{s, &sels[0], len(sels)}
+	if r, ok := a.selections[key]; ok {
+		return r
+	}
+	r := a.selectOnce(s, sels)
+	if a.selections == nil {
+		a.selections = map[selection]*shape{}
+	}
+	a.selections[key] = r
+	return r
+}
+
+// selectOnce applies the first of sels to s and the rest, through
+// selectFrom, to what it selects, so every step is memoized.
+func (a *analyzer) selectOnce(s *shape, sels []Selector) *shape {
+	sel, rest := sels[0], sels[1:]
+	switch {
+	case s.kind == objectShape && !sel.IsArray():
+		m := s.member(sel.Name)
+		if m == nil {
+			return leaf(nil)
+		}
+		return a.selectFrom(m, rest)
+	case s.kind == arrayShape && sel.IsArray():
+		if sel.ArrayIndex >= len(s.members) {
+			return leaf(nil)
+		}
+		return a.selectFrom(s.members[sel.ArrayIndex], rest)
+	case s.kind == elementsShape && sel.IsArray():
+		return a.selectFrom(s.members[0], rest)
+	case s.kind == unionShape:
+		// The selectors select from each operand.
+		out := make([]*shape, len(s.members))
+		for k, m := range s.members {
+			out[k] = a.selectFrom(m, sels)
+		}
+		return union(out)
+	case s.kind == leafShape:
+		// The selectors select a stored property of each source.
+		out := make([]FieldPath, len(s.leaf))
+		for k, p := range s.leaf {
+			out[k] = extend(p, sels)
+		}
+		return leaf(out)
+	}
+	// A selector a built value does not answer by structure (an index of an
+	// object, a name of an array) selects from all its sources.
+	return a.selectFrom(leaf(s.paths(nil)), sels)
 }
 
 // extend returns a new path: p followed by sels, at most maxPathLen long.
@@ -244,5 +280,5 @@ peel:
 	for i, j := 0, len(sels)-1; i < j; i, j = i+1, j-1 {
 		sels[i], sels[j] = sels[j], sels[i]
 	}
-	return a.shapeOf(root, sc).selectFrom(sels)
+	return a.selectFrom(a.shapeOf(root, sc), sels)
 }

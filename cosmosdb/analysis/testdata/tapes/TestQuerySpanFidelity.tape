@@ -422,6 +422,10 @@
 < raw
 | {"items":[{"a":"«$.name»","b":"«$.nick»"}]}
 > raw
+| {"op":"query","fixture":"document","statement":"SELECT t.k FROM (SELECT VALUE [{\"k\": c.name}, {\"k\": c.nick}] FROM c) arr JOIN t IN arr"}
+< raw
+| {"items":[{"k":"«$.name»"},{"k":"«$.nick»"}]}
+> raw
 | {"op":"query","fixture":"document","statement":"SELECT COUNT(1) AS n FROM c"}
 < raw
 | {"items":[{"n":1}]}
