@@ -187,7 +187,7 @@ func typeFamily(name string) string {
 		return "string"
 	case "boolean":
 		return "boolean"
-	case "timestamp", "time", "date":
+	case "timestamp", "time", "date", "varbinary":
 		return base
 	}
 	return ""
@@ -223,6 +223,8 @@ func defaultText(e parser.Expr, colType, sql string) (string, error) {
 		}
 	case "date", "timestamp", "time":
 		ok = family == kind
+	case "binary":
+		ok = family == "varbinary"
 	}
 	if !ok {
 		return "", errorf("INVALID_DEFAULT_COLUMN_VALUE", "'%s' is not a valid %s literal", exprText(e, sql), strings.ToUpper(colType))
@@ -259,7 +261,10 @@ func literalText(e parser.Expr) (text, kind string) {
 		case parser.LiteralDouble:
 			return strings.ToUpper(n.Value), "number"
 		case parser.LiteralBinary:
-			return strings.ToUpper(n.Value), "binary"
+			// trino: BinaryLiteral drops whitespace and upper-cases the
+			// digits.
+			hex := strings.Join(strings.Fields(n.Value), "")
+			return "X'" + strings.ToUpper(hex) + "'", "binary"
 		}
 	case *parser.UnaryExpr:
 		inner, kind := literalText(n.Operand)

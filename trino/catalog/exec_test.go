@@ -110,6 +110,7 @@ func TestExecQueryShapes(t *testing.T) {
 		"CREATE TABLE rows (payload ROW(x integer))",
 		"CREATE VIEW rv AS SELECT payload.x FROM rows",
 		"CREATE TABLE ts (a timestamp DEFAULT TIMESTAMP '2020-01-01 00:00:00', b interval day to second)",
+		"CREATE TABLE bin (v varbinary DEFAULT X'0a ff')",
 	} {
 		if results, err := c.Exec(sql, nil); err != nil || len(results) != 1 || results[0].Error != nil {
 			t.Fatalf("%s: got %+v, %v", sql, results, err)
@@ -120,6 +121,9 @@ func TestExecQueryShapes(t *testing.T) {
 	}
 	if col := s.GetTable("vals").GetColumn("id"); col == nil || col.Type != "integer" {
 		t.Errorf("vals.id = %+v, want an integer", col)
+	}
+	if col := s.GetTable("bin").GetColumn("v"); col == nil || col.Default != "X'0AFF'" {
+		t.Errorf("bin.v = %+v, want default X'0AFF'", col)
 	}
 	if cols := s.GetView("rv").Columns(); len(cols) != 1 || cols[0].Name != "x" || cols[0].Type != "integer" {
 		t.Errorf("rv's columns = %+v, want x integer", cols)
