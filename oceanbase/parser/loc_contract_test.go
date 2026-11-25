@@ -337,6 +337,7 @@ var locSpanCases = []struct {
 	{"SubPartitionDef", "CREATE TABLE t (id INT, d DATE) PARTITION BY RANGE (YEAR(d)) SUBPARTITION BY HASH (id) (PARTITION p0 VALUES LESS THAN (2000) (SUBPARTITION s0, SUBPARTITION s1))", "SUBPARTITION s0", 0},
 	{"SubqueryExpr", "SELECT (SELECT 1)", "(SELECT 1)", 0},
 	{"TableOption", "ALTER TABLE t ENGINE=InnoDB", "ENGINE=InnoDB", 0},
+	{"SequenceOption", "CREATE SEQUENCE s CACHE 5 START WITH - 1", "START WITH - 1", 1},
 	{"TableFlashback", "SELECT * FROM t1 AS OF SNAPSHOT 1 a", "AS OF SNAPSHOT 1", 0},
 	{"ExternalTableRef", "DELETE FROM SOURCE(TYPE = 's') AS a", "SOURCE(TYPE = 's') AS a", 0},
 	{"ExternalProperty", "DELETE FROM SOURCE(TYPE = 's') AS a", "TYPE = 's'", 0},

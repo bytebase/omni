@@ -12,8 +12,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	pganalysis "github.com/bytebase/omni/pg/analysis"
 )
 
 // The fixtures are EXPLAIN outputs captured through this driver from CockroachDB v25.2. After ANALYZE,
@@ -89,7 +87,7 @@ func TestCountAffectedRows(t *testing.T) {
 	}{
 		{
 			name:           "search_path_is_set_for_the_explain",
-			input:          pganalysis.WithSearchPath(statement, []string{"app"}),
+			input:          "SET LOCAL search_path TO \"app\";\n" + statement,
 			plans:          [][]string{readPlanFixture(t, "delete_range_fast_path_off.txt")},
 			want:           100,
 			wantStatements: []string{"BEGIN", `SET LOCAL search_path TO "app"`, "EXPLAIN " + statement, "ROLLBACK"},

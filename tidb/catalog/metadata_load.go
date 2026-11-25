@@ -12,8 +12,6 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
-	mysqlast "github.com/bytebase/omni/mysql/ast"
-	mysqlparser "github.com/bytebase/omni/mysql/parser"
 	nodes "github.com/bytebase/omni/tidb/ast"
 	tidbparser "github.com/bytebase/omni/tidb/parser"
 )
@@ -45,7 +43,8 @@ type LoadMetadataReport struct {
 // An object that fails to install does not stop the load: a table is replaced
 // by a stand-in with the same column names, all TEXT, and a view by one that
 // selects NULL under each of its column names. A table that installs without
-// part of its definition is reported Incomplete. The error is non-nil only when
+// part of its definition is reported Incomplete. A stored function, procedure,
+// or event is reported Missing: TiDB stores none. The error is non-nil only when
 // ctx is done.
 func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchemaMetadata) (*LoadMetadataReport, error) {
 	return c.LoadMetadataInto(ctx, meta, meta.GetName())
@@ -141,26 +140,6 @@ func applyObjectSessionContext(db *Database, o *metadataObject) {
 	}
 	key := toLower(o.name)
 	switch o.kind {
-	case metadataFunction:
-		if fn := db.Functions[key]; fn != nil && o.function != nil {
-			sqlMode, cs, col := o.function.GetSqlMode(), o.function.GetCharacterSetClient(), o.function.GetCollationConnection()
-			if sqlMode != "" || cs != "" || col != "" {
-				fn.SQLMode = sqlMode
-				fn.CharacterSetClient = cs
-				fn.CollationConnection = col
-				fn.HasSessionContext = true
-			}
-		}
-	case metadataProcedure:
-		if p := db.Procedures[key]; p != nil && o.procedure != nil {
-			sqlMode, cs, col := o.procedure.GetSqlMode(), o.procedure.GetCharacterSetClient(), o.procedure.GetCollationConnection()
-			if sqlMode != "" || cs != "" || col != "" {
-				p.SQLMode = sqlMode
-				p.CharacterSetClient = cs
-				p.CollationConnection = col
-				p.HasSessionContext = true
-			}
-		}
 	case metadataTrigger:
 		if tr := db.Triggers[key]; tr != nil && o.trigger != nil {
 			sqlMode, cs, col := o.trigger.GetSqlMode(), o.trigger.GetCharacterSetClient(), o.trigger.GetCollationConnection()
@@ -169,17 +148,6 @@ func applyObjectSessionContext(db *Database, o *metadataObject) {
 				tr.CharacterSetClient = cs
 				tr.CollationConnection = col
 				tr.HasSessionContext = true
-			}
-		}
-	case metadataEvent:
-		if ev := db.Events[key]; ev != nil && o.event != nil {
-			sqlMode, cs, col, tz := o.event.GetSqlMode(), o.event.GetCharacterSetClient(), o.event.GetCollationConnection(), o.event.GetTimeZone()
-			if sqlMode != "" || cs != "" || col != "" || tz != "" {
-				ev.SQLMode = sqlMode
-				ev.CharacterSetClient = cs
-				ev.CollationConnection = col
-				ev.TimeZone = tz
-				ev.HasSessionContext = true
 			}
 		}
 	}
@@ -202,14 +170,6 @@ func applyObjectSkipDump(db *Database, o *metadataObject) {
 	case metadataView:
 		if v := db.Views[key]; v != nil && o.view != nil {
 			v.SkipDump = o.view.GetSkipDump()
-		}
-	case metadataFunction:
-		if fn := db.Functions[key]; fn != nil && o.function != nil {
-			fn.SkipDump = o.function.GetSkipDump()
-		}
-	case metadataProcedure:
-		if p := db.Procedures[key]; p != nil && o.procedure != nil {
-			p.SkipDump = o.procedure.GetSkipDump()
 		}
 	case metadataTrigger:
 		if tr := db.Triggers[key]; tr != nil && o.trigger != nil {
@@ -407,18 +367,8 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		nameViewColumns(c.installedView(o.name), metadataViewColumnNames(o.view))
 		preserveMetadataViewColumns(c.installedView(o.name), o.view.GetColumns())
 		return nil
-	case metadataFunction:
-		stmt, err := parseTiDBRoutine(o.function.GetDefinition(), false)
-		if err != nil {
-			return err
-		}
-		return c.DefineFunction(stmt)
-	case metadataProcedure:
-		stmt, err := parseTiDBRoutine(o.procedure.GetDefinition(), true)
-		if err != nil {
-			return err
-		}
-		return c.DefineProcedure(stmt)
+	case metadataFunction, metadataProcedure, metadataEvent:
+		return errNotStored
 	case metadataTrigger:
 		if o.trigger.GetTiming() == "" || o.trigger.GetEvent() == "" {
 			return errors.New("trigger has no timing or event")
@@ -430,12 +380,6 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 			Table:    &nodes.TableRef{Name: o.parent},
 			BodyText: o.trigger.GetBody(),
 		})
-	case metadataEvent:
-		stmt, err := parseTiDBEvent(o.event.GetDefinition())
-		if err != nil {
-			return err
-		}
-		return c.DefineEvent(stmt)
 	}
 	stmt, omitted, err := metadataTableStmt(o.table, o.snapshotDatabase)
 	if err != nil {
@@ -1246,6 +1190,11 @@ func preserveMetadataViewColumns(v *View, cols []*metadata.ColumnMetadata) {
 
 var errNoStandIn = errors.New("no stand-in for this kind of object")
 
+// errNotStored is the error for a stored function, procedure, or event in a
+// snapshot. TiDB v8.5 stores none: its grammar has no CREATE FUNCTION or CREATE
+// EVENT, and it parses CREATE PROCEDURE but refuses to run it (error 8108).
+var errNotStored = errors.New("TiDB stores no stored functions, procedures, or events")
+
 // installStandIn installs o's stand-in, or returns errNoStandIn for a kind
 // without one.
 func (c *Catalog) installStandIn(o *metadataObject) error {
@@ -1269,8 +1218,6 @@ func (c *Catalog) installStandIn(o *metadataObject) error {
 			Table:    &nodes.TableRef{Name: o.parent},
 			BodyText: "BEGIN END",
 		})
-	case metadataEvent:
-		return c.DefineEvent(&nodes.CreateEventStmt{Name: o.name})
 	default:
 		return errNoStandIn
 	}
@@ -1421,105 +1368,4 @@ func unquoteIdent(s string) string {
 		return strings.ReplaceAll(s[1:len(s)-1], "``", "`")
 	}
 	return s
-}
-
-func parseMySQLFirst[T mysqlast.Node](sql string) (T, error) {
-	var zero T
-	if strings.TrimSpace(sql) == "" {
-		return zero, errors.New("empty definition")
-	}
-	list, err := mysqlparser.Parse(sql)
-	if err != nil {
-		return zero, err
-	}
-	if list != nil {
-		for _, item := range list.Items {
-			if stmt, ok := item.(T); ok {
-				return stmt, nil
-			}
-		}
-	}
-	return zero, fmt.Errorf("no %T statement", zero)
-}
-
-func formatTiDBDefiner(definer string) string {
-	if definer == "" || strings.HasPrefix(definer, "`") || strings.HasPrefix(definer, "'") || strings.EqualFold(definer, "CURRENT_USER") {
-		return definer
-	}
-	if user, host, ok := strings.Cut(definer, "@"); ok {
-		return fmt.Sprintf("`%s`@`%s`", strings.ReplaceAll(user, "`", "``"), strings.ReplaceAll(host, "`", "``"))
-	}
-	return definer
-}
-
-func toTiDBDataType(dt *mysqlast.DataType) *nodes.DataType {
-	if dt == nil {
-		return nil
-	}
-	return &nodes.DataType{
-		Name:       dt.Name,
-		Length:     dt.Length,
-		Scale:      dt.Scale,
-		HasScale:   dt.Scale > 0,
-		Unsigned:   dt.Unsigned,
-		Zerofill:   dt.Zerofill,
-		Charset:    dt.Charset,
-		Collate:    dt.Collate,
-		Binary:     dt.Binary,
-		EnumValues: append([]string(nil), dt.EnumValues...),
-		ArrayDim:   dt.ArrayDim,
-		SRID:       dt.SRID,
-	}
-}
-
-func parseTiDBRoutine(definition string, isProcedure bool) (*nodes.CreateFunctionStmt, error) {
-	src, err := parseMySQLFirst[*mysqlast.CreateFunctionStmt](definition)
-	if err != nil {
-		return nil, err
-	}
-	var name *nodes.TableRef
-	if src.Name != nil {
-		name = &nodes.TableRef{Name: src.Name.Name}
-	}
-	params := make([]*nodes.FuncParam, 0, len(src.Params))
-	for _, p := range src.Params {
-		params = append(params, &nodes.FuncParam{
-			Direction: p.Direction,
-			Name:      p.Name,
-			TypeName:  toTiDBDataType(p.TypeName),
-		})
-	}
-	chars := make([]*nodes.RoutineCharacteristic, 0, len(src.Characteristics))
-	for _, ch := range src.Characteristics {
-		chars = append(chars, &nodes.RoutineCharacteristic{Name: ch.Name, Value: ch.Value})
-	}
-	return &nodes.CreateFunctionStmt{
-		IsProcedure:     isProcedure,
-		Definer:         formatTiDBDefiner(src.Definer),
-		Name:            name,
-		Params:          params,
-		Returns:         toTiDBDataType(src.Returns),
-		BodyText:        src.BodyText,
-		Characteristics: chars,
-	}, nil
-}
-
-func parseTiDBEvent(definition string) (*nodes.CreateEventStmt, error) {
-	src, err := parseMySQLFirst[*mysqlast.CreateEventStmt](definition)
-	if err != nil {
-		return nil, err
-	}
-	var schedule *nodes.EventSchedule
-	if src.Schedule != nil {
-		schedule = &nodes.EventSchedule{RawText: src.Schedule.RawText}
-	}
-	return &nodes.CreateEventStmt{
-		Definer:      formatTiDBDefiner(src.Definer),
-		Name:         src.Name,
-		Schedule:     schedule,
-		OnCompletion: src.OnCompletion,
-		Enable:       src.Enable,
-		Comment:      src.Comment,
-		BodyText:     src.BodyText,
-	}, nil
 }

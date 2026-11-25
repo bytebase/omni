@@ -172,6 +172,7 @@ func oceanBaseCodes(m, stmt string) []string {
 		{strings.HasPrefix(m, "Each row of a VALUES query must have "), []string{"3942"}},
 		{m == "A VALUES query cannot use `DEFAULT`.", []string{"3943"}},
 		{m == "This query reads `*` but names no table.", []string{"1096"}},
+		{strings.HasPrefix(m, "Sequence "), sequenceCodes(m, stmt)},
 	} {
 		if c.match {
 			codes = append(codes, c.codes...)
@@ -582,4 +583,52 @@ func TestWalkThroughSweepOceanBase(t *testing.T) {
 		})
 	}
 	t.Logf("seed %d: found %d of the %d statements the server rejects", oceanBaseSweepSeed, found, rejected)
+}
+
+// sequenceRefusals are the codes of OceanBase 4.3.5.6's sequence refusals, by
+// their text, as oceanbase/catalog's sequences/simulate.tsv recorded them. The
+// builder's, from 4317 on, refuse a CREATE SEQUENCE only once its database is
+// found (1049) and its name is free (4297).
+var sequenceRefusals = map[string]string{
+	"duplicate MAXVALUE/NOMAXVALUE specifications":          "4301",
+	"duplicate MINVALUE/NOMINVALUE specifications":          "4302",
+	"duplicate CYCLE/NOCYCLE specifications":                "4303",
+	"duplicate CACHE/NOCACHE specifications":                "4304",
+	"duplicate ORDER/NOORDER specifications":                "4305",
+	"conflicting MAXVALUE/NOMAXVALUE specifications":        "4306",
+	"conflicting MINVALUE/NOMINVALUE specifications":        "4307",
+	"conflicting CYCLE/NOCYCLE specifications":              "4308",
+	"conflicting CACHE/NOCACHE specifications":              "4309",
+	"conflicting ORDER/NOORDER specifications":              "4310",
+	"duplicate INCREMENT BY specifications":                 "4312",
+	"duplicate START WITH specifications":                   "4313",
+	"no options specified for ALTER SEQUENCE":               "4314",
+	"duplicate RESTART specified":                           "4382",
+	"only ALTER SEQUENCE takes RESTART":                     "1149",
+	"Invalid numeric":                                       "5114",
+	"INCREMENT must be a nonzero integer":                   "4318",
+	"MINVALUE must be less than MAXVALUE":                   "4320",
+	"INCREMENT must be less than MAXVALUE minus MINVALUE":   "4321",
+	"START WITH cannot be less than MINVALUE":               "4322",
+	"START WITH cannot be more than MAXVALUE":               "4324",
+	"the number of values to CACHE must be greater than 1":  "4326",
+	"number to CACHE must be less than one cycle":           "4328",
+	"descending sequences that CYCLE must specify MINVALUE": "4329",
+	"ascending sequences that CYCLE must specify MAXVALUE":  "4330",
+}
+
+func sequenceCodes(m, stmt string) []string {
+	_, text, _ := strings.Cut(m, ": ")
+	text = strings.TrimSuffix(text, ".")
+	code := sequenceRefusals[text]
+	if strings.HasPrefix(text, "sequence parameter ") && strings.HasSuffix(text, " must be an integer") {
+		code = "4317"
+	}
+	if code == "" {
+		return nil
+	}
+	if code >= "4317" && code <= "4330" {
+		return []string{code, "1049", "4297"}
+	}
+	return []string{code}
 }

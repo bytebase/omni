@@ -76,6 +76,8 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.alterEvent(v)
 	case *ast.DropEventStmt:
 		return b.dropEvent(v)
+	case *ast.ObjectDDLStmt:
+		return b.sequence(v)
 	case *ast.InsertStmt:
 		return b.dml(n, []*ast.TableRef{v.Table})
 	case *ast.LoadDataStmt:

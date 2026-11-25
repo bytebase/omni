@@ -157,7 +157,7 @@ ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE 
 ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f (n IN NUMBER) RETURN NUMBER RESULT_CACHE IS BEGIN RETURN n; END;
 ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f (n IN NUMBER) RETURN NUMBER IS BEGIN IF n <= 1 THEN RETURN 1; END IF; RETURN n * f(n - 1); END;
 ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN 'x'; END;
-ok	ok:0851853edbe0	engine	programs@objects	program:function	CREATE FUNCTION f RETURN DATE IS BEGIN RETURN 1; END;
+ok:0851853edbe0	ok:0851853edbe0	engine	programs@objects	program:function	CREATE FUNCTION f RETURN DATE IS BEGIN RETURN 1; END;
 ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f RETURN BOOLEAN IS BEGIN RETURN TRUE; END;
 955	955	engine	programs@objects	program:function	CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS BEGIN RETURN p_x; END;
 ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:function	CREATE OR REPLACE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS BEGIN RETURN p_x + p_x; END;
