@@ -163,3 +163,55 @@ func TestSDLKeysKeepValues(t *testing.T) {
 		})
 	}
 }
+
+// TestLoadSDLNamesIndexes names unnamed indexes as v25.2.3 does: the table,
+// the keys and _idx or _key, then 1, 2 and on past the names taken.
+func TestLoadSDLNamesIndexes(t *testing.T) {
+	loaded, err := catalog.LoadSDL(`CREATE TABLE t (id INT8 PRIMARY KEY, a INT8, b INT8, INDEX t_a_idx1 (a, b), INDEX (a), UNIQUE (a));
+CREATE INDEX ON t (a) STORING (b);
+CREATE INDEX ON t (a);
+CREATE UNIQUE INDEX ON t (a);`)
+	require.NoError(t, err)
+	var names []string
+	for _, index := range loaded.Schemas[0].Tables[0].Indexes {
+		names = append(names, index.Name)
+	}
+	require.Equal(t, []string{"t_pkey", "t_a_idx1", "t_a_idx", "t_a_key", "t_a_idx2", "t_a_idx3", "t_a_key1"}, names)
+}
+
+// TestSDLViewColumns compares a view's output names when one SDL lists them
+// and the other leaves them to the query.
+func TestSDLViewColumns(t *testing.T) {
+	plan, err := catalog.BuildSDLMigrationPlan("CREATE VIEW v (a) AS SELECT 1 AS b;", "CREATE VIEW v AS SELECT 1 AS b;", catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+	for name, pair := range map[string][2]string{
+		"alias": {"CREATE VIEW v (b) AS SELECT 1 AS b;", "CREATE VIEW v AS SELECT 1 AS b;"},
+		"names": {
+			`CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); CREATE VIEW v ("?column?", a, id, lower, "case", bool) AS SELECT 1, t.a, (id)::STRING, lower('x'), CASE WHEN true THEN 1 END, true FROM t;`,
+			`CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); CREATE VIEW v AS SELECT 1, t.a, (id)::STRING, lower('x'), CASE WHEN true THEN 1 END, true FROM t;`,
+		},
+		"star": {
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); CREATE VIEW v (x, y) AS SELECT * FROM t;",
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); CREATE VIEW v AS SELECT * FROM t;",
+		},
+		"cast constant": {"CREATE VIEW v (x) AS SELECT 'x'::STRING;", "CREATE VIEW v AS SELECT 'x'::STRING;"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			plan, err := catalog.BuildSDLMigrationPlan(pair[0], pair[1], catalog.SDLMigrationOptions{})
+			require.NoError(t, err)
+			require.Nil(t, plan, "%v", plan)
+		})
+	}
+}
+
+// TestSDLUnqualifiedType reads an unqualified user-defined type as the one in
+// public, which is how the sync names it.
+func TestSDLUnqualifiedType(t *testing.T) {
+	plan, err := catalog.BuildSDLMigrationPlan(
+		"CREATE TYPE public.mood AS ENUM ('ok'); CREATE TABLE t (id INT8 PRIMARY KEY, m public.mood, ms public.mood[]);",
+		"CREATE TYPE public.mood AS ENUM ('ok'); CREATE TABLE t (id INT8 PRIMARY KEY, m mood, ms mood[]);",
+		catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	require.Nil(t, plan, "%v", plan)
+}

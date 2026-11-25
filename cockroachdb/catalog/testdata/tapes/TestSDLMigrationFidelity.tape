@@ -12209,7 +12209,7 @@
 | 	AS $$ SELECT COALESCE(max(b), 0) FROM fid_v.pab $$;
 < ok 0 -
 > exec
-| CREATE VIEW "fid_v"."priced" AS 
+| CREATE VIEW "fid_v"."priced" ("id", "name") AS 
 | SELECT id, name FROM fid_v.items WHERE price > 1;
 < ok 0 -
 > exec
@@ -12220,11 +12220,11 @@
 | 	AS $$ SELECT count(*) FROM fid_v.priced $$;
 < ok 0 -
 > exec
-| CREATE VIEW "fid_v"."cheap" AS 
+| CREATE VIEW "fid_v"."cheap" ("id") AS 
 | SELECT p.id FROM fid_v.priced AS p JOIN fid_v.items AS i ON i.id = p.id;
 < ok 0 -
 > exec
-| CREATE VIEW "fid_v"."priced_names" AS 
+| CREATE VIEW "fid_v"."priced_names" ("name") AS 
 | SELECT name FROM fid_v.priced;
 < ok 0 -
 > exec

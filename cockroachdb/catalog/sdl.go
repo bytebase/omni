@@ -124,7 +124,7 @@ func (l *sdlLoader) load(stmt tree.Statement) error {
 		if table == nil {
 			return fmt.Errorf("table %s is not created", n.Table.String())
 		}
-		*table = append(*table, sdlIndex(schema, string(n.Table.ObjectName), n))
+		*table = append(*table, sdlIndex(schema, string(n.Table.ObjectName), *table, n))
 	case *tree.CreateView:
 		return l.createView(n)
 	case *tree.CreateRoutine:
@@ -318,13 +318,30 @@ func defaultBounds(sequence *metadatapb.SequenceMetadata, limit int64) {
 func sdlType(ref tree.ResolvableTypeReference) (string, string) {
 	t, ok := tree.GetStaticallyKnownType(ref)
 	if !ok {
-		return ref.SQLString(), ""
+		return schemaQualified(ref).SQLString(), ""
 	}
 	if t.Family() == types.CollatedStringFamily {
 		locale := t.Locale()
 		return strings.TrimSuffix(t.SQLString(), " COLLATE "+tree.NameString(locale)), locale
 	}
 	return t.SQLString(), ""
+}
+
+// schemaQualified names a user-defined type by its schema, as the sync does. An
+// unqualified name is the one CockroachDB's default search path finds, in
+// public.
+func schemaQualified(ref tree.ResolvableTypeReference) tree.ResolvableTypeReference {
+	switch r := ref.(type) {
+	case *tree.UnresolvedObjectName:
+		if r.NumParts == 1 {
+			if qualified, err := tree.NewUnresolvedObjectName(2, [3]string{r.Parts[0], "public"}, tree.NoAnnotation); err == nil {
+				return qualified
+			}
+		}
+	case *tree.ArrayTypeReference:
+		return &tree.ArrayTypeReference{ElementType: schemaQualified(r.ElementType)}
+	}
+	return ref
 }
 
 // sdlExpr formats an expression without its outer parentheses.
@@ -408,7 +425,7 @@ func (l *sdlLoader) addColumn(schema string, table *metadatapb.TableMetadata, co
 	}
 	if column.Unique.IsUnique {
 		index := &tree.CreateIndex{Unique: true, Columns: tree.IndexElemList{{Column: column.Name}}, Name: column.Unique.ConstraintName}
-		table.Indexes = append(table.Indexes, sdlIndex(schema, table.Name, index))
+		table.Indexes = append(table.Indexes, sdlIndex(schema, table.Name, table.Indexes, index))
 	}
 	for _, check := range column.CheckExprs {
 		table.CheckConstraints = append(table.CheckConstraints, sdlCheck(table, string(check.ConstraintName), check.Expr))
@@ -440,9 +457,9 @@ func (l *sdlLoader) addTableDef(schema string, table *metadatapb.TableMetadata, 
 			return nil
 		}
 		index.Unique = true
-		table.Indexes = append(table.Indexes, sdlIndex(schema, table.Name, index))
+		table.Indexes = append(table.Indexes, sdlIndex(schema, table.Name, table.Indexes, index))
 	case *tree.IndexTableDef:
-		table.Indexes = append(table.Indexes, sdlIndex(schema, table.Name, indexOf(d)))
+		table.Indexes = append(table.Indexes, sdlIndex(schema, table.Name, table.Indexes, indexOf(d)))
 	case *tree.CheckConstraintTableDef:
 		table.CheckConstraints = append(table.CheckConstraints, sdlCheck(table, string(d.Name), d.Expr))
 	case *tree.ForeignKeyConstraintTableDef:
@@ -468,7 +485,7 @@ func addPrimaryKey(schema string, table *metadatapb.TableMetadata, name string, 
 	}
 	index.Name = tree.Name(name)
 	index.Unique = true
-	key := sdlIndex(schema, table.Name, index)
+	key := sdlIndex(schema, table.Name, table.Indexes, index)
 	key.Primary = true
 	table.Indexes = append([]*metadatapb.IndexMetadata{key}, table.Indexes...)
 	for _, elem := range index.Columns {
@@ -479,8 +496,10 @@ func addPrimaryKey(schema string, table *metadatapb.TableMetadata, name string, 
 }
 
 // sdlIndex states an index as the sync does: its key list, and its definition
-// as CockroachDB formats it, with each key's direction written.
-func sdlIndex(schema, table string, n *tree.CreateIndex) *metadatapb.IndexMetadata {
+// as CockroachDB formats it, with each key's direction written. An unnamed
+// index is named as CockroachDB names it: the table, its keys and _idx or
+// _key, then 1, 2 and on until no index in existing has the name.
+func sdlIndex(schema, table string, existing []*metadatapb.IndexMetadata, n *tree.CreateIndex) *metadatapb.IndexMetadata {
 	index := &tree.CreateIndex{}
 	*index = *n
 	index.Table = tree.MakeTableNameWithSchema("", tree.Name(schema), tree.Name(table))
@@ -511,7 +530,12 @@ func sdlIndex(schema, table string, n *tree.CreateIndex) *metadatapb.IndexMetada
 		if index.Unique {
 			suffix = "_key"
 		}
-		index.Name = tree.Name(table + "_" + strings.Join(names, "_") + suffix)
+		base := table + "_" + strings.Join(names, "_") + suffix
+		name := base
+		for i := 1; slices.ContainsFunc(existing, func(x *metadatapb.IndexMetadata) bool { return x.Name == name }); i++ {
+			name = base + strconv.Itoa(i)
+		}
+		index.Name = tree.Name(name)
 	}
 	metadata.Name = string(index.Name)
 	metadata.Definition = tree.AsString(index)
@@ -644,9 +668,16 @@ func (l *sdlLoader) createView(n *tree.CreateView) error {
 	}))
 	ctx.FormatNode(n.AsSource)
 	ctx.Close()
+	names := make([]string, len(n.ColumnNames))
+	for i, name := range n.ColumnNames {
+		names[i] = string(name)
+	}
+	if len(names) == 0 {
+		names = outputNames(n.AsSource)
+	}
 	var columns []*metadatapb.ColumnMetadata
-	for _, name := range n.ColumnNames {
-		columns = append(columns, &metadatapb.ColumnMetadata{Name: string(name)})
+	for _, name := range names {
+		columns = append(columns, &metadatapb.ColumnMetadata{Name: name})
 	}
 	if n.Materialized {
 		s.MaterializedViews = append(s.MaterializedViews, &metadatapb.MaterializedViewMetadata{Name: string(n.Name.ObjectName), Definition: definition, DependencyColumns: dependencies, Columns: columns})
@@ -654,6 +685,90 @@ func (l *sdlLoader) createView(n *tree.CreateView) error {
 	}
 	s.Views = append(s.Views, &metadatapb.ViewMetadata{Name: string(n.Name.ObjectName), Definition: definition, DependencyColumns: dependencies, Columns: columns})
 	return nil
+}
+
+// outputNames returns the names CockroachDB gives a query's output columns,
+// or nil when the query has a form whose names it does not know (a star).
+func outputNames(query *tree.Select) []string {
+	var clause tree.SelectStatement = query.Select
+	for {
+		switch c := clause.(type) {
+		case *tree.ParenSelect:
+			clause = c.Select.Select
+			continue
+		case *tree.UnionClause:
+			clause = c.Left.Select
+			continue
+		}
+		break
+	}
+	sel, ok := clause.(*tree.SelectClause)
+	if !ok {
+		return nil
+	}
+	names := make([]string, len(sel.Exprs))
+	for i, expr := range sel.Exprs {
+		if expr.As != "" {
+			names[i] = string(expr.As)
+			continue
+		}
+		name, ok := outputName(expr.Expr)
+		if !ok {
+			return nil
+		}
+		names[i] = name
+	}
+	return names
+}
+
+// outputName is the name CockroachDB gives an output column it is not told
+// one for, as v25.2.3 names them.
+func outputName(expr tree.Expr) (string, bool) {
+	switch e := expr.(type) {
+	case *tree.UnresolvedName:
+		if e.Star {
+			return "", false
+		}
+		return e.Parts[0], true
+	case *tree.ColumnItem:
+		return string(e.ColumnName), true
+	case *tree.ParenExpr:
+		return outputName(e.Expr)
+	case *tree.CastExpr:
+		// A cast keeps a column's name; a cast constant is named after its
+		// type, which is left unknown here.
+		return columnName(e.Expr)
+	case *tree.AnnotateTypeExpr:
+		return columnName(e.Expr)
+	case *tree.FuncExpr:
+		if e.Func.FunctionReference == nil {
+			return "", false
+		}
+		name, ok := e.Func.FunctionReference.(*tree.UnresolvedName)
+		if !ok {
+			return "", false
+		}
+		return strings.ToLower(name.Parts[0]), true
+	case *tree.CaseExpr:
+		return "case", true
+	case *tree.DBool:
+		return "bool", true
+	case *tree.StrVal, *tree.NumVal, *tree.BinaryExpr, *tree.UnaryExpr:
+		return "?column?", true
+	}
+	return "", false
+}
+
+// columnName is the name of an expression that is a column, in parentheses
+// or not.
+func columnName(expr tree.Expr) (string, bool) {
+	switch e := expr.(type) {
+	case *tree.UnresolvedName, *tree.ColumnItem:
+		return outputName(e)
+	case *tree.ParenExpr:
+		return columnName(e.Expr)
+	}
+	return "", false
 }
 
 func (l *sdlLoader) createRoutine(n *tree.CreateRoutine) error {
