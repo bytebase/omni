@@ -197,14 +197,16 @@ func nameKindAfter(before []parser.Token) nameKind {
 }
 
 // inFromList reports whether the tokens end with a FROM list's table: FROM,
-// then names, dots, aliases and commas only. A clause keyword such as ORDER
+// then names, dots, aliases, table modifiers and commas only. A clause keyword such as ORDER
 // or BY, which can be no alias, ends the list.
 func inFromList(toks []parser.Token) bool {
 	for i := len(toks) - 1; i >= 0; i-- {
 		switch {
 		case toks[i].Type == parser.KwFrom:
 			return relationFrom(toks, i)
-		case parser.IsBareAlias(toks[i]), toks[i].Type == parser.KwAs, toks[i].Type == parser.TokDot, toks[i].Type == parser.TokComma:
+		case parser.IsBareAlias(toks[i]), isRatioToken(toks[i]):
+		case toks[i].Type == parser.KwAs, toks[i].Type == parser.TokDot, toks[i].Type == parser.TokComma:
+		case toks[i].Type == parser.KwFinal, toks[i].Type == parser.KwSample, toks[i].Type == parser.KwOffset:
 		default:
 			return false
 		}
@@ -270,30 +272,71 @@ func openParen(toks []parser.Token, i int) int {
 	return -1
 }
 
-// tableRef is a table a statement reads or writes, with its alias, and the
-// parenthesis its clause is inside: the index of the open parenthesis, -1
-// at the top level.
+// tableRef is a table a statement reads or writes, with its alias, the
+// parenthesis its clause is inside (the index of the open parenthesis, -1
+// at the top level) and the UNION branch it is in there.
 type tableRef struct {
 	database, table, alias string
-	group                  int
+	group, branch          int
+}
+
+// branchAt returns which set-operation branch toks[i] is in, counting the
+// UNION, INTERSECT and EXCEPT between queries inside its parenthesis.
+func branchAt(toks []parser.Token, i int) int {
+	depth, branch := 0, 0
+	for j := openParen(toks, i) + 1; j < i; j++ {
+		switch toks[j].Type {
+		case parser.TokLParen:
+			depth++
+		case parser.TokRParen:
+			depth--
+		case parser.KwUnion, parser.KwIntersect:
+			if depth == 0 {
+				branch++
+			}
+		case parser.KwExcept:
+			// EXCEPT also drops columns: SELECT * EXCEPT (a).
+			if depth == 0 && startsQuery(toks[j+1:]) {
+				branch++
+			}
+		}
+	}
+	return branch
+}
+
+// startsQuery reports whether toks start a set operation's next query.
+func startsQuery(toks []parser.Token) bool {
+	for len(toks) > 0 && (toks[0].Type == parser.KwAll || toks[0].Type == parser.KwDistinct || toks[0].Type == parser.TokLParen) {
+		toks = toks[1:]
+	}
+	return len(toks) > 0 && (toks[0].Type == parser.KwSelect || toks[0].Type == parser.KwWith)
 }
 
 // refsInScope returns the tables in scope at byte offset caret: those whose
-// clause is inside a parenthesis that holds the caret, the innermost first.
+// clause is inside a parenthesis that holds the caret, in the UNION branch
+// that holds it, the innermost first.
 func refsInScope(toks []parser.Token, caret int) []tableRef {
-	before := 0
-	for before < len(toks) && toks[before].Pos < caret {
-		before++
+	at := 0
+	for at < len(toks) && toks[at].Pos < caret {
+		at++
 	}
-	groups := []int{-1}
-	for g := openParen(toks, before); g >= 0; g = openParen(toks, g) {
-		groups = append(groups, g)
+	// Each scope is a parenthesis holding the caret and the branch of it
+	// the caret is in, measured where the caret's path leaves it.
+	type scope struct{ group, branch int }
+	var scopes []scope
+	for {
+		g := openParen(toks, at)
+		scopes = append(scopes, scope{g, branchAt(toks, at)})
+		if g < 0 {
+			break
+		}
+		at = g
 	}
 	all := tableRefs(toks)
 	var out []tableRef
-	for i := len(groups) - 1; i >= 0; i-- {
+	for _, sc := range scopes {
 		for _, ref := range all {
-			if ref.group == groups[i] {
+			if ref.group == sc.group && ref.branch == sc.branch {
 				out = append(out, ref)
 			}
 		}
@@ -324,13 +367,13 @@ func tableRefs(toks []parser.Token) []tableRef {
 		default:
 			continue
 		}
-		list, group := toks[i].Type == parser.KwFrom, openParen(toks, i)
+		list, group, branch := toks[i].Type == parser.KwFrom, openParen(toks, i), branchAt(toks, i)
 		for {
 			ref, n := readTableRef(toks[i+1:])
 			if n == 0 {
 				break
 			}
-			ref.group = group
+			ref.group, ref.branch = group, branch
 			refs = append(refs, ref)
 			i += n
 			if !list || i+1 >= len(toks) || toks[i+1].Type != parser.TokComma {
@@ -358,7 +401,32 @@ func readTableRef(toks []parser.Token) (tableRef, int) {
 	} else if n < len(toks) && parser.IsBareAlias(toks[n]) {
 		ref.alias, n = toks[n].Val, n+1
 	}
-	return ref, n
+	return ref, n + tableModifiers(toks[n:])
+}
+
+// tableModifiers returns how many tokens at the start of toks are a
+// table's FINAL and SAMPLE k [OFFSET m] modifiers.
+func tableModifiers(toks []parser.Token) int {
+	n := 0
+	for n < len(toks) {
+		switch toks[n].Type {
+		case parser.KwFinal:
+			n++
+		case parser.KwSample, parser.KwOffset:
+			n++
+			for n < len(toks) && isRatioToken(toks[n]) {
+				n++
+			}
+		default:
+			return n
+		}
+	}
+	return n
+}
+
+// isRatioToken reports whether tok can be part of a SAMPLE ratio: 0.1, 1/10.
+func isRatioToken(tok parser.Token) bool {
+	return tok.Type == parser.TokInt || tok.Type == parser.TokFloat || tok.Type == parser.TokSlash
 }
 
 // significantTokens lexes text up to its first lexical error, without its

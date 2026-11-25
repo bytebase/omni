@@ -161,6 +161,14 @@ func TestCompleteSessionNames(t *testing.T) {
 		{input: "SELECT EXTRACT(DAY FROM |) FROM orders", typ: CandidateTable},
 		{input: "SELECT trim(BOTH 'x' FROM |) FROM users", typ: CandidateColumn, want: []string{"id", "name"}},
 		{input: "SELECT * FROM (SELECT * FROM |)", typ: CandidateTable, want: []string{"`back\\\\slash`", "`my-table`", "orders", "other", "users"}},
+		{input: "SELECT id FROM orders o UNION ALL SELECT o.| FROM users o", typ: CandidateColumn, want: []string{"id", "name"}},
+		{input: "SELECT o.| FROM orders o UNION ALL SELECT id FROM users o", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "SELECT | FROM orders EXCEPT SELECT id FROM users", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "SELECT * EXCEPT (id) FROM orders WHERE |", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "SELECT | FROM orders FINAL, users", typ: CandidateColumn, want: []string{"amount", "id", "name", "user_id"}},
+		{input: "SELECT | FROM orders SAMPLE 1/10 OFFSET 1/2, users", typ: CandidateColumn, want: []string{"amount", "id", "name", "user_id"}},
+		{input: "SELECT * FROM orders FINAL, |", typ: CandidateTable, want: []string{"`back\\\\slash`", "`my-table`", "orders", "other", "users"}},
+		{input: "SELECT * FROM orders o SAMPLE 0.1, |", typ: CandidateTable, want: []string{"`back\\\\slash`", "`my-table`", "orders", "other", "users"}},
 		{input: "ALTER TABLE orders UPDATE amount = 0 WHERE |", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
 	} {
 		t.Run(tc.input, func(t *testing.T) {
