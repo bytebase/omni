@@ -26,7 +26,9 @@ functions (42883 otherwise).
 
 `DO` and `CALL` run a PL/pgSQL body that is a straight list of statements (no
 variables, control flow or handlers): its DDL executes, its DML is analyzed, and
-`RAISE EXCEPTION` fails it. A body whose path depends on data is compiled only.
+`RAISE EXCEPTION` fails it. `CALL` runs only a procedure without parameters,
+`SET` options or `SECURITY DEFINER`. A body the catalog does not run, or one
+that calls such a body, is compiled only.
 
 ## Commands
 

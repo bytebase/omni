@@ -18,6 +18,7 @@ CREATE PROCEDURE p(x int) LANGUAGE plpgsql AS $$ BEGIN CALL q(x); CREATE TABLE m
 CREATE PROCEDURE qs() LANGUAGE plpgsql AS $$ DECLARE u int; BEGIN RAISE EXCEPTION 'stop'; END $$;
 CREATE PROCEDURE ps() LANGUAGE plpgsql AS $$ BEGIN CALL qs(); CREATE TABLE made_ps (a int); END $$;
 CREATE PROCEDURE pset() LANGUAGE plpgsql SET search_path = s2 AS $$ BEGIN CREATE TABLE made_set (a int); END $$;
+CREATE PROCEDURE pdef() LANGUAGE plpgsql SECURITY DEFINER AS $$ BEGIN CREATE TABLE made_def (a int); END $$;
 CREATE PROCEDURE pfail() LANGUAGE plpgsql AS $$ BEGIN CREATE TABLE made_fail (a int); INSERT INTO missing_t VALUES (1); END $$;
 `
 	for _, tc := range []struct {
@@ -26,12 +27,15 @@ CREATE PROCEDURE pfail() LANGUAGE plpgsql AS $$ BEGIN CREATE TABLE made_fail (a 
 		made    string // a table the statement leaves in public
 		notMade string // a table it leaves out
 	}{
-		// A parameter passed on to another procedure stays bound.
-		{stmt: `CALL p(1)`, made: "made_p"},
+		// A procedure with parameters is not run: the catalog binds no
+		// PL/pgSQL variable.
+		{stmt: `CALL p(1)`, notMade: "made_p"},
+		// Nor is one with SET options or SECURITY DEFINER, which the
+		// catalog does not apply.
+		{stmt: `CALL pset()`, notMade: "made_set"},
+		{stmt: `CALL pdef()`, notMade: "made_def"},
 		// A callee the catalog does not run stops the caller's run.
 		{stmt: `CALL ps()`, notMade: "made_ps"},
-		// A procedure's SET options are not applied, so it is not run.
-		{stmt: `CALL pset()`, notMade: "made_set"},
 		// A failed body leaves nothing behind.
 		{stmt: `CALL pfail()`, code: "42P01", notMade: "made_fail"},
 		{stmt: `DO $$ BEGIN CREATE INDEX CONCURRENTLY ix ON t (id); END $$`, code: "25001"},

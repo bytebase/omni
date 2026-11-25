@@ -26,10 +26,8 @@ var errNotRun = errors.New("PL/pgSQL body not run")
 // EXCEPTION fails the block. A failed block leaves the catalog as it was.
 // A body with anything else returns errNotRun, as its path depends on data.
 //
-// fn holds the parameters a procedure's statements may name, nil for DO.
-//
 // pg: src/pl/plpgsql/src/pl_exec.c — exec_stmt_block, exec_stmt_execsql, exec_stmt_raise
-func (c *Catalog) runPLpgSQL(body string, fn *sqlFnParams) error {
+func (c *Catalog) runPLpgSQL(body string) error {
 	if c.plRunDepth >= maxPLRunDepth {
 		return errNotRun
 	}
@@ -76,7 +74,7 @@ func (c *Catalog) runPLpgSQL(body string, fn *sqlFnParams) error {
 		for _, item := range list.Items {
 			stmt := unwrapRawStmt(item)
 			if isDML(stmt) {
-				if _, err := c.bindSQLFunctionBody([]nodes.Node{stmt}, fn); err != nil {
+				if _, err := c.bindSQLFunctionBody([]nodes.Node{stmt}, nil); err != nil {
 					return fail(err)
 				}
 				continue
@@ -89,7 +87,7 @@ func (c *Catalog) runPLpgSQL(body string, fn *sqlFnParams) error {
 			}
 			switch s := stmt.(type) {
 			case *nodes.CallStmt:
-				err = c.execCall(s.Funccall, fn)
+				err = c.execCall(s.Funccall)
 			case *nodes.DoStmt:
 				err = c.execDo(s)
 			default:
@@ -158,15 +156,14 @@ func plRefusedUtility(stmt nodes.Node) error {
 	return &Error{Code: CodeActiveSQLTransaction, Message: what + " cannot be executed from a function"}
 }
 
-// execCall resolves a CALL's procedure, its arguments naming fn's
-// parameters, and runs a PL/pgSQL body when runPLpgSQL can. A procedure
-// with SET options runs under settings the catalog does not apply, so it
-// is not run.
+// execCall resolves a CALL's procedure and runs its PL/pgSQL body when
+// runPLpgSQL can. Only a procedure without parameters, SET options or
+// SECURITY DEFINER runs: the catalog binds no PL/pgSQL variable, applies no
+// setting and switches no role.
 //
 // pg: src/backend/commands/functioncmds.c — ExecuteCallStmt
-func (c *Catalog) execCall(fc *nodes.FuncCall, fn *sqlFnParams) error {
+func (c *Catalog) execCall(fc *nodes.FuncCall) error {
 	b := newRuleBindings(0, 0)
-	b.fn = fn
 	if err := c.checkCall(b, fc, &ruleEvalContext{}); err != nil {
 		return err
 	}
@@ -176,10 +173,10 @@ func (c *Catalog) execCall(fc *nodes.FuncCall, fn *sqlFnParams) error {
 		return errNotRun
 	}
 	up := c.userProcs[b.funcDeps[n-1]]
-	if up == nil || up.Kind != 'p' || !strings.EqualFold(up.Language, "plpgsql") || len(up.SetConfig) > 0 {
+	if up == nil || up.Kind != 'p' || !strings.EqualFold(up.Language, "plpgsql") || len(up.ArgNames) > 0 || len(up.ArgTypes) > 0 || len(up.SetConfig) > 0 || up.SecDef {
 		return errNotRun
 	}
-	return c.runPLpgSQL(up.Body, procParams(up))
+	return c.runPLpgSQL(up.Body)
 }
 
 // plStraightLine collects the statements of a block that runs every one of
@@ -256,21 +253,4 @@ func plReturnsRows(text string) bool {
 // raises: %% is %.
 func plRaiseMessage(format string) string {
 	return strings.ReplaceAll(format, "%%", "%")
-}
-
-// procParams is the parameters a procedure's statements may name: its IN,
-// INOUT and VARIADIC ones.
-func procParams(up *UserProc) *sqlFnParams {
-	fn := &sqlFnParams{name: up.Name}
-	for i, name := range up.ArgNames {
-		if up.ArgModes != nil && i < len(up.ArgModes) && (up.ArgModes[i] == 'o' || up.ArgModes[i] == 't') {
-			continue
-		}
-		fn.names = append(fn.names, name)
-	}
-	fn.types = up.ArgTypes
-	for len(fn.names) < len(fn.types) {
-		fn.names = append(fn.names, "")
-	}
-	return fn
 }

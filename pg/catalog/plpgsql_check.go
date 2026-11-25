@@ -498,7 +498,7 @@ func (c *Catalog) execDo(s *nodes.DoStmt) error {
 		if err := c.checkPLpgSQL(body, &plpgsqlRoutine{kind: 'f', retType: VOIDOID}); err != nil {
 			return err
 		}
-		return c.runPLpgSQL(body, nil)
+		return c.runPLpgSQL(body)
 	case "sql", "c", "internal":
 		return &Error{Code: CodeFeatureNotSupported, Message: fmt.Sprintf("language %q does not support inline code execution", language)}
 	case "plperl", "plperlu", "pltcl", "pltclu", "plpythonu", "plpython2u", "plpython3u":

@@ -370,7 +370,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// SHOW: no-op for pgddl
 		return nil
 	case *nodes.CallStmt:
-		if err := c.execCall(s.Funccall, nil); !errors.Is(err, errNotRun) {
+		if err := c.execCall(s.Funccall); !errors.Is(err, errNotRun) {
 			return err
 		}
 		return nil
