@@ -46,7 +46,7 @@ func CompleteSession(ctx context.Context, cfg SessionConfig, statement string, c
 	seen := make(map[key]bool, len(got.candidates))
 	result := make([]Candidate, 0, len(got.candidates))
 	for _, c := range got.candidates {
-		c.Text = formatCandidateText(c, got.quoted, got.call)
+		c.Text = formatCandidateText(c, got.quoted)
 		k := key{c.Type, c.Text}
 		if seen[k] {
 			continue
@@ -72,16 +72,11 @@ func QuoteIdentifierIfNeeded(name string, caretInQuotes bool) string {
 	return buf.String()
 }
 
-func formatCandidateText(c Candidate, quoted, call bool) string {
+func formatCandidateText(c Candidate, quoted bool) string {
 	switch c.Type {
-	case CandidateKeyword, CandidateType_:
+	case CandidateKeyword, CandidateType_, CandidateFunction:
+		// complete writes function and type texts, which depend on the caret.
 		return c.Text
-	case CandidateFunction:
-		text := QuoteIdentifierIfNeeded(c.Text, quoted)
-		if call && !quoted {
-			text += "()"
-		}
-		return text
 	default:
 		return QuoteIdentifierIfNeeded(c.Text, quoted)
 	}

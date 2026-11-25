@@ -60,12 +60,12 @@ type caretWord struct {
 	quoted     bool
 }
 
-// completion is what complete found: the unformatted candidates and how the
-// session should format them.
+// completion is what complete found: the candidates, with function and type
+// texts final and other names still to quote, and whether the caret is
+// inside double quotes.
 type completion struct {
 	candidates []Candidate
 	quoted     bool // the caret is inside a double-quoted identifier
-	call       bool // a function candidate starts a call
 }
 
 // complete returns the candidates for the statement stmt at byte offset
@@ -78,13 +78,14 @@ func complete(ctx context.Context, stmt string, caret int, cat *catalog) complet
 	}
 	prefix := stmt[:word.start]
 
+	nc := nameContextAt(stmt, word, cat)
 	var out []Candidate
 	if !word.quoted && !afterQualifier(prefix) {
-		for _, kw := range keywordCandidates(ctx, prefix) {
+		objectName := nc != nil && nc.kind == kindObject
+		for _, kw := range keywordCandidates(ctx, prefix, objectName) {
 			out = append(out, Candidate{Text: kw, Type: CandidateKeyword})
 		}
 	}
-	nc := nameContextAt(stmt, word, cat)
 	names := nameCandidates(nc, cat, word.typed != "")
 	if nc != nil && nc.kind == kindType {
 		// A type keyword such as INT8 is offered once, as a type.
@@ -92,11 +93,11 @@ func complete(ctx context.Context, stmt string, caret int, cat *catalog) complet
 			return slices.ContainsFunc(names, func(n Candidate) bool { return strings.EqualFold(n.Text, c.Text) })
 		})
 	}
-	out = append(out, names...)
+	out = filterByPrefix(append(out, names...), word.typed)
+	call := nc != nil && nc.kind == kindExpr && !followedByParen(stmt[word.end:])
 	return completion{
-		candidates: filterByPrefix(out, word.typed),
+		candidates: formatNames(prefix, out, word.quoted, call),
 		quoted:     word.quoted,
-		call:       nc != nil && nc.kind == kindExpr && !followedByParen(stmt[word.end:]),
 	}
 }
 

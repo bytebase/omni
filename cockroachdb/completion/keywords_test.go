@@ -19,14 +19,17 @@ func TestKeywordCandidates(t *testing.T) {
 		{prefix: "SELECT * FROM t AS OF SYSTEM", want: []string{"TIME"}},
 		{prefix: "SELECT * FROM t WHERE a", want: []string{"AND", "NOT", "IN", "BETWEEN"}},
 		{prefix: "CREATE TABLE", want: []string{"IF"}, absent: []string{"INDEX", "ABORT"}},
-		{prefix: "CREATE TABLE t (a", want: []string{"INT", "STRING", "TIMESTAMPTZ"}},
+		// INT and STRING read here as names of types, which the name
+		// context offers; DECIMAL takes a precision a type name cannot.
+		{prefix: "CREATE TABLE t (a", want: []string{"DECIMAL", "VARCHAR"}, absent: []string{"ABORT"}},
+		{prefix: "CREATE TABLE t (a INT,", want: []string{"CONSTRAINT", "FAMILY", "INDEX", "PRIMARY", "UNIQUE"}},
 		{prefix: "ALTER TABLE t", want: []string{"CONFIGURE", "SCATTER", "SPLIT", "RELOCATE"}},
 		{prefix: "ALTER TABLE t CONFIGURE", want: []string{"ZONE"}},
 		{prefix: "SHOW", want: []string{"RANGES", "JOBS", "ZONE", "CREATE"}},
 		{prefix: "INSERT INTO t", want: []string{"VALUES", "SELECT", "DEFAULT"}},
 	}
 	for _, tc := range tests {
-		got := keywordCandidates(context.Background(), tc.prefix)
+		got := keywordCandidates(context.Background(), tc.prefix, false)
 		for _, w := range tc.want {
 			require.Containsf(t, got, w, "prefix %q", tc.prefix)
 		}
@@ -42,7 +45,7 @@ func TestKeywordCandidates(t *testing.T) {
 func TestKeywordCandidatesCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	require.Empty(t, keywordCandidates(ctx, "SELECT * FROM canceled_prefix"))
+	require.Empty(t, keywordCandidates(ctx, "SELECT * FROM canceled_prefix", false))
 }
 
 func TestHelpFollowers(t *testing.T) {

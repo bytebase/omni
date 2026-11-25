@@ -88,7 +88,7 @@ func TestProbePrefixKeepsKeywords(t *testing.T) {
 				continue
 			}
 			checked++
-			require.Equal(t, probeKeywords(context.Background(), prefix), probeKeywords(context.Background(), reduced), "%q reduced to %q", prefix, reduced)
+			require.Equal(t, probeKeywords(context.Background(), prefix, false), probeKeywords(context.Background(), reduced, false), "%q reduced to %q", prefix, reduced)
 		}
 	}
 	require.Equal(t, 150, checked)

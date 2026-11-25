@@ -133,14 +133,16 @@ func nameCandidates(nc *nameContext, cat *catalog, typing bool) []Candidate {
 				out = append(out, columnCandidates(a.sourceColumns(src, typing))...)
 			}
 		}
-		for _, fn := range schemaObjects(cat, nc.qualifier, builtinFunctions, func(s *schema) []string { return s.functions }) {
+		builtins := slices.Concat(builtinFunctions, specialForms())
+		for _, fn := range schemaObjects(cat, nc.qualifier, builtins, func(s *schema) []string { return s.functions }) {
 			out = append(out, Candidate{Text: fn, Type: CandidateFunction})
 		}
 	case kindTargetColumn:
 		a := &analyzer{cat: cat}
 		out = columnCandidates(a.sourceColumns(*nc.target, typing))
 	case kindType:
-		for _, typ := range schemaObjects(cat, nc.qualifier, builtinTypes, func(s *schema) []string { return s.types }) {
+		builtins := slices.Concat(builtinTypes, typeKeywords())
+		for _, typ := range schemaObjects(cat, nc.qualifier, builtins, func(s *schema) []string { return s.types }) {
 			out = append(out, Candidate{Text: typ, Type: CandidateType_})
 		}
 	case kindIndex:

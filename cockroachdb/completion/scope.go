@@ -294,9 +294,7 @@ func (a *analyzer) with(w *tree.With, outer []source) func() {
 			a.ctes[level] = append(a.ctes[level], src)
 		}
 		a.statement(cte.Stmt, outer)
-		if sel, ok := cte.Stmt.(*tree.Select); ok {
-			src.columns = overlayAliases(a.outputColumns(sel), cte.Name)
-		}
+		src.columns = overlayAliases(a.statementColumns(cte.Stmt), cte.Name)
 		if w.Recursive {
 			a.ctes[level][len(a.ctes[level])-1] = src
 		} else {
@@ -355,6 +353,9 @@ func (a *analyzer) selectStatement(ss tree.SelectStatement, outer []source) []so
 		for _, e := range s.DistinctOn {
 			a.expr(e, scope)
 		}
+		for _, def := range s.Window {
+			a.windowDef(def, scope)
+		}
 		return scope
 	case *tree.UnionClause:
 		left := a.selectQuery(s.Left, outer)
@@ -370,6 +371,23 @@ func (a *analyzer) selectStatement(ss tree.SelectStatement, outer []source) []so
 		}
 	}
 	return outer
+}
+
+// windowDef walks a named window's partitions, ordering and frame offsets.
+func (a *analyzer) windowDef(def *tree.WindowDef, scope []source) {
+	for _, e := range def.Partitions {
+		a.expr(e, scope)
+	}
+	for _, order := range def.OrderBy {
+		a.expr(order.Expr, scope)
+	}
+	if def.Frame != nil {
+		for _, bound := range []*tree.WindowFrameBound{def.Frame.Bounds.StartBound, def.Frame.Bounds.EndBound} {
+			if bound != nil {
+				a.expr(bound.OffsetExpr, scope)
+			}
+		}
+	}
 }
 
 // tableExprs returns the sources of a FROM list and the join conditions to
@@ -390,11 +408,7 @@ func (a *analyzer) tableExprs(exprs tree.TableExprs, outer []source) ([]source, 
 func (a *analyzer) tableExpr(te tree.TableExpr, preceding, outer []source) ([]source, []tree.Expr) {
 	switch t := te.(type) {
 	case *tree.AliasedTableExpr:
-		src, ok := a.aliased(t, preceding, outer)
-		if !ok {
-			return nil, nil
-		}
-		return []source{src}, nil
+		return a.aliased(t, preceding, outer), nil
 	case *tree.ParenTableExpr:
 		return a.tableExpr(t.Expr, preceding, outer)
 	case *tree.JoinTableExpr:
@@ -415,7 +429,7 @@ func (a *analyzer) tableExpr(te tree.TableExpr, preceding, outer []source) ([]so
 	return nil, nil
 }
 
-func (a *analyzer) aliased(t *tree.AliasedTableExpr, preceding, outer []source) (source, bool) {
+func (a *analyzer) aliased(t *tree.AliasedTableExpr, preceding, outer []source) []source {
 	alias := string(t.As.Alias)
 	var src source
 	switch e := t.Expr.(type) {
@@ -434,22 +448,38 @@ func (a *analyzer) aliased(t *tree.AliasedTableExpr, preceding, outer []source) 
 		src = source{ref: alias, derived: true, columns: a.selectColumns(e.Select)}
 	case *tree.StatementSource:
 		a.statement(e.Statement, outer)
-		src = source{ref: alias, derived: true}
+		src = source{ref: alias, derived: true, columns: a.statementColumns(e.Statement)}
 	case *tree.RowsFromExpr:
 		// A function in FROM reads the items before it, as if LATERAL.
 		for _, item := range e.Items {
 			a.expr(item, slices.Concat(preceding, outer))
 		}
 		src = source{ref: alias, derived: true}
+	case *tree.ParenTableExpr, *tree.JoinTableExpr:
+		inner, conds := a.tableExpr(e, preceding, outer)
+		scope := slices.Concat(inner, outer)
+		for _, cond := range conds {
+			a.expr(cond, scope)
+		}
+		if alias == "" {
+			// An unaliased join keeps its tables' own names.
+			return inner
+		}
+		// An aliased join is one relation with every column of its tables.
+		var cols []string
+		for _, in := range inner {
+			cols = append(cols, a.sourceColumns(in, false)...)
+		}
+		src = source{ref: alias, derived: true, columns: cols}
 	default:
-		return source{}, false
+		return nil
 	}
 	if len(t.As.Cols) > 0 {
 		src.columns = overlayAliases(a.sourceColumns(src, false), t.As)
 		src.derived = true
 		src.name = ""
 	}
-	return src, true
+	return []source{src}
 }
 
 // tableSource resolves a table name to a CTE in scope or a catalog relation.
@@ -515,6 +545,10 @@ func (a *analyzer) expr(e tree.Expr, scope []source) {
 			a.selectStatement(sub.Select, scope)
 			return false, expr, nil
 		}
+		// The expression walk skips a call's OVER clause.
+		if fn, ok := expr.(*tree.FuncExpr); ok && fn.WindowDef != nil {
+			a.windowDef(fn.WindowDef, scope)
+		}
 		return true, expr, nil
 	})
 }
@@ -561,6 +595,7 @@ func (a *analyzer) insert(s *tree.Insert, outer []source) {
 			excluded.ref = "excluded"
 			conflictScope = append([]source{*target, excluded}, outer...)
 		}
+		a.expr(oc.ArbiterPredicate, conflictScope)
 		a.updateExprs(oc.Exprs, target, conflictScope)
 		if oc.Where != nil {
 			a.expr(oc.Where.Expr, conflictScope)
@@ -753,6 +788,39 @@ func (a *analyzer) selectColumns(ss tree.SelectStatement) []string {
 		return out
 	}
 	return nil
+}
+
+// statementColumns names the columns a statement returns: a query's output,
+// or the RETURNING list of INSERT, UPSERT, UPDATE or DELETE.
+func (a *analyzer) statementColumns(stmt tree.Statement) []string {
+	var target tree.TableExpr
+	var returning tree.ReturningClause
+	switch s := stmt.(type) {
+	case *tree.Select:
+		return a.outputColumns(s)
+	case *tree.ParenSelect:
+		return a.outputColumns(s.Select)
+	case *tree.Insert:
+		target, returning = s.Table, s.Returning
+	case *tree.Update:
+		target, returning = s.Table, s.Returning
+	case *tree.Delete:
+		target, returning = s.Table, s.Returning
+	}
+	exprs, ok := returning.(*tree.ReturningExprs)
+	if !ok {
+		return nil
+	}
+	from := tree.TableExprs{target}
+	var out []string
+	for _, e := range *exprs {
+		if cols, ok := a.starColumns(e.Expr, from); ok {
+			out = append(out, cols...)
+			continue
+		}
+		out = append(out, renderName(tree.SelectExpr(e)))
+	}
+	return out
 }
 
 func (a *analyzer) outputColumns(sel *tree.Select) []string {

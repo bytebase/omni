@@ -116,6 +116,7 @@ func testMetadata() *metadatapb.DatabaseSchemaMetadata {
 				},
 				EnumTypes: []*metadatapb.EnumTypeMetadata{
 					{Name: "status", Values: []string{"open", "closed"}},
+					{Name: "OrderStatus", Values: []string{"new"}},
 				},
 				Functions: []*metadatapb.FunctionMetadata{
 					{Name: "CalculateTotal", Definition: `CREATE FUNCTION public."CalculateTotal"() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$`},
@@ -518,6 +519,61 @@ func TestCompleteSessionMetadataMatrix(t *testing.T) {
 			want:  []Candidate{{Text: "count", Type: CandidateColumn}, {Text: `"?column?"`, Type: CandidateColumn}, {Text: "amount", Type: CandidateColumn}},
 		},
 		{
+			name:  "an aliased parenthesized join offers both tables' columns",
+			input: "SELECT j.| FROM (orders o JOIN analytics.events e ON true) AS j",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}, {Text: "event_id", Type: CandidateColumn}},
+		},
+		{
+			name:  "an unaliased parenthesized join keeps its tables' names",
+			input: "SELECT e.| FROM (orders o JOIN analytics.events e ON o.id = e.event_id)",
+			want:  []Candidate{{Text: "event_id", Type: CandidateColumn}},
+		},
+		{
+			name:  "a parenthesized join's ON sees both tables",
+			input: "SELECT * FROM (orders o JOIN analytics.events e ON e.|) AS j",
+			want:  []Candidate{{Text: "event_id", Type: CandidateColumn}},
+		},
+		{
+			name:  "a DELETE CTE takes its RETURNING columns",
+			input: "WITH d AS (DELETE FROM orders RETURNING id, amount AS total) SELECT d.| FROM d",
+			want:  []Candidate{{Text: "id", Type: CandidateColumn}, {Text: "total", Type: CandidateColumn}},
+		},
+		{
+			name:  "an INSERT CTE expands RETURNING *",
+			input: "WITH i AS (INSERT INTO orders VALUES (1, 2) RETURNING *) SELECT i.| FROM i",
+			want:  []Candidate{{Text: "id", Type: CandidateColumn}, {Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "an UPDATE statement source takes its RETURNING columns",
+			input: "SELECT u.| FROM [UPDATE orders SET amount = 1 RETURNING id] AS u",
+			want:  []Candidate{{Text: "id", Type: CandidateColumn}},
+		},
+		{
+			name:  "a named window sees the query's sources",
+			input: "WITH c AS (SELECT amount AS total FROM orders) SELECT sum(total) OVER w FROM c WINDOW w AS (ORDER BY c.to|)",
+			want:  []Candidate{{Text: "total", Type: CandidateColumn}},
+		},
+		{
+			name:  "a named window's partition sees the query's sources",
+			input: "SELECT rank() OVER w FROM orders WINDOW w AS (PARTITION BY am|)",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "an inline window sees the query's sources",
+			input: "SELECT rank() OVER (ORDER BY am|) FROM orders",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "an ON CONFLICT arbiter predicate sees the target",
+			input: "INSERT INTO orders VALUES (1) ON CONFLICT (id) WHERE am| DO NOTHING",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "user-defined types are quoted",
+			input: "SELECT 1::Ord|",
+			want:  []Candidate{{Text: `"OrderStatus"`, Type: CandidateType_}},
+		},
+		{
 			name:   "a new alias offers no objects",
 			input:  "SELECT * FROM orders AS |",
 			absent: []string{"orders", "id"},
@@ -650,6 +706,74 @@ func TestCompleteSessionCockroachDBSyntax(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCompleteSessionKeywordSets pins the keywords offered at the table and
+// expression positions users type most. A keyword the grammar only reads as
+// a name or a function call there is not offered as a keyword.
+func TestCompleteSessionKeywordSets(t *testing.T) {
+	keywords := func(cands []Candidate) []string {
+		var out []string
+		for _, c := range cands {
+			if c.Type == CandidateKeyword {
+				out = append(out, c.Text)
+			}
+		}
+		return out
+	}
+	cfg := testConfig()
+	require.Equal(t, []string{"LATERAL", "ONLY", "ROWS"}, keywords(completeAt(t, cfg, "SELECT * FROM |")))
+	require.Equal(t, []string{
+		"ARRAY", "CASE", "CURRENT_CATALOG", "CURRENT_ROLE", "DEFAULT", "EXISTS", "FALSE", "NOT", "NULL", "TRUE", "USER",
+	}, keywords(completeAt(t, cfg, "SELECT * FROM orders WHERE |")))
+	// After a bare SELECT the target list may still be empty, so clause
+	// keywords parse too (SELECT FROM t, SELECT WHERE true).
+	require.Equal(t, []string{
+		"ALL", "ARRAY", "CASE", "CURRENT_CATALOG", "CURRENT_ROLE", "DEFAULT", "DISTINCT", "EXCEPT", "EXISTS",
+		"FALSE", "FETCH", "FOR", "FROM", "GROUP", "HAVING", "INTERSECT", "LIMIT", "NOT", "NULL", "OFFSET",
+		"ORDER", "TRUE", "UNION", "USER", "WHERE", "WINDOW",
+	}, keywords(completeAt(t, cfg, "SELECT |")))
+
+	for _, input := range []string{"SELECT * FROM |", "SELECT |", "SELECT * FROM orders WHERE |", "SELECT * FROM orders o JOIN analytics.events e ON |"} {
+		got := keywords(completeAt(t, cfg, input))
+		for _, noise := range []string{"JOIN", "CROSS", "LEFT", "INNER", "CAST", "BIGINT", "INT", "STRING", "IS", "LIKE", "BETWEEN", "AUTHORIZATION", "COLLATION", "WORK", "VALUES", "CURRENT_DATE", "SUBSTRING", "COALESCE"} {
+			require.NotContainsf(t, got, noise, "%s", input)
+		}
+	}
+}
+
+func TestCompleteSessionFunctionForms(t *testing.T) {
+	cfg := testConfig()
+	got := completeAt(t, cfg, "SELECT sub|")
+	require.True(t, has(got, "substring()", CandidateFunction), "got %v", got)
+	require.False(t, hasText(got, "SUBSTRING"), "got %v", got)
+	require.False(t, hasText(got, `"substring"()`), "got %v", got)
+
+	// CockroachDB, unlike PostgreSQL, takes session_user() as a call; the
+	// pinned server answers it.
+	got = completeAt(t, cfg, "SELECT sess|")
+	require.Equal(t, []Candidate{{Text: "session_user()", Type: CandidateFunction}}, got)
+
+	got = completeAt(t, cfg, "SELECT coal|")
+	require.Equal(t, []Candidate{{Text: "coalesce()", Type: CandidateFunction}}, got)
+
+	got = completeAt(t, cfg, "SELECT current_d|")
+	require.True(t, has(got, "current_date()", CandidateFunction), "got %v", got)
+	require.False(t, has(got, "CURRENT_DATE", CandidateKeyword), "got %v", got)
+
+	got = completeAt(t, cfg, "SELECT substr|ing('abc', 2)")
+	require.True(t, has(got, "substring", CandidateFunction), "got %v", got)
+
+	// Functions are not offered where a table name goes.
+	got = completeAt(t, cfg, "SELECT * FROM cur|")
+	require.Empty(t, got)
+
+	// A user function named by a reserved keyword is quoted.
+	meta := testMetadata()
+	meta.Schemas[0].Functions = append(meta.Schemas[0].Functions, &metadatapb.FunctionMetadata{Name: "order"})
+	orderCfg := SessionConfig{DefaultDatabase: "db", DefaultSchema: "public", LoadDatabase: func(context.Context, string) (*metadatapb.DatabaseSchemaMetadata, error) { return meta, nil }}
+	got = completeAt(t, orderCfg, "SELECT ord| FROM orders")
+	require.True(t, has(got, `"order"()`, CandidateFunction), "got %v", got)
 }
 
 func TestCompleteSessionBuiltins(t *testing.T) {
