@@ -1,0 +1,1282 @@
+# pin: default trinodb/trino:482 sha256:90b35b7c603eaa1f889bf03981a62b75f998ee6c0f851d9f4e341b49a57022b6 482
+# columns: omni, expected, source, fixture, rule, statement
+ok:1d149b1d2062	ok:1d149b1d2062	engine	one_table@missing	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb	CREATE SCHEMA a
+INVALID_SCHEMA_PROPERTY	INVALID_SCHEMA_PROPERTY	engine	one_table@missing	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb+statement(WITH_properties)?	CREATE SCHEMA a WITH(a = DEFAULT)
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?	DROP SCHEMA a
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?+statement(IF_EXISTS)?	DROP SCHEMA IF EXISTS a
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?+statement(CASCADE|RESTRICT)?	DROP SCHEMA a CASCADE
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	statement/ALTER_SCHEMA_qualifiedName_RENAME_TO_identifier	ALTER SCHEMA a RENAME TO a
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb	CREATE TABLE a AS SELECT 1.5
+ok:1d64a1a14d18	ok:1d64a1a14d18	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb!insert	CREATE TABLE a AS SELECT 1.5 zzz
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(IF_NOT_EXISTS)?	CREATE TABLE IF NOT EXISTS a AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(COMMENT_string)?	CREATE TABLE a COMMENT 'a' AS SELECT 1.5
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(WITH_properties)?	CREATE TABLE a WITH(a = DEFAULT) AS SELECT 1.5
+ok:5ee8e5f15460	ok:5ee8e5f15460	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368	CREATE TABLE a(a TIMESTAMP)
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(OR_REPLACE)?	CREATE OR REPLACE TABLE a(a TIMESTAMP)
+ok:5ee8e5f15460	ok:5ee8e5f15460	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(IF_NOT_EXISTS)?	CREATE TABLE IF NOT EXISTS a(a TIMESTAMP)
+ok:922983f99a27	ok:922983f99a27	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(COMMENT_string)?	CREATE TABLE a(a TIMESTAMP) COMMENT 'a'
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(WITH_properties)?	CREATE TABLE a(a TIMESTAMP) WITH(a = DEFAULT)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/DROP_TABLE_(IF_EXISTS)?_qualifiedName	DROP TABLE a
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	statement/DROP_TABLE_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?	DROP TABLE IF EXISTS a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/TRUNCATE_TABLE_qualifiedName	TRUNCATE TABLE a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/COMMENT_ON_TABLE_qualifiedName_IS_(string|NULL)	COMMENT ON TABLE a IS 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/COMMENT_ON_VIEW_qualifiedName_IS_(string|NULL)	COMMENT ON VIEW a IS 'a'
+MISSING_TABLE	MISSING_TABLE	engine	one_table@missing	statement/COMMENT_ON_COLUMN_qualifiedName_IS_(string|NULL)	COMMENT ON COLUMN a IS 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_TO_qualifiedName	ALTER TABLE a RENAME TO a
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_TO_qualifiedName+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a RENAME TO a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23	ALTER TABLE a ADD COLUMN a TIMESTAMP
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ADD COLUMN a TIMESTAMP
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23+statement(IF_NOT_EXISTS)?	ALTER TABLE a ADD COLUMN IF NOT EXISTS a TIMESTAMP
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d	ALTER TABLE a RENAME COLUMN a TO a
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a RENAME COLUMN a TO a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d+statement(IF_EXISTS)?#2	ALTER TABLE a RENAME COLUMN IF EXISTS a TO a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062	ALTER TABLE a DROP COLUMN a
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a DROP COLUMN a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062+statement(IF_EXISTS)?#2	ALTER TABLE a DROP COLUMN IF EXISTS a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110	ALTER TABLE a ALTER COLUMN a SET DEFAULT 1.5
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a SET DEFAULT 1.5
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/interval	ALTER TABLE a ALTER COLUMN a SET DEFAULT INTERVAL 'a' YEAR
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/interval!drop-11	ALTER TABLE a ALTER COLUMN a SET DEFAULT INTERVAL 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/identifier_string	ALTER TABLE a ALTER COLUMN a SET DEFAULT a 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?	ALTER TABLE a ALTER COLUMN a SET DEFAULT a U&'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/DOUBLE_PRECISION_string	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE PRECISION 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/DOUBLE_PRECISION_string!drop-9	ALTER TABLE a ALTER COLUMN a SET DEFAULT PRECISION 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/DOUBLE_PRECISION_string!drop-10	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#2	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE PRECISION U&'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-9	ALTER TABLE a ALTER COLUMN a SET DEFAULT PRECISION U&'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-10	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE U&'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+number/(MINUS)?_DOUBLE_VALUE	ALTER TABLE a ALTER COLUMN a SET DEFAULT 1E1
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+number/(MINUS)?_INTEGER_VALUE	ALTER TABLE a ALTER COLUMN a SET DEFAULT 1
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/booleanValue	ALTER TABLE a ALTER COLUMN a SET DEFAULT TRUE
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+booleanValue/FALSE	ALTER TABLE a ALTER COLUMN a SET DEFAULT FALSE
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/string	ALTER TABLE a ALTER COLUMN a SET DEFAULT 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#3	ALTER TABLE a ALTER COLUMN a SET DEFAULT U&'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/BINARY_LITERAL	ALTER TABLE a ALTER COLUMN a SET DEFAULT X'00'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/NULL	ALTER TABLE a ALTER COLUMN a SET DEFAULT NULL
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562	ALTER TABLE a ALTER COLUMN a DROP DEFAULT
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a DROP DEFAULT
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb	ALTER TABLE a ALTER COLUMN a SET DATA TYPE TIMESTAMP
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a SET DATA TYPE TIMESTAMP
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071	ALTER TABLE a ALTER COLUMN a DROP NOT NULL
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a DROP NOT NULL
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@missing	statement/ALTER_TABLE_qualifiedName_SET_PROPERTIES_propertyAssignments	ALTER TABLE a SET PROPERTIES a = DEFAULT
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_qualifiedName_EXECUTE_identifier_((_(argume~52676478	ALTER TABLE a EXECUTE a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_TABLE_qualifiedName_EXECUTE_identifier_((_(argume~52676478+statement(WHERE_booleanExpression)?	ALTER TABLE a EXECUTE a WHERE 1.5
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal	ALTER TABLE a SET AUTHORIZATION a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/USER_identifier	ALTER TABLE a SET AUTHORIZATION USER a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/USER_identifier!drop-7	ALTER TABLE a SET AUTHORIZATION USER
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/ROLE_identifier	ALTER TABLE a SET AUTHORIZATION ROLE a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/ROLE_identifier!drop-7	ALTER TABLE a SET AUTHORIZATION ROLE
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2	CREATE MATERIALIZED VIEW a AS SELECT 1.5
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2!insert	CREATE MATERIALIZED VIEW a AS SELECT 1.5 zzz
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(OR_REPLACE)?	CREATE OR REPLACE MATERIALIZED VIEW a AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(IF_NOT_EXISTS)?	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(COMMENT_string)?	CREATE MATERIALIZED VIEW a COMMENT 'a' AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(WITH_properties)?	CREATE MATERIALIZED VIEW a WITH(a = DEFAULT) AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667	CREATE VIEW a AS SELECT 1.5
+ok:218c7e520fcd	ok:218c7e520fcd	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667!insert	CREATE VIEW a AS SELECT 1.5 zzz
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(OR_REPLACE)?	CREATE OR REPLACE VIEW a AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(COMMENT_string)?	CREATE VIEW a COMMENT 'a' AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(WITH_properties)?	CREATE VIEW a WITH(a = DEFAULT) AS SELECT 1.5
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	one_table@missing	statement/DROP_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName	DROP MATERIALIZED VIEW a
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	statement/DROP_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?	DROP MATERIALIZED VIEW IF EXISTS a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4	ALTER MATERIALIZED VIEW a RENAME TO a
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4+statement(IF_EXISTS)?	ALTER MATERIALIZED VIEW IF EXISTS a RENAME TO a
+INVALID_MATERIALIZED_VIEW_PROPERTY	INVALID_MATERIALIZED_VIEW_PROPERTY	engine	one_table@missing	statement/ALTER_MATERIALIZED_VIEW_qualifiedName_SET_PROPERTIES_pr~e2b861c5	ALTER MATERIALIZED VIEW a SET PROPERTIES a = DEFAULT
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	one_table@missing	statement/DROP_VIEW_(IF_EXISTS)?_qualifiedName	DROP VIEW a
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	statement/DROP_VIEW_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?	DROP VIEW IF EXISTS a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_VIEW_qualifiedName_RENAME_TO_qualifiedName	ALTER VIEW a RENAME TO a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement/ALTER_VIEW_qualifiedName_REFRESH	ALTER VIEW a REFRESH
+ok:1d149b1d2062	ok:1d149b1d2062	engine	one_table@missing	statement(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE SCHEMA IF NOT EXISTS a
+ok:1d149b1d2062	ok:1d149b1d2062	engine	one_table@missing	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal	CREATE SCHEMA a AUTHORIZATION a
+ok:1d149b1d2062	ok:1d149b1d2062	engine	one_table@missing	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/USER_identifier	CREATE SCHEMA a AUTHORIZATION USER a
+ok:1d149b1d2062	ok:1d149b1d2062	engine	one_table@missing	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/USER_identifier!drop-3	CREATE SCHEMA a AUTHORIZATION USER
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@missing	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/ROLE_identifier	CREATE SCHEMA a AUTHORIZATION ROLE a
+ok:1d149b1d2062	ok:1d149b1d2062	engine	one_table@missing	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/ROLE_identifier!drop-3	CREATE SCHEMA a AUTHORIZATION ROLE
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE TABLE a AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement(rootQuery|(_rootQuery_))/(_rootQuery_)	CREATE TABLE a AS(SELECT 1.5)
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement(WITH_(NO)?_DATA)?/WITH_(NO)?_DATA	CREATE TABLE a AS SELECT 1.5 WITH DATA
+ok:c83ee0e5f832	ok:c83ee0e5f832	engine	one_table@missing	statement(WITH_(NO)?_DATA)?/WITH_(NO)?_DATA!drop-1	CREATE TABLE a AS SELECT 1.5 DATA
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement(NO)?/NO	CREATE TABLE a AS SELECT 1.5 WITH NO DATA
+DUPLICATE_COLUMN_NAME	DUPLICATE_COLUMN_NAME	engine	one_table@missing	statement(,_tableElement)*/,_tableElement_(,_tableElement)*	CREATE TABLE a(a TIMESTAMP, a TIMESTAMP)
+TYPE_NOT_FOUND	TYPE_NOT_FOUND	engine	one_table@missing	statement(,_tableElement)*/,_tableElement_(,_tableElement)*!swap	CREATE TABLE a(a TIMESTAMP, a TO)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement(,_tableElement)*/,_tableElement_(,_tableElement)*+tableElement/likeClause	CREATE TABLE a(a TIMESTAMP, LIKE a)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement(string|NULL)/string+string/UNICODE_STRING_(UESCAPE_STRING)?	COMMENT ON TABLE a IS U&'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement(string|NULL)/NULL	COMMENT ON TABLE a IS NULL
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement(FIRST|LAST|AFTER_identifier)?/FIRST	ALTER TABLE a ADD COLUMN a TIMESTAMP FIRST
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement(FIRST|LAST|AFTER_identifier)?/LAST	ALTER TABLE a ADD COLUMN a TIMESTAMP LAST
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement(FIRST|LAST|AFTER_identifier)?/AFTER_identifier	ALTER TABLE a ADD COLUMN a TIMESTAMP AFTER a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement((_(argument_(,_argument)*)?_))?/(_(argument_(,_argument)*)?_)	ALTER TABLE a EXECUTE a()
+INVALID_LITERAL	INVALID_LITERAL	engine	one_table@missing	statement(GRACE_PERIOD_interval)?/GRACE_PERIOD_interval	CREATE MATERIALIZED VIEW a GRACE PERIOD INTERVAL 'a' YEAR AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement(WHEN_STALE_(INLINE|FAIL))?/WHEN_STALE_(INLINE|FAIL)	CREATE MATERIALIZED VIEW a WHEN STALE INLINE AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement(INLINE|FAIL)/FAIL	CREATE MATERIALIZED VIEW a WHEN STALE FAIL AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement(SECURITY_(DEFINER|INVOKER))?/SECURITY_(DEFINER|INVOKER)	CREATE VIEW a SECURITY DEFINER AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement(DEFINER|INVOKER)/INVOKER	CREATE VIEW a SECURITY INVOKER AS SELECT 1.5
+TYPE_NOT_FOUND	TYPE_NOT_FOUND	engine	one_table@missing	tableElement/columnDefinition!swap	CREATE TABLE a(a TO)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	tableElement/likeClause	CREATE TABLE a(LIKE a)
+TYPE_NOT_FOUND	TYPE_NOT_FOUND	engine	one_table@missing	tableElement/likeClause!swap	CREATE TABLE a(LIMIT a)
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal	CREATE TABLE a(a TIMESTAMP DEFAULT 1.5)
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/interval	CREATE TABLE a(a TIMESTAMP DEFAULT INTERVAL 'a' YEAR)
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/interval!drop-4	CREATE TABLE a(a TIMESTAMP DEFAULT INTERVAL 'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/identifier_string	CREATE TABLE a(a TIMESTAMP DEFAULT a 'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?	CREATE TABLE a(a TIMESTAMP DEFAULT a U&'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/DOUBLE_PRECISION_string	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE PRECISION 'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/DOUBLE_PRECISION_string!drop-2	CREATE TABLE a(a TIMESTAMP DEFAULT PRECISION 'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/DOUBLE_PRECISION_string!drop-3	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE 'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE PRECISION U&'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-2	CREATE TABLE a(a TIMESTAMP DEFAULT PRECISION U&'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-3	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE U&'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+number/(MINUS)?_DOUBLE_VALUE	CREATE TABLE a(a TIMESTAMP DEFAULT 1E1)
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+number/(MINUS)?_INTEGER_VALUE	CREATE TABLE a(a TIMESTAMP DEFAULT 1)
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/booleanValue	CREATE TABLE a(a TIMESTAMP DEFAULT TRUE)
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+booleanValue/FALSE	CREATE TABLE a(a TIMESTAMP DEFAULT FALSE)
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/string	CREATE TABLE a(a TIMESTAMP DEFAULT 'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#3	CREATE TABLE a(a TIMESTAMP DEFAULT U&'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/BINARY_LITERAL	CREATE TABLE a(a TIMESTAMP DEFAULT X'00')
+ok:03afd5fee47e	ok:03afd5fee47e	engine	one_table@missing	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/NULL	CREATE TABLE a(a TIMESTAMP DEFAULT NULL)
+ok:afda1a82b247	ok:afda1a82b247	engine	one_table@missing	columnDefinition(NOT_NULL)?/NOT_NULL	CREATE TABLE a(a TIMESTAMP NOT NULL)
+ok:0d10f3f58120	ok:0d10f3f58120	engine	one_table@missing	columnDefinition(COMMENT_string)?/COMMENT_string	CREATE TABLE a(a TIMESTAMP COMMENT 'a')
+ok:0d10f3f58120	ok:0d10f3f58120	engine	one_table@missing	columnDefinition(COMMENT_string)?/COMMENT_string+string/UNICODE_STRING_(UESCAPE_STRING)?	CREATE TABLE a(a TIMESTAMP COMMENT U&'a')
+INVALID_COLUMN_PROPERTY	INVALID_COLUMN_PROPERTY	engine	one_table@missing	columnDefinition(WITH_properties)?/WITH_properties	CREATE TABLE a(a TIMESTAMP WITH(a = DEFAULT))
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	likeClause((INCLUDING|EXCLUDING)_PROPERTIES)?/(INCLUDING|EXCLUDING)_PROPERTIES	CREATE TABLE a(LIKE a INCLUDING PROPERTIES)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	likeClause(INCLUDING|EXCLUDING)/EXCLUDING	CREATE TABLE a(LIKE a EXCLUDING PROPERTIES)
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@missing	propertyAssignments/property_(,_property)*!swap	ALTER TABLE a SET PROPERTIES a = DEFINE
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@missing	propertyAssignments(,_property)*/,_property_(,_property)*	ALTER TABLE a SET PROPERTIES a = DEFAULT, a = DEFAULT
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@missing	propertyAssignments(,_property)*/,_property_(,_property)*!swap	ALTER TABLE a SET PROPERTIES a = DEFAULT, a = DEFINE
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@missing	propertyValue/expression	ALTER TABLE a SET PROPERTIES a = 1.5
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	ownedEntityKind/SCHEMA	ALTER SCHEMA a SET AUTHORIZATION a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	ownedEntityKind/VIEW	ALTER VIEW a SET AUTHORIZATION a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	ownedEntityKind/MATERIALIZED_VIEW	ALTER MATERIALIZED VIEW a SET AUTHORIZATION a
+ok:8c2dbdea46c2	ok:8c2dbdea46c2	engine	one_table@missing	suite:ddl	CREATE SCHEMA web
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE SCHEMA hive.sales
+ok:de0bde5d908c	ok:de0bde5d908c	engine	one_table@missing	suite:ddl	CREATE SCHEMA IF NOT EXISTS traffic
+ok:8c2dbdea46c2	ok:8c2dbdea46c2	engine	one_table@missing	suite:ddl	CREATE SCHEMA web AUTHORIZATION alice
+ok:8c2dbdea46c2	ok:8c2dbdea46c2	engine	one_table@missing	suite:ddl	CREATE SCHEMA web AUTHORIZATION USER alice
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@missing	suite:ddl	CREATE SCHEMA web AUTHORIZATION ROLE PUBLIC
+INVALID_SCHEMA_PROPERTY	INVALID_SCHEMA_PROPERTY	engine	one_table@missing	suite:ddl	CREATE SCHEMA web AUTHORIZATION alice WITH ( LOCATION = '/hive/data/web' )
+INVALID_SCHEMA_PROPERTY	INVALID_SCHEMA_PROPERTY	engine	one_table@missing	suite:ddl	CREATE SCHEMA web AUTHORIZATION ROLE PUBLIC WITH ( LOCATION = '/hive/data/web' )
+ok:984f4cee9af4	ok:984f4cee9af4	engine	one_table@missing	suite:ddl	CREATE SCHEMA test
+ok:984f4cee9af4	ok:984f4cee9af4	engine	one_table@missing	suite:ddl	CREATE SCHEMA IF NOT EXISTS test
+INVALID_SCHEMA_PROPERTY	INVALID_SCHEMA_PROPERTY	engine	one_table@missing	suite:ddl	CREATE SCHEMA test WITH (a = 'apple', b = 123)
+ok:93071d881f38	ok:93071d881f38	engine	one_table@missing	suite:ddl	CREATE SCHEMA "some name that contains space"
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	suite:ddl	DROP SCHEMA web
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	suite:ddl	DROP SCHEMA IF EXISTS sales
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	suite:ddl	DROP SCHEMA archive CASCADE
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	suite:ddl	DROP SCHEMA archive RESTRICT
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	suite:ddl	DROP SCHEMA test
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	suite:ddl	DROP SCHEMA test CASCADE
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	suite:ddl	DROP SCHEMA IF EXISTS test
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	suite:ddl	DROP SCHEMA IF EXISTS test RESTRICT
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	suite:ddl	DROP SCHEMA "some schema that contains space"
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	suite:ddl	DROP SCHEMA hive.sales
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER SCHEMA web RENAME TO traffic
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER SCHEMA web SET AUTHORIZATION alice
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER SCHEMA web SET AUTHORIZATION USER alice
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER SCHEMA web SET AUTHORIZATION ROLE PUBLIC
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER SCHEMA foo RENAME TO bar
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER SCHEMA foo.bar RENAME TO baz
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER SCHEMA "awesome schema"."awesome table" RENAME TO "even more awesome table"
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@missing	suite:ddl	CREATE TABLE orders (orderkey bigint, orderstatus varchar, totalprice double, orderdate date) WITH (format = 'ORC')
+ok:22b5b7e9a7e4	ok:22b5b7e9a7e4	engine	one_table@missing	suite:ddl	CREATE TABLE IF NOT EXISTS orders (orderkey bigint, orderstatus varchar, totalprice double COMMENT 'Price in cents.', orderdate date, status varchar DEFAULT 'created') COMMENT 'A table to keep track of orders.'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE TABLE bigger_orders (another_orderkey bigint, LIKE orders, another_orderdate date)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE TABLE IF NOT EXISTS bar (LIKE like_table)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE TABLE IF NOT EXISTS bar (LIKE like_table INCLUDING PROPERTIES)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@missing	suite:ddl	CREATE TABLE t (a bigint, b varchar(10), c decimal(10, 2))
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@missing	suite:ddl	CREATE TABLE t (a bigint NOT NULL)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@missing	suite:ddl	CREATE TABLE t (a bigint DEFAULT 5 NOT NULL)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@missing	suite:ddl	CREATE TABLE t (a bigint DEFAULT -5)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@missing	suite:ddl	CREATE TABLE t (a double DEFAULT - 1.5E1)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@missing	suite:ddl	CREATE TABLE t (a date DEFAULT DATE '2020-01-01')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@missing	suite:ddl	CREATE TABLE t (a bigint COMMENT 'x' WITH (foo = 'bar'))
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@missing	suite:ddl	CREATE TABLE t (a row(x bigint, y double))
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@missing	suite:ddl	CREATE TABLE t (a array(bigint))
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE TABLE cat.sch.t (a bigint)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@missing	suite:ddl	CREATE TABLE t (LIKE a EXCLUDING PROPERTIES)
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@missing	suite:ddl	CREATE OR REPLACE TABLE t (a bigint)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE TABLE orders_column_aliased (order_date, total_price) AS SELECT orderdate, totalprice FROM orders
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@missing	suite:ddl	CREATE TABLE orders_by_date COMMENT 'Summary of orders by date' WITH (format = 'ORC') AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE TABLE IF NOT EXISTS orders_by_date AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE TABLE empty_nation AS SELECT * FROM nation WITH NO DATA
+ok:6b7c4e82f588	ok:6b7c4e82f588	engine	one_table@missing	suite:ddl	CREATE TABLE foo AS SELECT * FROM t
+ok:c1ab5ae95186	ok:c1ab5ae95186	engine	one_table@missing	suite:ddl	CREATE TABLE foo(x) AS SELECT a FROM t
+ok:6bcbec046b57	ok:6bcbec046b57	engine	one_table@missing	suite:ddl	CREATE TABLE foo(x,y) AS SELECT a,b FROM t
+ok:6b7c4e82f588	ok:6b7c4e82f588	engine	one_table@missing	suite:ddl	CREATE TABLE IF NOT EXISTS foo AS SELECT * FROM t
+ok:6b7c4e82f588	ok:6b7c4e82f588	engine	one_table@missing	suite:ddl	CREATE TABLE foo AS SELECT * FROM t WITH NO DATA
+ok:c1ab5ae95186	ok:c1ab5ae95186	engine	one_table@missing	suite:ddl	CREATE TABLE foo(x) AS SELECT a FROM t WITH NO DATA
+ok:6b7c4e82f588	ok:6b7c4e82f588	engine	one_table@missing	suite:ddl	CREATE TABLE foo AS SELECT * FROM t WITH DATA
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@missing	suite:ddl	CREATE TABLE foo WITH ( string = 'bar', long = 42, computed = 'ban' || 'ana', a = ARRAY[ 'v1', 'v2' ] ) AS SELECT * FROM t
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@missing	suite:ddl	CREATE TABLE foo COMMENT 'test' WITH ( string = 'bar' ) AS SELECT * FROM t WITH NO DATA
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@missing	suite:ddl	CREATE TABLE foo(x,y) COMMENT 'test' WITH ( "string" = 'bar', "long" = 42, computed = 'ban' || 'ana', a = ARRAY[ 'v1', 'v2' ] ) AS SELECT a,b FROM t WITH NO DATA
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@missing	suite:ddl	CREATE TABLE t AS (SELECT 1)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@missing	suite:ddl	CREATE TABLE t AS TABLE other
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@missing	suite:ddl	CREATE TABLE t AS WITH c AS (SELECT 1) SELECT * FROM c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE OR REPLACE TABLE t AS SELECT * FROM x
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	DROP TABLE orders_by_date
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	suite:ddl	DROP TABLE IF EXISTS orders_by_date
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	DROP TABLE a.b
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	DROP TABLE a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	DROP TABLE a."b/y".c
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	suite:ddl	DROP TABLE IF EXISTS a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE users RENAME TO people
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	suite:ddl	ALTER TABLE IF EXISTS users RENAME TO people
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE a.b.c RENAME TO d.e.f
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE a RENAME TO b.c.d.e
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar DEFAULT '90210'
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	suite:ddl	ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS zip varchar
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE users ADD COLUMN id varchar FIRST
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar AFTER country
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar LAST
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE users ADD COLUMN c bigint NOT NULL COMMENT 'x' WITH (p = 1)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE users DROP COLUMN zip
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	suite:ddl	ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS zip
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE foo.t DROP COLUMN c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE "t x" DROP COLUMN "c d"
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE foo.t DROP COLUMN IF EXISTS c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE users RENAME COLUMN id TO user_id
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	suite:ddl	ALTER TABLE IF EXISTS users RENAME COLUMN IF EXISTS id TO user_id
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@missing	suite:ddl	ALTER TABLE t DROP COLUMN a.b
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE users ALTER COLUMN id SET DATA TYPE bigint
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE foo.bar.baz ALTER COLUMN col1 SET DATA TYPE bigint
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT 'active'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT -1.5
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT INTERVAL -'1' DAY
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE users ALTER COLUMN status DROP DEFAULT
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE users ALTER COLUMN id DROP NOT NULL
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	suite:ddl	ALTER TABLE IF EXISTS users ALTER COLUMN id SET DATA TYPE bigint
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE people SET AUTHORIZATION alice
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE people SET AUTHORIZATION ROLE PUBLIC
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE foo.bar.baz SET AUTHORIZATION qux
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE foo.bar.baz SET AUTHORIZATION USER qux
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE foo.bar.baz SET AUTHORIZATION ROLE qux
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@missing	suite:ddl	ALTER TABLE people SET PROPERTIES x = 'y'
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@missing	suite:ddl	ALTER TABLE people SET PROPERTIES foo = 123, "foo bar" = 456
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@missing	suite:ddl	ALTER TABLE people SET PROPERTIES x = DEFAULT
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE example.test.test_table EXECUTE optimize(file_size_threshold => '16MB')
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE t EXECUTE optimize
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE t EXECUTE optimize()
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE t EXECUTE optimize(1, 2)
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE t EXECUTE optimize WHERE x > 1
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER TABLE t EXECUTE optimize(threshold => '1MB') WHERE part = 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE VIEW test AS SELECT orderkey, orderstatus, totalprice / 2 AS half FROM orders
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE VIEW test_with_comment COMMENT 'A view to keep track of orders.' AS SELECT orderkey, orderstatus, totalprice FROM orders
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE OR REPLACE VIEW test AS SELECT orderkey, orderstatus, totalprice / 4 AS quarter FROM orders
+ok:29c0860913d4	ok:29c0860913d4	engine	one_table@missing	suite:ddl	CREATE VIEW a AS SELECT * FROM t
+ok:29c0860913d4	ok:29c0860913d4	engine	one_table@missing	suite:ddl	CREATE VIEW a SECURITY DEFINER AS SELECT * FROM t
+ok:0cf803aefdc8	ok:0cf803aefdc8	engine	one_table@missing	suite:ddl	CREATE VIEW a SECURITY INVOKER AS SELECT * FROM t
+ok:53ebf03e9bf2	ok:53ebf03e9bf2	engine	one_table@missing	suite:ddl	CREATE VIEW a COMMENT 'comment' SECURITY DEFINER AS SELECT * FROM t
+ok:5d3aeccc01cf	ok:5d3aeccc01cf	engine	one_table@missing	suite:ddl	CREATE VIEW a COMMENT '' AS SELECT * FROM t
+NOT_FOUND	NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE VIEW bar.foo AS SELECT * FROM t
+NOT_FOUND	NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE VIEW "awesome schema"."awesome view" AS SELECT * FROM t
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	one_table@missing	suite:ddl	DROP VIEW orders_by_date
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	suite:ddl	DROP VIEW IF EXISTS orders_by_date
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	one_table@missing	suite:ddl	DROP VIEW a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER VIEW people RENAME TO users
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER VIEW a RENAME TO b.c.d.e
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER VIEW people REFRESH
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER VIEW people SET AUTHORIZATION alice
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER VIEW a RENAME TO b
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER VIEW foo.bar.baz SET AUTHORIZATION qux
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER VIEW foo.bar.baz SET AUTHORIZATION USER qux
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER VIEW foo.bar.baz SET AUTHORIZATION ROLE qux
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE MATERIALIZED VIEW cancelled_orders AS SELECT orderkey, totalprice FROM orders WHERE orderstatus = 3
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW order_totals_by_date AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE MATERIALIZED VIEW orders_nation_mkgsegment COMMENT 'Orders with nation and market segment data' WITH ( partitioning = ARRAY['mktsegment', 'nationkey'] ) AS SELECT o.*, c.nationkey, c.mktsegment FROM orders AS o JOIN customer AS c ON o.custkey = c.custkey
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE MATERIALIZED VIEW orders_summary GRACE PERIOD INTERVAL '1' HOUR WHEN STALE FAIL AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE MATERIALIZED VIEW orders_summary GRACE PERIOD INTERVAL '1' HOUR WHEN STALE INLINE AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@missing	suite:ddl	CREATE MATERIALIZED VIEW a AS SELECT * FROM t
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW catalog.schema.matview COMMENT 'A simple materialized view' AS SELECT * FROM catalog2.schema2.tab
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW catalog.schema.matview COMMENT 'A simple materialized view' WITH (partitioned_by = ARRAY ['dateint']) AS SELECT * FROM catalog2.schema2.tab
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW catalog.schema.matview COMMENT 'A partitioned materialized view' WITH (partitioned_by = ARRAY ['dateint']) AS WITH a (t, u) AS (SELECT * FROM x), b AS (SELECT * FROM a) TABLE b
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@missing	suite:ddl	CREATE MATERIALIZED VIEW a GRACE PERIOD INTERVAL '2' DAY AS SELECT * FROM t
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@missing	suite:ddl	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT * FROM t
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@missing	suite:ddl	CREATE MATERIALIZED VIEW a WHEN STALE INLINE AS SELECT * FROM t
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	one_table@missing	suite:ddl	DROP MATERIALIZED VIEW orders_by_date
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	suite:ddl	DROP MATERIALIZED VIEW IF EXISTS orders_by_date
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	one_table@missing	suite:ddl	DROP MATERIALIZED VIEW a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER MATERIALIZED VIEW people RENAME TO users
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER MATERIALIZED VIEW a RENAME TO b.c.d.e
+ok:1908ff770add	ok:1908ff770add	engine	one_table@missing	suite:ddl	ALTER MATERIALIZED VIEW IF EXISTS people RENAME TO users
+INVALID_MATERIALIZED_VIEW_PROPERTY	INVALID_MATERIALIZED_VIEW_PROPERTY	engine	one_table@missing	suite:ddl	ALTER MATERIALIZED VIEW people SET PROPERTIES x = 'y'
+INVALID_MATERIALIZED_VIEW_PROPERTY	INVALID_MATERIALIZED_VIEW_PROPERTY	engine	one_table@missing	suite:ddl	ALTER MATERIALIZED VIEW people SET PROPERTIES foo = 123, "foo bar" = 456
+INVALID_MATERIALIZED_VIEW_PROPERTY	INVALID_MATERIALIZED_VIEW_PROPERTY	engine	one_table@missing	suite:ddl	ALTER MATERIALIZED VIEW people SET PROPERTIES x = DEFAULT
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER MATERIALIZED VIEW a RENAME TO b
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER MATERIALIZED VIEW people SET AUTHORIZATION alice
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER MATERIALIZED VIEW people SET AUTHORIZATION ROLE PUBLIC
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	ALTER MATERIALIZED VIEW people SET AUTHORIZATION USER alice
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	COMMENT ON TABLE users IS 'master table'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	COMMENT ON TABLE users IS NULL
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	COMMENT ON VIEW users IS 'master view'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	COMMENT ON VIEW users IS NULL
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	COMMENT ON COLUMN users.name IS 'full name'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	COMMENT ON COLUMN users.name IS NULL
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	COMMENT ON TABLE a IS ''
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	COMMENT ON COLUMN a.b IS 'test'
+MISSING_TABLE	MISSING_TABLE	engine	one_table@missing	suite:ddl	COMMENT ON COLUMN a IS 'test'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	COMMENT ON COLUMN a.b.c IS 'test'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	COMMENT ON COLUMN a.b.c.d IS 'test'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:ddl	COMMENT ON TABLE cat.sch.t IS 'x'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:dml	TRUNCATE TABLE orders
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:dml	TRUNCATE TABLE a.b
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:dml	TRUNCATE TABLE a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	suite:dml	TRUNCATE TABLE "My Table"
+ok:07eb14638bc7	ok:07eb14638bc7	engine	one_table@table	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb	CREATE SCHEMA a
+INVALID_SCHEMA_PROPERTY	INVALID_SCHEMA_PROPERTY	engine	one_table@table	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb+statement(WITH_properties)?	CREATE SCHEMA a WITH(a = DEFAULT)
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?	DROP SCHEMA a
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?+statement(IF_EXISTS)?	DROP SCHEMA IF EXISTS a
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?+statement(CASCADE|RESTRICT)?	DROP SCHEMA a CASCADE
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	statement/ALTER_SCHEMA_qualifiedName_RENAME_TO_identifier	ALTER SCHEMA a RENAME TO a
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb	CREATE TABLE a AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb!insert	CREATE TABLE a AS SELECT 1.5 zzz
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(IF_NOT_EXISTS)?	CREATE TABLE IF NOT EXISTS a AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(COMMENT_string)?	CREATE TABLE a COMMENT 'a' AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(WITH_properties)?	CREATE TABLE a WITH(a = DEFAULT) AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368	CREATE TABLE a(a TIMESTAMP)
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(OR_REPLACE)?	CREATE OR REPLACE TABLE a(a TIMESTAMP)
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(IF_NOT_EXISTS)?	CREATE TABLE IF NOT EXISTS a(a TIMESTAMP)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(COMMENT_string)?	CREATE TABLE a(a TIMESTAMP) COMMENT 'a'
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(WITH_properties)?	CREATE TABLE a(a TIMESTAMP) WITH(a = DEFAULT)
+ok:1908ff770add	ok:1908ff770add	engine	one_table@table	statement/DROP_TABLE_(IF_EXISTS)?_qualifiedName	DROP TABLE a
+ok:1908ff770add	ok:1908ff770add	engine	one_table@table	statement/DROP_TABLE_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?	DROP TABLE IF EXISTS a
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	statement/TRUNCATE_TABLE_qualifiedName	TRUNCATE TABLE a
+ok:0bc026b02195	ok:0bc026b02195	engine	one_table@table	statement/COMMENT_ON_TABLE_qualifiedName_IS_(string|NULL)	COMMENT ON TABLE a IS 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	statement/COMMENT_ON_VIEW_qualifiedName_IS_(string|NULL)	COMMENT ON VIEW a IS 'a'
+MISSING_TABLE	MISSING_TABLE	engine	one_table@table	statement/COMMENT_ON_COLUMN_qualifiedName_IS_(string|NULL)	COMMENT ON COLUMN a IS 'a'
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_TO_qualifiedName	ALTER TABLE a RENAME TO a
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_TO_qualifiedName+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a RENAME TO a
+COLUMN_ALREADY_EXISTS	COLUMN_ALREADY_EXISTS	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23	ALTER TABLE a ADD COLUMN a TIMESTAMP
+COLUMN_ALREADY_EXISTS	COLUMN_ALREADY_EXISTS	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ADD COLUMN a TIMESTAMP
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23+statement(IF_NOT_EXISTS)?	ALTER TABLE a ADD COLUMN IF NOT EXISTS a TIMESTAMP
+COLUMN_ALREADY_EXISTS	COLUMN_ALREADY_EXISTS	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d	ALTER TABLE a RENAME COLUMN a TO a
+COLUMN_ALREADY_EXISTS	COLUMN_ALREADY_EXISTS	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a RENAME COLUMN a TO a
+COLUMN_ALREADY_EXISTS	COLUMN_ALREADY_EXISTS	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d+statement(IF_EXISTS)?#2	ALTER TABLE a RENAME COLUMN IF EXISTS a TO a
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062	ALTER TABLE a DROP COLUMN a
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a DROP COLUMN a
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062+statement(IF_EXISTS)?#2	ALTER TABLE a DROP COLUMN IF EXISTS a
+ok:d25c9944db35	ok:d25c9944db35	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110	ALTER TABLE a ALTER COLUMN a SET DEFAULT 1.5
+ok:d25c9944db35	ok:d25c9944db35	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a SET DEFAULT 1.5
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/interval	ALTER TABLE a ALTER COLUMN a SET DEFAULT INTERVAL 'a' YEAR
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/interval!drop-11	ALTER TABLE a ALTER COLUMN a SET DEFAULT INTERVAL 'a'
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/identifier_string	ALTER TABLE a ALTER COLUMN a SET DEFAULT a 'a'
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?	ALTER TABLE a ALTER COLUMN a SET DEFAULT a U&'a'
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/DOUBLE_PRECISION_string	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE PRECISION 'a'
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/DOUBLE_PRECISION_string!drop-9	ALTER TABLE a ALTER COLUMN a SET DEFAULT PRECISION 'a'
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/DOUBLE_PRECISION_string!drop-10	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE 'a'
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#2	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE PRECISION U&'a'
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-9	ALTER TABLE a ALTER COLUMN a SET DEFAULT PRECISION U&'a'
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-10	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE U&'a'
+ok:159b9e67fa2b	ok:159b9e67fa2b	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+number/(MINUS)?_DOUBLE_VALUE	ALTER TABLE a ALTER COLUMN a SET DEFAULT 1E1
+ok:da842508d56b	ok:da842508d56b	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+number/(MINUS)?_INTEGER_VALUE	ALTER TABLE a ALTER COLUMN a SET DEFAULT 1
+ok:d29a6f24bc0e	ok:d29a6f24bc0e	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/booleanValue	ALTER TABLE a ALTER COLUMN a SET DEFAULT TRUE
+ok:ddba570deeb5	ok:ddba570deeb5	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+booleanValue/FALSE	ALTER TABLE a ALTER COLUMN a SET DEFAULT FALSE
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/string	ALTER TABLE a ALTER COLUMN a SET DEFAULT 'a'
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#3	ALTER TABLE a ALTER COLUMN a SET DEFAULT U&'a'
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/BINARY_LITERAL	ALTER TABLE a ALTER COLUMN a SET DEFAULT X'00'
+ok:f7b3cdd29490	ok:f7b3cdd29490	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/NULL	ALTER TABLE a ALTER COLUMN a SET DEFAULT NULL
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562	ALTER TABLE a ALTER COLUMN a DROP DEFAULT
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a DROP DEFAULT
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb	ALTER TABLE a ALTER COLUMN a SET DATA TYPE TIMESTAMP
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a SET DATA TYPE TIMESTAMP
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071	ALTER TABLE a ALTER COLUMN a DROP NOT NULL
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a DROP NOT NULL
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@table	statement/ALTER_TABLE_qualifiedName_SET_PROPERTIES_propertyAssignments	ALTER TABLE a SET PROPERTIES a = DEFAULT
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	one_table@table	statement/ALTER_TABLE_qualifiedName_EXECUTE_identifier_((_(argume~52676478	ALTER TABLE a EXECUTE a
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	one_table@table	statement/ALTER_TABLE_qualifiedName_EXECUTE_identifier_((_(argume~52676478+statement(WHERE_booleanExpression)?	ALTER TABLE a EXECUTE a WHERE 1.5
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal	ALTER TABLE a SET AUTHORIZATION a
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/USER_identifier	ALTER TABLE a SET AUTHORIZATION USER a
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/USER_identifier!drop-7	ALTER TABLE a SET AUTHORIZATION USER
+ROLE_NOT_FOUND	ROLE_NOT_FOUND	engine	one_table@table	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/ROLE_identifier	ALTER TABLE a SET AUTHORIZATION ROLE a
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/ROLE_identifier!drop-7	ALTER TABLE a SET AUTHORIZATION ROLE
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2	CREATE MATERIALIZED VIEW a AS SELECT 1.5
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2!insert	CREATE MATERIALIZED VIEW a AS SELECT 1.5 zzz
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(OR_REPLACE)?	CREATE OR REPLACE MATERIALIZED VIEW a AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(IF_NOT_EXISTS)?	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(COMMENT_string)?	CREATE MATERIALIZED VIEW a COMMENT 'a' AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(WITH_properties)?	CREATE MATERIALIZED VIEW a WITH(a = DEFAULT) AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667	CREATE VIEW a AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667!insert	CREATE VIEW a AS SELECT 1.5 zzz
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(OR_REPLACE)?	CREATE OR REPLACE VIEW a AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(COMMENT_string)?	CREATE VIEW a COMMENT 'a' AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(WITH_properties)?	CREATE VIEW a WITH(a = DEFAULT) AS SELECT 1.5
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	one_table@table	statement/DROP_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName	DROP MATERIALIZED VIEW a
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	one_table@table	statement/DROP_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?	DROP MATERIALIZED VIEW IF EXISTS a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4	ALTER MATERIALIZED VIEW a RENAME TO a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4+statement(IF_EXISTS)?	ALTER MATERIALIZED VIEW IF EXISTS a RENAME TO a
+INVALID_MATERIALIZED_VIEW_PROPERTY	INVALID_MATERIALIZED_VIEW_PROPERTY	engine	one_table@table	statement/ALTER_MATERIALIZED_VIEW_qualifiedName_SET_PROPERTIES_pr~e2b861c5	ALTER MATERIALIZED VIEW a SET PROPERTIES a = DEFAULT
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	one_table@table	statement/DROP_VIEW_(IF_EXISTS)?_qualifiedName	DROP VIEW a
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	one_table@table	statement/DROP_VIEW_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?	DROP VIEW IF EXISTS a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	statement/ALTER_VIEW_qualifiedName_RENAME_TO_qualifiedName	ALTER VIEW a RENAME TO a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	statement/ALTER_VIEW_qualifiedName_REFRESH	ALTER VIEW a REFRESH
+ok:07eb14638bc7	ok:07eb14638bc7	engine	one_table@table	statement(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE SCHEMA IF NOT EXISTS a
+ok:07eb14638bc7	ok:07eb14638bc7	engine	one_table@table	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal	CREATE SCHEMA a AUTHORIZATION a
+ok:07eb14638bc7	ok:07eb14638bc7	engine	one_table@table	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/USER_identifier	CREATE SCHEMA a AUTHORIZATION USER a
+ok:07eb14638bc7	ok:07eb14638bc7	engine	one_table@table	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/USER_identifier!drop-3	CREATE SCHEMA a AUTHORIZATION USER
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/ROLE_identifier	CREATE SCHEMA a AUTHORIZATION ROLE a
+ok:07eb14638bc7	ok:07eb14638bc7	engine	one_table@table	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/ROLE_identifier!drop-3	CREATE SCHEMA a AUTHORIZATION ROLE
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@table	statement(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE TABLE a AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement(rootQuery|(_rootQuery_))/(_rootQuery_)	CREATE TABLE a AS(SELECT 1.5)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement(WITH_(NO)?_DATA)?/WITH_(NO)?_DATA	CREATE TABLE a AS SELECT 1.5 WITH DATA
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement(WITH_(NO)?_DATA)?/WITH_(NO)?_DATA!drop-1	CREATE TABLE a AS SELECT 1.5 DATA
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement(NO)?/NO	CREATE TABLE a AS SELECT 1.5 WITH NO DATA
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement(,_tableElement)*/,_tableElement_(,_tableElement)*	CREATE TABLE a(a TIMESTAMP, a TIMESTAMP)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement(,_tableElement)*/,_tableElement_(,_tableElement)*!swap	CREATE TABLE a(a TIMESTAMP, a TO)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement(,_tableElement)*/,_tableElement_(,_tableElement)*+tableElement/likeClause	CREATE TABLE a(a TIMESTAMP, LIKE a)
+ok:0bc026b02195	ok:0bc026b02195	engine	one_table@table	statement(string|NULL)/string+string/UNICODE_STRING_(UESCAPE_STRING)?	COMMENT ON TABLE a IS U&'a'
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	statement(string|NULL)/NULL	COMMENT ON TABLE a IS NULL
+COLUMN_ALREADY_EXISTS	COLUMN_ALREADY_EXISTS	engine	one_table@table	statement(FIRST|LAST|AFTER_identifier)?/FIRST	ALTER TABLE a ADD COLUMN a TIMESTAMP FIRST
+COLUMN_ALREADY_EXISTS	COLUMN_ALREADY_EXISTS	engine	one_table@table	statement(FIRST|LAST|AFTER_identifier)?/LAST	ALTER TABLE a ADD COLUMN a TIMESTAMP LAST
+COLUMN_ALREADY_EXISTS	COLUMN_ALREADY_EXISTS	engine	one_table@table	statement(FIRST|LAST|AFTER_identifier)?/AFTER_identifier	ALTER TABLE a ADD COLUMN a TIMESTAMP AFTER a
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	one_table@table	statement((_(argument_(,_argument)*)?_))?/(_(argument_(,_argument)*)?_)	ALTER TABLE a EXECUTE a()
+INVALID_LITERAL	INVALID_LITERAL	engine	one_table@table	statement(GRACE_PERIOD_interval)?/GRACE_PERIOD_interval	CREATE MATERIALIZED VIEW a GRACE PERIOD INTERVAL 'a' YEAR AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@table	statement(WHEN_STALE_(INLINE|FAIL))?/WHEN_STALE_(INLINE|FAIL)	CREATE MATERIALIZED VIEW a WHEN STALE INLINE AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@table	statement(INLINE|FAIL)/FAIL	CREATE MATERIALIZED VIEW a WHEN STALE FAIL AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement(SECURITY_(DEFINER|INVOKER))?/SECURITY_(DEFINER|INVOKER)	CREATE VIEW a SECURITY DEFINER AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement(DEFINER|INVOKER)/INVOKER	CREATE VIEW a SECURITY INVOKER AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	tableElement/columnDefinition!swap	CREATE TABLE a(a TO)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	tableElement/likeClause	CREATE TABLE a(LIKE a)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	tableElement/likeClause!swap	CREATE TABLE a(LIMIT a)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal	CREATE TABLE a(a TIMESTAMP DEFAULT 1.5)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/interval	CREATE TABLE a(a TIMESTAMP DEFAULT INTERVAL 'a' YEAR)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/interval!drop-4	CREATE TABLE a(a TIMESTAMP DEFAULT INTERVAL 'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/identifier_string	CREATE TABLE a(a TIMESTAMP DEFAULT a 'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?	CREATE TABLE a(a TIMESTAMP DEFAULT a U&'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/DOUBLE_PRECISION_string	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE PRECISION 'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/DOUBLE_PRECISION_string!drop-2	CREATE TABLE a(a TIMESTAMP DEFAULT PRECISION 'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/DOUBLE_PRECISION_string!drop-3	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE 'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE PRECISION U&'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-2	CREATE TABLE a(a TIMESTAMP DEFAULT PRECISION U&'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-3	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE U&'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+number/(MINUS)?_DOUBLE_VALUE	CREATE TABLE a(a TIMESTAMP DEFAULT 1E1)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+number/(MINUS)?_INTEGER_VALUE	CREATE TABLE a(a TIMESTAMP DEFAULT 1)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/booleanValue	CREATE TABLE a(a TIMESTAMP DEFAULT TRUE)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+booleanValue/FALSE	CREATE TABLE a(a TIMESTAMP DEFAULT FALSE)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/string	CREATE TABLE a(a TIMESTAMP DEFAULT 'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#3	CREATE TABLE a(a TIMESTAMP DEFAULT U&'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/BINARY_LITERAL	CREATE TABLE a(a TIMESTAMP DEFAULT X'00')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/NULL	CREATE TABLE a(a TIMESTAMP DEFAULT NULL)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(NOT_NULL)?/NOT_NULL	CREATE TABLE a(a TIMESTAMP NOT NULL)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(COMMENT_string)?/COMMENT_string	CREATE TABLE a(a TIMESTAMP COMMENT 'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(COMMENT_string)?/COMMENT_string+string/UNICODE_STRING_(UESCAPE_STRING)?	CREATE TABLE a(a TIMESTAMP COMMENT U&'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	columnDefinition(WITH_properties)?/WITH_properties	CREATE TABLE a(a TIMESTAMP WITH(a = DEFAULT))
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	likeClause((INCLUDING|EXCLUDING)_PROPERTIES)?/(INCLUDING|EXCLUDING)_PROPERTIES	CREATE TABLE a(LIKE a INCLUDING PROPERTIES)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	likeClause(INCLUDING|EXCLUDING)/EXCLUDING	CREATE TABLE a(LIKE a EXCLUDING PROPERTIES)
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@table	propertyAssignments/property_(,_property)*!swap	ALTER TABLE a SET PROPERTIES a = DEFINE
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@table	propertyAssignments(,_property)*/,_property_(,_property)*	ALTER TABLE a SET PROPERTIES a = DEFAULT, a = DEFAULT
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@table	propertyAssignments(,_property)*/,_property_(,_property)*!swap	ALTER TABLE a SET PROPERTIES a = DEFAULT, a = DEFINE
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@table	propertyValue/expression	ALTER TABLE a SET PROPERTIES a = 1.5
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	ownedEntityKind/SCHEMA	ALTER SCHEMA a SET AUTHORIZATION a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	ownedEntityKind/VIEW	ALTER VIEW a SET AUTHORIZATION a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	ownedEntityKind/MATERIALIZED_VIEW	ALTER MATERIALIZED VIEW a SET AUTHORIZATION a
+ok:b74775befc55	ok:b74775befc55	engine	one_table@table	suite:ddl	CREATE SCHEMA web
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE SCHEMA hive.sales
+ok:a1c7712a41fb	ok:a1c7712a41fb	engine	one_table@table	suite:ddl	CREATE SCHEMA IF NOT EXISTS traffic
+ok:b74775befc55	ok:b74775befc55	engine	one_table@table	suite:ddl	CREATE SCHEMA web AUTHORIZATION alice
+ok:b74775befc55	ok:b74775befc55	engine	one_table@table	suite:ddl	CREATE SCHEMA web AUTHORIZATION USER alice
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	suite:ddl	CREATE SCHEMA web AUTHORIZATION ROLE PUBLIC
+INVALID_SCHEMA_PROPERTY	INVALID_SCHEMA_PROPERTY	engine	one_table@table	suite:ddl	CREATE SCHEMA web AUTHORIZATION alice WITH ( LOCATION = '/hive/data/web' )
+INVALID_SCHEMA_PROPERTY	INVALID_SCHEMA_PROPERTY	engine	one_table@table	suite:ddl	CREATE SCHEMA web AUTHORIZATION ROLE PUBLIC WITH ( LOCATION = '/hive/data/web' )
+ok:917dc1aa6943	ok:917dc1aa6943	engine	one_table@table	suite:ddl	CREATE SCHEMA test
+ok:917dc1aa6943	ok:917dc1aa6943	engine	one_table@table	suite:ddl	CREATE SCHEMA IF NOT EXISTS test
+INVALID_SCHEMA_PROPERTY	INVALID_SCHEMA_PROPERTY	engine	one_table@table	suite:ddl	CREATE SCHEMA test WITH (a = 'apple', b = 123)
+ok:caeb4cc7ccce	ok:caeb4cc7ccce	engine	one_table@table	suite:ddl	CREATE SCHEMA "some name that contains space"
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	suite:ddl	DROP SCHEMA web
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	suite:ddl	DROP SCHEMA IF EXISTS sales
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	suite:ddl	DROP SCHEMA archive CASCADE
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	suite:ddl	DROP SCHEMA archive RESTRICT
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	suite:ddl	DROP SCHEMA test
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	suite:ddl	DROP SCHEMA test CASCADE
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	suite:ddl	DROP SCHEMA IF EXISTS test
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	suite:ddl	DROP SCHEMA IF EXISTS test RESTRICT
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	suite:ddl	DROP SCHEMA "some schema that contains space"
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	suite:ddl	DROP SCHEMA hive.sales
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER SCHEMA web RENAME TO traffic
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER SCHEMA web SET AUTHORIZATION alice
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER SCHEMA web SET AUTHORIZATION USER alice
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER SCHEMA web SET AUTHORIZATION ROLE PUBLIC
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER SCHEMA foo RENAME TO bar
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER SCHEMA foo.bar RENAME TO baz
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER SCHEMA "awesome schema"."awesome table" RENAME TO "even more awesome table"
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@table	suite:ddl	CREATE TABLE orders (orderkey bigint, orderstatus varchar, totalprice double, orderdate date) WITH (format = 'ORC')
+ok:d25308157b77	ok:d25308157b77	engine	one_table@table	suite:ddl	CREATE TABLE IF NOT EXISTS orders (orderkey bigint, orderstatus varchar, totalprice double COMMENT 'Price in cents.', orderdate date, status varchar DEFAULT 'created') COMMENT 'A table to keep track of orders.'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE TABLE bigger_orders (another_orderkey bigint, LIKE orders, another_orderdate date)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE TABLE IF NOT EXISTS bar (LIKE like_table)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE TABLE IF NOT EXISTS bar (LIKE like_table INCLUDING PROPERTIES)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE TABLE t (a bigint, b varchar(10), c decimal(10, 2))
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE TABLE t (a bigint NOT NULL)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE TABLE t (a bigint DEFAULT 5 NOT NULL)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE TABLE t (a bigint DEFAULT -5)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE TABLE t (a double DEFAULT - 1.5E1)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE TABLE t (a date DEFAULT DATE '2020-01-01')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE TABLE t (a bigint COMMENT 'x' WITH (foo = 'bar'))
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE TABLE t (a row(x bigint, y double))
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE TABLE t (a array(bigint))
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE TABLE cat.sch.t (a bigint)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE TABLE t (LIKE a EXCLUDING PROPERTIES)
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	suite:ddl	CREATE OR REPLACE TABLE t (a bigint)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE TABLE orders_column_aliased (order_date, total_price) AS SELECT orderdate, totalprice FROM orders
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@table	suite:ddl	CREATE TABLE orders_by_date COMMENT 'Summary of orders by date' WITH (format = 'ORC') AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE TABLE IF NOT EXISTS orders_by_date AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE TABLE empty_nation AS SELECT * FROM nation WITH NO DATA
+ok:df4b0c36bf03	ok:df4b0c36bf03	engine	one_table@table	suite:ddl	CREATE TABLE foo AS SELECT * FROM t
+ok:ea4856f619dd	ok:ea4856f619dd	engine	one_table@table	suite:ddl	CREATE TABLE foo(x) AS SELECT a FROM t
+ok:ad3349d11150	ok:ad3349d11150	engine	one_table@table	suite:ddl	CREATE TABLE foo(x,y) AS SELECT a,b FROM t
+ok:df4b0c36bf03	ok:df4b0c36bf03	engine	one_table@table	suite:ddl	CREATE TABLE IF NOT EXISTS foo AS SELECT * FROM t
+ok:df4b0c36bf03	ok:df4b0c36bf03	engine	one_table@table	suite:ddl	CREATE TABLE foo AS SELECT * FROM t WITH NO DATA
+ok:ea4856f619dd	ok:ea4856f619dd	engine	one_table@table	suite:ddl	CREATE TABLE foo(x) AS SELECT a FROM t WITH NO DATA
+ok:df4b0c36bf03	ok:df4b0c36bf03	engine	one_table@table	suite:ddl	CREATE TABLE foo AS SELECT * FROM t WITH DATA
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@table	suite:ddl	CREATE TABLE foo WITH ( string = 'bar', long = 42, computed = 'ban' || 'ana', a = ARRAY[ 'v1', 'v2' ] ) AS SELECT * FROM t
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@table	suite:ddl	CREATE TABLE foo COMMENT 'test' WITH ( string = 'bar' ) AS SELECT * FROM t WITH NO DATA
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@table	suite:ddl	CREATE TABLE foo(x,y) COMMENT 'test' WITH ( "string" = 'bar', "long" = 42, computed = 'ban' || 'ana', a = ARRAY[ 'v1', 'v2' ] ) AS SELECT a,b FROM t WITH NO DATA
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE TABLE t AS (SELECT 1)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE TABLE t AS TABLE other
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE TABLE t AS WITH c AS (SELECT 1) SELECT * FROM c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE OR REPLACE TABLE t AS SELECT * FROM x
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	DROP TABLE orders_by_date
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	suite:ddl	DROP TABLE IF EXISTS orders_by_date
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	DROP TABLE a.b
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	DROP TABLE a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	DROP TABLE a."b/y".c
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	suite:ddl	DROP TABLE IF EXISTS a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE users RENAME TO people
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	suite:ddl	ALTER TABLE IF EXISTS users RENAME TO people
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE a.b.c RENAME TO d.e.f
+SYNTAX_ERROR	SYNTAX_ERROR	engine	one_table@table	suite:ddl	ALTER TABLE a RENAME TO b.c.d.e
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar DEFAULT '90210'
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	suite:ddl	ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS zip varchar
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE users ADD COLUMN id varchar FIRST
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar AFTER country
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar LAST
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE users ADD COLUMN c bigint NOT NULL COMMENT 'x' WITH (p = 1)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE users DROP COLUMN zip
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	suite:ddl	ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS zip
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE foo.t DROP COLUMN c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE "t x" DROP COLUMN "c d"
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE foo.t DROP COLUMN IF EXISTS c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE users RENAME COLUMN id TO user_id
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	suite:ddl	ALTER TABLE IF EXISTS users RENAME COLUMN IF EXISTS id TO user_id
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	suite:ddl	ALTER TABLE t DROP COLUMN a.b
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE users ALTER COLUMN id SET DATA TYPE bigint
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE foo.bar.baz ALTER COLUMN col1 SET DATA TYPE bigint
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT 'active'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT -1.5
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT INTERVAL -'1' DAY
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE users ALTER COLUMN status DROP DEFAULT
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE users ALTER COLUMN id DROP NOT NULL
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	suite:ddl	ALTER TABLE IF EXISTS users ALTER COLUMN id SET DATA TYPE bigint
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE people SET AUTHORIZATION alice
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE people SET AUTHORIZATION ROLE PUBLIC
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE foo.bar.baz SET AUTHORIZATION qux
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE foo.bar.baz SET AUTHORIZATION USER qux
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE foo.bar.baz SET AUTHORIZATION ROLE qux
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@table	suite:ddl	ALTER TABLE people SET PROPERTIES x = 'y'
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@table	suite:ddl	ALTER TABLE people SET PROPERTIES foo = 123, "foo bar" = 456
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@table	suite:ddl	ALTER TABLE people SET PROPERTIES x = DEFAULT
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE example.test.test_table EXECUTE optimize(file_size_threshold => '16MB')
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE t EXECUTE optimize
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE t EXECUTE optimize()
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE t EXECUTE optimize(1, 2)
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE t EXECUTE optimize WHERE x > 1
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER TABLE t EXECUTE optimize(threshold => '1MB') WHERE part = 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE VIEW test AS SELECT orderkey, orderstatus, totalprice / 2 AS half FROM orders
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE VIEW test_with_comment COMMENT 'A view to keep track of orders.' AS SELECT orderkey, orderstatus, totalprice FROM orders
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE OR REPLACE VIEW test AS SELECT orderkey, orderstatus, totalprice / 4 AS quarter FROM orders
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE VIEW a AS SELECT * FROM t
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE VIEW a SECURITY DEFINER AS SELECT * FROM t
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE VIEW a SECURITY INVOKER AS SELECT * FROM t
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE VIEW a COMMENT 'comment' SECURITY DEFINER AS SELECT * FROM t
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	suite:ddl	CREATE VIEW a COMMENT '' AS SELECT * FROM t
+NOT_FOUND	NOT_FOUND	engine	one_table@table	suite:ddl	CREATE VIEW bar.foo AS SELECT * FROM t
+NOT_FOUND	NOT_FOUND	engine	one_table@table	suite:ddl	CREATE VIEW "awesome schema"."awesome view" AS SELECT * FROM t
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	one_table@table	suite:ddl	DROP VIEW orders_by_date
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	suite:ddl	DROP VIEW IF EXISTS orders_by_date
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	one_table@table	suite:ddl	DROP VIEW a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER VIEW people RENAME TO users
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER VIEW a RENAME TO b.c.d.e
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER VIEW people REFRESH
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER VIEW people SET AUTHORIZATION alice
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER VIEW a RENAME TO b
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER VIEW foo.bar.baz SET AUTHORIZATION qux
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER VIEW foo.bar.baz SET AUTHORIZATION USER qux
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER VIEW foo.bar.baz SET AUTHORIZATION ROLE qux
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE MATERIALIZED VIEW cancelled_orders AS SELECT orderkey, totalprice FROM orders WHERE orderstatus = 3
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW order_totals_by_date AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE MATERIALIZED VIEW orders_nation_mkgsegment COMMENT 'Orders with nation and market segment data' WITH ( partitioning = ARRAY['mktsegment', 'nationkey'] ) AS SELECT o.*, c.nationkey, c.mktsegment FROM orders AS o JOIN customer AS c ON o.custkey = c.custkey
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE MATERIALIZED VIEW orders_summary GRACE PERIOD INTERVAL '1' HOUR WHEN STALE FAIL AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE MATERIALIZED VIEW orders_summary GRACE PERIOD INTERVAL '1' HOUR WHEN STALE INLINE AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	suite:ddl	CREATE MATERIALIZED VIEW a AS SELECT * FROM t
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW catalog.schema.matview COMMENT 'A simple materialized view' AS SELECT * FROM catalog2.schema2.tab
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW catalog.schema.matview COMMENT 'A simple materialized view' WITH (partitioned_by = ARRAY ['dateint']) AS SELECT * FROM catalog2.schema2.tab
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW catalog.schema.matview COMMENT 'A partitioned materialized view' WITH (partitioned_by = ARRAY ['dateint']) AS WITH a (t, u) AS (SELECT * FROM x), b AS (SELECT * FROM a) TABLE b
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	suite:ddl	CREATE MATERIALIZED VIEW a GRACE PERIOD INTERVAL '2' DAY AS SELECT * FROM t
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	suite:ddl	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT * FROM t
+NOT_SUPPORTED	NOT_SUPPORTED	engine	one_table@table	suite:ddl	CREATE MATERIALIZED VIEW a WHEN STALE INLINE AS SELECT * FROM t
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	one_table@table	suite:ddl	DROP MATERIALIZED VIEW orders_by_date
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	suite:ddl	DROP MATERIALIZED VIEW IF EXISTS orders_by_date
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	one_table@table	suite:ddl	DROP MATERIALIZED VIEW a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER MATERIALIZED VIEW people RENAME TO users
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER MATERIALIZED VIEW a RENAME TO b.c.d.e
+ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	suite:ddl	ALTER MATERIALIZED VIEW IF EXISTS people RENAME TO users
+INVALID_MATERIALIZED_VIEW_PROPERTY	INVALID_MATERIALIZED_VIEW_PROPERTY	engine	one_table@table	suite:ddl	ALTER MATERIALIZED VIEW people SET PROPERTIES x = 'y'
+INVALID_MATERIALIZED_VIEW_PROPERTY	INVALID_MATERIALIZED_VIEW_PROPERTY	engine	one_table@table	suite:ddl	ALTER MATERIALIZED VIEW people SET PROPERTIES foo = 123, "foo bar" = 456
+INVALID_MATERIALIZED_VIEW_PROPERTY	INVALID_MATERIALIZED_VIEW_PROPERTY	engine	one_table@table	suite:ddl	ALTER MATERIALIZED VIEW people SET PROPERTIES x = DEFAULT
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER MATERIALIZED VIEW a RENAME TO b
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER MATERIALIZED VIEW people SET AUTHORIZATION alice
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER MATERIALIZED VIEW people SET AUTHORIZATION ROLE PUBLIC
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	ALTER MATERIALIZED VIEW people SET AUTHORIZATION USER alice
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	COMMENT ON TABLE users IS 'master table'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	COMMENT ON TABLE users IS NULL
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	COMMENT ON VIEW users IS 'master view'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	COMMENT ON VIEW users IS NULL
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	COMMENT ON COLUMN users.name IS 'full name'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	COMMENT ON COLUMN users.name IS NULL
+ok:19f1707b2794	ok:19f1707b2794	engine	one_table@table	suite:ddl	COMMENT ON TABLE a IS ''
+ok:08d3aeea8b46	ok:08d3aeea8b46	engine	one_table@table	suite:ddl	COMMENT ON COLUMN a.b IS 'test'
+MISSING_TABLE	MISSING_TABLE	engine	one_table@table	suite:ddl	COMMENT ON COLUMN a IS 'test'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	COMMENT ON COLUMN a.b.c IS 'test'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	COMMENT ON COLUMN a.b.c.d IS 'test'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:ddl	COMMENT ON TABLE cat.sch.t IS 'x'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:dml	TRUNCATE TABLE orders
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:dml	TRUNCATE TABLE a.b
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:dml	TRUNCATE TABLE a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@table	suite:dml	TRUNCATE TABLE "My Table"
+ok:0ddeabb2816a	ok:0ddeabb2816a	engine	objects@view	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb	CREATE SCHEMA a
+INVALID_SCHEMA_PROPERTY	INVALID_SCHEMA_PROPERTY	engine	objects@view	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb+statement(WITH_properties)?	CREATE SCHEMA a WITH(a = DEFAULT)
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?	DROP SCHEMA a
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?+statement(IF_EXISTS)?	DROP SCHEMA IF EXISTS a
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?+statement(CASCADE|RESTRICT)?	DROP SCHEMA a CASCADE
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	statement/ALTER_SCHEMA_qualifiedName_RENAME_TO_identifier	ALTER SCHEMA a RENAME TO a
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb	CREATE TABLE a AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb!insert	CREATE TABLE a AS SELECT 1.5 zzz
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(IF_NOT_EXISTS)?	CREATE TABLE IF NOT EXISTS a AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(COMMENT_string)?	CREATE TABLE a COMMENT 'a' AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(WITH_properties)?	CREATE TABLE a WITH(a = DEFAULT) AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368	CREATE TABLE a(a TIMESTAMP)
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(OR_REPLACE)?	CREATE OR REPLACE TABLE a(a TIMESTAMP)
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(IF_NOT_EXISTS)?	CREATE TABLE IF NOT EXISTS a(a TIMESTAMP)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(COMMENT_string)?	CREATE TABLE a(a TIMESTAMP) COMMENT 'a'
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(WITH_properties)?	CREATE TABLE a(a TIMESTAMP) WITH(a = DEFAULT)
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@view	statement/DROP_TABLE_(IF_EXISTS)?_qualifiedName	DROP TABLE a
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@view	statement/DROP_TABLE_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?	DROP TABLE IF EXISTS a
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	statement/TRUNCATE_TABLE_qualifiedName	TRUNCATE TABLE a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	statement/COMMENT_ON_TABLE_qualifiedName_IS_(string|NULL)	COMMENT ON TABLE a IS 'a'
+ok:1788e6a5e3dc	ok:1788e6a5e3dc	engine	objects@view	statement/COMMENT_ON_VIEW_qualifiedName_IS_(string|NULL)	COMMENT ON VIEW a IS 'a'
+MISSING_TABLE	MISSING_TABLE	engine	objects@view	statement/COMMENT_ON_COLUMN_qualifiedName_IS_(string|NULL)	COMMENT ON COLUMN a IS 'a'
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_TO_qualifiedName	ALTER TABLE a RENAME TO a
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_TO_qualifiedName+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a RENAME TO a
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23	ALTER TABLE a ADD COLUMN a TIMESTAMP
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ADD COLUMN a TIMESTAMP
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23+statement(IF_NOT_EXISTS)?	ALTER TABLE a ADD COLUMN IF NOT EXISTS a TIMESTAMP
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d	ALTER TABLE a RENAME COLUMN a TO a
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a RENAME COLUMN a TO a
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d+statement(IF_EXISTS)?#2	ALTER TABLE a RENAME COLUMN IF EXISTS a TO a
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062	ALTER TABLE a DROP COLUMN a
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a DROP COLUMN a
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062+statement(IF_EXISTS)?#2	ALTER TABLE a DROP COLUMN IF EXISTS a
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110	ALTER TABLE a ALTER COLUMN a SET DEFAULT 1.5
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a SET DEFAULT 1.5
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/interval	ALTER TABLE a ALTER COLUMN a SET DEFAULT INTERVAL 'a' YEAR
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/interval!drop-11	ALTER TABLE a ALTER COLUMN a SET DEFAULT INTERVAL 'a'
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/identifier_string	ALTER TABLE a ALTER COLUMN a SET DEFAULT a 'a'
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?	ALTER TABLE a ALTER COLUMN a SET DEFAULT a U&'a'
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/DOUBLE_PRECISION_string	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE PRECISION 'a'
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/DOUBLE_PRECISION_string!drop-9	ALTER TABLE a ALTER COLUMN a SET DEFAULT PRECISION 'a'
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/DOUBLE_PRECISION_string!drop-10	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE 'a'
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#2	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE PRECISION U&'a'
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-9	ALTER TABLE a ALTER COLUMN a SET DEFAULT PRECISION U&'a'
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-10	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE U&'a'
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+number/(MINUS)?_DOUBLE_VALUE	ALTER TABLE a ALTER COLUMN a SET DEFAULT 1E1
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+number/(MINUS)?_INTEGER_VALUE	ALTER TABLE a ALTER COLUMN a SET DEFAULT 1
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/booleanValue	ALTER TABLE a ALTER COLUMN a SET DEFAULT TRUE
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+booleanValue/FALSE	ALTER TABLE a ALTER COLUMN a SET DEFAULT FALSE
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/string	ALTER TABLE a ALTER COLUMN a SET DEFAULT 'a'
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#3	ALTER TABLE a ALTER COLUMN a SET DEFAULT U&'a'
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/BINARY_LITERAL	ALTER TABLE a ALTER COLUMN a SET DEFAULT X'00'
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/NULL	ALTER TABLE a ALTER COLUMN a SET DEFAULT NULL
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562	ALTER TABLE a ALTER COLUMN a DROP DEFAULT
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a DROP DEFAULT
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb	ALTER TABLE a ALTER COLUMN a SET DATA TYPE TIMESTAMP
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a SET DATA TYPE TIMESTAMP
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071	ALTER TABLE a ALTER COLUMN a DROP NOT NULL
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a DROP NOT NULL
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@view	statement/ALTER_TABLE_qualifiedName_SET_PROPERTIES_propertyAssignments	ALTER TABLE a SET PROPERTIES a = DEFAULT
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	statement/ALTER_TABLE_qualifiedName_EXECUTE_identifier_((_(argume~52676478	ALTER TABLE a EXECUTE a
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	statement/ALTER_TABLE_qualifiedName_EXECUTE_identifier_((_(argume~52676478+statement(WHERE_booleanExpression)?	ALTER TABLE a EXECUTE a WHERE 1.5
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal	ALTER TABLE a SET AUTHORIZATION a
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/USER_identifier	ALTER TABLE a SET AUTHORIZATION USER a
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/USER_identifier!drop-7	ALTER TABLE a SET AUTHORIZATION USER
+ROLE_NOT_FOUND	ROLE_NOT_FOUND	engine	objects@view	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/ROLE_identifier	ALTER TABLE a SET AUTHORIZATION ROLE a
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/ROLE_identifier!drop-7	ALTER TABLE a SET AUTHORIZATION ROLE
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@view	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2	CREATE MATERIALIZED VIEW a AS SELECT 1.5
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2!insert	CREATE MATERIALIZED VIEW a AS SELECT 1.5 zzz
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@view	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(OR_REPLACE)?	CREATE OR REPLACE MATERIALIZED VIEW a AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@view	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(IF_NOT_EXISTS)?	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@view	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(COMMENT_string)?	CREATE MATERIALIZED VIEW a COMMENT 'a' AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@view	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(WITH_properties)?	CREATE MATERIALIZED VIEW a WITH(a = DEFAULT) AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667	CREATE VIEW a AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667!insert	CREATE VIEW a AS SELECT 1.5 zzz
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@view	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(OR_REPLACE)?	CREATE OR REPLACE VIEW a AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(COMMENT_string)?	CREATE VIEW a COMMENT 'a' AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(WITH_properties)?	CREATE VIEW a WITH(a = DEFAULT) AS SELECT 1.5
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@view	statement/DROP_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName	DROP MATERIALIZED VIEW a
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@view	statement/DROP_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?	DROP MATERIALIZED VIEW IF EXISTS a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4	ALTER MATERIALIZED VIEW a RENAME TO a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4+statement(IF_EXISTS)?	ALTER MATERIALIZED VIEW IF EXISTS a RENAME TO a
+INVALID_MATERIALIZED_VIEW_PROPERTY	INVALID_MATERIALIZED_VIEW_PROPERTY	engine	objects@view	statement/ALTER_MATERIALIZED_VIEW_qualifiedName_SET_PROPERTIES_pr~e2b861c5	ALTER MATERIALIZED VIEW a SET PROPERTIES a = DEFAULT
+ok:1908ff770add	ok:1908ff770add	engine	objects@view	statement/DROP_VIEW_(IF_EXISTS)?_qualifiedName	DROP VIEW a
+ok:1908ff770add	ok:1908ff770add	engine	objects@view	statement/DROP_VIEW_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?	DROP VIEW IF EXISTS a
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@view	statement/ALTER_VIEW_qualifiedName_RENAME_TO_qualifiedName	ALTER VIEW a RENAME TO a
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	statement/ALTER_VIEW_qualifiedName_REFRESH	ALTER VIEW a REFRESH
+ok:0ddeabb2816a	ok:0ddeabb2816a	engine	objects@view	statement(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE SCHEMA IF NOT EXISTS a
+ok:0ddeabb2816a	ok:0ddeabb2816a	engine	objects@view	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal	CREATE SCHEMA a AUTHORIZATION a
+ok:0ddeabb2816a	ok:0ddeabb2816a	engine	objects@view	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/USER_identifier	CREATE SCHEMA a AUTHORIZATION USER a
+ok:0ddeabb2816a	ok:0ddeabb2816a	engine	objects@view	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/USER_identifier!drop-3	CREATE SCHEMA a AUTHORIZATION USER
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/ROLE_identifier	CREATE SCHEMA a AUTHORIZATION ROLE a
+ok:0ddeabb2816a	ok:0ddeabb2816a	engine	objects@view	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/ROLE_identifier!drop-3	CREATE SCHEMA a AUTHORIZATION ROLE
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@view	statement(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE TABLE a AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement(rootQuery|(_rootQuery_))/(_rootQuery_)	CREATE TABLE a AS(SELECT 1.5)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement(WITH_(NO)?_DATA)?/WITH_(NO)?_DATA	CREATE TABLE a AS SELECT 1.5 WITH DATA
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement(WITH_(NO)?_DATA)?/WITH_(NO)?_DATA!drop-1	CREATE TABLE a AS SELECT 1.5 DATA
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement(NO)?/NO	CREATE TABLE a AS SELECT 1.5 WITH NO DATA
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement(,_tableElement)*/,_tableElement_(,_tableElement)*	CREATE TABLE a(a TIMESTAMP, a TIMESTAMP)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement(,_tableElement)*/,_tableElement_(,_tableElement)*!swap	CREATE TABLE a(a TIMESTAMP, a TO)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement(,_tableElement)*/,_tableElement_(,_tableElement)*+tableElement/likeClause	CREATE TABLE a(a TIMESTAMP, LIKE a)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	statement(string|NULL)/string+string/UNICODE_STRING_(UESCAPE_STRING)?	COMMENT ON TABLE a IS U&'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	statement(string|NULL)/NULL	COMMENT ON TABLE a IS NULL
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement(FIRST|LAST|AFTER_identifier)?/FIRST	ALTER TABLE a ADD COLUMN a TIMESTAMP FIRST
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement(FIRST|LAST|AFTER_identifier)?/LAST	ALTER TABLE a ADD COLUMN a TIMESTAMP LAST
+TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement(FIRST|LAST|AFTER_identifier)?/AFTER_identifier	ALTER TABLE a ADD COLUMN a TIMESTAMP AFTER a
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	statement((_(argument_(,_argument)*)?_))?/(_(argument_(,_argument)*)?_)	ALTER TABLE a EXECUTE a()
+INVALID_LITERAL	INVALID_LITERAL	engine	objects@view	statement(GRACE_PERIOD_interval)?/GRACE_PERIOD_interval	CREATE MATERIALIZED VIEW a GRACE PERIOD INTERVAL 'a' YEAR AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@view	statement(WHEN_STALE_(INLINE|FAIL))?/WHEN_STALE_(INLINE|FAIL)	CREATE MATERIALIZED VIEW a WHEN STALE INLINE AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@view	statement(INLINE|FAIL)/FAIL	CREATE MATERIALIZED VIEW a WHEN STALE FAIL AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement(SECURITY_(DEFINER|INVOKER))?/SECURITY_(DEFINER|INVOKER)	CREATE VIEW a SECURITY DEFINER AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement(DEFINER|INVOKER)/INVOKER	CREATE VIEW a SECURITY INVOKER AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	tableElement/columnDefinition!swap	CREATE TABLE a(a TO)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	tableElement/likeClause	CREATE TABLE a(LIKE a)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	tableElement/likeClause!swap	CREATE TABLE a(LIMIT a)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal	CREATE TABLE a(a TIMESTAMP DEFAULT 1.5)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/interval	CREATE TABLE a(a TIMESTAMP DEFAULT INTERVAL 'a' YEAR)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/interval!drop-4	CREATE TABLE a(a TIMESTAMP DEFAULT INTERVAL 'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/identifier_string	CREATE TABLE a(a TIMESTAMP DEFAULT a 'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?	CREATE TABLE a(a TIMESTAMP DEFAULT a U&'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/DOUBLE_PRECISION_string	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE PRECISION 'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/DOUBLE_PRECISION_string!drop-2	CREATE TABLE a(a TIMESTAMP DEFAULT PRECISION 'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/DOUBLE_PRECISION_string!drop-3	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE 'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE PRECISION U&'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-2	CREATE TABLE a(a TIMESTAMP DEFAULT PRECISION U&'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-3	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE U&'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+number/(MINUS)?_DOUBLE_VALUE	CREATE TABLE a(a TIMESTAMP DEFAULT 1E1)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+number/(MINUS)?_INTEGER_VALUE	CREATE TABLE a(a TIMESTAMP DEFAULT 1)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/booleanValue	CREATE TABLE a(a TIMESTAMP DEFAULT TRUE)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+booleanValue/FALSE	CREATE TABLE a(a TIMESTAMP DEFAULT FALSE)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/string	CREATE TABLE a(a TIMESTAMP DEFAULT 'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#3	CREATE TABLE a(a TIMESTAMP DEFAULT U&'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/BINARY_LITERAL	CREATE TABLE a(a TIMESTAMP DEFAULT X'00')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/NULL	CREATE TABLE a(a TIMESTAMP DEFAULT NULL)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(NOT_NULL)?/NOT_NULL	CREATE TABLE a(a TIMESTAMP NOT NULL)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(COMMENT_string)?/COMMENT_string	CREATE TABLE a(a TIMESTAMP COMMENT 'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(COMMENT_string)?/COMMENT_string+string/UNICODE_STRING_(UESCAPE_STRING)?	CREATE TABLE a(a TIMESTAMP COMMENT U&'a')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	columnDefinition(WITH_properties)?/WITH_properties	CREATE TABLE a(a TIMESTAMP WITH(a = DEFAULT))
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	likeClause((INCLUDING|EXCLUDING)_PROPERTIES)?/(INCLUDING|EXCLUDING)_PROPERTIES	CREATE TABLE a(LIKE a INCLUDING PROPERTIES)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	likeClause(INCLUDING|EXCLUDING)/EXCLUDING	CREATE TABLE a(LIKE a EXCLUDING PROPERTIES)
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@view	propertyAssignments/property_(,_property)*!swap	ALTER TABLE a SET PROPERTIES a = DEFINE
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@view	propertyAssignments(,_property)*/,_property_(,_property)*	ALTER TABLE a SET PROPERTIES a = DEFAULT, a = DEFAULT
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@view	propertyAssignments(,_property)*/,_property_(,_property)*!swap	ALTER TABLE a SET PROPERTIES a = DEFAULT, a = DEFINE
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@view	propertyValue/expression	ALTER TABLE a SET PROPERTIES a = 1.5
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	ownedEntityKind/SCHEMA	ALTER SCHEMA a SET AUTHORIZATION a
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	ownedEntityKind/VIEW	ALTER VIEW a SET AUTHORIZATION a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	ownedEntityKind/MATERIALIZED_VIEW	ALTER MATERIALIZED VIEW a SET AUTHORIZATION a
+ok:2f7af9fa606c	ok:2f7af9fa606c	engine	objects@view	suite:ddl	CREATE SCHEMA web
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@view	suite:ddl	CREATE SCHEMA hive.sales
+ok:a9a4cef84e0e	ok:a9a4cef84e0e	engine	objects@view	suite:ddl	CREATE SCHEMA IF NOT EXISTS traffic
+ok:2f7af9fa606c	ok:2f7af9fa606c	engine	objects@view	suite:ddl	CREATE SCHEMA web AUTHORIZATION alice
+ok:2f7af9fa606c	ok:2f7af9fa606c	engine	objects@view	suite:ddl	CREATE SCHEMA web AUTHORIZATION USER alice
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	suite:ddl	CREATE SCHEMA web AUTHORIZATION ROLE PUBLIC
+INVALID_SCHEMA_PROPERTY	INVALID_SCHEMA_PROPERTY	engine	objects@view	suite:ddl	CREATE SCHEMA web AUTHORIZATION alice WITH ( LOCATION = '/hive/data/web' )
+INVALID_SCHEMA_PROPERTY	INVALID_SCHEMA_PROPERTY	engine	objects@view	suite:ddl	CREATE SCHEMA web AUTHORIZATION ROLE PUBLIC WITH ( LOCATION = '/hive/data/web' )
+ok:e14182d24873	ok:e14182d24873	engine	objects@view	suite:ddl	CREATE SCHEMA test
+ok:e14182d24873	ok:e14182d24873	engine	objects@view	suite:ddl	CREATE SCHEMA IF NOT EXISTS test
+INVALID_SCHEMA_PROPERTY	INVALID_SCHEMA_PROPERTY	engine	objects@view	suite:ddl	CREATE SCHEMA test WITH (a = 'apple', b = 123)
+ok:44174597ce8b	ok:44174597ce8b	engine	objects@view	suite:ddl	CREATE SCHEMA "some name that contains space"
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	suite:ddl	DROP SCHEMA web
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	suite:ddl	DROP SCHEMA IF EXISTS sales
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	suite:ddl	DROP SCHEMA archive CASCADE
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	suite:ddl	DROP SCHEMA archive RESTRICT
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	suite:ddl	DROP SCHEMA test
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	suite:ddl	DROP SCHEMA test CASCADE
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	suite:ddl	DROP SCHEMA IF EXISTS test
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	suite:ddl	DROP SCHEMA IF EXISTS test RESTRICT
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	suite:ddl	DROP SCHEMA "some schema that contains space"
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	suite:ddl	DROP SCHEMA hive.sales
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	suite:ddl	ALTER SCHEMA web RENAME TO traffic
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	suite:ddl	ALTER SCHEMA web SET AUTHORIZATION alice
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	suite:ddl	ALTER SCHEMA web SET AUTHORIZATION USER alice
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	suite:ddl	ALTER SCHEMA web SET AUTHORIZATION ROLE PUBLIC
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	suite:ddl	ALTER SCHEMA foo RENAME TO bar
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	suite:ddl	ALTER SCHEMA foo.bar RENAME TO baz
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	suite:ddl	ALTER SCHEMA "awesome schema"."awesome table" RENAME TO "even more awesome table"
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@view	suite:ddl	CREATE TABLE orders (orderkey bigint, orderstatus varchar, totalprice double, orderdate date) WITH (format = 'ORC')
+ok:8b302ecf59e0	ok:8b302ecf59e0	engine	objects@view	suite:ddl	CREATE TABLE IF NOT EXISTS orders (orderkey bigint, orderstatus varchar, totalprice double COMMENT 'Price in cents.', orderdate date, status varchar DEFAULT 'created') COMMENT 'A table to keep track of orders.'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	CREATE TABLE bigger_orders (another_orderkey bigint, LIKE orders, another_orderdate date)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	CREATE TABLE IF NOT EXISTS bar (LIKE like_table)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	CREATE TABLE IF NOT EXISTS bar (LIKE like_table INCLUDING PROPERTIES)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE TABLE t (a bigint, b varchar(10), c decimal(10, 2))
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE TABLE t (a bigint NOT NULL)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE TABLE t (a bigint DEFAULT 5 NOT NULL)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE TABLE t (a bigint DEFAULT -5)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE TABLE t (a double DEFAULT - 1.5E1)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE TABLE t (a date DEFAULT DATE '2020-01-01')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE TABLE t (a bigint COMMENT 'x' WITH (foo = 'bar'))
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE TABLE t (a row(x bigint, y double))
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE TABLE t (a array(bigint))
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@view	suite:ddl	CREATE TABLE cat.sch.t (a bigint)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE TABLE t (LIKE a EXCLUDING PROPERTIES)
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	suite:ddl	CREATE OR REPLACE TABLE t (a bigint)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	CREATE TABLE orders_column_aliased (order_date, total_price) AS SELECT orderdate, totalprice FROM orders
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@view	suite:ddl	CREATE TABLE orders_by_date COMMENT 'Summary of orders by date' WITH (format = 'ORC') AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	CREATE TABLE IF NOT EXISTS orders_by_date AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	CREATE TABLE empty_nation AS SELECT * FROM nation WITH NO DATA
+ok:6582ff987063	ok:6582ff987063	engine	objects@view	suite:ddl	CREATE TABLE foo AS SELECT * FROM t
+ok:931eb15955cf	ok:931eb15955cf	engine	objects@view	suite:ddl	CREATE TABLE foo(x) AS SELECT a FROM t
+ok:16149d0c88fd	ok:16149d0c88fd	engine	objects@view	suite:ddl	CREATE TABLE foo(x,y) AS SELECT a,b FROM t
+ok:6582ff987063	ok:6582ff987063	engine	objects@view	suite:ddl	CREATE TABLE IF NOT EXISTS foo AS SELECT * FROM t
+ok:6582ff987063	ok:6582ff987063	engine	objects@view	suite:ddl	CREATE TABLE foo AS SELECT * FROM t WITH NO DATA
+ok:931eb15955cf	ok:931eb15955cf	engine	objects@view	suite:ddl	CREATE TABLE foo(x) AS SELECT a FROM t WITH NO DATA
+ok:6582ff987063	ok:6582ff987063	engine	objects@view	suite:ddl	CREATE TABLE foo AS SELECT * FROM t WITH DATA
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@view	suite:ddl	CREATE TABLE foo WITH ( string = 'bar', long = 42, computed = 'ban' || 'ana', a = ARRAY[ 'v1', 'v2' ] ) AS SELECT * FROM t
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@view	suite:ddl	CREATE TABLE foo COMMENT 'test' WITH ( string = 'bar' ) AS SELECT * FROM t WITH NO DATA
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@view	suite:ddl	CREATE TABLE foo(x,y) COMMENT 'test' WITH ( "string" = 'bar', "long" = 42, computed = 'ban' || 'ana', a = ARRAY[ 'v1', 'v2' ] ) AS SELECT a,b FROM t WITH NO DATA
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE TABLE t AS (SELECT 1)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE TABLE t AS TABLE other
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE TABLE t AS WITH c AS (SELECT 1) SELECT * FROM c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	CREATE OR REPLACE TABLE t AS SELECT * FROM x
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	DROP TABLE orders_by_date
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	suite:ddl	DROP TABLE IF EXISTS orders_by_date
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	DROP TABLE a.b
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	DROP TABLE a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	DROP TABLE a."b/y".c
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	suite:ddl	DROP TABLE IF EXISTS a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE users RENAME TO people
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	suite:ddl	ALTER TABLE IF EXISTS users RENAME TO people
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE a.b.c RENAME TO d.e.f
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@view	suite:ddl	ALTER TABLE a RENAME TO b.c.d.e
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar DEFAULT '90210'
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	suite:ddl	ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS zip varchar
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE users ADD COLUMN id varchar FIRST
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar AFTER country
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar LAST
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE users ADD COLUMN c bigint NOT NULL COMMENT 'x' WITH (p = 1)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE users DROP COLUMN zip
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	suite:ddl	ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS zip
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE foo.t DROP COLUMN c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE "t x" DROP COLUMN "c d"
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE foo.t DROP COLUMN IF EXISTS c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE users RENAME COLUMN id TO user_id
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	suite:ddl	ALTER TABLE IF EXISTS users RENAME COLUMN IF EXISTS id TO user_id
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	suite:ddl	ALTER TABLE t DROP COLUMN a.b
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE users ALTER COLUMN id SET DATA TYPE bigint
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE foo.bar.baz ALTER COLUMN col1 SET DATA TYPE bigint
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT 'active'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT -1.5
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT INTERVAL -'1' DAY
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE users ALTER COLUMN status DROP DEFAULT
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE users ALTER COLUMN id DROP NOT NULL
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	suite:ddl	ALTER TABLE IF EXISTS users ALTER COLUMN id SET DATA TYPE bigint
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE people SET AUTHORIZATION alice
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE people SET AUTHORIZATION ROLE PUBLIC
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE foo.bar.baz SET AUTHORIZATION qux
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE foo.bar.baz SET AUTHORIZATION USER qux
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE foo.bar.baz SET AUTHORIZATION ROLE qux
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@view	suite:ddl	ALTER TABLE people SET PROPERTIES x = 'y'
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@view	suite:ddl	ALTER TABLE people SET PROPERTIES foo = 123, "foo bar" = 456
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@view	suite:ddl	ALTER TABLE people SET PROPERTIES x = DEFAULT
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE example.test.test_table EXECUTE optimize(file_size_threshold => '16MB')
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE t EXECUTE optimize
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE t EXECUTE optimize()
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE t EXECUTE optimize(1, 2)
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE t EXECUTE optimize WHERE x > 1
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER TABLE t EXECUTE optimize(threshold => '1MB') WHERE part = 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	CREATE VIEW test AS SELECT orderkey, orderstatus, totalprice / 2 AS half FROM orders
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	CREATE VIEW test_with_comment COMMENT 'A view to keep track of orders.' AS SELECT orderkey, orderstatus, totalprice FROM orders
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	CREATE OR REPLACE VIEW test AS SELECT orderkey, orderstatus, totalprice / 4 AS quarter FROM orders
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE VIEW a AS SELECT * FROM t
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE VIEW a SECURITY DEFINER AS SELECT * FROM t
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE VIEW a SECURITY INVOKER AS SELECT * FROM t
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE VIEW a COMMENT 'comment' SECURITY DEFINER AS SELECT * FROM t
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	suite:ddl	CREATE VIEW a COMMENT '' AS SELECT * FROM t
+NOT_FOUND	NOT_FOUND	engine	objects@view	suite:ddl	CREATE VIEW bar.foo AS SELECT * FROM t
+NOT_FOUND	NOT_FOUND	engine	objects@view	suite:ddl	CREATE VIEW "awesome schema"."awesome view" AS SELECT * FROM t
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@view	suite:ddl	DROP VIEW orders_by_date
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	suite:ddl	DROP VIEW IF EXISTS orders_by_date
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@view	suite:ddl	DROP VIEW a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER VIEW people RENAME TO users
+SYNTAX_ERROR	SYNTAX_ERROR	engine	objects@view	suite:ddl	ALTER VIEW a RENAME TO b.c.d.e
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER VIEW people REFRESH
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER VIEW people SET AUTHORIZATION alice
+ok:564d3b08572b	ok:564d3b08572b	engine	objects@view	suite:ddl	ALTER VIEW a RENAME TO b
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@view	suite:ddl	ALTER VIEW foo.bar.baz SET AUTHORIZATION qux
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@view	suite:ddl	ALTER VIEW foo.bar.baz SET AUTHORIZATION USER qux
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@view	suite:ddl	ALTER VIEW foo.bar.baz SET AUTHORIZATION ROLE qux
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	CREATE MATERIALIZED VIEW cancelled_orders AS SELECT orderkey, totalprice FROM orders WHERE orderstatus = 3
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW order_totals_by_date AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	CREATE MATERIALIZED VIEW orders_nation_mkgsegment COMMENT 'Orders with nation and market segment data' WITH ( partitioning = ARRAY['mktsegment', 'nationkey'] ) AS SELECT o.*, c.nationkey, c.mktsegment FROM orders AS o JOIN customer AS c ON o.custkey = c.custkey
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	CREATE MATERIALIZED VIEW orders_summary GRACE PERIOD INTERVAL '1' HOUR WHEN STALE FAIL AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	CREATE MATERIALIZED VIEW orders_summary GRACE PERIOD INTERVAL '1' HOUR WHEN STALE INLINE AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	suite:ddl	CREATE MATERIALIZED VIEW a AS SELECT * FROM t
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@view	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW catalog.schema.matview COMMENT 'A simple materialized view' AS SELECT * FROM catalog2.schema2.tab
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@view	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW catalog.schema.matview COMMENT 'A simple materialized view' WITH (partitioned_by = ARRAY ['dateint']) AS SELECT * FROM catalog2.schema2.tab
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW catalog.schema.matview COMMENT 'A partitioned materialized view' WITH (partitioned_by = ARRAY ['dateint']) AS WITH a (t, u) AS (SELECT * FROM x), b AS (SELECT * FROM a) TABLE b
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	suite:ddl	CREATE MATERIALIZED VIEW a GRACE PERIOD INTERVAL '2' DAY AS SELECT * FROM t
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	suite:ddl	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT * FROM t
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	suite:ddl	CREATE MATERIALIZED VIEW a WHEN STALE INLINE AS SELECT * FROM t
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@view	suite:ddl	DROP MATERIALIZED VIEW orders_by_date
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	suite:ddl	DROP MATERIALIZED VIEW IF EXISTS orders_by_date
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@view	suite:ddl	DROP MATERIALIZED VIEW a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER MATERIALIZED VIEW people RENAME TO users
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER MATERIALIZED VIEW a RENAME TO b.c.d.e
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	suite:ddl	ALTER MATERIALIZED VIEW IF EXISTS people RENAME TO users
+INVALID_MATERIALIZED_VIEW_PROPERTY	INVALID_MATERIALIZED_VIEW_PROPERTY	engine	objects@view	suite:ddl	ALTER MATERIALIZED VIEW people SET PROPERTIES x = 'y'
+INVALID_MATERIALIZED_VIEW_PROPERTY	INVALID_MATERIALIZED_VIEW_PROPERTY	engine	objects@view	suite:ddl	ALTER MATERIALIZED VIEW people SET PROPERTIES foo = 123, "foo bar" = 456
+INVALID_MATERIALIZED_VIEW_PROPERTY	INVALID_MATERIALIZED_VIEW_PROPERTY	engine	objects@view	suite:ddl	ALTER MATERIALIZED VIEW people SET PROPERTIES x = DEFAULT
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER MATERIALIZED VIEW a RENAME TO b
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER MATERIALIZED VIEW people SET AUTHORIZATION alice
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER MATERIALIZED VIEW people SET AUTHORIZATION ROLE PUBLIC
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	ALTER MATERIALIZED VIEW people SET AUTHORIZATION USER alice
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	COMMENT ON TABLE users IS 'master table'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	COMMENT ON TABLE users IS NULL
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	COMMENT ON VIEW users IS 'master view'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	COMMENT ON VIEW users IS NULL
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	COMMENT ON COLUMN users.name IS 'full name'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	COMMENT ON COLUMN users.name IS NULL
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	COMMENT ON TABLE a IS ''
+ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	suite:ddl	COMMENT ON COLUMN a.b IS 'test'
+MISSING_TABLE	MISSING_TABLE	engine	objects@view	suite:ddl	COMMENT ON COLUMN a IS 'test'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	COMMENT ON COLUMN a.b.c IS 'test'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	COMMENT ON COLUMN a.b.c.d IS 'test'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:ddl	COMMENT ON TABLE cat.sch.t IS 'x'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:dml	TRUNCATE TABLE orders
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:dml	TRUNCATE TABLE a.b
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:dml	TRUNCATE TABLE a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@view	suite:dml	TRUNCATE TABLE "My Table"
+SCHEMA_ALREADY_EXISTS	SCHEMA_ALREADY_EXISTS	engine	objects@schema	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb	CREATE SCHEMA a
+INVALID_SCHEMA_PROPERTY	INVALID_SCHEMA_PROPERTY	engine	objects@schema	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb+statement(WITH_properties)?	CREATE SCHEMA a WITH(a = DEFAULT)
+SCHEMA_NOT_EMPTY	SCHEMA_NOT_EMPTY	engine	objects@schema	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?	DROP SCHEMA a
+SCHEMA_NOT_EMPTY	SCHEMA_NOT_EMPTY	engine	objects@schema	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?+statement(IF_EXISTS)?	DROP SCHEMA IF EXISTS a
+ok:1908ff770add	ok:1908ff770add	engine	objects@schema	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?+statement(CASCADE|RESTRICT)?	DROP SCHEMA a CASCADE
+SCHEMA_ALREADY_EXISTS	SCHEMA_ALREADY_EXISTS	engine	objects@schema	statement/ALTER_SCHEMA_qualifiedName_RENAME_TO_identifier	ALTER SCHEMA a RENAME TO a
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb	CREATE TABLE a AS SELECT 1.5
+ok:68afb67cf966	ok:68afb67cf966	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb!insert	CREATE TABLE a AS SELECT 1.5 zzz
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(IF_NOT_EXISTS)?	CREATE TABLE IF NOT EXISTS a AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(COMMENT_string)?	CREATE TABLE a COMMENT 'a' AS SELECT 1.5
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(WITH_properties)?	CREATE TABLE a WITH(a = DEFAULT) AS SELECT 1.5
+ok:5e7a75158c34	ok:5e7a75158c34	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368	CREATE TABLE a(a TIMESTAMP)
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(OR_REPLACE)?	CREATE OR REPLACE TABLE a(a TIMESTAMP)
+ok:5e7a75158c34	ok:5e7a75158c34	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(IF_NOT_EXISTS)?	CREATE TABLE IF NOT EXISTS a(a TIMESTAMP)
+ok:b3c5eb0997a6	ok:b3c5eb0997a6	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(COMMENT_string)?	CREATE TABLE a(a TIMESTAMP) COMMENT 'a'
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(WITH_properties)?	CREATE TABLE a(a TIMESTAMP) WITH(a = DEFAULT)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/DROP_TABLE_(IF_EXISTS)?_qualifiedName	DROP TABLE a
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	statement/DROP_TABLE_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?	DROP TABLE IF EXISTS a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/TRUNCATE_TABLE_qualifiedName	TRUNCATE TABLE a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/COMMENT_ON_TABLE_qualifiedName_IS_(string|NULL)	COMMENT ON TABLE a IS 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/COMMENT_ON_VIEW_qualifiedName_IS_(string|NULL)	COMMENT ON VIEW a IS 'a'
+MISSING_TABLE	MISSING_TABLE	engine	objects@schema	statement/COMMENT_ON_COLUMN_qualifiedName_IS_(string|NULL)	COMMENT ON COLUMN a IS 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_TO_qualifiedName	ALTER TABLE a RENAME TO a
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_TO_qualifiedName+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a RENAME TO a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23	ALTER TABLE a ADD COLUMN a TIMESTAMP
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ADD COLUMN a TIMESTAMP
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23+statement(IF_NOT_EXISTS)?	ALTER TABLE a ADD COLUMN IF NOT EXISTS a TIMESTAMP
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d	ALTER TABLE a RENAME COLUMN a TO a
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a RENAME COLUMN a TO a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d+statement(IF_EXISTS)?#2	ALTER TABLE a RENAME COLUMN IF EXISTS a TO a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062	ALTER TABLE a DROP COLUMN a
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a DROP COLUMN a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062+statement(IF_EXISTS)?#2	ALTER TABLE a DROP COLUMN IF EXISTS a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110	ALTER TABLE a ALTER COLUMN a SET DEFAULT 1.5
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a SET DEFAULT 1.5
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/interval	ALTER TABLE a ALTER COLUMN a SET DEFAULT INTERVAL 'a' YEAR
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/interval!drop-11	ALTER TABLE a ALTER COLUMN a SET DEFAULT INTERVAL 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/identifier_string	ALTER TABLE a ALTER COLUMN a SET DEFAULT a 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?	ALTER TABLE a ALTER COLUMN a SET DEFAULT a U&'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/DOUBLE_PRECISION_string	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE PRECISION 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/DOUBLE_PRECISION_string!drop-9	ALTER TABLE a ALTER COLUMN a SET DEFAULT PRECISION 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/DOUBLE_PRECISION_string!drop-10	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#2	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE PRECISION U&'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-9	ALTER TABLE a ALTER COLUMN a SET DEFAULT PRECISION U&'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-10	ALTER TABLE a ALTER COLUMN a SET DEFAULT DOUBLE U&'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+number/(MINUS)?_DOUBLE_VALUE	ALTER TABLE a ALTER COLUMN a SET DEFAULT 1E1
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+number/(MINUS)?_INTEGER_VALUE	ALTER TABLE a ALTER COLUMN a SET DEFAULT 1
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/booleanValue	ALTER TABLE a ALTER COLUMN a SET DEFAULT TRUE
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+booleanValue/FALSE	ALTER TABLE a ALTER COLUMN a SET DEFAULT FALSE
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/string	ALTER TABLE a ALTER COLUMN a SET DEFAULT 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+string/UNICODE_STRING_(UESCAPE_STRING)?#3	ALTER TABLE a ALTER COLUMN a SET DEFAULT U&'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/BINARY_LITERAL	ALTER TABLE a ALTER COLUMN a SET DEFAULT X'00'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+literal/NULL	ALTER TABLE a ALTER COLUMN a SET DEFAULT NULL
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562	ALTER TABLE a ALTER COLUMN a DROP DEFAULT
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a DROP DEFAULT
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb	ALTER TABLE a ALTER COLUMN a SET DATA TYPE TIMESTAMP
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a SET DATA TYPE TIMESTAMP
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071	ALTER TABLE a ALTER COLUMN a DROP NOT NULL
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a DROP NOT NULL
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@schema	statement/ALTER_TABLE_qualifiedName_SET_PROPERTIES_propertyAssignments	ALTER TABLE a SET PROPERTIES a = DEFAULT
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_qualifiedName_EXECUTE_identifier_((_(argume~52676478	ALTER TABLE a EXECUTE a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_TABLE_qualifiedName_EXECUTE_identifier_((_(argume~52676478+statement(WHERE_booleanExpression)?	ALTER TABLE a EXECUTE a WHERE 1.5
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal	ALTER TABLE a SET AUTHORIZATION a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/USER_identifier	ALTER TABLE a SET AUTHORIZATION USER a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/USER_identifier!drop-7	ALTER TABLE a SET AUTHORIZATION USER
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/ROLE_identifier	ALTER TABLE a SET AUTHORIZATION ROLE a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal+principal/ROLE_identifier!drop-7	ALTER TABLE a SET AUTHORIZATION ROLE
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2	CREATE MATERIALIZED VIEW a AS SELECT 1.5
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2!insert	CREATE MATERIALIZED VIEW a AS SELECT 1.5 zzz
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(OR_REPLACE)?	CREATE OR REPLACE MATERIALIZED VIEW a AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(IF_NOT_EXISTS)?	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(COMMENT_string)?	CREATE MATERIALIZED VIEW a COMMENT 'a' AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(WITH_properties)?	CREATE MATERIALIZED VIEW a WITH(a = DEFAULT) AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667	CREATE VIEW a AS SELECT 1.5
+ok:aecacfeccbb2	ok:aecacfeccbb2	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667!insert	CREATE VIEW a AS SELECT 1.5 zzz
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(OR_REPLACE)?	CREATE OR REPLACE VIEW a AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(COMMENT_string)?	CREATE VIEW a COMMENT 'a' AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(WITH_properties)?	CREATE VIEW a WITH(a = DEFAULT) AS SELECT 1.5
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@schema	statement/DROP_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName	DROP MATERIALIZED VIEW a
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	statement/DROP_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?	DROP MATERIALIZED VIEW IF EXISTS a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4	ALTER MATERIALIZED VIEW a RENAME TO a
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4+statement(IF_EXISTS)?	ALTER MATERIALIZED VIEW IF EXISTS a RENAME TO a
+INVALID_MATERIALIZED_VIEW_PROPERTY	INVALID_MATERIALIZED_VIEW_PROPERTY	engine	objects@schema	statement/ALTER_MATERIALIZED_VIEW_qualifiedName_SET_PROPERTIES_pr~e2b861c5	ALTER MATERIALIZED VIEW a SET PROPERTIES a = DEFAULT
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@schema	statement/DROP_VIEW_(IF_EXISTS)?_qualifiedName	DROP VIEW a
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	statement/DROP_VIEW_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?	DROP VIEW IF EXISTS a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_VIEW_qualifiedName_RENAME_TO_qualifiedName	ALTER VIEW a RENAME TO a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement/ALTER_VIEW_qualifiedName_REFRESH	ALTER VIEW a REFRESH
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	statement(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE SCHEMA IF NOT EXISTS a
+SCHEMA_ALREADY_EXISTS	SCHEMA_ALREADY_EXISTS	engine	objects@schema	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal	CREATE SCHEMA a AUTHORIZATION a
+SCHEMA_ALREADY_EXISTS	SCHEMA_ALREADY_EXISTS	engine	objects@schema	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/USER_identifier	CREATE SCHEMA a AUTHORIZATION USER a
+SCHEMA_ALREADY_EXISTS	SCHEMA_ALREADY_EXISTS	engine	objects@schema	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/USER_identifier!drop-3	CREATE SCHEMA a AUTHORIZATION USER
+SCHEMA_ALREADY_EXISTS	SCHEMA_ALREADY_EXISTS	engine	objects@schema	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/ROLE_identifier	CREATE SCHEMA a AUTHORIZATION ROLE a
+SCHEMA_ALREADY_EXISTS	SCHEMA_ALREADY_EXISTS	engine	objects@schema	statement(AUTHORIZATION_principal)?/AUTHORIZATION_principal+principal/ROLE_identifier!drop-3	CREATE SCHEMA a AUTHORIZATION ROLE
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE TABLE a AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement(rootQuery|(_rootQuery_))/(_rootQuery_)	CREATE TABLE a AS(SELECT 1.5)
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement(WITH_(NO)?_DATA)?/WITH_(NO)?_DATA	CREATE TABLE a AS SELECT 1.5 WITH DATA
+ok:3038c9ca5c1a	ok:3038c9ca5c1a	engine	objects@schema	statement(WITH_(NO)?_DATA)?/WITH_(NO)?_DATA!drop-1	CREATE TABLE a AS SELECT 1.5 DATA
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement(NO)?/NO	CREATE TABLE a AS SELECT 1.5 WITH NO DATA
+DUPLICATE_COLUMN_NAME	DUPLICATE_COLUMN_NAME	engine	objects@schema	statement(,_tableElement)*/,_tableElement_(,_tableElement)*	CREATE TABLE a(a TIMESTAMP, a TIMESTAMP)
+TYPE_NOT_FOUND	TYPE_NOT_FOUND	engine	objects@schema	statement(,_tableElement)*/,_tableElement_(,_tableElement)*!swap	CREATE TABLE a(a TIMESTAMP, a TO)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement(,_tableElement)*/,_tableElement_(,_tableElement)*+tableElement/likeClause	CREATE TABLE a(a TIMESTAMP, LIKE a)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement(string|NULL)/string+string/UNICODE_STRING_(UESCAPE_STRING)?	COMMENT ON TABLE a IS U&'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement(string|NULL)/NULL	COMMENT ON TABLE a IS NULL
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement(FIRST|LAST|AFTER_identifier)?/FIRST	ALTER TABLE a ADD COLUMN a TIMESTAMP FIRST
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement(FIRST|LAST|AFTER_identifier)?/LAST	ALTER TABLE a ADD COLUMN a TIMESTAMP LAST
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement(FIRST|LAST|AFTER_identifier)?/AFTER_identifier	ALTER TABLE a ADD COLUMN a TIMESTAMP AFTER a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement((_(argument_(,_argument)*)?_))?/(_(argument_(,_argument)*)?_)	ALTER TABLE a EXECUTE a()
+INVALID_LITERAL	INVALID_LITERAL	engine	objects@schema	statement(GRACE_PERIOD_interval)?/GRACE_PERIOD_interval	CREATE MATERIALIZED VIEW a GRACE PERIOD INTERVAL 'a' YEAR AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement(WHEN_STALE_(INLINE|FAIL))?/WHEN_STALE_(INLINE|FAIL)	CREATE MATERIALIZED VIEW a WHEN STALE INLINE AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement(INLINE|FAIL)/FAIL	CREATE MATERIALIZED VIEW a WHEN STALE FAIL AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement(SECURITY_(DEFINER|INVOKER))?/SECURITY_(DEFINER|INVOKER)	CREATE VIEW a SECURITY DEFINER AS SELECT 1.5
+MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement(DEFINER|INVOKER)/INVOKER	CREATE VIEW a SECURITY INVOKER AS SELECT 1.5
+TYPE_NOT_FOUND	TYPE_NOT_FOUND	engine	objects@schema	tableElement/columnDefinition!swap	CREATE TABLE a(a TO)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	tableElement/likeClause	CREATE TABLE a(LIKE a)
+TYPE_NOT_FOUND	TYPE_NOT_FOUND	engine	objects@schema	tableElement/likeClause!swap	CREATE TABLE a(LIMIT a)
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal	CREATE TABLE a(a TIMESTAMP DEFAULT 1.5)
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/interval	CREATE TABLE a(a TIMESTAMP DEFAULT INTERVAL 'a' YEAR)
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/interval!drop-4	CREATE TABLE a(a TIMESTAMP DEFAULT INTERVAL 'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/identifier_string	CREATE TABLE a(a TIMESTAMP DEFAULT a 'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?	CREATE TABLE a(a TIMESTAMP DEFAULT a U&'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/DOUBLE_PRECISION_string	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE PRECISION 'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/DOUBLE_PRECISION_string!drop-2	CREATE TABLE a(a TIMESTAMP DEFAULT PRECISION 'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/DOUBLE_PRECISION_string!drop-3	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE 'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE PRECISION U&'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-2	CREATE TABLE a(a TIMESTAMP DEFAULT PRECISION U&'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#2!drop-3	CREATE TABLE a(a TIMESTAMP DEFAULT DOUBLE U&'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+number/(MINUS)?_DOUBLE_VALUE	CREATE TABLE a(a TIMESTAMP DEFAULT 1E1)
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+number/(MINUS)?_INTEGER_VALUE	CREATE TABLE a(a TIMESTAMP DEFAULT 1)
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/booleanValue	CREATE TABLE a(a TIMESTAMP DEFAULT TRUE)
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+booleanValue/FALSE	CREATE TABLE a(a TIMESTAMP DEFAULT FALSE)
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/string	CREATE TABLE a(a TIMESTAMP DEFAULT 'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+string/UNICODE_STRING_(UESCAPE_STRING)?#3	CREATE TABLE a(a TIMESTAMP DEFAULT U&'a')
+INVALID_DEFAULT_COLUMN_VALUE	INVALID_DEFAULT_COLUMN_VALUE	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/BINARY_LITERAL	CREATE TABLE a(a TIMESTAMP DEFAULT X'00')
+ok:9f887a3870a6	ok:9f887a3870a6	engine	objects@schema	columnDefinition(DEFAULT_literal)?/DEFAULT_literal+literal/NULL	CREATE TABLE a(a TIMESTAMP DEFAULT NULL)
+ok:557d0e6da11c	ok:557d0e6da11c	engine	objects@schema	columnDefinition(NOT_NULL)?/NOT_NULL	CREATE TABLE a(a TIMESTAMP NOT NULL)
+ok:a939e332943b	ok:a939e332943b	engine	objects@schema	columnDefinition(COMMENT_string)?/COMMENT_string	CREATE TABLE a(a TIMESTAMP COMMENT 'a')
+ok:a939e332943b	ok:a939e332943b	engine	objects@schema	columnDefinition(COMMENT_string)?/COMMENT_string+string/UNICODE_STRING_(UESCAPE_STRING)?	CREATE TABLE a(a TIMESTAMP COMMENT U&'a')
+INVALID_COLUMN_PROPERTY	INVALID_COLUMN_PROPERTY	engine	objects@schema	columnDefinition(WITH_properties)?/WITH_properties	CREATE TABLE a(a TIMESTAMP WITH(a = DEFAULT))
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	likeClause((INCLUDING|EXCLUDING)_PROPERTIES)?/(INCLUDING|EXCLUDING)_PROPERTIES	CREATE TABLE a(LIKE a INCLUDING PROPERTIES)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	likeClause(INCLUDING|EXCLUDING)/EXCLUDING	CREATE TABLE a(LIKE a EXCLUDING PROPERTIES)
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@schema	propertyAssignments/property_(,_property)*!swap	ALTER TABLE a SET PROPERTIES a = DEFINE
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@schema	propertyAssignments(,_property)*/,_property_(,_property)*	ALTER TABLE a SET PROPERTIES a = DEFAULT, a = DEFAULT
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@schema	propertyAssignments(,_property)*/,_property_(,_property)*!swap	ALTER TABLE a SET PROPERTIES a = DEFAULT, a = DEFINE
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@schema	propertyValue/expression	ALTER TABLE a SET PROPERTIES a = 1.5
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@schema	ownedEntityKind/SCHEMA	ALTER SCHEMA a SET AUTHORIZATION a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	ownedEntityKind/VIEW	ALTER VIEW a SET AUTHORIZATION a
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	ownedEntityKind/MATERIALIZED_VIEW	ALTER MATERIALIZED VIEW a SET AUTHORIZATION a
+ok:2c3302df7fc6	ok:2c3302df7fc6	engine	objects@schema	suite:ddl	CREATE SCHEMA web
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE SCHEMA hive.sales
+ok:b73900edbc95	ok:b73900edbc95	engine	objects@schema	suite:ddl	CREATE SCHEMA IF NOT EXISTS traffic
+ok:2c3302df7fc6	ok:2c3302df7fc6	engine	objects@schema	suite:ddl	CREATE SCHEMA web AUTHORIZATION alice
+ok:2c3302df7fc6	ok:2c3302df7fc6	engine	objects@schema	suite:ddl	CREATE SCHEMA web AUTHORIZATION USER alice
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@schema	suite:ddl	CREATE SCHEMA web AUTHORIZATION ROLE PUBLIC
+INVALID_SCHEMA_PROPERTY	INVALID_SCHEMA_PROPERTY	engine	objects@schema	suite:ddl	CREATE SCHEMA web AUTHORIZATION alice WITH ( LOCATION = '/hive/data/web' )
+INVALID_SCHEMA_PROPERTY	INVALID_SCHEMA_PROPERTY	engine	objects@schema	suite:ddl	CREATE SCHEMA web AUTHORIZATION ROLE PUBLIC WITH ( LOCATION = '/hive/data/web' )
+ok:5804e0cf48ab	ok:5804e0cf48ab	engine	objects@schema	suite:ddl	CREATE SCHEMA test
+ok:5804e0cf48ab	ok:5804e0cf48ab	engine	objects@schema	suite:ddl	CREATE SCHEMA IF NOT EXISTS test
+INVALID_SCHEMA_PROPERTY	INVALID_SCHEMA_PROPERTY	engine	objects@schema	suite:ddl	CREATE SCHEMA test WITH (a = 'apple', b = 123)
+ok:88e88d81ba23	ok:88e88d81ba23	engine	objects@schema	suite:ddl	CREATE SCHEMA "some name that contains space"
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@schema	suite:ddl	DROP SCHEMA web
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	suite:ddl	DROP SCHEMA IF EXISTS sales
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@schema	suite:ddl	DROP SCHEMA archive CASCADE
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@schema	suite:ddl	DROP SCHEMA archive RESTRICT
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@schema	suite:ddl	DROP SCHEMA test
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@schema	suite:ddl	DROP SCHEMA test CASCADE
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	suite:ddl	DROP SCHEMA IF EXISTS test
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	suite:ddl	DROP SCHEMA IF EXISTS test RESTRICT
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@schema	suite:ddl	DROP SCHEMA "some schema that contains space"
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@schema	suite:ddl	DROP SCHEMA hive.sales
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER SCHEMA web RENAME TO traffic
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER SCHEMA web SET AUTHORIZATION alice
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER SCHEMA web SET AUTHORIZATION USER alice
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER SCHEMA web SET AUTHORIZATION ROLE PUBLIC
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER SCHEMA foo RENAME TO bar
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER SCHEMA foo.bar RENAME TO baz
+SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER SCHEMA "awesome schema"."awesome table" RENAME TO "even more awesome table"
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@schema	suite:ddl	CREATE TABLE orders (orderkey bigint, orderstatus varchar, totalprice double, orderdate date) WITH (format = 'ORC')
+ok:53e202b2d46e	ok:53e202b2d46e	engine	objects@schema	suite:ddl	CREATE TABLE IF NOT EXISTS orders (orderkey bigint, orderstatus varchar, totalprice double COMMENT 'Price in cents.', orderdate date, status varchar DEFAULT 'created') COMMENT 'A table to keep track of orders.'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE TABLE bigger_orders (another_orderkey bigint, LIKE orders, another_orderdate date)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE TABLE IF NOT EXISTS bar (LIKE like_table)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE TABLE IF NOT EXISTS bar (LIKE like_table INCLUDING PROPERTIES)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@schema	suite:ddl	CREATE TABLE t (a bigint, b varchar(10), c decimal(10, 2))
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@schema	suite:ddl	CREATE TABLE t (a bigint NOT NULL)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@schema	suite:ddl	CREATE TABLE t (a bigint DEFAULT 5 NOT NULL)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@schema	suite:ddl	CREATE TABLE t (a bigint DEFAULT -5)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@schema	suite:ddl	CREATE TABLE t (a double DEFAULT - 1.5E1)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@schema	suite:ddl	CREATE TABLE t (a date DEFAULT DATE '2020-01-01')
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@schema	suite:ddl	CREATE TABLE t (a bigint COMMENT 'x' WITH (foo = 'bar'))
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@schema	suite:ddl	CREATE TABLE t (a row(x bigint, y double))
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@schema	suite:ddl	CREATE TABLE t (a array(bigint))
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE TABLE cat.sch.t (a bigint)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@schema	suite:ddl	CREATE TABLE t (LIKE a EXCLUDING PROPERTIES)
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@schema	suite:ddl	CREATE OR REPLACE TABLE t (a bigint)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE TABLE orders_column_aliased (order_date, total_price) AS SELECT orderdate, totalprice FROM orders
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@schema	suite:ddl	CREATE TABLE orders_by_date COMMENT 'Summary of orders by date' WITH (format = 'ORC') AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE TABLE IF NOT EXISTS orders_by_date AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE TABLE empty_nation AS SELECT * FROM nation WITH NO DATA
+ok:95b74fb42506	ok:95b74fb42506	engine	objects@schema	suite:ddl	CREATE TABLE foo AS SELECT * FROM t
+ok:466417694d80	ok:466417694d80	engine	objects@schema	suite:ddl	CREATE TABLE foo(x) AS SELECT a FROM t
+ok:6c4c042929ae	ok:6c4c042929ae	engine	objects@schema	suite:ddl	CREATE TABLE foo(x,y) AS SELECT a,b FROM t
+ok:95b74fb42506	ok:95b74fb42506	engine	objects@schema	suite:ddl	CREATE TABLE IF NOT EXISTS foo AS SELECT * FROM t
+ok:95b74fb42506	ok:95b74fb42506	engine	objects@schema	suite:ddl	CREATE TABLE foo AS SELECT * FROM t WITH NO DATA
+ok:466417694d80	ok:466417694d80	engine	objects@schema	suite:ddl	CREATE TABLE foo(x) AS SELECT a FROM t WITH NO DATA
+ok:95b74fb42506	ok:95b74fb42506	engine	objects@schema	suite:ddl	CREATE TABLE foo AS SELECT * FROM t WITH DATA
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@schema	suite:ddl	CREATE TABLE foo WITH ( string = 'bar', long = 42, computed = 'ban' || 'ana', a = ARRAY[ 'v1', 'v2' ] ) AS SELECT * FROM t
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@schema	suite:ddl	CREATE TABLE foo COMMENT 'test' WITH ( string = 'bar' ) AS SELECT * FROM t WITH NO DATA
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@schema	suite:ddl	CREATE TABLE foo(x,y) COMMENT 'test' WITH ( "string" = 'bar', "long" = 42, computed = 'ban' || 'ana', a = ARRAY[ 'v1', 'v2' ] ) AS SELECT a,b FROM t WITH NO DATA
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@schema	suite:ddl	CREATE TABLE t AS (SELECT 1)
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@schema	suite:ddl	CREATE TABLE t AS TABLE other
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@schema	suite:ddl	CREATE TABLE t AS WITH c AS (SELECT 1) SELECT * FROM c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE OR REPLACE TABLE t AS SELECT * FROM x
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	DROP TABLE orders_by_date
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	suite:ddl	DROP TABLE IF EXISTS orders_by_date
+ok:1d149b1d2062	ok:1d149b1d2062	engine	objects@schema	suite:ddl	DROP TABLE a.b
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	DROP TABLE a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	DROP TABLE a."b/y".c
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	suite:ddl	DROP TABLE IF EXISTS a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE users RENAME TO people
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	suite:ddl	ALTER TABLE IF EXISTS users RENAME TO people
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE a.b.c RENAME TO d.e.f
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE a RENAME TO b.c.d.e
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar DEFAULT '90210'
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	suite:ddl	ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS zip varchar
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE users ADD COLUMN id varchar FIRST
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar AFTER country
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE users ADD COLUMN zip varchar LAST
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE users ADD COLUMN c bigint NOT NULL COMMENT 'x' WITH (p = 1)
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE users DROP COLUMN zip
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	suite:ddl	ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS zip
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE foo.t DROP COLUMN c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE "t x" DROP COLUMN "c d"
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE foo.t DROP COLUMN IF EXISTS c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE users RENAME COLUMN id TO user_id
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	suite:ddl	ALTER TABLE IF EXISTS users RENAME COLUMN IF EXISTS id TO user_id
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@schema	suite:ddl	ALTER TABLE t DROP COLUMN a.b
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE users ALTER COLUMN id SET DATA TYPE bigint
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE foo.bar.baz ALTER COLUMN col1 SET DATA TYPE bigint
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT 'active'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT -1.5
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE users ALTER COLUMN status SET DEFAULT INTERVAL -'1' DAY
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE users ALTER COLUMN status DROP DEFAULT
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE users ALTER COLUMN id DROP NOT NULL
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	suite:ddl	ALTER TABLE IF EXISTS users ALTER COLUMN id SET DATA TYPE bigint
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE people SET AUTHORIZATION alice
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE people SET AUTHORIZATION ROLE PUBLIC
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE foo.bar.baz SET AUTHORIZATION qux
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE foo.bar.baz SET AUTHORIZATION USER qux
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE foo.bar.baz SET AUTHORIZATION ROLE qux
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@schema	suite:ddl	ALTER TABLE people SET PROPERTIES x = 'y'
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@schema	suite:ddl	ALTER TABLE people SET PROPERTIES foo = 123, "foo bar" = 456
+INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@schema	suite:ddl	ALTER TABLE people SET PROPERTIES x = DEFAULT
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE example.test.test_table EXECUTE optimize(file_size_threshold => '16MB')
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE t EXECUTE optimize
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE t EXECUTE optimize()
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE t EXECUTE optimize(1, 2)
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE t EXECUTE optimize WHERE x > 1
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER TABLE t EXECUTE optimize(threshold => '1MB') WHERE part = 'a'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE VIEW test AS SELECT orderkey, orderstatus, totalprice / 2 AS half FROM orders
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE VIEW test_with_comment COMMENT 'A view to keep track of orders.' AS SELECT orderkey, orderstatus, totalprice FROM orders
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE OR REPLACE VIEW test AS SELECT orderkey, orderstatus, totalprice / 4 AS quarter FROM orders
+ok:080ecbd3b3b0	ok:080ecbd3b3b0	engine	objects@schema	suite:ddl	CREATE VIEW a AS SELECT * FROM t
+ok:080ecbd3b3b0	ok:080ecbd3b3b0	engine	objects@schema	suite:ddl	CREATE VIEW a SECURITY DEFINER AS SELECT * FROM t
+ok:cff47571e1d1	ok:cff47571e1d1	engine	objects@schema	suite:ddl	CREATE VIEW a SECURITY INVOKER AS SELECT * FROM t
+ok:1c816949f114	ok:1c816949f114	engine	objects@schema	suite:ddl	CREATE VIEW a COMMENT 'comment' SECURITY DEFINER AS SELECT * FROM t
+ok:0f7f7855530b	ok:0f7f7855530b	engine	objects@schema	suite:ddl	CREATE VIEW a COMMENT '' AS SELECT * FROM t
+NOT_FOUND	NOT_FOUND	engine	objects@schema	suite:ddl	CREATE VIEW bar.foo AS SELECT * FROM t
+NOT_FOUND	NOT_FOUND	engine	objects@schema	suite:ddl	CREATE VIEW "awesome schema"."awesome view" AS SELECT * FROM t
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@schema	suite:ddl	DROP VIEW orders_by_date
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	suite:ddl	DROP VIEW IF EXISTS orders_by_date
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@schema	suite:ddl	DROP VIEW a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER VIEW people RENAME TO users
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER VIEW a RENAME TO b.c.d.e
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER VIEW people REFRESH
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER VIEW people SET AUTHORIZATION alice
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER VIEW a RENAME TO b
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER VIEW foo.bar.baz SET AUTHORIZATION qux
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER VIEW foo.bar.baz SET AUTHORIZATION USER qux
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER VIEW foo.bar.baz SET AUTHORIZATION ROLE qux
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE MATERIALIZED VIEW cancelled_orders AS SELECT orderkey, totalprice FROM orders WHERE orderstatus = 3
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW order_totals_by_date AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE MATERIALIZED VIEW orders_nation_mkgsegment COMMENT 'Orders with nation and market segment data' WITH ( partitioning = ARRAY['mktsegment', 'nationkey'] ) AS SELECT o.*, c.nationkey, c.mktsegment FROM orders AS o JOIN customer AS c ON o.custkey = c.custkey
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE MATERIALIZED VIEW orders_summary GRACE PERIOD INTERVAL '1' HOUR WHEN STALE FAIL AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE MATERIALIZED VIEW orders_summary GRACE PERIOD INTERVAL '1' HOUR WHEN STALE INLINE AS SELECT orderdate, sum(totalprice) AS price FROM orders GROUP BY orderdate
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@schema	suite:ddl	CREATE MATERIALIZED VIEW a AS SELECT * FROM t
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW catalog.schema.matview COMMENT 'A simple materialized view' AS SELECT * FROM catalog2.schema2.tab
+CATALOG_NOT_FOUND	CATALOG_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW catalog.schema.matview COMMENT 'A simple materialized view' WITH (partitioned_by = ARRAY ['dateint']) AS SELECT * FROM catalog2.schema2.tab
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	CREATE OR REPLACE MATERIALIZED VIEW catalog.schema.matview COMMENT 'A partitioned materialized view' WITH (partitioned_by = ARRAY ['dateint']) AS WITH a (t, u) AS (SELECT * FROM x), b AS (SELECT * FROM a) TABLE b
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@schema	suite:ddl	CREATE MATERIALIZED VIEW a GRACE PERIOD INTERVAL '2' DAY AS SELECT * FROM t
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@schema	suite:ddl	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT * FROM t
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@schema	suite:ddl	CREATE MATERIALIZED VIEW a WHEN STALE INLINE AS SELECT * FROM t
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@schema	suite:ddl	DROP MATERIALIZED VIEW orders_by_date
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	suite:ddl	DROP MATERIALIZED VIEW IF EXISTS orders_by_date
+GENERIC_USER_ERROR	GENERIC_USER_ERROR	engine	objects@schema	suite:ddl	DROP MATERIALIZED VIEW a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER MATERIALIZED VIEW people RENAME TO users
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER MATERIALIZED VIEW a RENAME TO b.c.d.e
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	suite:ddl	ALTER MATERIALIZED VIEW IF EXISTS people RENAME TO users
+INVALID_MATERIALIZED_VIEW_PROPERTY	INVALID_MATERIALIZED_VIEW_PROPERTY	engine	objects@schema	suite:ddl	ALTER MATERIALIZED VIEW people SET PROPERTIES x = 'y'
+INVALID_MATERIALIZED_VIEW_PROPERTY	INVALID_MATERIALIZED_VIEW_PROPERTY	engine	objects@schema	suite:ddl	ALTER MATERIALIZED VIEW people SET PROPERTIES foo = 123, "foo bar" = 456
+INVALID_MATERIALIZED_VIEW_PROPERTY	INVALID_MATERIALIZED_VIEW_PROPERTY	engine	objects@schema	suite:ddl	ALTER MATERIALIZED VIEW people SET PROPERTIES x = DEFAULT
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER MATERIALIZED VIEW a RENAME TO b
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER MATERIALIZED VIEW people SET AUTHORIZATION alice
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER MATERIALIZED VIEW people SET AUTHORIZATION ROLE PUBLIC
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	ALTER MATERIALIZED VIEW people SET AUTHORIZATION USER alice
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	COMMENT ON TABLE users IS 'master table'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	COMMENT ON TABLE users IS NULL
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	COMMENT ON VIEW users IS 'master view'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	COMMENT ON VIEW users IS NULL
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	COMMENT ON COLUMN users.name IS 'full name'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	COMMENT ON COLUMN users.name IS NULL
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	COMMENT ON TABLE a IS ''
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	COMMENT ON COLUMN a.b IS 'test'
+MISSING_TABLE	MISSING_TABLE	engine	objects@schema	suite:ddl	COMMENT ON COLUMN a IS 'test'
+COLUMN_NOT_FOUND	COLUMN_NOT_FOUND	engine	objects@schema	suite:ddl	COMMENT ON COLUMN a.b.c IS 'test'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	COMMENT ON COLUMN a.b.c.d IS 'test'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:ddl	COMMENT ON TABLE cat.sch.t IS 'x'
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:dml	TRUNCATE TABLE orders
+ok:485271a2b370	ok:485271a2b370	engine	objects@schema	suite:dml	TRUNCATE TABLE a.b
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:dml	TRUNCATE TABLE a.b.c
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	suite:dml	TRUNCATE TABLE "My Table"

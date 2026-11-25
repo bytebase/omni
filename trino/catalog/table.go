@@ -17,6 +17,8 @@ type Table struct {
 	columns []*Column
 	// colByName maps a normalized column name to its index in columns.
 	colByName map[string]int
+	// Comment is the table's comment, nil when it has none.
+	Comment *string
 }
 
 // Schema returns the schema that owns this table, or nil if the table was
@@ -85,6 +87,11 @@ type View struct {
 	// Definition leaves the view opaque (lineage stops at the view column).
 	// Consumers populate it from their synced metadata.
 	Definition string
+	// Comment is the view's comment, nil when it has none.
+	Comment *string
+	// Invoker reports SECURITY INVOKER; a view is SECURITY DEFINER by
+	// default.
+	Invoker bool
 }
 
 // Schema returns the schema that owns this view, or nil if detached.
@@ -114,6 +121,11 @@ type Column struct {
 	Type string
 	// Nullable reports whether the column accepts NULL.
 	Nullable bool
+	// Default is the column's DEFAULT literal as Trino prints it, "" for
+	// none.
+	Default string
+	// Comment is the column's comment, nil when it has none.
+	Comment *string
 }
 
 // NewColumn constructs a Column. name must already be normalized (see the

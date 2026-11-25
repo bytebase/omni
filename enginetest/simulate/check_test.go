@@ -413,6 +413,14 @@ func TestParseRejectsMalformedRows(t *testing.T) {
 	if _, err := Parse("simulate.tsv", []byte(header+"0A000\t42P07\tengine\tfx\tr/B\tB\n")); err != nil {
 		t.Errorf("a SQLSTATE: %v", err)
 	}
+	// So is an error name, as Trino gives one; a word without an underscore
+	// is not.
+	if _, err := Parse("simulate.tsv", []byte(header+"TABLE_NOT_FOUND\tGENERIC_USER_ERROR\tengine\tfx\tr/B\tB\n")); err != nil {
+		t.Errorf("an error name: %v", err)
+	}
+	if _, err := Parse("simulate.tsv", []byte(header+"1060\tREFUSED\tengine\tfx\tr/B\tB\n")); err == nil {
+		t.Errorf("REFUSED: want an error")
+	}
 	// One statement on two fixtures is two rows, and a statement keeps its tabs.
 	f, err := Parse("simulate.tsv", []byte(header+"1060\t1060\tengine\tfx\tr/B\tB\n1060\t1060\tengine\tfy\tr/B\tB\tx \n"))
 	if err != nil || len(f.Rows) != 2 || f.Rows[1].Statement != "B\tx " {

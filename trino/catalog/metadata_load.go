@@ -14,12 +14,15 @@ func (c *Catalog) LoadMetadata(meta *metadata.DatabaseSchemaMetadata) {
 		schema := database.EnsureSchema(Normalize(s.GetName()))
 		for _, t := range s.GetTables() {
 			if t.GetName() != "" {
-				schema.AddTable(Normalize(t.GetName()), metadataColumns(t.GetColumns())...)
+				table := schema.AddTable(Normalize(t.GetName()), metadataColumns(t.GetColumns())...)
+				table.Comment = optional(t.GetComment())
 			}
 		}
 		for _, v := range s.GetViews() {
 			if v.GetName() != "" {
-				schema.AddView(Normalize(v.GetName()), metadataColumns(v.GetColumns())...).Definition = v.GetDefinition()
+				view := schema.AddView(Normalize(v.GetName()), metadataColumns(v.GetColumns())...)
+				view.Definition = v.GetDefinition()
+				view.Comment = optional(v.GetComment())
 			}
 		}
 	}
@@ -29,8 +32,21 @@ func metadataColumns(columns []*metadata.ColumnMetadata) []*Column {
 	out := make([]*Column, 0, len(columns))
 	for _, col := range columns {
 		if col.GetName() != "" {
-			out = append(out, NewColumn(Normalize(col.GetName()), col.GetType(), col.GetNullable()))
+			c := NewColumn(Normalize(col.GetName()), col.GetType(), col.GetNullable())
+			// What DROP DEFAULT and SHOW CREATE TABLE read of a synced
+			// column.
+			c.Default = col.GetDefault()
+			c.Comment = optional(col.GetComment())
+			out = append(out, c)
 		}
 	}
 	return out
+}
+
+// optional is a synced comment as the catalog holds it: nil when empty.
+func optional(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }

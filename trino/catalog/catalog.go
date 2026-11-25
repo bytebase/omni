@@ -1,5 +1,6 @@
 // Package catalog provides in-memory metadata context for Trino
-// auto-completion and query-span/lineage analysis.
+// auto-completion and query-span/lineage analysis, and runs DDL on it
+// (Exec) as Trino does on its memory connector.
 //
 // Unlike the flat partiql (DynamoDB tables) and mongo (collections) catalogs,
 // Trino has a three-level object namespace — catalog -> schema -> table/view
@@ -24,8 +25,8 @@
 //   - With raw source text (e.g. names from a DatabaseMetadata snapshot or a
 //     test fixture), call the package Normalize function first.
 //
-// The package depends only on trino/ast for that normalization contract; it
-// does not depend on the parser.
+// Exec stores every name in lower case, quoted or not, as Trino's metadata
+// does; it parses with trino/parser, which the read API does not need.
 package catalog
 
 import (
