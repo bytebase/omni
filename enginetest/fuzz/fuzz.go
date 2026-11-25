@@ -67,16 +67,15 @@ func position(v reflect.Value) int {
 	panic("fuzz: " + v.Type().String() + " has no int Position field")
 }
 
-// rangeFields names the pairs of int fields that hold a node's byte range:
-// Loc{Start, End} in most engines, ClickHouse's span{Pos, End}, and the
-// Elasticsearch console's ParsedRequest{StartOffset, EndOffset}.
-var rangeFields = [][2]string{{"Start", "End"}, {"Pos", "End"}, {"StartOffset", "EndOffset"}}
+// rangeTypes names the struct types that hold a node's byte range and
+// their bound fields: Loc{Start, End} in every engine but ClickHouse, whose
+// nodes embed span{Pos, End}. Other fields called Start and End can hold
+// anything (MySQL's VCPUSpec holds CPU numbers), so only these count.
+var rangeTypes = map[string][2]string{"Loc": {"Start", "End"}, "span": {"Pos", "End"}}
 
-// Tree fails t when a value reachable from tree carries a byte range
-// outside input. A range is a struct with one of rangeFields'
-// pairs of int fields; each bound is -1 (unknown) or in [0, len(input)], and a
-// known Start is not past a known End. The walk keeps its own stack and
-// visits a shared pointer once.
+// Tree fails t when a Loc (or span) reachable from tree lies outside input
+// (see Range). The walk keeps its own stack and visits a shared pointer
+// once.
 func Tree(t testing.TB, tree any, input string) {
 	t.Helper()
 	seen := map[uintptr]bool{}
@@ -104,7 +103,12 @@ func Tree(t testing.TB, tree any, input string) {
 				stack = append(stack, it.Key(), it.Value())
 			}
 		case reflect.Struct:
-			checkRange(t, v, input)
+			if pair, ok := rangeTypes[v.Type().Name()]; ok {
+				start, end := v.FieldByName(pair[0]), v.FieldByName(pair[1])
+				if start.Kind() == reflect.Int && end.Kind() == reflect.Int {
+					Range(t, input, v.Type().String(), int(start.Int()), int(end.Int()))
+				}
+			}
 			for i := 0; i < v.NumField(); i++ {
 				stack = append(stack, v.Field(i))
 			}
@@ -112,33 +116,15 @@ func Tree(t testing.TB, tree any, input string) {
 	}
 }
 
-func checkRange(t testing.TB, v reflect.Value, input string) {
+// Range fails t unless [start, end) is a byte range of input: each bound
+// is -1 (unknown) or in [0, len(input)], and a known start is not past a
+// known end. what names the range in the failure.
+func Range(t testing.TB, input, what string, start, end int) {
 	t.Helper()
 	n := len(input)
-	for _, pair := range rangeFields {
-		start, end := intField(v, pair[0]), intField(v, pair[1])
-		if !start.IsValid() || !end.IsValid() {
-			continue
-		}
-		s, e := int(start.Int()), int(end.Int())
-		if !bound(s, n) || !bound(e, n) || (s >= 0 && e >= 0 && s > e) {
-			t.Fatalf("Parse(%s): %s{%s: %d, %s: %d} outside the %d-byte input", quote(input), v.Type(), pair[0], s, pair[1], e, n)
-		}
-		return
+	if !bound(start, n) || !bound(end, n) || (start >= 0 && end >= 0 && start > end) {
+		t.Fatalf("Parse(%s): %s [%d, %d) outside the %d-byte input", quote(input), what, start, end, n)
 	}
-}
-
-// intField returns v's own int field name, not one promoted from an
-// embedded struct, which the walk checks on its own.
-func intField(v reflect.Value, name string) reflect.Value {
-	f, ok := v.Type().FieldByName(name)
-	if !ok || len(f.Index) != 1 {
-		return reflect.Value{}
-	}
-	if fv := v.FieldByIndex(f.Index); fv.CanInt() {
-		return fv
-	}
-	return reflect.Value{}
 }
 
 func bound(x, n int) bool { return x == -1 || (x >= 0 && x <= n) }

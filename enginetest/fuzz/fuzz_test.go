@@ -34,14 +34,18 @@ func (e parseErrors) Unwrap() []error {
 	return out
 }
 
-type loc struct{ Start, End int }
+type Loc struct{ Start, End int }
 
 type span struct{ Pos, End int }
 
+// vcpu holds numbers, not a byte range, in fields called Start and End.
+type vcpu struct{ Start, End int64 }
+
 type node struct {
-	Loc  loc
+	Loc  Loc
 	Kids []any
 	Next *node
+	CPU  *vcpu
 }
 
 type spanNode struct {
@@ -76,7 +80,7 @@ func TestError(t *testing.T) {
 }
 
 func TestTree(t *testing.T) {
-	cyclic := &node{Loc: loc{0, 1}}
+	cyclic := &node{Loc: Loc{0, 1}}
 	cyclic.Next = cyclic
 	for _, tc := range []struct {
 		name string
@@ -84,16 +88,17 @@ func TestTree(t *testing.T) {
 		fail bool
 	}{
 		{"nil", nil, false},
-		{"inside", &node{Loc: loc{0, 3}}, false},
-		{"unknown", &node{Loc: loc{-1, -1}}, false},
-		{"empty", &node{Loc: loc{2, 2}}, false},
-		{"end before start", &node{Loc: loc{2, 1}}, true},
-		{"past end", &node{Loc: loc{0, 4}}, true},
-		{"below unknown", &node{Loc: loc{-2, 1}}, true},
-		{"nested in a slice", []any{&node{Kids: []any{node{Loc: loc{5, 6}}}}}, true},
-		{"in a map", map[string]*node{"a": {Loc: loc{0, 9}}}, true},
+		{"inside", &node{Loc: Loc{0, 3}}, false},
+		{"unknown", &node{Loc: Loc{-1, -1}}, false},
+		{"empty", &node{Loc: Loc{2, 2}}, false},
+		{"end before start", &node{Loc: Loc{2, 1}}, true},
+		{"past end", &node{Loc: Loc{0, 4}}, true},
+		{"below unknown", &node{Loc: Loc{-2, 1}}, true},
+		{"nested in a slice", []any{&node{Kids: []any{node{Loc: Loc{5, 6}}}}}, true},
+		{"in a map", map[string]*node{"a": {Loc: Loc{0, 9}}}, true},
 		{"embedded span", &spanNode{span: span{3, 1}}, true},
 		{"cycle", cyclic, false},
+		{"other Start and End", &node{CPU: &vcpu{100, 101}}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := &recorder{TB: t}
