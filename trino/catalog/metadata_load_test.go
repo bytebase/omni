@@ -53,3 +53,22 @@ func TestLoadMetadata(t *testing.T) {
 		t.Errorf("tables %v, views %v; want only the named ones", schema.Tables(), schema.Views())
 	}
 }
+
+// TestLoadMetadataDefaults pins that a synced column's default and comment
+// load, so DROP DEFAULT finds the default.
+func TestLoadMetadataDefaults(t *testing.T) {
+	c := New()
+	c.LoadMetadata(&metadata.DatabaseSchemaMetadata{Name: "memory", Schemas: []*metadata.SchemaMetadata{{
+		Name:   "s",
+		Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "a", Type: "integer", Nullable: true, Default: "1", Comment: "x"}}}},
+	}}})
+	c.SetCurrentCatalog("memory")
+	c.SetCurrentSchema("s")
+	col := c.GetCatalog("memory").GetSchema("s").GetTable("t").GetColumn("a")
+	if col.Default != "1" || col.Comment == nil || *col.Comment != "x" {
+		t.Fatalf("got %+v", col)
+	}
+	if results, err := c.Exec("ALTER TABLE t ALTER COLUMN a DROP DEFAULT", nil); err != nil || results[0].Error != nil {
+		t.Fatalf("DROP DEFAULT: %+v, %v", results, err)
+	}
+}

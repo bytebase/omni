@@ -29,7 +29,14 @@ func metadataColumns(columns []*metadata.ColumnMetadata) []*Column {
 	out := make([]*Column, 0, len(columns))
 	for _, col := range columns {
 		if col.GetName() != "" {
-			out = append(out, NewColumn(Normalize(col.GetName()), col.GetType(), col.GetNullable()))
+			c := NewColumn(Normalize(col.GetName()), col.GetType(), col.GetNullable())
+			// What DROP DEFAULT and SHOW CREATE TABLE read of a synced
+			// column.
+			c.Default = col.GetDefault()
+			if comment := col.GetComment(); comment != "" {
+				c.Comment = &comment
+			}
+			out = append(out, c)
 		}
 	}
 	return out

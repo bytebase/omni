@@ -16,7 +16,9 @@ type queryScope struct {
 }
 
 type scopeRel struct {
-	alias string
+	// names is what a reference may qualify the relation's columns by,
+	// as a suffix: its alias, or catalog, schema and name.
+	names []string
 	cols  []*Column
 	// using names the columns a JOIN ... USING gave to the relation
 	// before this one, which * shows once.
@@ -113,13 +115,23 @@ func (c *Catalog) typeSpec(spec *parser.QuerySpec, ctes map[string][]*Column) ([
 				}
 			}
 		case parser.SelectAllFrom:
-			if ref, ok := item.Expr.(*parser.ColumnRef); ok {
+			var cols []*Column
+			if q, ok := nameChain(item.Expr); ok {
 				for _, r := range scope.rels {
-					if r.alias == fold(ref.Name) {
-						out = append(out, copyColumns(r.cols)...)
+					if r.matches(q) {
+						cols = append(cols, copyColumns(r.cols)...)
 					}
 				}
 			}
+			if len(item.Aliases) > 0 {
+				if len(item.Aliases) != len(cols) {
+					return nil, errorf("MISMATCHED_COLUMN_ALIASES", "Column alias list has %d entries but relation has %d columns available", len(item.Aliases), len(cols))
+				}
+				for i, a := range item.Aliases {
+					cols[i].Name = fold(a)
+				}
+			}
+			out = append(out, cols...)
 		default:
 			col, err := scope.typeExpr(item.Expr)
 			if err != nil {
@@ -145,7 +157,7 @@ func (c *Catalog) addRelation(scope *queryScope, rel parser.Relation, ctes map[s
 		if len(scope.rels) == before+1 {
 			r := &scope.rels[before]
 			if n.Alias != nil {
-				r.alias = fold(n.Alias)
+				r.names = []string{fold(n.Alias)}
 			}
 			if len(n.ColumnAliases) > 0 {
 				r.cols = copyColumns(r.cols)
@@ -161,11 +173,12 @@ func (c *Catalog) addRelation(scope *queryScope, rel parser.Relation, ctes map[s
 		if err != nil {
 			return err
 		}
-		alias := ""
-		if len(n.Name.Parts) > 0 {
-			alias = fold(n.Name.Parts[len(n.Name.Parts)-1])
+		names := []string{fold(n.Name.Parts[0])}
+		if _, cte := ctes[names[0]]; !cte || len(n.Name.Parts) > 1 {
+			name, _ := c.qualify(n.Name)
+			names = []string{name.catalog, name.schema, name.name}
 		}
-		scope.rels = append(scope.rels, scopeRel{alias: alias, cols: cols})
+		scope.rels = append(scope.rels, scopeRel{names: names, cols: cols})
 	case *parser.Join:
 		if err := c.addRelation(scope, n.Left, ctes); err != nil {
 			return err
@@ -230,26 +243,37 @@ func (c *Catalog) relationColumns(qn *ast.QualifiedName, ctes map[string][]*Colu
 // type has an empty type.
 func (s *queryScope) typeExpr(e parser.Expr) (*Column, error) {
 	switch n := e.(type) {
+	case *parser.ParenExpr:
+		return s.typeExpr(n.Expr)
 	case *parser.ColumnRef:
-		return s.column("", fold(n.Name))
+		return s.column(nil, fold(n.Name))
 	case *parser.Dereference:
-		field := fold(n.FieldName)
-		if base, ok := n.Base.(*parser.ColumnRef); ok && s.hasRelation(fold(base.Name)) {
-			return s.column(fold(base.Name), field)
+		parts, ok := nameChain(n)
+		if !ok {
+			return &Column{Name: fold(n.FieldName), Nullable: true}, nil
 		}
-		// A field of a ROW value.
-		col, err := s.typeExpr(n.Base)
+		// The longest prefix that names a relation qualifies the column;
+		// the names after it are fields of a ROW value.
+		k := len(parts) - 1
+		for k > 0 && !s.hasRelation(parts[:k]) {
+			k--
+		}
+		col, err := s.column(parts[:k], parts[k])
 		if err != nil {
 			return nil, err
 		}
-		if col.Type == "" {
-			return &Column{Name: field, Nullable: true}, nil
+		for _, field := range parts[k+1:] {
+			if col.Type == "" {
+				col = &Column{Name: field, Nullable: true}
+				continue
+			}
+			typ, ok := rowField(col.Type, field)
+			if !ok {
+				return nil, errorf("COLUMN_NOT_FOUND", "Column '%s' cannot be resolved", field)
+			}
+			col = &Column{Name: field, Type: typ, Nullable: true}
 		}
-		typ, ok := rowField(col.Type, field)
-		if !ok {
-			return nil, errorf("COLUMN_NOT_FOUND", "Column '%s' cannot be resolved", field)
-		}
-		return &Column{Name: field, Type: typ, Nullable: true}, nil
+		return col, nil
 	case *parser.Literal:
 		return &Column{Type: literalType(n), Nullable: true}, nil
 	case *parser.TypeConstructor:
@@ -260,14 +284,42 @@ func (s *queryScope) typeExpr(e parser.Expr) (*Column, error) {
 	return &Column{Nullable: true}, nil
 }
 
-// hasRelation reports whether a FROM relation goes by name.
-func (s *queryScope) hasRelation(name string) bool {
+// hasRelation reports whether a FROM relation goes by a qualifier.
+func (s *queryScope) hasRelation(q []string) bool {
 	for _, r := range s.rels {
-		if r.alias == name {
+		if r.matches(q) {
 			return true
 		}
 	}
 	return false
+}
+
+// matches reports whether a qualifier names the relation: it ends its
+// names.
+func (r scopeRel) matches(q []string) bool {
+	if len(q) == 0 || len(q) > len(r.names) {
+		return false
+	}
+	tail := r.names[len(r.names)-len(q):]
+	for i := range q {
+		if q[i] != tail[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// nameChain reads a.b.c, a column reference and the fields after it, as
+// its folded names.
+func nameChain(e parser.Expr) ([]string, bool) {
+	switch n := e.(type) {
+	case *parser.ColumnRef:
+		return []string{fold(n.Name)}, true
+	case *parser.Dereference:
+		base, ok := nameChain(n.Base)
+		return append(base, fold(n.FieldName)), ok
+	}
+	return nil, false
 }
 
 // rowField returns the type of a field of a stored row type, row(x
@@ -342,30 +394,36 @@ func valuesColumns(v *parser.ValuesQuery) []*Column {
 	return out
 }
 
-// column resolves a column reference, qualified by a relation's name or
-// not.
-func (s *queryScope) column(qualifier, name string) (*Column, error) {
+// column resolves a column reference, qualified by a relation's names or
+// not. An unqualified name two relations hold is ambiguous, but a USING
+// column, which the join holds once.
+func (s *queryScope) column(qualifier []string, name string) (*Column, error) {
 	known := true
+	var found *Column
 	for _, r := range s.rels {
-		if qualifier != "" && r.alias != qualifier {
+		if len(qualifier) > 0 && !r.matches(qualifier) || len(qualifier) == 0 && r.using[name] {
 			continue
 		}
 		if r.cols == nil {
 			known = false
 		}
 		for _, col := range r.cols {
-			if col.Name == name {
-				return &Column{Name: col.Name, Type: col.Type, Nullable: true}, nil
+			if col.Name != name {
+				continue
 			}
+			if found != nil {
+				return nil, errorf("AMBIGUOUS_NAME", "Column '%s' is ambiguous", name)
+			}
+			found = &Column{Name: col.Name, Type: col.Type, Nullable: true}
 		}
 	}
-	if !known {
+	switch {
+	case found != nil:
+		return found, nil
+	case !known:
 		return &Column{Name: name, Nullable: true}, nil
 	}
-	if qualifier != "" {
-		return nil, errorf("COLUMN_NOT_FOUND", "Column '%s.%s' cannot be resolved", qualifier, name)
-	}
-	return nil, errorf("COLUMN_NOT_FOUND", "Column '%s' cannot be resolved", name)
+	return nil, errorf("COLUMN_NOT_FOUND", "Column '%s' cannot be resolved", strings.Join(append(append([]string{}, qualifier...), name), "."))
 }
 
 // literalType is the type Trino gives a literal.

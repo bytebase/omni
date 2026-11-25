@@ -121,3 +121,35 @@ func TestExecQueryShapes(t *testing.T) {
 		t.Errorf("INTERVAL DAY: got %+v, %v, want TYPE_NOT_FOUND", results, err)
 	}
 }
+
+// TestExecQueryReferences pins how a query's column references resolve:
+// qualified by schema and table, through parentheses, a qualified star
+// with aliases, and an unqualified name two relations hold.
+func TestExecQueryReferences(t *testing.T) {
+	c := New()
+	s := c.EnsureCatalog("memory").EnsureSchema("s")
+	c.SetCurrentCatalog("memory")
+	c.SetCurrentSchema("s")
+	for _, sql := range []string{
+		"CREATE TABLE t (id integer, a varchar)",
+		"CREATE TABLE r (id bigint)",
+		"CREATE TABLE q1 AS SELECT s.t.id, (a) FROM s.t",
+		"CREATE TABLE q2 AS SELECT s.t.* FROM s.t",
+		"CREATE TABLE q3 AS SELECT t.* AS (x, y) FROM t",
+		"CREATE TABLE q4 AS SELECT id FROM t JOIN r USING (id)",
+	} {
+		if results, err := c.Exec(sql, nil); err != nil || len(results) != 1 || results[0].Error != nil {
+			t.Fatalf("%s: got %+v, %v", sql, results, err)
+		}
+	}
+	for table, want := range map[string]string{"q1": "id,a", "q2": "id,a", "q3": "x,y", "q4": "id"} {
+		if got := strings.Join(s.GetTable(table).ColumnNames(), ","); got != want {
+			t.Errorf("%s's columns = %s, want %s", table, got, want)
+		}
+	}
+	results, _ := c.Exec("CREATE TABLE q5 AS SELECT id FROM t CROSS JOIN r", nil)
+	var e *Error
+	if len(results) != 1 || !errors.As(results[0].Error, &e) || e.Name != "AMBIGUOUS_NAME" {
+		t.Errorf("an ambiguous id: got %+v, want AMBIGUOUS_NAME", results)
+	}
+}
