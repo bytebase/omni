@@ -3,7 +3,6 @@ package review
 import (
 	"context"
 	"errors"
-	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/pg/ast"
@@ -39,19 +38,19 @@ var catalogCodes = map[string]review.FindingCode{
 // catalogRefusal replays steps, the part of the change the walk reached,
 // in a pg/catalog loaded from the synced schema, and returns a violation at
 // the first statement the catalog refuses with one of catalogCodes, when
-// catalogJudges it. It is asked only when the walk found nothing and knows
-// the search path. The replay ends, accepting, at a schema that does not
+// catalogJudges it, in the session the walk knows for each step. It is
+// asked only when the walk found nothing. The replay ends, accepting, at a schema that does not
 // load in full, at any other refusal, and after a CALL or DO, whose effects
 // the catalog does not follow, or a change to event triggers.
-func catalogRefusal(ctx context.Context, stmts []statement, steps []step, target review.Target, path []string, user string) *walk.Violation {
-	if len(steps) == 0 || target.Schema == nil || target.OtherSpecs || len(path) == 0 || user == "" && slices.Contains(path, "$user") {
+func catalogRefusal(ctx context.Context, stmts []statement, steps []step, sessions []catalogSession, target review.Target) *walk.Violation {
+	if len(steps) == 0 || target.Schema == nil || target.OtherSpecs {
 		return nil
 	}
 	c := pgcatalog.New()
-	if user != "" {
+	if user := sessions[0].user; user != "" {
 		c.SetSessionUser(user)
 	}
-	c.SetSearchPath(path)
+	c.SetSearchPath(sessions[0].path)
 	// Full loads procedures, which a call resolves among the functions.
 	report, err := c.LoadMetadata(ctx, target.Schema, pgcatalog.LoadMetadataOptions{Full: true})
 	if err != nil || len(report.Degraded) > 0 || len(report.Missing) > 0 {
@@ -64,6 +63,12 @@ func catalogRefusal(ctx context.Context, stmts []statement, steps []step, target
 		return nil
 	}
 	for i, st := range steps {
+		// The walk's session, which follows what the catalog does not, as
+		// set_config does.
+		c.SetSearchPath(sessions[i].path)
+		if user := sessions[i].user; user != "" {
+			c.SetRole(user)
+		}
 		node := stmts[st.stmt].node
 		switch node.(type) {
 		case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt:
@@ -74,7 +79,7 @@ func catalogRefusal(ctx context.Context, stmts []statement, steps []step, target
 		var refusal *pgcatalog.Error
 		if errors.As(err, &refusal) {
 			code, ok := catalogCodes[refusal.Code]
-			if !ok || !catalogJudges(node) || castCurable(refusal) {
+			if !ok || !catalogJudges(node) || castCurable(refusal) || namesUntrustedRoutine(node) {
 				return nil
 			}
 			message := "PostgreSQL refuses this statement: " + refusal.Message + " (SQLSTATE " + refusal.Code + ")."
@@ -94,6 +99,41 @@ func catalogRefusal(ctx context.Context, stmts []statement, steps []step, target
 		}
 	}
 	return nil
+}
+
+// catalogSession is the search path and current user the walk knows a
+// step to run in.
+type catalogSession struct {
+	path []string
+	user string
+}
+
+// namesUntrustedRoutine reports whether node names a routine the sync may
+// leave out (trustedRoutineName), which a call or a definition may resolve
+// to without the catalog knowing it.
+func namesUntrustedRoutine(node ast.Node) bool {
+	untrusted := false
+	check := func(names *ast.List) {
+		if parts := nameParts(names); len(parts) > 0 && !trustedRoutineName(parts[len(parts)-1]) {
+			untrusted = true
+		}
+	}
+	ast.Inspect(node, func(n ast.Node) bool {
+		switch v := n.(type) {
+		case *ast.FuncCall:
+			check(v.Funcname)
+		case *ast.ObjectWithArgs:
+			check(v.Objname)
+		case *ast.CreateFunctionStmt:
+			check(v.Funcname)
+		case *ast.CreateTrigStmt:
+			check(v.Funcname)
+		case *ast.CreateEventTrigStmt:
+			check(v.Funcname)
+		}
+		return !untrusted
+	})
+	return untrusted
 }
 
 // castCurable reports whether a cast the sync does not list could cure the
