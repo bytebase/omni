@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/bytebase/omni/elasticsearch/analysis"
+	"github.com/bytebase/omni/metadata"
 )
 
 func TestRequestTargets(t *testing.T) {
@@ -35,6 +36,16 @@ func TestRequestTargets(t *testing.T) {
 
 func TestExpandIndices(t *testing.T) {
 	known := []string{".customers", "logs[eu]-1", "logsp-1", "orders", "users", "users_archive"}
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Synonyms: []*metadata.SynonymMetadata{
+			{Name: "everyone", TargetName: "users"},
+			{Name: "everyone", TargetName: "users_archive"},
+			{Name: "people", TargetName: "users"},
+		},
+	}}}
+	for _, name := range known {
+		meta.Schemas[0].Tables = append(meta.Schemas[0].Tables, &metadata.TableMetadata{Name: name})
+	}
 	for _, tc := range []struct {
 		targets [][]string
 		want    []string
@@ -46,16 +57,22 @@ func TestExpandIndices(t *testing.T) {
 		{[][]string{{"user*"}}, []string{"users", "users_archive"}},
 		{[][]string{{"user*", "-users_archive"}}, []string{"users"}},
 		{[][]string{{"*", "-user*", "-logs*", "-.*"}}, []string{"orders"}},
-		{[][]string{{"people", "orders"}}, []string{"orders", "people"}},
 		{[][]string{{"nothing*"}}, nil},
 		{[][]string{{"logs[eu]*"}}, []string{"logs[eu]-1"}},
 		{[][]string{{"u*s"}}, []string{"users"}},
+		// An alias reads its indices, by name or by a wildcard.
+		{[][]string{{"people", "orders"}}, []string{"orders", "users"}},
+		{[][]string{{"everyone"}}, []string{"users", "users_archive"}},
+		{[][]string{{"peo*"}}, []string{"users"}},
+		{[][]string{{"*", "-people"}}, known},
+		// A name the sync does not store is kept as written.
+		{[][]string{{"events-app"}}, []string{"events-app"}},
 		// Each expression expands on its own: one search's exclusion
 		// leaves another's names alone.
 		{[][]string{{"users"}, {"*", "-users"}}, known},
 		{[][]string{{"orders"}, nil}, known},
 	} {
-		if got := analysis.ExpandIndices(tc.targets, known); !slices.Equal(got, tc.want) {
+		if got := analysis.ExpandIndices(tc.targets, meta); !slices.Equal(got, tc.want) {
 			t.Errorf("ExpandIndices(%q) = %q, want %q", tc.targets, got, tc.want)
 		}
 	}

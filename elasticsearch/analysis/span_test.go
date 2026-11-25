@@ -19,6 +19,7 @@ import (
 	"github.com/bytebase/omni/elasticsearch/analysis"
 	"github.com/bytebase/omni/elasticsearch/internal/testcontainer"
 	"github.com/bytebase/omni/enginetest/span"
+	"github.com/bytebase/omni/metadata"
 )
 
 // session is the one session every row runs in: Elasticsearch has no
@@ -116,11 +117,11 @@ func consoleText(statement string) string {
 
 // --- the fixture and what a sync stores ---
 
-// syncedIndices is what Bytebase holds of a fixture: the indices
+// syncedIndices is what Bytebase holds of a fixture: the indices and aliases
 // elasticsearch/driver's sync lists, and the fields each index's mapping
 // defines, which an ObjectSchema describes.
 type syncedIndices struct {
-	names  []string
+	meta   *metadata.DatabaseSchemaMetadata
 	fields map[string][]string
 }
 
@@ -172,12 +173,13 @@ func buildFixture(c *testcontainer.Client, text string) (syncedIndices, error) {
 	if err := json.Unmarshal(answer, &cat); err != nil {
 		return syncedIndices{}, fmt.Errorf("cat indices: %w", err)
 	}
-	s := syncedIndices{fields: map[string][]string{}}
+	schema := &metadata.SchemaMetadata{}
+	s := syncedIndices{meta: &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{schema}}, fields: map[string][]string{}}
 	for _, e := range cat {
 		if settings[e.Index].Settings.Index.Hidden == "true" {
 			continue
 		}
-		s.names = append(s.names, e.Index)
+		schema.Tables = append(schema.Tables, &metadata.TableMetadata{Name: e.Index})
 		_, answer, err := do(c, "GET", "/"+url.PathEscape(e.Index)+"/_mapping", "")
 		if err != nil {
 			return syncedIndices{}, err
@@ -190,7 +192,22 @@ func buildFixture(c *testcontainer.Client, text string) (syncedIndices, error) {
 		}
 		s.fields[e.Index] = mapping[e.Index].Mappings.leaves("")
 	}
-	slices.Sort(s.names)
+	// The sync's aliases: one synonym per synced index an alias names.
+	_, answer, err = do(c, "GET", "/_alias", "")
+	if err != nil {
+		return syncedIndices{}, err
+	}
+	var aliases map[string]struct {
+		Aliases map[string]json.RawMessage `json:"aliases"`
+	}
+	if err := json.Unmarshal(answer, &aliases); err != nil {
+		return syncedIndices{}, fmt.Errorf("aliases: %w", err)
+	}
+	for _, table := range schema.Tables {
+		for alias := range aliases[table.Name].Aliases {
+			schema.Synonyms = append(schema.Synonyms, &metadata.SynonymMetadata{Name: alias, TargetName: table.Name})
+		}
+	}
 	return s, nil
 }
 
@@ -239,7 +256,7 @@ func omniSpan(s syncedIndices, statement string) span.Answer {
 	if a == nil || a.API == analysis.APIUnsupported || a.API == analysis.APIBlocked {
 		return span.Answer{Error: "omni: not a maskable read"}
 	}
-	tables := analysis.ExpandIndices(a.Targets, s.names)
+	tables := analysis.ExpandIndices(a.Targets, s.meta)
 	lineage := map[string][]string{}
 	for _, index := range tables {
 		if a.SourceDisabled {

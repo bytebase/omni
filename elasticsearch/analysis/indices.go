@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+
+	"github.com/bytebase/omni/metadata"
 )
 
 // requestTargets returns the index expressions a request reads, each the
@@ -98,26 +100,39 @@ func jsonObjects(body string) []map[string]any {
 }
 
 // ExpandIndices resolves the index expressions a request reads
-// (RequestAnalysis.Targets) against the indices a sync stores, which are the
-// ones a search's default expand_wildcards=open reaches, and returns their
-// union. Within one expression, as Elasticsearch expands it: no name, _all or
-// * is every known index; a name with a wildcard is the known indices it
-// matches; a name starting with - after the first removes what it matches
-// from the names before it; any other name is kept as written, since it may
-// be an index, an alias or a data stream the sync does not store.
-func ExpandIndices(targets [][]string, known []string) []string {
+// (RequestAnalysis.Targets) against what a sync stores (elasticsearch/driver's
+// SyncDatabase): its tables are the indices a search's default
+// expand_wildcards=open reaches, and its synonyms are their aliases, one per
+// index an alias names. It returns the union of the indices each expression
+// reads. Within one expression, as Elasticsearch expands it: no name, _all or
+// * is every index; a name with a wildcard is the indices it matches and the
+// indices of the aliases it matches; an alias is its indices; a name starting
+// with - after the first removes the indices it matches from the names
+// before it; any other name is kept as written, since it may be an index, an
+// alias or a data stream the sync does not store.
+func ExpandIndices(targets [][]string, meta *metadata.DatabaseSchemaMetadata) []string {
+	var known []string
+	aliases := map[string][]string{}
+	for _, schema := range meta.GetSchemas() {
+		for _, table := range schema.GetTables() {
+			known = append(known, table.GetName())
+		}
+		for _, synonym := range schema.GetSynonyms() {
+			aliases[synonym.GetName()] = append(aliases[synonym.GetName()], synonym.GetTargetName())
+		}
+	}
 	if len(targets) == 0 {
 		targets = [][]string{nil}
 	}
 	var out []string
 	for _, names := range targets {
-		out = append(out, expandTarget(names, known)...)
+		out = append(out, expandTarget(names, known, aliases)...)
 	}
 	slices.Sort(out)
 	return slices.Compact(out)
 }
 
-func expandTarget(names, known []string) []string {
+func expandTarget(names, known []string, aliases map[string][]string) []string {
 	if len(names) == 0 {
 		names = []string{"_all"}
 	}
@@ -127,6 +142,8 @@ func expandTarget(names, known []string) []string {
 		case name == "_all":
 			out = append(out, known...)
 		case i > 0 && strings.HasPrefix(name, "-"):
+			// Only index names are removed: what an excluded alias names
+			// stays, the safer reading for masking.
 			pattern := strings.TrimPrefix(name, "-")
 			out = slices.DeleteFunc(out, func(n string) bool { return wildcardMatch(pattern, n) })
 		case strings.Contains(name, "*"):
@@ -135,6 +152,13 @@ func expandTarget(names, known []string) []string {
 					out = append(out, n)
 				}
 			}
+			for alias, indices := range aliases {
+				if wildcardMatch(name, alias) {
+					out = append(out, indices...)
+				}
+			}
+		case aliases[name] != nil:
+			out = append(out, aliases[name]...)
 		default:
 			out = append(out, name)
 		}

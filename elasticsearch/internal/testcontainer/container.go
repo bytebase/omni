@@ -397,6 +397,25 @@ func narrow(route, contentType string, body []byte) ([]byte, bool) {
 		sort.SliceStable(entries, func(i, j int) bool { return entries[i].Index < entries[j].Index })
 		narrowed, err := json.Marshal(entries)
 		return narrowed, err == nil
+	case route == "/_alias":
+		// Each index's alias names; an alias's filter and routing are not
+		// read.
+		var entries map[string]struct {
+			Aliases map[string]json.RawMessage `json:"aliases"`
+		}
+		if err := json.Unmarshal(body, &entries); err != nil {
+			return nil, false
+		}
+		kept := map[string]any{}
+		for index, entry := range entries {
+			names := map[string]any{}
+			for name := range entry.Aliases {
+				names[name] = map[string]any{}
+			}
+			kept[index] = map[string]any{"aliases": names}
+		}
+		narrowed, err := json.Marshal(kept)
+		return narrowed, err == nil
 	case isBulkEndpoint(route):
 		return narrowBulk(body)
 	case strings.HasPrefix(route, "/_security/user"), strings.HasPrefix(route, "/_plugins/_security/api/internalusers"):

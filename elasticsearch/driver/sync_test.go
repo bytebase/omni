@@ -87,6 +87,33 @@ func TestSyncInstance(t *testing.T) {
 	writeOrCompareBytes(t, filepath.Join("testdata", "sync", "instance.json"), append(b, '\n'))
 }
 
+// TestSyncDatabaseAliases holds an alias as a synonym per index it names, so
+// a request that reads an index by its alias reaches the index's masking
+// policy. An alias of a hidden index is left out with the index.
+func TestSyncDatabaseAliases(t *testing.T) {
+	d := openDriver(t)
+	executeCorpus(t, d, `
+PUT /alpha
+{"settings": {"number_of_shards": 1, "number_of_replicas": 0}}
+
+PUT /beta
+{"settings": {"number_of_shards": 1, "number_of_replicas": 0}}
+
+PUT /hidden-one
+{"settings": {"number_of_shards": 1, "number_of_replicas": 0, "index.hidden": true}}
+
+POST /_aliases
+{"actions": [{"add": {"index": "alpha", "alias": "both"}}, {"add": {"index": "beta", "alias": "both"}}, {"add": {"index": "beta", "alias": "beta-recent", "filter": {"range": {"n": {"gte": 3}}}}}, {"add": {"index": "hidden-one", "alias": "hidden-alias"}}]}
+`)
+	got, err := d.SyncDatabase(context.Background())
+	require.NoError(t, err)
+	var synonyms []string
+	for _, s := range got.Schemas[0].Synonyms {
+		synonyms = append(synonyms, s.Name+"->"+s.TargetName)
+	}
+	require.Equal(t, []string{"beta-recent->beta", "both->alpha", "both->beta"}, synonyms)
+}
+
 // TestSyncClosedAndHiddenIndices pins how SyncDatabase handles a closed index
 // (whose docs.count and store.size come back null from _cat/indices) alongside
 // open and hidden indices against the pinned Elasticsearch server.
