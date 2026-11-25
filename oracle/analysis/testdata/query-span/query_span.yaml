@@ -213,6 +213,11 @@
         - server: ""
           database: SCHEMA1
           schema: ""
+          table: T
+          column: ""
+        - server: ""
+          database: SCHEMA1
+          schema: ""
           table: V1
           column: ""
     predicatecolumns: []
@@ -411,6 +416,12 @@
           sourcefieldpaths: []
           selectasterisk: false
     sourcecolumns:
+        - instance: INSTANCE_ID_B
+          server: REMOTE
+          database: SCHEMA1
+          schema: ""
+          table: LT2
+          column: ""
         - instance: INSTANCE_ID_B
           server: REMOTE
           database: SCHEMA1

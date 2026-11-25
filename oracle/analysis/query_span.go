@@ -125,6 +125,10 @@ type querySpanExtractor struct {
 	// source is the original SQL text, used to slice expression names via Loc.
 	source                   string
 	topLevelTableSourcesFrom []spanTable
+
+	// viewTables holds the user tables and views the views the statement
+	// reads read in turn, as Oracle's plan and dependencies name them.
+	viewTables ColumnSet
 }
 
 func newQuerySpanExtractor(connectionDatabase, instance string, catalog Catalog) *querySpanExtractor {
@@ -133,6 +137,7 @@ func newQuerySpanExtractor(connectionDatabase, instance string, catalog Catalog)
 		instance:        instance,
 		catalog:         catalog,
 		linkedDatabases: make(map[string]linkedDatabaseResolution),
+		viewTables:      make(ColumnSet),
 	}
 }
 
@@ -271,7 +276,7 @@ func (q *querySpanExtractor) plsqlFindTableSchema(dbLink []string, schemaName, t
 		}
 		// Lineage carries the resolved database, as the access set does, so the masker
 		// finds the policy of the database the link reaches rather than of "" for `t@link`.
-		return q.findTableSchemaInMetadata(linkedInstanceID, linkedMeta, linkedDatabaseName, tableName)
+		return q.findTableSchemaInMetadata(linkedInstanceID, linkName, linkedMeta, linkedDatabaseName, tableName)
 	}
 
 	dbMetadata, err := q.getDatabaseMetadata(schemaName)
@@ -284,10 +289,10 @@ func (q *querySpanExtractor) plsqlFindTableSchema(dbLink []string, schemaName, t
 		}
 	}
 
-	return q.findTableSchemaInMetadata(q.instance, dbMetadata, schemaName, tableName)
+	return q.findTableSchemaInMetadata(q.instance, "", dbMetadata, schemaName, tableName)
 }
 
-func (q *querySpanExtractor) findTableSchemaInMetadata(instance string, dbMetadata Database, databaseName, tableName string) (spanTable, error) {
+func (q *querySpanExtractor) findTableSchemaInMetadata(instance, link string, dbMetadata Database, databaseName, tableName string) (spanTable, error) {
 	if !dbMetadata.HasSchema() {
 		return nil, &NotFoundError{
 			Database: &databaseName,
@@ -337,7 +342,7 @@ func (q *querySpanExtractor) findTableSchemaInMetadata(instance string, dbMetada
 
 	if view != nil {
 		if view.Definition != "" {
-			columns, err := q.getColumnsForView(instance, databaseName, view.Definition)
+			columns, err := q.getColumnsForView(instance, link, databaseName, view.Definition)
 			if err != nil {
 				return nil, err
 			}
@@ -373,7 +378,13 @@ func (q *querySpanExtractor) findTableSchemaInMetadata(instance string, dbMetada
 	return nil, nil
 }
 
-func (q *querySpanExtractor) getColumnsForView(instance, defaultDatabase, definition string) ([]QuerySpanResult, error) {
+// getColumnsForView resolves a view's columns from its definition and notes
+// the user tables and views the definition reads in q.viewTables. Oracle
+// checks a reader's privilege on the view alone, but Bytebase's access check
+// reads the span's tables, and a grant there must hold whichever view reads
+// a table. What a view reached through the database link link reads is
+// named through that link, on the instance it reaches.
+func (q *querySpanExtractor) getColumnsForView(instance, link, defaultDatabase, definition string) ([]QuerySpanResult, error) {
 	newQ := newQuerySpanExtractor(defaultDatabase, instance, q.catalog)
 	span, err := newQ.getQuerySpan(definition)
 	if err != nil {
@@ -381,6 +392,17 @@ func (q *querySpanExtractor) getColumnsForView(instance, defaultDatabase, defini
 	}
 	if span.NotFoundError != nil {
 		return nil, span.NotFoundError
+	}
+	for column := range span.SourceColumns {
+		if column.Server == "" {
+			if systemSchemaMap[column.Database] {
+				continue
+			}
+			if link != "" {
+				column.Instance, column.Server = instance, link
+			}
+		}
+		q.viewTables[column] = true
 	}
 	return span.Results, nil
 }
@@ -486,6 +508,9 @@ func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, erro
 	var results []QuerySpanResult
 	if tableSource != nil {
 		results = tableSource.GetQuerySpanResult()
+	}
+	for column := range q.viewTables {
+		columnSet[column] = true
 	}
 	if resourceNotFound := q.findMissingAccessTable(raw.Stmt, accessTables); resourceNotFound != nil {
 		if len(columnSet) == 0 {
@@ -1945,7 +1970,7 @@ func (q *querySpanExtractor) subAVTableSource(clause *oracleast.SubAVClause) (sp
 			Database: &schemaName,
 		}
 	}
-	tableSource, err := q.findTableSchemaInMetadata(q.instance, dbMetadata, schemaName, clause.Using.Name)
+	tableSource, err := q.findTableSchemaInMetadata(q.instance, "", dbMetadata, schemaName, clause.Using.Name)
 	if err != nil {
 		return nil, err
 	}
