@@ -239,7 +239,7 @@ func omniSpan(s syncedIndices, statement string) span.Answer {
 	if a == nil || a.API == analysis.APIUnsupported || a.API == analysis.APIBlocked {
 		return span.Answer{Error: "omni: not a maskable read"}
 	}
-	tables := analysis.ExpandIndices(a.Indices, s.names)
+	tables := analysis.ExpandIndices(a.Targets, s.names)
 	lineage := map[string][]string{}
 	for _, index := range tables {
 		if a.SourceDisabled {
@@ -461,8 +461,14 @@ func resolveTargets(c *testcontainer.Client, target, body string, segments []str
 			if err := json.Unmarshal([]byte(lines[i]), &header); err != nil {
 				return nil, err
 			}
-			if header.Index != "" {
+			// A header that names no index searches the path's target,
+			// or every index.
+			switch {
+			case header.Index != "":
 				targets = append(targets, url.PathEscape(header.Index))
+			case target != "":
+			default:
+				targets = append(targets, "*")
 			}
 		}
 	}

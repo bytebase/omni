@@ -12,7 +12,7 @@ run on a fixture of `span/fixtures`, it has three rows:
 | --- | --- | --- |
 | `results` | the leaf fields of each index in `tables` that the request's `_source` filtering (`SourceFields`, `SourceExcludes`, `SourceDisabled`) keeps | the dotted path of every value in the `_source` of the documents the request returns |
 | `lineage` | for each field, `<index>.<field>` for each index in `tables` whose mapping defines it | for each field, the `_index` of each returned document that holds it, plus `~` |
-| `tables` | `ExpandIndices(Indices, synced indices)` | the targets the request names (its path, a multi-get's docs, a multi-search's headers; every index when it names none) through `GET /_resolve/index/<target>?expand_wildcards=open`: each index, each alias's indices, each data stream |
+| `tables` | `ExpandIndices(Targets, synced indices)` | each target the request reads (its path, a multi-get's docs, each multi-search header or the path when it names none; every index when nothing names one) through `GET /_resolve/index/<target>?expand_wildcards=open`: each index, each alias's indices, each data stream |
 
 A request Elasticsearch refuses has `error:<type>` in each of its expected
 cells. A data stream is named for itself: its backing index

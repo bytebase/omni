@@ -29,6 +29,8 @@ POST /users/_search {"_source":{"exclude":["email"]}}
 POST /users/_search {"_source":{"excludes":"address"}}
 POST /orders/_search {"_source":["items.sku"]}
 POST /orders/_search {"_source":{"excludes":["items"]}}
+POST /users/_search {"_source":{"excludes":["ssn"],"exclude":["email"]}}
+POST /users/_search {"_source":{"include":["email"],"includes":["name"]}}
 
 # _source filtering in the URL.
 GET /users/_search?_source=false
@@ -73,10 +75,14 @@ GET /hidden*/_search
 GET /events-app/_search
 GET /events-*/_search
 GET /users%2Corders/_search
+GET /.customers/_search
+GET /.cust*/_search
 
 # Multi-search.
 POST /_msearch {"index":"users"} \n {"query":{"match_all":{}}} \n {"index":"orders"} \n {"_source":["total"]}
 POST /users/_msearch {} \n {"_source":["name"]}
+POST /_msearch {} \n {} \n {"index":"orders"} \n {}
+POST /_msearch {"index":"users"} \n {} \n {"index":"*,-users"} \n {}
 
 # Errors.
 GET /missing/_search

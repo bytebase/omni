@@ -3,67 +3,79 @@ package analysis
 import (
 	"encoding/json"
 	"net/url"
-	"path"
 	"slices"
 	"strings"
 )
 
-// requestIndices returns every index, alias, data stream or pattern a request
-// names, as written and URL-decoded: the path's comma-separated target first,
-// then those a multi-get's docs or a multi-search's header lines name.
-func requestIndices(api MaskableAPI, urlPath, body string) []string {
-	var names []string
+// requestTargets returns the index expressions a request reads, each the
+// list of names one search or document resolves, as written: the path's
+// comma-separated target, URL-decoded; for a multi-get, each doc's _index
+// (the path's target for a doc that names none); for a multi-search, each
+// header's index (the path's target for a header that names none). An empty
+// expression reads every index.
+func requestTargets(api MaskableAPI, urlPath, body string) [][]string {
+	var pathTarget []string
 	if target := extractIndex(urlPath); target != "" {
 		// Elasticsearch decodes the path segment before it splits the list,
 		// so users%2Corders names two indices.
 		if decoded, err := url.PathUnescape(target); err == nil {
 			target = decoded
 		}
-		for name := range strings.SplitSeq(target, ",") {
-			if name != "" {
-				names = append(names, name)
-			}
-		}
+		pathTarget = splitNames(target)
 	}
-	switch api {
-	case APIMaskMGet:
+	switch {
+	case api == APIMaskMGet:
 		var parsed struct {
 			Docs []struct {
 				Index string `json:"_index"`
 			} `json:"docs"`
 		}
-		if json.Unmarshal([]byte(body), &parsed) == nil {
-			for _, doc := range parsed.Docs {
-				if doc.Index != "" {
-					names = append(names, doc.Index)
-				}
+		if json.Unmarshal([]byte(body), &parsed) != nil || len(parsed.Docs) == 0 {
+			return [][]string{pathTarget}
+		}
+		var targets [][]string
+		for _, doc := range parsed.Docs {
+			if doc.Index != "" {
+				targets = append(targets, []string{doc.Index})
+			} else {
+				targets = append(targets, pathTarget)
 			}
 		}
-	case APIMaskSearch:
-		if !strings.Contains(urlPath, "_msearch") {
-			break
-		}
+		return targets
+	case api == APIMaskSearch && strings.Contains(urlPath, "_msearch"):
 		// A multi-search body alternates a header line and a search body;
 		// a header's "index" is a name, a comma-separated list or an array.
 		lines := nonEmptyLines(body)
+		var targets [][]string
 		for i := 0; i < len(lines); i += 2 {
 			var header map[string]any
 			if json.Unmarshal([]byte(lines[i]), &header) != nil {
-				continue
+				header = nil
 			}
 			switch v := header["index"].(type) {
 			case string:
-				for name := range strings.SplitSeq(v, ",") {
-					if name != "" {
-						names = append(names, name)
-					}
-				}
+				targets = append(targets, splitNames(v))
 			case []any:
-				names = append(names, toStringSlice(v)...)
+				targets = append(targets, toStringSlice(v))
 			default:
+				targets = append(targets, pathTarget)
 			}
 		}
+		if len(targets) == 0 {
+			return [][]string{pathTarget}
+		}
+		return targets
 	default:
+		return [][]string{pathTarget}
+	}
+}
+
+func splitNames(list string) []string {
+	var names []string
+	for name := range strings.SplitSeq(list, ",") {
+		if name != "" {
+			names = append(names, name)
+		}
 	}
 	return names
 }
@@ -78,14 +90,27 @@ func nonEmptyLines(body string) []string {
 	return lines
 }
 
-// ExpandIndices resolves the names a request reads (RequestAnalysis.Indices)
-// against the indices a sync stores, as Elasticsearch expands a target with
-// its default expand_wildcards=open: no name, _all or * is every known index;
-// a name with a wildcard is the known indices it matches, those starting with
-// a dot only when the pattern does; a name starting with - removes what it
-// matches from the names before it; any other name is kept as written, since
-// it may be an index, an alias or a data stream the sync does not store.
-func ExpandIndices(names, known []string) []string {
+// ExpandIndices resolves the index expressions a request reads
+// (RequestAnalysis.Targets) against the indices a sync stores, which are the
+// ones a search's default expand_wildcards=open reaches, and returns their
+// union. Within one expression, as Elasticsearch expands it: no name, _all or
+// * is every known index; a name with a wildcard is the known indices it
+// matches; a name starting with - after the first removes what it matches
+// from the names before it; any other name is kept as written, since it may
+// be an index, an alias or a data stream the sync does not store.
+func ExpandIndices(targets [][]string, known []string) []string {
+	if len(targets) == 0 {
+		targets = [][]string{nil}
+	}
+	var out []string
+	for _, names := range targets {
+		out = append(out, expandTarget(names, known)...)
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
+}
+
+func expandTarget(names, known []string) []string {
 	if len(names) == 0 {
 		names = []string{"_all"}
 	}
@@ -93,15 +118,12 @@ func ExpandIndices(names, known []string) []string {
 	for i, name := range names {
 		switch {
 		case name == "_all":
-			out = append(out, visible(known)...)
+			out = append(out, known...)
 		case i > 0 && strings.HasPrefix(name, "-"):
 			pattern := strings.TrimPrefix(name, "-")
 			out = slices.DeleteFunc(out, func(n string) bool { return wildcardMatch(pattern, n) })
 		case strings.Contains(name, "*"):
 			for _, n := range known {
-				if strings.HasPrefix(n, ".") && !strings.HasPrefix(name, ".") {
-					continue
-				}
 				if wildcardMatch(name, n) {
 					out = append(out, n)
 				}
@@ -110,28 +132,28 @@ func ExpandIndices(names, known []string) []string {
 			out = append(out, name)
 		}
 	}
-	slices.Sort(out)
-	return slices.Compact(out)
-}
-
-func visible(known []string) []string {
-	var out []string
-	for _, n := range known {
-		if !strings.HasPrefix(n, ".") {
-			out = append(out, n)
-		}
-	}
 	return out
 }
 
 // wildcardMatch reports whether name matches pattern, where * is any run of
-// characters. Elasticsearch's index patterns take * alone; ? is a literal
-// that no index name may hold.
+// characters and every other character stands for itself, as in
+// Elasticsearch's Regex.simpleMatch.
 func wildcardMatch(pattern, name string) bool {
-	if !strings.Contains(pattern, "*") {
+	parts := strings.Split(pattern, "*")
+	if len(parts) == 1 {
 		return pattern == name
 	}
-	// path.Match treats [ and \ specially; index names hold neither.
-	ok, err := path.Match(strings.ReplaceAll(pattern, "?", `\?`), name)
-	return err == nil && ok
+	if !strings.HasPrefix(name, parts[0]) {
+		return false
+	}
+	name = name[len(parts[0]):]
+	last := parts[len(parts)-1]
+	for _, part := range parts[1 : len(parts)-1] {
+		i := strings.Index(name, part)
+		if i < 0 {
+			return false
+		}
+		name = name[i+len(part):]
+	}
+	return strings.HasSuffix(name, last) && len(name) >= len(last)
 }

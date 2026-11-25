@@ -10,6 +10,9 @@ PUT /orders
 PUT /hidden_audit
 {"settings":{"index":{"hidden":true}},"mappings":{"properties":{"actor":{"type":"keyword"},"action":{"type":"keyword"}}}}
 
+PUT /.customers
+{"mappings":{"properties":{"vip":{"type":"keyword"}}}}
+
 PUT /_index_template/omni-events
 {"index_patterns":["events-*"],"data_stream":{},"priority":500,"template":{"mappings":{"properties":{"@timestamp":{"type":"date"},"message":{"type":"text"},"user":{"type":"keyword"}}}}}
 
@@ -31,5 +34,7 @@ POST /_bulk?refresh=true
 {"order_id":"o2","user_email":"bob@example.com","total":3,"items":[{"sku":"c","qty":3}]}
 {"index":{"_index":"hidden_audit","_id":"h1"}}
 {"actor":"alice","action":"login"}
+{"index":{"_index":".customers","_id":"c1"}}
+{"vip":"alice"}
 {"create":{"_index":"events-app","_id":"e1"}}
 {"@timestamp":"2026-11-25T00:00:00Z","message":"login","user":"alice"}

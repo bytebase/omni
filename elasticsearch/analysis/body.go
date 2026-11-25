@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/url"
 	"slices"
@@ -18,7 +19,7 @@ func analyzeRequestBody(body string) *RequestAnalysis {
 	}
 
 	result.BlockedFeatures = detectBlockedFeatures(parsed)
-	extractSource(parsed, result)
+	extractSource(body, parsed, result)
 	result.RequestedFields = extractStringArray(parsed, "fields")
 	result.HighlightFields = extractHighlightFields(parsed)
 	result.SortFields = extractSortFields(parsed)
@@ -58,7 +59,7 @@ func detectBlockedFeatures(parsed map[string]any) []BlockedFeature {
 }
 
 // extractSource handles the three forms of _source in the request body.
-func extractSource(parsed map[string]any, result *RequestAnalysis) {
+func extractSource(body string, parsed map[string]any, result *RequestAnalysis) {
 	src, ok := parsed["_source"]
 	if !ok {
 		return
@@ -74,10 +75,44 @@ func extractSource(parsed map[string]any, result *RequestAnalysis) {
 	case []any:
 		result.SourceFields = toStringSlice(v)
 	case map[string]any:
-		result.SourceFields = append(stringOrList(v["includes"]), stringOrList(v["include"])...)
-		result.SourceExcludes = append(stringOrList(v["excludes"]), stringOrList(v["exclude"])...)
+		result.SourceFields, result.SourceExcludes = sourceObject(body)
 	default:
 	}
+}
+
+// sourceObject reads a _source object's include and exclude lists from the
+// body as written. Each spelling (includes or include, excludes or exclude)
+// sets its list, so the last one written wins, as Elasticsearch's
+// FetchSourceContext parses it; a generic decode loses the keys' order.
+func sourceObject(body string) (includes, excludes []string) {
+	var top struct {
+		Source json.RawMessage `json:"_source"`
+	}
+	if json.Unmarshal([]byte(body), &top) != nil {
+		return nil, nil
+	}
+	decoder := json.NewDecoder(bytes.NewReader(top.Source))
+	if tok, err := decoder.Token(); err != nil || tok != json.Delim('{') {
+		return nil, nil
+	}
+	for decoder.More() {
+		tok, err := decoder.Token()
+		if err != nil {
+			return includes, excludes
+		}
+		key, _ := tok.(string)
+		var value any
+		if err := decoder.Decode(&value); err != nil {
+			return includes, excludes
+		}
+		switch key {
+		case "includes", "include":
+			includes = stringOrList(value)
+		case "excludes", "exclude":
+			excludes = stringOrList(value)
+		}
+	}
+	return includes, excludes
 }
 
 // stringOrList reads a _source filter value: one field or a list of them.

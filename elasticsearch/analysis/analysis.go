@@ -52,12 +52,12 @@ type RequestAnalysis struct {
 	API MaskableAPI
 	// Index is the target index name extracted from the URL (may be empty).
 	Index string
-	// Indices is every index, alias, data stream or pattern the request
-	// names, as written and URL-decoded: the path's comma-separated target,
-	// then those a multi-get's docs or a multi-search's header lines name.
-	// Empty when the request names none, which reads every index.
-	// ExpandIndices resolves it against the indices a sync stores.
-	Indices []string
+	// Targets is the index expressions the request reads, each the names
+	// one search or document resolves, as written: the path's
+	// comma-separated target, URL-decoded; a multi-get doc's _index; a
+	// multi-search header's index. An empty expression reads every index.
+	// ExpandIndices resolves them against the indices a sync stores.
+	Targets [][]string
 	// BlockedFeatures lists body features that prevent safe masking.
 	BlockedFeatures []BlockedFeature
 	// SourceDisabled is true when "_source": false was set in the body.
@@ -207,7 +207,7 @@ func AnalyzeRequest(method, url, body string) *RequestAnalysis {
 		return result
 	}
 	urlPath, query, _ := strings.Cut(url, "?")
-	result.Indices = requestIndices(api, strings.TrimPrefix(urlPath, "/"), body)
+	result.Targets = requestTargets(api, strings.TrimPrefix(urlPath, "/"), body)
 
 	// Only analyze the body for APIs that accept a query body.
 	switch api {
