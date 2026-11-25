@@ -132,11 +132,6 @@ func (p *Parser) parseCreatedbOptName() (string, error) {
 		p.advance()
 		return name, nil
 	default:
-		if p.isSpannerPG() && isPG17AddedKeyword(p.cur.Type) {
-			name := p.cur.Str
-			p.advance()
-			return name, nil
-		}
 		return "", nil
 	}
 }

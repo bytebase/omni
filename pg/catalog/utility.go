@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -369,9 +370,10 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// SHOW: no-op for pgddl
 		return nil
 	case *nodes.CallStmt:
-		// CALL resolves its procedure; what the procedure does when it runs
-		// is not simulated.
-		return c.checkCall(newRuleBindings(0, 0), s.Funccall, &ruleEvalContext{})
+		if err := c.execCall(s.Funccall); !errors.Is(err, errNotRun) {
+			return err
+		}
+		return nil
 	case *nodes.PrepareStmt:
 		if s.Name != "" && c.preparedStmts[s.Name] != nil {
 			return &Error{

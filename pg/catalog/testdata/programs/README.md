@@ -11,27 +11,24 @@ alike. The readout adds the database's event triggers to `../simulate.tsv`'s.
 `pg/review`'s `TestWalkSimulation` checks WALK_THROUGH on these rows
 (`programs` subtest).
 
-**266 rows: 257 agree, 9 differ (96.6%), on both pins.**
+**266 rows: all agree, on both pins.**
 
 The catalog checks what PostgreSQL checks at `CREATE` with
 `check_function_bodies` on: a SQL body is parsed and analyzed, and its last
 statement must return the declared result; a PL/pgSQL body is compiled (syntax,
 assigned variables, declared types, condition names, `RETURN`), with the tables
-it names left to run time. A SQL-standard body (`RETURN`, `BEGIN ATOMIC`)
-records what it uses, so dropping or retyping it fails with 2BP01 or 0A000.
+it names left to run time. A quoted literal takes the type it is assigned or
+compared to, so an enum refuses a label it lacks (22P02), and a SQL-standard
+body (`RETURN`, `BEGIN ATOMIC`) prints it with that type, as PostgreSQL stores
+it. Such a body records what it uses, so dropping or retyping it fails with
+2BP01 or 0A000. `LANGUAGE internal` names one of the server's built-in
+functions (42883 otherwise).
 
-## Gaps
-
-- Run time: `CALL p_broken()` (42P01) and `DO` blocks that raise (P0001), insert
-  into a missing table (42P01) or create a table. The catalog resolves the
-  procedure and compiles the block, and runs neither.
-- An enum literal is not checked against the enum's labels (`m = 'nope'`,
-  22P02, twice).
-- `LANGUAGE internal AS 'nope_symbol'` (42883): the catalog has no list of the
-  server's internal function symbols.
-- A SQL-standard body prints a literal without the type PostgreSQL resolves it
-  to (`'happy'::mood`, `'a'::text`) and a result column without its `AS` name,
-  so two accepted rows store another body text.
+`DO` and `CALL` run a PL/pgSQL body that is a straight list of statements (no
+variables, control flow or handlers): its DDL executes, its DML is analyzed, and
+`RAISE EXCEPTION` fails it. `CALL` runs only a procedure without parameters,
+`SET` options or `SECURITY DEFINER`. A body the catalog does not run, or one
+that calls such a body, is compiled only.
 
 ## Commands
 

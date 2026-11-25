@@ -285,12 +285,6 @@ const (
 	T_CreateSubscriptionStmt
 	T_AlterSubscriptionStmt
 	T_DropSubscriptionStmt
-	T_SpannerTTLClause
-	T_SpannerInterleaveClause
-	T_CreateChangeStreamStmt
-	T_ChangeStreamForItem
-	T_AlterChangeStreamStmt
-	T_CreateLocalityGroupStmt
 )
 
 // NodeTagName returns the string name of a NodeTag.
@@ -536,18 +530,6 @@ func NodeTagName(tag NodeTag) string {
 		return "CreateTableAsStmt"
 	case T_RefreshMatViewStmt:
 		return "RefreshMatViewStmt"
-	case T_SpannerTTLClause:
-		return "SpannerTTLClause"
-	case T_SpannerInterleaveClause:
-		return "SpannerInterleaveClause"
-	case T_CreateChangeStreamStmt:
-		return "CreateChangeStreamStmt"
-	case T_ChangeStreamForItem:
-		return "ChangeStreamForItem"
-	case T_AlterChangeStreamStmt:
-		return "AlterChangeStreamStmt"
-	case T_CreateLocalityGroupStmt:
-		return "CreateLocalityGroupStmt"
 	// Add more as needed
 	default:
 		return "Unknown"

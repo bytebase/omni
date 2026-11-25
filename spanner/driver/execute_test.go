@@ -184,73 +184,8 @@ func TestExecuteCreateDatabaseRefusesOtherStatements(t *testing.T) {
 	a.EqualError(err, "expect sanitized SQLs to have at least one entry, original statement: ")
 }
 
-// TestExecutePostgres runs a PostgreSQL script's DML in one read-write
-// transaction and its DDL through the admin API, in PostgreSQL's SQL.
-func TestExecutePostgres(t *testing.T) {
-	a := require.New(t)
-	d := openPostgresFixture(t, "pgexecute")
-	defer d.Close()
-
-	log := &executeLogger{}
-	count, err := d.Execute(context.Background(),
-		`UPDATE Singers SET rating = 5.0 WHERE id = 1; UPDATE Singers SET rating = 4.0 WHERE id = 2`,
-		driver.ExecuteOptions{Log: log})
-	a.NoError(err)
-	a.Equal(int64(2), count)
-	a.Equal([]string{string(driver.Begin), string(driver.Commit)}, log.events)
-
-	count, err = d.Execute(context.Background(),
-		`CREATE TABLE written (id bigint NOT NULL, name text, PRIMARY KEY (id)); DROP TABLE written`,
-		driver.ExecuteOptions{})
-	a.NoError(err)
-	a.Equal(int64(0), count)
-}
-
-// TestExecutePostgresAutoCommit runs each PostgreSQL statement as a partitioned
-// update, whose row count is Spanner's lower bound.
-func TestExecutePostgresAutoCommit(t *testing.T) {
-	a := require.New(t)
-	d := openPostgresFixture(t, "pgexecute")
-	defer d.Close()
-
-	count, err := d.Execute(context.Background(),
-		`UPDATE Singers SET active = TRUE WHERE id = 1`,
-		driver.ExecuteOptions{Transaction: driver.AutoCommit})
-	a.NoError(err)
-	a.Equal(int64(1), count)
-}
-
-// TestExecuteCreateDatabasePostgres creates a database from a PostgreSQL
-// creation script: the double-quoted name is the dialect signal the admin API
-// requires, and the rest of the script is applied in that dialect too.
-func TestExecuteCreateDatabasePostgres(t *testing.T) {
-	a := require.New(t)
-	testcontainer.CreatePostgres(t, "pgcreatedb", "pgcreatedb", nil, nil)
-	d := openDriverWithDialect(t, "pgcreatedb", "pgcreatedb", postgresSQL)
-	defer d.Close()
-
-	count, err := d.Execute(context.Background(),
-		`CREATE DATABASE "pgcreated"; CREATE TABLE written (id bigint NOT NULL, PRIMARY KEY (id))`,
-		driver.ExecuteOptions{CreateDatabase: true})
-	a.NoError(err)
-	a.Equal(int64(0), count)
-
-	created := openDriverWithDialect(t, "pgcreatedb", "pgcreated", postgresSQL)
-	defer created.Close()
-	// The created database answers the PostgreSQL catalog, which is how the test
-	// reads the dialect the server created it with.
-	metadata, err := created.SyncDatabase(context.Background())
-	a.NoError(err)
-	a.Len(metadata.Schemas, 1)
-	a.Equal("public", metadata.Schemas[0].Name)
-	a.Len(metadata.Schemas[0].Tables, 1)
-	a.Equal("written", metadata.Schemas[0].Tables[0].Name)
-}
-
 // TestExecuteCreateDatabaseWithAHashHeader creates a database from a GoogleSQL
-// script that begins with a `#` line comment: the dialect is read with
-// GoogleSQL's lexer first, which skips that comment rather than taking a quoted
-// word in it for the database name.
+// script that begins with a `#` line comment, which GoogleSQL's lexer skips.
 func TestExecuteCreateDatabaseWithAHashHeader(t *testing.T) {
 	a := require.New(t)
 	testcontainer.Create(t, "createdb", "createdb", nil, nil)
@@ -268,28 +203,4 @@ func TestExecuteCreateDatabaseWithAHashHeader(t *testing.T) {
 	var dumped strings.Builder
 	a.NoError(created.Dump(context.Background(), &dumped, nil))
 	a.Contains(dumped.String(), "CREATE TABLE Written")
-}
-
-// TestExecuteCreateDatabaseRefreshesTheDialect creates the database the driver is
-// open on with a PostgreSQL creation script. Open found no database to read a
-// dialect from and left GoogleSQL, so the creation is what the query after it
-// splits by: a dollar-quoted string with a semicolon in it stays one statement.
-func TestExecuteCreateDatabaseRefreshesTheDialect(t *testing.T) {
-	a := require.New(t)
-	// The instance exists; the database the driver is opened on does not.
-	testcontainer.CreatePostgres(t, "pgfresh", "seed", nil, nil)
-	d := openDriverWithDialect(t, "pgfresh", "pgfresh", googleSQL)
-	defer d.Close()
-
-	count, err := d.Execute(context.Background(),
-		`CREATE DATABASE "pgfresh"`, driver.ExecuteOptions{CreateDatabase: true})
-	a.NoError(err)
-	a.Equal(int64(0), count)
-
-	results, err := sessionOf(t, d).Query(context.Background(),
-		`SELECT $$a;b$$ AS x`, driver.QueryOptions{MaxResultBytes: maxResultBytes})
-	a.NoError(err)
-	a.Len(results, 1)
-	a.NoError(results[0].Err)
-	a.Equal([]driver.Value{{Kind: driver.String, String: "a;b"}}, results[0].Rows[0])
 }

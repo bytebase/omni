@@ -64,16 +64,16 @@ const (
 type JoinType int
 
 const (
-	JOIN_INNER JoinType = iota // matching tuple pairs only
-	JOIN_LEFT                  // pairs + unmatched LHS tuples
-	JOIN_FULL                  // pairs + unmatched LHS + unmatched RHS
-	JOIN_RIGHT                 // pairs + unmatched RHS tuples
-	JOIN_SEMI                  // LHS tuples that have match(es)
-	JOIN_ANTI                  // LHS tuples that don't have a match
-	JOIN_RIGHT_SEMI            // RHS tuples that have match(es)
-	JOIN_RIGHT_ANTI            // RHS tuples that don't have a match
-	JOIN_UNIQUE_OUTER          // LHS path must be made unique
-	JOIN_UNIQUE_INNER          // RHS path must be made unique
+	JOIN_INNER        JoinType = iota // matching tuple pairs only
+	JOIN_LEFT                         // pairs + unmatched LHS tuples
+	JOIN_FULL                         // pairs + unmatched LHS + unmatched RHS
+	JOIN_RIGHT                        // pairs + unmatched RHS tuples
+	JOIN_SEMI                         // LHS tuples that have match(es)
+	JOIN_ANTI                         // LHS tuples that don't have a match
+	JOIN_RIGHT_SEMI                   // RHS tuples that have match(es)
+	JOIN_RIGHT_ANTI                   // RHS tuples that don't have a match
+	JOIN_UNIQUE_OUTER                 // LHS path must be made unique
+	JOIN_UNIQUE_INNER                 // RHS path must be made unique
 )
 
 // BoolExprType represents types of boolean expressions.
@@ -89,32 +89,32 @@ const (
 type A_Expr_Kind int
 
 const (
-	AEXPR_OP          A_Expr_Kind = iota // normal operator
-	AEXPR_OP_ANY                         // scalar op ANY (array)
-	AEXPR_OP_ALL                         // scalar op ALL (array)
-	AEXPR_DISTINCT                       // IS DISTINCT FROM - name must be "="
-	AEXPR_NOT_DISTINCT                   // IS NOT DISTINCT FROM - name must be "="
-	AEXPR_NULLIF                         // NULLIF - name must be "="
-	AEXPR_IN                             // [NOT] IN - name must be "=" or "<>"
-	AEXPR_LIKE                           // [NOT] LIKE - name must be "~~" or "!~~"
-	AEXPR_ILIKE                          // [NOT] ILIKE - name must be "~~*" or "!~~*"
-	AEXPR_SIMILAR                        // [NOT] SIMILAR - name must be "~" or "!~"
-	AEXPR_BETWEEN                        // name must be "BETWEEN"
-	AEXPR_NOT_BETWEEN                    // name must be "NOT BETWEEN"
-	AEXPR_BETWEEN_SYM                    // name must be "BETWEEN SYMMETRIC"
-	AEXPR_NOT_BETWEEN_SYM                // name must be "NOT BETWEEN SYMMETRIC"
-	AEXPR_OVERLAPS                       // OVERLAPS
+	AEXPR_OP              A_Expr_Kind = iota // normal operator
+	AEXPR_OP_ANY                             // scalar op ANY (array)
+	AEXPR_OP_ALL                             // scalar op ALL (array)
+	AEXPR_DISTINCT                           // IS DISTINCT FROM - name must be "="
+	AEXPR_NOT_DISTINCT                       // IS NOT DISTINCT FROM - name must be "="
+	AEXPR_NULLIF                             // NULLIF - name must be "="
+	AEXPR_IN                                 // [NOT] IN - name must be "=" or "<>"
+	AEXPR_LIKE                               // [NOT] LIKE - name must be "~~" or "!~~"
+	AEXPR_ILIKE                              // [NOT] ILIKE - name must be "~~*" or "!~~*"
+	AEXPR_SIMILAR                            // [NOT] SIMILAR - name must be "~" or "!~"
+	AEXPR_BETWEEN                            // name must be "BETWEEN"
+	AEXPR_NOT_BETWEEN                        // name must be "NOT BETWEEN"
+	AEXPR_BETWEEN_SYM                        // name must be "BETWEEN SYMMETRIC"
+	AEXPR_NOT_BETWEEN_SYM                    // name must be "NOT BETWEEN SYMMETRIC"
+	AEXPR_OVERLAPS                           // OVERLAPS
 )
 
 // QuerySource represents possible sources of a Query.
 type QuerySource int
 
 const (
-	QSRC_ORIGINAL           QuerySource = iota // original parsetree (explicit query)
-	QSRC_PARSER                                // added by parse analysis (now unused)
-	QSRC_INSTEAD_RULE                          // added by unconditional INSTEAD rule
-	QSRC_QUAL_INSTEAD_RULE                     // added by conditional INSTEAD rule
-	QSRC_NON_INSTEAD_RULE                      // added by non-INSTEAD rule
+	QSRC_ORIGINAL          QuerySource = iota // original parsetree (explicit query)
+	QSRC_PARSER                               // added by parse analysis (now unused)
+	QSRC_INSTEAD_RULE                         // added by unconditional INSTEAD rule
+	QSRC_QUAL_INSTEAD_RULE                    // added by conditional INSTEAD rule
+	QSRC_NON_INSTEAD_RULE                     // added by non-INSTEAD rule
 )
 
 // OverridingKind represents OVERRIDING clause options.
@@ -154,7 +154,6 @@ const (
 	CONSTR_ATTR_NOT_DEFERRABLE
 	CONSTR_ATTR_DEFERRED
 	CONSTR_ATTR_IMMEDIATE
-	CONSTR_SPANNER_ON_UPDATE // Cloud Spanner PG column-level ON UPDATE b_expr
 )
 
 // CoercionForm represents how to display a node.
@@ -332,13 +331,6 @@ const (
 	AT_SetIdentity
 	AT_DropIdentity
 	AT_ReAddStatistics
-	AT_SpannerAddTTL
-	AT_SpannerAlterTTL
-	AT_SpannerDropTTL
-	AT_SpannerSetInterleave
-	AT_SpannerDropInterleave
-	AT_SpannerSetOnDelete
-	AT_SpannerSetEmpty // Cloud Spanner PG bare SET alter_table_cmd
 )
 
 // LockClauseStrength represents FOR UPDATE/SHARE strength.
@@ -374,7 +366,7 @@ const (
 type DiscardMode int
 
 const (
-	DISCARD_ALL       DiscardMode = iota
+	DISCARD_ALL DiscardMode = iota
 	DISCARD_PLANS
 	DISCARD_SEQUENCES
 	DISCARD_TEMP
@@ -396,22 +388,22 @@ const (
 type RoleStmtType int
 
 const (
-	ROLESTMT_ROLE  RoleStmtType = iota
+	ROLESTMT_ROLE RoleStmtType = iota
 	ROLESTMT_USER
 	ROLESTMT_GROUP
 )
 
 // Lock mode constants (from PostgreSQL's lockdefs.h)
 const (
-	NoLock                  = 0
-	AccessShareLock         = 1
-	RowShareLock            = 2
-	RowExclusiveLock        = 3
+	NoLock                   = 0
+	AccessShareLock          = 1
+	RowShareLock             = 2
+	RowExclusiveLock         = 3
 	ShareUpdateExclusiveLock = 4
-	ShareLock               = 5
-	ShareRowExclusiveLock   = 6
-	ExclusiveLock           = 7
-	AccessExclusiveLock     = 8
+	ShareLock                = 5
+	ShareRowExclusiveLock    = 6
+	ExclusiveLock            = 7
+	AccessExclusiveLock      = 8
 )
 
 // ClusterOption bitmask values
@@ -423,7 +415,7 @@ const (
 type FetchDirection int
 
 const (
-	FETCH_FORWARD  FetchDirection = iota
+	FETCH_FORWARD FetchDirection = iota
 	FETCH_BACKWARD
 	FETCH_ABSOLUTE
 	FETCH_RELATIVE
@@ -468,19 +460,19 @@ const (
 
 // ConstraintAttributeSpec bit constants (from gram.y).
 const (
-	CAS_NOT_DEFERRABLE    = 1 << 0
-	CAS_DEFERRABLE        = 1 << 1
+	CAS_NOT_DEFERRABLE      = 1 << 0
+	CAS_DEFERRABLE          = 1 << 1
 	CAS_INITIALLY_IMMEDIATE = 1 << 2
 	CAS_INITIALLY_DEFERRED  = 1 << 3
-	CAS_NOT_VALID         = 1 << 4
-	CAS_NO_INHERIT        = 1 << 5
+	CAS_NOT_VALID           = 1 << 4
+	CAS_NO_INHERIT          = 1 << 5
 )
 
 // ImportForeignSchemaType represents the type of foreign schema import.
 type ImportForeignSchemaType int
 
 const (
-	FDW_IMPORT_SCHEMA_ALL      ImportForeignSchemaType = iota
+	FDW_IMPORT_SCHEMA_ALL ImportForeignSchemaType = iota
 	FDW_IMPORT_SCHEMA_LIMIT_TO
 	FDW_IMPORT_SCHEMA_EXCEPT
 )
@@ -499,7 +491,7 @@ const (
 type PublicationObjSpecType int
 
 const (
-	PUBLICATIONOBJ_TABLE               PublicationObjSpecType = iota
+	PUBLICATIONOBJ_TABLE PublicationObjSpecType = iota
 	PUBLICATIONOBJ_TABLES_IN_SCHEMA
 	PUBLICATIONOBJ_TABLES_IN_CUR_SCHEMA
 	PUBLICATIONOBJ_CONTINUATION
@@ -509,7 +501,7 @@ const (
 type AlterSubscriptionType int
 
 const (
-	ALTER_SUBSCRIPTION_OPTIONS        AlterSubscriptionType = iota
+	ALTER_SUBSCRIPTION_OPTIONS AlterSubscriptionType = iota
 	ALTER_SUBSCRIPTION_CONNECTION
 	ALTER_SUBSCRIPTION_SET_PUBLICATION
 	ALTER_SUBSCRIPTION_ADD_PUBLICATION
@@ -523,7 +515,7 @@ const (
 type AlterPublicationAction int
 
 const (
-	AP_AddObjects  AlterPublicationAction = iota
+	AP_AddObjects AlterPublicationAction = iota
 	AP_DropObjects
 	AP_SetObjects
 )
@@ -548,7 +540,7 @@ const (
 type AlterTSConfigType int
 
 const (
-	ALTER_TSCONFIG_ADD_MAPPING            AlterTSConfigType = iota
+	ALTER_TSCONFIG_ADD_MAPPING AlterTSConfigType = iota
 	ALTER_TSCONFIG_ALTER_MAPPING_FOR_TOKEN
 	ALTER_TSCONFIG_REPLACE_DICT
 	ALTER_TSCONFIG_REPLACE_DICT_FOR_TOKEN
@@ -566,7 +558,7 @@ const (
 type SVFOp int
 
 const (
-	SVFOP_CURRENT_DATE      SVFOp = iota
+	SVFOP_CURRENT_DATE SVFOp = iota
 	SVFOP_CURRENT_TIME
 	SVFOP_CURRENT_TIME_N
 	SVFOP_CURRENT_TIMESTAMP
@@ -586,24 +578,24 @@ const (
 // FRAMEOPTION_* constants for WindowDef.FrameOptions (bitmask).
 // These match PostgreSQL's FRAMEOPTION_* defines in parsenodes.h.
 const (
-	FRAMEOPTION_NONDEFAULT                 = 0x00001 // any specified?
-	FRAMEOPTION_RANGE                      = 0x00002 // RANGE behavior
-	FRAMEOPTION_ROWS                       = 0x00004 // ROWS behavior
-	FRAMEOPTION_GROUPS                     = 0x00008 // GROUPS behavior
-	FRAMEOPTION_BETWEEN                    = 0x00010 // BETWEEN given?
-	FRAMEOPTION_START_UNBOUNDED_PRECEDING  = 0x00020 // start is U. P.
-	FRAMEOPTION_END_UNBOUNDED_PRECEDING    = 0x00040 // (disallowed)
-	FRAMEOPTION_START_UNBOUNDED_FOLLOWING  = 0x00080 // (disallowed)
-	FRAMEOPTION_END_UNBOUNDED_FOLLOWING    = 0x00100 // end is U. F.
-	FRAMEOPTION_START_CURRENT_ROW          = 0x00200 // start is C. R.
-	FRAMEOPTION_END_CURRENT_ROW            = 0x00400 // end is C. R.
-	FRAMEOPTION_START_OFFSET_PRECEDING     = 0x00800 // start is O. P.
-	FRAMEOPTION_END_OFFSET_PRECEDING       = 0x01000 // end is O. P.
-	FRAMEOPTION_START_OFFSET_FOLLOWING     = 0x02000 // start is O. F.
-	FRAMEOPTION_END_OFFSET_FOLLOWING       = 0x04000 // end is O. F.
-	FRAMEOPTION_EXCLUDE_CURRENT_ROW        = 0x08000 // omit C.R.
-	FRAMEOPTION_EXCLUDE_GROUP              = 0x10000 // omit C.R. & peers
-	FRAMEOPTION_EXCLUDE_TIES               = 0x20000 // omit peers only
+	FRAMEOPTION_NONDEFAULT                = 0x00001 // any specified?
+	FRAMEOPTION_RANGE                     = 0x00002 // RANGE behavior
+	FRAMEOPTION_ROWS                      = 0x00004 // ROWS behavior
+	FRAMEOPTION_GROUPS                    = 0x00008 // GROUPS behavior
+	FRAMEOPTION_BETWEEN                   = 0x00010 // BETWEEN given?
+	FRAMEOPTION_START_UNBOUNDED_PRECEDING = 0x00020 // start is U. P.
+	FRAMEOPTION_END_UNBOUNDED_PRECEDING   = 0x00040 // (disallowed)
+	FRAMEOPTION_START_UNBOUNDED_FOLLOWING = 0x00080 // (disallowed)
+	FRAMEOPTION_END_UNBOUNDED_FOLLOWING   = 0x00100 // end is U. F.
+	FRAMEOPTION_START_CURRENT_ROW         = 0x00200 // start is C. R.
+	FRAMEOPTION_END_CURRENT_ROW           = 0x00400 // end is C. R.
+	FRAMEOPTION_START_OFFSET_PRECEDING    = 0x00800 // start is O. P.
+	FRAMEOPTION_END_OFFSET_PRECEDING      = 0x01000 // end is O. P.
+	FRAMEOPTION_START_OFFSET_FOLLOWING    = 0x02000 // start is O. F.
+	FRAMEOPTION_END_OFFSET_FOLLOWING      = 0x04000 // end is O. F.
+	FRAMEOPTION_EXCLUDE_CURRENT_ROW       = 0x08000 // omit C.R.
+	FRAMEOPTION_EXCLUDE_GROUP             = 0x10000 // omit C.R. & peers
+	FRAMEOPTION_EXCLUDE_TIES              = 0x20000 // omit peers only
 
 	FRAMEOPTION_START_OFFSET = FRAMEOPTION_START_OFFSET_PRECEDING | FRAMEOPTION_START_OFFSET_FOLLOWING
 	FRAMEOPTION_END_OFFSET   = FRAMEOPTION_END_OFFSET_PRECEDING | FRAMEOPTION_END_OFFSET_FOLLOWING

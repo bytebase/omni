@@ -6694,13 +6694,13 @@ func TestRound31Fixes(t *testing.T) {
 	// 2. Quoted identifiers named "none" are preserved instead of being treated as NONE keyword.
 	noneBefore := New()
 	_, err = noneBefore.Exec(`
-		CREATE FUNCTION public."none"() RETURNS fdw_handler LANGUAGE internal AS 'none_handler';
+		CREATE FUNCTION public."none"() RETURNS fdw_handler LANGUAGE internal AS 'textin';
 		CREATE FUNCTION public.none_canon(public.r_qnone) RETURNS public.r_qnone LANGUAGE C IMMUTABLE AS 'internal', 'nc';
 	`, &ExecOptions{ContinueOnError: true})
 	require.NoError(t, err)
 	noneAfter := New()
 	_, err = noneAfter.Exec(`
-		CREATE FUNCTION public."none"() RETURNS fdw_handler LANGUAGE internal AS 'none_handler';
+		CREATE FUNCTION public."none"() RETURNS fdw_handler LANGUAGE internal AS 'textin';
 		CREATE FOREIGN DATA WRAPPER fdw_qnone HANDLER public."none";
 		CREATE TYPE public.r_qnone AS RANGE (SUBTYPE = int4, MULTIRANGE_TYPE_NAME = "none");
 		CREATE TYPE public.r_unqnone AS RANGE (SUBTYPE = int4, MULTIRANGE_TYPE_NAME = none);

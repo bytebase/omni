@@ -13,6 +13,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
 
@@ -35,20 +37,6 @@ func TestSyncDatabase(t *testing.T) {
 	got, err := d.SyncDatabase(context.Background())
 	a.NoError(err)
 	syncGolden(t, got, filepath.Join("testdata", "sync", "fixture.json"))
-}
-
-// TestSyncDatabasePostgres syncs a database of the PostgreSQL dialect and holds
-// the result to testdata/sync/postgres.json: the PostgreSQL catalog's own
-// schema name, type names, default expression and match option.
-func TestSyncDatabasePostgres(t *testing.T) {
-	a := require.New(t)
-	instance, database := postgresSyncFixture(t)
-	d := openDriverWithDialect(t, instance, database, postgresSQL)
-	defer d.Close()
-
-	got, err := d.SyncDatabase(context.Background())
-	a.NoError(err)
-	syncGolden(t, got, filepath.Join("testdata", "sync", "postgres.json"))
 }
 
 // syncGolden holds a synced schema to a golden file, or writes it with -update.
@@ -82,8 +70,7 @@ func TestSyncDatabaseMissing(t *testing.T) {
 }
 
 // TestSyncInstance reads the instance's databases with their names and no
-// schemas, both dialects included: a database of the PostgreSQL dialect is a
-// database, and SyncDatabase reads its catalog.
+// schemas, and skips the database of the PostgreSQL dialect beside them.
 func TestSyncInstance(t *testing.T) {
 	a := require.New(t)
 	instance := "syncinstance"
@@ -98,7 +85,7 @@ func TestSyncInstance(t *testing.T) {
 	for _, database := range got.Databases {
 		names = append(names, database.Name)
 	}
-	a.ElementsMatch([]string{"fixture", "pgdialect"}, names)
+	a.ElementsMatch([]string{"fixture"}, names)
 	a.Empty(got.Version)
 	a.Empty(got.Roles)
 }
@@ -137,68 +124,68 @@ func (c *stubListDatabasesClient) ListDatabases(context.Context) ([]Database, er
 	return c.databases, c.err
 }
 
-func TestSyncInstanceDialectFilter(t *testing.T) {
-	ctx := context.Background()
-	mixed := []Database{
-		{Name: "projects/p/instances/i/databases/gsql_a", Dialect: DialectGoogleSQL},
-		{Name: "projects/p/instances/i/databases/pg_a", Dialect: DialectPostgresSQL},
-		{Name: "projects/p/instances/i/databases/default_db", Dialect: ""},
-		{Name: "projects/p/instances/i/databases/unspecified_db", Dialect: databasepb.DatabaseDialect_DATABASE_DIALECT_UNSPECIFIED.String()},
-		{Name: "projects/p/instances/i/databases/pg_b", Dialect: DialectPostgresSQL},
-		{Name: "projects/p/instances/i/databases/gsql_b", Dialect: DialectGoogleSQL},
+// stubGetDatabaseClient answers GetDatabase with one database.
+type stubGetDatabaseClient struct {
+	client
+	database Database
+}
+
+func (c *stubGetDatabaseClient) GetDatabase(context.Context, string) (Database, error) {
+	return c.database, nil
+}
+
+// TestSyncDatabaseRefusesPostgres refuses a PostgreSQL-dialect database before
+// it reads a catalog the driver does not serve.
+func TestSyncDatabaseRefusesPostgres(t *testing.T) {
+	d := &Driver{
+		client:       &stubGetDatabaseClient{database: Database{Name: "projects/p/instances/i/databases/pg", Dialect: DialectPostgresSQL}},
+		databaseName: "pg",
+		instancePath: InstancePath("p", "i"),
 	}
+	_, err := d.SyncDatabase(context.Background())
+	require.EqualError(t, err, `spanner database "pg" uses the PostgreSQL dialect, which is not supported; only GoogleSQL databases are`)
+}
 
-	t.Run("default keeps all dialects in order", func(t *testing.T) {
-		d := &Driver{client: &stubListDatabasesClient{databases: mixed}}
-		got, err := d.SyncInstance(ctx)
-		require.NoError(t, err)
-		require.Equal(t, []string{"gsql_a", "pg_a", "default_db", "unspecified_db", "pg_b", "gsql_b"}, databaseNames(got))
-	})
+func TestSyncInstanceSkipsPostgres(t *testing.T) {
+	ctx := context.Background()
 
-	t.Run("GoogleSQLOnly skips PostgreSQL databases and preserves order", func(t *testing.T) {
-		d := &Driver{
-			client:        &stubListDatabasesClient{databases: mixed},
-			googleSQLOnly: true,
-		}
+	t.Run("skips PostgreSQL databases and preserves order", func(t *testing.T) {
+		d := &Driver{client: &stubListDatabasesClient{databases: []Database{
+			{Name: "projects/p/instances/i/databases/gsql_a", Dialect: DialectGoogleSQL},
+			{Name: "projects/p/instances/i/databases/pg_a", Dialect: DialectPostgresSQL},
+			{Name: "projects/p/instances/i/databases/default_db", Dialect: ""},
+			{Name: "projects/p/instances/i/databases/unspecified_db", Dialect: databasepb.DatabaseDialect_DATABASE_DIALECT_UNSPECIFIED.String()},
+			{Name: "projects/p/instances/i/databases/pg_b", Dialect: DialectPostgresSQL},
+			{Name: "projects/p/instances/i/databases/gsql_b", Dialect: DialectGoogleSQL},
+		}}}
 		got, err := d.SyncInstance(ctx)
 		require.NoError(t, err)
 		require.Equal(t, []string{"gsql_a", "default_db", "unspecified_db", "gsql_b"}, databaseNames(got))
 	})
 
-	t.Run("GoogleSQLOnly skips malformed DSN on filtered PostgreSQL database", func(t *testing.T) {
-		d := &Driver{
-			client: &stubListDatabasesClient{databases: []Database{
-				{Name: "not-a-dsn", Dialect: DialectPostgresSQL},
-				{Name: "projects/p/instances/i/databases/gsql_a", Dialect: DialectGoogleSQL},
-			}},
-			googleSQLOnly: true,
-		}
+	t.Run("skips malformed DSN on a PostgreSQL database", func(t *testing.T) {
+		d := &Driver{client: &stubListDatabasesClient{databases: []Database{
+			{Name: "not-a-dsn", Dialect: DialectPostgresSQL},
+			{Name: "projects/p/instances/i/databases/gsql_a", Dialect: DialectGoogleSQL},
+		}}}
 		got, err := d.SyncInstance(ctx)
 		require.NoError(t, err)
 		require.Equal(t, []string{"gsql_a"}, databaseNames(got))
 	})
 
 	t.Run("malformed DSN on kept database returns error", func(t *testing.T) {
-		d := &Driver{
-			client: &stubListDatabasesClient{databases: []Database{
-				{Name: "not-a-dsn", Dialect: DialectGoogleSQL},
-			}},
-			googleSQLOnly: true,
-		}
+		d := &Driver{client: &stubListDatabasesClient{databases: []Database{
+			{Name: "not-a-dsn", Dialect: DialectGoogleSQL},
+		}}}
 		_, err := d.SyncInstance(ctx)
 		require.ErrorContains(t, err, "failed to get database name from not-a-dsn")
 	})
 
 	t.Run("ListDatabases error propagates", func(t *testing.T) {
 		wantErr := errors.New("permission denied")
-		for _, googleSQLOnly := range []bool{false, true} {
-			d := &Driver{
-				client:        &stubListDatabasesClient{err: wantErr},
-				googleSQLOnly: googleSQLOnly,
-			}
-			_, err := d.SyncInstance(ctx)
-			require.ErrorIs(t, err, wantErr)
-		}
+		d := &Driver{client: &stubListDatabasesClient{err: wantErr}}
+		_, err := d.SyncInstance(ctx)
+		require.ErrorIs(t, err, wantErr)
 	})
 }
 
@@ -211,9 +198,20 @@ func (s *fakeDatabaseAdminServer) ListDatabases(_ context.Context, _ *databasepb
 	return &databasepb.ListDatabasesResponse{Databases: s.databases}, nil
 }
 
-// TestOpenGoogleSQLOnly exercises Options.GoogleSQLOnly through Open and the
-// live gRPC admin client against an in-process DatabaseAdminServer.
-func TestOpenGoogleSQLOnly(t *testing.T) {
+func (s *fakeDatabaseAdminServer) GetDatabase(_ context.Context, req *databasepb.GetDatabaseRequest) (*databasepb.Database, error) {
+	for _, database := range s.databases {
+		if database.Name == req.Name {
+			return database, nil
+		}
+	}
+	return nil, status.Errorf(codes.NotFound, "database %s not found", req.Name)
+}
+
+// TestOpenRefusesPostgres opens databases of each dialect through Open and the
+// live gRPC admin client against an in-process DatabaseAdminServer: a
+// PostgreSQL-dialect database is refused, and a GoogleSQL, unspecified or
+// missing one opens.
+func TestOpenRefusesPostgres(t *testing.T) {
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	srv := grpc.NewServer()
@@ -229,30 +227,33 @@ func TestOpenGoogleSQLOnly(t *testing.T) {
 
 	host, port, err := net.SplitHostPort(lis.Addr().String())
 	require.NoError(t, err)
-	cfg := driver.Config{
-		Host: host,
-		Port: port,
-		Params: map[string]string{
-			ParamProject:  "p",
-			ParamInstance: "i",
-			ParamEmulator: "1",
-		},
+	open := func(database string) (*Driver, error) {
+		return Open(context.Background(), driver.Config{
+			Host:     host,
+			Port:     port,
+			Database: database,
+			Params: map[string]string{
+				ParamProject:  "p",
+				ParamInstance: "i",
+				ParamEmulator: "1",
+			},
+		})
 	}
 
-	ctx := context.Background()
-	allDriver, err := Open(ctx, cfg)
-	require.NoError(t, err)
-	defer allDriver.Close()
-	allInst, err := allDriver.SyncInstance(ctx)
-	require.NoError(t, err)
-	require.Equal(t, []string{"gsql_db", "pg_db", "default_db"}, databaseNames(allInst))
+	_, err = open("pg_db")
+	require.EqualError(t, err, `spanner database "pg_db" uses the PostgreSQL dialect, which is not supported; only GoogleSQL databases are`)
+	for _, database := range []string{"", "gsql_db", "default_db", "missing_db"} {
+		d, err := open(database)
+		require.NoError(t, err, database)
+		require.NoError(t, d.Close())
+	}
 
-	filteredDriver, err := Open(ctx, cfg, Options{GoogleSQLOnly: true})
+	d, err := open("")
 	require.NoError(t, err)
-	defer filteredDriver.Close()
-	filteredInst, err := filteredDriver.SyncInstance(ctx)
+	defer d.Close()
+	inst, err := d.SyncInstance(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, []string{"gsql_db", "default_db"}, databaseNames(filteredInst))
+	require.Equal(t, []string{"gsql_db", "default_db"}, databaseNames(inst))
 }
 
 func databaseNames(inst *driver.Instance) []string {

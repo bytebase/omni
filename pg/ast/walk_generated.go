@@ -24,13 +24,6 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.Cols)
 	case *Alias:
 		walkList(v, n.Colnames)
-	case *AlterChangeStreamStmt:
-		if n.Name != nil {
-			Walk(v, n.Name)
-		}
-		walkList(v, n.WatchedObjects)
-		walkList(v, n.Options)
-		walkList(v, n.ResetOptions)
 	case *AlterCollationStmt:
 		walkList(v, n.Collname)
 	case *AlterDatabaseSetStmt:
@@ -178,11 +171,6 @@ func walkChildren(v Visitor, node Node) {
 	case *CaseWhen:
 		Walk(v, n.Expr)
 		Walk(v, n.Result)
-	case *ChangeStreamForItem:
-		if n.Table != nil {
-			Walk(v, n.Table)
-		}
-		walkList(v, n.Columns)
 	case *ClusterStmt:
 		if n.Relation != nil {
 			Walk(v, n.Relation)
@@ -261,12 +249,6 @@ func walkChildren(v Visitor, node Node) {
 		if n.Func != nil {
 			Walk(v, n.Func)
 		}
-	case *CreateChangeStreamStmt:
-		if n.Name != nil {
-			Walk(v, n.Name)
-		}
-		walkList(v, n.WatchedObjects)
-		walkList(v, n.Options)
 	case *CreateConversionStmt:
 		walkList(v, n.ConversionName)
 		walkList(v, n.FuncName)
@@ -302,10 +284,6 @@ func walkChildren(v Visitor, node Node) {
 		}
 		walkList(v, n.Options)
 		Walk(v, n.SqlBody)
-	case *CreateLocalityGroupStmt:
-		if n.Name != nil {
-			Walk(v, n.Name)
-		}
 	case *CreateOpClassItem:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -373,12 +351,6 @@ func walkChildren(v Visitor, node Node) {
 		}
 		walkList(v, n.Constraints)
 		walkList(v, n.Options)
-		if n.Interleave != nil {
-			Walk(v, n.Interleave)
-		}
-		if n.TTL != nil {
-			Walk(v, n.TTL)
-		}
 	case *CreateSubscriptionStmt:
 		walkList(v, n.Publication)
 		walkList(v, n.Options)
@@ -508,11 +480,6 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.Options)
 		Walk(v, n.WhereClause)
 		walkList(v, n.ExcludeOpNames)
-		if n.InterleaveParent != nil {
-			Walk(v, n.InterleaveParent)
-		}
-		walkList(v, n.PartitionBy)
-		walkList(v, n.OrderBy)
 	case *InferClause:
 		walkList(v, n.IndexElems)
 		Walk(v, n.WhereClause)
@@ -864,12 +831,6 @@ func walkChildren(v Visitor, node Node) {
 	case *SortBy:
 		Walk(v, n.Node)
 		walkList(v, n.UseOp)
-	case *SpannerInterleaveClause:
-		if n.Parent != nil {
-			Walk(v, n.Parent)
-		}
-	case *SpannerTTLClause:
-		Walk(v, n.Interval)
 	case *StatsElem:
 		Walk(v, n.Expr)
 	case *SubLink:

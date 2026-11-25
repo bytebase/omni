@@ -32,31 +32,6 @@ func TestIsSeqOptElemStartMatchesSlice(t *testing.T) {
 		}
 	}
 
-	// DialectSpannerPG adds BIT_REVERSED_POSITIVE, SKIP, and NO SKIP.
-	for _, kw := range Keywords {
-		pDefault := &Parser{cur: Token{Type: kw.Token, Str: kw.Name}}
-		if pDefault.isSpannerSeqOptElemStart() {
-			t.Errorf("DialectDefault isSpannerSeqOptElemStart(%q) = true, want false", kw.Name)
-		}
-		pSpanner := &Parser{dialect: DialectSpannerPG, cur: Token{Type: kw.Token, Str: kw.Name}}
-		if got, want := pSpanner.isSpannerSeqOptElemStart(), kw.Token == SKIP; got != want {
-			t.Errorf("DialectSpannerPG isSpannerSeqOptElemStart(%q) = %v, want %v", kw.Name, got, want)
-		}
-	}
-	for sql, want := range map[string]bool{
-		"BIT_REVERSED_POSITIVE":   true,
-		`"bit_reversed_positive"`: false,
-		"SKIP":                    true,
-		"NO SKIP":                 true,
-		"NO INHERIT":              false,
-		"OTHER":                   false,
-	} {
-		p := &Parser{lexer: NewLexer(sql), source: sql, dialect: DialectSpannerPG}
-		p.advance()
-		if got := p.isSeqOptElemStart(); got != want {
-			t.Errorf("DialectSpannerPG isSeqOptElemStart(%q) = %v, want %v", sql, got, want)
-		}
-	}
 }
 
 // TestIsNumericOnlyStartMatchesSlice checks isNumericOnlyStart against every

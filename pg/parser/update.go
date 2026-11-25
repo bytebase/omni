@@ -342,7 +342,7 @@ func (p *Parser) parseMergeWhenClause(whenLoc int) (*nodes.MergeWhenClause, erro
 		}
 		kind = nodes.MERGE_WHEN_NOT_MATCHED_BY_TARGET
 		// Check for BY SOURCE or BY TARGET
-		if p.cur.Type == BY && !p.isSpannerPG() {
+		if p.cur.Type == BY {
 			p.advance() // consume BY
 			switch p.cur.Type {
 			case SOURCE:
