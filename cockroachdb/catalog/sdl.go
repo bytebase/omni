@@ -114,6 +114,9 @@ func (l *sdlLoader) load(stmt tree.Statement) error {
 		return l.createType(n)
 	case *tree.CreateSequence:
 		s := l.schema(schemaOf(&n.Name))
+		if skip, err := repeated(findSequence(s, string(n.Name.ObjectName)) != nil, n.IfNotExists, n.Name.String()); skip || err != nil {
+			return err
+		}
 		sequence := &metadatapb.SequenceMetadata{Name: string(n.Name.ObjectName)}
 		if err := applySequenceOptions(sequence, n.Options, true); err != nil {
 			return err
@@ -133,6 +136,10 @@ func (l *sdlLoader) load(stmt tree.Statement) error {
 		table := l.relationIndexes(schema, string(n.Table.ObjectName))
 		if table == nil {
 			return fmt.Errorf("table %s is not created", n.Table.String())
+		}
+		exists := n.Name != "" && slices.ContainsFunc(*table, func(i *metadatapb.IndexMetadata) bool { return i.Name == string(n.Name) })
+		if skip, err := repeated(exists, n.IfNotExists, string(n.Name)); skip || err != nil {
+			return err
 		}
 		*table = append(*table, sdlIndex(schema, string(n.Table.ObjectName), *table, n))
 	case *tree.CreateView:
@@ -188,6 +195,18 @@ func (l *sdlLoader) load(stmt tree.Statement) error {
 	return nil
 }
 
+// repeated decides a CREATE of an object the SDL already created, as the
+// engine does: IF NOT EXISTS skips it, and without it the CREATE fails.
+func repeated(exists, ifNotExists bool, name string) (bool, error) {
+	if !exists {
+		return false, nil
+	}
+	if ifNotExists {
+		return true, nil
+	}
+	return false, fmt.Errorf("%s is created twice", name)
+}
+
 // schemaTable finds a table of a loaded schema.
 func schemaTable(s *metadatapb.SchemaMetadata, name string) *metadatapb.TableMetadata {
 	for _, table := range s.Tables {
@@ -207,6 +226,11 @@ func comment(c *string) string {
 
 func (l *sdlLoader) createType(n *tree.CreateType) error {
 	s := l.schema(n.TypeName.Schema())
+	exists := slices.ContainsFunc(s.EnumTypes, func(e *metadatapb.EnumTypeMetadata) bool { return e.Name == n.TypeName.Object() }) ||
+		slices.ContainsFunc(s.CompositeTypes, func(c *metadatapb.CompositeTypeMetadata) bool { return c.Name == n.TypeName.Object() })
+	if skip, err := repeated(exists, n.IfNotExists, n.TypeName.String()); skip || err != nil {
+		return err
+	}
 	switch n.Variety {
 	case tree.Enum:
 		enum := &metadatapb.EnumTypeMetadata{Name: n.TypeName.Object()}
@@ -383,12 +407,10 @@ func (l *sdlLoader) createTable(n *tree.CreateTable) error {
 	}
 	schema := schemaOf(&n.Table)
 	s := l.schema(schema)
-	if schemaTable(s, string(n.Table.ObjectName)) != nil {
-		if n.IfNotExists {
-			// The engine skips it.
-			return nil
-		}
-		return fmt.Errorf("table %s is created twice", n.Table.String())
+	name := string(n.Table.ObjectName)
+	exists := schemaTable(s, name) != nil || findView(s, name) != nil || findMaterializedView(s, name) != nil
+	if skip, err := repeated(exists, n.IfNotExists, n.Table.String()); skip || err != nil {
+		return err
 	}
 	table := &metadatapb.TableMetadata{Name: string(n.Table.ObjectName)}
 	s.Tables = append(s.Tables, table)
@@ -709,6 +731,13 @@ func (l *sdlLoader) alterTable(n *tree.AlterTable) error {
 func (l *sdlLoader) createView(n *tree.CreateView) error {
 	schema := schemaOf(&n.Name)
 	s := l.schema(schema)
+	if !n.Replace {
+		name := string(n.Name.ObjectName)
+		exists := findView(s, name) != nil || findMaterializedView(s, name) != nil || schemaTable(s, name) != nil
+		if skip, err := repeated(exists, n.IfNotExists, n.Name.String()); skip || err != nil {
+			return err
+		}
+	}
 	dropCatalogs(n.AsSource)
 	definition := tree.AsString(n.AsSource)
 	var dependencies []*metadatapb.DependencyColumn
@@ -868,7 +897,10 @@ func (l *sdlLoader) createRoutine(n *tree.CreateRoutine) error {
 	s := l.schema(schema)
 	// CREATE OR REPLACE replaces a routine of the same signature the SDL
 	// created before.
-	if i := slices.IndexFunc(s.Functions, func(f *metadatapb.FunctionMetadata) bool { return f.Signature == function.Signature }); i >= 0 && replace {
+	if i := slices.IndexFunc(s.Functions, func(f *metadatapb.FunctionMetadata) bool { return f.Signature == function.Signature }); i >= 0 {
+		if !replace {
+			return fmt.Errorf("%s is created twice", function.Signature)
+		}
 		s.Functions[i] = function
 		return nil
 	}

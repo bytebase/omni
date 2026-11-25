@@ -23,6 +23,12 @@ func TestLoadSDLRefuses(t *testing.T) {
 		"temporary":        "CREATE TEMP TABLE t (id INT8 PRIMARY KEY)",
 		"schema rename":    "CREATE SCHEMA old; CREATE TABLE old.t (id INT8 PRIMARY KEY); ALTER SCHEMA old RENAME TO new",
 		"table twice":      "CREATE TABLE t (id INT8 PRIMARY KEY); CREATE TABLE t (id INT8 PRIMARY KEY)",
+		"index twice":      "CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); CREATE INDEX i ON t (a); CREATE INDEX i ON t (a)",
+		"view twice":       "CREATE VIEW v AS SELECT 1 AS n; CREATE VIEW v AS SELECT 1 AS n",
+		"view over table":  "CREATE TABLE v (id INT8 PRIMARY KEY); CREATE VIEW v AS SELECT 1 AS n",
+		"sequence twice":   "CREATE SEQUENCE s; CREATE SEQUENCE s",
+		"type twice":       "CREATE TYPE e AS ENUM ('a'); CREATE TYPE e AS ENUM ('b')",
+		"function twice":   "CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$; CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 2 $$",
 		"not valid":        "CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); ALTER TABLE t ADD CONSTRAINT positive CHECK (a > 0) NOT VALID",
 		"rowid reference":  "CREATE TABLE p (a INT8); CREATE TABLE c (id INT8 PRIMARY KEY, pid INT8 REFERENCES p)",
 		"storage params":   "CREATE TABLE t (id INT8 PRIMARY KEY, expires_at TIMESTAMPTZ) WITH (ttl_expiration_expression = 'expires_at')",
@@ -344,6 +350,17 @@ func TestSDLRoutineUserTypes(t *testing.T) {
 	plan, err := catalog.BuildSDLMigrationPlan(
 		"CREATE TYPE public.mood AS ENUM ('ok'); CREATE FUNCTION public.f(x public.mood) RETURNS public.mood LANGUAGE SQL AS $$ SELECT x $$; CREATE TABLE t (id INT8 PRIMARY KEY);",
 		"CREATE TYPE public.mood AS ENUM ('ok'); CREATE FUNCTION f(x mood) RETURNS mood LANGUAGE SQL AS $$ SELECT x $$; CREATE TABLE t (id INT8 PRIMARY KEY); CREATE TABLE IF NOT EXISTS t (id INT8 PRIMARY KEY, extra STRING);",
+		catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	require.Nil(t, plan, "%v", plan)
+}
+
+// TestSDLIfNotExists skips a CREATE ... IF NOT EXISTS of an object the SDL
+// created, as the engine does.
+func TestSDLIfNotExists(t *testing.T) {
+	source := "CREATE TABLE t (id INT8 PRIMARY KEY, a INT8, b INT8); CREATE INDEX i ON t (a); CREATE SEQUENCE s; CREATE TYPE e AS ENUM ('a'); CREATE VIEW v AS SELECT 1 AS n;"
+	plan, err := catalog.BuildSDLMigrationPlan(source, source+
+		"CREATE INDEX IF NOT EXISTS i ON t (b); CREATE SEQUENCE IF NOT EXISTS s INCREMENT 5; CREATE TYPE IF NOT EXISTS e AS ENUM ('b'); CREATE VIEW IF NOT EXISTS v AS SELECT 2 AS n;",
 		catalog.SDLMigrationOptions{})
 	require.NoError(t, err)
 	require.Nil(t, plan, "%v", plan)
