@@ -139,7 +139,7 @@ func (c *Catalog) exec(stmt ast.Node, sql string) error {
 	case *parser.AlterTableStmt:
 		return c.alterTable(n, sql)
 	case *parser.CreateViewStmt:
-		return c.createView(n)
+		return c.createView(n, sql)
 	case *parser.AlterViewStmt:
 		return c.alterView(n)
 	case *parser.CreateMaterializedViewStmt:
@@ -365,7 +365,7 @@ func columnOf(def *parser.ColumnDefinition, catalog, sql string) (*Column, error
 	name := fold(def.Name)
 	typ, err := typeName(def.Type)
 	if err != nil {
-		return nil, errorf("TYPE_NOT_FOUND", "Unknown type '%s' for column '%s'", def.Type.String(), def.Name.Value)
+		return nil, typeError(err, def.Type, def.Name.Value)
 	}
 	col := &Column{Name: name, Type: typ, Nullable: !def.NotNull, Comment: def.Comment}
 	if def.Default != nil {
@@ -377,6 +377,15 @@ func columnOf(def *parser.ColumnDefinition, catalog, sql string) (*Column, error
 		return nil, err
 	}
 	return col, nil
+}
+
+// typeError is the refusal of a column type: an unknown name, or Trino's
+// own error for a known type's bad parameters.
+func typeError(err error, dt *parser.DataType, column string) error {
+	if e, ok := err.(*Error); ok {
+		return e
+	}
+	return errorf("TYPE_NOT_FOUND", "Unknown type '%s' for column '%s'", dt.String(), column)
 }
 
 // exprText is an expression's source text.
@@ -448,7 +457,7 @@ func namedColumns(cols []*Column) error {
 
 // createView runs CREATE VIEW: a table of the name, or a view without OR
 // REPLACE, refuses it before its query is analyzed; a missing schema, after.
-func (c *Catalog) createView(n *parser.CreateViewStmt) error {
+func (c *Catalog) createView(n *parser.CreateViewStmt, sql string) error {
 	name, err := c.qualify(n.Name)
 	if err != nil {
 		return err
@@ -479,6 +488,9 @@ func (c *Catalog) createView(n *parser.CreateViewStmt) error {
 		return errorf("NOT_FOUND", "Schema %s not found", name.schema)
 	}
 	nv := s.AddView(name.name, cols...)
+	if q := n.Query.Span(); q.Start >= 0 && q.Start <= q.End && q.End <= len(sql) {
+		nv.Definition = sql[q.Start:q.End]
+	}
 	nv.Comment = n.Comment
 	nv.Invoker = n.Security == parser.ViewSecurityInvoker
 	return nil

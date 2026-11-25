@@ -54,7 +54,17 @@ func typeName(dt *parser.DataType) (string, error) {
 			case 0:
 				return "decimal(38,0)", nil
 			case 1:
-				return "decimal(" + n[0] + ",0)", nil
+				n = append(n, "0")
+			}
+			// Verified on Trino 482: decimal(39,0), decimal(0,0) and
+			// decimal(5,6) are refused so.
+			p, _ := strconv.Atoi(n[0])
+			sc, _ := strconv.Atoi(n[1])
+			if p < 1 || p > 38 {
+				return "", errorf("INVALID_FUNCTION_ARGUMENT", "DECIMAL precision must be in range [1, 38]: %s", n[0])
+			}
+			if sc > p {
+				return "", errorf("INVALID_FUNCTION_ARGUMENT", "DECIMAL scale must be in range [0, precision (%d)]: %s", p, n[1])
 			}
 			return "decimal(" + n[0] + "," + n[1] + ")", nil
 		case "varchar", "char":

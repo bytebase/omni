@@ -187,7 +187,7 @@ func alterColumn(t *Table, n *parser.AlterTableStmt, sql string) error {
 	switch n.ColumnAction {
 	case parser.AlterColumnSetDataType:
 		if _, err := typeName(n.NewColumnType); err != nil {
-			return errorf("TYPE_NOT_FOUND", "Unknown type '%s' for column '%s'", n.NewColumnType.String(), col.Name)
+			return typeError(err, n.NewColumnType, col.Name)
 		}
 		return errorf("NOT_SUPPORTED", "This connector does not support setting column types")
 	case parser.AlterColumnDropNotNull:

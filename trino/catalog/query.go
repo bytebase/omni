@@ -67,6 +67,24 @@ func (c *Catalog) typeBody(body parser.QueryNode, ctes map[string][]*Column) ([]
 		return copyColumns(cols), err
 	case *parser.QuerySpec:
 		return c.typeSpec(n, ctes)
+	case *parser.SetOperation:
+		// The output takes the left side's names; a column keeps its type
+		// when both sides agree on it.
+		left, err := c.typeBody(n.Left, ctes)
+		if err != nil {
+			return nil, err
+		}
+		right, err := c.typeBody(n.Right, ctes)
+		if err != nil {
+			return nil, err
+		}
+		out := copyColumns(left)
+		for i, col := range out {
+			if i >= len(right) || right[i].Type != col.Type {
+				col.Type = ""
+			}
+		}
+		return out, nil
 	}
 	return nil, nil
 }

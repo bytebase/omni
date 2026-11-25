@@ -43,7 +43,43 @@ func TestExecResults(t *testing.T) {
 		t.Errorf("ShowCreate = %q, want %q", got, want)
 	}
 
-	if _, err := newMemory().Exec("CREATE TABLE (", nil); err == nil {
-		t.Errorf("want a parse error")
+	// A statement that does not parse fails alone: the one before it runs,
+	// and with ContinueOnError so does the one after.
+	c = newMemory()
+	results, err = c.Exec("CREATE TABLE first (x integer); CREATE TABLE (; CREATE TABLE third (x integer)", &ExecOptions{ContinueOnError: true})
+	if err != nil || len(results) != 3 || results[0].Error != nil || results[1].Error == nil || results[2].Error != nil {
+		t.Fatalf("got %+v, %v, want the second of three to fail", results, err)
+	}
+	if s := c.GetCatalog("memory").GetSchema("s"); !s.HasTable("first") || !s.HasTable("third") {
+		t.Errorf("want tables first and third")
+	}
+}
+
+// TestExecQueries pins what CREATE TABLE AS and CREATE VIEW store from
+// their query, and the decimal bounds Trino holds a column type to.
+func TestExecQueries(t *testing.T) {
+	c := New()
+	s := c.EnsureCatalog("memory").EnsureSchema("s")
+	c.SetCurrentCatalog("memory")
+	c.SetCurrentSchema("s")
+	sql := "CREATE TABLE t (id integer, d decimal(38,38));\n" +
+		"CREATE TABLE u AS SELECT id, d FROM t UNION ALL SELECT id, d FROM t;\n" +
+		"CREATE VIEW v AS SELECT id FROM t"
+	results, err := c.Exec(sql, nil)
+	if err != nil || len(results) != 3 || results[2].Error != nil {
+		t.Fatalf("got %+v, %v", results, err)
+	}
+	if got, want := s.GetTable("u").ShowCreate("memory"), "CREATE TABLE memory.s.u (\n   id integer,\n   d decimal(38, 38)\n)"; got != want {
+		t.Errorf("u = %q, want %q", got, want)
+	}
+	if got := s.GetView("v").Definition; got != "SELECT id FROM t" {
+		t.Errorf("v's definition = %q", got)
+	}
+	for _, bad := range []string{"decimal(39,0)", "decimal(0)", "decimal(5,6)"} {
+		results, _ := c.Exec("CREATE TABLE bad (a "+bad+")", nil)
+		var e *Error
+		if len(results) != 1 || !errors.As(results[0].Error, &e) || e.Name != "INVALID_FUNCTION_ARGUMENT" {
+			t.Errorf("%s: got %+v, want INVALID_FUNCTION_ARGUMENT", bad, results)
+		}
 	}
 }

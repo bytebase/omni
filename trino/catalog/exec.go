@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/bytebase/omni/trino/ast"
 	"github.com/bytebase/omni/trino/parser"
 )
 
@@ -37,24 +36,30 @@ type ExecResult struct {
 }
 
 // Exec runs the DDL statements of sql in c, in the session c's current
-// catalog and schema stand for. It returns a parse error when sql does not
-// parse, and otherwise one result per statement, stopping after the first
-// that fails unless opts says to continue.
+// catalog and schema stand for. It splits sql and parses each statement on
+// its own, so a statement that does not parse fails alone, with its
+// *parser.ParseError (positions relative to that statement). It returns one
+// result per statement, stopping after the first that fails unless opts
+// says to continue.
 func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
-	file, err := parser.Parse(sql)
-	if err != nil {
-		return nil, err
-	}
 	var results []ExecResult
-	for i, stmt := range file.Stmts {
-		r := ExecResult{Index: i}
-		if s, ok := stmt.(interface{ Span() ast.Loc }); ok {
-			if span := s.Span(); span.Start >= 0 && span.Start <= span.End && span.End <= len(sql) {
-				r.SQL = sql[span.Start:span.End]
-				r.Line = 1 + strings.Count(sql[:span.Start], "\n")
-			}
+	for _, seg := range parser.Split(sql) {
+		if seg.Empty() {
+			continue
 		}
-		r.Error = c.exec(stmt, sql)
+		lead := len(seg.Text) - len(strings.TrimLeft(seg.Text, " \t\r\n"))
+		r := ExecResult{
+			Index: len(results),
+			SQL:   strings.TrimSpace(seg.Text),
+			Line:  1 + strings.Count(sql[:seg.ByteStart+lead], "\n"),
+		}
+		file, err := parser.Parse(seg.Text)
+		switch {
+		case err != nil:
+			r.Error = err
+		case len(file.Stmts) == 1:
+			r.Error = c.exec(file.Stmts[0], seg.Text)
+		}
 		results = append(results, r)
 		if r.Error != nil && (opts == nil || !opts.ContinueOnError) {
 			break
