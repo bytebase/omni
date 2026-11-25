@@ -544,13 +544,13 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	allocReport, err := reloadedAlloc.LoadMetadata(context.Background(), allocMeta)
 	require.NoError(t, err)
 	require.Empty(t, allocReport.Degraded)
-	require.Empty(t, allocReport.Missing)
+	requireNotStored(t, allocReport.Missing, "function:fn_inc", "procedure:proc_noop", "event:ev_alloc")
 	require.Empty(t, allocReport.Incomplete)
 	reAllocDB := reloadedAlloc.GetDatabase("alloc_db")
-	require.Contains(t, reAllocDB.Functions, "fn_inc")
-	require.Contains(t, reAllocDB.Procedures, "proc_noop")
+	require.Empty(t, reAllocDB.Functions)
+	require.Empty(t, reAllocDB.Procedures)
 	require.Contains(t, reAllocDB.Triggers, "trg_alloc")
-	require.Contains(t, reAllocDB.Events, "ev_alloc")
+	require.Empty(t, reAllocDB.Events)
 
 	// DatabaseDefinition renders view execution attributes, placement policy, TiFlash, cache, compression, key block size, escaped comments, and global temp tables.
 	defCatalog := New()
@@ -761,7 +761,7 @@ func TestDatabaseMetadataComputedViewColumnTypesAndBacktickRoutines(t *testing.T
 	report, err := reloaded.LoadMetadata(context.Background(), meta)
 	require.NoError(t, err)
 	require.Empty(t, report.Degraded)
-	require.Empty(t, report.Missing)
+	requireNotStored(t, report.Missing, "function:fn`1", "procedure:sp`1", "event:ev`1")
 	require.Empty(t, report.Incomplete)
 
 	def, err := DatabaseDefinition(meta, DefinitionOptions{})
@@ -856,7 +856,7 @@ func TestDatabaseMetadataDecimalSessionContextBacktickAlterAndSkipDump(t *testin
 	loaded := New()
 	report, err := loaded.LoadMetadata(context.Background(), srcMeta)
 	require.NoError(t, err)
-	require.Empty(t, report.Missing)
+	requireNotStored(t, report.Missing, "function:fn_ctx", "procedure:sp_ctx", "event:ev_ctx")
 	require.Empty(t, report.Degraded)
 
 	out := loaded.DatabaseMetadata("ctx_db")
@@ -866,11 +866,6 @@ func TestDatabaseMetadataDecimalSessionContextBacktickAlterAndSkipDump(t *testin
 	require.Equal(t, "PIPES_AS_CONCAT", tbl.Triggers[0].SqlMode)
 	require.True(t, out.Schemas[0].Views[0].SkipDump)
 	require.True(t, out.Schemas[0].Sequences[0].SkipDump)
-	require.True(t, out.Schemas[0].Functions[0].SkipDump)
-	require.Equal(t, "ANSI_QUOTES", out.Schemas[0].Functions[0].SqlMode)
-	require.True(t, out.Schemas[0].Procedures[0].SkipDump)
-	require.Equal(t, "STRICT_TRANS_TABLES", out.Schemas[0].Procedures[0].SqlMode)
-	require.Equal(t, "+08:00", out.Schemas[0].Events[0].TimeZone)
 
 	def, err := DatabaseDefinition(out, DefinitionOptions{})
 	require.NoError(t, err)
@@ -879,7 +874,6 @@ func TestDatabaseMetadataDecimalSessionContextBacktickAlterAndSkipDump(t *testin
 	require.Contains(t, def, "ALTER TABLE `t``1` SET TIFLASH REPLICA 1;")
 	require.Contains(t, def, "ALTER TABLE `t``1` CACHE;")
 	require.Contains(t, def, "SET sql_mode = 'PIPES_AS_CONCAT'")
-	require.Contains(t, def, "SET time_zone = '+08:00'")
 }
 
 func TestDatabaseMetadataImplicitFKDefaults(t *testing.T) {
@@ -1261,44 +1255,6 @@ func TestDatabaseMetadataImplicitFKDefaults(t *testing.T) {
 	require.Equal(t, "time(3)", scalarFnCols["fn_curt3"].Type)
 	require.Equal(t, "time(6)", scalarFnCols["fn_time_dtm6"].Type)
 	require.Equal(t, "datetime(4)", scalarFnCols["fn_ts_dt_tm4"].Type)
-
-	// LoadMetadata -> DatabaseMetadata round-trip preserves TiDB routine ENUM, SET,
-	// COLLATE, and BINARY type modifiers without dropping them.
-	rtCat := New()
-	rtReport, err := rtCat.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{
-		Name: "app",
-		Schemas: []*metadata.SchemaMetadata{{
-			Functions: []*metadata.FunctionMetadata{{
-				Name:       "fn_rich",
-				Definition: "CREATE FUNCTION `fn_rich`(a ENUM('Alpha','b'), b VARCHAR(10) CHARSET latin1 COLLATE latin1_bin, c CHAR(4) BINARY) RETURNS set('r','w') CHARSET utf8mb4 COLLATE utf8mb4_bin DETERMINISTIC RETURN 'r'",
-			}},
-			Procedures: []*metadata.ProcedureMetadata{{
-				Name:       "sp_rich",
-				Definition: "CREATE PROCEDURE `sp_rich`(IN p1 SET('x','y'), IN p2 CHAR(8) CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci) BEGIN SELECT 1; END",
-			}},
-		}},
-	})
-	require.NoError(t, err)
-	require.Empty(t, rtReport.Missing)
-	require.Empty(t, rtReport.Degraded)
-	rtMeta := rtCat.DatabaseMetadata("app")
-	require.Len(t, rtMeta.Schemas[0].Functions, 1)
-	require.Len(t, rtMeta.Schemas[0].Procedures, 1)
-	require.Contains(t, rtMeta.Schemas[0].Functions[0].Definition, "ENUM('Alpha','b')")
-	require.Contains(t, rtMeta.Schemas[0].Functions[0].Definition, "CHARSET latin1 COLLATE latin1_bin")
-	require.Contains(t, rtMeta.Schemas[0].Functions[0].Definition, "CHAR(4) binary")
-	require.Contains(t, rtMeta.Schemas[0].Functions[0].Definition, "RETURNS set('r','w') CHARSET utf8mb4 COLLATE utf8mb4_bin")
-	require.Contains(t, rtMeta.Schemas[0].Procedures[0].Definition, "IN p1 SET('x','y')")
-	require.Contains(t, rtMeta.Schemas[0].Procedures[0].Definition, "CHAR(8) CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci")
-
-	rtCat2 := New()
-	rtReport2, err := rtCat2.LoadMetadata(context.Background(), rtMeta)
-	require.NoError(t, err)
-	require.Empty(t, rtReport2.Missing)
-	require.Empty(t, rtReport2.Degraded)
-	rtMeta2 := rtCat2.DatabaseMetadata("app")
-	require.Equal(t, rtMeta.Schemas[0].Functions[0].Definition, rtMeta2.Schemas[0].Functions[0].Definition)
-	require.Equal(t, rtMeta.Schemas[0].Procedures[0].Definition, rtMeta2.Schemas[0].Procedures[0].Definition)
 }
 
 func TestViewMetadataScalarSubqueryAndTemporalArithmetic(t *testing.T) {
@@ -1651,4 +1607,14 @@ func TestDatabaseMetadataStringArithmeticViewTypes(t *testing.T) {
 		require.Equal(t, "double", got[name], name)
 	}
 	require.Equal(t, "bigint", got["s7"])
+}
+
+// requireNotStored asserts that missing holds exactly keys, each left out
+// because TiDB stores no functions, procedures, or events.
+func requireNotStored(t *testing.T, missing map[string]error, keys ...string) {
+	t.Helper()
+	require.Len(t, missing, len(keys))
+	for _, k := range keys {
+		require.ErrorIs(t, missing[k], errNotStored, k)
+	}
 }
