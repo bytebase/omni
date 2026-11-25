@@ -331,9 +331,12 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 	var kind routineFunctionKind
 	switch p.cur.Type {
 	case kwTABLE:
+		// The clause's Loc starts at TABLE, so RETURNS TABLE with no
+		// column list spans that one token.
+		start := p.pos()
 		p.advance()
 		stmt.ReturnsTable = &nodes.ReturnsTableDef{
-			Loc: nodes.Loc{Start: p.pos(), End: -1},
+			Loc: nodes.Loc{Start: start, End: -1},
 		}
 		kind = routineInlineTable
 		if p.cur.Type == '(' {
@@ -350,13 +353,14 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 		// RETURNS @var TABLE ( ... ): a multi-statement table-valued function.
 		// SQL Server refuses AS between the variable and TABLE (Msg 156).
 		varName := p.cur.Str
+		start := p.pos()
 		p.advance() // consume @var
 		if _, err := p.expect(kwTABLE); err != nil {
 			return nil, err
 		}
 		stmt.ReturnsTable = &nodes.ReturnsTableDef{
 			Variable: varName,
-			Loc:      nodes.Loc{Start: p.pos(), End: -1},
+			Loc:      nodes.Loc{Start: start, End: -1},
 		}
 		cols, err := p.routineParseTableDefinition()
 		if err != nil {
