@@ -38,7 +38,7 @@ type ExecResult struct {
 // Exec runs the DDL statements of sql in c, in the session c's current
 // catalog and schema stand for. It splits sql and parses each statement on
 // its own, so a statement that does not parse fails alone, with its
-// *parser.ParseError (positions relative to that statement). It returns one
+// parser.ParseErrors (positions are byte offsets into sql). It returns one
 // result per statement, stopping after the first that fails unless opts
 // says to continue.
 func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
@@ -56,7 +56,7 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 		file, err := parser.Parse(seg.Text)
 		switch {
 		case err != nil:
-			r.Error = err
+			r.Error = inScript(err, seg.ByteStart)
 		case len(file.Stmts) == 1:
 			r.Error = c.exec(file.Stmts[0], seg.Text)
 		}
@@ -66,6 +66,26 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 		}
 	}
 	return results, nil
+}
+
+// inScript moves the positions of a parse error of one segment to the
+// script the segment starts at offset of; the parser has no ranged entry.
+func inScript(err error, offset int) error {
+	all := parser.AllErrors(err)
+	if len(all) == 0 {
+		return err
+	}
+	moved := make(parser.ParseErrors, len(all))
+	for i, e := range all {
+		if e.Position >= 0 {
+			e.Position += offset
+		}
+		if e.End >= 0 {
+			e.End += offset
+		}
+		moved[i] = e
+	}
+	return moved
 }
 
 var plainName = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)

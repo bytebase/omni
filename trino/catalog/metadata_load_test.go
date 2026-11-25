@@ -60,13 +60,18 @@ func TestLoadMetadataDefaults(t *testing.T) {
 	c := New()
 	c.LoadMetadata(&metadata.DatabaseSchemaMetadata{Name: "memory", Schemas: []*metadata.SchemaMetadata{{
 		Name:   "s",
-		Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "a", Type: "integer", Nullable: true, Default: "1", Comment: "x"}}}},
+		Tables: []*metadata.TableMetadata{{Name: "t", Comment: "tc", Columns: []*metadata.ColumnMetadata{{Name: "a", Type: "integer", Nullable: true, Default: "1", Comment: "x"}}}},
+		Views:  []*metadata.ViewMetadata{{Name: "v", Comment: "vc"}},
 	}}})
 	c.SetCurrentCatalog("memory")
 	c.SetCurrentSchema("s")
 	col := c.GetCatalog("memory").GetSchema("s").GetTable("t").GetColumn("a")
 	if col.Default != "1" || col.Comment == nil || *col.Comment != "x" {
 		t.Fatalf("got %+v", col)
+	}
+	s := c.GetCatalog("memory").GetSchema("s")
+	if tc, vc := s.GetTable("t").Comment, s.GetView("v").Comment; tc == nil || *tc != "tc" || vc == nil || *vc != "vc" {
+		t.Fatalf("table and view comments = %v, %v", tc, vc)
 	}
 	if results, err := c.Exec("ALTER TABLE t ALTER COLUMN a DROP DEFAULT", nil); err != nil || results[0].Error != nil {
 		t.Fatalf("DROP DEFAULT: %+v, %v", results, err)

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/trino/parser"
 )
 
 // TestExecResults pins what Exec reports beside the schema it stores: one
@@ -28,6 +30,14 @@ func TestExecResults(t *testing.T) {
 	var e *Error
 	if !errors.As(results[1].Error, &e) || e.Name != "TABLE_NOT_FOUND" {
 		t.Fatalf("got %v, want TABLE_NOT_FOUND", results[1].Error)
+	}
+
+	// A parse error's position is a byte offset into the whole script.
+	bad := "CREATE TABLE t (a integer);\nCREATE TABLE ("
+	results, _ = newMemory().Exec(bad, nil)
+	var pe *parser.ParseError
+	if len(results) != 2 || !errors.As(results[1].Error, &pe) || pe.Position < strings.Index(bad, "\n") {
+		t.Fatalf("got %+v, want a parse error positioned in the second statement", results)
 	}
 
 	c := newMemory()
