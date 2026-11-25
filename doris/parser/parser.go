@@ -53,6 +53,10 @@ type Parser struct {
 	leadingWiths map[*ast.SetOpStmt]*ast.WithClause
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
+
+	// probe is set by ExpectedKeywords: it records whether the parser looked
+	// past the word it appended (see peekNext).
+	probe *wordProbe
 }
 
 // parenReplay is the state the raw scan of a '(' group left behind, with the
@@ -187,6 +191,9 @@ func (p *Parser) peekNext() Token {
 	if !p.hasNext {
 		p.nextBuf = p.nextToken()
 		p.hasNext = true
+	}
+	if p.probe != nil && p.cur.Loc.Start == p.probe.start && p.nextBuf.Kind == tokEOF {
+		p.probe.peeked = true
 	}
 	return p.nextBuf
 }
@@ -946,6 +953,12 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool, depth int)
 		strictTrailing: strictTrailing,
 		depth:          depth,
 	}
+	return p.parseSegment()
+}
+
+// parseSegment parses the segment p was built on; see parseSingle.
+func (p *Parser) parseSegment() (ast.Node, []ParseError) {
+	segText := p.input
 	p.advance() // prime cur with the first token
 
 	var result ast.Node
@@ -987,7 +1000,7 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool, depth int)
 		// EOF is asserted only on the success path — a parse that already
 		// errored left cur mid-statement, and asserting EOF there would
 		// emit a spurious second diagnostic.
-		if strictTrailing && err == nil && p.cur.Kind != tokEOF {
+		if p.strictTrailing && err == nil && p.cur.Kind != tokEOF {
 			p.errors = append(p.errors, *p.syntaxErrorAtCur())
 			node = nil
 			// Drain the rest of the segment: the lexer is lazy, so any
@@ -997,7 +1010,7 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool, depth int)
 			for p.cur.Kind != tokEOF {
 				p.advance()
 			}
-		} else if strictTrailing && err == nil {
+		} else if p.strictTrailing && err == nil {
 			// The placeholder scans captured each subquery body and the CTAS
 			// query as raw text without parsing it, so the outer statement
 			// can succeed around a body the engine rejects. Strict mode
@@ -1018,7 +1031,7 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool, depth int)
 	// A lex error (an unterminated comment after a complete statement, say)
 	// surfaces only now, after the node was built. Strict mode returns no
 	// node for a segment that carries any error; best-effort keeps the prefix.
-	if strictTrailing && len(p.errors) > 0 {
+	if p.strictTrailing && len(p.errors) > 0 {
 		result = nil
 	}
 
