@@ -1,6 +1,9 @@
 package catalog
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // The index type an index DDL statement declares has to reach the catalog, and
 // a DROP INDEX has to drop the index it names. A statement that parses and then
@@ -103,15 +106,6 @@ func TestIndexTypeReachesTheCatalog(t *testing.T) {
 			index: "i",
 			want:  "BTREE",
 		},
-		{
-			// CREATE INDEX itself refuses HNSW on an index that is no vector index: its
-			// grammar action answers 1149. A key definition takes it.
-			name:  "key definition with TiDB's own index type",
-			ddl:   []string{"CREATE TABLE kh (a INT, KEY i (a) USING HNSW)"},
-			table: "kh",
-			index: "i",
-			want:  "HNSW",
-		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := wtSetup(t)
@@ -127,6 +121,31 @@ func TestIndexTypeReachesTheCatalog(t *testing.T) {
 				t.Errorf("IndexType = %q, want %q", idx.IndexType, tc.want)
 			}
 		})
+	}
+}
+
+// TestNonVectorHNSWIsRefused holds HNSW on a key that is no vector index to
+// v8.5.5's answers: CREATE INDEX's grammar action refuses it (1149, a parse
+// error here), and a key definition parses and is refused with 8200 when the
+// key is built (measured on v8.5.5).
+func TestNonVectorHNSWIsRefused(t *testing.T) {
+	for _, ddl := range []string{
+		"CREATE TABLE kh (a INT, KEY i (a) USING HNSW)",
+		"CREATE TABLE kh (a INT, UNIQUE KEY USING HNSW (a))",
+		"ALTER TABLE t ADD KEY USING HNSW (a)",
+		"ALTER TABLE t ADD KEY i TYPE HNSW (a)",
+		"ALTER TABLE t ADD UNIQUE KEY USING HNSW (a)",
+	} {
+		c := wtSetup(t)
+		wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT)")
+		results, err := c.Exec(ddl, nil)
+		if err != nil {
+			t.Fatalf("%s: %v", ddl, err)
+		}
+		var catErr *Error
+		if len(results) != 1 || !errors.As(results[0].Error, &catErr) || catErr.Code != ErrUnsupportedDDL {
+			t.Errorf("%s: got %+v, want 8200", ddl, results)
+		}
 	}
 }
 

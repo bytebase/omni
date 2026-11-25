@@ -1908,6 +1908,59 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT ident NOT RLIKE ident FROM ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` (`ident NOT RLIKE ident`) AS SELECT `ident` NOT REGEXP `ident` AS `ident NOT RLIKE ident` FROM `simulation`.`ident`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT ident >= SOME(SELECT *) FROM ident
 < error
 | 1051 42S02 Unknown table ''
@@ -6973,6 +7026,112 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT TRIM(LEADING ident FROM ident) FROM ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` (`TRIM(LEADING ident FROM ident)`) AS SELECT TRIM(LEADING `ident` FROM `ident`) AS `TRIM(LEADING ident FROM ident)` FROM `simulation`.`ident`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT TRIM(TRAILING ident FROM ident) FROM ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` (`TRIM(TRAILING ident FROM ident)`) AS SELECT TRIM(TRAILING `ident` FROM `ident`) AS `TRIM(TRAILING ident FROM ident)` FROM `simulation`.`ident`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT WEIGHT_STRING(ident) FROM ident
 < ok 0 0
 > query
@@ -7055,6 +7214,59 @@
 | _v
 : bytes
 | CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` (`WEIGHT_STRING(ident AS CHARACTER(1))`) AS SELECT WEIGHT_STRING(`ident` AS CHAR(1)) AS `WEIGHT_STRING(ident AS CHARACTER(1))` FROM `simulation`.`ident`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT WEIGHT_STRING(ident AS CHAR(1)) FROM ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` (`WEIGHT_STRING(ident AS CHAR(1))`) AS SELECT WEIGHT_STRING(`ident` AS CHAR(1)) AS `WEIGHT_STRING(ident AS CHAR(1))` FROM `simulation`.`ident`
 : bytes
 | utf8mb4
 : bytes
@@ -8019,6 +8231,59 @@
 | _v
 : bytes
 | CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` (`COUNT(DISTINCT ident)`) AS SELECT COUNT(DISTINCT `ident`) AS `COUNT(DISTINCT ident)` FROM `simulation`.`ident`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT COUNT(DISTINCTROW ident) FROM ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` (`COUNT(DISTINCTROW ident)`) AS SELECT COUNT(DISTINCT `ident`) AS `COUNT(DISTINCTROW ident)` FROM `simulation`.`ident`
 : bytes
 | utf8mb4
 : bytes
@@ -9382,6 +9647,59 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT CAST(ident AS CHAR) FROM ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` (`CAST(ident AS CHAR)`) AS SELECT CAST(`ident` AS CHAR(11)) AS `CAST(ident AS CHAR)` FROM `simulation`.`ident`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT CAST(ident AS DATE) FROM ident
 < ok 0 0
 > query
@@ -9729,6 +10047,112 @@
 | _v
 : bytes
 | CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` (`CAST(ident AS UNSIGNED)`) AS SELECT CAST(`ident` AS UNSIGNED) AS `CAST(ident AS UNSIGNED)` FROM `simulation`.`ident`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(ident AS UNSIGNED INTEGER) FROM ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` (`CAST(ident AS UNSIGNED INTEGER)`) AS SELECT CAST(`ident` AS UNSIGNED) AS `CAST(ident AS UNSIGNED INTEGER)` FROM `simulation`.`ident`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(ident AS UNSIGNED INT) FROM ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` (`CAST(ident AS UNSIGNED INT)`) AS SELECT CAST(`ident` AS UNSIGNED) AS `CAST(ident AS UNSIGNED INT)` FROM `simulation`.`ident`
 : bytes
 | utf8mb4
 : bytes
@@ -10783,7 +11207,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT LAG(ident) RESPECT NULLS OVER ident FROM ident
+< error
+| 3579 HY000 Window name 'ident' is not defined.
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT LAG(ident) IGNORE NULLS OVER ident FROM ident
+< error
+| 3579 HY000 Window name 'ident' is not defined.
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT FIRST_VALUE(ident) OVER ident FROM ident
+< error
+| 3579 HY000 Window name 'ident' is not defined.
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT FIRST_VALUE(ident) RESPECT NULLS OVER ident FROM ident
+< error
+| 3579 HY000 Window name 'ident' is not defined.
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT FIRST_VALUE(ident) IGNORE NULLS OVER ident FROM ident
 < error
 | 3579 HY000 Window name 'ident' is not defined.
 > exec
@@ -10797,7 +11249,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT LAST_VALUE(ident) RESPECT NULLS OVER ident FROM ident
+< error
+| 3579 HY000 Window name 'ident' is not defined.
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT LAST_VALUE(ident) IGNORE NULLS OVER ident FROM ident
+< error
+| 3579 HY000 Window name 'ident' is not defined.
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT NTH_VALUE(ident, ident) OVER ident FROM ident
+< error
+| 1210 HY000 Incorrect arguments to nth_value
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT NTH_VALUE(ident, ident) RESPECT NULLS OVER ident FROM ident
+< error
+| 1210 HY000 Incorrect arguments to nth_value
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT NTH_VALUE(ident, ident) IGNORE NULLS OVER ident FROM ident
 < error
 | 1210 HY000 Incorrect arguments to nth_value
 > exec
