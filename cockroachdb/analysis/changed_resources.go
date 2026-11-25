@@ -471,8 +471,7 @@ func (c *mutationCollector) selectStatement(stmt tree.SelectStatement) {
 		c.where(n.Having)
 		c.exprs(n.DistinctOn)
 		for _, window := range n.Window {
-			c.exprs(window.Partitions)
-			c.orderBy(window.OrderBy)
+			c.window(window)
 		}
 	case *tree.UnionClause:
 		c.selectQuery(n.Left)
@@ -528,12 +527,32 @@ func (c *mutationCollector) expr(expr tree.Expr) {
 	}
 	// The visit function never fails, so neither does the visit.
 	_, _ = tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
-		if subquery, ok := e.(*tree.Subquery); ok {
-			c.selectStatement(subquery.Select)
+		switch n := e.(type) {
+		case *tree.Subquery:
+			c.selectStatement(n.Select)
 			return false, e, nil
+		case *tree.FuncExpr:
+			// The vendor's walk does not descend into an OVER clause.
+			c.window(n.WindowDef)
 		}
 		return true, e, nil
 	})
+}
+
+func (c *mutationCollector) window(window *tree.WindowDef) {
+	if window == nil {
+		return
+	}
+	c.exprs(window.Partitions)
+	c.orderBy(window.OrderBy)
+	if frame := window.Frame; frame != nil {
+		if frame.Bounds.StartBound != nil {
+			c.expr(frame.Bounds.StartBound.OffsetExpr)
+		}
+		if frame.Bounds.EndBound != nil {
+			c.expr(frame.Bounds.EndBound.OffsetExpr)
+		}
+	}
 }
 
 func (c *mutationCollector) exprs(exprs []tree.Expr) {
