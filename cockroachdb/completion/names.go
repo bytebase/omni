@@ -23,8 +23,8 @@ var patchTails = []string{
 func nameContextAt(stmt string, word caretWord, cat *catalog) *nameContext {
 	prefix := stmt[:word.start] + placeholder
 	suffix := stmt[word.end:]
-	for _, text := range patchedTexts(prefix, suffix) {
-		parsed, err := parseOne(text)
+	for _, p := range patchedTexts(prefix, suffix) {
+		parsed, err := parseOne(p.text)
 		if err != nil {
 			continue
 		}
@@ -34,29 +34,44 @@ func nameContextAt(stmt string, word caretWord, cat *catalog) *nameContext {
 			// for, such as a new alias or column definition.
 			return nil
 		}
-		if (nc.kind == kindExpr || nc.kind == kindFunction) && len(nc.scope) == 0 {
-			nc.scope = lexicalSources(stmt)
+		if (nc.kind == kindExpr || nc.kind == kindFunction) && (!nc.scoped || !p.withSuffix) {
+			// The tree lacks the clauses the patch dropped, or the
+			// analyzer did not walk to the name: read the tables the
+			// statement names from its tokens as well.
+			nc.scope = append(nc.scope, lexicalSources(stmt)...)
 		}
 		return nc
 	}
 	return lexicalContext(stmt, word)
 }
 
+// patchedText is one text nameContextAt tries to parse.
+type patchedText struct {
+	text       string
+	withSuffix bool // the text keeps everything after the caret
+}
+
 // patchedTexts returns the statement with the placeholder at the caret, then
 // the same text completed by each tail and the closing parentheses it lacks,
 // then the text before the caret completed the same way.
-func patchedTexts(prefix, suffix string) []string {
-	var out []string
-	add := func(text string) {
-		if !slices.Contains(out, text) {
-			out = append(out, text)
+func patchedTexts(prefix, suffix string) []patchedText {
+	var out []patchedText
+	add := func(text string, withSuffix bool) {
+		for _, p := range out {
+			if p.text == text {
+				return
+			}
 		}
+		out = append(out, patchedText{text, withSuffix})
 	}
-	for _, head := range []string{prefix + suffix, prefix} {
-		head = strings.TrimRight(head, " \t\r\n;")
+	for _, head := range []struct {
+		text       string
+		withSuffix bool
+	}{{prefix + suffix, true}, {prefix, false}} {
+		text := strings.TrimRight(head.text, " \t\r\n;")
 		for _, tail := range patchTails {
-			add(head + tail + closers(head+tail))
-			add(head + closers(head) + tail)
+			add(text+tail+closers(text+tail), head.withSuffix)
+			add(text+closers(text)+tail, head.withSuffix)
 		}
 	}
 	return out
@@ -118,16 +133,16 @@ func nameCandidates(nc *nameContext, cat *catalog, typing bool) []Candidate {
 				out = append(out, columnCandidates(a.sourceColumns(src, typing))...)
 			}
 		}
-		if len(nc.qualifier) == 0 && cat != nil {
-			for _, s := range cat.schemas {
-				for _, fn := range s.functions {
-					out = append(out, Candidate{Text: fn, Type: CandidateFunction})
-				}
-			}
+		for _, fn := range schemaObjects(cat, nc.qualifier, builtinFunctions, func(s *schema) []string { return s.functions }) {
+			out = append(out, Candidate{Text: fn, Type: CandidateFunction})
 		}
 	case kindTargetColumn:
 		a := &analyzer{cat: cat}
 		out = columnCandidates(a.sourceColumns(*nc.target, typing))
+	case kindType:
+		for _, typ := range schemaObjects(cat, nc.qualifier, builtinTypes, func(s *schema) []string { return s.types }) {
+			out = append(out, Candidate{Text: typ, Type: CandidateType_})
+		}
 	case kindIndex:
 		if nc.target != nil && !nc.target.derived {
 			if rel := cat.relation(nc.target.schema, nc.target.name); rel != nil {
@@ -138,6 +153,30 @@ func nameCandidates(nc *nameContext, cat *catalog, typing bool) []Candidate {
 		}
 	}
 	return out
+}
+
+// schemaObjects lists functions or types a name qualified by qual can
+// reach: unqualified, the built-ins and every schema's own; qualified by
+// pg_catalog, the built-ins; qualified by a schema, that schema's own.
+func schemaObjects(cat *catalog, qual []string, builtins []string, own func(*schema) []string) []string {
+	switch len(qual) {
+	case 0:
+		out := slices.Clone(builtins)
+		if cat != nil {
+			for _, s := range cat.schemas {
+				out = append(out, own(s)...)
+			}
+		}
+		return out
+	case 1:
+		if strings.EqualFold(qual[0], "pg_catalog") {
+			return builtins
+		}
+		if s := cat.qualifiedSchema(qual[0]); s != nil {
+			return own(s)
+		}
+	}
+	return nil
 }
 
 // qualifiedSchema resolves the qualifier of an object name: a schema, or the

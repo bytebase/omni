@@ -1,6 +1,7 @@
 package completion
 
 import (
+	"context"
 	"slices"
 	"strconv"
 	"strings"
@@ -28,6 +29,8 @@ const (
 	kindTargetColumn
 	// kindIndex is an index of one known table, as in t@|.
 	kindIndex
+	// kindType is a type name, as in CAST(x AS |) or a column definition.
+	kindType
 )
 
 // source is a relation a name can reference: a catalog relation or a derived
@@ -48,14 +51,16 @@ type nameContext struct {
 	scope     []source // innermost first
 	target    *source
 	ctes      []string
+	// scoped is set when the analyzer walked the statement to the name, so
+	// scope is complete even when empty.
+	scoped bool
 }
 
 // analyzer finds placeholder in a statement and records its context.
 type analyzer struct {
-	cat     *catalog
-	ctes    [][]source // a stack of WITH clauses, innermost last
-	allCTEs []string   // every CTE the statement defines
-	found   *nameContext
+	cat   *catalog
+	ctes  [][]source // a stack of WITH clauses, innermost last
+	found *nameContext
 }
 
 // analyzeStatement returns the context of placeholder in stmt, or nil when
@@ -64,13 +69,13 @@ func analyzeStatement(stmt tree.Statement, cat *catalog) *nameContext {
 	a := &analyzer{cat: cat}
 	a.statement(stmt, nil)
 	if a.found == nil {
+		a.found = typeContext(stmt)
+	}
+	if a.found == nil {
 		a.found = tableNameContext(stmt)
 	}
 	if a.found == nil {
 		a.found = genericExprContext(stmt)
-	}
-	if a.found != nil && a.found.kind == kindObject {
-		a.found.ctes = a.allCTEs
 	}
 	return a.found
 }
@@ -138,8 +143,74 @@ func placeholderInExpr(expr tree.Expr) (nameKind, []string, bool) {
 				return kindFunction, qual, true
 			}
 		}
+	case *tree.CastExpr:
+		if qual, ok := placeholderType(e.Type); ok {
+			return kindType, qual, true
+		}
+	case *tree.AnnotateTypeExpr:
+		if qual, ok := placeholderType(e.Type); ok {
+			return kindType, qual, true
+		}
+	case *tree.IsOfTypeExpr:
+		for _, typ := range e.Types {
+			if qual, ok := placeholderType(typ); ok {
+				return kindType, qual, true
+			}
+		}
 	}
 	return kindNone, nil, false
+}
+
+// placeholderType reports whether ref is the placeholder as a type name,
+// which the parser leaves unresolved, with the name's qualifier.
+func placeholderType(ref tree.ResolvableTypeReference) ([]string, bool) {
+	name, ok := ref.(*tree.UnresolvedObjectName)
+	if !ok || name.NumParts < 1 || name.Parts[0] != placeholder {
+		return nil, false
+	}
+	var qual []string
+	for i := name.NumParts - 1; i >= 1; i-- {
+		qual = append(qual, name.Parts[i])
+	}
+	return qual, true
+}
+
+// typeContext finds placeholder as a column's type in DDL, or as a cast's
+// type in any expression. It runs before tableNameContext, whose formatter
+// hook also sees an unresolved type name.
+func typeContext(stmt tree.Statement) *nameContext {
+	var defs []*tree.ColumnTableDef
+	switch s := stmt.(type) {
+	case *tree.CreateTable:
+		for _, def := range s.Defs {
+			if col, ok := def.(*tree.ColumnTableDef); ok {
+				defs = append(defs, col)
+			}
+		}
+	case *tree.AlterTable:
+		for _, cmd := range s.Cmds {
+			switch c := cmd.(type) {
+			case *tree.AlterTableAddColumn:
+				defs = append(defs, c.ColumnDef)
+			case *tree.AlterTableAlterColumnType:
+				if qual, ok := placeholderType(c.ToType); ok {
+					return &nameContext{kind: kindType, qualifier: qual}
+				}
+			}
+		}
+	}
+	for _, def := range defs {
+		if def == nil {
+			continue
+		}
+		if qual, ok := placeholderType(def.Type); ok {
+			return &nameContext{kind: kindType, qualifier: qual}
+		}
+	}
+	if nc := genericExprContext(stmt); nc != nil && nc.kind == kindType {
+		return nc
+	}
+	return nil
 }
 
 func placeholderName(n *tree.UnresolvedName) ([]string, bool) {
@@ -178,6 +249,9 @@ func (a *analyzer) statement(stmt tree.Statement, outer []source) {
 		if s.AsSource != nil {
 			a.selectQuery(s.AsSource, outer)
 		}
+		for _, e := range createTableExprs(s) {
+			a.expr(e, outer)
+		}
 	case *tree.CreateIndex:
 		a.createIndex(s)
 	case *tree.AlterTable:
@@ -192,8 +266,12 @@ func (a *analyzer) selectQuery(sel *tree.Select, outer []source) []source {
 	popped := a.with(sel.With, outer)
 	defer popped()
 	scope := a.selectStatement(sel.Select, outer)
-	for _, order := range sel.OrderBy {
-		a.expr(order.Expr, scope)
+	if len(sel.OrderBy) > 0 && a.found == nil {
+		// ORDER BY may also name the query's output columns.
+		orderScope := append([]source{{derived: true, columns: a.selectColumns(sel.Select)}}, scope...)
+		for _, order := range sel.OrderBy {
+			a.expr(order.Expr, orderScope)
+		}
 	}
 	if sel.Limit != nil {
 		a.expr(sel.Limit.Count, outer)
@@ -212,15 +290,12 @@ func (a *analyzer) with(w *tree.With, outer []source) func() {
 	a.ctes = append(a.ctes, nil)
 	for _, cte := range w.CTEList {
 		src := source{ref: string(cte.Name.Alias), derived: true, columns: aliasColumns(cte.Name)}
-		a.allCTEs = append(a.allCTEs, src.ref)
 		if w.Recursive {
 			a.ctes[level] = append(a.ctes[level], src)
 		}
 		a.statement(cte.Stmt, outer)
-		if src.columns == nil {
-			if sel, ok := cte.Stmt.(*tree.Select); ok {
-				src.columns = a.outputColumns(sel)
-			}
+		if sel, ok := cte.Stmt.(*tree.Select); ok {
+			src.columns = overlayAliases(a.outputColumns(sel), cte.Name)
 		}
 		if w.Recursive {
 			a.ctes[level][len(a.ctes[level])-1] = src
@@ -229,6 +304,16 @@ func (a *analyzer) with(w *tree.With, outer []source) func() {
 		}
 	}
 	return func() { a.ctes = a.ctes[:level] }
+}
+
+// overlayAliases renames the first columns of cols by alias's column list,
+// keeping the columns the list does not reach.
+func overlayAliases(cols []string, alias tree.AliasClause) []string {
+	names := aliasColumns(alias)
+	if len(names) < len(cols) {
+		names = append(names, cols[len(names):]...)
+	}
+	return names
 }
 
 func aliasColumns(alias tree.AliasClause) []string {
@@ -293,26 +378,28 @@ func (a *analyzer) tableExprs(exprs tree.TableExprs, outer []source) ([]source, 
 	var sources []source
 	var conds []tree.Expr
 	for _, te := range exprs {
-		s, c := a.tableExpr(te, outer)
+		s, c := a.tableExpr(te, sources, outer)
 		sources = append(sources, s...)
 		conds = append(conds, c...)
 	}
 	return sources, conds
 }
 
-func (a *analyzer) tableExpr(te tree.TableExpr, outer []source) ([]source, []tree.Expr) {
+// tableExpr returns the sources of one FROM item. preceding are the sources
+// of the items before it, which a LATERAL item can read.
+func (a *analyzer) tableExpr(te tree.TableExpr, preceding, outer []source) ([]source, []tree.Expr) {
 	switch t := te.(type) {
 	case *tree.AliasedTableExpr:
-		src, ok := a.aliased(t, outer)
+		src, ok := a.aliased(t, preceding, outer)
 		if !ok {
 			return nil, nil
 		}
 		return []source{src}, nil
 	case *tree.ParenTableExpr:
-		return a.tableExpr(t.Expr, outer)
+		return a.tableExpr(t.Expr, preceding, outer)
 	case *tree.JoinTableExpr:
-		left, lc := a.tableExpr(t.Left, outer)
-		right, rc := a.tableExpr(t.Right, outer)
+		left, lc := a.tableExpr(t.Left, preceding, outer)
+		right, rc := a.tableExpr(t.Right, slices.Concat(preceding, left), outer)
 		conds := slices.Concat(lc, rc)
 		if on, ok := t.Cond.(*tree.OnJoinCond); ok {
 			conds = append(conds, on.Expr)
@@ -328,7 +415,7 @@ func (a *analyzer) tableExpr(te tree.TableExpr, outer []source) ([]source, []tre
 	return nil, nil
 }
 
-func (a *analyzer) aliased(t *tree.AliasedTableExpr, outer []source) (source, bool) {
+func (a *analyzer) aliased(t *tree.AliasedTableExpr, preceding, outer []source) (source, bool) {
 	alias := string(t.As.Alias)
 	var src source
 	switch e := t.Expr.(type) {
@@ -339,9 +426,9 @@ func (a *analyzer) aliased(t *tree.AliasedTableExpr, outer []source) (source, bo
 			a.found = &nameContext{kind: kindIndex, target: &target}
 		}
 	case *tree.Subquery:
-		var inner []source
+		inner := outer
 		if t.Lateral {
-			inner = outer
+			inner = slices.Concat(preceding, outer)
 		}
 		a.selectStatement(e.Select, inner)
 		src = source{ref: alias, derived: true, columns: a.selectColumns(e.Select)}
@@ -349,15 +436,16 @@ func (a *analyzer) aliased(t *tree.AliasedTableExpr, outer []source) (source, bo
 		a.statement(e.Statement, outer)
 		src = source{ref: alias, derived: true}
 	case *tree.RowsFromExpr:
+		// A function in FROM reads the items before it, as if LATERAL.
 		for _, item := range e.Items {
-			a.expr(item, outer)
+			a.expr(item, slices.Concat(preceding, outer))
 		}
 		src = source{ref: alias, derived: true}
 	default:
 		return source{}, false
 	}
-	if cols := aliasColumns(t.As); cols != nil {
-		src.columns = cols
+	if len(t.As.Cols) > 0 {
+		src.columns = overlayAliases(a.sourceColumns(src, false), t.As)
 		src.derived = true
 		src.name = ""
 	}
@@ -367,6 +455,17 @@ func (a *analyzer) aliased(t *tree.AliasedTableExpr, outer []source) (source, bo
 // tableSource resolves a table name to a CTE in scope or a catalog relation.
 func (a *analyzer) tableSource(tn *tree.TableName, alias string) source {
 	name := string(tn.ObjectName)
+	if a.found == nil {
+		switch {
+		case name == placeholder:
+			a.found = &nameContext{kind: kindObject, ctes: a.visibleCTEs()}
+			if tn.ExplicitSchema {
+				a.found.qualifier = []string{string(tn.SchemaName)}
+			}
+		case tn.ExplicitSchema && string(tn.SchemaName) == placeholder:
+			a.found = &nameContext{kind: kindSchema}
+		}
+	}
 	ref := alias
 	if ref == "" {
 		ref = name
@@ -387,6 +486,17 @@ func (a *analyzer) tableSource(tn *tree.TableName, alias string) source {
 	return src
 }
 
+// visibleCTEs names the CTEs the WITH clauses open at this point define.
+func (a *analyzer) visibleCTEs() []string {
+	var out []string
+	for _, level := range a.ctes {
+		for _, cte := range level {
+			out = append(out, cte.ref)
+		}
+	}
+	return out
+}
+
 // expr looks for placeholder in e, and walks e's subqueries with scope as
 // their outer scope.
 func (a *analyzer) expr(e tree.Expr, scope []source) {
@@ -398,7 +508,7 @@ func (a *analyzer) expr(e tree.Expr, scope []source) {
 			return false, expr, nil
 		}
 		if kind, qual, ok := placeholderInExpr(expr); ok {
-			a.found = &nameContext{kind: kind, qualifier: qual, scope: scope}
+			a.found = &nameContext{kind: kind, qualifier: qual, scope: scope, scoped: true}
 			return false, expr, nil
 		}
 		if sub, ok := expr.(*tree.Subquery); ok {
@@ -562,6 +672,57 @@ func (a *analyzer) alterTable(s *tree.AlterTable) {
 			return
 		}
 	}
+	for _, e := range alterTableExprs(s) {
+		a.expr(e, []source{target})
+	}
+}
+
+// columnDefExprs returns the expressions of a column definition.
+func columnDefExprs(def *tree.ColumnTableDef) []tree.Expr {
+	if def == nil {
+		return nil
+	}
+	exprs := []tree.Expr{def.DefaultExpr.Expr, def.OnUpdateExpr.Expr, def.Computed.Expr}
+	for _, check := range def.CheckExprs {
+		exprs = append(exprs, check.Expr)
+	}
+	return exprs
+}
+
+// alterTableExprs returns the expressions an ALTER TABLE evaluates against
+// its table: defaults, checks, computed columns and USING conversions.
+func alterTableExprs(s *tree.AlterTable) []tree.Expr {
+	var exprs []tree.Expr
+	for _, cmd := range s.Cmds {
+		switch c := cmd.(type) {
+		case *tree.AlterTableAddColumn:
+			exprs = append(exprs, columnDefExprs(c.ColumnDef)...)
+		case *tree.AlterTableAddConstraint:
+			if check, ok := c.ConstraintDef.(*tree.CheckConstraintTableDef); ok {
+				exprs = append(exprs, check.Expr)
+			}
+		case *tree.AlterTableSetDefault:
+			exprs = append(exprs, c.Default)
+		case *tree.AlterTableAlterColumnType:
+			exprs = append(exprs, c.Using)
+		}
+	}
+	return exprs
+}
+
+// createTableExprs returns the expressions of a CREATE TABLE's column and
+// table definitions.
+func createTableExprs(s *tree.CreateTable) []tree.Expr {
+	var exprs []tree.Expr
+	for _, def := range s.Defs {
+		switch d := def.(type) {
+		case *tree.ColumnTableDef:
+			exprs = append(exprs, columnDefExprs(d)...)
+		case *tree.CheckConstraintTableDef:
+			exprs = append(exprs, d.Expr)
+		}
+	}
+	return exprs
 }
 
 // selectColumns names the output columns of a select body.
@@ -570,12 +731,11 @@ func (a *analyzer) selectColumns(ss tree.SelectStatement) []string {
 	case *tree.SelectClause:
 		var out []string
 		for _, e := range s.Exprs {
-			switch {
-			case e.As != "":
-				out = append(out, string(e.As))
-			default:
-				out = append(out, a.exprColumns(e.Expr, s.From.Tables)...)
+			if cols, ok := a.starColumns(e.Expr, s.From.Tables); ok {
+				out = append(out, cols...)
+				continue
 			}
+			out = append(out, renderName(e))
 		}
 		return out
 	case *tree.UnionClause:
@@ -604,31 +764,54 @@ func (a *analyzer) outputColumns(sel *tree.Select) []string {
 	return a.selectColumns(sel.Select)
 }
 
-// exprColumns names the output columns one select expression yields: a
-// column reference keeps its name, and a star expands to the visible columns
-// of the sources it covers.
-func (a *analyzer) exprColumns(e tree.Expr, from tree.TableExprs) []string {
+// starColumns expands a star select expression to the visible columns of
+// the sources it covers; ok is false for any other expression.
+func (a *analyzer) starColumns(e tree.Expr, from tree.TableExprs) (cols []string, ok bool) {
+	var qual string
 	switch n := e.(type) {
+	case tree.UnqualifiedStar:
 	case *tree.UnresolvedName:
 		if !n.Star {
-			return []string{n.Parts[0]}
+			return nil, false
 		}
-		var qual string
 		if n.NumParts > 1 {
 			qual = n.Parts[1]
 		}
-		sources, _ := a.tableExprs(from, nil)
-		var out []string
-		for _, src := range sources {
-			if qual == "" || src.ref == qual {
-				out = append(out, a.sourceColumns(src, false)...)
-			}
-		}
-		return out
-	case tree.UnqualifiedStar:
-		return a.exprColumns(&tree.UnresolvedName{NumParts: 1, Star: true}, from)
+	default:
+		return nil, false
 	}
-	return nil
+	sources, _ := a.tableExprs(from, nil)
+	for _, src := range sources {
+		if qual == "" || src.ref == qual {
+			cols = append(cols, a.sourceColumns(src, false)...)
+		}
+	}
+	return cols, true
+}
+
+// renderName is the name CockroachDB gives a select expression's column:
+// its alias, or a name derived from the expression (count for count(*),
+// ?column? for 1 + 1), by the vendor's own GetRenderColName.
+func renderName(e tree.SelectExpr) (name string) {
+	defer func() {
+		if recover() != nil {
+			name = "?column?"
+		}
+	}()
+	name, err := tree.GetRenderColName(context.Background(), tree.EmptySearchPath, e, functionNames{})
+	if err != nil {
+		return "?column?"
+	}
+	return name
+}
+
+// functionNames resolves a function call to its own name, which is all
+// GetRenderColName reads. Resolving stores the result in the call, after
+// the analyzer has already looked for the placeholder there.
+type functionNames struct{ tree.FunctionReferenceResolver }
+
+func (functionNames) ResolveFunction(_ context.Context, name tree.UnresolvedRoutineName, _ tree.SearchPath) (*tree.ResolvedFunctionDefinition, error) {
+	return &tree.ResolvedFunctionDefinition{Name: name.UnresolvedName().Parts[0]}, nil
 }
 
 // sourceColumns returns the columns of src; hidden columns are included only

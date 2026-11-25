@@ -74,7 +74,7 @@ func QuoteIdentifierIfNeeded(name string, caretInQuotes bool) string {
 
 func formatCandidateText(c Candidate, quoted, call bool) string {
 	switch c.Type {
-	case CandidateKeyword:
+	case CandidateKeyword, CandidateType_:
 		return c.Text
 	case CandidateFunction:
 		text := QuoteIdentifierIfNeeded(c.Text, quoted)

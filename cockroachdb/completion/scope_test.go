@@ -43,7 +43,7 @@ func TestAnalyzeStatementKinds(t *testing.T) {
 		{input: "SELECT * FROM orders a JOIN orders b ON |", kind: kindExpr, scope: []string{"a", "b"}},
 		{input: "SELECT (SELECT | FROM analytics.events) FROM orders", kind: kindExpr, scope: []string{"events", "orders"}},
 		{input: "SELECT * FROM (SELECT | FROM analytics.events) AS s, orders", kind: kindExpr, scope: []string{"events"}},
-		{input: "SELECT * FROM orders ORDER BY |", kind: kindExpr, scope: []string{"orders"}},
+		{input: "SELECT * FROM orders ORDER BY |", kind: kindExpr, scope: []string{"", "orders"}},
 		{input: "SELECT * FROM orders@|", kind: kindIndex, target: "orders"},
 		{input: "INSERT INTO orders (|) VALUES (1)", kind: kindTargetColumn, target: "orders"},
 		{input: "INSERT INTO orders VALUES (1) ON CONFLICT (id) DO UPDATE SET amount = |", kind: kindExpr, scope: []string{"orders", "excluded"}},
@@ -59,6 +59,16 @@ func TestAnalyzeStatementKinds(t *testing.T) {
 		{input: "EXPLAIN SELECT | FROM orders", kind: kindExpr, scope: []string{"orders"}},
 		{input: "SELECT * FROM [SHOW COLUMNS FROM |]", kind: kindObject},
 		{input: "CREATE VIEW v AS SELECT | FROM orders", kind: kindExpr, scope: []string{"orders"}},
+		{input: "CREATE TABLE t (a |)", kind: kindType},
+		{input: "ALTER TABLE orders ADD COLUMN a |", kind: kindType},
+		{input: "ALTER TABLE orders ALTER COLUMN a TYPE |", kind: kindType},
+		{input: "SELECT CAST(1 AS |)", kind: kindType},
+		{input: "SELECT 1::|", kind: kindType},
+		{input: "SELECT 1 IS OF (|)", kind: kindType},
+		{input: "ALTER TABLE orders ADD CHECK (amount::| > 0)", kind: kindType, scope: []string{"orders"}},
+		{input: "ALTER TABLE orders ADD CHECK (| > 0)", kind: kindExpr, scope: []string{"orders"}},
+		{input: "ALTER TABLE orders ALTER COLUMN amount SET DEFAULT |", kind: kindExpr, scope: []string{"orders"}},
+		{input: "CREATE TABLE t (a INT DEFAULT 1::|)", kind: kindType},
 	}
 	for _, tc := range tests {
 		nc := analyze(t, tc.input)

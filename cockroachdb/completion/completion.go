@@ -7,16 +7,21 @@
 //   - Keywords: the text before the caret is parsed with each CockroachDB
 //     keyword appended. A keyword is offered when the parser shifts it, which
 //     an LALR(1) parser does only for a token that can follow the prefix.
+//     The prefix is first reduced to a shorter one that leaves the parser in
+//     the same state (probePrefix), and probing stops at a time budget.
 //   - Names: the word at the caret is replaced by a placeholder identifier
 //     and the statement is parsed, patched with a few closing tails when it
 //     is incomplete. Where the placeholder lands in CockroachDB's AST says
 //     what it names (a table, a column, an index after @) and which tables,
 //     aliases and CTEs are in scope. When no patch parses, a lexical scan of
 //     the statement supplies the scope.
+//   - Built-in functions and type names come from builtins.go, recorded from
+//     the pinned CockroachDB server.
 package completion
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/analysis"
@@ -36,6 +41,7 @@ const (
 	CandidateFunction         = analysis.CandidateFunction         // function name
 	CandidateSequence         = analysis.CandidateSequence         // sequence name
 	CandidateIndex            = analysis.CandidateIndex            // index name
+	CandidateType_            = analysis.CandidateType_            // type name
 )
 
 // Candidate is a single completion suggestion.
@@ -79,7 +85,14 @@ func complete(ctx context.Context, stmt string, caret int, cat *catalog) complet
 		}
 	}
 	nc := nameContextAt(stmt, word, cat)
-	out = append(out, nameCandidates(nc, cat, word.typed != "")...)
+	names := nameCandidates(nc, cat, word.typed != "")
+	if nc != nil && nc.kind == kindType {
+		// A type keyword such as INT8 is offered once, as a type.
+		out = slices.DeleteFunc(out, func(c Candidate) bool {
+			return slices.ContainsFunc(names, func(n Candidate) bool { return strings.EqualFold(n.Text, c.Text) })
+		})
+	}
+	out = append(out, names...)
 	return completion{
 		candidates: filterByPrefix(out, word.typed),
 		quoted:     word.quoted,

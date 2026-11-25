@@ -2,6 +2,7 @@ package completion
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/lexbase"
 	crparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
@@ -16,12 +17,16 @@ import (
 // parseOne parses text as a single statement. A panic in the vendor parser is
 // reported as a failure, since completion runs on whatever the user typed.
 func parseOne(text string) (stmt tree.Statement, err error) {
+	p := parsers.Get().(*crparser.Parser)
 	defer func() {
 		if r := recover(); r != nil {
+			// A parser that panicked midway is not reused.
 			stmt, err = nil, errParsePanic
+			return
 		}
+		parsers.Put(p)
 	}()
-	stmts, err := crparser.Parse(text)
+	stmts, err := p.Parse(text)
 	if err != nil {
 		return nil, err
 	}
@@ -30,6 +35,10 @@ func parseOne(text string) (stmt tree.Statement, err error) {
 	}
 	return stmts[0].AST, nil
 }
+
+// parsers reuses the vendor parser's token buffers across the many probes
+// one completion parses.
+var parsers = sync.Pool{New: func() any { return new(crparser.Parser) }}
 
 type parseFailure string
 

@@ -114,6 +114,9 @@ func testMetadata() *metadatapb.DatabaseSchemaMetadata {
 				Sequences: []*metadatapb.SequenceMetadata{
 					{Name: "order_seq"},
 				},
+				EnumTypes: []*metadatapb.EnumTypeMetadata{
+					{Name: "status", Values: []string{"open", "closed"}},
+				},
 				Functions: []*metadatapb.FunctionMetadata{
 					{Name: "CalculateTotal", Definition: `CREATE FUNCTION public."CalculateTotal"() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$`},
 				},
@@ -445,6 +448,76 @@ func TestCompleteSessionMetadataMatrix(t *testing.T) {
 			absent: []string{"rowid"},
 		},
 		{
+			name:  "schema-qualified function",
+			input: "SELECT public.Calc|() FROM orders",
+			want:  []Candidate{{Text: `"CalculateTotal"`, Type: CandidateFunction}},
+		},
+		{
+			name:  "pg_catalog-qualified built-in function",
+			input: "SELECT pg_catalog.now| FROM orders",
+			want:  []Candidate{{Text: "now()", Type: CandidateFunction}},
+		},
+		{
+			name:  "schema-qualified type",
+			input: "SELECT amount::public.st| FROM orders",
+			want:  []Candidate{{Text: "status", Type: CandidateType_}},
+		},
+		{
+			name:  "LATERAL subquery sees the FROM items before it",
+			input: "SELECT * FROM orders o, LATERAL (SELECT o.| FROM analytics.events e) x",
+			want:  []Candidate{{Text: "id", Type: CandidateColumn}, {Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "LATERAL join sees its left side",
+			input: "SELECT * FROM orders o JOIN LATERAL (SELECT o.|) x ON true",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:   "a plain FROM subquery does not see the items before it",
+			input:  "SELECT * FROM orders o, (SELECT o.|) x",
+			absent: []string{"id", "amount"},
+		},
+		{
+			name:  "a FROM subquery sees enclosing queries",
+			input: "SELECT * FROM orders o WHERE EXISTS (SELECT * FROM (SELECT o.|) s)",
+			want:  []Candidate{{Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "a partial alias list keeps the columns it does not rename",
+			input: "SELECT t.| FROM orders AS t(order_id)",
+			want:  []Candidate{{Text: "order_id", Type: CandidateColumn}, {Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "a partial CTE column list keeps the columns it does not rename",
+			input: "WITH c(x) AS (SELECT id, amount FROM orders) SELECT c.| FROM c",
+			want:  []Candidate{{Text: "x", Type: CandidateColumn}, {Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:  "ORDER BY offers output aliases",
+			input: "SELECT amount AS total FROM orders ORDER BY tot|",
+			want:  []Candidate{{Text: "total", Type: CandidateColumn}},
+		},
+		{
+			name:   "WHERE does not offer output aliases",
+			input:  "SELECT amount AS total FROM orders WHERE tot|",
+			absent: []string{"total"},
+		},
+		{
+			name:   "a nested CTE is not visible outside its query",
+			input:  "WITH q AS (WITH hidden AS (SELECT 1) SELECT * FROM hidden) SELECT * FROM hi|",
+			absent: []string{"hidden"},
+		},
+		{
+			name:  "a nested CTE is visible inside its query",
+			input: "WITH q AS (WITH hidden AS (SELECT 1) SELECT * FROM hi|) SELECT 1",
+			want:  []Candidate{{Text: "hidden", Type: CandidateTable}},
+		},
+		{
+			name:  "unaliased expressions take CockroachDB's column names",
+			input: "WITH c AS (SELECT count(*), 1 + 1, amount::INT8 FROM orders) SELECT c.| FROM c",
+			want:  []Candidate{{Text: "count", Type: CandidateColumn}, {Text: `"?column?"`, Type: CandidateColumn}, {Text: "amount", Type: CandidateColumn}},
+		},
+		{
 			name:   "a new alias offers no objects",
 			input:  "SELECT * FROM orders AS |",
 			absent: []string{"orders", "id"},
@@ -579,6 +652,52 @@ func TestCompleteSessionCockroachDBSyntax(t *testing.T) {
 	}
 }
 
+func TestCompleteSessionBuiltins(t *testing.T) {
+	cfg := testConfig()
+	for _, tc := range []struct {
+		input  string
+		want   []Candidate
+		absent []string
+	}{
+		{input: "SELECT gen_random_u| FROM orders", want: []Candidate{{Text: "gen_random_uuid()", Type: CandidateFunction}}},
+		{input: "SELECT * FROM orders WHERE amount > now|", want: []Candidate{{Text: "now()", Type: CandidateFunction}}},
+		{input: "SELECT now|() FROM orders", want: []Candidate{{Text: "now", Type: CandidateFunction}}},
+		{input: "SELECT o.now| FROM orders o", absent: []string{"now", "now()"}},
+		{input: "CREATE TABLE t (a |", want: []Candidate{{Text: "INT8", Type: CandidateType_}, {Text: "JSONB", Type: CandidateType_}, {Text: "UUID", Type: CandidateType_}, {Text: "STRING", Type: CandidateType_}, {Text: "TIMESTAMPTZ", Type: CandidateType_}, {Text: "BYTES", Type: CandidateType_}, {Text: "status", Type: CandidateType_}}},
+		{input: "CREATE TABLE t (a JS|", want: []Candidate{{Text: "JSONB", Type: CandidateType_}}, absent: []string{"orders"}},
+		{input: "SELECT CAST(amount AS |) FROM orders", want: []Candidate{{Text: "DECIMAL", Type: CandidateType_}}, absent: []string{"orders", "amount"}},
+		{input: "SELECT amount::ST| FROM orders", want: []Candidate{{Text: "STRING", Type: CandidateType_}}},
+		{input: "ALTER TABLE orders ADD COLUMN note |", want: []Candidate{{Text: "STRING", Type: CandidateType_}}},
+		{input: "ALTER TABLE orders ALTER COLUMN amount TYPE |", want: []Candidate{{Text: "FLOAT8", Type: CandidateType_}}},
+	} {
+		got := completeAt(t, cfg, tc.input)
+		for _, w := range tc.want {
+			require.Truef(t, has(got, w.Text, w.Type), "%s: missing %v in %v", tc.input, w, got)
+		}
+		for _, a := range tc.absent {
+			require.Falsef(t, hasText(got, a), "%s: unexpected %q in %v", tc.input, a, got)
+		}
+		// A type keyword is offered once, as a type.
+		require.Falsef(t, has(got, "STRING", CandidateKeyword) && has(got, "STRING", CandidateType_), "%s: STRING twice", tc.input)
+	}
+}
+
+func TestCompleteSessionBudget(t *testing.T) {
+	// A long sum collapses into nothing shorter, so keyword probing runs into
+	// its budget; the columns still come back.
+	stmt := "SELECT * FROM orders WHERE amount = 0" + strings.Repeat(" + 1", 4000) + " AND "
+	keywordCache.reset()
+	started := time.Now()
+	got := CompleteSession(context.Background(), testConfig(), stmt, 1, len(stmt))
+	require.Less(t, time.Since(started), 2*time.Second)
+	require.True(t, has(got, "amount", CandidateColumn), "got %v", got)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	got = CompleteSession(ctx, testConfig(), "SELECT * FROM orders WHERE ", 1, 27)
+	require.True(t, has(got, "amount", CandidateColumn), "got %v", got)
+}
+
 func TestCompleteSessionNothingToComplete(t *testing.T) {
 	cfg := testConfig()
 	for _, input := range []string{
@@ -587,5 +706,68 @@ func TestCompleteSessionNothingToComplete(t *testing.T) {
 		"SELECT 1 /* open |",
 	} {
 		require.Empty(t, completeAt(t, cfg, input), input)
+	}
+}
+
+// benchStatements builds statements of about size bytes, each with a caret
+// in the middle and one at the end: a long select list, which keyword
+// probing collapses, and a long WHERE conjunction, which it cannot.
+func benchStatements(size int) []benchCase {
+	var list strings.Builder
+	list.WriteString("SELECT ")
+	i := 0
+	for list.Len() < size/2 {
+		fmt.Fprintf(&list, "o.amount + %d AS a%d, ", i, i)
+		i++
+	}
+	listMid := list.Len()
+	for list.Len() < size-120 {
+		fmt.Fprintf(&list, "o.id * %d AS b%d, ", i, i)
+		i++
+	}
+	list.WriteString("1 FROM orders AS o JOIN analytics.events AS e ON o.id = e.event_id WHERE o.amount > 0 AND ")
+
+	var where strings.Builder
+	where.WriteString("SELECT o.id FROM orders AS o JOIN analytics.events AS e ON o.id = e.event_id WHERE ")
+	i = 0
+	for where.Len() < size/2 {
+		fmt.Fprintf(&where, "o.amount > %d AND ", i)
+		i++
+	}
+	whereMid := where.Len()
+	for where.Len() < size {
+		fmt.Fprintf(&where, "e.event_id <> %d AND ", i)
+		i++
+	}
+	return []benchCase{
+		{"list/mid", list.String(), listMid},
+		{"list/end", list.String(), list.Len()},
+		{"where/mid", where.String(), whereMid},
+		{"where/end", where.String(), where.Len()},
+	}
+}
+
+type benchCase struct {
+	name string
+	stmt string
+	pos  int
+}
+
+// BenchmarkCompleteSession measures a first keystroke: the keyword cache is
+// emptied before every completion.
+func BenchmarkCompleteSession(b *testing.B) {
+	cfg := testConfig()
+	for _, size := range []int{2 << 10, 11 << 10} {
+		for _, bc := range benchStatements(size) {
+			b.Run(fmt.Sprintf("%dB/%s", size, bc.name), func(b *testing.B) {
+				for b.Loop() {
+					keywordCache.reset()
+					got := CompleteSession(context.Background(), cfg, bc.stmt, 1, bc.pos)
+					if len(got) == 0 {
+						b.Fatal("no candidates")
+					}
+				}
+			})
+		}
 	}
 }

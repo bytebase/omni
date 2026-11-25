@@ -17,6 +17,7 @@ type schema struct {
 	name      string
 	relations []*relation
 	functions []string
+	types     []string // user-defined enum types
 }
 
 type relation struct {
@@ -65,6 +66,9 @@ func newCatalog(meta *metadatapb.DatabaseSchemaMetadata, defaultSchema string) *
 		}
 		for _, fn := range s.GetFunctions() {
 			sc.functions = append(sc.functions, fn.GetName())
+		}
+		for _, enum := range s.GetEnumTypes() {
+			sc.types = append(sc.types, enum.GetName())
 		}
 		cat.schemas = append(cat.schemas, sc)
 	}

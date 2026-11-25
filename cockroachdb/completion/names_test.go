@@ -15,11 +15,15 @@ func TestClosers(t *testing.T) {
 
 func TestPatchedTexts(t *testing.T) {
 	texts := patchedTexts("UPDATE t SET p", " WHERE")
-	require.Equal(t, "UPDATE t SET p WHERE", texts[0])
-	require.Contains(t, texts, "UPDATE t SET p = 1")
-	require.Contains(t, patchedTexts("INSERT INTO t (p", ""), "INSERT INTO t (p) VALUES (1)")
-	for _, text := range texts {
-		require.Equal(t, 1, countOf(texts, text), text)
+	require.Equal(t, patchedText{"UPDATE t SET p WHERE", true}, texts[0])
+	require.Contains(t, texts, patchedText{"UPDATE t SET p = 1", false})
+	require.Contains(t, patchedTexts("INSERT INTO t (p", ""), patchedText{"INSERT INTO t (p) VALUES (1)", true})
+	var seen []string
+	for _, p := range texts {
+		seen = append(seen, p.text)
+	}
+	for _, text := range seen {
+		require.Equal(t, 1, countOf(seen, text), text)
 	}
 }
 
@@ -45,9 +49,16 @@ func TestMatchesQualifier(t *testing.T) {
 }
 
 func TestNameCandidatesWithoutCatalog(t *testing.T) {
-	for _, kind := range []nameKind{kindObject, kindSchema, kindExpr, kindIndex} {
+	for _, kind := range []nameKind{kindObject, kindSchema, kindIndex, kindTargetColumn} {
 		nc := &nameContext{kind: kind, target: &source{ref: "t", name: "t"}, scope: []source{{ref: "t", name: "t"}}}
 		require.Empty(t, nameCandidates(nc, nil, false))
+	}
+	// Built-in functions and types need no catalog.
+	for _, c := range nameCandidates(&nameContext{kind: kindExpr, scope: []source{{ref: "t", name: "t"}}}, nil, false) {
+		require.Equal(t, CandidateFunction, c.Type)
+	}
+	for _, c := range nameCandidates(&nameContext{kind: kindType}, nil, false) {
+		require.Equal(t, CandidateType_, c.Type)
 	}
 	nc := &nameContext{kind: kindObject, ctes: []string{"c"}}
 	require.Equal(t, []Candidate{{Text: "c", Type: CandidateTable}}, nameCandidates(nc, nil, false))

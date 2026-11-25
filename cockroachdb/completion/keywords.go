@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/lexbase"
 	crparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
@@ -54,6 +55,11 @@ var punctuationFollowers = []string{
 	identProbe, ".", "(", ")", ",", "=", "1", "'s'", "[", "@", "*", "::",
 }
 
+// keywordBudget caps the time keyword probing takes when ctx allows longer.
+// Probing stops there and the keywords found so far are returned, so a long
+// statement never blocks a keystroke.
+const keywordBudget = 200 * time.Millisecond
+
 // keywordCandidates returns the keywords CockroachDB's grammar accepts after
 // prefix, by asking the vendor parser about prefix followed by each keyword.
 //
@@ -61,49 +67,37 @@ var punctuationFollowers = []string{
 // every unreserved keyword parses. There a non-reserved keyword is offered
 // only when it reads as a keyword: some follower token parses after it and
 // not after an identifier, or the reverse.
+//
+// Reserved keywords are probed first, then column-name and type/function-name
+// keywords, then unreserved ones, so a probe cut short by the budget keeps
+// the keywords most statements need.
 func keywordCandidates(ctx context.Context, prefix string) []string {
+	prefix = probePrefix(prefix)
 	if cached, ok := keywordCache.get(prefix); ok {
 		return cached
 	}
-	base := prefix + " "
-	start := len(base)
-	ident := &identFollowers{text: base + identProbe, fits: map[string]bool{}}
-	identFits := reachesPast(ident.text, start)
-
-	accepted := make([]bool, len(lexbase.KeywordNames))
-	parallel(ctx, len(lexbase.KeywordNames), func(i int) {
-		kw := lexbase.KeywordNames[i]
-		if lexerRewrites[kw] {
-			return
-		}
-		fits := reachesPast(base+kw, start)
-		for _, cont := range lookaheadContinuations[kw] {
-			fits = fits || reachesPast(base+kw+" "+cont, start)
-		}
-		if !fits {
-			return
-		}
-		category := lexbase.KeywordsCategories[kw]
-		if !identFits || category == "R" {
-			accepted[i] = true
-			return
-		}
-		followers := slices.Concat(lookaheadContinuations[kw], helpFollowers()[kw])
-		if category != "U" {
-			// Column-name and type/function-name keywords are names only in
-			// some positions; punctuation and completeness tell them apart.
-			followers = slices.Concat([]string{""}, punctuationFollowers, followers)
-		}
-		for _, f := range followers {
-			if followerFits(base+kw, f) != ident.follows(f) {
-				accepted[i] = true
-				return
-			}
-		}
-	})
-	if ctx.Err() != nil {
-		return nil
+	ctx, cancel := context.WithTimeout(ctx, keywordBudget)
+	defer cancel()
+	result := probeKeywords(ctx, prefix)
+	if ctx.Err() == nil {
+		keywordCache.put(prefix, result)
 	}
+	return result
+}
+
+// probeKeywords returns the keywords found to fit after prefix before ctx
+// is done.
+func probeKeywords(ctx context.Context, prefix string) []string {
+	base := prefix + " "
+	ident := &identFollowers{text: base + identProbe, fits: map[string]bool{}}
+	identFits := reachesPast(ident.text, len(base))
+
+	order := keywordOrder()
+	accepted := make([]bool, len(lexbase.KeywordNames))
+	parallel(ctx, len(order), func(j int) {
+		i := order[j]
+		accepted[i] = keywordFits(ctx, base, lexbase.KeywordNames[i], identFits, ident)
+	})
 
 	var result []string
 	for i, ok := range accepted {
@@ -111,9 +105,60 @@ func keywordCandidates(ctx context.Context, prefix string) []string {
 			result = append(result, strings.ToUpper(lexbase.KeywordNames[i]))
 		}
 	}
-	keywordCache.put(prefix, result)
 	return result
 }
+
+// keywordFits reports whether kw is offered after base.
+func keywordFits(ctx context.Context, base, kw string, identFits bool, ident *identFollowers) bool {
+	start := len(base)
+	text := base + kw
+	conts, rewritten := lookaheadContinuations[kw]
+	category := lexbase.KeywordsCategories[kw]
+	if !identFits || category == "R" || rewritten {
+		fits := reachesPast(text, start)
+		for _, cont := range conts {
+			fits = fits || reachesPast(text+" "+cont, start)
+		}
+		if !fits || !identFits || category == "R" {
+			return fits
+		}
+	}
+	followers := slices.Concat(conts, helpFollowers()[kw])
+	if category != "U" {
+		// Column-name and type/function-name keywords are names only in
+		// some positions; punctuation and completeness tell them apart.
+		followers = slices.Concat([]string{""}, punctuationFollowers, followers)
+	}
+	for _, f := range followers {
+		if ctx.Err() != nil {
+			return false
+		}
+		kwFits, followerFits := probeFollower(text, start, f)
+		if !kwFits && !rewritten {
+			// The lexer reads kw the same before any follower, so the
+			// parser rejected kw itself.
+			return false
+		}
+		if followerFits != ident.follows(f) {
+			return true
+		}
+	}
+	return false
+}
+
+// keywordOrder lists the indexes of lexbase.KeywordNames in probing order:
+// reserved, then column-name and type/function-name, then unreserved.
+var keywordOrder = sync.OnceValue(func() []int {
+	rank := map[string]int{"R": 0, "C": 1, "T": 1, "U": 2}
+	order := make([]int, len(lexbase.KeywordNames))
+	for i := range order {
+		order[i] = i
+	}
+	slices.SortStableFunc(order, func(a, b int) int {
+		return rank[lexbase.KeywordsCategories[lexbase.KeywordNames[a]]] - rank[lexbase.KeywordsCategories[lexbase.KeywordNames[b]]]
+	})
+	return slices.DeleteFunc(order, func(i int) bool { return lexerRewrites[lexbase.KeywordNames[i]] })
+})
 
 // identFollowers memoizes which followers parse after an identifier at the
 // caret.
@@ -140,11 +185,24 @@ func (f *identFollowers) follows(follower string) bool {
 // followerFits reports whether follower parses after text; the empty follower
 // asks whether text is a complete statement.
 func followerFits(text, follower string) bool {
-	if follower == "" {
-		_, err := parseOne(text)
-		return err == nil
+	_, ok := probeFollower(text, len(text), follower)
+	return ok
+}
+
+// probeFollower parses text followed by follower, and reports whether the
+// parser shifted the token at byte offset tokStart of text and whether it
+// shifted follower; the empty follower asks whether text is complete.
+func probeFollower(text string, tokStart int, follower string) (tokFits, followerFits bool) {
+	full := text
+	if follower != "" {
+		full += " " + follower
 	}
-	return reachesPast(text+" "+follower, len(text)+1)
+	_, err := parseOne(full)
+	if err == nil {
+		return true, true
+	}
+	pos := errorOffset(full, err)
+	return pos > tokStart, follower != "" && pos > len(text)+1
 }
 
 // helpFollowers maps each keyword to the keywords that follow it in
@@ -192,7 +250,7 @@ func isHelpKeyword(word string) bool {
 // parallel runs fn(0..n-1) on a bounded worker pool, stopping early once ctx
 // is done.
 func parallel(ctx context.Context, n int, fn func(i int)) {
-	workers := min(runtime.GOMAXPROCS(0), 8, n)
+	workers := min(runtime.GOMAXPROCS(0), n)
 	if workers <= 1 {
 		for i := range n {
 			if ctx.Err() != nil {
@@ -257,4 +315,10 @@ func (c *prefixCache) put(prefix string, keywords []string) {
 	}
 	c.order = append(c.order, prefix)
 	c.entries[prefix] = keywords
+}
+
+func (c *prefixCache) reset() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.order, c.entries = nil, nil
 }
