@@ -171,6 +171,10 @@ func TestCompleteSession(t *testing.T) {
 		{name: "dot identifier column", text: "SELECT o.1q| FROM `order items` o", want: typed(CandidateColumn, "`1qty`")},
 		{name: "join using", text: "SELECT * FROM orders JOIN customers USING (i|)", want: typed(CandidateColumn, "id")},
 		{name: "drop table if exists", text: "DROP TABLE IF EXISTS ord|", want: typed(CandidateTable, "`order items`", "orders")},
+		{name: "alias in order by", text: "SELECT amount AS total FROM orders ORDER BY tot|", want: typed(CandidateColumn, "total")},
+		{name: "alias in group by", text: "SELECT amount AS total FROM orders GROUP BY tot|", want: typed(CandidateColumn, "total")},
+		{name: "alias not in where", text: "SELECT amount AS total FROM orders WHERE tot|", want: nil},
+		{name: "insert overwrite target", text: "INSERT OVERWRITE ord|", want: typed(CandidateTable, "`order items`", "orders")},
 		{name: "unclosed subquery keywords", text: "SELECT * FROM (SELECT id |", has: kw("FROM"), not: kw("ON")},
 		{name: "derived table", text: "SELECT * FROM (SELECT * FROM cu|", want: typed(CandidateTable, "customers")},
 

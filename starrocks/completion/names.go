@@ -28,6 +28,7 @@ type nameContext struct {
 	scope     []tableItem // the query's FROM items and DML target
 	outer     []tableItem // the FROM items of the statement around a subquery
 	ctes      []string    // the names of the CTEs, the query's and the outer statement's
+	aliases   []string    // the select list's aliases, where the caret's clause sees them
 }
 
 // tableItem is a table the query reads: its name parts and its alias.
@@ -73,6 +74,7 @@ func nameContextAt(stmt string, word caretWord, outer string) *nameContext {
 		var path []ast.Node
 		nc.kind, block, path = placeholderAt(root)
 		collectScope(root, block, path, nc)
+		nc.aliases = visibleAliases(block, path)
 		if truncated {
 			// The parse dropped the text after the caret, and with it the
 			// FROM items a select list reads.
@@ -158,6 +160,22 @@ func (f *placeholderFinder) Visit(n ast.Node) ast.Visitor {
 			f.kind = kindColumn
 		}
 	}
+	// A DML statement's target, in a form the relation keywords miss
+	// (StarRocks's INSERT OVERWRITE t).
+	switch n := n.(type) {
+	case *ast.InsertStmt:
+		if endsWithPlaceholder(n.Target) {
+			f.kind = kindRelation
+		}
+	case *ast.UpdateStmt:
+		if endsWithPlaceholder(n.Target) {
+			f.kind = kindRelation
+		}
+	case *ast.DeleteStmt:
+		if endsWithPlaceholder(n.Target) {
+			f.kind = kindRelation
+		}
+	}
 	if f.kind != kindNone {
 		f.path = slices.Clone(f.stack)
 		return nil
@@ -219,6 +237,31 @@ func collectScope(root, block ast.Node, path []ast.Node, nc *nameContext) {
 		}
 		return true
 	})
+}
+
+// visibleAliases returns the select list's aliases when the caret is in
+// block's GROUP BY, HAVING or ORDER BY, the clauses that read them.
+func visibleAliases(block ast.Node, path []ast.Node) []string {
+	sel, ok := block.(*ast.SelectStmt)
+	i := slices.Index(path, block)
+	if !ok || i < 0 || i+1 >= len(path) {
+		return nil
+	}
+	child := path[i+1]
+	visible := sel.Having != nil && child == sel.Having || slices.Contains(sel.GroupBy, child)
+	for _, o := range sel.OrderBy {
+		visible = visible || ast.Node(o) == child
+	}
+	if !visible {
+		return nil
+	}
+	var out []string
+	for _, item := range sel.Items {
+		if item.Alias != "" {
+			out = append(out, item.Alias)
+		}
+	}
+	return out
 }
 
 // expressionKeywords are the keywords an expression, and so a column name,
@@ -383,6 +426,9 @@ func nameCandidates(nc *nameContext, cat *catalog) []Candidate {
 		case 0:
 			for _, item := range nc.scope {
 				out = append(out, cat.columns(item.parts, nc.ctes)...)
+			}
+			for _, alias := range nc.aliases {
+				out = append(out, Candidate{Text: alias, Type: CandidateColumn})
 			}
 		case 1:
 			// t. is a table or alias in scope, else one of the statement
