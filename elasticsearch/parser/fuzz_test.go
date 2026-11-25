@@ -3,13 +3,14 @@ package parser
 import (
 	"path/filepath"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/bytebase/omni/enginetest/fuzz"
 )
 
 // FuzzParse holds Parse to the engine contract on any input (package fuzz).
 // The console parser recovers from errors, so it reports each one in
-// ParseResult.Errors and fails only on an input it cannot read at all. A
+// ParseResult.Errors and fails only on text it cannot decode as UTF-8. A
 // request carries its byte range in StartOffset and EndOffset, not a Loc.
 // `go test` replays compat.tsv and testdata/fuzz/FuzzParse.
 func FuzzParse(f *testing.F) {
@@ -17,7 +18,10 @@ func FuzzParse(f *testing.F) {
 	f.Fuzz(func(t *testing.T, text string) {
 		res, err := Parse(text)
 		if err != nil {
-			t.Fatalf("Parse failed outside ParseResult.Errors: %v", err)
+			if utf8.ValidString(text) {
+				t.Fatalf("Parse(%q) failed outside ParseResult.Errors: %v", text, err)
+			}
+			return
 		}
 		for _, e := range res.Errors {
 			if e.ByteOffset < 0 || e.ByteOffset > len(text) {
