@@ -21,8 +21,9 @@ type scopeRel struct {
 	names []string
 	cols  []*Column
 	// using names the columns a JOIN ... USING gave to the relation
-	// before this one, which * shows once.
-	using map[string]bool
+	// before this one, which * shows once; usingOrder is their order.
+	using      map[string]bool
+	usingOrder []string
 }
 
 // queryColumns returns the output columns of a CREATE TABLE AS or view
@@ -107,13 +108,7 @@ func (c *Catalog) typeSpec(spec *parser.QuerySpec, ctes map[string][]*Column) ([
 	for _, item := range spec.Items {
 		switch item.Kind {
 		case parser.SelectAll:
-			for _, r := range scope.rels {
-				for _, col := range copyColumns(r.cols) {
-					if !r.using[col.Name] {
-						out = append(out, col)
-					}
-				}
-			}
+			out = append(out, joinedColumns(scope.rels)...)
 		case parser.SelectAllFrom:
 			var cols []*Column
 			if q, ok := nameChain(item.Expr); ok {
@@ -157,14 +152,7 @@ func (c *Catalog) addRelation(scope *queryScope, rel parser.Relation, ctes map[s
 		if len(scope.rels) > before+1 {
 			// An alias on a parenthesized join names one relation of all
 			// the join's columns.
-			var cols []*Column
-			for _, r := range scope.rels[before:] {
-				for _, col := range r.cols {
-					if !r.using[col.Name] {
-						cols = append(cols, col)
-					}
-				}
-			}
+			cols := joinedColumns(scope.rels[before:])
 			scope.rels = append(scope.rels[:before], scopeRel{cols: cols})
 		}
 		if len(scope.rels) == before+1 {
@@ -206,6 +194,7 @@ func (c *Catalog) addRelation(scope *queryScope, rel parser.Relation, ctes map[s
 			r.using = map[string]bool{}
 			for _, u := range n.Using {
 				r.using[fold(u)] = true
+				r.usingOrder = append(r.usingOrder, fold(u))
 			}
 		}
 	case *parser.SubqueryRelation:
@@ -295,6 +284,38 @@ func (s *queryScope) typeExpr(e parser.Expr) (*Column, error) {
 		}
 	}
 	return &Column{Nullable: true}, nil
+}
+
+// joinedColumns is what * shows of relations joined left to right: a
+// JOIN ... USING puts its columns first, in its order, once, then the
+// other columns of each side.
+func joinedColumns(rels []scopeRel) []*Column {
+	var out []*Column
+	for _, r := range rels {
+		if len(r.usingOrder) > 0 {
+			var keys, rest []*Column
+			for _, name := range r.usingOrder {
+				for _, col := range out {
+					if col.Name == name {
+						keys = append(keys, col)
+						break
+					}
+				}
+			}
+			for _, col := range out {
+				if !r.using[col.Name] {
+					rest = append(rest, col)
+				}
+			}
+			out = append(keys, rest...)
+		}
+		for _, col := range copyColumns(r.cols) {
+			if !r.using[col.Name] {
+				out = append(out, col)
+			}
+		}
+	}
+	return out
 }
 
 // hasRelation reports whether a FROM relation goes by a qualifier.

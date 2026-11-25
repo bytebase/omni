@@ -598,6 +598,11 @@ func (c *Catalog) alterView(n *parser.AlterViewStmt) error {
 	if ts.tables[target.name] != nil || ts.views[target.name] != nil {
 		return errorf("GENERIC_USER_ERROR", "Target view '%s' already exists", target)
 	}
+	if ts != v.schema {
+		// Its definition was written for its old schema, where it would
+		// no longer be read.
+		v.Definition = ""
+	}
 	delete(v.schema.views, v.Name)
 	v.Name, v.schema = target.name, ts
 	ts.views[target.name] = v

@@ -169,6 +169,11 @@ func TestExecParenJoinAndViewContext(t *testing.T) {
 		"CREATE TABLE r (b bigint)",
 		"CREATE TABLE joined AS SELECT j.a, j.b FROM (l CROSS JOIN r) AS j",
 		"CREATE VIEW other.v AS SELECT a FROM l",
+		"CREATE TABLE ul (a varchar, id integer)",
+		"CREATE TABLE ur (id integer, b bigint)",
+		"CREATE TABLE u AS SELECT * FROM ul JOIN ur USING (id)",
+		"CREATE VIEW sv AS SELECT a FROM l",
+		"ALTER VIEW sv RENAME TO other.sv",
 	} {
 		if results, err := c.Exec(sql, nil); err != nil || len(results) != 1 || results[0].Error != nil {
 			t.Fatalf("%s: got %+v, %v", sql, results, err)
@@ -179,5 +184,11 @@ func TestExecParenJoinAndViewContext(t *testing.T) {
 	}
 	if v := other.GetView("v"); v == nil || v.Definition != "" || strings.Join(v.ColumnNames(), ",") != "a" {
 		t.Errorf("other.v = %+v, want column a and no definition", v)
+	}
+	if v := other.GetView("sv"); v == nil || v.Definition != "" {
+		t.Errorf("other.sv = %+v, want no definition after a move", v)
+	}
+	if got := strings.Join(s.GetTable("u").ColumnNames(), ","); got != "id,a,b" {
+		t.Errorf("u's columns = %s, want id,a,b", got)
 	}
 }
