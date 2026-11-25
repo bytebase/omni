@@ -92,6 +92,12 @@ func testMetadata() *metadatapb.DatabaseSchemaMetadata {
 						},
 					},
 					{
+						Name: "pg_class",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "mine", Type: "INT8"},
+						},
+					},
+					{
 						Name: "events_log",
 						Columns: []*metadatapb.ColumnMetadata{
 							{Name: "message", Type: "STRING"},
@@ -119,11 +125,19 @@ func testMetadata() *metadatapb.DatabaseSchemaMetadata {
 					{Name: "OrderStatus", Values: []string{"new"}},
 				},
 				Functions: []*metadatapb.FunctionMetadata{
+					{Name: "now"},
 					{Name: "CalculateTotal", Definition: `CREATE FUNCTION public."CalculateTotal"() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$`},
 				},
 			},
 			{
 				Name: "analytics",
+				EnumTypes: []*metadatapb.EnumTypeMetadata{
+					{Name: "level", Values: []string{"low"}},
+					{Name: "status", Values: []string{"open"}},
+				},
+				Functions: []*metadatapb.FunctionMetadata{
+					{Name: "score"},
+				},
 				Tables: []*metadatapb.TableMetadata{
 					{
 						Name: "events",
@@ -579,6 +593,82 @@ func TestCompleteSessionMetadataMatrix(t *testing.T) {
 			name:  "an unaliased FROM subquery's columns are visible",
 			input: "SELECT x| FROM (SELECT 1 AS x)",
 			want:  []Candidate{{Text: "x", Type: CandidateColumn}},
+		},
+		{
+			name:   "a table behind a pg_catalog relation of its name is qualified",
+			input:  "SELECT * FROM pg_cl|",
+			want:   []Candidate{{Text: "public.pg_class", Type: CandidateTable}},
+			absent: []string{"pg_class"},
+		},
+		{
+			name:   "an unqualified pg_catalog relation's name reads pg_catalog",
+			input:  "SELECT mi| FROM pg_class",
+			absent: []string{"mine"},
+		},
+		{
+			name:  "a qualified name reads the user's table",
+			input: "SELECT mi| FROM public.pg_class",
+			want:  []Candidate{{Text: "mine", Type: CandidateColumn}},
+		},
+		{
+			name:   "a type outside the search path is qualified",
+			input:  "SELECT 1::lev|",
+			want:   []Candidate{{Text: "analytics.level", Type: CandidateType_}},
+			absent: []string{"level"},
+		},
+		{
+			name:  "a type behind one of its name on the search path is qualified",
+			input: "SELECT 1::sta|",
+			want:  []Candidate{{Text: "status", Type: CandidateType_}, {Text: "analytics.status", Type: CandidateType_}},
+		},
+		{
+			name:   "a function outside the search path is qualified",
+			input:  "SELECT sco| FROM orders",
+			want:   []Candidate{{Text: "analytics.score()", Type: CandidateFunction}},
+			absent: []string{"score()"},
+		},
+		{
+			name:  "a built-in hides a user function of its name",
+			input: "SELECT now| FROM orders",
+			want:  []Candidate{{Text: "now()", Type: CandidateFunction}, {Text: "public.now()", Type: CandidateFunction}},
+		},
+		{
+			name:   "a call's name offers functions, not columns",
+			input:  "SELECT am|() FROM orders",
+			absent: []string{"amount"},
+		},
+		{
+			name:   "USING merges its column in a CTE's star",
+			input:  "WITH c(x, y, z) AS (SELECT * FROM orders a JOIN orders b USING (id)) SELECT c.| FROM c",
+			want:   []Candidate{{Text: "x", Type: CandidateColumn}, {Text: "y", Type: CandidateColumn}, {Text: "z", Type: CandidateColumn}},
+			absent: []string{"amount", "id"},
+		},
+		{
+			name:   "NATURAL merges the common columns",
+			input:  "WITH c(x, y) AS (SELECT * FROM orders a NATURAL JOIN active_orders b) SELECT c.| FROM c",
+			want:   []Candidate{{Text: "x", Type: CandidateColumn}, {Text: "y", Type: CandidateColumn}},
+			absent: []string{"id", "amount"},
+		},
+		{
+			name:  "a USING join's sides keep their columns",
+			input: "SELECT b.| FROM orders a JOIN orders b USING (id)",
+			want:  []Candidate{{Text: "id", Type: CandidateColumn}, {Text: "amount", Type: CandidateColumn}},
+		},
+		{
+			name:   "an ON condition does not see later FROM items",
+			input:  "SELECT * FROM orders a JOIN orders b ON e.ev| = a.id, analytics.events e",
+			absent: []string{"event_id"},
+		},
+		{
+			name:   "a later FROM item does not hide an enclosing alias in ON",
+			input:  "SELECT (SELECT 1 FROM orders a JOIN orders b ON o.am| = a.id, analytics.events o) FROM orders o",
+			want:   []Candidate{{Text: "amount", Type: CandidateColumn}},
+			absent: []string{"event_id"},
+		},
+		{
+			name:  "DISTINCT ON offers output aliases",
+			input: "SELECT DISTINCT ON (tot|) amount AS total FROM orders",
+			want:  []Candidate{{Text: "total", Type: CandidateColumn}},
 		},
 		{
 			name:   "WHERE does not offer output aliases",

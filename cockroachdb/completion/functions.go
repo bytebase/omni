@@ -90,38 +90,43 @@ var typeKeywords = sync.OnceValue(func() []string {
 
 // formatNames writes the text of each function and type candidate. A
 // built-in type keeps CockroachDB's spelling (INT8, STRING); a user-defined
-// type is quoted like any name. A function is quoted when
-// CockroachDB would not read the name back bare, with "()" when the caret
-// starts a call. A name that is also a keyword is probed at the caret: it
-// stays bare when "name(" parses there, as substring( and session_user( do
-// in CockroachDB, and is quoted otherwise. Keyword candidates a bare
-// function covers are dropped.
-func formatNames(prefix string, candidates []Candidate, quoted, call bool) []Candidate {
+// type is quoted like any name. A function is quoted when CockroachDB would
+// not read the name back bare, with "()" when the caret starts a call. A
+// name that is also a keyword is probed at the caret: it stays bare when
+// "name(" parses there, as substring( and session_user( do in CockroachDB,
+// and is quoted otherwise. A function or type with a schema is qualified by
+// it. Keyword candidates a bare function covers are dropped.
+func formatNames(prefix string, candidates []pendingName, quoted, call bool) []Candidate {
 	base := ""
 	out := make([]Candidate, 0, len(candidates))
 	covered := map[string]bool{}
-	for _, c := range candidates {
-		if c.Type == CandidateType_ && !isBuiltinType(c.Text) {
-			c.Text = QuoteIdentifierIfNeeded(c.Text, quoted)
+	for _, p := range candidates {
+		c := p.Candidate
+		qualifier := ""
+		if p.schema != "" {
+			qualifier = QuoteIdentifierIfNeeded(p.schema, false) + "."
 		}
-		if c.Type != CandidateFunction {
-			out = append(out, c)
-			continue
-		}
-		name := QuoteIdentifierIfNeeded(c.Text, quoted)
-		if _, keyword := lexbase.KeywordsCategories[c.Text]; keyword && !quoted {
-			if base == "" {
-				base = probePrefix(prefix) + " "
+		switch c.Type {
+		case CandidateType_:
+			if qualifier != "" || !isBuiltinType(c.Text) {
+				c.Text = qualifier + QuoteIdentifierIfNeeded(c.Text, quoted)
 			}
-			if reachesPast(base+c.Text+" (", len(base)+len(c.Text)+1) {
-				name = c.Text
-				covered[strings.ToUpper(c.Text)] = true
+		case CandidateFunction:
+			name := QuoteIdentifierIfNeeded(c.Text, quoted)
+			if _, keyword := lexbase.KeywordsCategories[c.Text]; keyword && !quoted && qualifier == "" {
+				if base == "" {
+					base = probePrefix(prefix) + " "
+				}
+				if reachesPast(base+c.Text+" (", len(base)+len(c.Text)+1) {
+					name = c.Text
+					covered[strings.ToUpper(c.Text)] = true
+				}
+			}
+			c.Text = qualifier + name
+			if call && !quoted {
+				c.Text += "()"
 			}
 		}
-		if call && !quoted {
-			name += "()"
-		}
-		c.Text = name
 		out = append(out, c)
 	}
 	return slices.DeleteFunc(out, func(c Candidate) bool {

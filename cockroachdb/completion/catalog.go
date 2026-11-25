@@ -1,6 +1,7 @@
 package completion
 
 import (
+	"slices"
 	"strings"
 
 	metadatapb "github.com/bytebase/omni/metadata"
@@ -123,6 +124,11 @@ func (c *catalog) relation(schemaName, name string) *relation {
 	}
 	if schemaName != "" {
 		return c.schema(schemaName).relation(name)
+	}
+	if slices.Contains(builtinRelations, name) {
+		// pg_catalog comes before the search path, and the metadata does
+		// not describe its relations.
+		return nil
 	}
 	for _, sp := range c.searchPath {
 		if rel := c.schema(sp).relation(name); rel != nil {

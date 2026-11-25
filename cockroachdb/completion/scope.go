@@ -394,15 +394,13 @@ func (a *analyzer) body(ss tree.SelectStatement, outer []source) ([]source, []st
 	case *tree.SelectClause:
 		a.depth++
 		defer func() { a.depth-- }()
-		local, conds := a.tableExprs(s.From.Tables, outer)
+		items := a.tableExprs(s.From.Tables, outer)
+		local := itemSources(items)
 		scope := slices.Concat(local, outer)
-		for _, cond := range conds {
-			a.expr(cond, scope)
-		}
 		var cols []string
 		for _, e := range s.Exprs {
 			a.expr(e.Expr, scope)
-			if star, ok := a.starColumns(e.Expr, local); ok {
+			if star, ok := a.starColumns(e.Expr, items); ok {
 				cols = append(cols, star...)
 			} else {
 				cols = append(cols, renderName(e))
@@ -419,8 +417,9 @@ func (a *analyzer) body(ss tree.SelectStatement, outer []source) ([]source, []st
 		if s.Having != nil {
 			a.expr(s.Having.Expr, scope)
 		}
+		// DISTINCT ON, as ORDER BY, may name the output columns.
 		for _, e := range s.DistinctOn {
-			a.expr(e, scope)
+			a.expr(e, groupScope)
 		}
 		for _, def := range s.Window {
 			a.windowDef(def, scope)
@@ -467,73 +466,116 @@ func (a *analyzer) windowDef(def *tree.WindowDef, scope []source) {
 	}
 }
 
-// tableExprs returns the sources of a FROM list and the join conditions to
-// check once every source is known.
-func (a *analyzer) tableExprs(exprs tree.TableExprs, outer []source) ([]source, []tree.Expr) {
-	var sources []source
-	var conds []tree.Expr
-	for _, te := range exprs {
-		s, c := a.tableExpr(te, sources, outer)
-		sources = append(sources, s...)
-		conds = append(conds, c...)
-	}
-	return sources, conds
+// fromItem is one item of a FROM list: the relations a qualified name can
+// reach in it, and the columns it outputs, which * reads. A join's output
+// has each USING or NATURAL column once, while its relations keep theirs.
+type fromItem struct {
+	sources []source
+	columns []string
 }
 
-// tableExpr returns the sources of one FROM item. preceding are the sources
-// of the items before it, which a LATERAL item can read.
-func (a *analyzer) tableExpr(te tree.TableExpr, preceding, outer []source) ([]source, []tree.Expr) {
+func itemSources(items []fromItem) []source {
+	var out []source
+	for _, item := range items {
+		out = append(out, item.sources...)
+	}
+	return out
+}
+
+// tableExprs returns the items of a FROM list. outer is the scope of the
+// enclosing queries.
+func (a *analyzer) tableExprs(exprs tree.TableExprs, outer []source) []fromItem {
+	var items []fromItem
+	for _, te := range exprs {
+		if item, ok := a.tableExpr(te, itemSources(items), outer); ok {
+			items = append(items, item)
+		}
+	}
+	return items
+}
+
+// tableExpr returns one FROM item. preceding are the sources of the items
+// before it, which a LATERAL item can read; outer is the scope of the
+// enclosing queries, which every item reads.
+func (a *analyzer) tableExpr(te tree.TableExpr, preceding, outer []source) (fromItem, bool) {
 	if a.stopped() {
-		return nil, nil
+		return fromItem{}, false
 	}
 	switch t := te.(type) {
 	case *tree.AliasedTableExpr:
-		return a.aliased(t, preceding, outer), nil
+		return a.aliased(t, preceding, outer)
 	case *tree.ParenTableExpr:
 		return a.tableExpr(t.Expr, preceding, outer)
 	case *tree.JoinTableExpr:
-		left, lc := a.tableExpr(t.Left, preceding, outer)
-		right, rc := a.tableExpr(t.Right, slices.Concat(preceding, left), outer)
-		conds := slices.Concat(lc, rc)
-		switch cond := t.Cond.(type) {
-		case *tree.OnJoinCond:
-			conds = append(conds, cond.Expr)
-		case *tree.UsingJoinCond:
-			if a.search && a.found == nil && slices.Contains(cond.Cols, tree.Name(placeholder)) {
-				a.found = &nameContext{kind: kindColumnList, columns: a.commonColumns(left, right), scoped: true}
-			}
-		}
-		return slices.Concat(left, right), conds
+		return a.join(t, preceding, outer), true
 	case *tree.TableName:
-		return []source{a.tableSource(t, "")}, nil
+		src := a.tableSource(t, "")
+		return fromItem{sources: []source{src}, columns: a.sourceColumns(src, false)}, true
 	case *tree.Subquery:
-		a.body(t.Select, outer)
+		_, cols := a.body(t.Select, outer)
+		return fromItem{sources: []source{{derived: true, columns: cols, depth: a.depth}}, columns: cols}, true
 	case *tree.StatementSource:
-		a.statement(t.Statement, outer)
+		cols := a.statement(t.Statement, outer)
+		return fromItem{sources: []source{{derived: true, columns: cols, depth: a.depth}}, columns: cols}, true
 	}
-	return nil, nil
+	return fromItem{}, false
 }
 
-// commonColumns are the visible columns both sides of a join have, the
-// names JOIN ... USING accepts.
-func (a *analyzer) commonColumns(left, right []source) []string {
-	var l, r []string
-	for _, src := range left {
-		l = append(l, a.sourceColumns(src, false)...)
+// join returns a join's item. Its ON condition sees the two sides and the
+// enclosing queries, not the rest of the FROM list; a LATERAL right side
+// sees the left. USING and NATURAL merge their columns into one in the
+// output.
+func (a *analyzer) join(t *tree.JoinTableExpr, preceding, outer []source) fromItem {
+	left, _ := a.tableExpr(t.Left, preceding, outer)
+	right, _ := a.tableExpr(t.Right, slices.Concat(preceding, left.sources), outer)
+	var using []string
+	switch cond := t.Cond.(type) {
+	case *tree.OnJoinCond:
+		a.expr(cond.Expr, slices.Concat(left.sources, right.sources, outer))
+	case *tree.UsingJoinCond:
+		if a.search && a.found == nil && slices.Contains(cond.Cols, tree.Name(placeholder)) {
+			a.found = &nameContext{kind: kindColumnList, columns: commonColumns(left.columns, right.columns), scoped: true}
+		}
+		for _, name := range cond.Cols {
+			using = append(using, string(name))
+		}
+	case tree.NaturalJoinCond:
+		using = commonColumns(left.columns, right.columns)
 	}
-	for _, src := range right {
-		r = append(r, a.sourceColumns(src, false)...)
+	item := fromItem{sources: slices.Concat(left.sources, right.sources)}
+	merged := map[string]bool{}
+	for _, name := range using {
+		if slices.Contains(left.columns, name) && slices.Contains(right.columns, name) && !merged[name] {
+			item.columns = append(item.columns, name)
+			merged[name] = true
+		}
 	}
+	for _, side := range [][]string{left.columns, right.columns} {
+		skipped := map[string]bool{}
+		for _, c := range side {
+			if merged[c] && !skipped[c] {
+				skipped[c] = true
+				continue
+			}
+			item.columns = append(item.columns, c)
+		}
+	}
+	return item
+}
+
+// commonColumns are the columns both sides of a join output, the names
+// JOIN ... USING accepts and NATURAL JOIN merges.
+func commonColumns(left, right []string) []string {
 	var out []string
-	for _, c := range l {
-		if slices.Contains(r, c) && !slices.Contains(out, c) {
+	for _, c := range left {
+		if slices.Contains(right, c) && !slices.Contains(out, c) {
 			out = append(out, c)
 		}
 	}
 	return out
 }
 
-func (a *analyzer) aliased(t *tree.AliasedTableExpr, preceding, outer []source) []source {
+func (a *analyzer) aliased(t *tree.AliasedTableExpr, preceding, outer []source) (fromItem, bool) {
 	alias := string(t.As.Alias)
 	var src source
 	switch e := t.Expr.(type) {
@@ -570,23 +612,15 @@ func (a *analyzer) aliased(t *tree.AliasedTableExpr, preceding, outer []source) 
 		}
 		src = source{ref: ref, derived: true, columns: cols}
 	case *tree.ParenTableExpr, *tree.JoinTableExpr:
-		inner, conds := a.tableExpr(e, preceding, outer)
-		scope := slices.Concat(inner, outer)
-		for _, cond := range conds {
-			a.expr(cond, scope)
-		}
-		if alias == "" && !t.Ordinality {
+		inner, ok := a.tableExpr(e, preceding, outer)
+		if !ok || (alias == "" && !t.Ordinality) {
 			// An unaliased join keeps its tables' own names.
-			return inner
+			return inner, ok
 		}
-		// An aliased join is one relation with every column of its tables.
-		var cols []string
-		for _, in := range inner {
-			cols = append(cols, a.sourceColumns(in, false)...)
-		}
-		src = source{ref: alias, derived: true, columns: cols}
+		// An aliased join is one relation with the join's output columns.
+		src = source{ref: alias, derived: true, columns: inner.columns}
 	default:
-		return nil
+		return fromItem{}, false
 	}
 	if t.Ordinality {
 		src.columns = append(slices.Clone(a.sourceColumns(src, false)), "ordinality")
@@ -597,7 +631,7 @@ func (a *analyzer) aliased(t *tree.AliasedTableExpr, preceding, outer []source) 
 		src.derived, src.name = true, ""
 	}
 	src.depth = a.depth
-	return []source{src}
+	return fromItem{sources: []source{src}, columns: a.sourceColumns(src, false)}, true
 }
 
 // tableSource resolves a table name to a CTE in scope or a catalog relation.
@@ -701,16 +735,12 @@ func (a *analyzer) targetColumn(names tree.NameList, target *source) {
 // tables its FROM or USING adds.
 func (a *analyzer) dmlScope(target *source, from tree.TableExprs, outer []source) []source {
 	a.depth++
-	sources, conds := a.tableExprs(from, outer)
+	sources := itemSources(a.tableExprs(from, outer))
 	if target != nil {
 		target.depth = a.depth
 		sources = append([]source{*target}, sources...)
 	}
-	scope := slices.Concat(sources, outer)
-	for _, cond := range conds {
-		a.expr(cond, scope)
-	}
-	return scope
+	return slices.Concat(sources, outer)
 }
 
 func (a *analyzer) insert(s *tree.Insert, outer []source) []string {
@@ -783,9 +813,9 @@ func (a *analyzer) returning(r tree.ReturningClause, target *source, scope []sou
 	if !ok {
 		return nil
 	}
-	var targets []source
+	var targets []fromItem
 	if target != nil {
-		targets = []source{*target}
+		targets = []fromItem{{sources: []source{*target}, columns: a.sourceColumns(*target, false)}}
 	}
 	var cols []string
 	for _, e := range *exprs {
@@ -897,28 +927,31 @@ func createTableExprs(s *tree.CreateTable) []tree.Expr {
 	return exprs
 }
 
-// starColumns expands a star select expression to the visible columns of
-// the sources it covers; ok is false for any other expression.
-func (a *analyzer) starColumns(e tree.Expr, sources []source) (cols []string, ok bool) {
-	var qual string
+// starColumns expands a star select expression: * to the output columns of
+// the FROM items, t.* to the visible columns of the relation t names; ok
+// is false for any other expression.
+func (a *analyzer) starColumns(e tree.Expr, items []fromItem) (cols []string, ok bool) {
 	switch n := e.(type) {
 	case tree.UnqualifiedStar:
+		for _, item := range items {
+			cols = append(cols, item.columns...)
+		}
+		return cols, true
 	case *tree.UnresolvedName:
 		if !n.Star {
 			return nil, false
 		}
-		if n.NumParts > 1 {
-			qual = n.Parts[1]
+		if n.NumParts == 1 {
+			return a.starColumns(tree.UnqualifiedStar{}, items)
 		}
-	default:
-		return nil, false
-	}
-	for _, src := range sources {
-		if qual == "" || src.ref == qual {
-			cols = append(cols, a.sourceColumns(src, false)...)
+		for _, src := range itemSources(items) {
+			if src.ref == n.Parts[1] {
+				cols = append(cols, a.sourceColumns(src, false)...)
+			}
 		}
+		return cols, true
 	}
-	return cols, true
+	return nil, false
 }
 
 // functionColumns names the columns a function in FROM returns: key and

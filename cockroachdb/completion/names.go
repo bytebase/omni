@@ -100,25 +100,37 @@ func closers(text string) string {
 	return string(open)
 }
 
+// pendingName is a candidate whose text formatNames writes: a function or
+// type, with the schema to qualify it with, or any other candidate, whose
+// text is final.
+type pendingName struct {
+	Candidate
+	schema string
+}
+
 // nameCandidates lists the objects nc names whose names start with typed,
 // ignoring case. Schema, relation, column and index texts are final:
 // quoted as CockroachDB reads them back, or only escaped when quoted (the
-// caret is inside a double quote). Function and type texts are left to
-// formatNames. Hidden columns, such as the rowid CockroachDB adds to a table
-// without a primary key, are offered only when typed is not empty.
-func nameCandidates(nc *nameContext, cat *catalog, typed string, quoted bool) []Candidate {
+// caret is inside a double quote). A name that does not resolve bare, being
+// outside the search path or behind another of its name (pg_catalog's come
+// first), is qualified by its schema, and left out inside a double quote. Hidden columns, such as the
+// rowid CockroachDB adds to a table without a primary key, are offered only
+// when typed is not empty.
+func nameCandidates(nc *nameContext, cat *catalog, typed string, quoted bool) []pendingName {
 	if nc == nil {
 		return nil
 	}
-	var out []Candidate
+	var out []pendingName
 	add := func(name string, typ CandidateType) {
 		if hasPrefixFold(name, typed) {
-			out = append(out, Candidate{Text: QuoteIdentifierIfNeeded(name, quoted), Type: typ})
+			out = append(out, pendingName{Candidate: Candidate{Text: QuoteIdentifierIfNeeded(name, quoted), Type: typ}})
 		}
 	}
-	addRaw := func(name string, typ CandidateType) {
-		if hasPrefixFold(name, typed) {
-			out = append(out, Candidate{Text: name, Type: typ})
+	addObjects := func(objs []schemaObject, typ CandidateType) {
+		for _, o := range objs {
+			if hasPrefixFold(o.name, typed) && (o.schema == "" || !quoted) {
+				out = append(out, pendingName{Candidate: Candidate{Text: o.name, Type: typ}, schema: o.schema})
+			}
 		}
 	}
 	typing := typed != ""
@@ -139,9 +151,7 @@ func nameCandidates(nc *nameContext, cat *catalog, typed string, quoted bool) []
 					if cat.relation("", r.name) == r {
 						add(r.name, r.kind)
 					} else if !quoted && hasPrefixFold(r.name, typed) {
-						// Outside the search path, or behind a table of the
-						// same name earlier on it, a relation needs its schema.
-						out = append(out, Candidate{Text: QuoteIdentifierIfNeeded(s.name, false) + "." + QuoteIdentifierIfNeeded(r.name, false), Type: r.kind})
+						out = append(out, pendingName{Candidate: Candidate{Text: QuoteIdentifierIfNeeded(s.name, false) + "." + QuoteIdentifierIfNeeded(r.name, false), Type: r.kind}})
 					}
 				}
 			}
@@ -158,16 +168,17 @@ func nameCandidates(nc *nameContext, cat *catalog, typed string, quoted bool) []
 			}
 		}
 	case kindExpr, kindFunction:
-		a := &analyzer{ctx: context.Background(), cat: cat}
-		for _, src := range resolveQualifier(nc.scope, nc.qualifier) {
-			for _, col := range a.sourceColumns(src, typing) {
-				add(col, CandidateColumn)
+		if nc.kind == kindExpr {
+			// In a call's name only functions fit.
+			a := &analyzer{ctx: context.Background(), cat: cat}
+			for _, src := range resolveQualifier(nc.scope, nc.qualifier) {
+				for _, col := range a.sourceColumns(src, typing) {
+					add(col, CandidateColumn)
+				}
 			}
 		}
 		builtins := slices.Concat(builtinFunctions, specialForms())
-		for _, fn := range schemaObjects(cat, nc.qualifier, builtins, func(s *schema) []string { return s.functions }) {
-			addRaw(fn, CandidateFunction)
-		}
+		addObjects(schemaObjects(cat, nc.qualifier, builtins, func(s *schema) []string { return s.functions }), CandidateFunction)
 	case kindTargetColumn:
 		a := &analyzer{ctx: context.Background(), cat: cat}
 		for _, col := range a.sourceColumns(*nc.target, typing) {
@@ -179,9 +190,7 @@ func nameCandidates(nc *nameContext, cat *catalog, typed string, quoted bool) []
 		}
 	case kindType:
 		builtins := slices.Concat(builtinTypes, typeKeywords())
-		for _, typ := range schemaObjects(cat, nc.qualifier, builtins, func(s *schema) []string { return s.types }) {
-			addRaw(typ, CandidateType_)
-		}
+		addObjects(schemaObjects(cat, nc.qualifier, builtins, func(s *schema) []string { return s.types }), CandidateType_)
 	case kindIndex:
 		if nc.target != nil && !nc.target.derived {
 			if rel := cat.relation(nc.target.schema, nc.target.name); rel != nil {
@@ -221,28 +230,62 @@ func hasPrefixFold(s, prefix string) bool {
 	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
 }
 
-// schemaObjects lists functions or types a name qualified by qual can
-// reach: unqualified, the built-ins and every schema's own; qualified by
-// pg_catalog, the built-ins; qualified by a schema, that schema's own.
-func schemaObjects(cat *catalog, qual []string, builtins []string, own func(*schema) []string) []string {
+// schemaObject is a function or type name, with the schema to qualify it
+// with when it does not resolve bare.
+type schemaObject struct {
+	schema, name string
+}
+
+// schemaObjects lists the functions or types a name qualified by qual can
+// reach. Unqualified, CockroachDB resolves them in pg_catalog, where the
+// built-ins live, then along the search path, so a schema's own object is
+// bare only when no built-in or earlier schema on the path has its name;
+// the rest are qualified. Qualified by pg_catalog, the built-ins; by a
+// schema, that schema's own.
+func schemaObjects(cat *catalog, qual []string, builtins []string, own func(*schema) []string) []schemaObject {
+	var out []schemaObject
 	switch len(qual) {
 	case 0:
-		out := slices.Clone(builtins)
-		if cat != nil {
-			for _, s := range cat.schemas {
-				out = append(out, own(s)...)
+		// owner is the schema each bare name resolves in.
+		owner := map[string]string{}
+		for _, b := range builtins {
+			out = append(out, schemaObject{name: b})
+			owner[strings.ToLower(b)] = "pg_catalog"
+		}
+		if cat == nil {
+			return out
+		}
+		for _, path := range cat.searchPath {
+			if s := cat.schema(path); s != nil {
+				for _, name := range own(s) {
+					if _, taken := owner[name]; !taken {
+						owner[name] = s.name
+						out = append(out, schemaObject{name: name})
+					}
+				}
 			}
 		}
-		return out
+		for _, s := range cat.schemas {
+			for _, name := range own(s) {
+				if owner[name] != s.name {
+					out = append(out, schemaObject{schema: s.name, name: name})
+				}
+			}
+		}
 	case 1:
 		if strings.EqualFold(qual[0], "pg_catalog") {
-			return builtins
+			for _, b := range builtins {
+				out = append(out, schemaObject{name: b})
+			}
+			return out
 		}
 		if s := cat.qualifiedSchema(qual[0]); s != nil {
-			return own(s)
+			for _, name := range own(s) {
+				out = append(out, schemaObject{name: name})
+			}
 		}
 	}
-	return nil
+	return out
 }
 
 // qualifiedSchema resolves the qualifier of an object name: a schema, or the

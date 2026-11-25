@@ -40,11 +40,11 @@ func TestFormatNames(t *testing.T) {
 		{Text: `"order"()`, Type: CandidateFunction},
 		{Text: `"CalculateTotal"()`, Type: CandidateFunction},
 		{Text: "now()", Type: CandidateFunction},
-	}, formatNames("SELECT ", in, false, true))
+	}, formatNames("SELECT ", pending(in), false, true))
 
 	// Before an existing "(", and inside double quotes, no parentheses.
-	require.Equal(t, "substring", formatNames("SELECT ", in[1:2], false, false)[0].Text)
-	require.Equal(t, "CalculateTotal", formatNames("SELECT ", in[3:4], true, true)[0].Text)
+	require.Equal(t, "substring", formatNames("SELECT ", pending(in[1:2]), false, false)[0].Text)
+	require.Equal(t, "CalculateTotal", formatNames("SELECT ", pending(in[3:4]), true, true)[0].Text)
 }
 
 func TestFormatNamesTypes(t *testing.T) {
@@ -61,6 +61,27 @@ func TestFormatNamesTypes(t *testing.T) {
 		{Text: `"OrderStatus"`, Type: CandidateType_},
 		{Text: `"order-status"`, Type: CandidateType_},
 		{Text: "status", Type: CandidateType_},
-	}, formatNames("SELECT 1::", in, false, false))
-	require.Equal(t, "OrderStatus", formatNames("SELECT 1::", in[2:3], true, false)[0].Text)
+	}, formatNames("SELECT 1::", pending(in), false, false))
+	require.Equal(t, "OrderStatus", formatNames("SELECT 1::", pending(in[2:3]), true, false)[0].Text)
+}
+
+func pending(cands []Candidate) []pendingName {
+	out := make([]pendingName, len(cands))
+	for i, c := range cands {
+		out[i] = pendingName{Candidate: c}
+	}
+	return out
+}
+
+func TestFormatNamesQualifies(t *testing.T) {
+	in := []pendingName{
+		{Candidate: Candidate{Text: "status", Type: CandidateType_}, schema: "analytics"},
+		{Candidate: Candidate{Text: "Calc", Type: CandidateFunction}, schema: "My Schema"},
+		{Candidate: Candidate{Text: "order", Type: CandidateFunction}, schema: "analytics"},
+	}
+	require.Equal(t, []Candidate{
+		{Text: "analytics.status", Type: CandidateType_},
+		{Text: `"My Schema"."Calc"()`, Type: CandidateFunction},
+		{Text: `analytics."order"()`, Type: CandidateFunction},
+	}, formatNames("SELECT ", in, false, true))
 }

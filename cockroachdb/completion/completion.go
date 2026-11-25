@@ -93,11 +93,15 @@ func complete(ctx context.Context, stmt string, caret int, cat *catalog) complet
 	if nc != nil && nc.kind == kindType {
 		// A type keyword such as INT8 is offered once, as a type.
 		out = slices.DeleteFunc(out, func(c Candidate) bool {
-			return slices.ContainsFunc(names, func(n Candidate) bool { return strings.EqualFold(n.Text, c.Text) })
+			return slices.ContainsFunc(names, func(n pendingName) bool { return n.schema == "" && strings.EqualFold(n.Text, c.Text) })
 		})
 	}
 	call := nc != nil && nc.kind == kindExpr && !followedByParen(stmt[word.end:])
-	return completion{candidates: formatNames(prefix, append(out, names...), word.quoted, call)}
+	pending := make([]pendingName, 0, len(out)+len(names))
+	for _, c := range out {
+		pending = append(pending, pendingName{Candidate: c})
+	}
+	return completion{candidates: formatNames(prefix, append(pending, names...), word.quoted, call)}
 }
 
 // caretWordAt finds the word at caret. It fails when the caret is inside a

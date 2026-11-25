@@ -61,5 +61,5 @@ func TestNameCandidatesWithoutCatalog(t *testing.T) {
 		require.Equal(t, CandidateType_, c.Type)
 	}
 	nc := &nameContext{kind: kindObject, ctes: []string{"c"}}
-	require.Equal(t, []Candidate{{Text: "c", Type: CandidateTable}}, nameCandidates(nc, nil, "", false))
+	require.Equal(t, []pendingName{{Candidate: Candidate{Text: "c", Type: CandidateTable}}}, nameCandidates(nc, nil, "", false))
 }
