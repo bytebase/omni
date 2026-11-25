@@ -577,7 +577,7 @@ func (d *differ) rebuiltViews() map[string]bool {
 	for _, schema := range d.from.schemas {
 		for _, view := range schema.Views {
 			target := findView(d.to.byName[schema.Name], view.Name)
-			same := target != nil && relationQuery(target.Definition, d.to.database) == relationQuery(view.Definition, d.from.database) && sameColumnNames(view.Columns, target.Columns)
+			same := target != nil && queryKey(target.Definition, d.to.database) == queryKey(view.Definition, d.from.database) && sameColumnNames(view.Columns, target.Columns)
 			relations = append(relations, relation{getObjectID(schema.Name, view.Name), view.DependencyColumns, same, view.Definition})
 			if target == nil {
 				dropped[getObjectID(schema.Name, view.Name)] = true
@@ -585,7 +585,7 @@ func (d *differ) rebuiltViews() map[string]bool {
 		}
 		for _, view := range schema.MaterializedViews {
 			target := findMaterializedView(d.to.byName[schema.Name], view.Name)
-			same := target != nil && relationQuery(target.Definition, d.to.database) == relationQuery(view.Definition, d.from.database) && sameColumnNames(view.Columns, target.Columns)
+			same := target != nil && queryKey(target.Definition, d.to.database) == queryKey(view.Definition, d.from.database) && sameColumnNames(view.Columns, target.Columns)
 			relations = append(relations, relation{getObjectID(schema.Name, view.Name), view.DependencyColumns, same, view.Definition})
 			if target == nil {
 				dropped[getObjectID(schema.Name, view.Name)] = true

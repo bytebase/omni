@@ -111,6 +111,28 @@ func isLiteral(expr tree.Expr) bool {
 	return false
 }
 
+// queryKey is a view's query without the database's name and with each
+// relation it names by its schema, an unqualified one being the one in
+// public, which is what CockroachDB's default search path finds.
+func queryKey(query, database string) string {
+	query = relationQuery(query, database)
+	stmt, err := parseOne(query)
+	if err != nil {
+		return query
+	}
+	ctes := cteNames(query)
+	ctx := tree.NewFmtCtx(tree.FmtSimple, tree.FmtReformatTableNames(func(ctx *tree.FmtCtx, tn *tree.TableName) {
+		name := *tn
+		if !name.ExplicitSchema && !ctes[string(name.ObjectName)] {
+			name.SchemaName, name.ExplicitSchema = "public", true
+		}
+		ctx.WithReformatTableNames(nil, func() { ctx.FormatNode(&name) })
+	}))
+	defer ctx.Close()
+	ctx.FormatNode(stmt)
+	return ctx.String()
+}
+
 // indexKey is an index's statement with its predicate as exprKey states it.
 func indexKey(schema, table string, index *metadataIndex) string {
 	statement := indexStatement(schema, table, index)

@@ -360,6 +360,10 @@ func (l *sdlLoader) createTable(n *tree.CreateTable) error {
 	if n.AsSource != nil {
 		return fmt.Errorf("CREATE TABLE AS is not a schema definition")
 	}
+	if n.Locality != nil {
+		// The sync reads no locality, so a migration could not keep one.
+		return fmt.Errorf("table %s: LOCALITY is not supported", n.Table.String())
+	}
 	schema := schemaOf(&n.Table)
 	s := l.schema(schema)
 	table := &metadatapb.TableMetadata{Name: string(n.Table.ObjectName)}
@@ -700,7 +704,13 @@ func (l *sdlLoader) createView(n *tree.CreateView) error {
 		s.MaterializedViews = append(s.MaterializedViews, &metadatapb.MaterializedViewMetadata{Name: string(n.Name.ObjectName), Definition: definition, DependencyColumns: dependencies, Columns: columns})
 		return nil
 	}
-	s.Views = append(s.Views, &metadatapb.ViewMetadata{Name: string(n.Name.ObjectName), Definition: definition, DependencyColumns: dependencies, Columns: columns})
+	view := &metadatapb.ViewMetadata{Name: string(n.Name.ObjectName), Definition: definition, DependencyColumns: dependencies, Columns: columns}
+	// CREATE OR REPLACE VIEW replaces a view the SDL created before.
+	if i := slices.IndexFunc(s.Views, func(v *metadatapb.ViewMetadata) bool { return v.Name == view.Name }); i >= 0 && n.Replace {
+		s.Views[i] = view
+		return nil
+	}
+	s.Views = append(s.Views, view)
 	return nil
 }
 
@@ -789,6 +799,7 @@ func columnName(expr tree.Expr) (string, bool) {
 }
 
 func (l *sdlLoader) createRoutine(n *tree.CreateRoutine) error {
+	replace := n.Replace
 	n.Replace = false
 	for i, option := range n.Options {
 		if body, ok := option.(tree.RoutineBodyStr); ok {
@@ -807,11 +818,19 @@ func (l *sdlLoader) createRoutine(n *tree.CreateRoutine) error {
 		args = append(args, param.Type.SQLString())
 	}
 	name := string(n.Name.ObjectName)
-	l.schema(schema).Functions = append(l.schema(schema).Functions, &metadatapb.FunctionMetadata{
+	function := &metadatapb.FunctionMetadata{
 		Name:       name,
 		Signature:  name + "(" + strings.Join(args, ", ") + ")",
 		Definition: tree.AsString(n),
-	})
+	}
+	s := l.schema(schema)
+	// CREATE OR REPLACE replaces a routine of the same signature the SDL
+	// created before.
+	if i := slices.IndexFunc(s.Functions, func(f *metadatapb.FunctionMetadata) bool { return f.Signature == function.Signature }); i >= 0 && replace {
+		s.Functions[i] = function
+		return nil
+	}
+	s.Functions = append(s.Functions, function)
 	return nil
 }
 

@@ -19,6 +19,7 @@ func TestLoadSDLRefuses(t *testing.T) {
 		"missing column":   "CREATE TABLE t (a INT8); COMMENT ON COLUMN t.b IS 'x'",
 		"table as select":  "CREATE TABLE t AS SELECT 1",
 		"unknown sequence": "ALTER SEQUENCE s INCREMENT BY 2",
+		"locality":         "CREATE TABLE t (id INT8 PRIMARY KEY) LOCALITY GLOBAL",
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := catalog.LoadSDL(sdl)
@@ -260,4 +261,36 @@ func TestLoadSDLNamesForeignKeyPastCheck(t *testing.T) {
 CREATE TABLE u (id INT8 PRIMARY KEY, a INT8 CHECK (a > 0), CONSTRAINT u_a_fkey CHECK (a < 9), FOREIGN KEY (a) REFERENCES p (id));`)
 	require.NoError(t, err)
 	require.Equal(t, "u_a_fkey_1", loaded.Schemas[0].Tables[1].ForeignKeys[0].Name)
+}
+
+// TestSDLViewQualifiedRelations compares a view naming its relations
+// unqualified with one naming them in public.
+func TestSDLViewQualifiedRelations(t *testing.T) {
+	plan, err := catalog.BuildSDLMigrationPlan(
+		"CREATE TABLE public.t (id INT8 PRIMARY KEY); CREATE VIEW public.v AS SELECT id FROM public.t; CREATE MATERIALIZED VIEW public.m AS WITH c AS (SELECT id FROM public.t) SELECT id FROM c;",
+		"CREATE TABLE t (id INT8 PRIMARY KEY); CREATE VIEW v AS SELECT id FROM t; CREATE MATERIALIZED VIEW m AS WITH c AS (SELECT id FROM t) SELECT id FROM c;",
+		catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	require.Nil(t, plan, "%v", plan)
+}
+
+// TestSDLOrReplace holds CREATE OR REPLACE to the last definition.
+func TestSDLOrReplace(t *testing.T) {
+	for name, pair := range map[string][2]string{
+		"view": {"CREATE VIEW v AS SELECT 1 AS n;", "CREATE VIEW v AS SELECT 1 AS n; CREATE OR REPLACE VIEW v AS SELECT 2 AS n;"},
+		"function": {
+			"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;",
+			"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$; CREATE OR REPLACE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 2 $$;",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			plan, err := catalog.BuildSDLMigrationPlan(pair[0], pair[1], catalog.SDLMigrationOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, plan)
+			require.Contains(t, plan.SQL(), "2")
+			loaded, err := catalog.LoadSDL(pair[1])
+			require.NoError(t, err)
+			require.Equal(t, 1, len(loaded.Schemas[0].Views)+len(loaded.Schemas[0].Functions))
+		})
+	}
 }
