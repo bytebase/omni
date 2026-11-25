@@ -179,6 +179,17 @@ func TestCompleteSessionNames(t *testing.T) {
 		{input: "SELECT |, union FROM orders", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
 		{input: "SELECT |, intersect FROM orders", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
 		{input: "(SELECT id FROM orders o) UNION ALL (SELECT o.| FROM users o)", typ: CandidateColumn, want: []string{"id", "name"}},
+		{input: "SELECT | FROM numbers(10), orders", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "SELECT | FROM (SELECT 1) AS x, orders", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "SELECT * FROM numbers(10) n, |", typ: CandidateTable, want: []string{"`back\\\\slash`", "`my-table`", "orders", "other", "users"}},
+		{input: "SELECT * FROM orders WHERE id IN (1, |)", typ: CandidateTable},
+		{input: "SELECT * FROM orders ARRAY JOIN |", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "SELECT * FROM orders LEFT ARRAY JOIN |", typ: CandidateTable},
+		{input: "SELECT * FROM orders ARRAY JOIN [1] AS x JOIN users u ON u.|", typ: CandidateColumn, want: []string{"id", "name"}},
+		{input: "WITH users AS (SELECT 1 AS one) SELECT | FROM users", typ: CandidateColumn},
+		{input: "WITH users AS (SELECT 1 AS one) SELECT users.| FROM users", typ: CandidateColumn},
+		{input: "WITH recent AS (SELECT amount FROM orders) SELECT | FROM recent, users", typ: CandidateColumn, want: []string{"id", "name"}},
+		{input: "WITH 1 AS users SELECT | FROM users", typ: CandidateColumn, want: []string{"id", "name"}},
 		{input: "ALTER TABLE orders UPDATE amount = 0 WHERE |", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
 	} {
 		t.Run(tc.input, func(t *testing.T) {

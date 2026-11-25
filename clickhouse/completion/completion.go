@@ -107,6 +107,9 @@ func nameCandidates(before []parser.Token, qualifier []string, refs []tableRef, 
 			return relationCandidates(cat.database(qualifier[0]))
 		}
 		for _, ref := range refs {
+			if ref.cte && ref.addressedBy(qualifier[0]) {
+				return nil
+			}
 			if rel := cat.relation(ref.database, ref.table); rel != nil && ref.addressedBy(qualifier[0]) {
 				return columnCandidates(rel)
 			}
@@ -128,7 +131,11 @@ func nameCandidates(before []parser.Token, qualifier []string, refs []tableRef, 
 		return databaseCandidates(cat)
 	}
 	for _, ref := range refs {
-		out = append(out, columnCandidates(cat.relation(ref.database, ref.table))...)
+		// A WITH query's columns are its select list's, which no metadata
+		// holds; a table of the same name does not stand in for it.
+		if !ref.cte {
+			out = append(out, columnCandidates(cat.relation(ref.database, ref.table))...)
+		}
 	}
 	return out
 }
@@ -188,7 +195,12 @@ func nameKindAfter(before []parser.Token) nameKind {
 		if len(before) == 1 {
 			return kindRelation
 		}
-	case parser.KwJoin, parser.KwInto, parser.KwTable,
+	case parser.KwJoin:
+		// ARRAY JOIN reads columns.
+		if len(before) < 2 || before[len(before)-2].Type != parser.KwArray {
+			return kindRelation
+		}
+	case parser.KwInto, parser.KwTable,
 		parser.KwDescribe, parser.KwDesc, parser.KwTruncate, parser.KwExchange:
 		return kindRelation
 	case parser.KwUse, parser.KwDatabase:
@@ -202,14 +214,19 @@ func nameKindAfter(before []parser.Token) nameKind {
 	return kindColumn
 }
 
-// inFromList reports whether the tokens end with a FROM list's table: FROM,
-// then names, dots, aliases, table modifiers and commas only. A clause keyword such as ORDER
-// or BY, which can be no alias, ends the list.
+// inFromList reports whether the tokens end with a FROM list's relation:
+// FROM, then names, dots, aliases, table modifiers, commas and parenthesized
+// table function arguments or subqueries only. A clause keyword such as
+// ORDER or BY, which can be no alias, ends the list.
 func inFromList(toks []parser.Token) bool {
 	for i := len(toks) - 1; i >= 0; i-- {
 		switch {
 		case toks[i].Type == parser.KwFrom:
 			return relationFrom(toks, i)
+		case toks[i].Type == parser.TokRParen:
+			if i = matchingParen(toks, i); i < 0 {
+				return false
+			}
 		case parser.IsBareAlias(toks[i]), isRatioToken(toks[i]):
 		case toks[i].Type == parser.KwAs, toks[i].Type == parser.TokDot, toks[i].Type == parser.TokComma:
 		case toks[i].Type == parser.KwFinal, toks[i].Type == parser.KwSample, toks[i].Type == parser.KwOffset:
@@ -260,6 +277,22 @@ func relationFrom(toks []parser.Token, i int) bool {
 	return false
 }
 
+// matchingParen returns the index of the parenthesis toks[i] closes, or -1.
+func matchingParen(toks []parser.Token, i int) int {
+	depth := 0
+	for j := i; j >= 0; j-- {
+		switch toks[j].Type {
+		case parser.TokRParen:
+			depth++
+		case parser.TokLParen:
+			if depth--; depth == 0 {
+				return j
+			}
+		}
+	}
+	return -1
+}
+
 // openParen returns the index of the innermost parenthesis open before
 // toks[i], or -1 when none is.
 func openParen(toks []parser.Token, i int) int {
@@ -284,6 +317,7 @@ func openParen(toks []parser.Token, i int) int {
 type tableRef struct {
 	database, table, alias string
 	group, branch          int
+	cte                    bool // the name of a WITH query, whose columns are not synced
 }
 
 // queryParen returns the index of the innermost parenthesis open before
@@ -368,8 +402,10 @@ func (r tableRef) addressedBy(q string) bool {
 }
 
 // tableRefs reads the tables named after FROM, JOIN, INTO, TABLE and UPDATE,
-// and in a FROM list, with their aliases and the parenthesis each is in.
+// and in a FROM list, with their aliases and the parenthesis each is in. A
+// name a WITH clause gives a query is marked as such.
 func tableRefs(toks []parser.Token) []tableRef {
+	ctes := cteNames(toks)
 	var refs []tableRef
 	for i := 0; i < len(toks); i++ {
 		switch toks[i].Type {
@@ -377,34 +413,46 @@ func tableRefs(toks []parser.Token) []tableRef {
 			if !relationFrom(toks, i) {
 				continue
 			}
+		case parser.TokComma:
+			if !inFromList(toks[:i]) {
+				continue
+			}
 		case parser.KwUpdate:
 			if i != 0 {
 				continue // ALTER TABLE t UPDATE
 			}
-		case parser.KwJoin, parser.KwInto, parser.KwTable:
+		case parser.KwJoin:
+			if i > 0 && toks[i-1].Type == parser.KwArray {
+				continue // ARRAY JOIN reads columns
+			}
+		case parser.KwInto, parser.KwTable:
 		default:
 			continue
 		}
-		list, group, branch := toks[i].Type == parser.KwFrom, queryParen(toks, i), branchAt(toks, i)
+		group, branch := queryParen(toks, i), branchAt(toks, i)
 		// FROM (a JOIN b ...) groups a join without opening a scope.
-		for i+1 < len(toks) && toks[i+1].Type == parser.TokLParen && !startsQuery(toks[i+1:]) {
-			i++
+		j := i + 1
+		for j < len(toks) && toks[j].Type == parser.TokLParen && !startsQuery(toks[j:]) {
+			j++
 		}
-		for {
-			ref, n := readTableRef(toks[i+1:])
-			if n == 0 {
-				break
-			}
+		if ref, n := readTableRef(toks[j:]); n > 0 {
 			ref.group, ref.branch = group, branch
+			ref.cte = ref.database == "" && ctes[ref.table]
 			refs = append(refs, ref)
-			i += n
-			if !list || i+1 >= len(toks) || toks[i+1].Type != parser.TokComma {
-				break
-			}
-			i++
 		}
 	}
 	return refs
+}
+
+// cteNames returns the names WITH gives queries: name AS (SELECT ...).
+func cteNames(toks []parser.Token) map[string]bool {
+	names := map[string]bool{}
+	for i := 0; i+2 < len(toks); i++ {
+		if isName(toks[i]) && toks[i+1].Type == parser.KwAs && toks[i+2].Type == parser.TokLParen && startsQuery(toks[i+2:]) {
+			names[toks[i].Val] = true
+		}
+	}
+	return names
 }
 
 // readTableRef reads [db.]table [[AS] alias] from the start of toks and
