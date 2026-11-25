@@ -133,6 +133,11 @@ PUT /closed-index
 {"settings": {"number_of_shards": 1, "number_of_replicas": 0}}
 
 POST /closed-index/_close
+
+PUT /hidden-closed
+{"settings": {"number_of_shards": 1, "number_of_replicas": 0, "index.hidden": true}}
+
+POST /hidden-closed/_close
 `)
 
 	got, err := d.SyncDatabase(context.Background())

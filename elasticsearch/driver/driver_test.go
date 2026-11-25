@@ -296,7 +296,7 @@ func TestGetIndicesFiltersHiddenAndSortsByName(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.RequestURI() {
-		case "/*/_settings?filter_path=**.hidden&expand_wildcards=open,hidden":
+		case hiddenSettingsRoute:
 			_, _ = w.Write([]byte(`{
 				"alpha":{"settings":{"index":{"hidden":"false"}}},
 				"beta":{"settings":{"index":{"hidden":"false"}}},
@@ -337,7 +337,7 @@ func TestSyncInstanceFailsOpenOnUsers(t *testing.T) {
 		switch r.URL.RequestURI() {
 		case "/":
 			_, _ = w.Write([]byte(`{"version":{"number":"8.19.25"}}`))
-		case "/*/_settings?filter_path=**.hidden&expand_wildcards=open,hidden":
+		case hiddenSettingsRoute:
 			_, _ = w.Write([]byte(`{}`))
 		case "/_cat/indices?format=json&pretty":
 			_, _ = w.Write([]byte(`[]`))
