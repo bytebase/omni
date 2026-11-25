@@ -6041,6 +6041,18 @@
 | CREATE FUNCTION fid_v.read_ab() RETURNS INT8 LANGUAGE SQL AS $$ SELECT max(b) FROM fid_v.ab $$;
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_v.rt() RETURNS STRING LANGUAGE SQL AS $$ SELECT 'x' $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_v.pab (id INT8 PRIMARY KEY, b INT8);
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.pf() RETURNS INT8 LANGUAGE SQL AS $$ SELECT COALESCE(max(b), 0) FROM fid_v.pab $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_v.puse (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_v.pf(), CONSTRAINT puse_v_check CHECK (v >= fid_v.pf() - 1000));
+< ok 0 -
+> exec
 | ALTER TABLE fid_v.items ADD COLUMN doubled DECIMAL AS (price * 2) VIRTUAL;
 < ok 0 -
 > exec
@@ -6445,6 +6457,62 @@
 : string
 | fid_v
 : string
+| pab
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| pab
+: string
+| b
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
 | priced
 : string
 | id
@@ -6518,6 +6586,63 @@
 | pg_catalog
 : string
 | text
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| puse
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| puse
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_v.pf()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
 : null
 : string
 | NO
@@ -6813,6 +6938,30 @@
 : string
 | fid_v
 : string
+| pab
+: string
+| pab_pkey
+: string
+| CREATE UNIQUE INDEX pab_pkey ON omni_testmigrationfidelity.fid_v.pab USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
+| puse
+: string
+| puse_pkey
+: string
+| CREATE UNIQUE INDEX puse_pkey ON omni_testmigrationfidelity.fid_v.puse USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | scored
 : string
 | scored_pkey
@@ -6871,6 +7020,16 @@
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
 < column "obj_description" "TEXT"
+< row
+: string
+| fid_v
+: string
+| puse
+: string
+| puse_v_check
+: string
+| CHECK ((v >= (fid_v.pf() - 1000)))
+: null
 > query
 |
 | SELECT
@@ -6951,6 +7110,20 @@
 | fid_v
 : string
 | keep
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| pab
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| puse
 : int64 0
 : null
 < row
@@ -7401,6 +7574,24 @@
 : string
 | fid_v
 : string
+| pf
+: string
+| pf()
+: string
+| CREATE FUNCTION fid_v.pf()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT COALESCE(max(b), 0) FROM omni_testmigrationfidelity.fid_v.pab;
+| $$
+< row
+: string
+| fid_v
+: string
 | read_ab
 : string
 | read_ab()
@@ -7414,6 +7605,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT max(b) FROM omni_testmigrationfidelity.fid_v.ab;
+| $$
+< row
+: string
+| fid_v
+: string
+| rt
+: string
+| rt()
+: string
+| CREATE FUNCTION fid_v.rt()
+| 	RETURNS STRING
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 'x';
 | $$
 < row
 : string
@@ -7586,6 +7795,18 @@
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_v.read_ab() RETURNS INT8 LANGUAGE SQL AS $$ SELECT max(a) FROM fid_v.ab $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.rt() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_v.pab (id INT8 PRIMARY KEY, a INT8, b INT8);
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.pf() RETURNS INT8 LANGUAGE SQL AS $$ SELECT COALESCE(max(a), 0) FROM fid_v.pab $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_v.puse (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_v.pf(), CONSTRAINT puse_v_check CHECK (v >= fid_v.pf() - 1000));
 < ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
@@ -8181,6 +8402,90 @@
 : string
 | fid_v
 : string
+| pab
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| pab
+: string
+| a
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| pab
+: string
+| b
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 3
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
 | priced
 : string
 | id
@@ -8282,6 +8587,63 @@
 | pg_catalog
 : string
 | text
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| puse
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| puse
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_v.pf()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
 : null
 : string
 | NO
@@ -8557,6 +8919,30 @@
 : string
 | fid_v
 : string
+| pab
+: string
+| pab_pkey
+: string
+| CREATE UNIQUE INDEX pab_pkey ON omni_testmigrationfidelity.fid_v.pab USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
+| puse
+: string
+| puse_pkey
+: string
+| CREATE UNIQUE INDEX puse_pkey ON omni_testmigrationfidelity.fid_v.puse USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | tagged
 : string
 | tagged_pkey
@@ -8603,6 +8989,16 @@
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
 < column "obj_description" "TEXT"
+< row
+: string
+| fid_v
+: string
+| puse
+: string
+| puse_v_check
+: string
+| CHECK ((v >= (fid_v.pf() - 1000)))
+: null
 > query
 |
 | SELECT
@@ -8704,6 +9100,20 @@
 | fid_v
 : string
 | old_items
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| pab
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| puse
 : int64 0
 : null
 < row
@@ -9201,6 +9611,24 @@
 : string
 | fid_v
 : string
+| pf
+: string
+| pf()
+: string
+| CREATE FUNCTION fid_v.pf()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT COALESCE(max(a), 0) FROM omni_testmigrationfidelity.fid_v.pab;
+| $$
+< row
+: string
+| fid_v
+: string
 | ra
 : string
 | ra()
@@ -9250,6 +9678,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT max(a) FROM omni_testmigrationfidelity.fid_v.ab;
+| $$
+< row
+: string
+| fid_v
+: string
+| rt
+: string
+| rt()
+: string
+| CREATE FUNCTION fid_v.rt()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 1;
 | $$
 > query
 |
@@ -9320,7 +9766,13 @@
 | ALTER TABLE "fid_v"."keep" ALTER COLUMN "x" DROP DEFAULT;
 < ok 0 -
 > exec
+| ALTER TABLE "fid_v"."puse" ALTER COLUMN "v" DROP DEFAULT;
+< ok 0 -
+> exec
 | ALTER TABLE "fid_v"."tagged" ALTER COLUMN "v" DROP DEFAULT;
+< ok 0 -
+> exec
+| ALTER TABLE "fid_v"."puse" DROP CONSTRAINT "puse_v_check";
 < ok 0 -
 > exec
 | DROP INDEX "fid_v"."totals"@"totals_name_idx";
@@ -9359,6 +9811,9 @@
 | DROP TABLE "fid_v"."old_items";
 < ok 0 -
 > exec
+| DROP FUNCTION "fid_v"."pf"();
+< ok 0 -
+> exec
 | DROP VIEW "fid_v"."priced_names";
 < ok 0 -
 > exec
@@ -9374,6 +9829,9 @@
 | DROP FUNCTION "fid_v"."read_ab"();
 < ok 0 -
 > exec
+| DROP FUNCTION "fid_v"."rt"();
+< ok 0 -
+> exec
 | ALTER TABLE "fid_v"."ab" DROP COLUMN "a";
 < ok 0 -
 > exec
@@ -9381,6 +9839,9 @@
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."keep" DROP COLUMN "x";
+< ok 0 -
+> exec
+| ALTER TABLE "fid_v"."pab" DROP COLUMN "a";
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."items" ADD COLUMN "doubled" numeric AS (price * 2) VIRTUAL;
@@ -9450,6 +9911,18 @@
 | SELECT id FROM fid_v.items;
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_v.pf()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| SELECT COALESCE(max(b), 0) FROM fid_v.pab;
+| $$;
+< ok 0 -
+> exec
 | CREATE VIEW "fid_v"."priced" ("id", "name") AS 
 | SELECT id, name FROM fid_v.items WHERE price > 1;
 < ok 0 -
@@ -9486,6 +9959,18 @@
 | $$;
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_v.rt()
+| 	RETURNS STRING
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 'x';
+| $$;
+< ok 0 -
+> exec
 | CREATE TABLE "fid_v"."scored" (
 |     "id" bigint NOT NULL,
 |     "score" bigint DEFAULT fid_v.add(1, 2),
@@ -9509,6 +9994,12 @@
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."items" ALTER COLUMN "bonus" SET DEFAULT fid_v.bonus();
+< ok 0 -
+> exec
+| ALTER TABLE "fid_v"."puse" ALTER COLUMN "v" SET DEFAULT fid_v.pf();
+< ok 0 -
+> exec
+| ALTER TABLE "fid_v"."puse" ADD CONSTRAINT "puse_v_check" CHECK ((v >= (fid_v.pf() - 1000)));
 < ok 0 -
 > exec
 | CREATE INDEX totals_total_idx ON fid_v.totals (total ASC);
@@ -9909,6 +10400,62 @@
 : string
 | fid_v
 : string
+| pab
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| pab
+: string
+| b
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 3
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
 | priced
 : string
 | id
@@ -9982,6 +10529,63 @@
 | pg_catalog
 : string
 | text
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| puse
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| puse
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_v.pf()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
 : null
 : string
 | NO
@@ -10277,6 +10881,30 @@
 : string
 | fid_v
 : string
+| pab
+: string
+| pab_pkey
+: string
+| CREATE UNIQUE INDEX pab_pkey ON omni_testmigrationfidelity.fid_v.pab USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
+| puse
+: string
+| puse_pkey
+: string
+| CREATE UNIQUE INDEX puse_pkey ON omni_testmigrationfidelity.fid_v.puse USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | scored
 : string
 | scored_pkey
@@ -10335,6 +10963,16 @@
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
 < column "obj_description" "TEXT"
+< row
+: string
+| fid_v
+: string
+| puse
+: string
+| puse_v_check
+: string
+| CHECK ((v >= (fid_v.pf() - 1000)))
+: null
 > query
 |
 | SELECT
@@ -10415,6 +11053,20 @@
 | fid_v
 : string
 | keep
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| pab
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| puse
 : int64 0
 : null
 < row
@@ -10865,6 +11517,24 @@
 : string
 | fid_v
 : string
+| pf
+: string
+| pf()
+: string
+| CREATE FUNCTION fid_v.pf()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT COALESCE(max(b), 0) FROM omni_testmigrationfidelity.fid_v.pab;
+| $$
+< row
+: string
+| fid_v
+: string
 | read_ab
 : string
 | read_ab()
@@ -10878,6 +11548,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT max(b) FROM omni_testmigrationfidelity.fid_v.ab;
+| $$
+< row
+: string
+| fid_v
+: string
+| rt
+: string
+| rt()
+: string
+| CREATE FUNCTION fid_v.rt()
+| 	RETURNS STRING
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 'x';
 | $$
 < row
 : string

@@ -753,7 +753,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	// CockroachDB cannot convert under them; they are added again after.
 	retyped := retypedColumns(old, new)
 	for _, check := range oldChecks {
-		if c := findCheck(newChecks, check.Name); c == nil || c.Expression != check.Expression || textReads(check.Expression, retyped) {
+		if c := findCheck(newChecks, check.Name); c == nil || c.Expression != check.Expression || textReads(check.Expression, retyped) || d.callsDropped(check.Expression) {
 			alter(phaseDropIndexes, OpDropConstraint, check.Name, "DROP CONSTRAINT "+quoteIdent(check.Name))
 		}
 	}
@@ -797,7 +797,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 		// A default that calls a routine the target adds waits for it.
 		defaultPhase := phaseAlterTables
 		for _, name := range calledFunctions(column.Default) {
-			if d.newRoutines[name] {
+			if d.newRoutines[name] || d.droppedRoutines[name] {
 				defaultPhase = phaseLateColumns
 			}
 		}
@@ -871,7 +871,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	}
 
 	for _, check := range newChecks {
-		if c := findCheck(oldChecks, check.Name); c == nil || c.Expression != check.Expression || textReads(c.Expression, retyped) {
+		if c := findCheck(oldChecks, check.Name); c == nil || c.Expression != check.Expression || textReads(c.Expression, retyped) || d.callsDropped(c.Expression) {
 			alter(phaseCreateIndexes, OpAddConstraint, check.Name, fmt.Sprintf("ADD CONSTRAINT %s CHECK %s", quoteIdent(check.Name), check.Expression))
 		}
 	}
@@ -897,7 +897,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	}
 	for _, check := range newChecks {
 		oldComment := ""
-		if c := findCheck(oldChecks, check.Name); c != nil && c.Expression == check.Expression && !textReads(c.Expression, retyped) {
+		if c := findCheck(oldChecks, check.Name); c != nil && c.Expression == check.Expression && !textReads(c.Expression, retyped) && !d.callsDropped(c.Expression) {
 			oldComment = c.Comment
 		}
 		if oldComment != check.Comment {
@@ -912,6 +912,16 @@ func boolOrder(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// callsDropped reports whether expr calls a routine the migration drops.
+func (d *differ) callsDropped(expr string) bool {
+	for _, name := range calledFunctions(expr) {
+		if d.droppedRoutines[name] {
+			return true
+		}
+	}
+	return false
 }
 
 func generationText(column *metadatapb.ColumnMetadata) string {
@@ -1125,24 +1135,14 @@ func (d *differ) orderDrops() {
 // planRoutines decides which source routines the migration drops: those the
 // target removes, and those it drops and creates again. A routine whose body
 // reads a relation the migration drops or rebuilds, or a column whose type
-// changes, is recreated, so the relation can go while nothing reads it, and so
-// is a kept routine calling a routine that drops. Any other routine whose
-// definition changes is replaced in place, as is one a kept table's default or
-// check still calls, which cannot be dropped.
+// changes, or whose return type changes, is recreated, so the relation can go
+// while nothing reads it, and so is a kept routine calling a routine that
+// drops. A kept table's default or check calling a recreated routine is
+// detached first and restored after (alterTable). Any other routine whose
+// definition changes is replaced in place.
 func (d *differ) planRoutines() {
 	d.droppedRoutines = make(map[string]bool)
 	d.recreated = make(map[string]bool)
-	pinned := make(map[string]bool)
-	for _, schema := range d.to.schemas {
-		for _, table := range schema.Tables {
-			if d.from.table(schema.Name, table.Name) == nil {
-				continue
-			}
-			for _, name := range tableCalls(table) {
-				pinned[name] = true
-			}
-		}
-	}
 	gone := make(map[string]bool)
 	for id := range d.rebuilt {
 		gone[id] = true
@@ -1191,10 +1191,8 @@ func (d *differ) planRoutines() {
 				d.droppedRoutines[names[0]], d.droppedRoutines[names[1]] = true, true
 				continue
 			}
-			if pinned[names[0]] || pinned[names[1]] {
-				continue
-			}
-			recreate := false
+			// CREATE OR REPLACE keeps a function's return type.
+			recreate := returnType(function.Definition) != returnType(newFunction.Definition)
 			for _, relation := range routineRelations(function.Definition) {
 				recreate = recreate || gone[relation] || textReads(routineBody(function.Definition), retyped[relation])
 			}
@@ -1211,8 +1209,7 @@ func (d *differ) planRoutines() {
 		for _, schema := range d.from.schemas {
 			for _, function := range schema.Functions {
 				id := getObjectID(schema.Name, metadataFuncIdentity(function))
-				if d.recreated[id] || findFunction(d.to.byName[schema.Name], metadataFuncIdentity(function)) == nil ||
-					pinned[function.Name] || pinned[schema.Name+"."+function.Name] {
+				if d.recreated[id] || findFunction(d.to.byName[schema.Name], metadataFuncIdentity(function)) == nil {
 					continue
 				}
 				for _, call := range routineCalls(function.Definition) {
@@ -1226,6 +1223,23 @@ func (d *differ) planRoutines() {
 			}
 		}
 	}
+}
+
+// returnType is a routine's RETURNS clause as CockroachDB formats it.
+func returnType(definition string) string {
+	stmt, err := parseOne(strings.TrimSuffix(strings.TrimSpace(definition), ";"))
+	if err != nil {
+		return ""
+	}
+	routine, ok := stmt.(*tree.CreateRoutine)
+	if !ok || routine.ReturnType == nil {
+		return ""
+	}
+	text := routine.ReturnType.Type.SQLString()
+	if routine.ReturnType.SetOf {
+		text = "SETOF " + text
+	}
+	return text
 }
 
 // tableCalls returns the routines a table's defaults and checks call.

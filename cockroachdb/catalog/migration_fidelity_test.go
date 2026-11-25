@@ -147,6 +147,10 @@ CREATE FUNCTION fid_v.caller() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.call
 CREATE FUNCTION fid_v.count_old_caller() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.count_old() $$;
 CREATE TABLE fid_v.ab (id INT8 PRIMARY KEY, a INT8, b INT8);
 CREATE FUNCTION fid_v.read_ab() RETURNS INT8 LANGUAGE SQL AS $$ SELECT max(a) FROM fid_v.ab $$;
+CREATE FUNCTION fid_v.rt() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
+CREATE TABLE fid_v.pab (id INT8 PRIMARY KEY, a INT8, b INT8);
+CREATE FUNCTION fid_v.pf() RETURNS INT8 LANGUAGE SQL AS $$ SELECT COALESCE(max(a), 0) FROM fid_v.pab $$;
+CREATE TABLE fid_v.puse (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_v.pf(), CONSTRAINT puse_v_check CHECK (v >= fid_v.pf() - 1000));
 `,
 			target: `CREATE SCHEMA fid_v;
 CREATE TABLE fid_v.items (id INT8 PRIMARY KEY, name STRING, price DECIMAL(10, 2), bonus INT8);
@@ -169,6 +173,10 @@ CREATE FUNCTION fid_v.caller() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.call
 CREATE FUNCTION fid_v.count_old_caller() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.count_old() $$;
 CREATE TABLE fid_v.ab (id INT8 PRIMARY KEY, b INT8);
 CREATE FUNCTION fid_v.read_ab() RETURNS INT8 LANGUAGE SQL AS $$ SELECT max(b) FROM fid_v.ab $$;
+CREATE FUNCTION fid_v.rt() RETURNS STRING LANGUAGE SQL AS $$ SELECT 'x' $$;
+CREATE TABLE fid_v.pab (id INT8 PRIMARY KEY, b INT8);
+CREATE FUNCTION fid_v.pf() RETURNS INT8 LANGUAGE SQL AS $$ SELECT COALESCE(max(b), 0) FROM fid_v.pab $$;
+CREATE TABLE fid_v.puse (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_v.pf(), CONSTRAINT puse_v_check CHECK (v >= fid_v.pf() - 1000));
 ALTER TABLE fid_v.items ADD COLUMN doubled DECIMAL AS (price * 2) VIRTUAL;
 CREATE TABLE fid_v.scored (id INT8 PRIMARY KEY, score INT8 DEFAULT fid_v.add(1, 2));
 CREATE VIEW fid_v.cheap AS SELECT p.id FROM fid_v.priced AS p JOIN fid_v.items AS i ON i.id = p.id;
