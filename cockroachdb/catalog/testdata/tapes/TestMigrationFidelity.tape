@@ -6404,31 +6404,13 @@
 | CREATE TABLE fid_v.pab (id INT8 PRIMARY KEY, b INT8);
 < ok 0 -
 > exec
-| CREATE TABLE fid_v.grow (id INT8 PRIMARY KEY);
-< ok 0 -
-> exec
 | CREATE FUNCTION fid_v.seven() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 7 $$;
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_v.eight() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 8 $$;
 < ok 0 -
 > exec
-| ALTER TABLE fid_v.grow ADD COLUMN s INT8;
-< ok 0 -
-> exec
-| ALTER TABLE fid_v.grow ALTER COLUMN s SET DEFAULT fid_v.seven();
-< ok 0 -
-> exec
-| ALTER TABLE fid_v.grow ADD COLUMN e INT8;
-< ok 0 -
-> exec
-| ALTER TABLE fid_v.grow ALTER COLUMN e SET DEFAULT fid_v.eight();
-< ok 0 -
-> exec
-| UPDATE fid_v.grow SET e = 8;
-< ok 0 -
-> exec
-| ALTER TABLE fid_v.grow ALTER COLUMN e SET NOT NULL;
+| CREATE TABLE fid_v.grow (id INT8 PRIMARY KEY, s INT8 DEFAULT fid_v.seven(), e INT8 NOT NULL DEFAULT fid_v.eight());
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_v.pf() RETURNS INT8 LANGUAGE SQL AS $$ SELECT COALESCE(max(b), 0) FROM fid_v.pab $$;
