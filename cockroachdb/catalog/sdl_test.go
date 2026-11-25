@@ -27,6 +27,7 @@ func TestLoadSDLRefuses(t *testing.T) {
 		"column no index":    "CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 UNIQUE WITHOUT INDEX)",
 		"partition":          "CREATE TABLE t (id INT8 PRIMARY KEY) PARTITION BY LIST (id) (PARTITION p VALUES IN (1))",
 		"families":           "CREATE TABLE t (id INT8 PRIMARY KEY, a STRING, b STRING, FAMILY f1 (id, a), FAMILY f2 (b))",
+		"added family":       "CREATE TABLE t (id INT8 PRIMARY KEY); ALTER TABLE t ADD COLUMN data BYTES CREATE FAMILY blobs",
 		"column family":      "CREATE TABLE t (id INT8 PRIMARY KEY, a STRING, b STRING FAMILY f2, FAMILY f1 (id, a))",
 		"temporary view":     "CREATE TEMP VIEW v AS SELECT 1 AS n",
 		"schema rename":      "CREATE SCHEMA old; CREATE TABLE old.t (id INT8 PRIMARY KEY); ALTER SCHEMA old RENAME TO new",
@@ -223,6 +224,10 @@ func TestSDLKeysKeepValues(t *testing.T) {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a TIMESTAMP DEFAULT '2020-01-01 12:34:56':::DATE);",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a TIMESTAMP DEFAULT '2020-01-01 12:34:56');",
 		},
+		"date cutoff": {
+			"CREATE TABLE t (id INT8 PRIMARY KEY, ts TIMESTAMP, CHECK (ts > '2020-01-01 12:34:56'::DATE));",
+			"CREATE TABLE t (id INT8 PRIMARY KEY, ts TIMESTAMP, CHECK (ts > '2020-01-01 12:34:56'));",
+		},
 		"grouping": {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT (1 + 2) * 3);",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT 1 + 2 * 3);",
@@ -244,6 +249,7 @@ func TestSDLKeysKeepValues(t *testing.T) {
 		"lossless cast":         {"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.25::DECIMAL, b FLOAT8 DEFAULT 1.5::FLOAT8);", "CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.25, b FLOAT8 DEFAULT 1.5);"},
 		"column comparison":     {"CREATE TABLE t (id INT8 PRIMARY KEY, s STRING, d DATE, CHECK (s > 'a'::STRING AND d > '2000-01-01'::DATE AND id > 5));", "CREATE TABLE t (id INT8 PRIMARY KEY, s STRING, d DATE, CHECK (s > 'a' AND d > '2000-01-01' AND id > 5));"},
 		"own type":              {"CREATE TABLE t (id INT8 PRIMARY KEY, a TIMESTAMP DEFAULT '2020-01-01 12:34:56'::TIMESTAMP, b STRING[] DEFAULT ARRAY[]::STRING[], c INT4 DEFAULT 7:::INT8);", "CREATE TABLE t (id INT8 PRIMARY KEY, a TIMESTAMP DEFAULT '2020-01-01 12:34:56', b STRING[] DEFAULT ARRAY[], c INT4 DEFAULT 7);"},
+		"column's own type":     {"CREATE TABLE t (id INT8 PRIMARY KEY, ts TIMESTAMP, s STRING, CHECK (ts > '2020-01-01 12:34:56'::TIMESTAMP AND lower(s) = 'x'::STRING AND s IN ('a'::STRING, 'b'::STRING)));", "CREATE TABLE t (id INT8 PRIMARY KEY, ts TIMESTAMP, s STRING, CHECK (ts > '2020-01-01 12:34:56' AND lower(s) = 'x' AND s IN ('a', 'b')));"},
 		"collated default":      {"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING COLLATE en DEFAULT ('x' COLLATE en));", "CREATE TABLE t (id INT8 PRIMARY KEY, a STRING COLLATE en DEFAULT 'x');"},
 		"stored annotation":     {"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5:::DECIMAL);", "CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5);"},
 		"annotated body":        {"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1:::INT8 + 2:::INT8::INT8, 'x':::STRING, ARRAY[1:::INT8, 2:::INT8]:::INT8[] $$;", "CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 + 2::INT8, 'x', ARRAY[1, 2] $$;"},

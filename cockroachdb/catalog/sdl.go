@@ -844,6 +844,11 @@ func (l *sdlLoader) alterTable(n *tree.AlterTable) error {
 				return err
 			}
 		case *tree.AlterTableAddColumn:
+			if c.ColumnDef.Family.Create {
+				// A family of its own is a second family, which the sync
+				// does not read.
+				return fmt.Errorf("column %s: CREATE FAMILY is not supported", c.ColumnDef.Name)
+			}
 			if c.IfNotExists && findColumn(table, string(c.ColumnDef.Name)) != nil {
 				// The engine skips it.
 				continue

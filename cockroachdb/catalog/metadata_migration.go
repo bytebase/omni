@@ -815,7 +815,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	// CockroachDB cannot convert under them; they are added again after.
 	retyped := retypedColumns(old, new)
 	for _, check := range oldChecks {
-		if c := findCheck(newChecks, check.Name); c == nil || exprKey(c.Expression) != exprKey(check.Expression) || textReads(check.Expression, retyped) || d.callsDropped(check.Expression) {
+		if c := findCheck(newChecks, check.Name); c == nil || exprKey(c.Expression, columnTypes(newColumns)) != exprKey(check.Expression, columnTypes(oldColumns)) || textReads(check.Expression, retyped) || d.callsDropped(check.Expression) {
 			alter(phaseDropIndexes, OpDropConstraint, check.Name, "DROP CONSTRAINT "+quoteIdent(check.Name))
 		}
 	}
@@ -969,7 +969,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	}
 
 	for _, check := range newChecks {
-		if c := findCheck(oldChecks, check.Name); c == nil || exprKey(c.Expression) != exprKey(check.Expression) || textReads(c.Expression, retyped) || d.callsDropped(c.Expression) {
+		if c := findCheck(oldChecks, check.Name); c == nil || exprKey(c.Expression, columnTypes(oldColumns)) != exprKey(check.Expression, columnTypes(newColumns)) || textReads(c.Expression, retyped) || d.callsDropped(c.Expression) {
 			alter(phaseCreateIndexes, OpAddConstraint, check.Name, fmt.Sprintf("ADD CONSTRAINT %s CHECK %s", quoteIdent(check.Name), check.Expression))
 		}
 	}
@@ -995,7 +995,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	}
 	for _, check := range newChecks {
 		oldComment := ""
-		if c := findCheck(oldChecks, check.Name); c != nil && exprKey(c.Expression) == exprKey(check.Expression) && !textReads(c.Expression, retyped) && !d.callsDropped(c.Expression) {
+		if c := findCheck(oldChecks, check.Name); c != nil && exprKey(c.Expression, columnTypes(oldColumns)) == exprKey(check.Expression, columnTypes(newColumns)) && !textReads(c.Expression, retyped) && !d.callsDropped(c.Expression) {
 			oldComment = c.Comment
 		}
 		if oldComment != check.Comment {

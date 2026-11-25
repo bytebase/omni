@@ -11,6 +11,8 @@ import (
 	plpgsqlparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/plpgsql/parser"
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/types"
+
+	metadatapb "github.com/bytebase/omni/metadata"
 )
 
 // The keys below compare two definitions of one object, one synced and one
@@ -20,7 +22,7 @@ import (
 // exprKey is a check's or a predicate's expression without what CockroachDB
 // adds to the literals it stores ('a'::STRING compared with a column,
 // 's.seq'::REGCLASS), and without parentheses.
-func exprKey(expr string) string {
+func exprKey(expr string, columns map[string]string) string {
 	if strings.TrimSpace(expr) == "" {
 		return ""
 	}
@@ -28,8 +30,17 @@ func exprKey(expr string) string {
 	if err != nil {
 		return expr
 	}
-	parsed, _ = tree.WalkExpr(literalCastStripper{}, parsed)
+	parsed, _ = tree.WalkExpr(literalCastStripper{columns}, parsed)
 	return groupedKey(parsed)
+}
+
+// columnTypes maps a table's columns to their types, for exprKey.
+func columnTypes(columns []*metadatapb.ColumnMetadata) map[string]string {
+	typed := make(map[string]string, len(columns))
+	for _, column := range columns {
+		typed[column.Name] = column.Type
+	}
+	return typed
 }
 
 // defaultKey is exprKey for a default of type typ. CockroachDB folds a cast
@@ -54,19 +65,41 @@ func defaultKey(expr, typ string) string {
 }
 
 // stripDefaultCast drops a default's cast or annotation on a literal where it
-// names the default's own type, or for an annotation the literal's own.
+// names the default's own type, or the literal's own.
 func stripDefaultCast(expr tree.Expr, typ string) tree.Expr {
+	if cast, ok := unparen(expr).(*tree.CastExpr); ok && emptyArray(cast) {
+		return unparen(cast.Expr)
+	}
+	return stripTypedCast(expr, typ)
+}
+
+// stripTypedCast drops a cast or annotation on a literal, or on each of a
+// tuple's elements, where the literal takes the type it names anyway: the
+// type typ of what it is assigned or compared to, or with typ unknown the
+// literal's own type (a string's STRING), and unless the cast can change the
+// value. A number's trailing fractional zeros go too, as CockroachDB states a
+// FLOAT's default or comparand as a float (0 as 0.0).
+func stripTypedCast(expr tree.Expr, typ string) tree.Expr {
 	switch e := unparen(expr).(type) {
 	case *tree.CastExpr:
-		if isLiteral(unparen(e.Expr)) && !castRounds(e) && (sameType(e.Type, typ) || emptyArray(e)) {
-			return trimZeros(unparen(e.Expr))
+		literal := unparen(e.Expr)
+		if isLiteral(literal) && !castRounds(e) && (sameType(e.Type, typ) || typ == "" && ownType(literal, e.Type)) {
+			return trimZeros(literal)
 		}
 	case *tree.AnnotateTypeExpr:
-		if isLiteral(unparen(e.Expr)) && (sameType(e.Type, typ) || ownType(unparen(e.Expr), e.Type)) {
-			return trimZeros(unparen(e.Expr))
+		literal := unparen(e.Expr)
+		if isLiteral(literal) && (sameType(e.Type, typ) || ownType(literal, e.Type)) {
+			return trimZeros(literal)
 		}
 	case *tree.NumVal:
 		return trimZeros(e)
+	case *tree.Tuple:
+		tuple := *e
+		tuple.Exprs = make(tree.Exprs, len(e.Exprs))
+		for i, element := range e.Exprs {
+			tuple.Exprs[i] = stripTypedCast(element, typ)
+		}
+		return &tuple
 	}
 	return expr
 }
@@ -125,15 +158,17 @@ func unparen(expr tree.Expr) tree.Expr {
 	}
 }
 
-type literalCastStripper struct{}
+// literalCastStripper knows the types of the columns an expression reads.
+type literalCastStripper struct{ columns map[string]string }
 
 // VisitPre drops a cast or annotation on a literal only where the context
 // fixes the literal's type anyway, which is where CockroachDB adds them to
 // what it stores: a side of a comparison whose other side is not a literal
-// (s > 'a'::STRING, an IN list's elements), and the sequence's REGCLASS in
+// (s > 'a'::STRING, an IN list's elements), where the cast names the type of
+// the column on the other side, and the sequence's REGCLASS in
 // nextval('s'::REGCLASS), currval and setval. Anywhere else a cast chooses a type, of an
 // overload, an operator, a COALESCE or a comparison of literals, and stays.
-func (literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) {
+func (v literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 	switch e := expr.(type) {
 	case *tree.ComparisonExpr:
 		left, right := literalOperand(e.Left), literalOperand(e.Right)
@@ -142,9 +177,9 @@ func (literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 		}
 		cmp := *e
 		if left {
-			cmp.Left = stripLiteralCast(cmp.Left)
+			cmp.Left = stripTypedCast(cmp.Left, v.columnType(cmp.Right))
 		} else {
-			cmp.Right = stripLiteralCast(cmp.Right)
+			cmp.Right = stripTypedCast(cmp.Right, v.columnType(cmp.Left))
 		}
 		return true, &cmp
 	case *tree.FuncExpr:
@@ -170,7 +205,7 @@ func (literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 	return true, expr
 }
 
-func (literalCastStripper) VisitPost(expr tree.Expr) tree.Expr {
+func (v literalCastStripper) VisitPost(expr tree.Expr) tree.Expr {
 	switch e := expr.(type) {
 	case *tree.ParenExpr:
 		return e.Expr
@@ -178,31 +213,18 @@ func (literalCastStripper) VisitPost(expr tree.Expr) tree.Expr {
 	return expr
 }
 
-// stripLiteralCast drops a cast or annotation on a literal, or on each of a
-// tuple's elements, unless the cast can change the literal's value. In the
-// same contexts a number's trailing fractional zeros go: CockroachDB states a
-// FLOAT column's default or comparand as a float (0 as 0.0).
-func stripLiteralCast(expr tree.Expr) tree.Expr {
+// columnType is the type of an expression that is a column the stripper
+// knows, "" otherwise.
+func (v literalCastStripper) columnType(expr tree.Expr) string {
 	switch e := unparen(expr).(type) {
-	case *tree.CastExpr:
-		if isLiteral(unparen(e.Expr)) && !castRounds(e) {
-			return trimZeros(unparen(e.Expr))
+	case *tree.UnresolvedName:
+		if !e.Star {
+			return v.columns[e.Parts[0]]
 		}
-	case *tree.AnnotateTypeExpr:
-		if isLiteral(unparen(e.Expr)) {
-			return trimZeros(unparen(e.Expr))
-		}
-	case *tree.NumVal:
-		return trimZeros(e)
-	case *tree.Tuple:
-		tuple := *e
-		tuple.Exprs = make(tree.Exprs, len(e.Exprs))
-		for i, element := range e.Exprs {
-			tuple.Exprs[i] = stripLiteralCast(element)
-		}
-		return &tuple
+	case *tree.ColumnItem:
+		return v.columns[string(e.ColumnName)]
 	}
-	return expr
+	return ""
 }
 
 // castRounds reports whether a cast can change its literal's value: a cast
