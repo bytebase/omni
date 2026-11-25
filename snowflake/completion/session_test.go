@@ -167,6 +167,8 @@ func TestCompleteSession(t *testing.T) {
 		{"unfinished searched CASE", "SELECT * FROM orders WHERE CASE WHEN |", []string{"column:CUSTOMER_ID"}, nil},
 		{"unfinished CASE result", "SELECT CASE WHEN id > 1 THEN | FROM orders", []string{"column:SRC"}, nil},
 		{"unfinished simple CASE", "SELECT CASE | FROM orders", []string{"column:SRC"}, nil},
+		{"set operation ORDER BY names the result", "SELECT id AS ident FROM orders UNION ALL SELECT id FROM customers ORDER BY iden|", []string{"column:IDENT"}, nil},
+		{"set operation ORDER BY sees no operand's FROM", "SELECT id AS ident FROM orders UNION ALL SELECT id FROM customers ORDER BY |", []string{"column:IDENT"}, []string{"column:NAME", "table:customers"}},
 		{"VALUES columns", "SELECT v.| FROM (VALUES (1, 2)) v", []string{"column:COLUMN1", "column:COLUMN2"}, nil},
 		{"PIVOT sees its table", "SELECT * FROM orders PIVOT (SUM(|) FOR id IN (1, 2))", []string{"column:CUSTOMER_ID"}, nil},
 		{"later set-operation operand sees the WITH", "WITH a AS (SELECT 1 AS n) SELECT * FROM a UNION ALL SELECT a.| FROM a", []string{"column:N"}, nil},

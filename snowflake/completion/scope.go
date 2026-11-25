@@ -157,6 +157,20 @@ func leftmostSelect(n ast.Node) *ast.SelectStmt {
 	}
 }
 
+// trailingSetOperation returns the outermost set operation whose last
+// operand is path[i], or nil when path[i] is no set operation's last operand.
+func trailingSetOperation(path []ast.Node, i int) *ast.SetOperationStmt {
+	var top *ast.SetOperationStmt
+	for j := i; j > 0; j-- {
+		set, ok := path[j-1].(*ast.SetOperationStmt)
+		if !ok || set.Right != path[j] {
+			break
+		}
+		top = set
+	}
+	return top
+}
+
 // scopeAt returns the scope at the end of path, given the CTEs visible
 // along it.
 func (b *scopeBuilder) scopeAt(path []ast.Node, ctesAt []cteMap) scope {
@@ -179,6 +193,12 @@ func (b *scopeBuilder) scopeAt(path []ast.Node, ctesAt []cteMap) scope {
 			}
 			if slices.Contains(n.From, child) {
 				sc.levels = append(sc.levels, b.fromVisible(n.From, path[i+1:], ctes))
+				continue
+			}
+			if set := trailingSetOperation(path, i); set != nil && slices.ContainsFunc(n.OrderBy, func(o *ast.OrderItem) bool { return o.Expr == child }) {
+				// The parser keeps a set operation's ORDER BY on its last
+				// operand; it sorts the combined result, by its columns.
+				sc.levels = append(sc.levels, []*rangeItem{{columns: memo(func() []colInfo { return b.outputs(set, ctes, 0) })}})
 				continue
 			}
 			sc.levels = append(sc.levels, b.leavesOf(n.From, ctes))
