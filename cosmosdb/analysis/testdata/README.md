@@ -79,6 +79,8 @@ defined: Cosmos DB leaves an undefined property out of the item.
 
 None: every row agrees. omni names more sources than the emulator showed
 wherever a value may come from either of several properties (`??`, `IIF`,
-`? :`, and the condition those read), and for values computed from a
-property (`-c.n`, `ARRAY_LENGTH(c.tags)`, `IS_DEFINED(c.nick)`), which is the
-safe answer for masking.
+`? :`, and the condition those read), for values computed from a property
+(`-c.n`, `ARRAY_LENGTH(c.tags)`, `IS_DEFINED(c.nick)`), and for a property
+of a value a function returns, which omni takes from every argument
+(`ARRAY_CONCAT([c.name], [c.nick])[1]` names `c.name` and `c.nick`). That
+is the safe answer for masking.

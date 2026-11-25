@@ -238,6 +238,10 @@
 < raw
 | {"items":[{"n":2}]}
 > raw
+| {"op":"query","fixture":"document","statement":"SELECT ARRAY_CONCAT([c.name], [c.nick])[1] AS n FROM c"}
+< raw
+| {"items":[{"n":"«$.nick»"}]}
+> raw
 | {"op":"query","fixture":"document","statement":"SELECT 1 AS one, \"k\" AS k FROM c"}
 < raw
 | {"items":[{"one":1,"k":"k"}]}

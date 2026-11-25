@@ -354,6 +354,8 @@ func TestAnalyzeNamesAndSubqueries(t *testing.T) {
 		{sql: `SELECT ARRAY(SELECT VALUE {"k": x.name} FROM x IN c.tags)[0].k AS k FROM c`, want: []proj{{"k", "c.tags.name"}}},
 		{sql: `SELECT t.k FROM (SELECT VALUE [{"k": c.name}, {"k": c.nick}] FROM c) arr JOIN t IN arr`,
 			want: []proj{{"k", "c.name c.nick"}}},
+		{sql: `SELECT ARRAY_CONCAT([c.name], [c.nick])[1] AS n, ARRAY_SLICE([c.name, c.nick], 1, 1)[0] AS m FROM c`,
+			want: []proj{{"n", "c.name[1] c.nick[1]"}, {"m", "c.name[0] c.nick[0]"}}},
 		{sql: `SELECT (c.address ?? c.home).city AS city FROM c`, want: []proj{{"city", "c.address.city c.home.city"}}},
 		{sql: `SELECT ARRAY(SELECT VALUE t.name FROM t IN c.tags WHERE t.ssn = "x") AS n FROM c`,
 			want: []proj{{"n", "c.tags.name"}}, predicates: "c.tags.ssn"},

@@ -171,6 +171,9 @@ $.name $.phones	$.name $.phones ~	engine	document	document	lineage	SELECT ARRAY_
 n	n	engine	document	document	results	SELECT ARRAY_LENGTH(c.tags) AS n FROM c
 $.tags	~	engine	document	document	lineage	SELECT ARRAY_LENGTH(c.tags) AS n FROM c
 -	~	engine	document	document	tables	SELECT ARRAY_LENGTH(c.tags) AS n FROM c
+n	n	engine	document	document	results	SELECT ARRAY_CONCAT([c.name], [c.nick])[1] AS n FROM c
+$.name $.nick	$.nick ~	engine	document	document	lineage	SELECT ARRAY_CONCAT([c.name], [c.nick])[1] AS n FROM c
+-	~	engine	document	document	tables	SELECT ARRAY_CONCAT([c.name], [c.nick])[1] AS n FROM c
 one, k	one, k	engine	document	document	results	SELECT 1 AS one, "k" AS k FROM c
 - | -	~ | ~	engine	document	document	lineage	SELECT 1 AS one, "k" AS k FROM c
 -	~	engine	document	document	tables	SELECT 1 AS one, "k" AS k FROM c

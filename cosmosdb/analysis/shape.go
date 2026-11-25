@@ -19,9 +19,13 @@ const (
 	// elementsShape is an array whose every element has one shape: the
 	// result of ARRAY(SELECT ...).
 	elementsShape
-	// unionShape is a value computed from several (c.a ?? c.b, s + t): its
-	// sources are all of theirs.
+	// unionShape is a value that is one of several (c.a ?? c.b, a ? b : c):
+	// a property of it is that property of each.
 	unionShape
+	// opaqueShape is a value computed from several by an operator or a
+	// function (s + t, ARRAY_CONCAT(a, b)): its sources are theirs, but its
+	// structure is not, so a property of it is that property of every source.
+	opaqueShape
 )
 
 // maxPathLen bounds a path: the container's name and the 128 levels Cosmos
@@ -41,27 +45,46 @@ type shape struct {
 	kind    shapeKind
 	leaf    []FieldPath // leafShape: the value's sources
 	keys    []string    // objectShape: member names, in order
-	members []*shape    // objectShape: member shapes; arrayShape: elements; elementsShape: the one element; unionShape: operands
+	members []*shape    // objectShape: member shapes; arrayShape: elements; elementsShape: the one element; unionShape, opaqueShape: operands
 }
 
-// union is the shape of a value computed from members: the one member
+// union is the shape of a value that is one of members: the one member
 // when they are all the same shape, or a union of the distinct ones.
 func union(members []*shape) *shape {
-	seen := make(map[*shape]bool, len(members))
-	var distinct []*shape
-	for _, m := range members {
-		if !seen[m] {
-			seen[m] = true
-			distinct = append(distinct, m)
-		}
-	}
-	switch len(distinct) {
+	d := distinct(members)
+	switch len(d) {
 	case 0:
 		return leaf(nil)
 	case 1:
-		return distinct[0]
+		return d[0]
 	}
-	return &shape{kind: unionShape, members: distinct}
+	return &shape{kind: unionShape, members: d}
+}
+
+// opaque is the shape of a value computed from members by an operator or a
+// function, whose structure is not theirs.
+func opaque(members []*shape) *shape {
+	d := distinct(members)
+	switch {
+	case len(d) == 0:
+		return leaf(nil)
+	case len(d) == 1 && (d[0].kind == leafShape || d[0].kind == opaqueShape):
+		return d[0]
+	}
+	return &shape{kind: opaqueShape, members: d}
+}
+
+// distinct is members without repeats, in order.
+func distinct(members []*shape) []*shape {
+	seen := make(map[*shape]bool, len(members))
+	var out []*shape
+	for _, m := range members {
+		if !seen[m] {
+			seen[m] = true
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 func leaf(paths []FieldPath) *shape { return &shape{kind: leafShape, leaf: paths} }
@@ -172,10 +195,12 @@ func (a *analyzer) chainOf(sels []Selector) chain {
 	return chain{sels: sels, ids: ids}
 }
 
-// selection identifies a suffix of selectors applied to a shape.
+// selection identifies a suffix of selectors applied to a shape, by its
+// structure or, blind, to every source.
 type selection struct {
 	shape  *shape
 	suffix int
+	blind  bool
 }
 
 // selectFrom applies c's selectors from the i-th on to the value s. It is
@@ -185,7 +210,7 @@ func (a *analyzer) selectFrom(s *shape, c chain, i int) *shape {
 	if i == len(c.sels) {
 		return s
 	}
-	key := selection{s, c.ids[i]}
+	key := selection{s, c.ids[i], false}
 	if r, ok := a.selections[key]; ok {
 		return r
 	}
@@ -222,17 +247,42 @@ func (a *analyzer) selectOnce(s *shape, c chain, i int) *shape {
 			out[k] = a.selectFrom(m, c, i)
 		}
 		return union(out)
-	case s.kind == leafShape:
-		// The selectors select a stored property of each source.
+	}
+	// A stored property, a computed value, or a selector a built value does
+	// not answer by structure (an index of an object, a name of an array):
+	// the selectors select that property of every source.
+	return a.selectAll(s, c, i)
+}
+
+// selectAll applies c's selectors from the i-th on to every source of s,
+// ignoring its structure. It is memoized as selectFrom is.
+func (a *analyzer) selectAll(s *shape, c chain, i int) *shape {
+	if i == len(c.sels) {
+		return s
+	}
+	key := selection{s, c.ids[i], true}
+	if r, ok := a.selections[key]; ok {
+		return r
+	}
+	var r *shape
+	if s.kind == leafShape {
 		out := make([]FieldPath, len(s.leaf))
 		for k, p := range s.leaf {
 			out[k] = extend(p, c.sels[i:])
 		}
-		return leaf(out)
+		r = leaf(out)
+	} else {
+		out := make([]*shape, len(s.members))
+		for k, m := range s.members {
+			out[k] = a.selectAll(m, c, i)
+		}
+		r = union(out)
 	}
-	// A selector a built value does not answer by structure (an index of an
-	// object, a name of an array) selects from all its sources.
-	return a.selectFrom(leaf(s.paths(nil)), c, i)
+	if a.selections == nil {
+		a.selections = map[selection]*shape{}
+	}
+	a.selections[key] = r
+	return r
 }
 
 // extend returns a new path: p followed by sels, at most maxPathLen long.
@@ -277,13 +327,22 @@ func (a *analyzer) shapeOf(expr ast.ExprNode, sc *scope) *shape {
 		return a.selectStmt(e.Select, sc).item()
 	case *ast.ArrayExpr:
 		return &shape{kind: elementsShape, members: []*shape{a.selectStmt(e.Select, sc).item()}}
+	case *ast.BinaryExpr:
+		if e.Op == "??" {
+			// The value is one operand or the other.
+			return union([]*shape{a.shapeOf(e.Left, sc), a.shapeOf(e.Right, sc)})
+		}
+	case *ast.TernaryExpr:
+		// The value is one branch or the other; the condition is read, and
+		// stays a source of it.
+		return union([]*shape{opaque([]*shape{a.shapeOf(e.Cond, sc)}), a.shapeOf(e.Then, sc), a.shapeOf(e.Else, sc)})
 	case *ast.ExistsExpr:
 		// EXISTS returns a boolean, which carries no value of the subquery;
 		// the subquery's predicates are still collected.
 		a.selectStmt(e.Select, sc)
 		return leaf(nil)
 	}
-	return union(a.exprShapes(nil, expr, sc))
+	return opaque(a.exprShapes(nil, expr, sc))
 }
 
 // chainShape resolves a property path: the value it is rooted at, then

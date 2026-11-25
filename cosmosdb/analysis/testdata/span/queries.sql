@@ -71,6 +71,7 @@ SELECT ToString(c.n) AS s, c.n * 2 AS d FROM c
 SELECT ARRAY_SLICE(c.phones, 0, 1) AS ph FROM c
 SELECT ARRAY_CONCAT(c.phones, [c.name]) AS all FROM c
 SELECT ARRAY_LENGTH(c.tags) AS n FROM c
+SELECT ARRAY_CONCAT([c.name], [c.nick])[1] AS n FROM c
 SELECT 1 AS one, "k" AS k FROM c
 
 -- SELECT VALUE.
