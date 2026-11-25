@@ -1,14 +1,15 @@
 package catalog
 
 import (
+	"fmt"
 	"go/constant"
 	"go/token"
-	"regexp"
 	"strings"
 
 	crparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
 	plpgsqlparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/plpgsql/parser"
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
+	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/types"
 )
 
 // The keys below compare two definitions of one object, one synced and one
@@ -37,7 +38,7 @@ func (literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) { return t
 func (literalCastStripper) VisitPost(expr tree.Expr) tree.Expr {
 	switch e := expr.(type) {
 	case *tree.CastExpr:
-		if isLiteral(e.Expr) {
+		if isLiteral(e.Expr) && !castRounds(e) {
 			return e.Expr
 		}
 	case *tree.AnnotateTypeExpr:
@@ -63,6 +64,37 @@ func (literalCastStripper) VisitPost(expr tree.Expr) tree.Expr {
 	}
 	return expr
 }
+
+// castRounds reports whether a cast can change its literal's value: a number
+// with a fraction cast to a type other than DECIMAL or FLOAT. CockroachDB
+// adds no such cast to what it stores, so a cast that rounds is kept.
+func castRounds(cast *tree.CastExpr) bool {
+	fraction := false
+	tree.WalkExprConst(&numVisitor{visit: func(n *tree.NumVal) {
+		orig := n.OrigString()
+		fraction = fraction || strings.ContainsAny(orig, ".eE")
+	}}, cast.Expr)
+	if !fraction {
+		return false
+	}
+	t, ok := tree.GetStaticallyKnownType(cast.Type)
+	if !ok {
+		return true
+	}
+	family := t.Family()
+	return family != types.DecimalFamily && family != types.FloatFamily
+}
+
+type numVisitor struct{ visit func(*tree.NumVal) }
+
+func (v *numVisitor) VisitPre(expr tree.Expr) (bool, tree.Expr) {
+	if n, ok := expr.(*tree.NumVal); ok {
+		v.visit(n)
+	}
+	return true, expr
+}
+
+func (*numVisitor) VisitPost(expr tree.Expr) tree.Expr { return expr }
 
 func isLiteral(expr tree.Expr) bool {
 	switch e := expr.(type) {
@@ -160,8 +192,7 @@ func bodyKey(body string, language tree.RoutineLanguage) string {
 		for i, s := range stmts {
 			parts[i] = tree.AsString(s.AST)
 		}
-		// CockroachDB stores a body's literals annotated (1:::INT8).
-		return typeAnnotation.ReplaceAllString(strings.Join(parts, "; "), "")
+		return withoutAnnotations(strings.Join(parts, "; "))
 	case "plpgsql":
 		block, err := plpgsqlparser.Parse(body)
 		if err != nil {
@@ -172,8 +203,40 @@ func bodyKey(body string, language tree.RoutineLanguage) string {
 	return body
 }
 
-// typeAnnotation matches the :::type CockroachDB adds to a stored literal.
-var typeAnnotation = regexp.MustCompile(`:::[A-Za-z0-9_]+(\[\])*`)
+// withoutAnnotations returns a SQL text's tokens without the :::type
+// CockroachDB adds to the literals of a stored body (1:::INT8), as a key: an
+// annotation inside a string or an identifier is the token's own text and
+// stays.
+func withoutAnnotations(sql string) string {
+	tokens, ok := crparser.Tokens(sql)
+	if !ok {
+		return sql
+	}
+	var b strings.Builder
+	for i := 0; i < len(tokens); i++ {
+		if tokens[i].TokenID == annotateToken {
+			// Skip the type's name, its modifiers and its array brackets.
+			i++
+			if i+1 < len(tokens) && tokens[i+1].Str == "(" {
+				for i+1 < len(tokens) && tokens[i].Str != ")" {
+					i++
+				}
+			}
+			for i+2 < len(tokens) && tokens[i+1].Str == "[" && tokens[i+2].Str == "]" {
+				i += 2
+			}
+			continue
+		}
+		fmt.Fprintf(&b, "%d:%s\x00", tokens[i].TokenID, tokens[i].Str)
+	}
+	return b.String()
+}
+
+// annotateToken is the lexer's token for :::.
+var annotateToken = func() int32 {
+	tokens, _ := crparser.Tokens("1:::INT8")
+	return tokens[1].TokenID
+}()
 
 // identifiers returns the words of a query, a superset of the columns it
 // reads, and whether it reads every column through a star.

@@ -3,6 +3,7 @@ package catalog_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -68,4 +69,97 @@ func TestLoadSDLReadsDump(t *testing.T) {
 	plan, err := catalog.BuildSDLMigrationPlan(sdl, string(dump), catalog.SDLMigrationOptions{})
 	require.NoError(t, err)
 	require.Nil(t, plan, "SDL:\n%s\ndiffers from the dump by:\n%s", sdl, plan.SQL())
+}
+
+// TestLoadSDLNamesChecks names unnamed checks as v25.2.3 does: a table's own
+// checks before its columns' checks, each check_ and its columns, then 1, 2
+// and on past the names taken.
+func TestLoadSDLNamesChecks(t *testing.T) {
+	loaded, err := catalog.LoadSDL(`CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 CHECK (a > 0) CHECK (a < 10), CHECK (a <> 5), b INT8 CHECK (b > 0), CONSTRAINT check_b1 CHECK (b < 9));
+ALTER TABLE t ADD CHECK (a <> 7);
+ALTER TABLE t ADD CHECK (b <> 7);`)
+	require.NoError(t, err)
+	names := make(map[string]string)
+	for _, check := range loaded.Schemas[0].Tables[0].CheckConstraints {
+		names[check.Expression] = check.Name
+	}
+	require.Equal(t, map[string]string{
+		"((a != 5))": "check_a",
+		"((a > 0))":  "check_a1",
+		"((a < 10))": "check_a2",
+		"((b > 0))":  "check_b",
+		"((b < 9))":  "check_b1",
+		"((a != 7))": "check_a3",
+		"((b != 7))": "check_b2",
+	}, names)
+}
+
+// TestSDLViewWithCTE orders a view after the stored view it reads, not after
+// a stored view its CTE shares a name with.
+func TestSDLViewWithCTE(t *testing.T) {
+	plan, err := catalog.BuildSDLMigrationPlan("", `CREATE TABLE public.t (id INT8 PRIMARY KEY);
+CREATE VIEW public.z AS WITH a AS (SELECT id FROM public.t) SELECT id FROM a;
+CREATE VIEW public.a AS SELECT id FROM public.z;`, catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	sql := plan.SQL()
+	require.Less(t, strings.Index(sql, `CREATE VIEW "public"."z"`), strings.Index(sql, `CREATE VIEW "public"."a"`), sql)
+}
+
+// TestSDLSequenceAlterBounds holds ALTER SEQUENCE's bounds to v25.2.3: NO
+// MINVALUE and NO MAXVALUE reset to INT8's defaults, and a bound left at its
+// type's limit widens to INT8's.
+func TestSDLSequenceAlterBounds(t *testing.T) {
+	plan, err := catalog.BuildSDLMigrationPlan("CREATE SEQUENCE s MINVALUE 5;", "CREATE SEQUENCE s MINVALUE 5; ALTER SEQUENCE s NO MINVALUE;", catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+	require.Contains(t, plan.SQL(), "MINVALUE 1")
+
+	loaded, err := catalog.LoadSDL(`CREATE SEQUENCE m AS INT2 INCREMENT 3 MINVALUE 5 START 7;
+ALTER SEQUENCE m INCREMENT -2 NO MINVALUE;
+CREATE SEQUENCE d AS INT4 INCREMENT -1 MINVALUE -50 MAXVALUE -5 START -10;
+ALTER SEQUENCE d NO MINVALUE NO MAXVALUE;
+CREATE SEQUENCE p AS INT4;
+ALTER SEQUENCE p MAXVALUE 2147483647 CACHE 2;`)
+	require.NoError(t, err)
+	bounds := make(map[string][2]string)
+	for _, sequence := range loaded.Schemas[0].Sequences {
+		bounds[sequence.Name] = [2]string{sequence.MinValue, sequence.MaxValue}
+	}
+	require.Equal(t, map[string][2]string{
+		"m": {"-9223372036854775808", "9223372036854775807"},
+		"d": {"-9223372036854775808", "-1"},
+		"p": {"1", "2147483647"},
+	}, bounds)
+}
+
+// TestSDLKeysKeepValues requires the comparison keys to keep what changes a
+// value: a cast that rounds a literal, and annotation-like text in a string.
+func TestSDLKeysKeepValues(t *testing.T) {
+	for name, pair := range map[string][2]string{
+		"rounding cast": {
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5::INT8);",
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5::DECIMAL);",
+		},
+		"string in a body": {
+			"CREATE FUNCTION f() RETURNS STRING LANGUAGE SQL AS $$ SELECT 'a:::INT8' $$;",
+			"CREATE FUNCTION f() RETURNS STRING LANGUAGE SQL AS $$ SELECT 'a' $$;",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			plan, err := catalog.BuildSDLMigrationPlan(pair[0], pair[1], catalog.SDLMigrationOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, plan)
+		})
+	}
+	for name, pair := range map[string][2]string{
+		"stored cast":       {"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT 'x'::STRING);", "CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT 'x');"},
+		"stored annotation": {"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5:::DECIMAL);", "CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5);"},
+		"annotated body":    {"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1:::INT8 + 2:::DECIMAL(10,2)::INT8 $$;", "CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 + 2::INT8 $$;"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			plan, err := catalog.BuildSDLMigrationPlan(pair[0], pair[1], catalog.SDLMigrationOptions{})
+			require.NoError(t, err)
+			require.Nil(t, plan, "%v", plan)
+		})
+	}
 }

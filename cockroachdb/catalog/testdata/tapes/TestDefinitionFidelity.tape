@@ -22,13 +22,14 @@
 |     mood fid_cols.mood DEFAULT 'happy',
 |     home fid_cols.address,
 |     tags STRING[] DEFAULT ARRAY[]::STRING[],
-|     balance DECIMAL(12, 2) DEFAULT 0 CHECK (balance >= 0),
+|     balance DECIMAL(12, 2) DEFAULT 0 CHECK (balance >= 0) CHECK (balance < 1000000),
 |     ratio FLOAT8,
 |     small INT2,
 |     secret STRING NOT VISIBLE,
 |     doc JSONB,
 |     created TIMESTAMPTZ DEFAULT now(),
-|     CONSTRAINT customers_email_check CHECK (email != '')
+|     CONSTRAINT customers_email_check CHECK (email != ''),
+|     CHECK (balance != 13)
 | );
 < ok 0 -
 > exec
@@ -1113,7 +1114,27 @@
 : string
 | check_balance
 : string
+| CHECK ((balance != 13))
+: null
+< row
+: string
+| fid_cols
+: string
+| customers
+: string
+| check_balance1
+: string
 | CHECK ((balance >= 0))
+: null
+< row
+: string
+| fid_cols
+: string
+| customers
+: string
+| check_balance2
+: string
+| CHECK ((balance < 1000000))
 : null
 < row
 : string
@@ -1542,7 +1563,9 @@
 |     "doc" jsonb,
 |     "created" timestamp with time zone DEFAULT now(),
 |     CONSTRAINT "customers_pkey" PRIMARY KEY (id ASC),
-|     CONSTRAINT "check_balance" CHECK ((balance >= 0)),
+|     CONSTRAINT "check_balance" CHECK ((balance != 13)),
+|     CONSTRAINT "check_balance1" CHECK ((balance >= 0)),
+|     CONSTRAINT "check_balance2" CHECK ((balance < 1000000)),
 |     CONSTRAINT "customers_email_check" CHECK ((email != ''::STRING))
 | );
 < ok 0 -
@@ -2642,7 +2665,27 @@
 : string
 | check_balance
 : string
+| CHECK ((balance != 13))
+: null
+< row
+: string
+| fid_cols
+: string
+| customers
+: string
+| check_balance1
+: string
 | CHECK ((balance >= 0))
+: null
+< row
+: string
+| fid_cols
+: string
+| customers
+: string
+| check_balance2
+: string
+| CHECK ((balance < 1000000))
 : null
 < row
 : string

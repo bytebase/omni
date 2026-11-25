@@ -53,13 +53,14 @@ CREATE TABLE fid_cols.customers (
     mood fid_cols.mood DEFAULT 'happy',
     home fid_cols.address,
     tags STRING[] DEFAULT ARRAY[]::STRING[],
-    balance DECIMAL(12, 2) DEFAULT 0 CHECK (balance >= 0),
+    balance DECIMAL(12, 2) DEFAULT 0 CHECK (balance >= 0) CHECK (balance < 1000000),
     ratio FLOAT8,
     small INT2,
     secret STRING NOT VISIBLE,
     doc JSONB,
     created TIMESTAMPTZ DEFAULT now(),
-    CONSTRAINT customers_email_check CHECK (email != '')
+    CONSTRAINT customers_email_check CHECK (email != ''),
+    CHECK (balance != 13)
 );
 COMMENT ON TABLE fid_cols.customers IS 'a customer';
 COMMENT ON COLUMN fid_cols.customers.email IS 'login';

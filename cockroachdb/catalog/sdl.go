@@ -2,6 +2,8 @@ package catalog
 
 import (
 	"fmt"
+	"math"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -216,8 +218,12 @@ func (l *sdlLoader) createType(n *tree.CreateType) error {
 }
 
 // applySequenceOptions sets a sequence's options. A new sequence takes
-// CockroachDB's defaults for the options it leaves out.
+// CockroachDB's defaults for the options it leaves out. An ALTER SEQUENCE
+// sets a bound it resets with NO MINVALUE or NO MAXVALUE to INT8's default,
+// and widens a bound it does not name that is its type's limit to INT8's,
+// whatever the sequence's type: v25.2.3 does both.
 func applySequenceOptions(sequence *metadatapb.SequenceMetadata, options tree.SequenceOptions, create bool) error {
+	minStated, maxStated := false, false
 	for _, option := range options {
 		value := ""
 		if option.IntVal != nil {
@@ -229,9 +235,9 @@ func applySequenceOptions(sequence *metadatapb.SequenceMetadata, options tree.Se
 		case tree.SeqOptIncrement:
 			sequence.Increment = value
 		case tree.SeqOptMinValue:
-			sequence.MinValue = value
+			sequence.MinValue, minStated = value, true
 		case tree.SeqOptMaxValue:
-			sequence.MaxValue = value
+			sequence.MaxValue, maxStated = value, true
 		case tree.SeqOptStart:
 			sequence.Start = value
 		case tree.SeqOptCache:
@@ -252,6 +258,14 @@ func applySequenceOptions(sequence *metadatapb.SequenceMetadata, options tree.Se
 		}
 	}
 	if !create {
+		limit := sequenceLimit(sequence.DataType)
+		if !minStated && sequence.MinValue == strconv.FormatInt(-limit-1, 10) {
+			sequence.MinValue = strconv.FormatInt(math.MinInt64, 10)
+		}
+		if !maxStated && sequence.MaxValue == strconv.FormatInt(limit, 10) {
+			sequence.MaxValue = strconv.FormatInt(math.MaxInt64, 10)
+		}
+		defaultBounds(sequence, math.MaxInt64)
 		return nil
 	}
 	if sequence.DataType == "" {
@@ -260,10 +274,30 @@ func applySequenceOptions(sequence *metadatapb.SequenceMetadata, options tree.Se
 	if sequence.Increment == "" {
 		sequence.Increment = "1"
 	}
-	limit := map[string]int64{"INT2": 32767, "INT4": 2147483647}[sequence.DataType]
-	if limit == 0 {
-		limit = 9223372036854775807
+	defaultBounds(sequence, sequenceLimit(sequence.DataType))
+	if sequence.Start == "" {
+		sequence.Start = sequence.MinValue
+		if strings.HasPrefix(sequence.Increment, "-") {
+			sequence.Start = sequence.MaxValue
+		}
 	}
+	return nil
+}
+
+// sequenceLimit is the largest value of a sequence's type.
+func sequenceLimit(dataType string) int64 {
+	switch dataType {
+	case "INT2":
+		return math.MaxInt16
+	case "INT4":
+		return math.MaxInt32
+	}
+	return math.MaxInt64
+}
+
+// defaultBounds gives a sequence the bounds it does not state, for its
+// direction, up to limit.
+func defaultBounds(sequence *metadatapb.SequenceMetadata, limit int64) {
 	descending := strings.HasPrefix(sequence.Increment, "-")
 	if sequence.MinValue == "" {
 		sequence.MinValue = "1"
@@ -277,13 +311,6 @@ func applySequenceOptions(sequence *metadatapb.SequenceMetadata, options tree.Se
 			sequence.MaxValue = "-1"
 		}
 	}
-	if sequence.Start == "" {
-		sequence.Start = sequence.MinValue
-		if descending {
-			sequence.Start = sequence.MaxValue
-		}
-	}
-	return nil
 }
 
 // sdlType returns a column type as CockroachDB's formatter writes it, with a
@@ -320,6 +347,14 @@ func (l *sdlLoader) createTable(n *tree.CreateTable) error {
 	s := l.schema(schema)
 	table := &metadatapb.TableMetadata{Name: string(n.Table.ObjectName)}
 	s.Tables = append(s.Tables, table)
+	// CockroachDB names a table's own checks before its columns' checks.
+	for _, def := range n.Defs {
+		if check, ok := def.(*tree.CheckConstraintTableDef); ok {
+			if err := l.addTableDef(schema, table, check); err != nil {
+				return err
+			}
+		}
+	}
 	for _, def := range n.Defs {
 		if column, ok := def.(*tree.ColumnTableDef); ok {
 			if err := l.addColumn(schema, table, column); err != nil {
@@ -328,6 +363,9 @@ func (l *sdlLoader) createTable(n *tree.CreateTable) error {
 		}
 	}
 	for _, def := range n.Defs {
+		if _, ok := def.(*tree.CheckConstraintTableDef); ok {
+			continue
+		}
 		if err := l.addTableDef(schema, table, def); err != nil {
 			return err
 		}
@@ -373,7 +411,7 @@ func (l *sdlLoader) addColumn(schema string, table *metadatapb.TableMetadata, co
 		table.Indexes = append(table.Indexes, sdlIndex(schema, table.Name, index))
 	}
 	for _, check := range column.CheckExprs {
-		table.CheckConstraints = append(table.CheckConstraints, sdlCheck(string(check.ConstraintName), check.Expr))
+		table.CheckConstraints = append(table.CheckConstraints, sdlCheck(table, string(check.ConstraintName), check.Expr))
 	}
 	if column.References.Table != nil {
 		fk := &tree.ForeignKeyConstraintTableDef{
@@ -406,7 +444,7 @@ func (l *sdlLoader) addTableDef(schema string, table *metadatapb.TableMetadata, 
 	case *tree.IndexTableDef:
 		table.Indexes = append(table.Indexes, sdlIndex(schema, table.Name, indexOf(d)))
 	case *tree.CheckConstraintTableDef:
-		table.CheckConstraints = append(table.CheckConstraints, sdlCheck(string(d.Name), d.Expr))
+		table.CheckConstraints = append(table.CheckConstraints, sdlCheck(table, string(d.Name), d.Expr))
 	case *tree.ForeignKeyConstraintTableDef:
 		return l.addForeignKey(schema, table, d)
 	default:
@@ -481,8 +519,9 @@ func sdlIndex(schema, table string, n *tree.CreateIndex) *metadatapb.IndexMetada
 }
 
 // sdlCheck states a check as the sync does, parenthesized, named as
-// CockroachDB names it when the SDL does not.
-func sdlCheck(name string, expr tree.Expr) *metadatapb.CheckConstraintMetadata {
+// CockroachDB names it when the SDL does not: check_ and the columns it
+// reads, then 1, 2 and on until no other check of the table has the name.
+func sdlCheck(table *metadatapb.TableMetadata, name string, expr tree.Expr) *metadatapb.CheckConstraintMetadata {
 	if name == "" {
 		var columns []string
 		seen := make(map[string]bool)
@@ -492,7 +531,11 @@ func sdlCheck(name string, expr tree.Expr) *metadatapb.CheckConstraintMetadata {
 				columns = append(columns, column)
 			}
 		}}, expr)
-		name = strings.Join(append([]string{"check"}, columns...), "_")
+		base := strings.Join(append([]string{"check"}, columns...), "_")
+		name = base
+		for i := 1; slices.ContainsFunc(table.CheckConstraints, func(c *metadatapb.CheckConstraintMetadata) bool { return c.Name == name }); i++ {
+			name = base + strconv.Itoa(i)
+		}
 	}
 	return &metadatapb.CheckConstraintMetadata{Name: name, Expression: "((" + sdlExpr(expr) + "))"}
 }
@@ -588,11 +631,12 @@ func (l *sdlLoader) createView(n *tree.CreateView) error {
 	s := l.schema(schema)
 	dropCatalogs(n.AsSource)
 	definition := tree.AsString(n.AsSource)
+	ctes := cteNames(definition)
 	var dependencies []*metadatapb.DependencyColumn
 	seen := make(map[string]bool)
 	ctx := tree.NewFmtCtx(tree.FmtSimple, tree.FmtReformatTableNames(func(ctx *tree.FmtCtx, tn *tree.TableName) {
 		dep := &metadatapb.DependencyColumn{Schema: schemaOf(tn), Table: string(tn.ObjectName)}
-		if id := getObjectID(dep.Schema, dep.Table); !seen[id] {
+		if id := getObjectID(dep.Schema, dep.Table); !seen[id] && (tn.ExplicitSchema || !ctes[dep.Table]) {
 			seen[id] = true
 			dependencies = append(dependencies, dep)
 		}
