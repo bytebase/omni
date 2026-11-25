@@ -140,26 +140,56 @@ func (a *analyzer) element(s *shape) *shape {
 	return e
 }
 
-// selection identifies sels applied to a shape: sels is a suffix of one
-// chain's selectors, named by its first element and its length.
-type selection struct {
-	shape *shape
-	first *Selector
-	n     int
+// A chain is the selectors of one property path, with an id for each of
+// its suffixes: equal suffixes of any two chains have the same id, so a
+// selection made through either is made once.
+type chain struct {
+	sels []Selector
+	ids  []int // ids[i] names sels[i:]; ids[len(sels)] is 0, no selector
 }
 
-// selectFrom applies sels to the value s, in order. It is memoized per
-// shape and suffix of selectors, so selecting through a shape that several
-// unions share builds each result once.
-func (a *analyzer) selectFrom(s *shape, sels []Selector) *shape {
-	if len(sels) == 0 {
+// suffix interns a selector followed by the suffix next.
+type suffix struct {
+	sel  Selector
+	next int
+}
+
+// chainOf interns the suffixes of sels.
+func (a *analyzer) chainOf(sels []Selector) chain {
+	if a.suffixes == nil {
+		a.suffixes = map[suffix]int{}
+	}
+	ids := make([]int, len(sels)+1)
+	for i := len(sels) - 1; i >= 0; i-- {
+		key := suffix{sels[i], ids[i+1]}
+		id, ok := a.suffixes[key]
+		if !ok {
+			id = len(a.suffixes) + 1
+			a.suffixes[key] = id
+		}
+		ids[i] = id
+	}
+	return chain{sels: sels, ids: ids}
+}
+
+// selection identifies a suffix of selectors applied to a shape.
+type selection struct {
+	shape  *shape
+	suffix int
+}
+
+// selectFrom applies c's selectors from the i-th on to the value s. It is
+// memoized per shape and suffix, so selecting through a shape that several
+// unions or accesses share builds each result once.
+func (a *analyzer) selectFrom(s *shape, c chain, i int) *shape {
+	if i == len(c.sels) {
 		return s
 	}
-	key := selection{s, &sels[0], len(sels)}
+	key := selection{s, c.ids[i]}
 	if r, ok := a.selections[key]; ok {
 		return r
 	}
-	r := a.selectOnce(s, sels)
+	r := a.selectOnce(s, c, i)
 	if a.selections == nil {
 		a.selections = map[selection]*shape{}
 	}
@@ -167,42 +197,42 @@ func (a *analyzer) selectFrom(s *shape, sels []Selector) *shape {
 	return r
 }
 
-// selectOnce applies the first of sels to s and the rest, through
+// selectOnce applies the i-th of c's selectors to s and the rest, through
 // selectFrom, to what it selects, so every step is memoized.
-func (a *analyzer) selectOnce(s *shape, sels []Selector) *shape {
-	sel, rest := sels[0], sels[1:]
+func (a *analyzer) selectOnce(s *shape, c chain, i int) *shape {
+	sel := c.sels[i]
 	switch {
 	case s.kind == objectShape && !sel.IsArray():
 		m := s.member(sel.Name)
 		if m == nil {
 			return leaf(nil)
 		}
-		return a.selectFrom(m, rest)
+		return a.selectFrom(m, c, i+1)
 	case s.kind == arrayShape && sel.IsArray():
 		if sel.ArrayIndex >= len(s.members) {
 			return leaf(nil)
 		}
-		return a.selectFrom(s.members[sel.ArrayIndex], rest)
+		return a.selectFrom(s.members[sel.ArrayIndex], c, i+1)
 	case s.kind == elementsShape && sel.IsArray():
-		return a.selectFrom(s.members[0], rest)
+		return a.selectFrom(s.members[0], c, i+1)
 	case s.kind == unionShape:
 		// The selectors select from each operand.
 		out := make([]*shape, len(s.members))
 		for k, m := range s.members {
-			out[k] = a.selectFrom(m, sels)
+			out[k] = a.selectFrom(m, c, i)
 		}
 		return union(out)
 	case s.kind == leafShape:
 		// The selectors select a stored property of each source.
 		out := make([]FieldPath, len(s.leaf))
 		for k, p := range s.leaf {
-			out[k] = extend(p, sels)
+			out[k] = extend(p, c.sels[i:])
 		}
 		return leaf(out)
 	}
 	// A selector a built value does not answer by structure (an index of an
 	// object, a name of an array) selects from all its sources.
-	return a.selectFrom(leaf(s.paths(nil)), sels)
+	return a.selectFrom(leaf(s.paths(nil)), c, i)
 }
 
 // extend returns a new path: p followed by sels, at most maxPathLen long.
@@ -280,5 +310,5 @@ peel:
 	for i, j := 0, len(sels)-1; i < j; i, j = i+1, j-1 {
 		sels[i], sels[j] = sels[j], sels[i]
 	}
-	return a.selectFrom(a.shapeOf(root, sc), sels)
+	return a.selectFrom(a.shapeOf(root, sc), a.chainOf(sels), 0)
 }

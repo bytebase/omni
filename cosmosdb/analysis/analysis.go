@@ -55,6 +55,7 @@ type analyzer struct {
 	predicates []FieldPath
 	elements   map[*shape]*shape
 	selections map[selection]*shape
+	suffixes   map[suffix]int
 }
 
 // selectOutput is what one SELECT returns: its items' names and shapes, or,

@@ -24,17 +24,17 @@ func TestAnalyzeChainsStayLinear(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		sql       string
-		wantPaths int    // field paths in WHERE, or in the one projection
+		wantPaths int    // distinct field paths in WHERE, or in the one projection
 		wantLast  string // the last of them
 	}{
-		{"OR", where(strings.Repeat("c.a OR ", chain) + "c.z"), chain + 1, "c.z"},
-		{"AND", where(strings.Repeat("c.a AND ", chain) + "c.z"), chain + 1, "c.z"},
-		{"addition", where(strings.Repeat("c.a + ", chain) + "c.z"), chain + 1, "c.z"},
-		{"BETWEEN", where("c.a" + strings.Repeat(" BETWEEN c.b AND c.z", chain/2)), chain + 1, "c.z"},
-		{"LIKE", where("c.a" + strings.Repeat(" LIKE c.z", chain)), chain + 1, "c.z"},
-		{"IN", where("c.a" + strings.Repeat(" IN (c.z)", chain)), chain + 1, "c.z"},
-		{"projected OR", "SELECT " + strings.Repeat("c.a OR ", chain) + "c.z FROM c", chain + 1, "c.z"},
-		{"property of an OR", where("(" + strings.Repeat("c.a OR ", chain) + "c.z).x"), chain + 1, "c.z.x"},
+		{"OR", where(strings.Repeat("c.a OR ", chain) + "c.z"), 2, "c.z"},
+		{"AND", where(strings.Repeat("c.a AND ", chain) + "c.z"), 2, "c.z"},
+		{"addition", where(strings.Repeat("c.a + ", chain) + "c.z"), 2, "c.z"},
+		{"BETWEEN", where("c.a" + strings.Repeat(" BETWEEN c.b AND c.z", chain/2)), 3, "c.z"},
+		{"LIKE", where("c.a" + strings.Repeat(" LIKE c.z", chain)), 2, "c.z"},
+		{"IN", where("c.a" + strings.Repeat(" IN (c.z)", chain)), 2, "c.z"},
+		{"projected OR", "SELECT " + strings.Repeat("c.a OR ", chain) + "c.z FROM c", 2, "c.z"},
+		{"property of an OR", where("(" + strings.Repeat("c.a OR ", chain) + "c.z).x"), 2, "c.z.x"},
 		{"properties of an object", where(`{"k": c.z}` + strings.Repeat(".k", chain)), 1, "c.z" + strings.Repeat(".k", 127)},
 		{"properties of nested objects", where(strings.Repeat(`{"k": `, nested) + "c.z" + strings.Repeat("}.k", nested)), 1, "c.z"},
 		{"nested scalar subqueries", "SELECT " + strings.Repeat("(SELECT VALUE ", nested/2) + "c" + strings.Repeat(".k", nested/2) + strings.Repeat(")", nested/2) + " AS v FROM c", 1, "c" + strings.Repeat(".k", 128)},
@@ -42,11 +42,12 @@ func TestAnalyzeChainsStayLinear(t *testing.T) {
 		{"a sum of a binding doubled at every level", "SELECT VALUE s FROM " + strings.Repeat("(SELECT VALUE s + s FROM ", nested/10) + "(SELECT VALUE c.z FROM c) s" + strings.Repeat(") s", nested/10), 1, "c.z"},
 		{"a computed binding doubled at every level", "SELECT VALUE s FROM " + strings.Repeat("(SELECT VALUE (s + s).k FROM ", nested/10) + "(SELECT VALUE c.z FROM c) s" + strings.Repeat(") s", nested/10), 1, "c.z" + strings.Repeat(".k", 127)},
 		{"selectors through a union shared at every level", "SELECT VALUE s" + strings.Repeat(".k", 300) + " FROM " + strings.Repeat(`(SELECT VALUE s ?? {"k": s} FROM `, 300) + "(SELECT VALUE c.z FROM c) s" + strings.Repeat(") s", 300), 301, "c.z"},
+		{"equal accesses at every level", "SELECT VALUE s FROM " + strings.Repeat("(SELECT VALUE s.k ?? s.k FROM ", 300) + "(SELECT VALUE c.z FROM c) s" + strings.Repeat(") s", 300), 1, "c.z" + strings.Repeat(".k", 127)},
 		{"elements of nested arrays", where(strings.Repeat("[", nested) + "c.z" + strings.Repeat("][0]", nested)), 1, "c.z"},
-		{"ternary", where(strings.Repeat("c.a ? c.b : ", nested) + "c.z"), 2*nested + 1, "c.z"},
-		{"function calls", where(strings.Repeat("CONCAT(", nested) + "c.a" + strings.Repeat(", c.z)", nested)), nested + 1, "c.z"},
-		{"arrays", where(strings.Repeat("[", nested) + "c.a" + strings.Repeat(", c.z]", nested)), nested + 1, "c.z"},
-		{"objects", where(strings.Repeat(`{"k": `, nested) + "c.a" + strings.Repeat(`, "j": c.z}`, nested)), nested + 1, "c.z"},
+		{"ternary", where(strings.Repeat("c.a ? c.b : ", nested) + "c.z"), 3, "c.z"},
+		{"function calls", where(strings.Repeat("CONCAT(", nested) + "c.a" + strings.Repeat(", c.z)", nested)), 2, "c.z"},
+		{"arrays", where(strings.Repeat("[", nested) + "c.a" + strings.Repeat(", c.z]", nested)), 2, "c.z"},
+		{"objects", where(strings.Repeat(`{"k": `, nested) + "c.a" + strings.Repeat(`, "j": c.z}`, nested)), 2, "c.z"},
 	} {
 		sel := parseSelect(t, tc.sql)
 		var qa *analysis.QueryAnalysis
