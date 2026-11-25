@@ -12473,6 +12473,62 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
 < ok 0 0
 > exec
+| ALTER EVENT utf8mb4 DISABLE ON REPLICA
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+< result
+< column "ROUTINE_TYPE" "ENUM" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() ORDER BY TRIGGER_NAME
+< result
+< column "TRIGGER" "VARCHAR" "string"
+< column "TRIGGER_NAME" "VARCHAR" "string"
+> query
+| SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() ORDER BY EVENT_NAME
+< result
+< column "EVENT" "VARCHAR" "string"
+< column "EVENT_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| utf8mb4
+> query
+| SHOW CREATE EVENT `utf8mb4`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `utf8mb4` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE DISABLE ON REPLICA DO COMMIT
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+< ok 0 0
+> exec
 | ALTER EVENT utf8mb4 ON COMPLETION NOT PRESERVE
 < ok 0 0
 > query
@@ -13261,6 +13317,83 @@
 < ok 0 0
 > exec
 | CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON SLAVE DO COMMIT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+< result
+< column "ROUTINE_TYPE" "ENUM" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() ORDER BY TRIGGER_NAME
+< result
+< column "TRIGGER" "VARCHAR" "string"
+< column "TRIGGER_NAME" "VARCHAR" "string"
+> query
+| SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() ORDER BY EVENT_NAME
+< result
+< column "EVENT" "VARCHAR" "string"
+< column "EVENT_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| nightly
+> query
+| SHOW CREATE EVENT `nightly`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| nightly
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `nightly` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE DISABLE ON REPLICA DO COMMIT
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON REPLICA DO COMMIT
 < ok 0 0
 > query
 | SHOW FULL TABLES

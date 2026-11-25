@@ -358,7 +358,7 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@event	simple_statement/drop_event
 1054	1054	engine	objects@event	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY;
 1054	1054	engine	objects@event	ev_schedule_time/AT_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4;
 ok:36db948ea5c5	ok:36db948ea5c5	engine	objects@event	opt_ev_status/ENABLE_SYM	ALTER EVENT utf8mb4 ENABLE;
-ok	ok:9371bada0cfc	engine	objects@event	opt_ev_status/DISABLE_SYM_ON_SYM_SLAVE	ALTER EVENT utf8mb4 DISABLE ON SLAVE;
+ok:9371bada0cfc	ok:9371bada0cfc	engine	objects@event	opt_ev_status/DISABLE_SYM_ON_SYM_SLAVE	ALTER EVENT utf8mb4 DISABLE ON SLAVE;
 ok:0150f8691195	ok:0150f8691195	engine	objects@event	opt_ev_status/DISABLE_SYM	ALTER EVENT utf8mb4 DISABLE;
 1054	1054	engine	objects@event	ev_starts/STARTS_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY STARTS utf8mb4;
 1054	1054	engine	objects@event	ev_ends/ENDS_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY ENDS utf8mb4;
@@ -434,7 +434,8 @@ ok:eb5074ef0cd6	ok:eb5074ef0cd6	engine	objects@event	event:alter	ALTER EVENT utf
 ok:8d211f20ab58	ok:8d211f20ab58	engine	objects@event	event:alter	ALTER EVENT utf8mb4 ON SCHEDULE AT '2031-01-01 00:00:00'
 ok:bb65014e23b1	ok:bb65014e23b1	engine	objects@event	event:alter	ALTER EVENT utf8mb4 ON SCHEDULE EVERY 2 HOUR STARTS '2030-06-01 00:00:00' ENDS '2031-01-01 00:00:00'
 ok:0150f8691195	ok:0150f8691195	engine	objects@event	event:alter	ALTER EVENT utf8mb4 DISABLE
-ok	ok:9371bada0cfc	engine	objects@event	event:alter	ALTER EVENT utf8mb4 DISABLE ON SLAVE
+ok:9371bada0cfc	ok:9371bada0cfc	engine	objects@event	event:alter	ALTER EVENT utf8mb4 DISABLE ON SLAVE
+ok:9371bada0cfc	ok:9371bada0cfc	engine	objects@event	event:alter	ALTER EVENT utf8mb4 DISABLE ON REPLICA
 ok:720db8a7e3fe	ok:720db8a7e3fe	engine	objects@event	event:alter	ALTER EVENT utf8mb4 ON COMPLETION NOT PRESERVE
 ok:e5f6cc0ed0b1	ok:e5f6cc0ed0b1	engine	objects@event	event:alter	ALTER EVENT utf8mb4 COMMENT 'nightly'
 ok:698ddb2b224c	ok:698ddb2b224c	engine	objects@event	event:alter	ALTER EVENT utf8mb4 DO SELECT 1
@@ -454,4 +455,5 @@ ok:faeef7b6cc4d	ok:faeef7b6cc4d	engine	one_table@missing	event:create	CREATE EVE
 1542	1542	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 0 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
 ok:04fc9be5a860	ok:04fc9be5a860	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY '1:30' HOUR_MINUTE STARTS '2030-01-01 00:00:00' DO COMMIT
 ok:a97b45e8a426	ok:a97b45e8a426	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO BEGIN DELETE FROM t; INSERT INTO t VALUES (1, 1, 1); END
-ok	ok:691a6f6c5528	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON SLAVE DO COMMIT
+ok:691a6f6c5528	ok:691a6f6c5528	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON SLAVE DO COMMIT
+ok:691a6f6c5528	ok:691a6f6c5528	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON REPLICA DO COMMIT

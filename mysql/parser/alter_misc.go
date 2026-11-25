@@ -135,7 +135,7 @@ func (p *Parser) parseAlterViewStmt(start int) (*nodes.AlterViewStmt, error) {
 //	    [ON SCHEDULE schedule_clause]
 //	    [ON COMPLETION [NOT] PRESERVE]
 //	    [RENAME TO new_event_name]
-//	    [ENABLE | DISABLE | DISABLE ON SLAVE]
+//	    [ENABLE | DISABLE | DISABLE ON {REPLICA | SLAVE}]
 //	    [COMMENT 'string']
 //	    [DO event_body]
 func (p *Parser) parseAlterEventStmt(start int) (*nodes.AlterEventStmt, error) {
@@ -203,22 +203,8 @@ func (p *Parser) parseAlterEventStmt(start int) (*nodes.AlterEventStmt, error) {
 		stmt.RenameTo = newName
 	}
 
-	// Optional: ENABLE | DISABLE [ON SLAVE]
-	if p.cur.Type == kwENABLE {
-		stmt.Enable = "ENABLE"
-		p.advance()
-	} else if p.cur.Type == kwDISABLE {
-		stmt.Enable = "DISABLE"
-		p.advance()
-		if p.cur.Type == kwON {
-			next := p.peekNext()
-			if next.Type == kwSLAVE {
-				p.advance()
-				p.advance()
-				stmt.Enable = "DISABLE ON SLAVE"
-			}
-		}
-	}
+	// Optional: ENABLE | DISABLE [ON {SLAVE | REPLICA}]
+	stmt.Enable = p.parseEventStatus()
 
 	// Optional: COMMENT 'string'
 	hasComment := p.cur.Type == kwCOMMENT

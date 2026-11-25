@@ -147,6 +147,35 @@ func (p *Parser) parseCreateTriggerStmt(start int) (*nodes.CreateTriggerStmt, er
 	return stmt, nil
 }
 
+// parseEventStatus reads an event's optional opt_ev_status and returns its
+// spelling, "" when there is none. DISABLE ON REPLICA is the arm MySQL 8.4's
+// sql_yacc.yy adds to opt_ev_status beside DISABLE ON SLAVE, which it
+// deprecates (https://dev.mysql.com/doc/refman/8.4/en/create-event.html);
+// 8.0.46's has no such arm, so the catalog refuses it at MySQL80.
+func (p *Parser) parseEventStatus() string {
+	switch p.cur.Type {
+	case kwENABLE:
+		p.advance()
+		return "ENABLE"
+	case kwDISABLE:
+		p.advance()
+		if p.cur.Type == kwON {
+			switch p.peekNext().Type {
+			case kwSLAVE:
+				p.advance()
+				p.advance()
+				return "DISABLE ON SLAVE"
+			case kwREPLICA:
+				p.advance()
+				p.advance()
+				return "DISABLE ON REPLICA"
+			}
+		}
+		return "DISABLE"
+	}
+	return ""
+}
+
 // parseCreateEventStmt parses a CREATE EVENT statement.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/create-event.html
@@ -154,7 +183,7 @@ func (p *Parser) parseCreateTriggerStmt(start int) (*nodes.CreateTriggerStmt, er
 //	CREATE [DEFINER = user] EVENT [IF NOT EXISTS] event_name
 //	    ON SCHEDULE schedule
 //	    [ON COMPLETION [NOT] PRESERVE]
-//	    [ENABLE | DISABLE | DISABLE ON SLAVE]
+//	    [ENABLE | DISABLE | DISABLE ON {REPLICA | SLAVE}]
 //	    [COMMENT 'string']
 //	    DO event_body
 func (p *Parser) parseCreateEventStmt(start int) (*nodes.CreateEventStmt, error) {
@@ -223,22 +252,8 @@ func (p *Parser) parseCreateEventStmt(start int) (*nodes.CreateEventStmt, error)
 		}
 	}
 
-	// Optional: ENABLE | DISABLE [ON SLAVE]
-	if p.cur.Type == kwENABLE {
-		stmt.Enable = "ENABLE"
-		p.advance()
-	} else if p.cur.Type == kwDISABLE {
-		stmt.Enable = "DISABLE"
-		p.advance()
-		if p.cur.Type == kwON {
-			next := p.peekNext()
-			if next.Type == kwSLAVE {
-				p.advance()
-				p.advance()
-				stmt.Enable = "DISABLE ON SLAVE"
-			}
-		}
-	}
+	// Optional: ENABLE | DISABLE [ON {SLAVE | REPLICA}]
+	stmt.Enable = p.parseEventStatus()
 
 	// Optional: COMMENT 'string'
 	if p.cur.Type == kwCOMMENT {

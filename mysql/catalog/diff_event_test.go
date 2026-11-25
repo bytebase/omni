@@ -161,6 +161,9 @@ func TestCanonicalEventStatusAndCompletion(t *testing.T) {
 	if canonicalEventStatus("disable on slave") != "DISABLE ON SLAVE" {
 		t.Errorf("disable on slave -> DISABLE ON SLAVE, got %q", canonicalEventStatus("disable on slave"))
 	}
+	if canonicalEventStatus("DISABLE ON REPLICA") != "DISABLE ON SLAVE" {
+		t.Errorf("DISABLE ON REPLICA -> DISABLE ON SLAVE, got %q", canonicalEventStatus("DISABLE ON REPLICA"))
+	}
 	if canonicalEventStatus("DISABLE") == canonicalEventStatus("DISABLE ON SLAVE") {
 		t.Errorf("DISABLE and DISABLE ON SLAVE must be distinct")
 	}

@@ -12473,6 +12473,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
 < ok 0 0
 > exec
+| ALTER EVENT utf8mb4 DISABLE ON REPLICA
+< error
+| 1064 42000 …near 'REPLICA' at line 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+< ok 0 0
+> exec
 | ALTER EVENT utf8mb4 ON COMPLETION NOT PRESERVE
 < ok 0 0
 > query
@@ -13333,3 +13340,10 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON REPLICA DO COMMIT
+< error
+| 1064 42000 …near 'REPLICA DO COMMIT' at line 1

@@ -101,6 +101,11 @@
         - server: ""
           database: db
           schema: dbo
+          table: MyTable1
+          column: ""
+        - server: ""
+          database: db
+          schema: dbo
           table: MyView1
           column: ""
     predicatecolumns: []
