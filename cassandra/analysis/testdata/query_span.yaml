@@ -653,7 +653,11 @@
   defaultKeyspace: test_keyspace
   type: 1
   results:
-    - sourcecolumns: []
+    - name: writetime(name)
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: name
       isplainfield: false
     - name: secret
       sourcecolumns:

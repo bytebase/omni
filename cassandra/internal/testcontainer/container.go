@@ -658,7 +658,13 @@ func startContainer() error {
 	if err != nil {
 		return err
 	}
-	container, address, err := startPinContainer(context.Background(), pin)
+	container, address, err := startPinContainer(context.Background(), pin,
+		// Cassandra 5 ships with materialized views disabled, and the span
+		// fixtures create some. The compat judge (Judge) keeps the shipped
+		// configuration, which is what its verdicts are.
+		testcontainers.WithEntrypoint("bash", "-c",
+			"sed -i 's/^materialized_views_enabled: false/materialized_views_enabled: true/' /etc/cassandra/cassandra.yaml && exec docker-entrypoint.sh cassandra -f"),
+	)
 	if err != nil {
 		return err
 	}
@@ -670,7 +676,7 @@ func startContainer() error {
 
 // startPinContainer starts the Cassandra container named by pin, verifies its
 // image digest, and returns the container handle and host:port CQL address.
-func startPinContainer(ctx context.Context, pin enginetest.Pin) (container testcontainers.Container, address string, err error) {
+func startPinContainer(ctx context.Context, pin enginetest.Pin, opts ...testcontainers.ContainerCustomizer) (container testcontainers.Container, address string, err error) {
 	// testcontainers-go panics from MustExtractDockerHost when the Docker
 	// socket is reachable but access is denied, and a test must report that
 	// rather than crash the binary.
@@ -679,7 +685,7 @@ func startPinContainer(ctx context.Context, pin enginetest.Pin) (container testc
 			err = fmt.Errorf("docker provider panic: %v", r)
 		}
 	}()
-	container, err = testcontainers.Run(ctx, pin.ImageRef(),
+	container, err = testcontainers.Run(ctx, pin.ImageRef(), append([]testcontainers.ContainerCustomizer{
 		testcontainers.WithEnv(map[string]string{
 			// A recording needs one node's answers, not a cluster's, and the
 			// heap the machine can spare.
@@ -690,7 +696,7 @@ func startPinContainer(ctx context.Context, pin enginetest.Pin) (container testc
 		testcontainers.WithExposedPorts("9042/tcp"),
 		testcontainers.WithWaitStrategyAndDeadline(startupTimeout,
 			wait.ForLog("Starting listening for CQL clients").WithStartupTimeout(startupTimeout)),
-	)
+	}, opts...)...)
 	if err != nil {
 		return nil, "", err
 	}
