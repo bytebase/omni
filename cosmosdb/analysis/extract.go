@@ -22,13 +22,7 @@ func (a *analyzer) exprPaths(dst []FieldPath, expr ast.ExprNode, sc *scope) []Fi
 		return append(dst, FieldPath{ItemSelector(e.Name)})
 
 	case *ast.DotAccessExpr, *ast.BracketAccessExpr:
-		if out, ok := a.resolveChain(dst, e, sc); ok {
-			return out
-		}
-		// A property of a computed value ({"k": c.name}.k, ARRAY(...)[0])
-		// comes from that value's sources; the selector names no stored
-		// property, so it is not appended to them.
-		return a.exprPaths(dst, accessBase(e), sc)
+		return a.resolveChain(dst, e, sc)
 
 	case *ast.BinaryExpr:
 		dst = a.exprPaths(dst, e.Left, sc)
@@ -93,17 +87,6 @@ func (a *analyzer) exprPaths(dst []FieldPath, expr ast.ExprNode, sc *scope) []Fi
 		// Literals and parameters read no field.
 		return dst
 	}
-}
-
-// accessBase is the expression a property or index access applies to.
-func accessBase(expr ast.ExprNode) ast.ExprNode {
-	switch e := expr.(type) {
-	case *ast.DotAccessExpr:
-		return e.Expr
-	case *ast.BracketAccessExpr:
-		return e.Expr
-	}
-	return nil
 }
 
 // exprPathsOf appends the field paths of each expression in exprs.

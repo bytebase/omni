@@ -202,6 +202,18 @@
 < raw
 | {"items":[{"kk":"«$.name»"}]}
 > raw
+| {"op":"query","fixture":"document","statement":"SELECT (c.address ?? c.nick).city AS city FROM c"}
+< raw
+| {"items":[{"city":"«$.address.city»"}]}
+> raw
+| {"op":"query","fixture":"document","statement":"SELECT (c.n \u003e 0 ? c.address : c.tags).zip AS zip FROM c"}
+< raw
+| {"items":[{"zip":"«$.address.zip»"}]}
+> raw
+| {"op":"query","fixture":"document","statement":"SELECT IIF(c.n \u003e 0, c.address, c.tags).geo.lat FROM c"}
+< raw
+| {"items":[{"lat":"«$.address.geo.lat»"}]}
+> raw
 | {"op":"query","fixture":"document","statement":"SELECT LOWER(c.name) AS l, UPPER(c.nick) AS u FROM c"}
 < raw
 | {"items":[{"l":"«$.name»","u":"«$.NICK»"}]}

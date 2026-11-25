@@ -62,6 +62,9 @@ SELECT {"a": c.name, "b": c.address.city} AS o FROM c
 SELECT [c.name, c.address.zip] AS arr FROM c
 SELECT [c.name, c.address.city][0] AS first FROM c
 SELECT {"k": c.name}.k AS kk FROM c
+SELECT (c.address ?? c.nick).city AS city FROM c
+SELECT (c.n > 0 ? c.address : c.tags).zip AS zip FROM c
+SELECT IIF(c.n > 0, c.address, c.tags).geo.lat FROM c
 SELECT LOWER(c.name) AS l, UPPER(c.nick) AS u FROM c
 SELECT REPLACE(c.name, "x", "y") AS r FROM c
 SELECT ToString(c.n) AS s, c.n * 2 AS d FROM c

@@ -247,10 +247,13 @@ func (a *analyzer) source(te ast.TableExpr, sc *scope) *binding {
 	return &binding{}
 }
 
-// resolveChain resolves a property path rooted at an identifier: the
-// identifier's binding, then each selector. It returns false for a chain
-// rooted at any other expression.
-func (a *analyzer) resolveChain(dst []FieldPath, expr ast.ExprNode, sc *scope) ([]FieldPath, bool) {
+// resolveChain resolves a property path: the binding of the identifier it
+// is rooted at, then each selector. A chain rooted at a computed value
+// ((c.a ?? c.b).city, {"k": c.name}.k) comes from that value's sources and
+// from each of them with the selectors appended: a conditional selects a
+// stored property of whichever operand it returns, and an object literal's
+// member is the source itself. Both are kept, which covers either reading.
+func (a *analyzer) resolveChain(dst []FieldPath, expr ast.ExprNode, sc *scope) []FieldPath {
 	var sels []Selector
 	root := expr
 	for {
@@ -266,13 +269,19 @@ func (a *analyzer) resolveChain(dst []FieldPath, expr ast.ExprNode, sc *scope) (
 		}
 		break
 	}
-	ref, ok := root.(*ast.ColumnRef)
-	if !ok {
-		return dst, false
-	}
 	// sels runs from the last selector to the first.
 	for i, j := 0, len(sels)-1; i < j; i, j = i+1, j-1 {
 		sels[i], sels[j] = sels[j], sels[i]
+	}
+	ref, ok := root.(*ast.ColumnRef)
+	if !ok {
+		start := len(dst)
+		dst = a.exprPaths(dst, root, sc)
+		end := len(dst)
+		for _, p := range dst[start:end] {
+			dst = append(dst, append(copyPath(p), sels...))
+		}
+		return dst
 	}
 	var base []FieldPath
 	b := sc.lookup(ref.Name)
@@ -288,7 +297,7 @@ func (a *analyzer) resolveChain(dst []FieldPath, expr ast.ExprNode, sc *scope) (
 	for _, p := range base {
 		dst = append(dst, append(p, sels...))
 	}
-	return dst, true
+	return dst
 }
 
 // bracketSelector creates a Selector from a bracket index expression.
