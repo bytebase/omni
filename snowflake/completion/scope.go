@@ -1,8 +1,10 @@
 package completion
 
 import (
+	"regexp"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/bytebase/omni/snowflake/ast"
 )
@@ -441,7 +443,11 @@ func pivotColumns(p *ast.PivotClause, in []colInfo) []colInfo {
 				out = append(out, colInfo{name: v.Alias.Normalize()})
 			default:
 				if lit, ok := v.Value.(*ast.Literal); ok {
-					out = append(out, colInfo{name: lit.Value})
+					name := lit.Value
+					if lit.Kind == ast.LitString {
+						name = "'" + name + "'"
+					}
+					out = append(out, colInfo{name: name})
 				}
 			}
 		}
@@ -495,7 +501,19 @@ func (b *scopeBuilder) outputs(n ast.Node, ctes cteMap, depth int) []colInfo {
 	}
 	switch q := n.(type) {
 	case *ast.SetOperationStmt:
-		return b.outputs(q.Left, ctes, depth+1)
+		left := b.outputs(q.Left, ctes, depth+1)
+		if !q.ByName {
+			return left
+		}
+		// UNION [ALL] BY NAME aligns the operands by name: the left's
+		// columns, then the right's it lacks.
+		out := slices.Clone(left)
+		for _, c := range b.outputs(q.Right, ctes, depth+1) {
+			if !slices.ContainsFunc(out, func(o colInfo) bool { return o.name == c.name }) {
+				out = append(out, c)
+			}
+		}
+		return out
 	case *ast.ValuesClause:
 		if len(q.Rows) == 0 {
 			return nil
@@ -532,11 +550,18 @@ func (b *scopeBuilder) starColumns(q *ast.SelectStmt, t *ast.SelectTarget, ctes 
 		qualifier = normalizeParts(star.Qualifier.Parts())
 	}
 	var out []colInfo
+	match := func(string) bool { return true }
+	if t.Ilike != nil {
+		match = ilikeMatcher(t.Ilike.Value)
+	}
 	for _, item := range b.leavesOfDepth(q.From, ctes, depth) {
 		if qualifier != nil && !item.addressedBy(qualifier) {
 			continue
 		}
 		for _, c := range item.columns() {
+			if !match(c.name) {
+				continue
+			}
 			if slices.ContainsFunc(t.Exclude, func(id ast.Ident) bool { return id.Normalize() == c.name }) {
 				continue
 			}
@@ -567,6 +592,30 @@ func (b *scopeBuilder) leavesOfDepth(items []ast.Node, ctes cteMap, depth int) [
 		walk(item)
 	}
 	return out
+}
+
+// ilikeMatcher compiles a Snowflake ILIKE pattern into a case-insensitive
+// match of a whole name: % matches any run, _ any one character. A pattern
+// that fails to compile matches nothing.
+func ilikeMatcher(pattern string) func(string) bool {
+	var sb strings.Builder
+	sb.WriteString(`(?is)\A`)
+	for _, r := range pattern {
+		switch r {
+		case '%':
+			sb.WriteString(`.*`)
+		case '_':
+			sb.WriteString(`.`)
+		default:
+			sb.WriteString(regexp.QuoteMeta(string(r)))
+		}
+	}
+	sb.WriteString(`\z`)
+	re, err := regexp.Compile(sb.String())
+	if err != nil {
+		return func(string) bool { return false }
+	}
+	return re.MatchString
 }
 
 // memo returns f, calling it at most once.

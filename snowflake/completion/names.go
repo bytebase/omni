@@ -1,6 +1,7 @@
 package completion
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/snowflake/ast"
@@ -196,6 +197,12 @@ func holdsPlaceholder(n ast.Node) bool {
 		return isPlaceholder(n.Alias) || placeholderIndex(n.Columns) >= 0
 	case *ast.InsertStmt:
 		return placeholderIndex(n.Columns) >= 0
+	case *ast.InsertMultiStmt:
+		return slices.ContainsFunc(n.Branches, func(br *ast.InsertMultiBranch) bool { return placeholderIndex(br.Columns) >= 0 })
+	case *ast.SelectStmt:
+		return starListTarget(n) != nil
+	case *ast.UnpivotColumn:
+		return isPlaceholder(n.Column) || isPlaceholder(n.Alias)
 	case *ast.JoinExpr:
 		return placeholderIndex(n.Using) >= 0
 	case *ast.MergeStmt:
@@ -237,6 +244,36 @@ func contextFromPath(path []ast.Node, cat *catalog) *nameContext {
 	case *ast.InsertStmt:
 		nc.kind = kindColumnName
 		nc.targets = []*rangeItem{b.relation(n.Target, ast.Ident{}, nil, 0)}
+	case *ast.InsertMultiStmt:
+		nc.kind = kindColumnName
+		for _, br := range n.Branches {
+			if placeholderIndex(br.Columns) >= 0 {
+				nc.targets = []*rangeItem{b.relation(br.Target, ast.Ident{}, nil, 0)}
+			}
+		}
+	case *ast.SelectStmt:
+		// SELECT * EXCLUDE (...) or RENAME (... AS ...) names columns of
+		// the star's relations.
+		t := starListTarget(n)
+		var qualifier []string
+		if star, ok := t.Expr.(*ast.StarExpr); ok && star.Qualifier != nil {
+			qualifier = normalizeParts(star.Qualifier.Parts())
+		}
+		nc.kind = kindColumnName
+		for _, item := range b.leavesOf(n.From, ctes[len(ctes)-1]) {
+			if qualifier == nil || item.addressedBy(qualifier) {
+				nc.targets = append(nc.targets, item)
+			}
+		}
+	case *ast.UnpivotColumn:
+		// UNPIVOT ( v FOR n IN ( <column> [AS alias] ... ) ) names a column
+		// of the relation the UNPIVOT reads.
+		ref, ok := tableRefAbove(path)
+		if !ok || isPlaceholder(n.Alias) {
+			return nil
+		}
+		nc.kind = kindColumnName
+		nc.targets = []*rangeItem{b.clauseSource(ref, ctes[len(ctes)-1], 0)}
 	case *ast.MergeStmt:
 		if isPlaceholder(n.TargetAlias) || isPlaceholder(n.SourceAlias) {
 			return nil
@@ -258,6 +295,27 @@ func contextFromPath(path []ast.Node, cat *catalog) *nameContext {
 		nc.scope = b.scopeAt(path, ctes)
 	}
 	return nc
+}
+
+// starListTarget returns the star select-list item whose EXCLUDE list, or
+// RENAME's source column, holds the placeholder.
+func starListTarget(sel *ast.SelectStmt) *ast.SelectTarget {
+	for _, t := range sel.Targets {
+		if placeholderIndex(t.Exclude) >= 0 || slices.ContainsFunc(t.Rename, func(r ast.StarRename) bool { return isPlaceholder(r.Col) }) {
+			return t
+		}
+	}
+	return nil
+}
+
+// tableRefAbove returns the innermost table reference on path.
+func tableRefAbove(path []ast.Node) (*ast.TableRef, bool) {
+	for i := len(path) - 1; i >= 0; i-- {
+		if ref, ok := path[i].(*ast.TableRef); ok {
+			return ref, true
+		}
+	}
+	return nil, false
 }
 
 // isQuery reports whether stmt is a query rather than DDL or DML.
