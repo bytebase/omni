@@ -174,76 +174,6 @@ func TestAnalyze(t *testing.T) {
 		}
 	})
 
-	t.Run("single target", func(t *testing.T) {
-		a := parseAnalyze(t, "ANALYZE T")
-		if len(a.Targets) != 1 {
-			t.Fatalf("Targets = %d, want 1", len(a.Targets))
-		}
-		if pathString(a.Targets[0].Path) != "T" {
-			t.Errorf("Targets[0].Path = %q, want T", pathString(a.Targets[0].Path))
-		}
-		if a.Targets[0].Columns != nil {
-			t.Errorf("Columns = %v, want nil", a.Targets[0].Columns)
-		}
-	})
-
-	t.Run("target with column list", func(t *testing.T) {
-		a := parseAnalyze(t, "ANALYZE T(a, b, c)")
-		if len(a.Targets) != 1 {
-			t.Fatalf("Targets = %d, want 1", len(a.Targets))
-		}
-		cols := a.Targets[0].Columns
-		if len(cols) != 3 || cols[0] != "a" || cols[2] != "c" {
-			t.Errorf("Columns = %v, want [a b c]", cols)
-		}
-	})
-
-	t.Run("multiple targets", func(t *testing.T) {
-		a := parseAnalyze(t, "ANALYZE T, T2(a)")
-		if len(a.Targets) != 2 {
-			t.Fatalf("Targets = %d, want 2", len(a.Targets))
-		}
-		if pathString(a.Targets[1].Path) != "T2" || len(a.Targets[1].Columns) != 1 {
-			t.Errorf("Targets[1] = %+v", a.Targets[1])
-		}
-	})
-
-	t.Run("options then targets", func(t *testing.T) {
-		a := parseAnalyze(t, "ANALYZE OPTIONS(p1 = a1, p2 = a2) T(a, b, c)")
-		if len(a.Options) != 2 {
-			t.Fatalf("Options = %d, want 2", len(a.Options))
-		}
-		if len(a.Targets) != 1 || pathString(a.Targets[0].Path) != "T" {
-			t.Errorf("Targets = %+v, want one T", a.Targets)
-		}
-	})
-
-	t.Run("empty options no targets", func(t *testing.T) {
-		a := parseAnalyze(t, "ANALYZE OPTIONS()")
-		if a.Options == nil {
-			// distinct from "no OPTIONS clause": present-but-empty. We treat an
-			// empty OPTIONS() as an empty (non-nil) slice so the clause's presence
-			// is recorded.
-			t.Error("Options = nil, want present-but-empty")
-		}
-		if len(a.Options) != 0 {
-			t.Errorf("Options = %d entries, want 0", len(a.Options))
-		}
-		if a.Targets != nil {
-			t.Errorf("Targets = %v, want nil", a.Targets)
-		}
-	})
-
-	t.Run("options only", func(t *testing.T) {
-		a := parseAnalyze(t, "ANALYZE OPTIONS(p1 = a1, p2 = a2)")
-		if len(a.Options) != 2 {
-			t.Fatalf("Options = %d, want 2", len(a.Options))
-		}
-		if a.Targets != nil {
-			t.Errorf("Targets = %v, want nil", a.Targets)
-		}
-	})
-
 	// Both BigQuery and Spanner shift `ANALYZE OPTIONS(...)` into opt_options_list
 	// unconditionally, rejecting non-assignment entries like `ANALYZE OPTIONS(a, b, c)`
 	// and `ANALYZE OPTIONS(zzz)`.
@@ -255,51 +185,6 @@ func TestAnalyze(t *testing.T) {
 		}
 	})
 
-	t.Run("options-list then OPTIONS-as-table", func(t *testing.T) {
-		// `ANALYZE OPTIONS(a = b) Options(a, b, c)` — first OPTIONS(a=b) is the
-		// options-list; the second `Options(a,b,c)` is a table target.
-		a := parseAnalyze(t, "ANALYZE OPTIONS(a = b) Options(a, b, c)")
-		if len(a.Options) != 1 {
-			t.Fatalf("Options = %d, want 1", len(a.Options))
-		}
-		if len(a.Targets) != 1 || pathString(a.Targets[0].Path) != "Options" {
-			t.Errorf("Targets = %+v, want one Options", a.Targets)
-		}
-	})
-
-	t.Run("target then OPTIONS-as-table", func(t *testing.T) {
-		// `ANALYZE T, OPTIONS(a, b, c)` — no leading options-list (T is target 1),
-		// OPTIONS is target 2 with a column list.
-		a := parseAnalyze(t, "ANALYZE T, OPTIONS(a, b, c)")
-		if a.Options != nil {
-			t.Errorf("Options = %v, want nil", a.Options)
-		}
-		if len(a.Targets) != 2 {
-			t.Fatalf("Targets = %d, want 2", len(a.Targets))
-		}
-		if pathString(a.Targets[1].Path) != "OPTIONS" || len(a.Targets[1].Columns) != 3 {
-			t.Errorf("Targets[1] = %+v, want OPTIONS(a,b,c)", a.Targets[1])
-		}
-	})
-
-	t.Run("target then bare OPTIONS table", func(t *testing.T) {
-		// `ANALYZE T, OPTIONS` — OPTIONS as a bare table-name target (no column list).
-		a := parseAnalyze(t, "ANALYZE T, OPTIONS")
-		if len(a.Targets) != 2 || pathString(a.Targets[1].Path) != "OPTIONS" {
-			t.Errorf("Targets = %+v, want T, OPTIONS", a.Targets)
-		}
-	})
-
-	t.Run("dashed target path (BigQuery union)", func(t *testing.T) {
-		// table_and_column_info: maybe_dashed_path_expression. A BigQuery dashed path
-		// is accepted by the union grammar (Spanner syntax-rejects '-' in a table
-		// name — divergence #85 class; non-authoritative on Spanner, omni follows
-		// the union .g4).
-		a := parseAnalyze(t, "ANALYZE my-project.ds.tbl")
-		if len(a.Targets) != 1 || pathString(a.Targets[0].Path) != "my-project.ds.tbl" {
-			t.Errorf("Targets = %+v, want one my-project.ds.tbl", a.Targets)
-		}
-	})
 }
 
 func TestAnalyze_Rejects(t *testing.T) {
@@ -445,14 +330,6 @@ func TestRename(t *testing.T) {
 		}
 	})
 
-	t.Run("non-TABLE object kind", func(t *testing.T) {
-		// .g4 rename_statement allows any object-kind identifier (Spanner narrows
-		// to TABLE; the union grammar does not — flagged divergence).
-		r := parseRename(t, "RENAME VIEW v1 TO v2")
-		if r.ObjectType != "VIEW" {
-			t.Errorf("ObjectType = %q, want VIEW", r.ObjectType)
-		}
-	})
 }
 
 func TestRename_Rejects(t *testing.T) {
@@ -734,18 +611,6 @@ func TestUtility_CorpusAccepts(t *testing.T) {
 		{"ASSERT(SELECT IS_NAN(NAN))", wAssert},
 		{"ASSERT(ASSERT((SELECT TRUE)))", wAssert},
 		// analyze.sql
-		{"ANALYZE OPTIONS(p1 = a1, p2 = a2) T(a, b, c)", wAnalyze},
-		{"ANALYZE OPTIONS(p1 = a1, p2 = a2) T(a, b, c), T2(a, b, c)", wAnalyze},
-		{"ANALYZE OPTIONS(p1 = a1, p2 = a2) T, T2(a, b, c)", wAnalyze},
-		{"ANALYZE T(a, b, c)", wAnalyze},
-		{"ANALYZE T(a, b, c), T2(a)", wAnalyze},
-		{"ANALYZE T", wAnalyze},
-		{"ANALYZE T, T2", wAnalyze},
-		{"ANALYZE OPTIONS()", wAnalyze},
-		{"ANALYZE T, OPTIONS", wAnalyze},
-		{"ANALYZE OPTIONS(a = b) Options(a, b, c)", wAnalyze},
-		{"ANALYZE T, OPTIONS(a, b, c)", wAnalyze},
-		{"ANALYZE OPTIONS(p1 = a1, p2 = a2)", wAnalyze},
 		// describe.sql
 		{"DESCRIBE foo", wDescribe},
 		{"DESCRIBE namespace.foo", wDescribe},

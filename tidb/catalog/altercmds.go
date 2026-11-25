@@ -35,6 +35,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
+	if db.TempTables[key] != nil {
+		return errLocalTemporaryDDL("ALTER TABLE")
+	}
 	tbl := db.Tables[key]
 	if tbl == nil {
 		if db.Views[key] != nil {
@@ -1034,6 +1037,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if err := validateIndexColumnsExist(tbl, idxCols); err != nil {
 			return err
 		}
+		if err := checkNonVectorHNSW(resolveConstraintIndexType(con)); err != nil {
+			return err
+		}
 		pkIdx := &Index{
 			Name:      "PRIMARY",
 			Table:     tbl,
@@ -1092,6 +1098,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		}
 		idxCols := buildIndexColumns(con)
 		if err := validateIndexColumnsExist(tbl, idxCols); err != nil {
+			return err
+		}
+		if err := checkNonVectorHNSW(resolveConstraintIndexType(con)); err != nil {
 			return err
 		}
 		uqIdx := &Index{
@@ -1227,6 +1236,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return err
 		}
 		if err := checkFunctionalKeyColumns(tbl, con.IndexColumns); err != nil {
+			return err
+		}
+		if err := checkNonVectorHNSW(resolveConstraintIndexType(con)); err != nil {
 			return err
 		}
 		keyIdx := &Index{
@@ -2369,7 +2381,9 @@ func (c *Catalog) checkModifyColumnFKCompatibility(tbl *Table, oldName string, n
 				if tbl.Database != nil && refDB == tbl.Database && toLower(con.RefTable) == toLower(tbl.Name) {
 					refTbl = tbl
 				} else {
-					refTbl = refDB.GetTable(con.RefTable)
+					// A foreign key references the schema's table, never a
+					// local temporary table that shadows it.
+					refTbl = refDB.Tables[toLower(con.RefTable)]
 				}
 			}
 			if refTbl == nil {

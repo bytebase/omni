@@ -70,15 +70,12 @@ var tmNonReservedWords = map[int]bool{
 
 // atTmNonReservedWord reports whether the cursor is a word the pinned grammar
 // takes as an identifier (see tmNonReservedWords). BigQuery reserves
-// MATCH_RECOGNIZE and QUALIFY, so those are excluded in DialectBigQuery.
+// MATCH_RECOGNIZE and QUALIFY, so those are excluded in BigQuery.
 func (p *Parser) atTmNonReservedWord() bool {
 	return p.isTmNonReservedWord(p.cur.Type)
 }
 
 func (p *Parser) isTmNonReservedWord(tokenType int) bool {
-	if p.isBigQuery() && (tokenType == kwMATCH_RECOGNIZE || tokenType == kwQUALIFY) {
-		return false
-	}
 	return tmNonReservedWords[tokenType]
 }
 

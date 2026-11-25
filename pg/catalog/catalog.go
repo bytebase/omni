@@ -166,6 +166,9 @@ type Catalog struct {
 	// still exist on the server the snapshot came from.
 	snapshot           bool
 	installingSnapshot bool
+	// plRunDepth counts the PL/pgSQL bodies runPLpgSQL is running, one
+	// inside another through CALL or DO.
+	plRunDepth int
 
 	// Access methods, operator families, and operator classes.
 	accessMethods      map[uint32]*AccessMethod

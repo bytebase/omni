@@ -43,14 +43,11 @@ func errUnknownSequence(db, name string) error {
 		Message: fmt.Sprintf("Unknown SEQUENCE: '%s.%s'", db, name)}
 }
 
-// nameTaken reports whether a non-temporary table, view or sequence of db has
-// the name. A session-local temporary table lives in its own namespace and does
-// not collide with sequences (read on v8.5.5).
+// nameTaken reports whether a table, view or sequence of db has the name. A
+// local temporary table lives in its own namespace, TempTables, and does not
+// collide with sequences (read on v8.5.5).
 func (db *Database) nameTaken(key string) bool {
-	if tbl := db.Tables[key]; tbl != nil && !tbl.Temporary {
-		return true
-	}
-	return db.Views[key] != nil || db.Sequences[key] != nil
+	return db.nameTakenFor(key, false)
 }
 
 // createSequence installs a sequence as TiDB's handleSequenceOptions does: the
@@ -132,7 +129,7 @@ func (c *Catalog) alterSequence(stmt *nodes.AlterSequenceStmt) error {
 	key := toLower(stmt.Name.Name)
 	seq := db.Sequences[key]
 	if seq == nil {
-		if tbl := db.Tables[key]; (tbl != nil && !tbl.Temporary) || db.Views[key] != nil {
+		if db.Tables[key] != nil || db.Views[key] != nil {
 			return errWrongObjectKind(db.Name, stmt.Name.Name, "SEQUENCE")
 		}
 		return errNoSuchTable(db.Name, stmt.Name.Name)
@@ -168,7 +165,7 @@ func (c *Catalog) dropSequence(stmt *nodes.DropSequenceStmt) error {
 		key := toLower(ref.Name)
 		if db.Sequences[key] == nil {
 			if !stmt.IfExists && first == nil {
-				if tbl := db.Tables[key]; (tbl != nil && !tbl.Temporary) || db.Views[key] != nil {
+				if db.Tables[key] != nil || db.Views[key] != nil {
 					first = errWrongObjectKind(db.Name, ref.Name, "SEQUENCE")
 				} else {
 					first = errUnknownSequence(db.Name, ref.Name)

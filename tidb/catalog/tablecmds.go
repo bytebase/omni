@@ -42,6 +42,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	if stmt.Like == nil && stmt.Select == nil && len(stmt.Columns) == 0 {
 		return errTableMustHaveColumns()
 	}
+	if (stmt.Temporary || stmt.Global) && stmt.Partitions != nil {
+		return errPartitionNoTemporary()
+	}
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -63,7 +66,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	}
 
 	// Check for duplicate table, view, or sequence with the same name.
-	if db.Tables[key] != nil || db.Views[key] != nil || db.Sequences[key] != nil {
+	if db.nameTakenFor(key, stmt.Temporary) {
 		if stmt.IfNotExists {
 			return nil
 		}
@@ -609,6 +612,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			if err := validateKeyColumnLengths(tbl, idxCols); err != nil {
 				return err
 			}
+			if err := checkNonVectorHNSW(resolveConstraintIndexType(con)); err != nil {
+				return err
+			}
 			uqIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
@@ -707,6 +713,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				return err
 			}
 			if err := validateKeyColumnLengths(tbl, idxCols); err != nil {
+				return err
+			}
+			if err := checkNonVectorHNSW(resolveConstraintIndexType(con)); err != nil {
 				return err
 			}
 			keyIdx := &Index{
@@ -841,8 +850,31 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	// columns are present in the table.
 	c.analyzeTableExpressions(tbl, stmt)
 
-	db.Tables[key] = tbl
+	db.putTable(key, tbl)
 	return nil
+}
+
+// nameTakenFor reports whether key is taken for a new table: by another local
+// temporary table for a temporary one, and by a table, view or sequence of
+// the schema for any other. A local temporary table and a schema object may
+// share a name (read on v8.5.5).
+func (db *Database) nameTakenFor(key string, temporary bool) bool {
+	if temporary {
+		return db.TempTables[key] != nil
+	}
+	return db.Tables[key] != nil || db.Views[key] != nil || db.Sequences[key] != nil
+}
+
+// putTable installs tbl under key, in TempTables for a local temporary table.
+func (db *Database) putTable(key string, tbl *Table) {
+	if !tbl.Temporary {
+		db.Tables[key] = tbl
+		return
+	}
+	if db.TempTables == nil {
+		db.TempTables = make(map[string]*Table)
+	}
+	db.TempTables[key] = tbl
 }
 
 // analyzeTableExpressions performs best-effort semantic analysis on DEFAULT,
@@ -1154,7 +1186,9 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 		if toLower(con.RefTable) == toLower(tbl.Name) && refDB == db {
 			refTbl = tbl
 		} else {
-			refTbl = refDB.GetTable(con.RefTable)
+			// A foreign key references the schema's table, never a local
+			// temporary table that shadows it.
+			refTbl = refDB.Tables[toLower(con.RefTable)]
 		}
 	}
 
@@ -1451,6 +1485,19 @@ func vectorIndexName(tbl *Table, con *nodes.Constraint, cols []string) string {
 //
 // Ref: CreateIndexStmt and ConstraintVectorIndex in TiDB v8.5.5 pkg/parser/parser.y.
 const vectorIndexHNSW = "HNSW"
+
+// checkNonVectorHNSW refuses HNSW on a key that is no vector index, as v8.5.5
+// does when it builds the key: `ALTER TABLE t ADD KEY USING HNSW (c)` and
+// `CREATE TABLE t (a INT, KEY USING HNSW (a))` answer 8200, after the key's
+// columns (1072) and name (1061) are judged (measured on v8.5.5). A PRIMARY
+// KEY that CREATE TABLE declares takes no type and runs.
+func checkNonVectorHNSW(indexType string) error {
+	if strings.EqualFold(indexType, vectorIndexHNSW) {
+		return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL),
+			Message: "Unsupported add vector index: Only support vector index with HNSW type, but it's non-vector index"}
+	}
+	return nil
+}
 
 // applyIndexOptions extracts COMMENT, VISIBLE/INVISIBLE, and KEY_BLOCK_SIZE
 // from AST IndexOptions and applies them to the given Index.
@@ -1950,7 +1997,10 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		return err
 	}
 	srcKey := toLower(stmt.Like.Name)
-	srcTbl := srcDB.Tables[srcKey]
+	srcTbl := srcDB.GetTable(srcKey)
+	if srcTbl != nil && srcTbl.Temporary {
+		return errLikeTemporaryTable()
+	}
 	if srcTbl == nil {
 		if srcDB.Views[srcKey] != nil || srcDB.Sequences[srcKey] != nil {
 			return errWrongObjectKind(srcDB.Name, stmt.Like.Name, "BASE TABLE")
@@ -1958,11 +2008,14 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		return errNoSuchTable(srcDB.Name, stmt.Like.Name)
 	}
 
-	if db.Tables[key] != nil || db.Views[key] != nil || db.Sequences[key] != nil {
+	if db.nameTakenFor(key, stmt.Temporary) {
 		if stmt.IfNotExists {
 			return nil
 		}
 		return errDupTableQualified(db.Name, tableName)
+	}
+	if (stmt.Temporary || stmt.Global) && srcTbl.Partitioning != nil {
+		return errPartitionNoTemporary()
 	}
 
 	tbl := &Table{
@@ -2086,7 +2139,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 	// RANGE table prints its partitions).
 	tbl.Partitioning = clonePartitionInfo(srcTbl.Partitioning)
 
-	db.Tables[key] = tbl
+	db.putTable(key, tbl)
 	return nil
 }
 

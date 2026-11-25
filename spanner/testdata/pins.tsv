@@ -1,20 +1,9 @@
 # The server this engine's committed answers come from. default records the
-# tapes and judges spanner/parser/testdata/pg/compat.tsv: the Cloud Spanner
-# emulator, released from the source tag v1.5.54 of
-# GoogleCloudPlatform/cloud-spanner-emulator. The googlesql tree pins the same
-# emulator for its parser's oracle (googlesql/testdata/pins.tsv); default is
-# the driver's own, because the driver's answers are recorded from the
-# service's clients and can move with an image bump of their own.
-#
-# parser judges spanner/parser/testdata/compat.tsv at the same emulator 1.5.54
-# release so a judge revision bump rejudges GoogleSQL compat.tsv without
-# touching the default-pinned tapes or PostgreSQL compat.tsv.
-#
-# parser judge revision 2 classifies GoogleSQL's parse-error fallback
-# ("Statement not supported: <Kind>Stmt"), lookahead EXCEPT and duplicate
-# DYNAMIC LABEL|PROPERTIES syntax refusals as reject, and re-asks CREATE VIEW
-# missing SQL SECURITY with a SQL SECURITY INVOKER stand-in so the view query
-# body is parsed.
+# tapes: the Cloud Spanner emulator, released from the source tag v1.5.54 of
+# GoogleCloudPlatform/cloud-spanner-emulator. The googlesql tree, Spanner's
+# grammar, pins the same emulator for its parser's oracle
+# (googlesql/testdata/pins.tsv); default is the driver's own, because the
+# driver's answers are recorded from the service's clients and can move with
+# an image bump of their own.
 # columns: role, image, digest, source tag, judge revision
 default	gcr.io/cloud-spanner-emulator/emulator:1.5.54	sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2	v1.5.54
-parser	gcr.io/cloud-spanner-emulator/emulator:1.5.54	sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2	v1.5.54	2

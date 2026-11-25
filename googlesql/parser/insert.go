@@ -79,9 +79,9 @@ func (p *Parser) parseInsertPrefix(pipe bool) (*ast.InsertStmt, error) {
 	stmt := &ast.InsertStmt{Loc: ast.Loc{Start: start}}
 
 	// opt_or_ignore_replace_update: [OR] IGNORE | [OR] REPLACE | [OR] UPDATE.
-	// Bare REPLACE/UPDATE (without OR) is accepted in standalone DML in union
-	// mode (`INSERT REPLACE INTO t ...`), but rejected in pipe INSERT (`|> INSERT
-	// REPLACE a`), BigQuery, and Spanner.
+	// Bare REPLACE/UPDATE (without OR) is accepted in standalone DML
+	// (`INSERT REPLACE INTO t ...`), but rejected in pipe INSERT (`|> INSERT
+	// REPLACE a`).
 	stmt.OrAction = p.parseInsertOrAction(pipe)
 
 	// opt_into.
@@ -170,20 +170,20 @@ func (p *Parser) parseInsertOrAction(pipe bool) string {
 		// for the (failing) target parse to report.
 		return ""
 	}
-	// Bare IGNORE | REPLACE | UPDATE (no OR).
-	// Pipe INSERT, BigQuery, and Spanner do not accept bare INSERT REPLACE /
-	// INSERT UPDATE (require OR).
+	// Bare IGNORE | REPLACE | UPDATE (no OR). Spanner takes bare INSERT
+	// REPLACE / INSERT UPDATE as a statement (the pinned emulator accepts
+	// them), but a pipe INSERT requires OR.
 	switch p.cur.Type {
 	case kwIGNORE:
 		p.advance()
 		return "IGNORE"
 	case kwREPLACE:
-		if !pipe && !p.isBigQuery() && !p.isSpanner() {
+		if !pipe {
 			p.advance()
 			return "REPLACE"
 		}
 	case kwUPDATE:
-		if !pipe && !p.isBigQuery() && !p.isSpanner() {
+		if !pipe {
 			p.advance()
 			return "UPDATE"
 		}

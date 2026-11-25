@@ -56,6 +56,15 @@ const (
 	ErrBlobKeyWithoutLength = 1170
 	// ErrUnsupportedDDL is TiDB's 8200, for DDL it parses and does not run.
 	ErrUnsupportedDDL = 8200
+	// ErrPartitionNoTemporary is 1562, "Cannot create temporary table with
+	// partitions", for a local or global temporary table.
+	ErrPartitionNoTemporary = 1562
+	// ErrOptOnTemporaryTable is TiDB's 8006, for CREATE TABLE ... LIKE a local
+	// temporary table.
+	ErrOptOnTemporaryTable = 8006
+	// ErrDropTableOnTemporaryTable is TiDB's 8007, for DROP GLOBAL TEMPORARY
+	// TABLE naming an object that is not a global temporary table.
+	ErrDropTableOnTemporaryTable = 8007
 	// ErrStoredRoutineUnsupported is TiDB's 8108. TiDB compiles CREATE and
 	// DROP PROCEDURE for MySQL compatibility but will not run a stored
 	// routine, rejecting it at execution. (CREATE/DROP/ALTER FUNCTION and
@@ -499,6 +508,34 @@ func errMultiplePriKey() error {
 func errNoSuchColumn(name, context string) error {
 	return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
 		Message: fmt.Sprintf("Unknown column '%s' in '%s'", name, context)}
+}
+
+// errPartitionNoTemporary is 1562 for a temporary table, local or global, with
+// partitions: its own PARTITION BY or one LIKE copies (read on v8.5.5).
+func errPartitionNoTemporary() error {
+	return &Error{Code: ErrPartitionNoTemporary, SQLState: sqlState(ErrPartitionNoTemporary),
+		Message: "Cannot create temporary table with partitions"}
+}
+
+// errLikeTemporaryTable is 8006 for CREATE [TEMPORARY] TABLE ... LIKE a local
+// temporary table (read on v8.5.5).
+func errLikeTemporaryTable() error {
+	return &Error{Code: ErrOptOnTemporaryTable, SQLState: sqlState(ErrOptOnTemporaryTable),
+		Message: "`create table like` is unsupported on temporary tables."}
+}
+
+// errDropNotGlobalTemporary is 8007 for DROP GLOBAL TEMPORARY TABLE naming a
+// table, local temporary table, view or sequence (read on v8.5.5).
+func errDropNotGlobalTemporary() error {
+	return &Error{Code: ErrDropTableOnTemporaryTable, SQLState: sqlState(ErrDropTableOnTemporaryTable),
+		Message: "`drop global temporary table` can only drop global temporary table"}
+}
+
+// errLocalTemporaryDDL is 8200 for DDL TiDB does not run on a local temporary
+// table: ALTER TABLE, CREATE INDEX, RENAME TABLE (read on v8.5.5).
+func errLocalTemporaryDDL(op string) error {
+	return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL),
+		Message: fmt.Sprintf("TiDB doesn't support %s for local temporary table", op)}
 }
 
 func errUnknownTable(db, name string) error {

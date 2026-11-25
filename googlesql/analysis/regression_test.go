@@ -9,42 +9,10 @@ import (
 // lens, review-gate.md), so a future change that reintroduces the defect fails
 // loudly. Each test names the finding it pins.
 
-// Finding #1: column-ref qualifiers must bucket by the SAME dialect rule as
-// table paths, so a ColumnRef's Catalog/Database/Schema/Table line up with the
-// matching TableAccess.
-func TestRegression_ColumnRefDialectBucketing(t *testing.T) {
-	// BigQuery proj.ds.t.c → column c of table proj.ds.t.
-	span, err := GetQuerySpan("SELECT proj.ds.t.c FROM proj.ds.t", DialectBigQuery)
-	if err != nil {
-		t.Fatalf("GetQuerySpan error: %v", err)
-	}
-	if len(span.AccessTables) != 1 {
-		t.Fatalf("want 1 table, got %d (%v)", len(span.AccessTables), tableNames(span))
-	}
-	ta := span.AccessTables[0]
-	if ta.Catalog != "proj" || ta.Database != "ds" || ta.Table != "t" {
-		t.Fatalf("table buckets = {Catalog:%q Database:%q Schema:%q Table:%q}, want {proj ds \"\" t}",
-			ta.Catalog, ta.Database, ta.Schema, ta.Table)
-	}
-	if len(span.Results) != 1 || len(span.Results[0].SourceColumns) != 1 {
-		t.Fatalf("want 1 result with 1 source column, got %+v", span.Results)
-	}
-	col := span.Results[0].SourceColumns[0]
-	// The column's qualifier fields must match the table's, NOT the old
-	// table/schema/database/catalog-right-to-left bucketing.
-	if col.Catalog != ta.Catalog || col.Database != ta.Database ||
-		col.Schema != ta.Schema || col.Table != ta.Table || col.Column != "c" {
-		t.Errorf("column ref = {Catalog:%q Database:%q Schema:%q Table:%q Column:%q}, "+
-			"want it to match table {%q %q %q %q} with Column=c",
-			col.Catalog, col.Database, col.Schema, col.Table, col.Column,
-			ta.Catalog, ta.Database, ta.Schema, ta.Table)
-	}
-}
-
 // Finding #2: Spanner 3-part db.schema.table puts db in Database, not Catalog
 // (Spanner has no project/catalog layer).
 func TestRegression_Spanner3PartDatabase(t *testing.T) {
-	span, err := GetQuerySpan("SELECT * FROM db.sch.t", DialectSpanner)
+	span, err := GetQuerySpan("SELECT * FROM db.sch.t")
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -59,21 +27,18 @@ func TestRegression_Spanner3PartDatabase(t *testing.T) {
 // produce fake AccessTables entries.
 func TestRegression_DDLNonTableObjects(t *testing.T) {
 	tests := []struct {
-		sql     string
-		dialect Dialect
-		want    int // expected AccessTables count
+		sql  string
+		want int // expected AccessTables count
 	}{
-		{"DROP SCHEMA s", DialectSpanner, 0},
-		{"DROP DATABASE d", DialectBigQuery, 0},
-		{"DROP INDEX idx", DialectSpanner, 0},
-		{"ALTER SCHEMA s SET OPTIONS ()", DialectBigQuery, 0},
-		{"ALTER SCHEMA s SET OPTIONS (default_leader = 'us')", DialectSpanner, 0},
-		{"DROP TABLE realtbl", DialectSpanner, 1}, // a real table IS recorded
-		{"DROP VIEW realview", DialectSpanner, 1}, // a view IS recorded
+		{"DROP SCHEMA s", 0},
+		{"DROP INDEX idx", 0},
+		{"ALTER SCHEMA s SET OPTIONS (default_leader = 'us')", 0},
+		{"DROP TABLE realtbl", 1}, // a real table IS recorded
+		{"DROP VIEW realview", 1}, // a view IS recorded
 	}
 	for _, tc := range tests {
 		t.Run(tc.sql, func(t *testing.T) {
-			span, err := GetQuerySpan(tc.sql, tc.dialect)
+			span, err := GetQuerySpan(tc.sql)
 			if err != nil {
 				t.Fatalf("GetQuerySpan(%q) error: %v", tc.sql, err)
 			}
@@ -90,21 +55,8 @@ func TestRegression_CreateTableSourceRefs(t *testing.T) {
 	tests := []struct {
 		name       string
 		sql        string
-		dialect    Dialect
 		wantTables []string
 	}{
-		{
-			name:       "like",
-			sql:        "CREATE TABLE dst LIKE src",
-			dialect:    DialectBigQuery,
-			wantTables: []string{"dst", "src"},
-		},
-		{
-			name:       "clone",
-			sql:        "CREATE TABLE dst CLONE src",
-			dialect:    DialectBigQuery,
-			wantTables: []string{"dst", "src"},
-		},
 		{
 			// The merged parser requires the ON DELETE action on INTERLEAVE (it
 			// rejects the bare `INTERLEAVE IN PARENT parent`, which the Spanner
@@ -113,19 +65,17 @@ func TestRegression_CreateTableSourceRefs(t *testing.T) {
 			// form here; the analysis records the parent either way.
 			name:       "interleave parent",
 			sql:        "CREATE TABLE child (id INT64) PRIMARY KEY (id), INTERLEAVE IN PARENT parent ON DELETE CASCADE",
-			dialect:    DialectSpanner,
 			wantTables: []string{"child", "parent"},
 		},
 		{
 			name:       "foreign key reference",
 			sql:        "CREATE TABLE child (id INT64, pid INT64, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES parent (id)) PRIMARY KEY (id)",
-			dialect:    DialectSpanner,
 			wantTables: []string{"child", "parent"},
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			span, err := GetQuerySpan(tc.sql, tc.dialect)
+			span, err := GetQuerySpan(tc.sql)
 			if err != nil {
 				t.Fatalf("GetQuerySpan(%q) error: %v", tc.sql, err)
 			}
@@ -137,27 +87,10 @@ func TestRegression_CreateTableSourceRefs(t *testing.T) {
 	}
 }
 
-// Finding #5: TRUNCATE TABLE ... WHERE must walk the WHERE clause (predicate
-// columns + any subquery source tables).
-func TestRegression_TruncateWhere(t *testing.T) {
-	span, err := GetQuerySpan("TRUNCATE TABLE t WHERE id IN (SELECT id FROM s)", DialectBigQuery)
-	if err != nil {
-		t.Fatalf("GetQuerySpan error: %v", err)
-	}
-	if got := tableNames(span); !eqStrings(got, []string{"s", "t"}) {
-		t.Errorf("tables = %v, want [s t]", got)
-	}
-	// Only the outer `id` is a predicate column; the subquery's SELECT-list `id`
-	// is a result item of the subquery, not a predicate.
-	if got := predicateColumnNames(span); !eqStrings(got, []string{"id"}) {
-		t.Errorf("predicate columns = %v, want [id]", got)
-	}
-}
-
 // Finding #6: TVF arguments contribute predicate columns (the doc-promised
 // behavior), not just subquery discovery.
 func TestRegression_TVFArgsPredicateColumns(t *testing.T) {
-	span, err := GetQuerySpan("SELECT * FROM my_tvf(t.id) AS x", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT * FROM my_tvf(t.id) AS x")
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -173,7 +106,7 @@ func TestRegression_WithExprVarScoping(t *testing.T) {
 	// `x` is a WITH-expr local binding; `y` is a table column. The body `x + y`
 	// must contribute only `y`. The binding `x AS y_plus_1`'s value `y + 1` also
 	// references `y` (a real column).
-	span, err := GetQuerySpan("SELECT WITH(x AS y + 1, x + z) AS v FROM t", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT WITH(x AS y + 1, x + z) AS v FROM t")
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -196,7 +129,7 @@ func TestRegression_WithExprVarScoping(t *testing.T) {
 func TestRegression_WithExprProgressiveScoping(t *testing.T) {
 	// a AS c1; b AS a + c2 (a is the earlier local binding, c2 a table column);
 	// body b + c3 (b is local, c3 a table column). Source columns: c1, c2, c3.
-	span, err := GetQuerySpan("SELECT WITH(a AS c1, b AS a + c2, b + c3) AS v FROM t", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT WITH(a AS c1, b AS a + c2, b + c3) AS v FROM t")
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -221,7 +154,7 @@ func TestRegression_NonRecursiveCTEForwardRef(t *testing.T) {
 	// table `b`. Tables: b (the real base table referenced from a) + src (from b's
 	// body). Neither `a` nor the CTE-`b` reference is a base table.
 	sql := "WITH a AS (SELECT * FROM b), b AS (SELECT * FROM src) SELECT * FROM a"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -234,7 +167,7 @@ func TestRegression_NonRecursiveCTEForwardRef(t *testing.T) {
 // is filtered (the name is visible inside its own body).
 func TestRegression_RecursiveCTESelfRef(t *testing.T) {
 	sql := "WITH RECURSIVE c AS ((SELECT 1 AS n) UNION ALL (SELECT n + 1 FROM c WHERE n < 3)) SELECT * FROM c"
-	span, err := GetQuerySpan(sql, DialectBigQuery)
+	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -247,7 +180,7 @@ func TestRegression_RecursiveCTESelfRef(t *testing.T) {
 // Round-3 finding #2: a correlated array/field path off an earlier FROM alias
 // (`FROM T t, t.arr`) is NOT a base table.
 func TestRegression_CorrelatedArrayPath(t *testing.T) {
-	span, err := GetQuerySpan("SELECT * FROM T1 t1, t1.array_column", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT * FROM T1 t1, t1.array_column")
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -257,7 +190,7 @@ func TestRegression_CorrelatedArrayPath(t *testing.T) {
 	}
 	// A genuine 2-part table (dataset.table, root not a FROM alias) is still a
 	// base table — the alias check must not over-suppress real qualified tables.
-	span2, _ := GetQuerySpan("SELECT * FROM ds.users", DialectBigQuery)
+	span2, _ := GetQuerySpan("SELECT * FROM ds.users")
 	if got := tableNames(span2); !eqStrings(got, []string{"ds.users"}) {
 		t.Errorf("tables = %v, want [ds.users] (real qualified table)", got)
 	}
@@ -267,7 +200,7 @@ func TestRegression_CorrelatedArrayPath(t *testing.T) {
 // CHAINED correlated alias is also not a base table.
 func TestRegression_CorrelatedPathDerivedAndChained(t *testing.T) {
 	// Off a subquery alias: `s.arr` correlates the derived relation `s`.
-	span, err := GetQuerySpan("SELECT * FROM (SELECT [1, 2] AS arr) s, s.arr", DialectBigQuery)
+	span, err := GetQuerySpan("SELECT * FROM (SELECT [1, 2] AS arr) s, s.arr")
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
@@ -276,40 +209,11 @@ func TestRegression_CorrelatedPathDerivedAndChained(t *testing.T) {
 	}
 
 	// Chained: `t.arr a` registers alias `a`, so `a.child` correlates off it.
-	span2, err := GetQuerySpan("SELECT * FROM T t, t.arr a, a.child", DialectBigQuery)
+	span2, err := GetQuerySpan("SELECT * FROM T t, t.arr a, a.child")
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}
 	if got := tableNames(span2); !eqStrings(got, []string{"T"}) {
 		t.Errorf("chained correlated path: tables = %v, want [T] (t.arr and a.child are correlated)", got)
-	}
-}
-
-// Re-review finding #2: a project-qualified BigQuery INFORMATION_SCHEMA path
-// keeps the project as Catalog, so two projects' info-schema do not collapse.
-func TestRegression_ProjectQualifiedInfoSchema(t *testing.T) {
-	span, err := GetQuerySpan("SELECT * FROM proj.ds.INFORMATION_SCHEMA.COLUMNS", DialectBigQuery)
-	if err != nil {
-		t.Fatalf("GetQuerySpan error: %v", err)
-	}
-	if len(span.AccessTables) != 1 {
-		t.Fatalf("want 1 table, got %d", len(span.AccessTables))
-	}
-	ta := span.AccessTables[0]
-	if ta.Catalog != "proj" || ta.Database != "ds" || ta.Schema != "INFORMATION_SCHEMA" || ta.Table != "COLUMNS" {
-		t.Errorf("buckets = {Catalog:%q Database:%q Schema:%q Table:%q}, want {proj ds INFORMATION_SCHEMA COLUMNS}",
-			ta.Catalog, ta.Database, ta.Schema, ta.Table)
-	}
-	if !ta.IsSystem {
-		t.Errorf("IsSystem = false, want true")
-	}
-
-	// Two different projects must NOT collapse to one access identity.
-	span2, _ := GetQuerySpan(
-		"SELECT * FROM proj1.ds.INFORMATION_SCHEMA.COLUMNS, proj2.ds.INFORMATION_SCHEMA.COLUMNS",
-		DialectBigQuery)
-	if len(span2.AccessTables) != 2 {
-		t.Errorf("two projects collapsed: got %d tables (%v), want 2",
-			len(span2.AccessTables), tableNames(span2))
 	}
 }

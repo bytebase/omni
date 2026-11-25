@@ -43,13 +43,14 @@ func TestWalkSimulation(t *testing.T) {
 		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 0.988},
 		{"pg18_queries", filepath.Join("..", "catalog", "testdata", "pg18", "queries", "simulate.tsv"), 0.988},
 		// Functions, procedures, triggers, event triggers, CALL and DO on
-		// programs@objects. pg/catalog checks a routine's body; what is left
-		// is a missing name in one (42P01, 42703, 42704, 42883), dependencies
-		// on a dropped table or column (2BP01), and what a catalog loaded
-		// from a snapshot does not hold: a procedure's identity, an enum's
-		// labels, an event trigger.
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.535},
-		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.535},
+		// programs@objects, and quoted type names on programs@quoted.
+		// pg/catalog checks a routine's body; what is left is a missing name
+		// in one (42P01, 42703, 42704, 42883), a missing column type (42704),
+		// dependencies on a dropped table or column (2BP01), and what a
+		// catalog loaded from a snapshot does not hold: a procedure's
+		// identity, an event trigger.
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.542},
+		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.542},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{
@@ -432,7 +433,11 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog, definitions map[[2]string][]strin
 		for _, typ := range c.QueryPgType(s.Name) {
 			switch typ.TypType {
 			case 'e':
-				sm.EnumTypes = append(sm.EnumTypes, &metadata.EnumTypeMetadata{Name: typ.TypName})
+				var labels []string
+				for _, l := range c.QueryPgEnum(typ.OID) {
+					labels = append(labels, l.EnumLabel)
+				}
+				sm.EnumTypes = append(sm.EnumTypes, &metadata.EnumTypeMetadata{Name: typ.TypName, Values: labels})
 			case 'r':
 				sm.RangeTypes = append(sm.RangeTypes, &metadata.RangeTypeMetadata{Name: typ.TypName})
 			}

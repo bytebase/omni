@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -499,53 +497,9 @@ func TestDML_Merge(t *testing.T) {
 // TRUNCATE — AST structure (BigQuery; ZetaSQL-corpus oracle)
 // ---------------------------------------------------------------------------
 
-func TestDML_Truncate(t *testing.T) {
-	t.Run("plain", func(t *testing.T) {
-		tr := parseTruncate(t, "TRUNCATE TABLE foo")
-		if pathString(tr.Target) != "foo" || tr.Where != nil {
-			t.Errorf("tr = %#v", tr)
-		}
-	})
-	t.Run("with where", func(t *testing.T) {
-		tr := parseTruncate(t, "TRUNCATE TABLE foo WHERE bar > 3")
-		if tr.Where == nil {
-			t.Error("Where = nil")
-		}
-	})
-	t.Run("qualified path", func(t *testing.T) {
-		// Use non-keyword path parts: `project`/`dataset` are non-reserved keywords
-		// affected by the identifierText case-folding gap (divergence #84).
-		tr := parseTruncate(t, "TRUNCATE TABLE myproj.ds.foo")
-		if pathString(tr.Target) != "myproj.ds.foo" {
-			t.Errorf("Target = %q", pathString(tr.Target))
-		}
-	})
-}
-
 // ---------------------------------------------------------------------------
 // Dashed BigQuery paths (BigQuery-only; non-authoritative on Spanner — see ledger)
 // ---------------------------------------------------------------------------
-
-func TestDML_DashedPaths(t *testing.T) {
-	// Dashed table paths are BigQuery-valid (dashed_path_expression) and omni
-	// accepts them. The Spanner emulator syntax-rejects '-' in a table name, so
-	// these are covered here, not in the differential (divergence ledger #85).
-	t.Run("insert", func(t *testing.T) {
-		ins := parseInsert(t, "INSERT INTO my-project.ds.tbl (a) VALUES (1)")
-		if pathString(ins.Target) != "my-project.ds.tbl" {
-			t.Errorf("Target = %q", pathString(ins.Target))
-		}
-	})
-	t.Run("update", func(t *testing.T) {
-		u := parseUpdate(t, "UPDATE my-project.ds.tbl SET x = 1 WHERE id = 1")
-		if pathString(u.Target) != "my-project.ds.tbl" {
-			t.Errorf("Target = %q", pathString(u.Target))
-		}
-	})
-	t.Run("truncate", func(t *testing.T) {
-		parseTruncate(t, "TRUNCATE TABLE my-project.ds.tbl")
-	})
-}
 
 // ---------------------------------------------------------------------------
 // Negative cases — omni must reject (oracle-confirmed syntax rejects)
@@ -594,54 +548,6 @@ func TestDML_Rejects(t *testing.T) {
 // Breadth: the entire canonical ZetaSQL DML corpus must parse cleanly
 // ---------------------------------------------------------------------------
 
-// TestDML_LegacyCorpusAccepts parses every statement of the canonical ZetaSQL
-// DML corpus files and asserts each parses to a single DML node with no errors.
-// This is the breadth oracle for the node (correctness-protocol completeness
-// gate): the legacy grammar bytebase consumes is a hand-port of this ZetaSQL
-// reference, so full corpus parity is the bar. The corpus is committed under
-// testdata/legacy, so a missing file is a failure, not a skip.
-func TestDML_LegacyCorpusAccepts(t *testing.T) {
-	dir := filepath.Join(legacyCorpusRoot(t), "zetasql", "parser", "testdata")
-	files := []string{
-		"dml_insert.sql",
-		"dml_update.sql",
-		"dml_delete.sql",
-		"dml_merge.sql",
-		"truncate.sql",
-		"dml_insert_on_conflict_clause.sql",
-	}
-	for _, name := range files {
-		path := filepath.Join(dir, name)
-		data, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("reading legacy corpus file %s: %v", path, err)
-		}
-		// The truncate.sql corpus mixes in SELECTs that USE `truncate` as an
-		// identifier; those are valid query statements, not DML. We only assert a
-		// clean parse to a single statement (no error), not the node kind, for
-		// that file.
-		assertDMLNode := name != "truncate.sql"
-		for i, raw := range splitStatements(string(data)) {
-			stmt := strings.TrimSpace(raw)
-			if stmt == "" {
-				continue
-			}
-			file, errs := parseForTest(stmt)
-			if len(errs) != 0 {
-				t.Errorf("%s[%d] parse failed:\n%s\nerrs=%v", name, i, stmt, errs)
-				continue
-			}
-			if len(file.Stmts) != 1 {
-				t.Errorf("%s[%d]: got %d stmts:\n%s", name, i, len(file.Stmts), stmt)
-				continue
-			}
-			if assertDMLNode && !isDMLNode(file.Stmts[0]) {
-				t.Errorf("%s[%d]: got %T, want a DML node:\n%s", name, i, file.Stmts[0], stmt)
-			}
-		}
-	}
-}
-
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
@@ -686,33 +592,9 @@ func parseMerge(t *testing.T, sql string) *ast.MergeStmt {
 	return m
 }
 
-func parseTruncate(t *testing.T, sql string) *ast.TruncateStmt {
-	t.Helper()
-	n := parseOneStmt(t, sql)
-	tr, ok := n.(*ast.TruncateStmt)
-	if !ok {
-		t.Fatalf("parseForTest(%q): got %T, want *ast.TruncateStmt", sql, n)
-	}
-	return tr
-}
-
 func pathString(p *ast.PathExpr) string {
 	if p == nil {
 		return ""
 	}
 	return strings.Join(p.Parts, ".")
-}
-
-func isDMLNode(n ast.Node) bool {
-	switch n.(type) {
-	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt, *ast.TruncateStmt:
-		return true
-	}
-	return false
-}
-
-// splitStatements splits a corpus file on top-level ';' (the corpus is
-// formatted so no ';' appears inside a statement except as a terminator).
-func splitStatements(src string) []string {
-	return strings.Split(src, ";")
 }

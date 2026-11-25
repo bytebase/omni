@@ -22,21 +22,14 @@ func TestUppercaseStarMergeName(t *testing.T) {
 	)
 	statement := "SELECT * FROM rt UNION ALL SELECT id, label FROM lt"
 
-	bigquery := resolvePin(t, bigqueryResolveOptions(), statement, "ds1", tables)
-	require.Equal(t, []string{"ID", "SECRET"}, []string{bigquery.Results[0].Name, bigquery.Results[1].Name},
-		"BigQuery upper-cases a left-star merge name")
-
-	spannerOpts := spannerResolveOptions()
-	spanner := resolvePin(t, spannerOpts, statement, "ds1", tables)
+	spanner := resolvePin(t, spannerResolveOptions(), statement, "ds1", tables)
 	require.Equal(t, []string{"id", "secret"}, []string{spanner.Results[0].Name, spanner.Results[1].Name},
 		"Spanner keeps the star column's metadata case")
 	require.Equal(t, []string{"lt.id", "rt.id"}, sourcesOf(spanner.Results[0]))
 }
 
 // TestIgnoreWrittenDatabase: under the Spanner metadata model a 3-part
-// db.schema.table reference records the session database and the written schema;
-// BigQuery resolves the written dataset as the database and uses its single
-// unnamed schema.
+// db.schema.table reference records the session database and the written schema.
 func TestIgnoreWrittenDatabase(t *testing.T) {
 	spannerSpan := resolvePin(t, spannerResolveOptions(), "SELECT id FROM other.analytics.events", "db", []*metadata.SchemaMetadata{
 		{Name: ""},
@@ -48,25 +41,6 @@ func TestIgnoreWrittenDatabase(t *testing.T) {
 		{Database: "db", Schema: "analytics", Table: "events"}: true,
 	}, spannerSpan.SourceColumns, "Spanner records the session database, not the written one")
 	require.Equal(t, []string{"analytics.events.id"}, sourcesOf(spannerSpan.Results[0]))
-
-	bigquerySpan := resolvePin(t, bigqueryResolveOptions(), "SELECT id FROM ds1.events", "ds1", pinTables(
-		&metadata.TableMetadata{Name: "events", Columns: []*metadata.ColumnMetadata{{Name: "id"}}},
-	))
-	require.Equal(t, ColumnSet{
-		{Database: "ds1", Table: "events"}: true,
-	}, bigquerySpan.SourceColumns, "BigQuery resolves the dataset as the database")
-	require.Equal(t, []string{"events.id"}, sourcesOf(bigquerySpan.Results[0]), "the dataset is the database, not a schema")
-}
-
-// TestAliasedColumnLineage: a column reached through a relation alias carries the
-// physical table's lineage (aliases are resolved before lineage matching).
-func TestAliasedColumnLineage(t *testing.T) {
-	span := resolvePin(t, bigqueryResolveOptions(), "SELECT g.x AS y FROM galleries g", "ds1", pinTables(
-		&metadata.TableMetadata{Name: "galleries", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "x"}}},
-	))
-	require.Len(t, span.Results, 1)
-	require.Equal(t, "Y", span.Results[0].Name)
-	require.Equal(t, []string{"galleries.x"}, sourcesOf(span.Results[0]))
 }
 
 // TestSpannerAnonymousColumns: Spanner names an expression "", and two such

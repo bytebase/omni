@@ -81,9 +81,6 @@ var nestingShapes = []struct {
 	{"CTE", func(n int) string { return nest(n, "WITH c AS (", "SELECT 1", ") SELECT * FROM c") }},
 	{"ARRAY type", func(n int) string { return "SELECT CAST(NULL AS " + nest(n, "ARRAY<", "INT64", ">") + ")" }},
 	{"STRUCT type", func(n int) string { return "SELECT CAST(NULL AS " + nest(n, "STRUCT<a ", "INT64", ">") + ")" }},
-	{"BEGIN block", func(n int) string { return nest(n, "BEGIN ", "SELECT 1;", " END;") }},
-	{"IF", func(n int) string { return nest(n, "IF true THEN ", "SELECT 1;", " END IF;") }},
-	{"LOOP", func(n int) string { return nest(n, "LOOP ", "SELECT 1;", " END LOOP;") }},
 	{"nested DML", func(n int) string {
 		return "UPDATE t SET " + nest(n, "(UPDATE a SET ", "x = 1", " WHERE true)") + " WHERE true"
 	}},
@@ -101,7 +98,6 @@ var nestingShapes = []struct {
 		return "SELECT 1 FROM t WHERE " + strings.Repeat("EXISTS (SELECT 1 FROM t WHERE ", n)
 	}},
 	{"unclosed join groups", func(n int) string { return "SELECT * FROM " + strings.Repeat("(", n) }},
-	{"unclosed BEGIN blocks", func(n int) string { return strings.Repeat("BEGIN ", n) + "SELECT 1" }},
 }
 
 // TestNestingLimit: every construct the parser descends into recursively
@@ -196,7 +192,6 @@ var chainShapes = []struct {
 	// A subquery's body joins the statement's tree only when the parse
 	// attaches it, after the rest of the tree is built.
 	{"sum in a subquery", func(n int) string { return "SELECT (SELECT " + strings.Repeat("1+", n) + "1)" }},
-	{"sum in a block", func(n int) string { return "BEGIN SELECT " + strings.Repeat("1+", n) + "1; END" }},
 }
 
 // TestTreeHeightLimit: a left-deep chain longer than maxTreeHeight is

@@ -14,6 +14,7 @@ import (
 	gomysql "github.com/go-sql-driver/mysql"
 
 	"github.com/bytebase/omni/enginetest/simulate"
+	nodes "github.com/bytebase/omni/tidb/ast"
 	"github.com/bytebase/omni/tidb/internal/testcontainer"
 	tidbparser "github.com/bytebase/omni/tidb/parser"
 )
@@ -74,13 +75,28 @@ var simulationFixtures = []string{
 // resource groups, bindings, accounts and the server are not simulated here
 // yet: what they change is outside that database.
 var simulationFamilies = []string{
-	"ALTER TABLE ", "ALTER IGNORE ", "CREATE TABLE ", "CREATE TEMPORARY ", "DROP TABLE ", "RENAME TABLE ", "TRUNCATE ",
+	"ALTER TABLE ", "ALTER IGNORE ", "CREATE TABLE ", "CREATE TEMPORARY ", "DROP TABLE ", "DROP TEMPORARY ", "DROP GLOBAL TEMPORARY ", "RENAME TABLE ", "TRUNCATE ",
 	"CREATE INDEX ", "CREATE UNIQUE ", "CREATE FULLTEXT ", "CREATE SPATIAL ", "DROP INDEX ",
 	"CREATE VIEW ", "CREATE OR ", "CREATE ALGORITHM ", "CREATE DEFINER ", "CREATE SQL ", "DROP VIEW ",
 }
 
+// simulationExcluded are statements a family's leading words reach that change
+// nothing in the database a row reads back: CREATE OR REPLACE PLACEMENT POLICY
+// makes a server-wide policy.
+var simulationExcluded = []string{"CREATE OR REPLACE PLACEMENT "}
+
+// sessionOnly are the words of a statement whose effect lives in the session:
+// a hypothetical index (USING HYPO, TYPE HYPO) is kept in the session's
+// variables, outlives DROP DATABASE there, and shows in every later SHOW CREATE
+// TABLE of a table of that name, so a row after it on the connection would
+// read it back (measured on v8.5.5).
+var sessionOnly = []string{"USING HYPO", "TYPE HYPO"}
+
 func simulated(statement string) bool {
-	return slices.ContainsFunc(simulationFamilies, func(words string) bool { return strings.HasPrefix(statement, words) })
+	has := func(words string) bool { return strings.HasPrefix(statement, words) }
+	holds := func(words string) bool { return strings.Contains(statement, words) }
+	return slices.ContainsFunc(simulationFamilies, has) && !slices.ContainsFunc(simulationExcluded, has) &&
+		!slices.ContainsFunc(sessionOnly, holds)
 }
 
 // simulationDatabase holds every row's fixture, on the server and in omni.
@@ -114,8 +130,42 @@ func simulationEngine(t testing.TB) func(simulate.Fixture, string) (simulate.Ans
 			return simulate.Answer{Code: strconv.Itoa(int(refusal.Number))}, nil
 		}
 		forms, err := simulationForms(ctx, db)
-		return simulate.Answer{Forms: forms}, err
+		if err != nil {
+			return simulate.Answer{}, err
+		}
+		// A local temporary table belongs to the session, not the database:
+		// it outlives DROP DATABASE, and SHOW CREATE TABLE of a table of its
+		// name would read it in every later row on the connection (v8.5.5).
+		if drop := dropLocalTemporary(statement); drop != "" {
+			if _, err := db.ExecContext(ctx, drop); err != nil {
+				return simulate.Answer{}, fmt.Errorf("%s: %w", drop, err)
+			}
+		}
+		return simulate.Answer{Forms: forms}, nil
 	}
+}
+
+// dropLocalTemporary is the statement that drops the local temporary tables
+// statement creates, or "" when it creates none.
+func dropLocalTemporary(statement string) string {
+	list, err := tidbparser.Parse(statement)
+	if err != nil {
+		return ""
+	}
+	var names []string
+	for _, item := range list.Items {
+		if create, ok := item.(*nodes.CreateTableStmt); ok && create.Temporary && create.Table != nil {
+			name := "`" + strings.ReplaceAll(create.Table.Name, "`", "``") + "`"
+			if create.Table.Schema != "" {
+				name = "`" + strings.ReplaceAll(create.Table.Schema, "`", "``") + "`." + name
+			}
+			names = append(names, name)
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	return "DROP TEMPORARY TABLE IF EXISTS " + strings.Join(names, ", ")
 }
 
 // simulationForms reads the selected database's tables and views as TiDB
@@ -236,7 +286,8 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 
 // simulationStored is what SHOW FULL TABLES and SHOW CREATE would read from
 // the catalog's simulation database: its tables and views in name order. A
-// local temporary table is not listed, as TiDB lists none.
+// local temporary table is not listed, as TiDB lists none, but SHOW CREATE
+// TABLE of a table it shadows prints it.
 func simulationStored(c *Catalog) []simulate.Form {
 	db := c.GetDatabase(simulationDatabase)
 	if db == nil {
@@ -244,9 +295,6 @@ func simulationStored(c *Catalog) []simulate.Form {
 	}
 	var forms []simulate.Form
 	for _, tbl := range db.Tables {
-		if tbl.Temporary {
-			continue
-		}
 		forms = append(forms, simulate.Form{Kind: "TABLE", Name: tbl.Name, Text: c.ShowCreateTable(db.Name, tbl.Name)})
 	}
 	for _, v := range db.Views {

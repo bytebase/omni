@@ -124,6 +124,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident REORGANIZE PARTITION NO_WRITE_TO_BINLOG
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REORGANIZE PARTITION LOCAL
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident SPLIT MAXVALUE PARTITION LESS THAN(ident)
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -194,7 +208,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident CONVERT TO CHARACTER SET 'binary'
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHAR SET 'binary'
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident CONVERT TO CHARSET DEFAULT
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHARACTER SET DEFAULT
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHAR SET DEFAULT
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -236,13 +278,6 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
-| ALTER TABLE ident ADD INDEX(ident)
-< error
-| 1146 42S02 Table 'simulation.ident' doesn't exist
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
 | ALTER TABLE ident ADD PARTITION
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -251,6 +286,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD PARTITION IF NOT EXISTS
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION NO_WRITE_TO_BINLOG
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION LOCAL
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -271,7 +320,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD PARTITION NO_WRITE_TO_BINLOG PARTITIONS 1
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION LOCAL PARTITIONS 1
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident LAST PARTITION LESS THAN(ident)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident LAST PARTITION LESS THAN(ident) NO_WRITE_TO_BINLOG
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident LAST PARTITION LESS THAN(ident) LOCAL
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -306,6 +383,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident COALESCE PARTITION NO_WRITE_TO_BINLOG 1
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident COALESCE PARTITION LOCAL 1
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP ident
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -314,6 +405,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident DROP IF EXISTS ident
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP ident RESTRICT
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP ident CASCADE
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -390,7 +495,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident OPTIMIZE PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident OPTIMIZE PARTITION LOCAL ALL
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident REPAIR PARTITION ALL
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REPAIR PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REPAIR PARTITION LOCAL ALL
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -426,6 +559,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident REBUILD PARTITION ALL
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REBUILD PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REBUILD PARTITION LOCAL ALL
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -552,6 +699,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident RENAME KEY ident TO ident
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident RENAME INDEX ident TO ident
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -768,6 +922,13 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT INDEX(ident)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP COLUMN ident
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -866,6 +1027,13 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD CHECK(ident) NOT ENFORCED
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT CHECK(ident) NOT NULL
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -908,6 +1076,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED LOCAL
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED GLOBAL
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT UNIQUE GLOBAL
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -930,6 +1112,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident TINYINT UNIQUE KEY
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT UNIQUE KEY LOCAL
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT UNIQUE KEY GLOBAL
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -1097,6 +1293,13 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD INDEX(ident)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD UNIQUE(ident)
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -1147,6 +1350,34 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE RESTRICT
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE CASCADE
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE SET NULL
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE NO ACTION
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE SET DEFAULT
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -1363,7 +1594,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident ASC)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident DESC)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT((ident))
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT((ident) ASC)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT((ident) DESC)
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -1391,6 +1650,27 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP INDEX ident ON ident ALGORITHM COPY
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INPLACE
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INSTANT
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM DEFAULT
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -1398,7 +1678,49 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM COPY
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM INPLACE
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM INSTANT
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | DROP INDEX ident ON ident ALGORITHM DEFAULT LOCK DEFAULT
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM COPY LOCK DEFAULT
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INPLACE LOCK DEFAULT
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INSTANT LOCK DEFAULT
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -1448,6 +1770,13 @@
 < ok 0 0
 > exec
 | CREATE TABLE IF NOT EXISTS ident LIKE ident
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE ident LIKE ident
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -1878,6 +2207,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP TEMPORARY TABLE ident
+< error
+| 1051 42S02 Unknown table 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP GLOBAL TEMPORARY TABLE ident
+< error
+| 1051 42S02 Unknown table 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TEMPORARY TABLE ident
 < error
 | 1113 42000 A table must have at least 1 column
@@ -1892,7 +2235,85 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP VIEW ident RESTRICT
+< error
+| 1051 42S02 Unknown table 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP VIEW ident CASCADE
+< error
+| 1051 42S02 Unknown table 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS ident RESTRICT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS ident CASCADE
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -2043,7 +2464,21 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident) INVISIBLE
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT(ident) CLUSTERED
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) NONCLUSTERED
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -2085,7 +2520,49 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD KEY USING HASH(ident)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY USING RTREE(ident)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY USING HNSW(ident)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD KEY ident TYPE BTREE(ident)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE HASH(ident)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE RTREE(ident)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE HNSW(ident)
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -2106,6 +2583,27 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE HASH
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE RTREE
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE HNSW
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT(ident) USING HASH
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -2114,13 +2612,6 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FULLTEXT(ident) USING RTREE
-< error
-| 1146 42S02 Table 'simulation.ident' doesn't exist
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD FULLTEXT(ident) USING HYPO
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -2303,6 +2794,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident CHARSET 'binary'
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHARACTER SET 'binary'
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHAR SET 'binary'
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -2855,7 +3360,28 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident CHAR(1)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident NCHAR(1)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident NATIONAL CHAR(1)
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -2870,6 +3396,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident VARCHAR(1)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER VARYING(1)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHAR VARYING(1)
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -3037,35 +3577,7 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
-| ALTER TABLE ident ADD ident CHARACTER VARYING(1)
-< error
-| 1146 42S02 Table 'simulation.ident' doesn't exist
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
-< error
-| 1146 42S02 Table 'simulation.ident' doesn't exist
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
 | ALTER TABLE ident ADD ident NATIONAL CHAR VARYING(1)
-< error
-| 1146 42S02 Table 'simulation.ident' doesn't exist
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident CHAR VARYING(1)
-< error
-| 1146 42S02 Table 'simulation.ident' doesn't exist
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident NATIONAL CHAR(1)
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -3254,7 +3766,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER BINARY CHARACTER SET 'binary'
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER BINARY CHAR SET 'binary'
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -3533,6 +4073,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident REORGANIZE PARTITION NO_WRITE_TO_BINLOG
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REORGANIZE PARTITION LOCAL
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident SPLIT MAXVALUE PARTITION LESS THAN(ident)
 < error
 | 8200 HY000 Unsupported SPLIT LAST PARTITION
@@ -3728,7 +4282,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident CONVERT TO CHARACTER SET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHAR SET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident CONVERT TO CHARSET DEFAULT
+< error
+| 1105 HY000 Unknown charset 
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHARACTER SET DEFAULT
+< error
+| 1105 HY000 Unknown charset 
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHAR SET DEFAULT
 < error
 | 1105 HY000 Unknown charset 
 > exec
@@ -3899,13 +4481,6 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
-| ALTER TABLE ident ADD INDEX(ident)
-< error
-| 1072 42000 column does not exist: ident
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
 | ALTER TABLE ident ADD PARTITION
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
@@ -3914,6 +4489,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD PARTITION IF NOT EXISTS
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION NO_WRITE_TO_BINLOG
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION LOCAL
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
@@ -3934,7 +4523,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD PARTITION NO_WRITE_TO_BINLOG PARTITIONS 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION LOCAL PARTITIONS 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident LAST PARTITION LESS THAN(ident)
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident LAST PARTITION LESS THAN(ident) NO_WRITE_TO_BINLOG
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident LAST PARTITION LESS THAN(ident) LOCAL
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
@@ -3963,6 +4580,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident COALESCE PARTITION 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident COALESCE PARTITION NO_WRITE_TO_BINLOG 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident COALESCE PARTITION LOCAL 1
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
@@ -4004,6 +4635,20 @@
 |   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP ident RESTRICT
+< error
+| 1091 42000 Can't DROP 'ident'; check that column/key exists
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP ident CASCADE
+< error
+| 1091 42000 Can't DROP 'ident'; check that column/key exists
 > exec
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -4078,7 +4723,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident OPTIMIZE PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 8200 HY000 Unsupported optimize partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident OPTIMIZE PARTITION LOCAL ALL
+< error
+| 8200 HY000 Unsupported optimize partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident REPAIR PARTITION ALL
+< error
+| 8200 HY000 Unsupported repair partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REPAIR PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 8200 HY000 Unsupported repair partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REPAIR PARTITION LOCAL ALL
 < error
 | 8200 HY000 Unsupported repair partition
 > exec
@@ -4114,6 +4787,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident REBUILD PARTITION ALL
+< error
+| 8200 HY000 Unsupported rebuild partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REBUILD PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 8200 HY000 Unsupported rebuild partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REBUILD PARTITION LOCAL ALL
 < error
 | 8200 HY000 Unsupported rebuild partition
 > exec
@@ -4465,6 +5152,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident RENAME KEY ident TO ident
+< error
+| 1176 42000 Key 'ident' doesn't exist in table 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident RENAME INDEX ident TO ident
 < error
 | 1176 42000 Key 'ident' doesn't exist in table 'ident'
 > exec
@@ -5081,6 +5775,38 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT INDEX(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP COLUMN ident
 < error
 | 1091 42000 Can't DROP 'ident'; check that column/key exists
@@ -5355,6 +6081,38 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD CHECK(ident) NOT ENFORCED
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT CHECK(ident) NOT NULL
 < ok 0 0
 > query
@@ -5527,6 +6285,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED LOCAL
+< error
+| 8200 HY000 unsupported add column 'ident' constraint PRIMARY KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED GLOBAL
+< error
+| 8200 HY000 unsupported add column 'ident' constraint PRIMARY KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT UNIQUE GLOBAL
 < error
 | 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
@@ -5549,6 +6321,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident TINYINT UNIQUE KEY
+< error
+| 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT UNIQUE KEY LOCAL
+< error
+| 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT UNIQUE KEY GLOBAL
 < error
 | 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
 > exec
@@ -5976,6 +6762,13 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD INDEX(ident)
+< error
+| 1072 42000 column does not exist: ident
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD UNIQUE(ident)
 < error
 | 1072 42000 column does not exist: ident
@@ -6130,6 +6923,138 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE RESTRICT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `ident` tinyint DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE CASCADE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `ident` tinyint DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE SET NULL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `ident` tinyint DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE NO ACTION
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `ident` tinyint DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE SET DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -6605,7 +7530,135 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident ASC)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident DESC)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT((ident))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT((ident) ASC)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT((ident) DESC)
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -6658,6 +7711,27 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP INDEX ident ON ident ALGORITHM COPY
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INPLACE
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INSTANT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM DEFAULT
 < error
 | 1091 42000 index ident doesn't exist
@@ -6665,7 +7739,49 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM COPY
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM INPLACE
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM INSTANT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | DROP INDEX ident ON ident ALGORITHM DEFAULT LOCK DEFAULT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM COPY LOCK DEFAULT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INPLACE LOCK DEFAULT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INSTANT LOCK DEFAULT
 < error
 | 1091 42000 index ident doesn't exist
 > exec
@@ -6742,6 +7858,41 @@
 |   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE ident LIKE ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TEMPORARY TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP TEMPORARY TABLE IF EXISTS `ident`
+< ok 0 0
 > exec
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -7281,6 +8432,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP TEMPORARY TABLE ident
+< error
+| 1051 42S02 Unknown table 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP GLOBAL TEMPORARY TABLE ident
+< error
+| 8007 HY000 `drop global temporary table` can only drop global temporary table
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TEMPORARY TABLE ident
 < error
 | 1113 42000 A table must have at least 1 column
@@ -7295,7 +8460,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP VIEW ident RESTRICT
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP VIEW ident CASCADE
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS ident
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS ident RESTRICT
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS ident CASCADE
 < error
 | 1347 HY000 'simulation.ident' is not VIEW
 > exec
@@ -7604,7 +8797,71 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident) INVISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT(ident) CLUSTERED
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) NONCLUSTERED
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -7721,7 +8978,49 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD KEY USING HASH(ident)
+< error
+| 1072 42000 column does not exist: ident
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY USING RTREE(ident)
+< error
+| 1072 42000 column does not exist: ident
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY USING HNSW(ident)
+< error
+| 1072 42000 column does not exist: ident
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD KEY ident TYPE BTREE(ident)
+< error
+| 1072 42000 column does not exist: ident
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE HASH(ident)
+< error
+| 1072 42000 column does not exist: ident
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE RTREE(ident)
+< error
+| 1072 42000 column does not exist: ident
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE HNSW(ident)
 < error
 | 1072 42000 column does not exist: ident
 > exec
@@ -7736,6 +9035,102 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FULLTEXT(ident) TYPE BTREE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE HASH
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE RTREE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE HNSW
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -7800,38 +9195,6 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FULLTEXT(ident) USING RTREE
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_simulation" "VARCHAR"
-< column "Table_type" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `ident`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| CREATE TABLE `ident` (
-|   `b` int NOT NULL,
-|   `c` int DEFAULT NULL,
-|   `d` int DEFAULT NULL,
-|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
-|   KEY `idx_d` (`d`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD FULLTEXT(ident) USING HYPO
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -8105,6 +9468,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident CHARSET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHARACTER SET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHAR SET 'binary'
 < error
 | 8200 HY000 Unsupported modify charset from utf8mb4 to binary
 > exec
@@ -9833,7 +11210,106 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident CHAR(1)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `ident` char(1) DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident NCHAR(1)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `ident` char(1) DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `ident` char(1) DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident NATIONAL CHAR(1)
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -9900,6 +11376,72 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident VARCHAR(1)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `ident` varchar(1) DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER VARYING(1)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `ident` varchar(1) DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHAR VARYING(1)
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -10691,72 +12233,6 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
-| ALTER TABLE ident ADD ident CHARACTER VARYING(1)
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_simulation" "VARCHAR"
-< column "Table_type" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `ident`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| CREATE TABLE `ident` (
-|   `b` int NOT NULL,
-|   `c` int DEFAULT NULL,
-|   `d` int DEFAULT NULL,
-|   `ident` varchar(1) DEFAULT NULL,
-|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
-|   KEY `idx_d` (`d`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_simulation" "VARCHAR"
-< column "Table_type" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `ident`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| CREATE TABLE `ident` (
-|   `b` int NOT NULL,
-|   `c` int DEFAULT NULL,
-|   `d` int DEFAULT NULL,
-|   `ident` char(1) DEFAULT NULL,
-|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
-|   KEY `idx_d` (`d`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
 | ALTER TABLE ident ADD ident NATIONAL CHAR VARYING(1)
 < ok 0 0
 > query
@@ -10783,72 +12259,6 @@
 |   `c` int DEFAULT NULL,
 |   `d` int DEFAULT NULL,
 |   `ident` varchar(1) DEFAULT NULL,
-|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
-|   KEY `idx_d` (`d`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident CHAR VARYING(1)
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_simulation" "VARCHAR"
-< column "Table_type" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `ident`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| CREATE TABLE `ident` (
-|   `b` int NOT NULL,
-|   `c` int DEFAULT NULL,
-|   `d` int DEFAULT NULL,
-|   `ident` varchar(1) DEFAULT NULL,
-|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
-|   KEY `idx_d` (`d`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident NATIONAL CHAR(1)
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_simulation" "VARCHAR"
-< column "Table_type" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `ident`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| CREATE TABLE `ident` (
-|   `b` int NOT NULL,
-|   `c` int DEFAULT NULL,
-|   `d` int DEFAULT NULL,
-|   `ident` char(1) DEFAULT NULL,
 |   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
@@ -11688,7 +13098,139 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `ident` binary(1) DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `ident` binary(1) DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `ident` binary(1) DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER BINARY CHARACTER SET 'binary'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `ident` binary(1) DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER BINARY CHAR SET 'binary'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -12031,6 +13573,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident REORGANIZE PARTITION NO_WRITE_TO_BINLOG
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REORGANIZE PARTITION LOCAL
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident SPLIT MAXVALUE PARTITION LESS THAN(ident)
 < error
 | 8200 HY000 Unsupported SPLIT LAST PARTITION
@@ -12226,7 +13782,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident CONVERT TO CHARACTER SET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHAR SET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident CONVERT TO CHARSET DEFAULT
+< error
+| 1105 HY000 Unknown charset 
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHARACTER SET DEFAULT
+< error
+| 1105 HY000 Unknown charset 
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHAR SET DEFAULT
 < error
 | 1105 HY000 Unknown charset 
 > exec
@@ -12343,39 +13927,6 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
-| ALTER TABLE ident ADD INDEX(ident)
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_simulation" "VARCHAR"
-< column "Table_type" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `ident`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| CREATE TABLE `ident` (
-|   `b` int NOT NULL,
-|   `ident` int DEFAULT NULL,
-|   `d` int DEFAULT NULL,
-|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
-|   KEY `idx_d` (`d`),
-|   KEY `ident` (`ident`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
 | ALTER TABLE ident ADD PARTITION
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
@@ -12384,6 +13935,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD PARTITION IF NOT EXISTS
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION NO_WRITE_TO_BINLOG
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION LOCAL
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
@@ -12404,7 +13969,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD PARTITION NO_WRITE_TO_BINLOG PARTITIONS 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION LOCAL PARTITIONS 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident LAST PARTITION LESS THAN(ident)
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident LAST PARTITION LESS THAN(ident) NO_WRITE_TO_BINLOG
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident LAST PARTITION LESS THAN(ident) LOCAL
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
@@ -12433,6 +14026,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident COALESCE PARTITION 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident COALESCE PARTITION NO_WRITE_TO_BINLOG 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident COALESCE PARTITION LOCAL 1
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
@@ -12471,6 +14078,68 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident DROP IF EXISTS ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP ident RESTRICT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP ident CASCADE
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -12571,7 +14240,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident OPTIMIZE PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 8200 HY000 Unsupported optimize partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident OPTIMIZE PARTITION LOCAL ALL
+< error
+| 8200 HY000 Unsupported optimize partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident REPAIR PARTITION ALL
+< error
+| 8200 HY000 Unsupported repair partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REPAIR PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 8200 HY000 Unsupported repair partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REPAIR PARTITION LOCAL ALL
 < error
 | 8200 HY000 Unsupported repair partition
 > exec
@@ -12607,6 +14304,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident REBUILD PARTITION ALL
+< error
+| 8200 HY000 Unsupported rebuild partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REBUILD PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 8200 HY000 Unsupported rebuild partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REBUILD PARTITION LOCAL ALL
 < error
 | 8200 HY000 Unsupported rebuild partition
 > exec
@@ -13083,6 +14794,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident RENAME KEY ident TO ident
+< error
+| 1176 42000 Key 'ident' doesn't exist in table 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident RENAME INDEX ident TO ident
 < error
 | 1176 42000 Key 'ident' doesn't exist in table 'ident'
 > exec
@@ -13699,6 +15417,38 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT INDEX(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP COLUMN ident
 < ok 0 0
 > query
@@ -13971,6 +15721,38 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD CHECK(ident) NOT ENFORCED
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT CHECK(ident) NOT NULL
 < error
 | 1060 42S21 Duplicate column name 'ident'
@@ -14013,6 +15795,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED LOCAL
+< error
+| 8200 HY000 unsupported add column 'ident' constraint PRIMARY KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED GLOBAL
+< error
+| 8200 HY000 unsupported add column 'ident' constraint PRIMARY KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT UNIQUE GLOBAL
 < error
 | 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
@@ -14035,6 +15831,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident TINYINT UNIQUE KEY
+< error
+| 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT UNIQUE KEY LOCAL
+< error
+| 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT UNIQUE KEY GLOBAL
 < error
 | 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
 > exec
@@ -14254,6 +16064,39 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD INDEX(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD UNIQUE(ident)
 < ok 0 0
 > query
@@ -14330,6 +16173,34 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE RESTRICT
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE CASCADE
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE SET NULL
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE NO ACTION
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE SET DEFAULT
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -14623,7 +16494,135 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident ASC)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident DESC)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT((ident))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT((ident) ASC)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT((ident) DESC)
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -14676,6 +16675,27 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP INDEX ident ON ident ALGORITHM COPY
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INPLACE
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INSTANT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM DEFAULT
 < error
 | 1091 42000 index ident doesn't exist
@@ -14683,7 +16703,49 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM COPY
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM INPLACE
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM INSTANT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | DROP INDEX ident ON ident ALGORITHM DEFAULT LOCK DEFAULT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM COPY LOCK DEFAULT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INPLACE LOCK DEFAULT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INSTANT LOCK DEFAULT
 < error
 | 1091 42000 index ident doesn't exist
 > exec
@@ -14786,6 +16848,41 @@
 |   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE ident LIKE ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TEMPORARY TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP TEMPORARY TABLE IF EXISTS `ident`
+< ok 0 0
 > exec
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -15325,6 +17422,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP TEMPORARY TABLE ident
+< error
+| 1051 42S02 Unknown table 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP GLOBAL TEMPORARY TABLE ident
+< error
+| 8007 HY000 `drop global temporary table` can only drop global temporary table
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TEMPORARY TABLE ident
 < error
 | 1113 42000 A table must have at least 1 column
@@ -15339,7 +17450,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP VIEW ident RESTRICT
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP VIEW ident CASCADE
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS ident
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS ident RESTRICT
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS ident CASCADE
 < error
 | 1347 HY000 'simulation.ident' is not VIEW
 > exec
@@ -15648,7 +17787,71 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident) INVISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT(ident) CLUSTERED
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) NONCLUSTERED
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -15843,6 +18046,79 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD KEY USING HASH(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY USING RTREE(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY USING HNSW(ident)
+< error
+| 8200 HY000 Unsupported add vector index: Only support vector index with HNSW type, but it's non-vector index
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD KEY ident TYPE BTREE(ident)
 < ok 0 0
 > query
@@ -15872,6 +18148,79 @@
 |   KEY `idx_d` (`d`),
 |   KEY `ident` (`ident`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE HASH(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE RTREE(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE HNSW(ident)
+< error
+| 8200 HY000 Unsupported add vector index: Only support vector index with HNSW type, but it's non-vector index
 > exec
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -15941,6 +18290,102 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE HASH
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE RTREE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE HNSW
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT(ident) USING HASH
 < ok 0 0
 > query
@@ -15974,38 +18419,6 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FULLTEXT(ident) USING RTREE
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_simulation" "VARCHAR"
-< column "Table_type" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `ident`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| CREATE TABLE `ident` (
-|   `b` int NOT NULL,
-|   `ident` int DEFAULT NULL,
-|   `d` int DEFAULT NULL,
-|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
-|   KEY `idx_d` (`d`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD FULLTEXT(ident) USING HYPO
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -16279,6 +18692,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident CHARSET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHARACTER SET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHAR SET 'binary'
 < error
 | 8200 HY000 Unsupported modify charset from utf8mb4 to binary
 > exec
@@ -17331,7 +19758,28 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident CHAR(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident NCHAR(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident NATIONAL CHAR(1)
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -17346,6 +19794,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident VARCHAR(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER VARYING(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHAR VARYING(1)
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -17513,35 +19975,7 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
-| ALTER TABLE ident ADD ident CHARACTER VARYING(1)
-< error
-| 1060 42S21 Duplicate column name 'ident'
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
-< error
-| 1060 42S21 Duplicate column name 'ident'
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
 | ALTER TABLE ident ADD ident NATIONAL CHAR VARYING(1)
-< error
-| 1060 42S21 Duplicate column name 'ident'
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident CHAR VARYING(1)
-< error
-| 1060 42S21 Duplicate column name 'ident'
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident NATIONAL CHAR(1)
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -17730,7 +20164,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER BINARY CHARACTER SET 'binary'
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER BINARY CHAR SET 'binary'
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -18009,6 +20471,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident REORGANIZE PARTITION NO_WRITE_TO_BINLOG
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REORGANIZE PARTITION LOCAL
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident SPLIT MAXVALUE PARTITION LESS THAN(ident)
 < error
 | 8200 HY000 Unsupported SPLIT LAST PARTITION
@@ -18204,7 +20680,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident CONVERT TO CHARACTER SET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHAR SET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident CONVERT TO CHARSET DEFAULT
+< error
+| 1105 HY000 Unknown charset 
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHARACTER SET DEFAULT
+< error
+| 1105 HY000 Unknown charset 
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHAR SET DEFAULT
 < error
 | 1105 HY000 Unknown charset 
 > exec
@@ -18321,39 +20825,6 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
-| ALTER TABLE ident ADD INDEX(ident)
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_simulation" "VARCHAR"
-< column "Table_type" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `ident`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| CREATE TABLE `ident` (
-|   `b` int NOT NULL,
-|   `ident` int DEFAULT NULL,
-|   `d` int DEFAULT NULL,
-|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
-|   KEY `ident` (`d`),
-|   KEY `ident_2` (`ident`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
-< ok 0 0
-> exec
 | ALTER TABLE ident ADD PARTITION
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
@@ -18362,6 +20833,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD PARTITION IF NOT EXISTS
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION NO_WRITE_TO_BINLOG
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION LOCAL
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
@@ -18382,7 +20867,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD PARTITION NO_WRITE_TO_BINLOG PARTITIONS 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION LOCAL PARTITIONS 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident LAST PARTITION LESS THAN(ident)
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident LAST PARTITION LESS THAN(ident) NO_WRITE_TO_BINLOG
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident LAST PARTITION LESS THAN(ident) LOCAL
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
@@ -18411,6 +20924,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident COALESCE PARTITION 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident COALESCE PARTITION NO_WRITE_TO_BINLOG 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident COALESCE PARTITION LOCAL 1
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
@@ -18449,6 +20976,68 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident DROP IF EXISTS ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP ident RESTRICT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP ident CASCADE
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -18549,7 +21138,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident OPTIMIZE PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 8200 HY000 Unsupported optimize partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident OPTIMIZE PARTITION LOCAL ALL
+< error
+| 8200 HY000 Unsupported optimize partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident REPAIR PARTITION ALL
+< error
+| 8200 HY000 Unsupported repair partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REPAIR PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 8200 HY000 Unsupported repair partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REPAIR PARTITION LOCAL ALL
 < error
 | 8200 HY000 Unsupported repair partition
 > exec
@@ -18585,6 +21202,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident REBUILD PARTITION ALL
+< error
+| 8200 HY000 Unsupported rebuild partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REBUILD PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 8200 HY000 Unsupported rebuild partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident REBUILD PARTITION LOCAL ALL
 < error
 | 8200 HY000 Unsupported rebuild partition
 > exec
@@ -19084,6 +21715,38 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident RENAME KEY ident TO ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident RENAME INDEX ident TO ident
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -19774,6 +22437,38 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT INDEX(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP COLUMN ident
 < ok 0 0
 > query
@@ -20046,6 +22741,38 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD CHECK(ident) NOT ENFORCED
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT CHECK(ident) NOT NULL
 < error
 | 1060 42S21 Duplicate column name 'ident'
@@ -20088,6 +22815,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED LOCAL
+< error
+| 8200 HY000 unsupported add column 'ident' constraint PRIMARY KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED GLOBAL
+< error
+| 8200 HY000 unsupported add column 'ident' constraint PRIMARY KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT UNIQUE GLOBAL
 < error
 | 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
@@ -20110,6 +22851,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident TINYINT UNIQUE KEY
+< error
+| 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT UNIQUE KEY LOCAL
+< error
+| 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT UNIQUE KEY GLOBAL
 < error
 | 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
 > exec
@@ -20329,6 +23084,39 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD INDEX(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`),
+|   KEY `ident_2` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD UNIQUE(ident)
 < ok 0 0
 > query
@@ -20405,6 +23193,34 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE RESTRICT
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE CASCADE
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE SET NULL
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE NO ACTION
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE SET DEFAULT
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -20671,7 +23487,135 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident ASC)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident DESC)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT((ident))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT((ident) ASC)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT((ident) DESC)
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -20796,6 +23740,99 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| DROP INDEX ident ON ident ALGORITHM COPY
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INPLACE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM DEFAULT
 < ok 0 0
 > query
@@ -20827,7 +23864,193 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM COPY
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM INPLACE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | DROP INDEX ident ON ident ALGORITHM DEFAULT LOCK DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM COPY LOCK DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INPLACE LOCK DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INSTANT LOCK DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -20928,6 +24151,41 @@
 |   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
 |   KEY `ident` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE ident LIKE ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TEMPORARY TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP TEMPORARY TABLE IF EXISTS `ident`
+< ok 0 0
 > exec
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
@@ -21466,6 +24724,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| DROP TEMPORARY TABLE ident
+< error
+| 1051 42S02 Unknown table 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| DROP GLOBAL TEMPORARY TABLE ident
+< error
+| 8007 HY000 `drop global temporary table` can only drop global temporary table
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | CREATE TEMPORARY TABLE ident
 < error
 | 1113 42000 A table must have at least 1 column
@@ -21480,7 +24752,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| DROP VIEW ident RESTRICT
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| DROP VIEW ident CASCADE
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS ident
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS ident RESTRICT
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS ident CASCADE
 < error
 | 1347 HY000 'simulation.ident' is not VIEW
 > exec
@@ -21789,7 +25089,71 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident) INVISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT(ident) CLUSTERED
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) NONCLUSTERED
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -21984,7 +25348,101 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD KEY USING HASH(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`),
+|   KEY `ident_2` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY USING RTREE(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`),
+|   KEY `ident_2` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY USING HNSW(ident)
+< error
+| 8200 HY000 Unsupported add vector index: Only support vector index with HNSW type, but it's non-vector index
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD KEY ident TYPE BTREE(ident)
+< error
+| 1061 42000 Duplicate key name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE HASH(ident)
+< error
+| 1061 42000 Duplicate key name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE RTREE(ident)
+< error
+| 1061 42000 Duplicate key name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE HNSW(ident)
 < error
 | 1061 42000 Duplicate key name 'ident'
 > exec
@@ -21999,6 +25457,102 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FULLTEXT(ident) TYPE BTREE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE HASH
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE RTREE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE HNSW
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -22063,38 +25617,6 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FULLTEXT(ident) USING RTREE
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_simulation" "VARCHAR"
-< column "Table_type" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `ident`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| CREATE TABLE `ident` (
-|   `b` int NOT NULL,
-|   `ident` int DEFAULT NULL,
-|   `d` int DEFAULT NULL,
-|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
-|   KEY `ident` (`d`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD FULLTEXT(ident) USING HYPO
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -22399,6 +25921,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident CHARACTER SET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHAR SET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident COLLATE 'binary'
 < error
 | 8200 HY000 Unsupported modify charset from utf8mb4 to binary
@@ -23445,7 +26981,28 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident CHAR(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident NCHAR(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident NATIONAL CHAR(1)
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -23460,6 +27017,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident VARCHAR(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER VARYING(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHAR VARYING(1)
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -23627,35 +27198,7 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
-| ALTER TABLE ident ADD ident CHARACTER VARYING(1)
-< error
-| 1060 42S21 Duplicate column name 'ident'
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
-< error
-| 1060 42S21 Duplicate column name 'ident'
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
-< ok 0 0
-> exec
 | ALTER TABLE ident ADD ident NATIONAL CHAR VARYING(1)
-< error
-| 1060 42S21 Duplicate column name 'ident'
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident CHAR VARYING(1)
-< error
-| 1060 42S21 Duplicate column name 'ident'
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident NATIONAL CHAR(1)
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -23844,7 +27387,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER BINARY CHARACTER SET 'binary'
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER BINARY CHAR SET 'binary'
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -24108,6 +27679,22 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident REORGANIZE PARTITION NO_WRITE_TO_BINLOG
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident REORGANIZE PARTITION LOCAL
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident SPLIT MAXVALUE PARTITION LESS THAN(ident)
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
@@ -24188,7 +27775,39 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident CONVERT TO CHARACTER SET 'binary'
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHAR SET 'binary'
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident CONVERT TO CHARSET DEFAULT
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHARACTER SET DEFAULT
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHAR SET DEFAULT
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -24236,14 +27855,6 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
-| ALTER TABLE ident ADD INDEX(ident)
-< error
-| 1347 HY000 'simulation.ident' is not BASE TABLE
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
-| CREATE VIEW ident AS SELECT b, ident, d FROM t
-< ok 0 0
-> exec
 | ALTER TABLE ident ADD PARTITION
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
@@ -24253,6 +27864,22 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD PARTITION IF NOT EXISTS
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION NO_WRITE_TO_BINLOG
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION LOCAL
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -24276,7 +27903,39 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD PARTITION NO_WRITE_TO_BINLOG PARTITIONS 1
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION LOCAL PARTITIONS 1
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident LAST PARTITION LESS THAN(ident)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident LAST PARTITION LESS THAN(ident) NO_WRITE_TO_BINLOG
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident LAST PARTITION LESS THAN(ident) LOCAL
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -24316,6 +27975,22 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident COALESCE PARTITION NO_WRITE_TO_BINLOG 1
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident COALESCE PARTITION LOCAL 1
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP ident
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
@@ -24325,6 +28000,22 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident DROP IF EXISTS ident
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP ident RESTRICT
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP ident CASCADE
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -24412,7 +28103,39 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident OPTIMIZE PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident OPTIMIZE PARTITION LOCAL ALL
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident REPAIR PARTITION ALL
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident REPAIR PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident REPAIR PARTITION LOCAL ALL
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -24453,6 +28176,22 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident REBUILD PARTITION ALL
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident REBUILD PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident REBUILD PARTITION LOCAL ALL
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -24597,6 +28336,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident RENAME KEY ident TO ident
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident RENAME INDEX ident TO ident
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -24844,6 +28591,14 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT INDEX(ident)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP COLUMN ident
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
@@ -24956,6 +28711,14 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD CHECK(ident) NOT ENFORCED
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT CHECK(ident) NOT NULL
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
@@ -25004,6 +28767,22 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED LOCAL
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED GLOBAL
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT UNIQUE GLOBAL
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
@@ -25029,6 +28808,22 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident TINYINT UNIQUE KEY
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT UNIQUE KEY LOCAL
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT UNIQUE KEY GLOBAL
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -25220,6 +29015,14 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD INDEX(ident)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD UNIQUE(ident)
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
@@ -25277,6 +29080,38 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE RESTRICT
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE CASCADE
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE SET NULL
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE NO ACTION
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE SET DEFAULT
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -25524,7 +29359,39 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident ASC)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident DESC)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT((ident))
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT((ident) ASC)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT((ident) DESC)
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -25556,6 +29423,30 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| DROP INDEX ident ON ident ALGORITHM COPY
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INPLACE
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INSTANT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM DEFAULT
 < error
 | 1091 42000 index ident doesn't exist
@@ -25564,7 +29455,55 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM COPY
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM INPLACE
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM INSTANT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | DROP INDEX ident ON ident ALGORITHM DEFAULT LOCK DEFAULT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM COPY LOCK DEFAULT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INPLACE LOCK DEFAULT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INSTANT LOCK DEFAULT
 < error
 | 1091 42000 index ident doesn't exist
 > exec
@@ -25621,6 +29560,14 @@
 < ok 0 0
 > exec
 | CREATE TABLE IF NOT EXISTS ident LIKE ident
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE ident LIKE ident
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -26176,6 +30123,22 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| DROP TEMPORARY TABLE ident
+< error
+| 1051 42S02 Unknown table 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| DROP GLOBAL TEMPORARY TABLE ident
+< error
+| 8007 HY000 `drop global temporary table` can only drop global temporary table
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | CREATE TEMPORARY TABLE ident
 < error
 | 1113 42000 A table must have at least 1 column
@@ -26217,7 +30180,139 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| DROP VIEW ident RESTRICT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| DROP VIEW ident CASCADE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS ident RESTRICT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS ident CASCADE
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -26386,7 +30481,23 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident) INVISIBLE
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT(ident) CLUSTERED
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) NONCLUSTERED
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -26434,7 +30545,55 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD KEY USING HASH(ident)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY USING RTREE(ident)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY USING HNSW(ident)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD KEY ident TYPE BTREE(ident)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE HASH(ident)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE RTREE(ident)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE HNSW(ident)
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -26458,6 +30617,30 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE HASH
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE RTREE
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE HNSW
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT(ident) USING HASH
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
@@ -26467,14 +30650,6 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FULLTEXT(ident) USING RTREE
-< error
-| 1347 HY000 'simulation.ident' is not BASE TABLE
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
-| CREATE VIEW ident AS SELECT b, ident, d FROM t
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD FULLTEXT(ident) USING HYPO
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -26587,6 +30762,22 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident CHARSET 'binary'
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident CHARACTER SET 'binary'
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident CHAR SET 'binary'
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -27218,7 +31409,31 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident CHAR(1)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident NCHAR(1)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident NATIONAL CHAR(1)
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -27235,6 +31450,22 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident VARCHAR(1)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER VARYING(1)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHAR VARYING(1)
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -27426,39 +31657,7 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
-| ALTER TABLE ident ADD ident CHARACTER VARYING(1)
-< error
-| 1347 HY000 'simulation.ident' is not BASE TABLE
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
-| CREATE VIEW ident AS SELECT b, ident, d FROM t
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
-< error
-| 1347 HY000 'simulation.ident' is not BASE TABLE
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
-| CREATE VIEW ident AS SELECT b, ident, d FROM t
-< ok 0 0
-> exec
 | ALTER TABLE ident ADD ident NATIONAL CHAR VARYING(1)
-< error
-| 1347 HY000 'simulation.ident' is not BASE TABLE
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
-| CREATE VIEW ident AS SELECT b, ident, d FROM t
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident CHAR VARYING(1)
-< error
-| 1347 HY000 'simulation.ident' is not BASE TABLE
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
-| CREATE VIEW ident AS SELECT b, ident, d FROM t
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident NATIONAL CHAR(1)
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -27674,7 +31873,39 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER BINARY CHARACTER SET 'binary'
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER BINARY CHAR SET 'binary'
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -28109,6 +32340,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident REORGANIZE PARTITION NO_WRITE_TO_BINLOG
+< error
+| 8200 HY000 Unsupported REORGANIZE PARTITION of RANGE; not adjacent partitions
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident REORGANIZE PARTITION LOCAL
+< error
+| 8200 HY000 Unsupported REORGANIZE PARTITION of RANGE; not adjacent partitions
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident SPLIT MAXVALUE PARTITION LESS THAN(ident)
 < error
 | 8200 HY000 Unsupported SPLIT LAST PARTITION
@@ -28347,7 +32592,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident CONVERT TO CHARACTER SET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHAR SET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident CONVERT TO CHARSET DEFAULT
+< error
+| 1105 HY000 Unknown charset 
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHARACTER SET DEFAULT
+< error
+| 1105 HY000 Unknown charset 
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHAR SET DEFAULT
 < error
 | 1105 HY000 Unknown charset 
 > exec
@@ -28473,42 +32746,6 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
-| ALTER TABLE ident ADD INDEX(ident)
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_simulation" "VARCHAR"
-< column "Table_type" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `ident`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| CREATE TABLE `ident` (
-|   `b` int NOT NULL,
-|   `ident` int NOT NULL,
-|   `d` int DEFAULT NULL,
-|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
-|   KEY `idx_d` (`d`),
-|   KEY `ident` (`ident`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-| PARTITION BY RANGE (`ident`)
-| (PARTITION `p0` VALUES LESS THAN (100),
-|  PARTITION `ident` VALUES LESS THAN (200))
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
-< ok 0 0
-> exec
 | ALTER TABLE ident ADD PARTITION
 < error
 | 1492 HY000 For RANGE partitions each partition must be defined
@@ -28517,6 +32754,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD PARTITION IF NOT EXISTS
+< error
+| 1492 HY000 For RANGE partitions each partition must be defined
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION NO_WRITE_TO_BINLOG
+< error
+| 1492 HY000 For RANGE partitions each partition must be defined
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION LOCAL
 < error
 | 1492 HY000 For RANGE partitions each partition must be defined
 > exec
@@ -28537,7 +32788,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD PARTITION NO_WRITE_TO_BINLOG PARTITIONS 1
+< error
+| 1492 HY000 For RANGE partitions each partition must be defined
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION LOCAL PARTITIONS 1
+< error
+| 1492 HY000 For RANGE partitions each partition must be defined
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident LAST PARTITION LESS THAN(ident)
+< error
+| 1054 42S22 Unknown column 'ident' in 'expression'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident LAST PARTITION LESS THAN(ident) NO_WRITE_TO_BINLOG
+< error
+| 1054 42S22 Unknown column 'ident' in 'expression'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident LAST PARTITION LESS THAN(ident) LOCAL
 < error
 | 1054 42S22 Unknown column 'ident' in 'expression'
 > exec
@@ -28572,6 +32851,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident COALESCE PARTITION NO_WRITE_TO_BINLOG 1
+< error
+| 1509 HY000 COALESCE PARTITION can only be used on HASH/KEY partitions
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident COALESCE PARTITION LOCAL 1
+< error
+| 1509 HY000 COALESCE PARTITION can only be used on HASH/KEY partitions
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP ident
 < error
 | 8200 HY000 can't drop column ident with composite index covered or Primary Key covered now
@@ -28580,6 +32873,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident DROP IF EXISTS ident
+< error
+| 8200 HY000 can't drop column ident with composite index covered or Primary Key covered now
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP ident RESTRICT
+< error
+| 8200 HY000 can't drop column ident with composite index covered or Primary Key covered now
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP ident CASCADE
 < error
 | 8200 HY000 can't drop column ident with composite index covered or Primary Key covered now
 > exec
@@ -28738,7 +33045,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident OPTIMIZE PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 8200 HY000 Unsupported optimize partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident OPTIMIZE PARTITION LOCAL ALL
+< error
+| 8200 HY000 Unsupported optimize partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident REPAIR PARTITION ALL
+< error
+| 8200 HY000 Unsupported repair partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident REPAIR PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 8200 HY000 Unsupported repair partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident REPAIR PARTITION LOCAL ALL
 < error
 | 8200 HY000 Unsupported repair partition
 > exec
@@ -28774,6 +33109,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident REBUILD PARTITION ALL
+< error
+| 8200 HY000 Unsupported rebuild partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident REBUILD PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 8200 HY000 Unsupported rebuild partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident REBUILD PARTITION LOCAL ALL
 < error
 | 8200 HY000 Unsupported rebuild partition
 > exec
@@ -29180,6 +33529,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident RENAME KEY ident TO ident
+< error
+| 1176 42000 Key 'ident' doesn't exist in table 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident RENAME INDEX ident TO ident
 < error
 | 1176 42000 Key 'ident' doesn't exist in table 'ident'
 > exec
@@ -29816,6 +34172,41 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT INDEX(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP COLUMN ident
 < error
 | 8200 HY000 can't drop column ident with composite index covered or Primary Key covered now
@@ -30082,6 +34473,41 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD CHECK(ident) NOT ENFORCED
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT CHECK(ident) NOT NULL
 < error
 | 1060 42S21 Duplicate column name 'ident'
@@ -30124,6 +34550,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED LOCAL
+< error
+| 8200 HY000 unsupported add column 'ident' constraint PRIMARY KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED GLOBAL
+< error
+| 8200 HY000 unsupported add column 'ident' constraint PRIMARY KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT UNIQUE GLOBAL
 < error
 | 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
@@ -30146,6 +34586,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident TINYINT UNIQUE KEY
+< error
+| 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT UNIQUE KEY LOCAL
+< error
+| 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT UNIQUE KEY GLOBAL
 < error
 | 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
 > exec
@@ -30371,6 +34825,42 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD INDEX(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD UNIQUE(ident)
 < ok 0 0
 > query
@@ -30450,6 +34940,34 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE RESTRICT
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE CASCADE
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE SET NULL
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE NO ACTION
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE SET DEFAULT
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -30752,7 +35270,147 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident ASC)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident DESC)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT((ident))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT((ident) ASC)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT((ident) DESC)
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -30808,6 +35466,27 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| DROP INDEX ident ON ident ALGORITHM COPY
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INPLACE
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INSTANT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM DEFAULT
 < error
 | 1091 42000 index ident doesn't exist
@@ -30815,7 +35494,49 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM COPY
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM INPLACE
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM INSTANT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | DROP INDEX ident ON ident ALGORITHM DEFAULT LOCK DEFAULT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM COPY LOCK DEFAULT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INPLACE LOCK DEFAULT
+< error
+| 1091 42000 index ident doesn't exist
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INSTANT LOCK DEFAULT
 < error
 | 1091 42000 index ident doesn't exist
 > exec
@@ -30924,6 +35645,13 @@
 | PARTITION BY RANGE (`ident`)
 | (PARTITION `p0` VALUES LESS THAN (100),
 |  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE ident LIKE ident
+< error
+| 1562 HY000 Cannot create temporary table with partitions
 > exec
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
@@ -31495,6 +36223,20 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| DROP TEMPORARY TABLE ident
+< error
+| 1051 42S02 Unknown table 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| DROP GLOBAL TEMPORARY TABLE ident
+< error
+| 8007 HY000 `drop global temporary table` can only drop global temporary table
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE TEMPORARY TABLE ident
 < error
 | 1113 42000 A table must have at least 1 column
@@ -31509,7 +36251,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| DROP VIEW ident RESTRICT
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| DROP VIEW ident CASCADE
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS ident
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS ident RESTRICT
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS ident CASCADE
 < error
 | 1347 HY000 'simulation.ident' is not VIEW
 > exec
@@ -31839,7 +36609,77 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident) INVISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT(ident) CLUSTERED
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) NONCLUSTERED
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -32052,6 +36892,85 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD KEY USING HASH(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY USING RTREE(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY USING HNSW(ident)
+< error
+| 8200 HY000 Unsupported add vector index: Only support vector index with HNSW type, but it's non-vector index
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD KEY ident TYPE BTREE(ident)
 < ok 0 0
 > query
@@ -32084,6 +37003,85 @@
 | PARTITION BY RANGE (`ident`)
 | (PARTITION `p0` VALUES LESS THAN (100),
 |  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE HASH(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE RTREE(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE HNSW(ident)
+< error
+| 8200 HY000 Unsupported add vector index: Only support vector index with HNSW type, but it's non-vector index
 > exec
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
@@ -32159,6 +37157,111 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE HASH
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE RTREE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE HNSW
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT(ident) USING HASH
 < ok 0 0
 > query
@@ -32195,41 +37298,6 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FULLTEXT(ident) USING RTREE
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_simulation" "VARCHAR"
-< column "Table_type" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `ident`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| CREATE TABLE `ident` (
-|   `b` int NOT NULL,
-|   `ident` int NOT NULL,
-|   `d` int DEFAULT NULL,
-|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
-|   KEY `idx_d` (`d`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-| PARTITION BY RANGE (`ident`)
-| (PARTITION `p0` VALUES LESS THAN (100),
-|  PARTITION `ident` VALUES LESS THAN (200))
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD FULLTEXT(ident) USING HYPO
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -32524,6 +37592,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident CHARSET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHARACTER SET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHAR SET 'binary'
 < error
 | 8200 HY000 Unsupported modify charset from utf8mb4 to binary
 > exec
@@ -33636,7 +38718,28 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident CHAR(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident NCHAR(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident NATIONAL CHAR(1)
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -33651,6 +38754,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident VARCHAR(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER VARYING(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHAR VARYING(1)
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -33818,35 +38935,7 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
-| ALTER TABLE ident ADD ident CHARACTER VARYING(1)
-< error
-| 1060 42S21 Duplicate column name 'ident'
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
-< error
-| 1060 42S21 Duplicate column name 'ident'
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
-< ok 0 0
-> exec
 | ALTER TABLE ident ADD ident NATIONAL CHAR VARYING(1)
-< error
-| 1060 42S21 Duplicate column name 'ident'
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident CHAR VARYING(1)
-< error
-| 1060 42S21 Duplicate column name 'ident'
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident NATIONAL CHAR(1)
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -34035,7 +39124,35 @@
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER BINARY CHARACTER SET 'binary'
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER BINARY CHAR SET 'binary'
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -34432,6 +39549,22 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident REORGANIZE PARTITION NO_WRITE_TO_BINLOG
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident REORGANIZE PARTITION LOCAL
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident SPLIT MAXVALUE PARTITION LESS THAN(ident)
 < error
 | 8200 HY000 Unsupported SPLIT LAST PARTITION
@@ -34737,7 +39870,39 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident CONVERT TO CHARACTER SET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHAR SET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident CONVERT TO CHARSET DEFAULT
+< error
+| 1105 HY000 Unknown charset 
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHARACTER SET DEFAULT
+< error
+| 1105 HY000 Unknown charset 
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident CONVERT TO CHAR SET DEFAULT
 < error
 | 1105 HY000 Unknown charset 
 > exec
@@ -34920,60 +40085,6 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
-| ALTER TABLE ident ADD INDEX(ident)
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_simulation" "VARCHAR"
-< column "Table_type" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| BASE TABLE
-< row
-: bytes
-| parent
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `ident`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| CREATE TABLE `ident` (
-|   `b` int NOT NULL,
-|   `ident` int DEFAULT NULL,
-|   `d` int DEFAULT NULL,
-|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
-|   KEY `idx_d` (`d`),
-|   KEY `ident` (`ident`),
-|   KEY `ident_2` (`ident`),
-|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-> query
-| SHOW CREATE TABLE `parent`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| parent
-: bytes
-| CREATE TABLE `parent` (
-|   `b` int NOT NULL,
-|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
-| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
-< ok 0 0
-> exec
 | ALTER TABLE ident ADD PARTITION
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
@@ -34983,6 +40094,22 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD PARTITION IF NOT EXISTS
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION NO_WRITE_TO_BINLOG
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION LOCAL
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
@@ -35006,7 +40133,39 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD PARTITION NO_WRITE_TO_BINLOG PARTITIONS 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION LOCAL PARTITIONS 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident LAST PARTITION LESS THAN(ident)
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident LAST PARTITION LESS THAN(ident) NO_WRITE_TO_BINLOG
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident LAST PARTITION LESS THAN(ident) LOCAL
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
@@ -35046,6 +40205,22 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident COALESCE PARTITION NO_WRITE_TO_BINLOG 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident COALESCE PARTITION LOCAL 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP ident
 < error
 | 1828 HY000 Cannot drop column 'ident': needed in a foreign key constraint 'ident'
@@ -35055,6 +40230,22 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident DROP IF EXISTS ident
+< error
+| 1828 HY000 Cannot drop column 'ident': needed in a foreign key constraint 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP ident RESTRICT
+< error
+| 1828 HY000 Cannot drop column 'ident': needed in a foreign key constraint 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP ident CASCADE
 < error
 | 1828 HY000 Cannot drop column 'ident': needed in a foreign key constraint 'ident'
 > exec
@@ -35142,7 +40333,39 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident OPTIMIZE PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 8200 HY000 Unsupported optimize partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident OPTIMIZE PARTITION LOCAL ALL
+< error
+| 8200 HY000 Unsupported optimize partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident REPAIR PARTITION ALL
+< error
+| 8200 HY000 Unsupported repair partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident REPAIR PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 8200 HY000 Unsupported repair partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident REPAIR PARTITION LOCAL ALL
 < error
 | 8200 HY000 Unsupported repair partition
 > exec
@@ -35183,6 +40406,22 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident REBUILD PARTITION ALL
+< error
+| 8200 HY000 Unsupported rebuild partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident REBUILD PARTITION NO_WRITE_TO_BINLOG ALL
+< error
+| 8200 HY000 Unsupported rebuild partition
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident REBUILD PARTITION LOCAL ALL
 < error
 | 8200 HY000 Unsupported rebuild partition
 > exec
@@ -35776,6 +41015,59 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident RENAME KEY ident TO ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident RENAME INDEX ident TO ident
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -36833,6 +42125,59 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT INDEX(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP COLUMN ident
 < error
 | 1828 HY000 Cannot drop column 'ident': needed in a foreign key constraint 'ident'
@@ -37215,6 +42560,59 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD CHECK(ident) NOT ENFORCED
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT CHECK(ident) NOT NULL
 < error
 | 1060 42S21 Duplicate column name 'ident'
@@ -37263,6 +42661,22 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED LOCAL
+< error
+| 8200 HY000 unsupported add column 'ident' constraint PRIMARY KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED GLOBAL
+< error
+| 8200 HY000 unsupported add column 'ident' constraint PRIMARY KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT UNIQUE GLOBAL
 < error
 | 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
@@ -37288,6 +42702,22 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident TINYINT UNIQUE KEY
+< error
+| 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT UNIQUE KEY LOCAL
+< error
+| 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT UNIQUE KEY GLOBAL
 < error
 | 8200 HY000 unsupported add column 'ident' constraint UNIQUE KEY when altering 'simulation.ident'
 > exec
@@ -37571,6 +43001,60 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD INDEX(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   KEY `ident_2` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD UNIQUE(ident)
 < ok 0 0
 > query
@@ -37674,6 +43158,38 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE RESTRICT
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE CASCADE
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE SET NULL
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE NO ACTION
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE SET DEFAULT
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -38011,7 +43527,219 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident ASC)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident DESC)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT((ident))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT((ident) ASC)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT((ident) DESC)
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -38088,6 +43816,30 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| DROP INDEX ident ON ident ALGORITHM COPY
+< error
+| 1553 HY000 Cannot drop index 'ident': needed in a foreign key constraint
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INPLACE
+< error
+| 1553 HY000 Cannot drop index 'ident': needed in a foreign key constraint
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INSTANT
+< error
+| 1553 HY000 Cannot drop index 'ident': needed in a foreign key constraint
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM DEFAULT
 < error
 | 1553 HY000 Cannot drop index 'ident': needed in a foreign key constraint
@@ -38096,7 +43848,55 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM COPY
+< error
+| 1553 HY000 Cannot drop index 'ident': needed in a foreign key constraint
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM INPLACE
+< error
+| 1553 HY000 Cannot drop index 'ident': needed in a foreign key constraint
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM INSTANT
+< error
+| 1553 HY000 Cannot drop index 'ident': needed in a foreign key constraint
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | DROP INDEX ident ON ident ALGORITHM DEFAULT LOCK DEFAULT
+< error
+| 1553 HY000 Cannot drop index 'ident': needed in a foreign key constraint
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM COPY LOCK DEFAULT
+< error
+| 1553 HY000 Cannot drop index 'ident': needed in a foreign key constraint
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INPLACE LOCK DEFAULT
+< error
+| 1553 HY000 Cannot drop index 'ident': needed in a foreign key constraint
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| DROP INDEX ident ON ident ALGORITHM INSTANT LOCK DEFAULT
 < error
 | 1553 HY000 Cannot drop index 'ident': needed in a foreign key constraint
 > exec
@@ -38200,6 +44000,61 @@
 |   `b` int NOT NULL,
 |   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE ident LIKE ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TEMPORARY TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP TEMPORARY TABLE IF EXISTS `ident`
+< ok 0 0
 > exec
 | SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
@@ -38888,6 +44743,22 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| DROP TEMPORARY TABLE ident
+< error
+| 1051 42S02 Unknown table 'simulation.ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| DROP GLOBAL TEMPORARY TABLE ident
+< error
+| 8007 HY000 `drop global temporary table` can only drop global temporary table
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | CREATE TEMPORARY TABLE ident
 < error
 | 1113 42000 A table must have at least 1 column
@@ -38904,7 +44775,39 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| DROP VIEW ident RESTRICT
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| DROP VIEW ident CASCADE
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS ident
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS ident RESTRICT
+< error
+| 1347 HY000 'simulation.ident' is not VIEW
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS ident CASCADE
 < error
 | 1347 HY000 'simulation.ident' is not VIEW
 > exec
@@ -39407,7 +45310,113 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD FULLTEXT(ident) INVISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD FULLTEXT(ident) CLUSTERED
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) NONCLUSTERED
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -39728,7 +45737,147 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD KEY USING HASH(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   KEY `ident_2` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY USING RTREE(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   KEY `ident_2` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY USING HNSW(ident)
+< error
+| 8200 HY000 Unsupported add vector index: Only support vector index with HNSW type, but it's non-vector index
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD KEY ident TYPE BTREE(ident)
+< error
+| 1061 42000 Duplicate key name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE HASH(ident)
+< error
+| 1061 42000 Duplicate key name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE RTREE(ident)
+< error
+| 1061 42000 Duplicate key name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD KEY ident TYPE HNSW(ident)
 < error
 | 1061 42000 Duplicate key name 'ident'
 > exec
@@ -39745,6 +45894,165 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FULLTEXT(ident) TYPE BTREE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE HASH
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE RTREE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FULLTEXT(ident) TYPE HNSW
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -39851,59 +46159,6 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FULLTEXT(ident) USING RTREE
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_simulation" "VARCHAR"
-< column "Table_type" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| BASE TABLE
-< row
-: bytes
-| parent
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE TABLE `ident`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| ident
-: bytes
-| CREATE TABLE `ident` (
-|   `b` int NOT NULL,
-|   `ident` int DEFAULT NULL,
-|   `d` int DEFAULT NULL,
-|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
-|   KEY `idx_d` (`d`),
-|   KEY `ident` (`ident`),
-|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-> query
-| SHOW CREATE TABLE `parent`
-< result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
-< row
-: bytes
-| parent
-: bytes
-| CREATE TABLE `parent` (
-|   `b` int NOT NULL,
-|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
-| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD FULLTEXT(ident) USING HYPO
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -40376,6 +46631,22 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident CHARSET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHARACTER SET 'binary'
+< error
+| 8200 HY000 Unsupported modify charset from utf8mb4 to binary
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHAR SET 'binary'
 < error
 | 8200 HY000 Unsupported modify charset from utf8mb4 to binary
 > exec
@@ -41907,7 +48178,31 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident CHAR(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident NCHAR(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident NATIONAL CHAR(1)
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -41924,6 +48219,22 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD ident VARCHAR(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER VARYING(1)
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHAR VARYING(1)
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -42115,39 +48426,7 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
-| ALTER TABLE ident ADD ident CHARACTER VARYING(1)
-< error
-| 1060 42S21 Duplicate column name 'ident'
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
-| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
-< error
-| 1060 42S21 Duplicate column name 'ident'
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
-| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
-< ok 0 0
-> exec
 | ALTER TABLE ident ADD ident NATIONAL CHAR VARYING(1)
-< error
-| 1060 42S21 Duplicate column name 'ident'
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
-| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident CHAR VARYING(1)
-< error
-| 1060 42S21 Duplicate column name 'ident'
-> exec
-| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
-| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
-< ok 0 0
-> exec
-| ALTER TABLE ident ADD ident NATIONAL CHAR(1)
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec
@@ -42363,7 +48642,39 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER BINARY CHARACTER SET 'binary'
+< error
+| 1060 42S21 Duplicate column name 'ident'
+> exec
+| SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD ident CHARACTER BINARY CHAR SET 'binary'
 < error
 | 1060 42S21 Duplicate column name 'ident'
 > exec

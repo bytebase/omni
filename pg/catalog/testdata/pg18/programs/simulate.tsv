@@ -33,12 +33,12 @@ ok:06e0fc3ecfff	ok:06e0fc3ecfff	engine	programs@objects	program:function-sql	CRE
 42703	42703	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT id FROM customers WHERE region = nope'
 42703	42703	engine	programs@objects	program:function-sql	CREATE FUNCTION f(c int) RETURNS SETOF orders LANGUAGE sql AS 'SELECT * FROM orders WHERE customer_id = c ORDER BY nope'
 ok:63950d46bf1e	ok:63950d46bf1e	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS SETOF text LANGUAGE sql AS 'SELECT name FROM v_customers'
-ok	22P02	engine	programs@objects	program:function-sql	CREATE FUNCTION f(m mood) RETURNS boolean LANGUAGE sql AS 'SELECT m = ''nope'''
+22P02	22P02	engine	programs@objects	program:function-sql	CREATE FUNCTION f(m mood) RETURNS boolean LANGUAGE sql AS 'SELECT m = ''nope'''
 ok:bc53eee44db6	ok:bc53eee44db6	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS record LANGUAGE sql AS 'SELECT 1, 2'
 42P13	42P13	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE sql AS ''
 ok:c4cb5a856159	ok:c4cb5a856159	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS void LANGUAGE sql AS ''
 ok:81e62167c69d	ok:81e62167c69d	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE sql AS $$ SELECT 1 $$
-ok	42883	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE internal AS 'nope_symbol'
+42883	42883	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE internal AS 'nope_symbol'
 42704	42704	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS int LANGUAGE nope AS 'SELECT 1'
 42704	42704	engine	programs@objects	program:function-sql	CREATE FUNCTION f() RETURNS nope LANGUAGE sql AS 'SELECT 1'
 42704	42704	engine	programs@objects	program:function-sql	CREATE FUNCTION f(x nope) RETURNS int LANGUAGE sql AS 'SELECT 1'
@@ -62,12 +62,12 @@ ok:b458dbb2482c	ok:b458dbb2482c	engine	programs@objects	program:function-atomic	
 42P13	42P13	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS int LANGUAGE sql BEGIN ATOMIC END
 ok:35c5fa4bb670	ok:35c5fa4bb670	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS void LANGUAGE sql BEGIN ATOMIC END
 42P13	42P13	engine	programs@objects	program:function-atomic	CREATE FUNCTION f(x anyelement) RETURNS anyelement BEGIN ATOMIC SELECT x; END
-ok	ok:304c157b9c19	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS bigint LANGUAGE sql BEGIN ATOMIC INSERT INTO logs (msg) VALUES ('a'); SELECT count(*) FROM logs; END
+ok:304c157b9c19	ok:304c157b9c19	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS bigint LANGUAGE sql BEGIN ATOMIC INSERT INTO logs (msg) VALUES ('a'); SELECT count(*) FROM logs; END
 ok:714ee5649c49	ok:714ee5649c49	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS text RETURN (SELECT name FROM v_customers LIMIT 1)
 42703	42703	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS text RETURN (SELECT name FROM v_customers WHERE nope)
 ok:77ca7940ce68	ok:77ca7940ce68	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS int RETURN f_quad(1)
-ok	ok:356dbe43233e	engine	programs@objects	program:function-atomic	CREATE FUNCTION f(m mood) RETURNS boolean RETURN m = 'happy'
-ok	22P02	engine	programs@objects	program:function-atomic	CREATE FUNCTION f(m mood) RETURNS boolean RETURN m = 'nope'
+ok:356dbe43233e	ok:356dbe43233e	engine	programs@objects	program:function-atomic	CREATE FUNCTION f(m mood) RETURNS boolean RETURN m = 'happy'
+22P02	22P02	engine	programs@objects	program:function-atomic	CREATE FUNCTION f(m mood) RETURNS boolean RETURN m = 'nope'
 42P13	42P13	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS int RETURN 'a'
 ok:f58f112b20fa	ok:f58f112b20fa	engine	programs@objects	program:function-atomic	CREATE FUNCTION f() RETURNS SETOF int LANGUAGE sql BEGIN ATOMIC SELECT id FROM orders; END
 ok:daafda76c8fb	ok:daafda76c8fb	engine	programs@objects	program:function-atomic	CREATE OR REPLACE FUNCTION f_item_qty(i int) RETURNS int LANGUAGE sql BEGIN ATOMIC SELECT qty * 2 FROM items WHERE id = i; END
@@ -253,7 +253,7 @@ ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:call	CALL p_bump
 42883	42883	engine	programs@objects	program:call	CALL p_log('x', 'y')
 42883	42883	engine	programs@objects	program:call	CALL p_log(nope => 'x')
 42809	42809	engine	programs@objects	program:call	CALL f_double(1)
-ok	42P01	engine	programs@objects	program:call	CALL p_broken()
+42P01	42P01	engine	programs@objects	program:call	CALL p_broken()
 ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:do	DO $$ BEGIN NULL; END $$
 ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:do	DO $$ BEGIN RAISE NOTICE 'x'; END $$
 42601	42601	engine	programs@objects	program:do	DO $$ BEGIN NULL $$
@@ -263,6 +263,19 @@ ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:do	DO $$ BEGIN R
 ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:do	DO $$ BEGIN CALL p_log('x'); END $$
 ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:do	DO $$ DECLARE r record; BEGIN FOR r IN SELECT id FROM customers LOOP NULL; END LOOP; END $$
 ok:ed11a5a11cef	ok:ed11a5a11cef	engine	programs@objects	program:do	DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'customers') THEN CREATE TABLE customers (id int); END IF; END $$
-ok	P0001	engine	programs@objects	program:do	DO $$ BEGIN RAISE EXCEPTION 'boom'; END $$
-ok	42P01	engine	programs@objects	program:do	DO $$ BEGIN INSERT INTO missing_t VALUES (1); END $$
-ok	ok:50bb7f762670	engine	programs@objects	program:do	DO $$ BEGIN CREATE TABLE made_by_do (x int); END $$
+P0001	P0001	engine	programs@objects	program:do	DO $$ BEGIN RAISE EXCEPTION 'boom'; END $$
+42P01	42P01	engine	programs@objects	program:do	DO $$ BEGIN INSERT INTO missing_t VALUES (1); END $$
+ok:50bb7f762670	ok:50bb7f762670	engine	programs@objects	program:do	DO $$ BEGIN CREATE TABLE made_by_do (x int); END $$
+ok:cab998293179	ok:cab998293179	engine	programs@quoted	program:quoted-type	CREATE TABLE tq (m "Mood")
+ok:cab998293179	ok:cab998293179	engine	programs@quoted	program:quoted-type	CREATE TABLE tq (m public."Mood")
+ok:afa99cf4f60c	ok:afa99cf4f60c	engine	programs@quoted	program:quoted-type	CREATE TABLE tq (m "Mood"[])
+ok:b23f7e108640	ok:b23f7e108640	engine	programs@quoted	program:quoted-type	CREATE TABLE tq (f "Foo")
+42704	42704	engine	programs@quoted	program:quoted-type	CREATE TABLE tq (m mood)
+42704	42704	engine	programs@quoted	program:quoted-type	CREATE TABLE tq (m "MOOD")
+ok:7b63645ca69e	ok:7b63645ca69e	engine	programs@quoted	program:quoted-type	ALTER TABLE "Foo" ADD COLUMN m "Mood"
+ok:672b260b3cf0	ok:672b260b3cf0	engine	programs@quoted	program:quoted-type	CREATE DOMAIN dq AS "Mood"
+ok:1b386aa362c0	ok:1b386aa362c0	engine	programs@quoted	program:quoted-type	CREATE TYPE cq AS (m "Mood")
+ok:c9539cd63983	ok:c9539cd63983	engine	programs@quoted	program:quoted-type	CREATE VIEW vq AS SELECT 'sad'::"Mood" AS m
+ok:a444e480e3ea	ok:a444e480e3ea	engine	programs@quoted	program:quoted-type	CREATE FUNCTION fq(m "Mood") RETURNS text LANGUAGE sql RETURN m::text
+ok:d5162e76b514	ok:d5162e76b514	engine	programs@quoted	program:quoted-type	CREATE FUNCTION fq() RETURNS "Mood" LANGUAGE sql AS $$SELECT 'sad'::"Mood"$$
+ok:39552d84a483	ok:39552d84a483	engine	programs@quoted	program:quoted-type	CREATE FUNCTION fq(m "Mood") RETURNS int LANGUAGE plpgsql AS $$ DECLARE x "Mood"; BEGIN x := m; RETURN 1; END $$

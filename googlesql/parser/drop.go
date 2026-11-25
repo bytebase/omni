@@ -39,10 +39,7 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		// DROP TABLE — but DROP TABLE FUNCTION is BigQuery-only
 		// (bq_function_procedure.go).
 		if p.peekNext().Type == kwFUNCTION {
-			if p.isSpanner() {
-				return nil, p.syntaxErrorAtCur()
-			}
-			return p.parseBQDropFunction(drop)
+			return nil, p.syntaxErrorAtCur()
 		}
 		return p.parseDropObject(drop, ast.DropTable, false /*external*/)
 	case kwVIEW:
@@ -56,82 +53,30 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 	case kwSCHEMA:
 		return p.parseDropObject(drop, ast.DropSchema, false)
 	case kwDATABASE:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseDropObject(drop, ast.DropDatabase, false)
+		return nil, p.syntaxErrorAtCur()
 	case kwEXTERNAL:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		// DROP EXTERNAL SCHEMA (BigQuery) — owned here as a SCHEMA-family drop;
-		// DROP EXTERNAL TABLE is enabled in DialectBigQuery.
-		if p.peekNext().Type == kwSCHEMA {
-			p.advance() // EXTERNAL
-			return p.parseDropObject(drop, ast.DropSchema, true /*external*/)
-		}
-		if !p.isSpanner() && p.peekNext().Type == kwTABLE {
-			ext := p.advance() // EXTERNAL
-			if p.peekNext().Type == kwFUNCTION {
-				// googlesql.tm:1797: schema_object_kind refuses EXTERNAL TABLE
-				// FUNCTION at EXTERNAL ("EXTERNAL TABLE FUNCTION is not
-				// supported"), and BigQuery answers so.
-				return nil, &ParseError{
-					Position: ext.Loc.Start, End: ext.Loc.End,
-					Message: "EXTERNAL TABLE FUNCTION is not supported",
-				}
-			}
-			return p.parseDropObject(drop, ast.DropTable, true /*external*/)
-		}
-		return p.unsupported("DROP EXTERNAL")
+		return nil, p.syntaxErrorAtCur()
 	case kwMODEL:
 		return p.parseDropObject(drop, ast.DropModel, false)
 	case kwCONNECTION:
-		if !p.isSpanner() {
-			return p.parseDropObject(drop, ast.DropConnection, false)
-		}
 		return p.unsupported("DROP CONNECTION")
 	case kwCONSTANT:
-		if !p.isSpanner() {
-			return p.parseDropObject(drop, ast.DropConstant, false)
-		}
 		return p.unsupported("DROP CONSTANT")
 	case kwPRIVILEGE:
-		if !p.isSpanner() {
-			return p.parseDropPrivilegeRestriction(drop)
-		}
 		return p.unsupported("DROP PRIVILEGE")
 	// --- BigQuery-only object drops (parser-ddl-bigquery node) ---
 	case kwFUNCTION:
 		return p.parseBQDropFunction(drop)
 	case kwPROCEDURE:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseBQDropProcedure(drop)
+		return nil, p.syntaxErrorAtCur()
 	case kwMATERIALIZED, kwAPPROX:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseBQDropMaterializedView(drop)
+		return nil, p.syntaxErrorAtCur()
 	case kwSNAPSHOT:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseBQDropSnapshot(drop)
+		return nil, p.syntaxErrorAtCur()
 	case kwROW:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		// DROP ROW ACCESS POLICY … ON table (bq_row_access_policy.go).
-		return p.parseDropRowAccessPolicy(drop)
+		return nil, p.syntaxErrorAtCur()
 	case kwALL:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		// DROP ALL ROW ACCESS POLICIES ON table
-		// (drop_all_row_access_policies_statement; bq_row_access_policy.go).
-		return p.parseDropRowAccessPolicy(drop)
+		return nil, p.syntaxErrorAtCur()
 	// --- Spanner-only object DROPs (parser-ddl-spanner node) ---
 	case kwSEQUENCE:
 		// DROP SEQUENCE [IF EXISTS] name (spanner_sequence.go).
@@ -145,26 +90,21 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		return p.unsupported("DROP")
 	default:
 		// Spanner objects whose leading word lexes as a BARE IDENTIFIER (CHANGE
-		// STREAM, LOCALITY GROUP) and ROLE — matched by spelling before the
-		// generic-entity fallback (parser-ddl-spanner node).
+		// STREAM, LOCALITY GROUP, PLACEMENT) and ROLE — matched by spelling before
+		// the generic-entity fallback (parser-ddl-spanner node).
 		if p.tokIsWord(p.cur, "CHANGE") && p.tokIsWord(p.peekNext(), "STREAM") {
 			return p.parseDropChangeStream(drop) // spanner_change_stream.go
 		}
 		if p.tokIsWord(p.cur, "LOCALITY") && p.tokIsWord(p.peekNext(), "GROUP") {
 			return p.parseDropLocalityGroup(drop) // spanner_sequence.go
 		}
+		if p.tokIsWord(p.cur, "PLACEMENT") {
+			return p.parseDropPlacement(drop) // spanner_placement.go
+		}
 		if p.curIsWord("ROLE") {
 			// DROP ROLE name (spanner_schema_role.go). First-class — supersedes the
 			// generic-entity drop the bare `ROLE` identifier would otherwise get.
 			return p.parseDropRole(drop)
-		}
-		// DROP <generic-entity> (CAPACITY / RESERVATION / ASSIGNMENT — DDL-053; the
-		// keyword lexes as an identifier) routes to the generic-entity drop
-		// (bq_capacity.go). DROP MODEL / CONNECTION / CONSTANT / PRIVILEGE
-		// RESTRICTION and the bare-identifier dispatch-coverage probe otherwise emit
-		// the not-yet-supported diagnostic.
-		if !p.isSpanner() && isGenericEntityType(p.cur) {
-			return p.parseBQDropEntity(drop)
 		}
 		return p.unsupported("DROP")
 	}
@@ -246,17 +186,6 @@ func (p *Parser) parseDropIndex(drop Token) (ast.Node, error) {
 		return nil, err
 	}
 	stmt.Name = name
-
-	// BigQuery accepts an optional `ON <table>` tail on DROP INDEX, whereas
-	// Spanner rejects `ON <table>` on plain DROP INDEX.
-	if !p.isSpanner() && p.cur.Type == kwON {
-		p.advance() // ON
-		onTable, err := p.parseTablePath()
-		if err != nil {
-			return nil, err
-		}
-		stmt.OnTable = onTable
-	}
 
 	// opt_drop_mode?  — RESTRICT | CASCADE (schema_object_kind INDEX).
 	switch p.cur.Type {
