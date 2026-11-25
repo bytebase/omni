@@ -14,8 +14,8 @@ import (
 )
 
 // Outcomes a cell holds besides an error code, which is the engine's number
-// for the refusal, in decimal, or its SQLSTATE where that is the engine's
-// error code, as PostgreSQL's is (see isCode).
+// for the refusal, in decimal, its SQLSTATE where that is the engine's error
+// code, as PostgreSQL's is, or its error name, as Trino's is (see isCode).
 const (
 	// Took is omni taking a statement the engine refuses, or storing another
 	// schema than the engine does. Only omni's cell holds it: the engine's
@@ -45,7 +45,7 @@ type Form struct {
 // An Answer is the engine's answer to one statement on one fixture.
 type Answer struct {
 	// Code is the error the engine refused the statement with: its number in
-	// decimal, or its SQLSTATE.
+	// decimal, its SQLSTATE, or its error name.
 	// It is empty when the engine took the statement.
 	Code string
 	// Forms is what the fixture's database holds after a statement the
@@ -213,16 +213,21 @@ func (r Row) validate() error {
 }
 
 // isCode reports whether a cell is an error code: a decimal number as the
-// engine writes it, or a SQLSTATE, five digits and capitals, as PostgreSQL's
-// 42P07 and 0A000. Five digits are read as a number, so 01060 is neither.
+// engine writes it, a SQLSTATE, five digits and capitals, as PostgreSQL's
+// 42P07 and 0A000, or an error name in capitals and underscores, as Trino's
+// TABLE_NOT_FOUND (whose numbers start at 0). Five digits are read as a
+// number, so 01060 is neither.
 func isCode(v string) bool {
 	if n, err := strconv.Atoi(v); err == nil {
 		return n > 0 && strconv.Itoa(n) == v
 	}
-	return sqlstate.MatchString(v)
+	return sqlstate.MatchString(v) || errorName.MatchString(v)
 }
 
-var sqlstate = regexp.MustCompile(`^[0-9A-Z]{5}$`)
+var (
+	sqlstate  = regexp.MustCompile(`^[0-9A-Z]{5}$`)
+	errorName = regexp.MustCompile(`^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$`)
+)
 
 var stored = regexp.MustCompile(`^ok:[0-9a-f]{12}$`)
 
