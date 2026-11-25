@@ -345,6 +345,9 @@ func (p *Parser) parseEventSchedule() (*nodes.EventSchedule, error) {
 			}
 			sched.Ends = expr
 		}
+	} else {
+		// ev_schedule_time starts with AT or EVERY.
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	sched.Loc.End = p.prev.End
