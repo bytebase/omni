@@ -42,6 +42,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	if stmt.Like == nil && stmt.Select == nil && len(stmt.Columns) == 0 {
 		return errTableMustHaveColumns()
 	}
+	if (stmt.Temporary || stmt.Global) && stmt.Partitions != nil {
+		return errPartitionNoTemporary()
+	}
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -63,7 +66,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	}
 
 	// Check for duplicate table, view, or sequence with the same name.
-	if db.Tables[key] != nil || db.Views[key] != nil || db.Sequences[key] != nil {
+	if db.nameTakenFor(key, stmt.Temporary) {
 		if stmt.IfNotExists {
 			return nil
 		}
@@ -847,8 +850,31 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	// columns are present in the table.
 	c.analyzeTableExpressions(tbl, stmt)
 
-	db.Tables[key] = tbl
+	db.putTable(key, tbl)
 	return nil
+}
+
+// nameTakenFor reports whether key is taken for a new table: by another local
+// temporary table for a temporary one, and by a table, view or sequence of
+// the schema for any other. A local temporary table and a schema object may
+// share a name (read on v8.5.5).
+func (db *Database) nameTakenFor(key string, temporary bool) bool {
+	if temporary {
+		return db.TempTables[key] != nil
+	}
+	return db.Tables[key] != nil || db.Views[key] != nil || db.Sequences[key] != nil
+}
+
+// putTable installs tbl under key, in TempTables for a local temporary table.
+func (db *Database) putTable(key string, tbl *Table) {
+	if !tbl.Temporary {
+		db.Tables[key] = tbl
+		return
+	}
+	if db.TempTables == nil {
+		db.TempTables = make(map[string]*Table)
+	}
+	db.TempTables[key] = tbl
 }
 
 // analyzeTableExpressions performs best-effort semantic analysis on DEFAULT,
@@ -1969,7 +1995,10 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		return err
 	}
 	srcKey := toLower(stmt.Like.Name)
-	srcTbl := srcDB.Tables[srcKey]
+	srcTbl := srcDB.GetTable(srcKey)
+	if srcTbl != nil && srcTbl.Temporary {
+		return errLikeTemporaryTable()
+	}
 	if srcTbl == nil {
 		if srcDB.Views[srcKey] != nil || srcDB.Sequences[srcKey] != nil {
 			return errWrongObjectKind(srcDB.Name, stmt.Like.Name, "BASE TABLE")
@@ -1977,11 +2006,14 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		return errNoSuchTable(srcDB.Name, stmt.Like.Name)
 	}
 
-	if db.Tables[key] != nil || db.Views[key] != nil || db.Sequences[key] != nil {
+	if db.nameTakenFor(key, stmt.Temporary) {
 		if stmt.IfNotExists {
 			return nil
 		}
 		return errDupTableQualified(db.Name, tableName)
+	}
+	if (stmt.Temporary || stmt.Global) && srcTbl.Partitioning != nil {
+		return errPartitionNoTemporary()
 	}
 
 	tbl := &Table{
@@ -2105,7 +2137,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 	// RANGE table prints its partitions).
 	tbl.Partitioning = clonePartitionInfo(srcTbl.Partitioning)
 
-	db.Tables[key] = tbl
+	db.putTable(key, tbl)
 	return nil
 }
 

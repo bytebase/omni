@@ -124,6 +124,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 
 	tableName := stmt.Table.Name
 	tableKey := toLower(tableName)
+	if db.TempTables[tableKey] != nil {
+		return errLocalTemporaryDDL("CREATE INDEX")
+	}
 	tbl := db.Tables[tableKey]
 	if tbl == nil {
 		if db.Views[tableKey] != nil {
@@ -282,6 +285,9 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 
 	tableName := stmt.Table.Name
 	tableKey := toLower(tableName)
+	if db.TempTables[tableKey] != nil {
+		return errLocalTemporaryDDL("DROP INDEX")
+	}
 	tbl := db.Tables[tableKey]
 	if tbl == nil {
 		if db.Views[tableKey] != nil {

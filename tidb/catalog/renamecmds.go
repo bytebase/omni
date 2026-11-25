@@ -74,6 +74,9 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 			return err
 		}
 		oldKey := toLower(pair.Old.Name)
+		if oldDB.TempTables[oldKey] != nil {
+			return errLocalTemporaryDDL("RENAME TABLE")
+		}
 		tbl := tableNS(oldDB)[oldKey]
 		var view *View
 		var seq *Sequence

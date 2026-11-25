@@ -39,9 +39,6 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 	tableProtoByLowerName := make(map[string]*metadata.TableMetadata, len(db.Tables))
 	for _, tName := range sortedMapKeys(db.Tables) {
 		t := db.Tables[tName]
-		if t.Temporary {
-			continue
-		}
 		tableProto := tableToProto(db.Name, t)
 		schemaMeta.Tables = append(schemaMeta.Tables, tableProto)
 		tableProtoByLowerName[strings.ToLower(t.Name)] = tableProto

@@ -35,6 +35,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
+	if db.TempTables[key] != nil {
+		return errLocalTemporaryDDL("ALTER TABLE")
+	}
 	tbl := db.Tables[key]
 	if tbl == nil {
 		if db.Views[key] != nil {
