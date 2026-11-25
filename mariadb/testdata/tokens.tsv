@@ -68,6 +68,49 @@ opt_if_not_exists	(every site)	IF NOT EXISTS
 opt_if_exists	(every site)	IF EXISTS
 opt_if_not_exists_table_element	(every site)	IF NOT EXISTS on an ALTER TABLE element
 opt_if_exists_table_element	(every site)	IF EXISTS on an ALTER TABLE element
+opt_temporary	(every site)	sql_yacc.yy:13601 TEMPORARY
+
+# Keyword choices tried at every site that names them, and not only where
+# their own alternatives' rows reach (see grammar.EveryAlternative).
+create_or_replace	(every alternative)	sql_yacc.yy:5666 CREATE or CREATE OR REPLACE
+key_or_index	(every alternative)	sql_yacc.yy:7241 KEY or INDEX
+table_or_tables	(every alternative)	sql_yacc.yy:17622 TABLE or TABLES
+from_or_in	(every alternative)	sql_yacc.yy:14770 FROM or IN
+charset	(every alternative)	sql_yacc.yy:6924 CHAR SET or CHARSET
+btree_or_rtree	(every alternative)	sql_yacc.yy:7360 BTREE, RTREE or HASH
+spatial_or_vector	(every alternative)	sql_yacc.yy:7261 SPATIAL or VECTOR
+ignorability	(every alternative)	sql_yacc.yy:7366 IGNORED or NOT IGNORED
+account_locking_option	(every alternative)	sql_yacc.yy:7632 LOCK or UNLOCK
+delete_option	(every alternative)	sql_yacc.yy:7228 a foreign key's referential action
+nchar	(every alternative)	sql_yacc.yy:6707 NCHAR or NATIONAL CHAR
+varchar	(every alternative)	sql_yacc.yy:6712 CHAR VARYING or VARCHAR
+int_type	(every alternative)	sql_yacc.yy:6725 INT, TINYINT, SMALLINT, MEDIUMINT or BIGINT
+opt_ev_status	(every alternative)	sql_yacc.yy:3124 ENABLE, DISABLE or DISABLE ON SLAVE
+opt_without_validation	(every alternative)	sql_yacc.yy:8190 WITH or WITHOUT VALIDATION
+alter_option	(every alternative)	sql_yacc.yy:8259 IGNORE or ONLINE
+opt_restrict	(every alternative)	sql_yacc.yy:8268 RESTRICT or CASCADE
+start_transaction_option	(every alternative)	sql_yacc.yy:8368 WITH CONSISTENT SNAPSHOT, READ ONLY or READ WRITE
+slave_thread_opt	(every alternative)	sql_yacc.yy:8394 SQL_THREAD or RELAY_THREAD
+mi_repair_type	(every alternative)	sql_yacc.yy:8489 QUICK, EXTENDED, USE_FRM or FORCE
+mi_check_type	(every alternative)	sql_yacc.yy:8671 QUICK, FAST, MEDIUM, EXTENDED, CHANGED or FOR UPGRADE
+opt_no_write_to_binlog	(every alternative)	sql_yacc.yy:8706 NO_WRITE_TO_BINLOG or LOCAL
+interval_time_stamp	(every alternative)	sql_yacc.yy:12434 an interval unit TIMESTAMPADD takes
+order_dir	(every alternative)	sql_yacc.yy:12779 ASC or DESC
+first_or_next	(every alternative)	sql_yacc.yy:12868 FIRST or NEXT
+row_or_rows	(every alternative)	sql_yacc.yy:12873 ROW or ROWS
+only_or_with_ties	(every alternative)	sql_yacc.yy:12878 ONLY or WITH TIES
+insert_replace_option	(every alternative)	sql_yacc.yy:13684 LOW_PRIORITY or DELAYED
+opt_duplicate	(every alternative)	sql_yacc.yy:15348 REPLACE or IGNORE
+show_engine_param	(every alternative)	sql_yacc.yy:14741 STATUS, MUTEX or LOGS
+master_or_binary	(every alternative)	sql_yacc.yy:14750 MASTER or BINARY
+describe_command	(every alternative)	sql_yacc.yy:14843 DESC or DESCRIBE
+option_type	(every alternative)	sql_yacc.yy:17137 GLOBAL, LOCAL or SESSION
+opt_var_type	(every alternative)	sql_yacc.yy:17143 GLOBAL, LOCAL or SESSION
+using_or_as	(every alternative)	sql_yacc.yy:18128 USING or AS
+opt_chain	(every alternative)	sql_yacc.yy:18303 AND [NO] CHAIN
+opt_release	(every alternative)	sql_yacc.yy:18310 [NO] RELEASE
+union_option	(every alternative)	sql_yacc.yy:18387 DISTINCT or ALL
+view_algorithm	(every alternative)	sql_yacc.yy:18449 ALGORITHM = UNDEFINED, MERGE or TEMPTABLE
 
 # Operators and keywords of lex.h.
 PREPARE_SYM	PREPARE

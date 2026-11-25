@@ -2010,13 +2010,13 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 	if err := validateAddedKeyColumns(tbl, con.IndexColumns); err != nil {
 		return err
 	}
-	// A type the server answers 1210 for is refused before the key is built,
-	// after the columns are looked up: measured on mariadb:11.8.8,
-	// `ADD KEY USING RTREE(a)` answers 1210 where `ADD KEY USING RTREE(nosuch)`
-	// answers 1072.
-	if err := validateKeyTypeArguments(resolveConstraintIndexType(con)); err != nil {
-		return err
-	}
+	// A type the server answers 1210 for is refused after the key's columns and
+	// name and before a repeated column: measured on mariadb:11.8.8,
+	// `ADD KEY z USING RTREE(a)` answers 1210 where `ADD KEY z USING
+	// RTREE(nosuch)` answers 1072, `ADD KEY z USING RTREE(a(1))` over an INT a
+	// 1089, `ADD KEY a USING RTREE(a)` over a table holding key a 1061, and
+	// `ADD KEY z USING RTREE(a, a)` 1210.
+	typeErr := validateKeyTypeArguments(resolveConstraintIndexType(con))
 
 	switch con.Type {
 	case nodes.ConstrPrimaryKey:
@@ -2035,6 +2035,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		// answers 1089 and `PRIMARY KEY (a)` over a TEXT one 1170.
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
+		}
+		if typeErr != nil {
+			return typeErr
 		}
 		if err := validateNoRepeatedKeyColumns(idxCols); err != nil {
 			return err
@@ -2092,6 +2095,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			idxName = allocIndexName(tbl, cols[0])
 		} else if idxName != "" && indexNameExists(tbl, idxName) {
 			return errDupKeyName(idxName)
+		}
+		if typeErr != nil {
+			return typeErr
 		}
 		if err := validateNoRepeatedKeyColumns(idxCols); err != nil {
 			return err
@@ -2232,6 +2238,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		}
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
+		}
+		if typeErr != nil {
+			return typeErr
 		}
 		if err := validateNoRepeatedKeyColumns(idxCols); err != nil {
 			return err

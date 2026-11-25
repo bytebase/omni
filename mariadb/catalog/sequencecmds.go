@@ -55,10 +55,17 @@ func (c *Catalog) createSequence(stmt *nodes.CreateSequenceStmt) error {
 	key := toLower(stmt.Name.Name)
 	// As with tables, the catalog keeps one object per name, so a temporary
 	// sequence that would shadow a permanent object is reported a duplicate.
+	// OR REPLACE over a view is 1965, after the sequence's own options are
+	// judged: measured on mariadb:11.8.8, `CREATE OR REPLACE SEQUENCE v` over a
+	// view answers 1965 and `CREATE OR REPLACE SEQUENCE v START WITH 5 MINVALUE
+	// 10` 4085.
+	var viewErr error
 	if db.Tables[key] != nil || db.Views[key] != nil || db.Sequences[key] != nil {
 		switch {
 		case stmt.IfNotExists:
 			return nil
+		case stmt.OrReplace && !stmt.Temporary && db.Views[key] != nil:
+			viewErr = errIsAView(db.Name, stmt.Name.Name)
 		case stmt.OrReplace && db.Views[key] == nil && (!stmt.Temporary || temporaryOnly(db, key)):
 		default:
 			return errDupTable(stmt.Name.Name)
@@ -85,6 +92,9 @@ func (c *Catalog) createSequence(stmt *nodes.CreateSequenceStmt) error {
 		case "comment":
 			seq.Comment = opt.Value
 		}
+	}
+	if viewErr != nil {
+		return viewErr
 	}
 	c.dropReplacedTable(db, db.Tables[key])
 	db.Sequences[key] = seq
