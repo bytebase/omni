@@ -3,7 +3,9 @@
 `simulate.tsv` holds the statements in `programFeatures`
 (`../../simulate_program_test.go`) on `../fixtures/programs@objects.sql`:
 SQL and PL/pgSQL functions and procedures with real bodies, their `ALTER` and
-`DROP`, what a body depends on, triggers, event triggers, `CALL` and `DO`.
+`DROP`, what a body depends on, triggers, event triggers, `CALL` and `DO`. The
+statements in `quotedTypeFeatures` run on `../fixtures/programs@quoted.sql` and
+name its quoted mixed-case enum and table as column, argument and result types.
 `TestProgramSimulation` replays it from `../tapes/TestProgramSimulation.tape`
 (postgres:17.12), and `TestProgramSimulationPG18` replays the same rows in
 `../pg18/programs/simulate.tsv` from postgres:18.7. Both pins answer every row
@@ -11,7 +13,7 @@ alike. The readout adds the database's event triggers to `../simulate.tsv`'s.
 `pg/review`'s `TestWalkSimulation` checks WALK_THROUGH on these rows
 (`programs` subtest).
 
-**266 rows: 257 agree, 9 differ (96.6%), on both pins.**
+**279 rows: 270 agree, 9 differ (96.8%), on both pins.**
 
 The catalog checks what PostgreSQL checks at `CREATE` with
 `check_function_bodies` on: a SQL body is parsed and analyzed, and its last

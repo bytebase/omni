@@ -51,15 +51,19 @@ func TestProgramSimulationPG18(t *testing.T) {
 
 func programRows(t *testing.T) []simulate.Generated {
 	t.Helper()
-	rows := make([]simulate.Generated, 0, len(programFeatures))
+	rows := make([]simulate.Generated, 0, len(programFeatures)+len(quotedTypeFeatures))
 	seen := map[string]bool{}
-	for _, f := range programFeatures {
-		if seen[f.statement] {
-			t.Fatalf("programFeatures holds %q twice", f.statement)
+	add := func(fixture string, features []struct{ kind, statement string }) {
+		for _, f := range features {
+			if seen[f.statement] {
+				t.Fatalf("the program rows hold %q twice", f.statement)
+			}
+			seen[f.statement] = true
+			rows = append(rows, simulate.Generated{Fixture: fixture, Rule: "program:" + f.kind, Statement: f.statement})
 		}
-		seen[f.statement] = true
-		rows = append(rows, simulate.Generated{Fixture: "programs@objects", Rule: "program:" + f.kind, Statement: f.statement})
 	}
+	add("programs@objects", programFeatures)
+	add("programs@quoted", quotedTypeFeatures)
 	return rows
 }
 
@@ -384,4 +388,23 @@ var programFeatures = []struct{ kind, statement string }{
 	{"do", "DO $$ BEGIN RAISE EXCEPTION 'boom'; END $$"},
 	{"do", "DO $$ BEGIN INSERT INTO missing_t VALUES (1); END $$"},
 	{"do", "DO $$ BEGIN CREATE TABLE made_by_do (x int); END $$"},
+}
+
+// quotedTypeFeatures run on programs@quoted, whose enum "Mood" and table "Foo"
+// have quoted mixed-case names. A quoted type name keeps its case wherever it
+// names a column, argument, result or base type, and an unquoted one folds.
+var quotedTypeFeatures = []struct{ kind, statement string }{
+	{"quoted-type", `CREATE TABLE tq (m "Mood")`},
+	{"quoted-type", `CREATE TABLE tq (m public."Mood")`},
+	{"quoted-type", `CREATE TABLE tq (m "Mood"[])`},
+	{"quoted-type", `CREATE TABLE tq (f "Foo")`},
+	{"quoted-type", `CREATE TABLE tq (m mood)`},
+	{"quoted-type", `CREATE TABLE tq (m "MOOD")`},
+	{"quoted-type", `ALTER TABLE "Foo" ADD COLUMN m "Mood"`},
+	{"quoted-type", `CREATE DOMAIN dq AS "Mood"`},
+	{"quoted-type", `CREATE TYPE cq AS (m "Mood")`},
+	{"quoted-type", `CREATE VIEW vq AS SELECT 'sad'::"Mood" AS m`},
+	{"quoted-type", `CREATE FUNCTION fq(m "Mood") RETURNS text LANGUAGE sql RETURN m::text`},
+	{"quoted-type", `CREATE FUNCTION fq() RETURNS "Mood" LANGUAGE sql AS $$SELECT 'sad'::"Mood"$$`},
+	{"quoted-type", `CREATE FUNCTION fq(m "Mood") RETURNS int LANGUAGE plpgsql AS $$ DECLARE x "Mood"; BEGIN x := m; RETURN 1; END $$`},
 }
