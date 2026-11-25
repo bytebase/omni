@@ -66,7 +66,7 @@ var ErrMixUserSystemTables = analysis.ErrMixUserSystemTables
 // CockroachDB's result-set metadata follows a view to its table.
 //
 // A statement that does not parse returns a *SyntaxError, one that reads user
-// and system tables together ErrMixUserSystemTables, and one that names a
+// and system tables together ErrMixUserSystemTables, and a query that names a
 // column its relations lack or name ambiguously CockroachDB's error for it,
 // with its SQLSTATE (pgerror.GetPGCode). A relation missing from the metadata
 // sets the span's NotFoundError. Statements other than a SELECT of user tables
@@ -98,16 +98,14 @@ func ResolveQuerySpan(_ context.Context, statement string, opts ResolveOptions) 
 		stmt = explain.Statement
 	}
 	queryType := classifyStatement(stmt)
-	sel, isSelect := stmt.(*tree.Select)
 	var results []spanColumn
-	var resolveErr error
-	if isSelect {
-		results, resolveErr = r.selectQuery(sel, nil)
+	if sel, ok := stmt.(*tree.Select); ok {
+		results = r.selectQuery(sel, nil)
 	} else {
 		r.statementTables(stmt)
 	}
-	if r.err != nil {
-		return nil, r.err
+	if r.metadataErr != nil {
+		return nil, r.metadataErr
 	}
 
 	allSystem, mixed := r.systemAccess()
@@ -124,6 +122,9 @@ func ResolveQuerySpan(_ context.Context, statement string, opts ResolveOptions) 
 		Results:        []analysis.QuerySpanResult{},
 	}
 	if queryType != analysis.Select {
+		// The span of any other statement is the relations it reads, which
+		// the walk records past a name it cannot resolve, so such a name
+		// leaves it whole.
 		if explainAnalyze {
 			// EXPLAIN ANALYZE runs the statement and reports the rows each
 			// condition kept, so its conditions count.
@@ -136,8 +137,8 @@ func ResolveQuerySpan(_ context.Context, statement string, opts ResolveOptions) 
 		span.NotFoundError = r.notFound
 		return span, nil
 	}
-	if resolveErr != nil {
-		return nil, resolveErr
+	if r.resolveErr != nil {
+		return nil, r.resolveErr
 	}
 	if !explainAnalyze {
 		for _, c := range results {
@@ -163,7 +164,7 @@ func classifyStatement(stmt tree.Statement) analysis.QueryType {
 			return analysis.DML
 		}
 		return analysis.Select
-	case *tree.Insert, *tree.Update, *tree.Delete, *tree.CopyFrom, *tree.Import, *tree.Call:
+	case *tree.Insert, *tree.Update, *tree.Delete, *tree.CopyFrom, *tree.CopyTo, *tree.Import, *tree.Call:
 		return analysis.DML
 	case *tree.Explain:
 		return analysis.Explain
@@ -224,6 +225,10 @@ func (r *spanResolver) unresolvedColumns() *analysis.UnresolvedColumnsError {
 
 // spanResolver resolves one statement's lineage. It records the relations the
 // statement names and the columns that decide which rows it returns.
+//
+// A name it cannot resolve does not stop it: it records the first such error
+// in resolveErr and walks on, so every relation the statement names is still
+// recorded, and the caller decides what the error means for the statement.
 type spanResolver struct {
 	defaultDatabase string
 	searchPath      []string
@@ -236,12 +241,20 @@ type spanResolver struct {
 	// metadata without naming a relation.
 	readsSystem bool
 	notFound    *analysis.ResourceNotFoundError
-	// err is a failure to read the metadata, which ends the resolution.
-	err error
+	resolveErr  error
+	// metadataErr is a failure to read the metadata, which fails the
+	// statement whatever it is.
+	metadataErr error
 	// inView counts the view definitions being resolved: what a view reads is
 	// not an access of the statement, and its conditions are the view's.
 	inView    int
 	expanding map[analysis.ColumnResource]bool
+}
+
+func (r *spanResolver) fail(err error) {
+	if r.resolveErr == nil {
+		r.resolveErr = err
+	}
 }
 
 // spanColumn is one output column of a relation or a query.
@@ -270,10 +283,7 @@ type spanRelation struct {
 }
 
 func (rel *spanRelation) opaqueColumn(name string) spanColumn {
-	sources := analysis.ColumnSet{}
-	for c := range rel.opaqueReads {
-		sources[c] = true
-	}
+	sources := union(rel.opaqueReads)
 	if rel.opaqueTable != nil {
 		c := *rel.opaqueTable
 		c.Column = name
@@ -305,6 +315,9 @@ type spanScope struct {
 	parent *spanScope
 	items  []*fromItem
 	ctes   map[string][]spanColumn
+	// from marks the scope of a FROM clause's items, which only a LATERAL
+	// item or a function in FROM sees from inside FROM.
+	from bool
 }
 
 func (sc *spanScope) cte(name string) ([]spanColumn, bool) {
@@ -316,17 +329,34 @@ func (sc *spanScope) cte(name string) ([]spanColumn, bool) {
 	return nil, false
 }
 
+// outside returns the scope a FROM item that is not LATERAL sees: sc without
+// the FROM items around it.
+func (sc *spanScope) outside() *spanScope {
+	for sc != nil && sc.from {
+		sc = sc.parent
+	}
+	return sc
+}
+
+// outputScope is a scope in which a name may be an output column of the
+// query, as in ORDER BY, before the names of inner.
+func outputScope(cols []spanColumn, inner *spanScope) *spanScope {
+	return &spanScope{parent: inner, items: []*fromItem{{columns: cols}}}
+}
+
 func (r *spanResolver) database(name string) Database {
 	if db, ok := r.databases[name]; ok {
 		return db
 	}
 	if r.catalog.GetDatabase == nil {
-		r.err = errors.New("ResolveOptions.Catalog.GetDatabase is not set")
+		r.metadataErr = errors.New("ResolveOptions.Catalog.GetDatabase is not set")
 		return nil
 	}
 	db, err := r.catalog.GetDatabase(name)
 	if err != nil {
-		r.err = fmt.Errorf("failed to get database metadata for database: %s: %w", name, err)
+		if r.metadataErr == nil {
+			r.metadataErr = fmt.Errorf("failed to get database metadata for database: %s: %w", name, err)
+		}
 		return nil
 	}
 	r.databases[name] = db
@@ -349,31 +379,36 @@ func (r *spanResolver) addPredicates(sources analysis.ColumnSet) {
 }
 
 // selectQuery resolves a query with its WITH, ORDER BY and LIMIT clauses.
-func (r *spanResolver) selectQuery(sel *tree.Select, outer *spanScope) ([]spanColumn, error) {
+// FOR UPDATE OF names relations of the query's own FROM, so it reads nothing.
+func (r *spanResolver) selectQuery(sel *tree.Select, outer *spanScope) []spanColumn {
 	sc := outer
 	if sel.With != nil {
-		var err error
-		if sc, err = r.with(sel.With, outer); err != nil {
-			return nil, err
-		}
+		sc = r.with(sel.With, outer)
 	}
-	cols, err := r.selectStatement(sel.Select, sc)
-	if err != nil {
-		return nil, err
+	cols, inner := r.selectStatement(sel.Select, sc)
+	r.orderBy(sel.OrderBy, outputScope(cols, inner))
+	r.limit(sel.Limit, sc)
+	return cols
+}
+
+func (r *spanResolver) orderBy(orderBy tree.OrderBy, sc *spanScope) {
+	for _, order := range orderBy {
+		r.sources(order.Expr, sc)
 	}
-	for _, order := range sel.OrderBy {
-		r.walkExpr(order.Expr, sc)
+}
+
+// limit records the columns LIMIT and OFFSET read, which decide how many rows
+// come back.
+func (r *spanResolver) limit(limit *tree.Limit, sc *spanScope) {
+	if limit != nil {
+		r.addPredicates(r.sources(limit.Count, sc))
+		r.addPredicates(r.sources(limit.Offset, sc))
 	}
-	if sel.Limit != nil {
-		r.addPredicates(r.walkExpr(sel.Limit.Count, sc))
-		r.addPredicates(r.walkExpr(sel.Limit.Offset, sc))
-	}
-	return cols, nil
 }
 
 // with resolves a WITH clause into a scope holding its CTEs. Each CTE sees the
 // ones before it, and in WITH RECURSIVE itself too.
-func (r *spanResolver) with(w *tree.With, outer *spanScope) (*spanScope, error) {
+func (r *spanResolver) with(w *tree.With, outer *spanScope) *spanScope {
 	sc := &spanScope{parent: outer, ctes: map[string][]spanColumn{}}
 	for _, cte := range w.CTEList {
 		name := string(cte.Name.Alias)
@@ -386,45 +421,34 @@ func (r *spanResolver) with(w *tree.With, outer *spanScope) (*spanScope, error) 
 			continue
 		}
 		var cols []spanColumn
-		var err error
 		if union, ok := sel.Select.(*tree.UnionClause); ok && w.Recursive {
-			cols, err = r.recursiveCTE(name, cte.Name.Cols, union, sc)
+			cols = r.recursiveCTE(name, cte.Name.Cols, union, sc)
 		} else {
-			cols, err = r.selectQuery(sel, sc)
+			cols = r.selectQuery(sel, sc)
 		}
-		if err != nil {
-			return nil, err
-		}
-		sc.ctes[name] = renameColumns(cols, cte.Name.Cols)
+		sc.ctes[name] = r.renameColumns(cols, cte.Name.Cols, nil)
 	}
-	return sc, nil
+	return sc
 }
 
 // recursiveCTE resolves a recursive CTE: its first branch, then its second
 // with the CTE bound to the columns so far, until the sources stop growing.
-func (r *spanResolver) recursiveCTE(name string, aliases tree.ColumnDefList, union *tree.UnionClause, sc *spanScope) ([]spanColumn, error) {
-	cols, err := r.selectQuery(union.Left, sc)
-	if err != nil {
-		return nil, err
-	}
+func (r *spanResolver) recursiveCTE(name string, aliases tree.ColumnDefList, union *tree.UnionClause, sc *spanScope) []spanColumn {
+	cols := r.selectQuery(union.Left, sc)
 	for {
-		sc.ctes[name] = renameColumns(cols, aliases)
-		right, err := r.selectQuery(union.Right, sc)
-		if err != nil {
-			return nil, err
-		}
-		merged, err := mergeBranches(cols, right)
-		if err != nil {
-			return nil, err
-		}
+		sc.ctes[name] = r.renameColumns(cols, aliases, nil)
+		merged := r.mergeBranches(cols, r.selectQuery(union.Right, sc))
 		if sameSources(cols, merged) {
-			return merged, nil
+			return merged
 		}
 		cols = merged
 	}
 }
 
 func sameSources(a, b []spanColumn) bool {
+	if len(a) != len(b) {
+		return false
+	}
 	for i := range a {
 		if len(a[i].sources) != len(b[i].sources) {
 			return false
@@ -435,15 +459,17 @@ func sameSources(a, b []spanColumn) bool {
 
 // mergeBranches is the columns of a set operation: the left branch's names
 // and every branch's sources.
-func mergeBranches(left, right []spanColumn) ([]spanColumn, error) {
+func (r *spanResolver) mergeBranches(left, right []spanColumn) []spanColumn {
 	if len(left) != len(right) {
-		return nil, fmt.Errorf("each branch of a set operation must have the same number of columns: %d and %d", len(left), len(right))
+		r.fail(fmt.Errorf("each branch of a set operation must have the same number of columns: %d and %d", len(left), len(right)))
 	}
-	out := make([]spanColumn, len(left))
-	for i := range left {
-		out[i] = spanColumn{name: left[i].name, sources: union(left[i].sources, right[i].sources)}
+	out := stripColumns(left)
+	for i := range out {
+		if i < len(right) {
+			out[i].sources = union(out[i].sources, right[i].sources)
+		}
 	}
-	return out, nil
+	return out
 }
 
 func union(sets ...analysis.ColumnSet) analysis.ColumnSet {
@@ -456,21 +482,18 @@ func union(sets ...analysis.ColumnSet) analysis.ColumnSet {
 	return out
 }
 
-func (r *spanResolver) selectStatement(stmt tree.SelectStatement, sc *spanScope) ([]spanColumn, error) {
+// selectStatement resolves the body of a query. It returns the query's
+// columns and the scope its ORDER BY sees beneath the output columns: the
+// FROM items of a plain SELECT, or sc.
+func (r *spanResolver) selectStatement(stmt tree.SelectStatement, sc *spanScope) ([]spanColumn, *spanScope) {
 	switch n := stmt.(type) {
 	case *tree.SelectClause:
 		return r.selectClause(n, sc)
 	case *tree.ParenSelect:
-		return r.selectQuery(n.Select, sc)
+		return r.selectQuery(n.Select, sc), sc
 	case *tree.UnionClause:
-		left, err := r.selectQuery(n.Left, sc)
-		if err != nil {
-			return nil, err
-		}
-		right, err := r.selectQuery(n.Right, sc)
-		if err != nil {
-			return nil, err
-		}
+		left := r.selectQuery(n.Left, sc)
+		right := r.selectQuery(n.Right, sc)
 		if n.Type == tree.ExceptOp {
 			// EXCEPT returns rows of the left branch that the right branch
 			// lacks, so only the left supplies values; both decide which rows
@@ -478,7 +501,7 @@ func (r *spanResolver) selectStatement(stmt tree.SelectStatement, sc *spanScope)
 			for _, c := range append(left, right...) {
 				r.addPredicates(c.sources)
 			}
-			return stripColumns(left), nil
+			return stripColumns(left), sc
 		}
 		// A row INTERSECT returns holds values of both branches, so a masking
 		// policy on either applies, though CockroachDB names the left alone.
@@ -487,7 +510,7 @@ func (r *spanResolver) selectStatement(stmt tree.SelectStatement, sc *spanScope)
 				r.addPredicates(c.sources)
 			}
 		}
-		return mergeBranches(left, right)
+		return r.mergeBranches(left, right), sc
 	case *tree.ValuesClause:
 		var cols []spanColumn
 		for _, row := range n.Rows {
@@ -495,16 +518,13 @@ func (r *spanResolver) selectStatement(stmt tree.SelectStatement, sc *spanScope)
 				if i == len(cols) {
 					cols = append(cols, spanColumn{name: fmt.Sprintf("column%d", i+1), sources: analysis.ColumnSet{}})
 				}
-				sources, err := r.sources(e, sc)
-				if err != nil {
-					return nil, err
-				}
-				cols[i].sources = union(cols[i].sources, sources)
+				cols[i].sources = union(cols[i].sources, r.sources(e, sc))
 			}
 		}
-		return cols, nil
+		return cols, sc
 	}
-	return nil, fmt.Errorf("unsupported query %T", stmt)
+	r.fail(fmt.Errorf("unsupported query %T", stmt))
+	return nil, sc
 }
 
 // stripColumns keeps the names and sources of a query's columns, so a
@@ -517,78 +537,61 @@ func stripColumns(cols []spanColumn) []spanColumn {
 	return out
 }
 
-func (r *spanResolver) selectClause(n *tree.SelectClause, outer *spanScope) ([]spanColumn, error) {
-	sc := &spanScope{parent: outer}
+// selectClause resolves a SELECT and returns its columns and its scope.
+func (r *spanResolver) selectClause(n *tree.SelectClause, outer *spanScope) ([]spanColumn, *spanScope) {
+	sc := &spanScope{parent: outer, from: true}
 	for _, te := range n.From.Tables {
-		item, err := r.tableExpr(te, sc)
-		if err != nil {
-			return nil, err
-		}
-		sc.items = append(sc.items, item)
+		sc.items = append(sc.items, r.tableExpr(te, sc))
 	}
-	r.walkExpr(n.From.AsOf.Expr, outer)
+	sc.from = false
+	r.sources(n.From.AsOf.Expr, outer)
 	var cols []spanColumn
 	for _, target := range n.Exprs {
-		expanded, err := r.selectTarget(target, sc)
-		if err != nil {
-			return nil, err
-		}
-		cols = append(cols, expanded...)
+		cols = append(cols, r.selectTarget(target, sc)...)
 	}
 	if n.Where != nil {
-		sources, err := r.sources(n.Where.Expr, sc)
-		if err != nil {
-			return nil, err
-		}
-		r.addPredicates(sources)
+		r.addPredicates(r.sources(n.Where.Expr, sc))
 	}
 	if n.Having != nil {
-		sources, err := r.sources(n.Having.Expr, sc)
-		if err != nil {
-			return nil, err
-		}
-		r.addPredicates(sources)
+		r.addPredicates(r.sources(n.Having.Expr, sc))
 	}
 	// Grouping, DISTINCT ON and window definitions add no lineage and no
-	// condition, but their subqueries read relations. They may name an output
-	// column, which sc lacks, so a name they cannot resolve is not an error.
+	// condition, but their subqueries read relations. GROUP BY reads the FROM
+	// items before an output column of the name; DISTINCT ON, as ORDER BY,
+	// the output column first.
+	grouping := &spanScope{parent: outputScope(cols, outer), items: sc.items}
 	for _, e := range n.GroupBy {
-		r.walkExpr(e, sc)
+		r.sources(e, grouping)
 	}
 	for _, e := range n.DistinctOn {
-		r.walkExpr(e, sc)
+		r.sources(e, outputScope(cols, sc))
 	}
 	for _, w := range n.Window {
-		r.walkWindow(w, sc)
+		r.window(w, sc)
 	}
-	return cols, nil
+	return cols, sc
 }
 
 // selectTarget returns the columns one target of a select list produces: the
 // columns a star expands to, or the one column of an expression.
-func (r *spanResolver) selectTarget(target tree.SelectExpr, sc *spanScope) ([]spanColumn, error) {
+func (r *spanResolver) selectTarget(target tree.SelectExpr, sc *spanScope) []spanColumn {
 	switch e := target.Expr.(type) {
 	case tree.UnqualifiedStar:
-		return visibleColumns(sc.items), nil
+		return visibleColumns(sc.items)
 	case *tree.UnresolvedName:
 		if e.Star {
-			rel, err := r.qualifiedRelation(e, sc)
-			if err != nil {
-				return nil, err
+			if rel := r.qualifiedRelation(e, sc); rel != nil {
+				return relationColumns(rel)
 			}
-			return relationColumns(rel), nil
+			return nil
 		}
 	case *tree.TupleStar:
 		if rel := r.wholeRow(e.Expr, sc); rel != nil {
-			return relationColumns(rel), nil
+			return relationColumns(rel)
 		}
 	}
-	sources, err := r.sources(target.Expr, sc)
-	if err != nil {
-		return nil, err
-	}
 	_, plain := target.Expr.(*tree.UnresolvedName)
-	return []spanColumn{{name: renderName(target), sources: sources, plain: plain}}, nil
+	return []spanColumn{{name: renderName(target), sources: r.sources(target.Expr, sc), plain: plain}}
 }
 
 // wholeRow returns the relation a whole-row reference such as (c).* names,
@@ -631,7 +634,10 @@ func relationColumns(rel *spanRelation) []spanColumn {
 	return visibleColumns([]*fromItem{{relations: []*spanRelation{rel}, columns: rel.columns}})
 }
 
-// renderName is the name CockroachDB gives a result column.
+// renderName is the name CockroachDB gives a result column. A name its rules
+// cannot derive, such as that of a function called by OID, is ?column?, as
+// CockroachDB names an expression it has no better name for; the name is not
+// lineage.
 func renderName(target tree.SelectExpr) string {
 	resolveFunctionNames(target.Expr)
 	name, err := tree.GetRenderColName(context.Background(), tree.EmptySearchPath, target, nil)
@@ -644,6 +650,7 @@ func renderName(target tree.SelectExpr) string {
 // resolveFunctionNames resolves each function reference in e to its name, as
 // CockroachDB's naming reads it, without a function registry.
 func resolveFunctionNames(e tree.Expr) {
+	// The visit function never fails, so neither does the visit.
 	_, _ = tree.SimpleVisit(e, func(expr tree.Expr) (bool, tree.Expr, error) {
 		if f, ok := expr.(*tree.FuncExpr); ok {
 			if name, ok := f.Func.FunctionReference.(*tree.UnresolvedName); ok {
@@ -655,16 +662,17 @@ func resolveFunctionNames(e tree.Expr) {
 }
 
 // tableExpr resolves one FROM item. sc holds the items before it, which a
-// lateral item reads.
-func (r *spanResolver) tableExpr(te tree.TableExpr, sc *spanScope) (*fromItem, error) {
+// LATERAL item and a function in FROM read.
+func (r *spanResolver) tableExpr(te tree.TableExpr, sc *spanScope) *fromItem {
 	switch n := te.(type) {
 	case *tree.AliasedTableExpr:
-		item, err := r.tableExpr(n.Expr, sc)
-		if err != nil {
-			return nil, err
+		inner := sc
+		if n.Lateral {
+			inner = &spanScope{parent: sc}
 		}
+		item := r.tableExpr(n.Expr, inner)
 		if n.As.Alias == "" && !n.Ordinality {
-			return item, nil
+			return item
 		}
 		// An alias or WITH ORDINALITY makes the item one relation.
 		rel := &spanRelation{name: string(n.As.Alias), columns: slices.Clone(item.columns)}
@@ -676,10 +684,6 @@ func (r *spanResolver) tableExpr(te tree.TableExpr, sc *spanScope) (*fromItem, e
 			// A function's one column takes the alias's name.
 			rel.columns[0].name = rel.name
 		}
-		if n.Ordinality {
-			rel.columns = append(rel.columns, spanColumn{name: "ordinality", sources: analysis.ColumnSet{}})
-		}
-		rel.columns = renameColumns(rel.columns, n.As.Cols)
 		for _, inner := range item.opaque() {
 			rel.opaque = true
 			rel.opaqueReads = union(rel.opaqueReads, inner.opaqueReads)
@@ -687,47 +691,47 @@ func (r *spanResolver) tableExpr(te tree.TableExpr, sc *spanScope) (*fromItem, e
 				rel.opaqueTable = inner.opaqueTable
 			}
 		}
-		return &fromItem{relations: []*spanRelation{rel}, columns: rel.columns}, nil
-	case *tree.TableName:
-		rel, err := r.relation(n, sc)
-		if err != nil {
-			return nil, err
+		// An alias beyond the known columns names a column of a relation
+		// whose columns are unknown, which reads what the relation reads.
+		var extra analysis.ColumnSet
+		if rel.opaque {
+			extra = rel.opaqueColumn("").sources
 		}
-		return &fromItem{relations: []*spanRelation{rel}, columns: rel.columns}, nil
+		if n.Ordinality {
+			// The row's number holds no column's value, but after a relation
+			// of unknown columns its position may hold one of them.
+			rel.columns = append(rel.columns, spanColumn{name: "ordinality", sources: union(extra)})
+		}
+		rel.columns = r.renameColumns(rel.columns, n.As.Cols, extra)
+		return &fromItem{relations: []*spanRelation{rel}, columns: rel.columns}
+	case *tree.TableName:
+		rel := r.relation(n, sc)
+		return &fromItem{relations: []*spanRelation{rel}, columns: rel.columns}
 	case *tree.ParenTableExpr:
 		return r.tableExpr(n.Expr, sc)
 	case *tree.JoinTableExpr:
 		return r.join(n, sc)
 	case *tree.Subquery:
-		cols, err := r.selectStatement(n.Select, sc)
-		if err != nil {
-			return nil, err
-		}
+		cols, _ := r.selectStatement(n.Select, sc.outside())
 		cols = stripColumns(cols)
-		return &fromItem{relations: []*spanRelation{{columns: cols}}, columns: cols}, nil
+		return &fromItem{relations: []*spanRelation{{columns: cols}}, columns: cols}
 	case *tree.StatementSource:
 		if sel, ok := n.Statement.(*tree.Select); ok {
-			cols, err := r.selectQuery(sel, sc)
-			if err != nil {
-				return nil, err
-			}
-			cols = stripColumns(cols)
-			return &fromItem{relations: []*spanRelation{{columns: cols}}, columns: cols}, nil
+			cols := stripColumns(r.selectQuery(sel, sc.outside()))
+			return &fromItem{relations: []*spanRelation{{columns: cols}}, columns: cols}
 		}
 		if strings.HasPrefix(n.Statement.StatementTag(), "SHOW") && r.inView == 0 {
 			r.readsSystem = true
 		}
-		// A data change in a statement source makes the statement DML, and
+		// A data change in a statement source makes the statement DML, which
+		// has no lineage; a SHOW reads system metadata, whose query has none;
 		// an EXPLAIN's plan holds no column's value.
 		r.statementTables(n.Statement)
-		return &fromItem{relations: []*spanRelation{{opaque: true}}}, nil
+		return &fromItem{relations: []*spanRelation{{opaque: true}}}
 	case *tree.RowsFromExpr:
 		rel := &spanRelation{opaque: true, opaqueReads: analysis.ColumnSet{}}
 		for _, fn := range n.Items {
-			sources, err := r.sources(fn, sc)
-			if err != nil {
-				return nil, err
-			}
+			sources := r.sources(fn, sc)
 			// A function in FROM returns the rows its arguments ask for.
 			r.addPredicates(sources)
 			rel.opaqueReads = union(rel.opaqueReads, sources)
@@ -736,15 +740,22 @@ func (r *spanResolver) tableExpr(te tree.TableExpr, sc *spanScope) (*fromItem, e
 		if len(n.Items) == 1 {
 			rel.name = rel.columns[0].name
 		}
-		return &fromItem{relations: []*spanRelation{rel}, columns: rel.columns}, nil
+		return &fromItem{relations: []*spanRelation{rel}, columns: rel.columns}
 	case *tree.TableRef:
-		return nil, errors.New("a numeric table reference names no relation the metadata can resolve")
+		// A numeric reference names a relation by descriptor ID, which the
+		// metadata cannot resolve, so it fails the statement.
+		if r.metadataErr == nil {
+			r.metadataErr = errors.New("a numeric table reference names no relation the metadata can resolve")
+		}
+		return &fromItem{relations: []*spanRelation{{opaque: true}}}
 	}
-	return nil, fmt.Errorf("unsupported table expression %T", te)
+	r.fail(fmt.Errorf("unsupported table expression %T", te))
+	return &fromItem{relations: []*spanRelation{{opaque: true}}}
 }
 
 // renameColumns applies a column alias list to the visible columns in order.
-func renameColumns(cols []spanColumn, aliases tree.ColumnDefList) []spanColumn {
+// An alias beyond them names a column that reads extra.
+func (r *spanResolver) renameColumns(cols []spanColumn, aliases tree.ColumnDefList, extra analysis.ColumnSet) []spanColumn {
 	out := make([]spanColumn, 0, len(cols))
 	i := 0
 	for _, c := range cols {
@@ -754,32 +765,25 @@ func renameColumns(cols []spanColumn, aliases tree.ColumnDefList) []spanColumn {
 		}
 		out = append(out, c)
 	}
-	// A function of several columns has more aliases than columns known.
+	if i < len(aliases) && extra == nil {
+		r.fail(pgerror.Newf(pgcode.InvalidColumnReference, "%d columns available but %d columns specified", i, len(aliases)))
+	}
 	for ; i < len(aliases); i++ {
-		out = append(out, spanColumn{name: string(aliases[i].Name), sources: analysis.ColumnSet{}})
+		out = append(out, spanColumn{name: string(aliases[i].Name), sources: union(extra)})
 	}
 	return out
 }
 
-func (r *spanResolver) join(n *tree.JoinTableExpr, sc *spanScope) (*fromItem, error) {
-	left, err := r.tableExpr(n.Left, sc)
-	if err != nil {
-		return nil, err
-	}
-	// A lateral right side reads the left.
-	right, err := r.tableExpr(n.Right, &spanScope{parent: sc, items: []*fromItem{left}})
-	if err != nil {
-		return nil, err
-	}
-	item := &fromItem{relations: append(append([]*spanRelation{}, left.relations...), right.relations...)}
+func (r *spanResolver) join(n *tree.JoinTableExpr, sc *spanScope) *fromItem {
+	left := r.tableExpr(n.Left, sc)
+	// A LATERAL right side reads the left.
+	right := r.tableExpr(n.Right, &spanScope{parent: sc, items: []*fromItem{left}, from: true})
+	item := &fromItem{relations: append(slices.Clone(left.relations), right.relations...)}
 	var using []string
 	switch cond := n.Cond.(type) {
 	case *tree.OnJoinCond:
-		sources, err := r.sources(cond.Expr, &spanScope{parent: sc, items: []*fromItem{left, right}})
-		if err != nil {
-			return nil, err
-		}
-		r.addPredicates(sources)
+		// ON reads the two sides and the query around the FROM clause.
+		r.addPredicates(r.sources(cond.Expr, &spanScope{parent: sc.outside(), items: []*fromItem{left, right}}))
 	case *tree.UsingJoinCond:
 		for _, name := range cond.Cols {
 			using = append(using, string(name))
@@ -794,19 +798,17 @@ func (r *spanResolver) join(n *tree.JoinTableExpr, sc *spanScope) (*fromItem, er
 			}
 		}
 	}
-	if len(using) == 0 {
-		item.columns = append(append([]spanColumn{}, left.columns...), right.columns...)
-		return item, nil
-	}
 	merged := map[string]bool{}
 	for _, name := range using {
-		l, ok := visibleColumn(left.columns, name)
-		if !ok {
-			return nil, pgerror.Newf(pgcode.UndefinedColumn, "column %q specified in USING clause does not exist in left table", name)
-		}
-		rc, ok := visibleColumn(right.columns, name)
-		if !ok {
-			return nil, pgerror.Newf(pgcode.UndefinedColumn, "column %q specified in USING clause does not exist in right table", name)
+		l, lok := visibleColumn(left.columns, name)
+		rc, rok := visibleColumn(right.columns, name)
+		if !lok || !rok {
+			side := "left"
+			if lok {
+				side = "right"
+			}
+			r.fail(pgerror.Newf(pgcode.UndefinedColumn, "column %q specified in USING clause does not exist in %s table", name, side))
+			continue
 		}
 		// The merged column is the left side's value, the right side's in a
 		// RIGHT JOIN, and either in a FULL JOIN.
@@ -831,7 +833,7 @@ func (r *spanResolver) join(n *tree.JoinTableExpr, sc *spanScope) (*fromItem, er
 			item.columns = append(item.columns, c)
 		}
 	}
-	return item, nil
+	return item
 }
 
 func visibleColumn(cols []spanColumn, name string) (spanColumn, bool) {
@@ -845,28 +847,32 @@ func visibleColumn(cols []spanColumn, name string) (spanColumn, bool) {
 
 // relation resolves a table name in FROM: a CTE, a table, a view or a system
 // relation.
-func (r *spanResolver) relation(tn *tree.TableName, sc *spanScope) (*spanRelation, error) {
+func (r *spanResolver) relation(tn *tree.TableName, sc *spanScope) *spanRelation {
 	name := tn.Table()
 	if !tn.ExplicitSchema && !tn.ExplicitCatalog {
 		if cols, ok := sc.cte(name); ok {
 			if cols == nil {
-				return &spanRelation{name: name, opaque: true}, nil
+				return &spanRelation{name: name, opaque: true}
 			}
-			return &spanRelation{name: name, columns: stripColumns(cols)}, nil
+			return &spanRelation{name: name, columns: stripColumns(cols)}
 		}
 	}
+	return r.namedRelation(tn)
+}
+
+// namedRelation resolves a table name to a table, a view or a system
+// relation, whatever CTE has its name.
+func (r *spanResolver) namedRelation(tn *tree.TableName) *spanRelation {
+	name := tn.Table()
 	resource, db := r.locate(tn)
-	if r.err != nil {
-		return nil, r.err
-	}
 	rel := &spanRelation{name: name, schema: resource.Schema, database: resource.Database}
 	if isSystemResource(resource) {
 		r.access(resource)
 		rel.opaque, rel.opaqueTable = true, &resource
-		return rel, nil
+		return rel
 	}
 	if db == nil || resource.Schema == "" {
-		return r.missing(rel, resource), nil
+		return r.missing(rel, resource)
 	}
 	r.access(resource)
 	if table := db.GetTable(resource.Schema, name); table != nil {
@@ -878,7 +884,7 @@ func (r *spanResolver) relation(tn *tree.TableName, sc *spanScope) (*spanRelatio
 		if len(rel.columns) == 0 {
 			rel.opaque, rel.opaqueTable = true, &resource
 		}
-		return rel, nil
+		return rel
 	}
 	for _, s := range db.Metadata().GetSchemas() {
 		if s.GetName() != resource.Schema {
@@ -886,22 +892,18 @@ func (r *spanResolver) relation(tn *tree.TableName, sc *spanScope) (*spanRelatio
 		}
 		for _, v := range s.GetViews() {
 			if v.GetName() == name {
-				cols, err := r.view(resource, v.GetDefinition(), v.GetColumns(), true)
-				rel.columns = cols
-				return rel, err
+				return r.view(rel, resource, v.GetDefinition(), v.GetColumns(), true)
 			}
 		}
 		for _, v := range s.GetMaterializedViews() {
 			if v.GetName() == name {
 				// A materialized view holds its rows, so its columns are
 				// its own.
-				cols, err := r.view(resource, v.GetDefinition(), v.GetColumns(), false)
-				rel.columns = cols
-				return rel, err
+				return r.view(rel, resource, v.GetDefinition(), v.GetColumns(), false)
 			}
 		}
 	}
-	return r.missing(rel, resource), nil
+	return r.missing(rel, resource)
 }
 
 // missing records a relation the metadata lacks: an access of the name as
@@ -984,33 +986,40 @@ func (r *spanResolver) hasSchema(database, schema string) bool {
 	return false
 }
 
-// view returns a view's columns from its definition: named by the synced
+// view gives rel a view's columns from its definition: named by the synced
 // columns where they match, each reading the view's own column and, for a
-// view CockroachDB follows, the columns the definition reads for it.
-func (r *spanResolver) view(resource analysis.ColumnResource, definition string, synced []*metadata.ColumnMetadata, follow bool) ([]spanColumn, error) {
+// view CockroachDB follows, the columns the definition reads for it. A
+// definition that cannot be resolved fails the statement, and its columns
+// are unknown.
+func (r *spanResolver) view(rel *spanRelation, resource analysis.ColumnResource, definition string, synced []*metadata.ColumnMetadata, follow bool) *spanRelation {
+	unknown := func(err error) *spanRelation {
+		r.fail(fmt.Errorf("the definition of view %s: %w", resource.String(), err))
+		rel.opaque, rel.opaqueTable = true, &resource
+		return rel
+	}
 	if r.expanding[resource] {
-		return nil, fmt.Errorf("view %s refers to itself", resource.String())
+		return unknown(errors.New("the view refers to itself"))
 	}
 	stmts, err := Parse(definition)
 	if err != nil {
-		return nil, fmt.Errorf("the definition of view %s: %w", resource.String(), err)
+		return unknown(err)
 	}
 	var sel *tree.Select
 	if len(stmts) == 1 {
 		sel, _ = stmts[0].AST.(*tree.Select)
 	}
 	if sel == nil {
-		return nil, fmt.Errorf("the definition of view %s is not a query", resource.String())
+		return unknown(errors.New("the definition is not a query"))
 	}
 	r.expanding[resource] = true
 	r.inView++
-	defCols, err := r.selectQuery(sel, nil)
+	before := r.resolveErr
+	defCols := r.selectQuery(sel, nil)
 	r.inView--
 	delete(r.expanding, resource)
-	if err != nil {
-		return nil, fmt.Errorf("the definition of view %s: %w", resource.String(), err)
+	if before == nil && r.resolveErr != nil {
+		r.resolveErr = fmt.Errorf("the definition of view %s: %w", resource.String(), r.resolveErr)
 	}
-	cols := make([]spanColumn, len(defCols))
 	for i, c := range defCols {
 		name := c.name
 		if len(synced) == len(defCols) {
@@ -1022,23 +1031,14 @@ func (r *spanResolver) view(resource analysis.ColumnResource, definition string,
 		if follow {
 			sources = union(sources, c.sources)
 		}
-		cols[i] = spanColumn{name: name, sources: sources}
+		rel.columns = append(rel.columns, spanColumn{name: name, sources: sources})
 	}
-	return cols, nil
+	return rel
 }
 
-// sources returns the columns e reads, failing on a name it cannot resolve.
-func (r *spanResolver) sources(e tree.Expr, sc *spanScope) (analysis.ColumnSet, error) {
-	v := &exprVisitor{r: r, sc: sc, strict: true, sources: analysis.ColumnSet{}}
-	if e != nil {
-		tree.WalkExpr(v, e)
-	}
-	return v.sources, v.err
-}
-
-// walkExpr returns the columns e reads, leaving out names it cannot resolve.
-// It still resolves e's subqueries, which read relations.
-func (r *spanResolver) walkExpr(e tree.Expr, sc *spanScope) analysis.ColumnSet {
+// sources returns the columns e reads. A name it cannot resolve is recorded
+// as the resolver's error, and the walk goes on.
+func (r *spanResolver) sources(e tree.Expr, sc *spanScope) analysis.ColumnSet {
 	v := &exprVisitor{r: r, sc: sc, sources: analysis.ColumnSet{}}
 	if e != nil {
 		tree.WalkExpr(v, e)
@@ -1046,12 +1046,19 @@ func (r *spanResolver) walkExpr(e tree.Expr, sc *spanScope) analysis.ColumnSet {
 	return v.sources
 }
 
-func (r *spanResolver) walkWindow(w *tree.WindowDef, sc *spanScope) {
+// window resolves a window definition's expressions, which add no lineage
+// and no condition, for the relations their subqueries read.
+func (r *spanResolver) window(w *tree.WindowDef, sc *spanScope) {
 	for _, e := range w.Partitions {
-		r.walkExpr(e, sc)
+		r.sources(e, sc)
 	}
-	for _, order := range w.OrderBy {
-		r.walkExpr(order.Expr, sc)
+	r.orderBy(w.OrderBy, sc)
+	if w.Frame != nil {
+		for _, bound := range []*tree.WindowFrameBound{w.Frame.Bounds.StartBound, w.Frame.Bounds.EndBound} {
+			if bound != nil {
+				r.sources(bound.OffsetExpr, sc)
+			}
+		}
 	}
 }
 
@@ -1060,28 +1067,13 @@ func (r *spanResolver) walkWindow(w *tree.WindowDef, sc *spanScope) {
 type exprVisitor struct {
 	r       *spanResolver
 	sc      *spanScope
-	strict  bool
 	sources analysis.ColumnSet
-	err     error
-}
-
-func (v *exprVisitor) fail(err error) {
-	if v.strict && v.err == nil {
-		v.err = err
-	}
 }
 
 func (v *exprVisitor) VisitPre(expr tree.Expr) (bool, tree.Expr) {
-	if v.err != nil {
-		return false, expr
-	}
 	switch e := expr.(type) {
 	case *tree.UnresolvedName:
-		sources, err := v.r.nameSources(e, v.sc)
-		if err != nil {
-			v.fail(err)
-		}
-		v.add(sources)
+		v.add(v.r.nameSources(e, v.sc))
 		return false, expr
 	case *tree.ColumnAccessExpr:
 		// (c).name reads one column of a whole-row reference.
@@ -1092,10 +1084,7 @@ func (v *exprVisitor) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 			}
 		}
 	case *tree.Subquery:
-		cols, err := v.r.selectStatement(e.Select, v.sc)
-		if err != nil {
-			v.fail(err)
-		}
+		cols, _ := v.r.selectStatement(e.Select, v.sc)
 		for _, c := range cols {
 			v.add(c.sources)
 		}
@@ -1103,10 +1092,10 @@ func (v *exprVisitor) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 	case *tree.FuncExpr:
 		if e.Filter != nil {
 			// An aggregate's FILTER decides which rows it reads.
-			v.r.addPredicates(v.r.walkExpr(e.Filter, v.sc))
+			v.r.addPredicates(v.r.sources(e.Filter, v.sc))
 		}
 		if e.WindowDef != nil {
-			v.r.walkWindow(e.WindowDef, v.sc)
+			v.r.window(e.WindowDef, v.sc)
 		}
 	}
 	return true, expr
@@ -1131,27 +1120,27 @@ func findColumn(cols []spanColumn, name string) (spanColumn, bool) {
 
 // nameSources resolves a name in an expression: a column, a relation's star,
 // or a whole-row reference to a relation.
-func (r *spanResolver) nameSources(name *tree.UnresolvedName, sc *spanScope) (analysis.ColumnSet, error) {
+func (r *spanResolver) nameSources(name *tree.UnresolvedName, sc *spanScope) analysis.ColumnSet {
 	if name.Star {
-		rel, err := r.qualifiedRelation(name, sc)
-		if err != nil || rel == nil {
-			return nil, err
+		if rel := r.qualifiedRelation(name, sc); rel != nil {
+			return columnSources(relationColumns(rel))
 		}
-		return columnSources(relationColumns(rel)), nil
+		return nil
 	}
 	column := name.Parts[0]
 	if name.NumParts > 1 {
-		rel, err := r.qualifiedRelation(name, sc)
-		if err != nil {
-			return nil, err
+		rel := r.qualifiedRelation(name, sc)
+		if rel == nil {
+			return nil
 		}
 		if c, ok := findColumn(rel.columns, column); ok {
-			return c.sources, nil
+			return c.sources
 		}
 		if rel.opaque {
-			return rel.opaqueColumn(column).sources, nil
+			return rel.opaqueColumn(column).sources
 		}
-		return nil, pgerror.Newf(pgcode.UndefinedColumn, "column %q does not exist", name.String())
+		r.fail(pgerror.Newf(pgcode.UndefinedColumn, "column %q does not exist", name.String()))
+		return nil
 	}
 	// A relation of unknown columns nearer than the match may be what the
 	// name reads, so its sources count too.
@@ -1159,13 +1148,14 @@ func (r *spanResolver) nameSources(name *tree.UnresolvedName, sc *spanScope) (an
 	for s := sc; s != nil; s = s.parent {
 		matches := columnsNamed(s.items, column)
 		if len(matches) > 1 {
-			return nil, pgerror.Newf(pgcode.AmbiguousColumn, "column reference %q is ambiguous", column)
+			r.fail(pgerror.Newf(pgcode.AmbiguousColumn, "column reference %q is ambiguous", column))
+			return union(columnSources(matches), unknown)
 		}
 		if len(matches) == 1 {
-			return union(matches[0].sources, unknown), nil
+			return union(matches[0].sources, unknown)
 		}
 		if rel := relationNamed(s.items, column, "", ""); rel != nil {
-			return union(columnSources(relationColumns(rel)), unknown), nil
+			return union(columnSources(relationColumns(rel)), unknown)
 		}
 		for _, item := range s.items {
 			for _, rel := range item.opaque() {
@@ -1173,10 +1163,10 @@ func (r *spanResolver) nameSources(name *tree.UnresolvedName, sc *spanScope) (an
 			}
 		}
 	}
-	if unknown != nil {
-		return unknown, nil
+	if unknown == nil {
+		r.fail(pgerror.Newf(pgcode.UndefinedColumn, "column %q does not exist", column))
 	}
-	return nil, pgerror.Newf(pgcode.UndefinedColumn, "column %q does not exist", column)
+	return unknown
 }
 
 func columnSources(cols []spanColumn) analysis.ColumnSet {
@@ -1202,19 +1192,20 @@ func columnsNamed(items []*fromItem, name string) []spanColumn {
 }
 
 // qualifiedRelation resolves the relation that qualifies a column or a star:
-// table, schema.table or database.schema.table.
-func (r *spanResolver) qualifiedRelation(name *tree.UnresolvedName, sc *spanScope) (*spanRelation, error) {
+// table, schema.table or database.schema.table, or records that none does.
+func (r *spanResolver) qualifiedRelation(name *tree.UnresolvedName, sc *spanScope) *spanRelation {
 	table, schema, database := name.Parts[1], name.Parts[2], name.Parts[3]
 	for s := sc; s != nil; s = s.parent {
 		if rel := relationNamed(s.items, table, schema, database); rel != nil {
-			return rel, nil
+			return rel
 		}
 	}
 	var prefix []string
 	for i := name.NumParts - 1; i >= 1; i-- {
 		prefix = append(prefix, name.Parts[i])
 	}
-	return nil, pgerror.Newf(pgcode.UndefinedTable, "no data source matches prefix: %s", strings.Join(prefix, "."))
+	r.fail(pgerror.Newf(pgcode.UndefinedTable, "no data source matches prefix: %s", strings.Join(prefix, ".")))
+	return nil
 }
 
 func relationNamed(items []*fromItem, table, schema, database string) *spanRelation {
@@ -1230,26 +1221,37 @@ func relationNamed(items []*fromItem, table, schema, database string) *spanRelat
 }
 
 // statementTables records the relations a statement other than a query reads,
-// for its access check. Its names need not resolve.
+// for its access check, walking every clause that holds an expression or a
+// relation. Other DDL names relations but reads no rows of them.
 func (r *spanResolver) statementTables(stmt tree.Statement) {
 	sc := &spanScope{}
-	// A statement's target is a table whatever CTE shares its name.
+	// A statement's target is a table whatever CTE shares its name, and it
+	// opens the scope of the statement's other clauses.
 	target := func(te tree.TableExpr) {
-		if item, err := r.tableExpr(te, &spanScope{}); err == nil {
-			sc.items = append(sc.items, item)
-		}
+		item := r.tableExpr(te, &spanScope{})
+		sc.items = append(sc.items, item)
 	}
-	from := func(te tree.TableExpr) {
-		if item, err := r.tableExpr(te, sc); err == nil {
-			sc.items = append(sc.items, item)
+	from := func(tables tree.TableExprs) {
+		sc.from = true
+		for _, te := range tables {
+			sc.items = append(sc.items, r.tableExpr(te, sc))
 		}
+		sc.from = false
 	}
-	walk := func(e tree.Expr) { r.walkExpr(e, sc) }
+	walk := func(e tree.Expr) { r.sources(e, sc) }
 	with := func(w *tree.With) {
 		if w != nil {
-			if s, err := r.with(w, nil); err == nil {
-				sc.parent = s
-			}
+			sc.parent = r.with(w, nil)
+		}
+	}
+	where := func(w *tree.Where) {
+		if w != nil {
+			walk(w.Expr)
+		}
+	}
+	updates := func(exprs tree.UpdateExprs) {
+		for _, e := range exprs {
+			walk(e.Expr)
 		}
 	}
 	returning := func(clause tree.ReturningClause) {
@@ -1261,58 +1263,78 @@ func (r *spanResolver) statementTables(stmt tree.Statement) {
 	}
 	switch n := stmt.(type) {
 	case *tree.Select:
-		_, _ = r.selectQuery(n, nil)
+		r.selectQuery(n, nil)
 	case *tree.ParenSelect:
-		_, _ = r.selectQuery(n.Select, nil)
+		r.selectQuery(n.Select, nil)
 	case *tree.Explain:
 		r.statementTables(n.Statement)
 	case *tree.ExplainAnalyze:
 		r.statementTables(n.Statement)
 	case *tree.Insert:
+		// INSERT and UPSERT.
 		with(n.With)
-		target(n.Table)
 		if n.Rows != nil {
-			_, _ = r.selectQuery(n.Rows, sc.parent)
+			r.selectQuery(n.Rows, sc.parent)
 		}
+		target(n.Table)
 		if n.OnConflict != nil {
-			for _, e := range n.OnConflict.Exprs {
-				walk(e.Expr)
+			// ON CONFLICT reads the target and the row proposed for it.
+			if item := sc.items[0]; len(item.relations) == 1 {
+				excluded := &spanRelation{name: "excluded", columns: item.columns}
+				sc.items = append(sc.items, &fromItem{relations: []*spanRelation{excluded}})
 			}
-			if n.OnConflict.Where != nil {
-				walk(n.OnConflict.Where.Expr)
-			}
+			walk(n.OnConflict.ArbiterPredicate)
+			updates(n.OnConflict.Exprs)
+			where(n.OnConflict.Where)
 		}
 		returning(n.Returning)
 	case *tree.Update:
 		with(n.With)
 		target(n.Table)
-		for _, te := range n.From {
-			from(te)
-		}
-		for _, e := range n.Exprs {
-			walk(e.Expr)
-		}
-		if n.Where != nil {
-			walk(n.Where.Expr)
-		}
+		from(n.From)
+		updates(n.Exprs)
+		where(n.Where)
+		r.orderBy(n.OrderBy, sc)
+		r.limit(n.Limit, sc)
 		returning(n.Returning)
 	case *tree.Delete:
 		with(n.With)
 		target(n.Table)
-		for _, te := range n.Using {
-			from(te)
+		from(n.Using)
+		if n.Batch != nil {
+			for _, param := range n.Batch.Params {
+				if size, ok := param.(*tree.SizeBatchParam); ok {
+					walk(size.Size)
+				}
+			}
 		}
-		if n.Where != nil {
-			walk(n.Where.Expr)
-		}
+		where(n.Where)
+		r.orderBy(n.OrderBy, sc)
+		r.limit(n.Limit, sc)
 		returning(n.Returning)
+	case *tree.CopyFrom:
+		target(&n.Table)
+	case *tree.CopyTo:
+		if n.Statement != nil {
+			r.statementTables(n.Statement)
+		} else {
+			target(&n.Table)
+		}
+	case *tree.Import:
+		if n.Table != nil {
+			target(n.Table)
+		}
+	case *tree.Call:
+		if n.Proc != nil {
+			walk(n.Proc)
+		}
 	case *tree.CreateTable:
 		if n.AsSource != nil {
-			_, _ = r.selectQuery(n.AsSource, nil)
+			r.selectQuery(n.AsSource, nil)
 		}
 	case *tree.CreateView:
 		if n.AsSource != nil {
-			_, _ = r.selectQuery(n.AsSource, nil)
+			r.selectQuery(n.AsSource, nil)
 		}
 	}
 }

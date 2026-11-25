@@ -221,15 +221,106 @@ func TestResolveQuerySpanErrors(t *testing.T) {
 		"SELECT * FROM t JOIN u USING (rowid)":   pgcode.UndefinedColumn,
 		"SELECT x.id FROM t":                     pgcode.UndefinedTable,
 		"SELECT \"Name\" FROM t":                 pgcode.UndefinedColumn,
-		"SELECT name FROM t ORDER BY nope":       pgcode.Uncategorized,
-		"SELECT name FROM t GROUP BY name, nope": pgcode.Uncategorized,
+		"SELECT name FROM t ORDER BY nope":       pgcode.UndefinedColumn,
+		"SELECT name FROM t GROUP BY name, nope": pgcode.UndefinedColumn,
+		"SELECT * FROM t AS x(a, b, c, d)":       pgcode.InvalidColumnReference,
+		// A non-LATERAL subquery in FROM does not see the items before it.
+		"SELECT * FROM t, (SELECT t.id) AS s": pgcode.UndefinedTable,
 	} {
-		_, err := resolveSpan(statement)
-		switch {
-		case code == pgcode.Uncategorized && err != nil:
-			t.Errorf("%s: %v; a name that decides neither values nor rows need not resolve", statement, err)
-		case code != pgcode.Uncategorized && pgerror.GetPGCode(err) != code:
+		if _, err := resolveSpan(statement); pgerror.GetPGCode(err) != code {
 			t.Errorf("%s: got %v, want SQLSTATE %s", statement, err, code)
+		}
+	}
+}
+
+// TestResolveQuerySpanDerivedColumns holds every column a relation or a query
+// makes to the sources it derives from.
+func TestResolveQuerySpanDerivedColumns(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		want      []string
+	}{
+		// Each column of a function in FROM reads the function's arguments,
+		// those its alias names beyond the known ones too.
+		{"SELECT j.value FROM t, json_each(t.name::JSONB) AS j(key, value)", []string{"value: db.public.t.name"}},
+		{"SELECT * FROM t AS x, LATERAL json_each(x.ssn::JSONB) WITH ORDINALITY AS j(k, v)", []string{"id: db.public.t.id", "ssn: db.public.t.ssn", "name: db.public.t.name", "k: db.public.t.ssn", "v: db.public.t.ssn"}},
+		{"SELECT r.a, r.c FROM t, ROWS FROM (generate_series(1, 2), json_each(t.name::JSONB)) AS r(a, b, c)", []string{"a:", "c: db.public.t.name"}},
+		// A name an aggregate, a set operation or a values list makes reads
+		// every input.
+		{"SELECT x FROM (SELECT ssn FROM t UNION ALL SELECT note FROM u) AS q(x)", []string{"x: db.public.t.ssn db.public.u.note"}},
+		{"SELECT column2 FROM (VALUES (1, (SELECT ssn FROM t LIMIT 1)))", []string{"column2: db.public.t.ssn"}},
+		// A correlated name in a subquery of an unknown relation keeps the
+		// outer column and the relation's reads.
+		{"SELECT (SELECT ssn FROM json_each(t.name::JSONB)) FROM t", []string{"ssn: db.public.t.name db.public.t.ssn"}},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			span, err := resolveSpan(tc.statement)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(tc.want, lineage(span)); diff != "" {
+				t.Errorf("lineage (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestResolveQuerySpanEveryClause holds that every clause's relations are
+// read, in the scope the clause sees, and that a name a query cannot resolve
+// fails it only after every relation it names is recorded.
+func TestResolveQuerySpanEveryClause(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		queryType analysis.QueryType
+		tables    string
+	}{
+		// ORDER BY sees the output columns, then the FROM items.
+		{"SELECT t.name FROM t ORDER BY (SELECT t.id + (SELECT count(*) FROM u))", analysis.Select, "db.public.t db.public.u"},
+		{"SELECT name AS n FROM t ORDER BY n, (SELECT count(*) FROM hr.t WHERE hr.t.id = t.id)", analysis.Select, "db.hr.t db.public.t"},
+		{"SELECT name AS n FROM t GROUP BY n HAVING count(*) > (SELECT count(*) FROM u)", analysis.Select, "db.public.t db.public.u"},
+		{"SELECT DISTINCT ON (n) name AS n FROM t ORDER BY n", analysis.Select, "db.public.t"},
+		{"SELECT name FROM t UNION SELECT note FROM u ORDER BY 1 LIMIT (SELECT count(*) FROM hr.t)", analysis.Select, "db.hr.t db.public.t db.public.u"},
+		{"SELECT rank() OVER (PARTITION BY (SELECT max(note) FROM u) ORDER BY id) FROM t", analysis.Select, "db.public.t db.public.u"},
+		{"SELECT name FROM t WINDOW w AS (ORDER BY (SELECT max(note) FROM u))", analysis.Select, "db.public.t db.public.u"},
+		{"SELECT id FROM t AS OF SYSTEM TIME (SELECT '-1s' FROM u LIMIT 1)", analysis.Select, "db.public.t db.public.u"},
+		{"SELECT id FROM t, LATERAL (SELECT note FROM u WHERE u.t_id = t.id) AS l", analysis.Select, "db.public.t db.public.u"},
+		// UPDATE and DELETE read their ORDER BY, LIMIT and BATCH.
+		{"DELETE FROM t LIMIT (SELECT count(*) FROM u)", analysis.DML, "db.public.t db.public.u"},
+		{"DELETE FROM t ORDER BY (SELECT max(note) FROM u) LIMIT 1", analysis.DML, "db.public.t db.public.u"},
+		{"DELETE BATCH (SIZE (SELECT count(*) FROM u)) FROM t", analysis.DML, "db.public.t db.public.u"},
+		{"UPDATE t SET name = 'x' ORDER BY (SELECT max(note) FROM u) LIMIT (SELECT count(*) FROM hr.t)", analysis.DML, "db.hr.t db.public.t db.public.u"},
+		// INSERT and UPSERT read their rows, ON CONFLICT and RETURNING.
+		{"INSERT INTO t (id) VALUES (1) ON CONFLICT (id) WHERE (SELECT true FROM u LIMIT 1) DO UPDATE SET name = excluded.name WHERE t.ssn = (SELECT max(salary) FROM hr.t)::STRING", analysis.DML, "db.hr.t db.public.t db.public.u"},
+		{"UPSERT INTO t (id) SELECT t_id FROM u RETURNING (SELECT max(salary) FROM hr.t)", analysis.DML, "db.hr.t db.public.t db.public.u"},
+		{"COPY t FROM STDIN", analysis.DML, "db.public.t"},
+		{"COPY (SELECT ssn FROM t) TO STDOUT", analysis.DML, "db.public.t"},
+		// A name a mutation cannot resolve leaves its relations whole.
+		{"DELETE FROM t WHERE nope = (SELECT count(*) FROM u)", analysis.DML, "db.public.t db.public.u"},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			span, err := resolveSpan(tc.statement)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if span.Type != tc.queryType {
+				t.Errorf("type %s, want %s", span.Type, tc.queryType)
+			}
+			if got := columnNames(span.SourceColumns); got != tc.tables {
+				t.Errorf("tables %q, want %q", got, tc.tables)
+			}
+		})
+	}
+
+	// A system relation in any clause makes the statement mixed.
+	for _, statement := range []string{
+		"SELECT name FROM t ORDER BY (SELECT count(*) FROM pg_class)",
+		"DELETE FROM t LIMIT (SELECT count(*) FROM pg_class)",
+		"UPDATE t SET name = 'x' ORDER BY (SELECT max(relname) FROM pg_class)",
+		// A name that fails to resolve before the system read does not hide it.
+		"SELECT nope, (SELECT count(*) FROM crdb_internal.jobs) FROM t",
+	} {
+		if _, err := resolveSpan(statement); !errors.Is(err, ErrMixUserSystemTables) {
+			t.Errorf("%s: got %v, want ErrMixUserSystemTables", statement, err)
 		}
 	}
 }
