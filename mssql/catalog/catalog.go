@@ -18,6 +18,7 @@ import (
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mssql"
 	"github.com/bytebase/omni/mssql/ast"
+	mssqlparser "github.com/bytebase/omni/mssql/parser"
 )
 
 const (
@@ -394,7 +395,11 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 			results = append(results, result)
 			continue
 		}
-		if err := c.execStatement(stmt.AST, sql); err != nil {
+		err := c.viewBatchError(stmts, i)
+		if err == nil {
+			err = c.execStatement(stmt.AST, sql)
+		}
+		if err != nil {
 			result.Error = err
 			results = append(results, result)
 			if !continueOnError {
@@ -405,6 +410,38 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 		results = append(results, result)
 	}
 	return results, nil
+}
+
+// viewBatchError refuses a view that is not alone at the end of its batch.
+// CREATE VIEW and ALTER VIEW take one query (`AS select_statement [ WITH CHECK
+// OPTION ] [ ; ]`,
+// https://learn.microsoft.com/en-us/sql/t-sql/statements/create-view-transact-sql),
+// and the view's batch ends there, so any statement after it before GO is a
+// syntax error: Msg 156 on a keyword, Msg 102 on anything else (measured on
+// SQL Server 2022). A desired-state script, which LoadSQL reads, need not
+// separate its views with GO.
+func (c *Catalog) viewBatchError(stmts []mssql.Statement, i int) error {
+	if _, ok := stmts[i].AST.(*ast.CreateViewStmt); !ok || c.loadingScript {
+		return nil
+	}
+	for _, next := range stmts[i+1:] {
+		if next.Empty() {
+			continue
+		}
+		if _, ok := next.AST.(*ast.GoStmt); ok {
+			return nil
+		}
+		toks := mssqlparser.Tokenize(next.Text)
+		if len(toks) == 0 {
+			return nil
+		}
+		word := next.Text[toks[0].Loc:toks[0].End]
+		if mssqlparser.IsReservedKeyword(word) {
+			return mssqlErr(156, "Incorrect syntax near the keyword '%s'.", strings.ToUpper(word))
+		}
+		return mssqlErr(102, "Incorrect syntax near '%s'.", word)
+	}
+	return nil
 }
 
 func loadSQLWithOptions(sql string, lenient, omitUnnamedDefaultConstraintNames bool) (*Catalog, error) {

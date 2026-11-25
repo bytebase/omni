@@ -26,7 +26,7 @@ ok:05fd082ad27f	ok:05fd082ad27f	engine	one_table@column	batch(statementOptSemi)*
 263	263	engine	one_table@column	subqueryExpression(All)?/All	CREATE VIEW _v AS SELECT(SELECT * UNION ALL SELECT *)
 263	263	engine	one_table@column	subqueryExpressionUnit/subqueryParenthesis	CREATE VIEW _v AS SELECT((SELECT *))
 263	263	engine	one_table@column	queryExpression((Union|Except|Intersect)_(All)?_quer~5c3af167)*/(Union|Except|Intersect)_(All)?_queryExpressionUnit_((U~53ecd75e	CREATE VIEW _v AS SELECT * UNION SELECT *
-263	156	engine	one_table@column	queryExpression((Union|Except|Intersect)_(All)?_quer~5c3af167)*/(Union|Except|Intersect)_(All)?_queryExpressionUnit_((U~53ecd75e!drop-1	CREATE VIEW _v AS SELECT * SELECT *
+156	156	engine	one_table@column	queryExpression((Union|Except|Intersect)_(All)?_quer~5c3af167)*/(Union|Except|Intersect)_(All)?_queryExpressionUnit_((U~53ecd75e!drop-1	CREATE VIEW _v AS SELECT * SELECT *
 263	263	engine	one_table@column	queryExpression(Union|Except|Intersect)/Except	CREATE VIEW _v AS SELECT * EXCEPT SELECT *
 263	263	engine	one_table@column	queryExpression(Union|Except|Intersect)/Intersect	CREATE VIEW _v AS SELECT * INTERSECT SELECT *
 263	263	engine	one_table@column	queryExpression(All)?/All	CREATE VIEW _v AS SELECT * UNION ALL SELECT *
