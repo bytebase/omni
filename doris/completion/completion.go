@@ -54,7 +54,7 @@ type caretWord struct {
 // caret. cat may be nil.
 func complete(stmt string, caret int, cat *catalog) []Candidate {
 	caret = max(0, min(caret, len(stmt)))
-	stmt, caret = innermostQuery(stmt, caret)
+	stmt, caret, outer := innermostQuery(stmt, caret)
 	word, ok := caretWordAt(stmt, caret)
 	if !ok {
 		return nil
@@ -67,7 +67,7 @@ func complete(stmt string, caret int, cat *catalog) []Candidate {
 		}
 	}
 	out = filterByPrefix(out, word.typed)
-	for _, c := range filterByPrefix(nameCandidates(nameContextAt(stmt, word), cat), word.typed) {
+	for _, c := range filterByPrefix(nameCandidates(nameContextAt(stmt, word, outer), cat), word.typed) {
 		c.Text = QuoteIdentifierIfNeeded(c.Text, word.quoted)
 		out = append(out, c)
 	}
@@ -77,8 +77,9 @@ func complete(stmt string, caret int, cat *catalog) []Candidate {
 // innermostQuery narrows stmt to the innermost query the parser keeps as raw
 // text that holds caret: a parenthesized query, the text after its '(' up
 // to its ')' or the end of stmt, where SELECT or WITH follows the '('; or
-// the query of CREATE ... AS SELECT.
-func innermostQuery(stmt string, caret int) (string, int) {
+// the query of CREATE ... AS SELECT. outer is the statement around a
+// parenthesized query, with that query replaced by SELECT 1, or empty.
+func innermostQuery(stmt string, caret int) (body string, bodyCaret int, outer string) {
 	toks, _ := parser.Tokenize(stmt)
 	type group struct {
 		bodyStart int
@@ -133,12 +134,14 @@ func innermostQuery(stmt string, caret int) (string, int) {
 				depth--
 			}
 		}
-		return stmt[start:end], caret - start
+		// The statement around a parenthesized query, the query replaced by
+		// one that parses, holds the bindings the query sees from outside.
+		return stmt[start:end], caret - start, stmt[:start] + "SELECT 1" + stmt[end:]
 	}
 	if queryStart >= 0 {
-		return stmt[queryStart:], caret - queryStart
+		return stmt[queryStart:], caret - queryStart, ""
 	}
-	return stmt, caret
+	return stmt, caret, ""
 }
 
 // caretWordAt finds the word at caret. It fails when the caret is inside a

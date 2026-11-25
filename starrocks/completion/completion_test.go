@@ -143,7 +143,7 @@ func TestInnermostQuery(t *testing.T) {
 	for _, tc := range tests {
 		i := strings.Index(tc.text, "|")
 		stmt := tc.text[:i] + tc.text[i+1:]
-		body, caret := innermostQuery(stmt, i)
+		body, caret, _ := innermostQuery(stmt, i)
 		if got := body[:caret] + "|" + body[caret:]; got != tc.want {
 			t.Errorf("%q: got %q, want %q", tc.text, got, tc.want)
 		}

@@ -7,6 +7,10 @@ import (
 	metadatapb "github.com/bytebase/omni/metadata"
 )
 
+// nativeCatalog is the catalog of the engine's own tables, which a
+// three-part name may state.
+const nativeCatalog = "default_catalog"
+
 // maxDatabaseLoads bounds how many databases besides the current one a
 // completion loads for names qualified by another database.
 const maxDatabaseLoads = 2
@@ -113,7 +117,7 @@ func (c *catalog) columns(parts []string, ctes []string) []Candidate {
 	case 2:
 		db = c.database(parts[0])
 	case 3:
-		if !strings.EqualFold(parts[0], "default_catalog") {
+		if !strings.EqualFold(parts[0], nativeCatalog) {
 			return nil
 		}
 		db = c.database(parts[1])

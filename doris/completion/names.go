@@ -26,7 +26,8 @@ type nameContext struct {
 	kind      nameKind
 	qualifier []string    // the parts written before the caret word, as in db.
 	scope     []tableItem // the query's FROM items and DML target
-	ctes      []string    // the names of the query's CTEs
+	outer     []tableItem // the FROM items of the statement around a subquery
+	ctes      []string    // the names of the CTEs, the query's and the outer statement's
 }
 
 // tableItem is a table the query reads: its name parts and its alias.
@@ -46,8 +47,9 @@ var tableKeywords = map[string]bool{
 	"DESC": true, "DESCRIBE": true,
 }
 
-// nameContextAt returns what the caret word in stmt names.
-func nameContextAt(stmt string, word caretWord) *nameContext {
+// nameContextAt returns what the caret word in stmt names. outer, when not
+// empty, is the statement around stmt, a subquery (see innermostQuery).
+func nameContextAt(stmt string, word caretWord, outer string) *nameContext {
 	nc := &nameContext{}
 	var qualStart int
 	nc.qualifier, qualStart = qualifierBefore(stmt, word.start)
@@ -81,6 +83,16 @@ func nameContextAt(stmt string, word caretWord) *nameContext {
 			nc.kind = kindColumn
 		}
 	}
+	if outer != "" {
+		if file, err := parser.Parse(outer); err == nil && len(file.Stmts) == 1 {
+			outerScope := &nameContext{}
+			collectScope(file.Stmts[0], nil, outerScope)
+			nc.outer = outerScope.scope
+			nc.ctes = append(nc.ctes, outerScope.ctes...)
+		} else {
+			nc.outer = lexicalScope(outer)
+		}
+	}
 	// CREATE TABLE names a new table; its AS query is raw text in the AST.
 	if prev := previousKeyword(stmt[:qualStart]); nc.kind == kindNone && tableKeywords[prev] && (prev != "TABLE" || !startsWith(stmt, "CREATE")) {
 		nc.kind = kindRelation
@@ -98,7 +110,7 @@ func placeholderAt(root ast.Node) (kind nameKind, block ast.Node) {
 	block = root
 	for _, n := range f.path {
 		switch n.(type) {
-		case *ast.SelectStmt, *ast.UpdateStmt, *ast.DeleteStmt:
+		case *ast.SelectStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.InsertStmt:
 			block = n
 		}
 	}
@@ -135,6 +147,10 @@ func (f *placeholderFinder) Visit(n ast.Node) ast.Visitor {
 		if endsWithPlaceholder(n.Column) {
 			f.kind = kindColumn
 		}
+	case *ast.InsertStmt:
+		if slices.Contains(n.Columns, placeholder) {
+			f.kind = kindColumn
+		}
 	}
 	if f.kind != kindNone {
 		f.path = slices.Clone(f.stack)
@@ -150,7 +166,7 @@ func endsWithPlaceholder(name *ast.ObjectName) bool {
 // collectScope records the tables block reads and every CTE name in root.
 // A CTE's query and another arm of a set operation are other blocks, and a
 // subquery is raw text in the AST, so only the block's own FROM items and
-// DML target are collected.
+// DML target are collected. A nil block collects every block's tables.
 func collectScope(root, block ast.Node, nc *nameContext) {
 	ast.Inspect(root, func(n ast.Node) bool {
 		if cte, ok := n.(*ast.CTE); ok {
@@ -163,14 +179,23 @@ func collectScope(root, block ast.Node, nc *nameContext) {
 			nc.scope = append(nc.scope, tableItem{parts: name.Parts, alias: alias})
 		}
 	}
+	all := block == nil
+	if all {
+		block = root
+	}
 	ast.Inspect(block, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.CTE:
-			return false
+			return all
 		case *ast.SelectStmt, *ast.SetOpStmt:
-			if n != block {
+			if n != block && !all {
 				return false
 			}
+		case *ast.InsertStmt:
+			// The target's columns are in scope only for its column list; a
+			// query block below it is a block of its own.
+			add(n.Target, "")
+			return all
 		case *ast.TableRef:
 			if n.Func == nil && n.Subquery == nil {
 				add(n.Name, n.Alias)
@@ -221,7 +246,8 @@ func qualifierBefore(stmt string, end int) ([]string, int) {
 	start := end
 	for i := len(toks) - 1; i >= 1; i -= 2 {
 		dot, part := toks[i], toks[i-1]
-		if dot.Kind != '.' || dot.Loc.End != start || !isName(part) || part.Loc.End != dot.Loc.Start {
+		// Tokens, not bytes, are adjacent: the parser reads db . t too.
+		if dot.Kind != '.' || !isName(part) {
 			break
 		}
 		parts = append([]string{part.Str}, parts...)
@@ -304,6 +330,10 @@ func nameCandidates(nc *nameContext, cat *catalog) []Candidate {
 			out = append(out, cat.databaseNames()...)
 		case 1:
 			out = append(out, cat.relations(cat.database(nc.qualifier[0]))...)
+		case 2:
+			if strings.EqualFold(nc.qualifier[0], nativeCatalog) {
+				out = append(out, cat.relations(cat.database(nc.qualifier[1]))...)
+			}
 		}
 	case kindColumn:
 		switch len(nc.qualifier) {
@@ -312,19 +342,25 @@ func nameCandidates(nc *nameContext, cat *catalog) []Candidate {
 				out = append(out, cat.columns(item.parts, nc.ctes)...)
 			}
 		case 1:
-			// t. is a table or alias in scope, or else a database.
+			// t. is a table or alias in scope, else one of the statement
+			// around a subquery, or else a database.
 			hit := false
-			for _, item := range nc.scope {
-				if item.addressedBy(nc.qualifier[0]) {
-					hit = true
-					out = append(out, cat.columns(item.parts, nc.ctes)...)
+			for _, scope := range [][]tableItem{nc.scope, nc.outer} {
+				for _, item := range scope {
+					if item.addressedBy(nc.qualifier[0]) {
+						hit = true
+						out = append(out, cat.columns(item.parts, nc.ctes)...)
+					}
+				}
+				if hit {
+					break
 				}
 			}
 			if !hit {
 				out = append(out, cat.relations(cat.database(nc.qualifier[0]))...)
 			}
-		case 2:
-			// db.t.
+		case 2, 3:
+			// db.t. or catalog.db.t.
 			out = append(out, cat.columns(nc.qualifier, nil)...)
 		}
 	}
