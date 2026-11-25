@@ -94,7 +94,7 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 		stmt.Hints = &nodes.List{}
 		stmt.Hints.Items = append(stmt.Hints.Items, &nodes.Hint{
 			Text: p.cur.Str,
-			Loc:  nodes.Loc{Start: p.pos(), End: p.prev.End},
+			Loc:  nodes.Loc{Start: p.pos(), End: p.cur.End},
 		})
 		p.advance()
 	}
