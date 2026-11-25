@@ -34,10 +34,23 @@ func collectionReads(database, collection, method string, args []ast.Node) []Nam
 		return nil
 	}
 	reads := []Namespace{{Database: database, Collection: collection}}
-	if method == "aggregate" && len(args) > 0 {
-		reads = append(reads, pipelineReads(args[0], database)...)
+	if method == "aggregate" {
+		reads = append(reads, pipelineReads(aggregatePipeline(args), database)...)
 	}
 	return reads
+}
+
+// aggregatePipeline returns the pipeline an aggregate call's arguments hold:
+// an array of stages, which options may follow, or, as mongosh also accepts,
+// each stage an argument of its own.
+func aggregatePipeline(args []ast.Node) ast.Node {
+	if len(args) == 0 {
+		return nil
+	}
+	if _, ok := args[0].(*ast.Array); ok {
+		return args[0]
+	}
+	return &ast.Array{Elements: args}
 }
 
 // commandReads returns what a find, count, distinct or aggregate command
@@ -89,10 +102,7 @@ func siblingReads(s *ast.DatabaseStatement) []Namespace {
 	case "aggregate":
 		// db.getSiblingDB("other").aggregate([...]) is a database-level
 		// pipeline in the other database.
-		if len(first.Args) > 0 {
-			return pipelineReads(first.Args[0], database.Value)
-		}
-		return nil
+		return pipelineReads(aggregatePipeline(first.Args), database.Value)
 	case "runCommand", "adminCommand":
 		return commandReads(first.Name, first.Args, database.Value)
 	}

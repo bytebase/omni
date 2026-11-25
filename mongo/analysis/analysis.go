@@ -158,9 +158,7 @@ func analyzeDatabase(s *ast.DatabaseStatement) *StatementAnalysis {
 	case "aggregate":
 		// A database-level pipeline reads no target, only what its
 		// stages name.
-		if len(s.Args) > 0 {
-			a.Reads = pipelineReads(s.Args[0], "")
-		}
+		a.Reads = pipelineReads(aggregatePipeline(s.Args), "")
 	}
 	return a
 }
