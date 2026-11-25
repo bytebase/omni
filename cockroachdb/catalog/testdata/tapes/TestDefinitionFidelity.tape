@@ -78,6 +78,9 @@
 | CREATE TABLE fid_cols.events (at TIMESTAMPTZ, note STRING);
 < ok 0 -
 > exec
+| CREATE TABLE fid_cols.custom_key (rowid_custom INT8 NOT VISIBLE NOT NULL DEFAULT unique_rowid(), v INT8, PRIMARY KEY (rowid_custom));
+< ok 0 -
+> exec
 | CREATE TABLE fid_cols.sharded (id INT8 NOT NULL, small INT4, PRIMARY KEY (id) USING HASH WITH (bucket_count = 4));
 < ok 0 -
 > query
@@ -192,6 +195,63 @@
 < column "is_hidden" "TEXT"
 < column "generation_expression" "TEXT"
 < column "attgenerated" "CHAR"
+< row
+: string
+| fid_cols
+: string
+| custom_key
+: string
+| rowid_custom
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: string
+| unique_rowid()
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| YES
+: string
+|
+: string
+|
+< row
+: string
+| fid_cols
+: string
+| custom_key
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -899,6 +959,18 @@
 : string
 | fid_cols
 : string
+| custom_key
+: string
+| custom_key_pkey
+: string
+| CREATE UNIQUE INDEX custom_key_pkey ON omni_testdefinitionfidelity.fid_cols.custom_key USING btree (rowid_custom ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_cols
+: string
 | customers
 : string
 | customers_alt_id_key
@@ -1167,6 +1239,13 @@
 < column "tablename" "NAME"
 < column "estimate" "INT8"
 < column "comment" "TEXT"
+< row
+: string
+| fid_cols
+: string
+| custom_key
+: int64 0
+: null
 < row
 : string
 | fid_cols
@@ -1444,6 +1523,13 @@
 | SET default_tablespace = '';
 < ok 0 -
 > exec
+| CREATE TABLE "fid_cols"."custom_key" (
+|     "rowid_custom" bigint NOT VISIBLE DEFAULT unique_rowid() NOT NULL,
+|     "v" bigint,
+|     CONSTRAINT "custom_key_pkey" PRIMARY KEY (rowid_custom ASC)
+| );
+< ok 0 -
+> exec
 | CREATE TABLE "fid_cols"."customers" (
 |     "id" bigint DEFAULT unique_rowid() NOT NULL,
 |     "alt_id" bigint,
@@ -1638,6 +1724,63 @@
 < column "is_hidden" "TEXT"
 < column "generation_expression" "TEXT"
 < column "attgenerated" "CHAR"
+< row
+: string
+| fid_cols
+: string
+| custom_key
+: string
+| rowid_custom
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: string
+| unique_rowid()
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| YES
+: string
+|
+: string
+|
+< row
+: string
+| fid_cols
+: string
+| custom_key
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_cols
@@ -2345,6 +2488,18 @@
 : string
 | fid_cols
 : string
+| custom_key
+: string
+| custom_key_pkey
+: string
+| CREATE UNIQUE INDEX custom_key_pkey ON omni_testdefinitionfidelity.fid_cols.custom_key USING btree (rowid_custom ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_cols
+: string
 | customers
 : string
 | customers_alt_id_key
@@ -2613,6 +2768,13 @@
 < column "tablename" "NAME"
 < column "estimate" "INT8"
 < column "comment" "TEXT"
+< row
+: string
+| fid_cols
+: string
+| custom_key
+: int64 0
+: null
 < row
 : string
 | fid_cols
@@ -7054,6 +7216,18 @@
 | CREATE TABLE fid_a.uses_g (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_a.g());
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_a.h(n INT8) RETURNS INT8 LANGUAGE SQL AS $$ SELECT n $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_a.k() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.h(1:::INT8) $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_a.h(s STRING) RETURNS STRING LANGUAGE SQL AS $$ SELECT fid_a.k()::STRING || s $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_a.uses_k (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_a.k());
+< ok 0 -
+> exec
 | CREATE VIEW "Fid Mixed".family AS SELECT p.id, c.id AS child FROM fid_a.parents AS p JOIN "Fid Mixed"."Children" AS c ON c."Parent Id" = p.id;
 < ok 0 -
 > query
@@ -7397,6 +7571,63 @@
 |
 : string
 |
+< row
+: string
+| fid_a
+: string
+| uses_k
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_a
+: string
+| uses_k
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_a.k()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -7452,6 +7683,18 @@
 | uses_g_pkey
 : string
 | CREATE UNIQUE INDEX uses_g_pkey ON omni_testdefinitionfidelity.fid_a.uses_g USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_a
+: string
+| uses_k
+: string
+| uses_k_pkey
+: string
+| CREATE UNIQUE INDEX uses_k_pkey ON omni_testdefinitionfidelity.fid_a.uses_k USING btree (id ASC)
 : string
 | PRIMARY KEY
 : null
@@ -7569,6 +7812,13 @@
 | fid_a
 : string
 | uses_g
+: int64 0
+: null
+< row
+: string
+| fid_a
+: string
+| uses_k
 : int64 0
 : null
 > query
@@ -7779,6 +8029,60 @@
 | 	AS $$
 | 	SELECT fid_a.f();
 | $$
+< row
+: string
+| fid_a
+: string
+| h
+: string
+| h(int8)
+: string
+| CREATE FUNCTION fid_a.h(n INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT n;
+| $$
+< row
+: string
+| fid_a
+: string
+| h
+: string
+| h(text)
+: string
+| CREATE FUNCTION fid_a.h(s STRING)
+| 	RETURNS STRING
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.k()::STRING || s;
+| $$
+< row
+: string
+| fid_a
+: string
+| k
+: string
+| k()
+: string
+| CREATE FUNCTION fid_a.k()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.h(1:::INT8);
+| $$
 > query
 |
 | 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
@@ -7966,6 +8270,42 @@
 | $$;
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_a.h(n INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT n;
+| $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_a.k()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.h(1:::INT8);
+| $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_a.h(s STRING)
+| 	RETURNS STRING
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.k()::STRING || s;
+| $$;
+< ok 0 -
+> exec
 | CREATE TABLE "fid_a"."parents" (
 |     "id" bigint NOT NULL,
 |     CONSTRAINT "parents_pkey" PRIMARY KEY (id ASC)
@@ -7980,6 +8320,13 @@
 |     "id" bigint NOT NULL,
 |     "v" bigint DEFAULT fid_a.g(),
 |     CONSTRAINT "uses_g_pkey" PRIMARY KEY (id ASC)
+| );
+< ok 0 -
+> exec
+| CREATE TABLE "fid_a"."uses_k" (
+|     "id" bigint NOT NULL,
+|     "v" bigint DEFAULT fid_a.k(),
+|     CONSTRAINT "uses_k_pkey" PRIMARY KEY (id ASC)
 | );
 < ok 0 -
 > exec
@@ -8328,6 +8675,63 @@
 |
 : string
 |
+< row
+: string
+| fid_a
+: string
+| uses_k
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_a
+: string
+| uses_k
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_a.k()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -8383,6 +8787,18 @@
 | uses_g_pkey
 : string
 | CREATE UNIQUE INDEX uses_g_pkey ON omni_testdefinitionfidelity.fid_a.uses_g USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_a
+: string
+| uses_k
+: string
+| uses_k_pkey
+: string
+| CREATE UNIQUE INDEX uses_k_pkey ON omni_testdefinitionfidelity.fid_a.uses_k USING btree (id ASC)
 : string
 | PRIMARY KEY
 : null
@@ -8500,6 +8916,13 @@
 | fid_a
 : string
 | uses_g
+: int64 0
+: null
+< row
+: string
+| fid_a
+: string
+| uses_k
 : int64 0
 : null
 > query
@@ -8709,6 +9132,60 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT fid_a.f();
+| $$
+< row
+: string
+| fid_a
+: string
+| h
+: string
+| h(int8)
+: string
+| CREATE FUNCTION fid_a.h(n INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT n;
+| $$
+< row
+: string
+| fid_a
+: string
+| h
+: string
+| h(text)
+: string
+| CREATE FUNCTION fid_a.h(s STRING)
+| 	RETURNS STRING
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.k()::STRING || s;
+| $$
+< row
+: string
+| fid_a
+: string
+| k
+: string
+| k()
+: string
+| CREATE FUNCTION fid_a.k()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.h(1:::INT8);
 | $$
 > query
 |

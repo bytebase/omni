@@ -406,7 +406,8 @@ func (d *differ) alterEnum(schema string, old, new *metadatapb.EnumTypeMetadata)
 		if slices.Contains(new.Values, value) {
 			kept = append(kept, value)
 		} else {
-			d.add(phaseCreateTypes, MigrationOp{Type: OpAlterType, SchemaName: schema, ObjectName: new.Name,
+			// A value goes once kept defaults have stopped using it.
+			d.add(phaseLateDropTypes, MigrationOp{Type: OpAlterType, SchemaName: schema, ObjectName: new.Name,
 				SQL: fmt.Sprintf("ALTER TYPE %s DROP VALUE '%s'", name, escapeSingleQuote(value))})
 		}
 	}
@@ -1181,15 +1182,20 @@ func (d *differ) orderDrops() {
 			if call, ok := strings.CutPrefix(read, callPrefix); ok {
 				count, name, _ := strings.Cut(call, ":")
 				args, _ := strconv.Atoi(count)
-				for _, routine := range calledOverloads(routineCall{name: name, args: args}, routines) {
-					graph.AddEdge(id, routine)
+				called, ambiguous := calledOverloads(routineCall{name: name, args: args}, routines)
+				for _, routine := range called {
+					if ambiguous {
+						graph.AddSoftEdge(id, routine)
+					} else {
+						graph.AddEdge(id, routine)
+					}
 				}
 			} else if d.drops[read] != nil {
 				graph.AddEdge(id, read)
 			}
 		}
 	}
-	ordered, err := graph.TopologicalSort()
+	ordered, err := graph.Sort()
 	if err != nil {
 		ordered = sortedMapIDs(d.drops)
 	}
@@ -1264,6 +1270,10 @@ func (d *differ) planRoutines() {
 			for _, relation := range routineRelations(function.Definition) {
 				recreate = recreate || gone[relation] || textReads(routineBody(function.Definition), retyped[relation])
 			}
+			// A sequence its parameter defaults or body use holds it too.
+			for _, sequence := range routineSequences(function.Definition) {
+				recreate = recreate || d.droppedSequences[sequence]
+			}
 			if recreate {
 				d.recreated[getObjectID(schema.Name, metadataFuncIdentity(function))] = true
 				d.droppedRoutines[names[0]], d.droppedRoutines[names[1]] = true, true
@@ -1292,6 +1302,34 @@ func (d *differ) planRoutines() {
 			}
 		}
 	}
+}
+
+// routineSequences returns the sequences, schema-qualified, a routine's
+// parameter defaults and body call nextval or currval on.
+func routineSequences(definition string) []string {
+	stmt, err := parseOne(strings.TrimSuffix(strings.TrimSpace(definition), ";"))
+	if err != nil {
+		return nil
+	}
+	routine, ok := stmt.(*tree.CreateRoutine)
+	if !ok {
+		return nil
+	}
+	var sequences []string
+	for _, param := range routine.Params {
+		if param.DefaultVal != nil {
+			sequences = append(sequences, usedSequences(tree.AsString(param.DefaultVal))...)
+		}
+	}
+	tokens, _ := crparser.Tokens(routineBody(definition))
+	for i := 0; i+2 < len(tokens); i++ {
+		if (strings.EqualFold(tokens[i].Str, "nextval") || strings.EqualFold(tokens[i].Str, "currval")) && tokens[i+1].Str == "(" {
+			if name, err := crparser.ParseQualifiedTableName(tokens[i+2].Str); err == nil {
+				sequences = append(sequences, schemaOf(name)+"."+string(name.ObjectName))
+			}
+		}
+	}
+	return sequences
 }
 
 // returnType is a routine's RETURNS clause as CockroachDB formats it.

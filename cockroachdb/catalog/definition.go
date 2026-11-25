@@ -345,12 +345,17 @@ func orderObjects(schemas []*metadatapb.SchemaMetadata) []objectRef {
 			graph.AddEdge(relation, functionID)
 		}
 		for _, call := range routineCalls(function.Definition) {
-			for _, calledID := range calledOverloads(call, functionsByName) {
-				graph.AddEdge(calledID, functionID)
+			called, ambiguous := calledOverloads(call, functionsByName)
+			for _, calledID := range called {
+				if ambiguous {
+					graph.AddSoftEdge(calledID, functionID)
+				} else {
+					graph.AddEdge(calledID, functionID)
+				}
 			}
 		}
 	}
-	ordered, err := graph.TopologicalSort()
+	ordered, err := graph.Sort()
 	if err != nil {
 		// A cycle falls back to tables, views, materialized views, functions.
 		ordered = nil
@@ -459,8 +464,12 @@ func tableShape(table *metadatapb.TableMetadata) ([]*metadatapb.ColumnMetadata, 
 // isImplicitRowID reports whether column is the hidden key CockroachDB gives a
 // table created without a primary key.
 func isImplicitRowID(column *metadatapb.ColumnMetadata) bool {
-	return column.IsInvisible && strings.HasPrefix(column.Name, "rowid") && column.Default == "unique_rowid()"
+	return column.IsInvisible && implicitRowID.MatchString(column.Name) && column.Default == "unique_rowid()"
 }
+
+// implicitRowID matches the names CockroachDB gives the key it adds: rowid,
+// or rowid_N when a column already holds the name.
+var implicitRowID = regexp.MustCompile(`^rowid(_[0-9]+)?$`)
 
 // isShardColumn reports whether column is the hidden column of a hash-sharded
 // index or primary key.

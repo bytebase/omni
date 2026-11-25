@@ -81,6 +81,7 @@ CREATE TABLE fid_cols.order_lines (
     CONSTRAINT order_lines_amount_positive CHECK (amount > 0)
 );
 CREATE TABLE fid_cols.events (at TIMESTAMPTZ, note STRING);
+CREATE TABLE fid_cols.custom_key (rowid_custom INT8 NOT VISIBLE NOT NULL DEFAULT unique_rowid(), v INT8, PRIMARY KEY (rowid_custom));
 CREATE TABLE fid_cols.sharded (id INT8 NOT NULL, small INT4, PRIMARY KEY (id) USING HASH WITH (bucket_count = 4));
 `,
 		},
@@ -143,6 +144,10 @@ CREATE FUNCTION fid_a.g() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.f() $$;
 CREATE FUNCTION "Fid Mixed".f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.g() $$;
 CREATE FUNCTION fid_a.f(n INT8) RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.g() + n $$;
 CREATE TABLE fid_a.uses_g (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_a.g());
+CREATE FUNCTION fid_a.h(n INT8) RETURNS INT8 LANGUAGE SQL AS $$ SELECT n $$;
+CREATE FUNCTION fid_a.k() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.h(1:::INT8) $$;
+CREATE FUNCTION fid_a.h(s STRING) RETURNS STRING LANGUAGE SQL AS $$ SELECT fid_a.k()::STRING || s $$;
+CREATE TABLE fid_a.uses_k (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_a.k());
 CREATE VIEW "Fid Mixed".family AS SELECT p.id, c.id AS child FROM fid_a.parents AS p JOIN "Fid Mixed"."Children" AS c ON c."Parent Id" = p.id;
 `,
 		},

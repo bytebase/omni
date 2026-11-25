@@ -288,9 +288,14 @@ func (v *sequenceCollector) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 	if !ok || (name.Parts[0] != "nextval" && name.Parts[0] != "currval") {
 		return true, expr
 	}
+	// The name may carry a cast ('s'::REGCLASS) or an annotation
+	// ('s':::STRING), as CockroachDB stores it.
 	arg := call.Exprs[0]
 	if cast, ok := arg.(*tree.CastExpr); ok {
 		arg = cast.Expr
+	}
+	if annotation, ok := arg.(*tree.AnnotateTypeExpr); ok {
+		arg = annotation.Expr
 	}
 	literal, ok := arg.(*tree.StrVal)
 	if !ok {
@@ -388,23 +393,23 @@ func signatureArity(signature string) int {
 // calledOverloads returns the routines, by object ID, a call can reach: the
 // ones of its name taking its number of arguments, or every one of its name
 // when none does (a parameter default, a variadic one) or the count is
-// unknown (-1).
-func calledOverloads(call routineCall, byName map[string][]string) []string {
+// unknown (-1). It reports the match ambiguous when more than one remains:
+// telling same-arity overloads apart takes the argument types.
+func calledOverloads(call routineCall, byName map[string][]string) ([]string, bool) {
 	candidates := byName[call.name]
-	if call.args < 0 {
-		return candidates
-	}
-	var matching []string
-	for _, id := range candidates {
-		_, signature, _ := strings.Cut(id, objectIDSeparator)
-		if signatureArity(signature) == call.args {
-			matching = append(matching, id)
+	if call.args >= 0 {
+		var matching []string
+		for _, id := range candidates {
+			_, signature, _ := strings.Cut(id, objectIDSeparator)
+			if signatureArity(signature) == call.args {
+				matching = append(matching, id)
+			}
+		}
+		if len(matching) > 0 {
+			candidates = matching
 		}
 	}
-	if len(matching) == 0 {
-		return candidates
-	}
-	return matching
+	return candidates, len(candidates) > 1
 }
 
 // calledFunctions returns the names of the functions expr calls, unquoted,

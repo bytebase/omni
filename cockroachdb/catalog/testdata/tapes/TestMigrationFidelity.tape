@@ -110,6 +110,12 @@
 | CREATE SEQUENCE fid_m.reset_seq;
 < ok 0 -
 > exec
+| CREATE TYPE fid_m.st AS ENUM ('new');
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.stt (id INT8 PRIMARY KEY, s fid_m.st DEFAULT 'new');
+< ok 0 -
+> exec
 | CREATE TABLE fid_m.parent2 (id INT8 NOT NULL, replacement INT8 PRIMARY KEY, UNIQUE INDEX parent2_id_key (id));
 < ok 0 -
 > exec
@@ -1084,6 +1090,63 @@
 : string
 | fid_m
 : string
+| stt
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| stt
+: string
+| s
+: string
+| USER-DEFINED
+: null
+: null
+: null
+: int64 2
+: string
+| 'new'
+: string
+| YES
+: null
+: string
+| fid_m
+: string
+| st
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | tickets
 : string
 | id
@@ -1592,6 +1655,18 @@
 : string
 | fid_m
 : string
+| stt
+: string
+| stt_pkey
+: string
+| CREATE UNIQUE INDEX stt_pkey ON omni_testmigrationfidelity.fid_m.stt USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | tickets
 : string
 | tickets_pkey
@@ -1903,6 +1978,13 @@
 : string
 | fid_m
 : string
+| stt
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | tickets
 : int64 0
 : null
@@ -2173,6 +2255,13 @@
 : string
 | fid_m
 : string
+| st
+: string
+| new
+< row
+: string
+| fid_m
+: string
 | status
 : string
 | new
@@ -2333,6 +2422,12 @@
 < ok 0 -
 > exec
 | CREATE SEQUENCE fid_m.reset_seq CACHE 4;
+< ok 0 -
+> exec
+| CREATE TYPE fid_m.st AS ENUM ('old', 'new');
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.stt (id INT8 PRIMARY KEY, s fid_m.st DEFAULT 'old');
 < ok 0 -
 > exec
 | CREATE TABLE fid_m.parent2 (id INT8 PRIMARY KEY, replacement INT8 NOT NULL);
@@ -3451,6 +3546,63 @@
 : string
 | fid_m
 : string
+| stt
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| stt
+: string
+| s
+: string
+| USER-DEFINED
+: null
+: null
+: null
+: int64 2
+: string
+| 'old'
+: string
+| YES
+: null
+: string
+| fid_m
+: string
+| st
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | tickets
 : string
 | id
@@ -3858,6 +4010,18 @@
 : string
 | fid_m
 : string
+| stt
+: string
+| stt_pkey
+: string
+| CREATE UNIQUE INDEX stt_pkey ON omni_testmigrationfidelity.fid_m.stt USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | ticket_seq
 : string
 | primary
@@ -4160,6 +4324,13 @@
 | fid_m
 : string
 | rekey2
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| stt
 : int64 0
 : null
 < row
@@ -4477,6 +4648,20 @@
 : string
 | fid_m
 : string
+| st
+: string
+| old
+< row
+: string
+| fid_m
+: string
+| st
+: string
+| new
+< row
+: string
+| fid_m
+: string
 | status
 : string
 | new
@@ -4655,6 +4840,9 @@
 | ALTER TABLE "fid_m"."rekey2" ALTER COLUMN "id" DROP NOT NULL;
 < ok 0 -
 > exec
+| ALTER TABLE "fid_m"."stt" ALTER COLUMN "s" SET DEFAULT 'new';
+< ok 0 -
+> exec
 | CREATE TABLE "fid_m"."moods" (
 |     "id" bigint NOT NULL,
 |     "m" "fid_m"."Mood" DEFAULT 'ok',
@@ -4685,6 +4873,9 @@
 < ok 0 -
 > exec
 | DROP TYPE "fid_gone"."kind";
+< ok 0 -
+> exec
+| ALTER TYPE "fid_m"."st" DROP VALUE 'old';
 < ok 0 -
 > exec
 | DROP SCHEMA "fid_gone";
@@ -5723,6 +5914,63 @@
 : string
 | fid_m
 : string
+| stt
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| stt
+: string
+| s
+: string
+| USER-DEFINED
+: null
+: null
+: null
+: int64 2
+: string
+| 'new'
+: string
+| YES
+: null
+: string
+| fid_m
+: string
+| st
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | tickets
 : string
 | id
@@ -6231,6 +6479,18 @@
 : string
 | fid_m
 : string
+| stt
+: string
+| stt_pkey
+: string
+| CREATE UNIQUE INDEX stt_pkey ON omni_testmigrationfidelity.fid_m.stt USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | tickets
 : string
 | tickets_pkey
@@ -6542,6 +6802,13 @@
 : string
 | fid_m
 : string
+| stt
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | tickets
 : int64 0
 : null
@@ -6812,6 +7079,13 @@
 : string
 | fid_m
 : string
+| st
+: string
+| new
+< row
+: string
+| fid_m
+: string
 | status
 : string
 | new
@@ -6972,6 +7246,9 @@
 < ok 0 -
 > exec
 | CREATE TABLE fid_v.keyed (id INT8 NOT NULL, n INT8 NOT NULL DEFAULT fid_v.next_id(), CONSTRAINT keyed_pkey PRIMARY KEY (n));
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.pdef(n INT8 DEFAULT 0) RETURNS INT8 LANGUAGE SQL AS $$ SELECT n $$;
 < ok 0 -
 > exec
 | CREATE MATERIALIZED VIEW fid_v.m_named (after_name) AS SELECT id FROM fid_v.items;
@@ -8843,6 +9120,24 @@
 : string
 | fid_v
 : string
+| pdef
+: string
+| pdef(int8)
+: string
+| CREATE FUNCTION fid_v.pdef(n INT8 DEFAULT 0:::INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT n;
+| $$
+< row
+: string
+| fid_v
+: string
 | pf
 : string
 | pf()
@@ -9140,6 +9435,12 @@
 > exec
 | INSERT INTO fid_v.keyed VALUES (1), (2);
 < ok 2 -
+> exec
+| CREATE SEQUENCE fid_v.pseq;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.pdef(n INT8 DEFAULT nextval('fid_v.pseq')) RETURNS INT8 LANGUAGE SQL AS $$ SELECT n $$;
+< ok 0 -
 > exec
 | CREATE FUNCTION fid_v.ov() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
 < ok 0 -
@@ -10427,6 +10728,18 @@
 : string
 | fid_v
 : string
+| pseq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testmigrationfidelity.fid_v.pseq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | puse
 : string
 | puse_pkey
@@ -11147,6 +11460,24 @@
 : string
 | ov
 : string
+| ov(int8)
+: string
+| CREATE FUNCTION fid_v.ov(n INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_v.ov() + n;
+| $$
+< row
+: string
+| fid_v
+: string
+| ov
+: string
 | ov()
 : string
 | CREATE FUNCTION fid_v.ov()
@@ -11163,11 +11494,11 @@
 : string
 | fid_v
 : string
-| ov
+| pdef
 : string
-| ov(int8)
+| pdef(int8)
 : string
-| CREATE FUNCTION fid_v.ov(n INT8)
+| CREATE FUNCTION fid_v.pdef(n INT8 DEFAULT nextval('fid_v.pseq':::STRING))
 | 	RETURNS INT8
 | 	VOLATILE
 | 	NOT LEAKPROOF
@@ -11175,7 +11506,7 @@
 | 	LANGUAGE SQL
 | 	SECURITY INVOKER
 | 	AS $$
-| 	SELECT fid_v.ov() + n;
+| 	SELECT n;
 | $$
 < row
 : string
@@ -11309,6 +11640,27 @@
 < column "relname" "NAME"
 < column "attname" "NAME"
 < column "create_statement" "TEXT"
+< row
+: string
+| fid_v
+: string
+| pseq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
+: null
+: null
+: string
+| CREATE SEQUENCE fid_v.pseq MINVALUE 1 MAXVALUE 9223372036854775807 INCREMENT 1 START 1
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -11408,6 +11760,9 @@
 | DROP FUNCTION "fid_v"."ov"();
 < ok 0 -
 > exec
+| DROP FUNCTION "fid_v"."pdef"(int8);
+< ok 0 -
+> exec
 | DROP FUNCTION "fid_v"."pf"();
 < ok 0 -
 > exec
@@ -11439,6 +11794,9 @@
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."pab" DROP COLUMN "a";
+< ok 0 -
+> exec
+| DROP SEQUENCE IF EXISTS "fid_v"."pseq";
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."ab" ADD COLUMN "x" bigint;
@@ -11551,6 +11909,18 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT unique_rowid();
+| $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.pdef(n INT8 DEFAULT 0:::INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT n;
 | $$;
 < ok 0 -
 > exec
@@ -13545,6 +13915,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT unique_rowid();
+| $$
+< row
+: string
+| fid_v
+: string
+| pdef
+: string
+| pdef(int8)
+: string
+| CREATE FUNCTION fid_v.pdef(n INT8 DEFAULT 0:::INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT n;
 | $$
 < row
 : string
