@@ -542,6 +542,7 @@ func checkSegmentLocs(sql string, seg Segment, items []ast.Node) []string {
 	starts, ends := map[int]bool{}, map[int]bool{}
 	first, last := -1, -1
 	lex := NewLexerWithOffset(seg.Text, seg.ByteStart)
+	lex.bareAtAt = true // a @@ no name follows is no token to Parse
 	for {
 		tok := lex.NextToken()
 		if tok.Type == tokEOF {

@@ -1298,13 +1298,16 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		// [[NOT] ENFORCED]
+		// [[NOT] ENFORCED]: a NOT needs its ENFORCED. Ref: `"CHECK" '('
+		// Expression ')' EnforcedOrNotOpt` in TiDB v8.5.5 pkg/parser/parser.y,
+		// where EnforcedOrNot reads `"ENFORCED" | NotSym "ENFORCED"`, so
+		// `ADD CHECK (a) NOT` is a 1064.
 		if p.cur.Type == kwNOT {
 			p.advance()
-			if p.cur.Type == kwENFORCED {
-				p.advance()
-				constr.NotEnforced = true
+			if _, err := p.expect(kwENFORCED); err != nil {
+				return nil, err
 			}
+			constr.NotEnforced = true
 		} else if p.cur.Type == kwENFORCED {
 			p.advance()
 		}
