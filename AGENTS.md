@@ -55,7 +55,7 @@ Bytebase's adapters under `backend/plugin/parser/<engine>` and omni's own packag
 
 The rules above are the target. These places do not meet them yet; do not copy them into new code.
 
-- On the Bytebase side, `ByteOffsetToRunePosition` exists five times and adapters disagree on keeping empty segments. Not omni's to fix, but the reason `review.Index` stays the single implementation.
+- `snowflake/analysis.SplitStatements` drops empty segments, and Bytebase's Snowflake adapter splits through it; every other SQL adapter keeps them.
 
 ## Tests
 
