@@ -118,7 +118,7 @@ $1	$1	engine	document	document	results	SELECT IS_DEFINED(c.nick) FROM c
 $.nick	~	engine	document	document	lineage	SELECT IS_DEFINED(c.nick) FROM c
 -	~	engine	document	document	tables	SELECT IS_DEFINED(c.nick) FROM c
 k	k	engine	document	document	results	SELECT {"k": c.name}.k FROM c
-$.name $.name.k	$.name ~	engine	document	document	lineage	SELECT {"k": c.name}.k FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT {"k": c.name}.k FROM c
 -	~	engine	document	document	tables	SELECT {"k": c.name}.k FROM c
 label	label	engine	document	document	results	SELECT CONCAT(c.name, "-", c.address.city) AS label FROM c
 $.address.city $.name	$.address.city $.name ~	engine	document	document	lineage	SELECT CONCAT(c.name, "-", c.address.city) AS label FROM c
@@ -139,19 +139,19 @@ arr	arr	engine	document	document	results	SELECT [c.name, c.address.zip] AS arr F
 $.address.zip $.name	$.address.zip $.name ~	engine	document	document	lineage	SELECT [c.name, c.address.zip] AS arr FROM c
 -	~	engine	document	document	tables	SELECT [c.name, c.address.zip] AS arr FROM c
 first	first	engine	document	document	results	SELECT [c.name, c.address.city][0] AS first FROM c
-$.address.city $.name	$.name ~	engine	document	document	lineage	SELECT [c.name, c.address.city][0] AS first FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT [c.name, c.address.city][0] AS first FROM c
 -	~	engine	document	document	tables	SELECT [c.name, c.address.city][0] AS first FROM c
 kk	kk	engine	document	document	results	SELECT {"k": c.name}.k AS kk FROM c
-$.name $.name.k	$.name ~	engine	document	document	lineage	SELECT {"k": c.name}.k AS kk FROM c
+$.name	$.name ~	engine	document	document	lineage	SELECT {"k": c.name}.k AS kk FROM c
 -	~	engine	document	document	tables	SELECT {"k": c.name}.k AS kk FROM c
 city	city	engine	document	document	results	SELECT (c.address ?? c.nick).city AS city FROM c
-$.address $.address.city $.nick $.nick.city	$.address.city ~	engine	document	document	lineage	SELECT (c.address ?? c.nick).city AS city FROM c
+$.address.city $.nick.city	$.address.city ~	engine	document	document	lineage	SELECT (c.address ?? c.nick).city AS city FROM c
 -	~	engine	document	document	tables	SELECT (c.address ?? c.nick).city AS city FROM c
 zip	zip	engine	document	document	results	SELECT (c.n > 0 ? c.address : c.tags).zip AS zip FROM c
-$.address $.address.zip $.n $.n.zip $.tags $.tags.zip	$.address.zip ~	engine	document	document	lineage	SELECT (c.n > 0 ? c.address : c.tags).zip AS zip FROM c
+$.address.zip $.n.zip $.tags.zip	$.address.zip ~	engine	document	document	lineage	SELECT (c.n > 0 ? c.address : c.tags).zip AS zip FROM c
 -	~	engine	document	document	tables	SELECT (c.n > 0 ? c.address : c.tags).zip AS zip FROM c
 lat	lat	engine	document	document	results	SELECT IIF(c.n > 0, c.address, c.tags).geo.lat FROM c
-$.address $.address.geo.lat $.n $.n.geo.lat $.tags $.tags.geo.lat	$.address.geo.lat ~	engine	document	document	lineage	SELECT IIF(c.n > 0, c.address, c.tags).geo.lat FROM c
+$.address.geo.lat $.n.geo.lat $.tags.geo.lat	$.address.geo.lat ~	engine	document	document	lineage	SELECT IIF(c.n > 0, c.address, c.tags).geo.lat FROM c
 -	~	engine	document	document	tables	SELECT IIF(c.n > 0, c.address, c.tags).geo.lat FROM c
 l, u	l, u	engine	document	document	results	SELECT LOWER(c.name) AS l, UPPER(c.nick) AS u FROM c
 $.name | $.nick	$.name ~ | $.nick ~	engine	document	document	lineage	SELECT LOWER(c.name) AS l, UPPER(c.nick) AS u FROM c

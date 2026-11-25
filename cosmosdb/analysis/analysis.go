@@ -248,38 +248,65 @@ func (a *analyzer) source(te ast.TableExpr, sc *scope) *binding {
 }
 
 // resolveChain resolves a property path: the binding of the identifier it
-// is rooted at, then each selector. A chain rooted at a computed value
-// ((c.a ?? c.b).city, {"k": c.name}.k) comes from that value's sources and
-// from each of them with the selectors appended: a conditional selects a
-// stored property of whichever operand it returns, and an object literal's
-// member is the source itself. Both are kept, which covers either reading.
+// is rooted at, then each selector. A property of an object or array
+// literal is the member it selects ({"k": c.name}.k is c.name); a property
+// of any other computed value ((c.a ?? c.b).city) is that property of each
+// of the value's sources. Each source yields one path, so nested literals
+// and long chains stay linear.
 func (a *analyzer) resolveChain(dst []FieldPath, expr ast.ExprNode, sc *scope) []FieldPath {
-	var sels []Selector
+	// pending holds the selectors still to apply, the next one last.
+	var pending []Selector
 	root := expr
+peel:
 	for {
 		switch e := root.(type) {
 		case *ast.DotAccessExpr:
-			sels = append(sels, ItemSelector(e.Property))
+			pending = append(pending, ItemSelector(e.Property))
 			root = e.Expr
-			continue
 		case *ast.BracketAccessExpr:
-			sels = append(sels, bracketSelector(e.Index))
+			pending = append(pending, bracketSelector(e.Index))
 			root = e.Expr
-			continue
+		case *ast.CreateObjectExpr:
+			if len(pending) == 0 || pending[len(pending)-1].IsArray() {
+				break peel
+			}
+			name := pending[len(pending)-1].Name
+			member := -1
+			for k, f := range e.Fields {
+				if f.Key == name {
+					member = k // the last of repeated keys wins
+				}
+			}
+			if member < 0 {
+				// A key the literal does not hold is undefined.
+				return dst
+			}
+			pending = pending[:len(pending)-1]
+			root = e.Fields[member].Value
+		case *ast.CreateArrayExpr:
+			if len(pending) == 0 || !pending[len(pending)-1].IsArray() {
+				break peel
+			}
+			n := pending[len(pending)-1].ArrayIndex
+			if n >= len(e.Elements) {
+				return dst
+			}
+			pending = pending[:len(pending)-1]
+			root = e.Elements[n]
+		default:
+			break peel
 		}
-		break
 	}
-	// sels runs from the last selector to the first.
-	for i, j := 0, len(sels)-1; i < j; i, j = i+1, j-1 {
-		sels[i], sels[j] = sels[j], sels[i]
+	sels := make([]Selector, len(pending))
+	for i, s := range pending {
+		sels[len(pending)-1-i] = s
 	}
 	ref, ok := root.(*ast.ColumnRef)
 	if !ok {
 		start := len(dst)
 		dst = a.exprPaths(dst, root, sc)
-		end := len(dst)
-		for _, p := range dst[start:end] {
-			dst = append(dst, append(copyPath(p), sels...))
+		for k := start; k < len(dst); k++ {
+			dst[k] = append(dst[k], sels...)
 		}
 		return dst
 	}
