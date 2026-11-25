@@ -1,0 +1,607 @@
+# pin: default oceanbase/oceanbase-ce:4.3.5.6-106000012026040916 sha256:31086a6900c21c479c2bcd942b6a28c53b17a51f4e9b9eb8eafcc596adfcd2e3 v4.3.5_CE_BP6
+# columns: omni, expected, source, fixture, rule, statement
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	stmt/create_sequence_stmt	CREATE SEQUENCE a
+4314	4314	engine	one_table@missing	stmt/alter_sequence_stmt	ALTER SEQUENCE a
+4298	4298	engine	one_table@missing	stmt/drop_sequence_stmt	DROP SEQUENCE a
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	create_sequence_stmt/create_with_opt_hint_SEQUENCE_opt_if_not_exists_relation_factor_opt_sequence_option_list+opt_if_not_exists	CREATE SEQUENCE IF NOT EXISTS a
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	opt_sequence_option_list/sequence_option_list	CREATE SEQUENCE a NOMAXVALUE
+4301	4301	engine	one_table@missing	sequence_option_list/sequence_option_list_sequence_option	CREATE SEQUENCE a NOMAXVALUE NOMAXVALUE
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option_list/sequence_option_list_sequence_option!swap	CREATE SEQUENCE a NOMINVALUE NOMAXVALUE
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option/INCREMENT_BY_simple_num	CREATE SEQUENCE a INCREMENT BY 1
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option/START_WITH_simple_num	CREATE SEQUENCE a START WITH 1
+4320	4320	engine	one_table@missing	sequence_option/MAXVALUE_simple_num	CREATE SEQUENCE a MAXVALUE 1
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option/MINVALUE_simple_num	CREATE SEQUENCE a MINVALUE 1
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option/NOMINVALUE	CREATE SEQUENCE a NOMINVALUE
+4330	4330	engine	one_table@missing	sequence_option/CYCLE	CREATE SEQUENCE a CYCLE
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option/NOCYCLE	CREATE SEQUENCE a NOCYCLE
+4326	4326	engine	one_table@missing	sequence_option/CACHE_simple_num	CREATE SEQUENCE a CACHE 1
+ok:f18ece527390	ok:f18ece527390	engine	one_table@missing	sequence_option/NOCACHE	CREATE SEQUENCE a NOCACHE
+ok:0e35fbe527e3	ok:0e35fbe527e3	engine	one_table@missing	sequence_option/ORDER	CREATE SEQUENCE a ORDER
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option/NOORDER	CREATE SEQUENCE a NOORDER
+1149	1149	engine	one_table@missing	sequence_option/RESTART	CREATE SEQUENCE a RESTART
+4320	4320	engine	one_table@missing	simple_num/+_INTNUM	CREATE SEQUENCE a MAXVALUE + 1
+4320	4320	engine	one_table@missing	simple_num/-_INTNUM	CREATE SEQUENCE a MAXVALUE - 1
+4317	4317	engine	one_table@missing	simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE + 1.5
+4317	4317	engine	one_table@missing	simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE - 1.5
+4317	4317	engine	one_table@missing	simple_num/DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE 1.5
+ok:845bd94b8700	ok:845bd94b8700	engine	one_table@missing	drop_sequence_stmt/DROP_SEQUENCE_opt_if_exists_relation_factor+opt_if_exists	DROP SEQUENCE IF EXISTS a
+ok:8b42a64116a3	ok:8b42a64116a3	engine	one_table@missing	sequence/create_start_increment	CREATE SEQUENCE a START WITH 5 INCREMENT BY 2
+ok:4c5f8ae1cc71	ok:4c5f8ae1cc71	engine	one_table@missing	sequence/create_descending	CREATE SEQUENCE a INCREMENT BY -1
+ok:32bc4c84a445	ok:32bc4c84a445	engine	one_table@missing	sequence/create_descending_minvalue	CREATE SEQUENCE a MINVALUE -10 INCREMENT BY -2
+4324	4324	engine	one_table@missing	sequence/create_descending_start_above_max	CREATE SEQUENCE a INCREMENT BY -3 START WITH 4
+ok:0ecaa4226da2	ok:0ecaa4226da2	engine	one_table@missing	sequence/create_every_option	CREATE SEQUENCE a START WITH 5 INCREMENT BY 2 MINVALUE 1 MAXVALUE 100 CACHE 10 CYCLE ORDER
+ok:4129ccd9c895	ok:4129ccd9c895	engine	one_table@missing	sequence/create_cycle_cache_fits	CREATE SEQUENCE a MAXVALUE 100 CYCLE CACHE 10
+ok:7c435cdec2ec	ok:7c435cdec2ec	engine	one_table@missing	sequence/create_cycle_cache_two	CREATE SEQUENCE a CACHE 2 CYCLE MAXVALUE 3
+4328	4328	engine	one_table@missing	sequence/create_cycle_cache_too_large	CREATE SEQUENCE a MAXVALUE 100 CYCLE CACHE 200
+4328	4328	engine	one_table@missing	sequence/create_cycle_cache_one_cycle	CREATE SEQUENCE a CACHE 2 CYCLE MAXVALUE 2
+4328	4328	engine	one_table@missing	sequence/create_cycle_default_cache	CREATE SEQUENCE a MAXVALUE 5 CYCLE
+4329	4329	engine	one_table@missing	sequence/create_descending_cycle	CREATE SEQUENCE a INCREMENT BY -1 CYCLE
+ok:499484c0395e	ok:499484c0395e	engine	one_table@missing	sequence/create_descending_cycle_minvalue	CREATE SEQUENCE a INCREMENT BY -1 MINVALUE -100 CYCLE
+4326	4326	engine	one_table@missing	sequence/create_cache_zero	CREATE SEQUENCE a CACHE 0
+ok:738fdad73137	ok:738fdad73137	engine	one_table@missing	sequence/create_cache_two	CREATE SEQUENCE a CACHE 2
+4318	4318	engine	one_table@missing	sequence/create_increment_zero	CREATE SEQUENCE a INCREMENT BY 0
+4318	4318	engine	one_table@missing	sequence/create_increment_zero_cache_one	CREATE SEQUENCE a INCREMENT BY 0 CACHE 1
+4326	4326	engine	one_table@missing	sequence/create_cache_one_maxvalue_one	CREATE SEQUENCE a CACHE 1 MAXVALUE 1
+4322	4322	engine	one_table@missing	sequence/create_start_below_min	CREATE SEQUENCE a START WITH 0
+4322	4322	engine	one_table@missing	sequence/create_start_negative	CREATE SEQUENCE a START WITH -5
+4324	4324	engine	one_table@missing	sequence/create_start_above_max	CREATE SEQUENCE a START WITH 100 MAXVALUE 10
+4320	4320	engine	one_table@missing	sequence/create_min_above_max	CREATE SEQUENCE a MINVALUE 10 MAXVALUE 5
+4320	4320	engine	one_table@missing	sequence/create_min_at_int64	CREATE SEQUENCE a MINVALUE 9223372036854775807
+4321	4321	engine	one_table@missing	sequence/create_increment_too_large	CREATE SEQUENCE a MINVALUE 1 MAXVALUE 3 INCREMENT BY 5
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence/create_maxvalue_past_int64	CREATE SEQUENCE a MAXVALUE 9223372036854775808
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence/create_maxvalue_past_uint64	CREATE SEQUENCE a MAXVALUE 99999999999999999999999999999
+ok:4c5f8ae1cc71	ok:4c5f8ae1cc71	engine	one_table@missing	sequence/create_minvalue_past_int64	CREATE SEQUENCE a MINVALUE -99999999999999999999999999999 INCREMENT BY -1
+ok:9e98f3207935	ok:9e98f3207935	engine	one_table@missing	sequence/create_maxvalue_whole_decimal	CREATE SEQUENCE a MAXVALUE 10.0
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence/create_maxvalue_wide_fraction	CREATE SEQUENCE a MAXVALUE 99999999999999999999.5
+4317	4317	engine	one_table@missing	sequence/create_maxvalue_fraction_cycle	CREATE SEQUENCE a MAXVALUE 1.5 CYCLE
+4317	4317	engine	one_table@missing	sequence/create_minvalue_fraction	CREATE SEQUENCE a MINVALUE 1.5
+4317	4317	engine	one_table@missing	sequence/create_increment_fraction	CREATE SEQUENCE a INCREMENT BY 1.5
+4317	4317	engine	one_table@missing	sequence/create_start_fraction	CREATE SEQUENCE a START WITH 1.5
+4317	4317	engine	one_table@missing	sequence/create_cache_fraction	CREATE SEQUENCE a CACHE 1.5
+5114	5114	engine	one_table@missing	sequence/create_maxvalue_exponent	CREATE SEQUENCE a MAXVALUE 1e5
+ok:4c5f8ae1cc71	ok:4c5f8ae1cc71	engine	one_table@missing	sequence/create_nomaxvalue_descending	CREATE SEQUENCE a NOMAXVALUE INCREMENT BY -1
+4312	4312	engine	one_table@missing	sequence/create_dup_increment	CREATE SEQUENCE a INCREMENT BY 1 INCREMENT BY 2
+4313	4313	engine	one_table@missing	sequence/create_dup_start	CREATE SEQUENCE a START WITH 1 START WITH 2
+4301	4301	engine	one_table@missing	sequence/create_dup_maxvalue	CREATE SEQUENCE a MAXVALUE 5 MAXVALUE 6
+4302	4302	engine	one_table@missing	sequence/create_dup_minvalue	CREATE SEQUENCE a MINVALUE 1 MINVALUE 2
+4302	4302	engine	one_table@missing	sequence/create_dup_nominvalue	CREATE SEQUENCE a NOMINVALUE NOMINVALUE
+4304	4304	engine	one_table@missing	sequence/create_dup_cache	CREATE SEQUENCE a CACHE 2 CACHE 3
+4304	4304	engine	one_table@missing	sequence/create_dup_nocache	CREATE SEQUENCE a NOCACHE NOCACHE
+4303	4303	engine	one_table@missing	sequence/create_dup_cycle	CREATE SEQUENCE a CYCLE CYCLE
+4305	4305	engine	one_table@missing	sequence/create_dup_order	CREATE SEQUENCE a ORDER ORDER
+4382	4382	engine	one_table@missing	sequence/create_dup_restart	CREATE SEQUENCE a RESTART RESTART
+4306	4306	engine	one_table@missing	sequence/create_conflict_maxvalue	CREATE SEQUENCE a MAXVALUE 5 NOMAXVALUE
+4307	4307	engine	one_table@missing	sequence/create_conflict_minvalue	CREATE SEQUENCE a MINVALUE 5 NOMINVALUE
+4309	4309	engine	one_table@missing	sequence/create_conflict_cache	CREATE SEQUENCE a CACHE 5 NOCACHE
+4310	4310	engine	one_table@missing	sequence/create_conflict_order	CREATE SEQUENCE a ORDER NOORDER
+4308	4308	engine	one_table@missing	sequence/create_conflict_cycle	CREATE SEQUENCE a NOCYCLE CYCLE
+4310	4310	engine	one_table@missing	sequence/create_conflicts_in_order	CREATE SEQUENCE a CYCLE NOCYCLE ORDER NOORDER
+4330	4330	engine	one_table@missing	sequence/create_if_not_exists_cycle	CREATE SEQUENCE IF NOT EXISTS a CYCLE
+4308	4308	engine	one_table@missing	sequence/create_if_not_exists_conflict	CREATE SEQUENCE IF NOT EXISTS a CYCLE NOCYCLE
+1049	1049	engine	one_table@missing	sequence/create_unknown_db	CREATE SEQUENCE nope.a
+1049	1049	engine	one_table@missing	sequence/create_unknown_db_cycle	CREATE SEQUENCE nope.a CYCLE
+4308	4308	engine	one_table@missing	sequence/create_unknown_db_conflict	CREATE SEQUENCE nope.a CYCLE NOCYCLE
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence/create_other_case	CREATE SEQUENCE A
+ok:fe01b849f34b	ok:fe01b849f34b	engine	one_table@missing	sequence/create_other_name	CREATE SEQUENCE b
+ok:c1e3dea46d32	ok:c1e3dea46d32	engine	one_table@missing	sequence/create_name_64	CREATE SEQUENCE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+1059	1059	engine	one_table@missing	sequence/create_name_65	CREATE SEQUENCE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+4298	4298	engine	one_table@missing	sequence/alter_nomaxvalue	ALTER SEQUENCE a NOMAXVALUE
+4298	4298	engine	one_table@missing	sequence/alter_nominvalue	ALTER SEQUENCE a NOMINVALUE
+4298	4298	engine	one_table@missing	sequence/alter_maxvalue_one	ALTER SEQUENCE a MAXVALUE 1
+4298	4298	engine	one_table@missing	sequence/alter_maxvalue	ALTER SEQUENCE a MAXVALUE 1000
+4298	4298	engine	one_table@missing	sequence/alter_minvalue	ALTER SEQUENCE a MINVALUE 1
+4298	4298	engine	one_table@missing	sequence/alter_minvalue_negative	ALTER SEQUENCE a MINVALUE -50
+4298	4298	engine	one_table@missing	sequence/alter_start	ALTER SEQUENCE a START WITH 1
+4298	4298	engine	one_table@missing	sequence/alter_restart	ALTER SEQUENCE a RESTART
+4298	4298	engine	one_table@missing	sequence/alter_restart_start	ALTER SEQUENCE a RESTART START WITH 5
+4298	4298	engine	one_table@missing	sequence/alter_restart_start_above_max	ALTER SEQUENCE a RESTART START WITH 1000
+4298	4298	engine	one_table@missing	sequence/alter_increment_descending	ALTER SEQUENCE a INCREMENT BY -1
+4298	4298	engine	one_table@missing	sequence/alter_increment	ALTER SEQUENCE a INCREMENT BY 1
+4298	4298	engine	one_table@missing	sequence/alter_increment_zero	ALTER SEQUENCE a INCREMENT BY 0
+4298	4298	engine	one_table@missing	sequence/alter_increment_descending_restart	ALTER SEQUENCE a INCREMENT BY -1 RESTART
+4298	4298	engine	one_table@missing	sequence/alter_cycle	ALTER SEQUENCE a CYCLE
+4298	4298	engine	one_table@missing	sequence/alter_nocycle	ALTER SEQUENCE a NOCYCLE
+4298	4298	engine	one_table@missing	sequence/alter_cache_one	ALTER SEQUENCE a CACHE 1
+4298	4298	engine	one_table@missing	sequence/alter_cache	ALTER SEQUENCE a CACHE 2
+4298	4298	engine	one_table@missing	sequence/alter_cache_large	ALTER SEQUENCE a CACHE 1000
+4298	4298	engine	one_table@missing	sequence/alter_nocache	ALTER SEQUENCE a NOCACHE
+4298	4298	engine	one_table@missing	sequence/alter_order	ALTER SEQUENCE a ORDER
+4298	4298	engine	one_table@missing	sequence/alter_noorder	ALTER SEQUENCE a NOORDER
+4298	4298	engine	one_table@missing	sequence/alter_maxvalue_fraction	ALTER SEQUENCE a MAXVALUE 1.5
+4298	4298	engine	one_table@missing	sequence/alter_nomaxvalue_cycle	ALTER SEQUENCE a NOMAXVALUE CYCLE
+4308	4308	engine	one_table@missing	sequence/alter_conflict_cycle	ALTER SEQUENCE a CYCLE NOCYCLE
+4382	4382	engine	one_table@missing	sequence/alter_dup_restart	ALTER SEQUENCE a RESTART RESTART
+4298	4298	engine	one_table@missing	sequence/alter_other_case	ALTER SEQUENCE A NOCACHE
+4298	4298	engine	one_table@missing	sequence/alter_missing	ALTER SEQUENCE b NOCACHE
+4314	4314	engine	one_table@missing	sequence/alter_missing_no_option	ALTER SEQUENCE b
+1049	1049	engine	one_table@missing	sequence/alter_unknown_db	ALTER SEQUENCE nope.a NOCACHE
+1059	1059	engine	one_table@missing	sequence/alter_name_65	ALTER SEQUENCE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+4298	4298	engine	one_table@missing	sequence/drop_other_case	DROP SEQUENCE A
+4298	4298	engine	one_table@missing	sequence/drop_missing	DROP SEQUENCE b
+ok:845bd94b8700	ok:845bd94b8700	engine	one_table@missing	sequence/drop_if_exists_missing	DROP SEQUENCE IF EXISTS b
+1049	1049	engine	one_table@missing	sequence/drop_unknown_db	DROP SEQUENCE nope.a
+1049	1049	engine	one_table@missing	sequence/drop_if_exists_unknown_db	DROP SEQUENCE IF EXISTS nope.a
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	stmt/create_sequence_stmt	CREATE SEQUENCE a
+4314	4314	engine	one_table@table	stmt/alter_sequence_stmt	ALTER SEQUENCE a
+4298	4298	engine	one_table@table	stmt/drop_sequence_stmt	DROP SEQUENCE a
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	create_sequence_stmt/create_with_opt_hint_SEQUENCE_opt_if_not_exists_relation_factor_opt_sequence_option_list+opt_if_not_exists	CREATE SEQUENCE IF NOT EXISTS a
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	opt_sequence_option_list/sequence_option_list	CREATE SEQUENCE a NOMAXVALUE
+4301	4301	engine	one_table@table	sequence_option_list/sequence_option_list_sequence_option	CREATE SEQUENCE a NOMAXVALUE NOMAXVALUE
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option_list/sequence_option_list_sequence_option!swap	CREATE SEQUENCE a NOMINVALUE NOMAXVALUE
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option/INCREMENT_BY_simple_num	CREATE SEQUENCE a INCREMENT BY 1
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option/START_WITH_simple_num	CREATE SEQUENCE a START WITH 1
+4320	4320	engine	one_table@table	sequence_option/MAXVALUE_simple_num	CREATE SEQUENCE a MAXVALUE 1
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option/MINVALUE_simple_num	CREATE SEQUENCE a MINVALUE 1
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option/NOMINVALUE	CREATE SEQUENCE a NOMINVALUE
+4330	4330	engine	one_table@table	sequence_option/CYCLE	CREATE SEQUENCE a CYCLE
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option/NOCYCLE	CREATE SEQUENCE a NOCYCLE
+4326	4326	engine	one_table@table	sequence_option/CACHE_simple_num	CREATE SEQUENCE a CACHE 1
+ok:6615dbfe98bb	ok:6615dbfe98bb	engine	one_table@table	sequence_option/NOCACHE	CREATE SEQUENCE a NOCACHE
+ok:d3b436d4c07f	ok:d3b436d4c07f	engine	one_table@table	sequence_option/ORDER	CREATE SEQUENCE a ORDER
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option/NOORDER	CREATE SEQUENCE a NOORDER
+1149	1149	engine	one_table@table	sequence_option/RESTART	CREATE SEQUENCE a RESTART
+4320	4320	engine	one_table@table	simple_num/+_INTNUM	CREATE SEQUENCE a MAXVALUE + 1
+4320	4320	engine	one_table@table	simple_num/-_INTNUM	CREATE SEQUENCE a MAXVALUE - 1
+4317	4317	engine	one_table@table	simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE + 1.5
+4317	4317	engine	one_table@table	simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE - 1.5
+4317	4317	engine	one_table@table	simple_num/DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE 1.5
+ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	drop_sequence_stmt/DROP_SEQUENCE_opt_if_exists_relation_factor+opt_if_exists	DROP SEQUENCE IF EXISTS a
+ok:c846a05863f2	ok:c846a05863f2	engine	one_table@table	sequence/create_start_increment	CREATE SEQUENCE a START WITH 5 INCREMENT BY 2
+ok:999c9eab4b46	ok:999c9eab4b46	engine	one_table@table	sequence/create_descending	CREATE SEQUENCE a INCREMENT BY -1
+ok:c444755c4de0	ok:c444755c4de0	engine	one_table@table	sequence/create_descending_minvalue	CREATE SEQUENCE a MINVALUE -10 INCREMENT BY -2
+4324	4324	engine	one_table@table	sequence/create_descending_start_above_max	CREATE SEQUENCE a INCREMENT BY -3 START WITH 4
+ok:dd591f6e30f8	ok:dd591f6e30f8	engine	one_table@table	sequence/create_every_option	CREATE SEQUENCE a START WITH 5 INCREMENT BY 2 MINVALUE 1 MAXVALUE 100 CACHE 10 CYCLE ORDER
+ok:b51b6b4e49ba	ok:b51b6b4e49ba	engine	one_table@table	sequence/create_cycle_cache_fits	CREATE SEQUENCE a MAXVALUE 100 CYCLE CACHE 10
+ok:17a8735c7776	ok:17a8735c7776	engine	one_table@table	sequence/create_cycle_cache_two	CREATE SEQUENCE a CACHE 2 CYCLE MAXVALUE 3
+4328	4328	engine	one_table@table	sequence/create_cycle_cache_too_large	CREATE SEQUENCE a MAXVALUE 100 CYCLE CACHE 200
+4328	4328	engine	one_table@table	sequence/create_cycle_cache_one_cycle	CREATE SEQUENCE a CACHE 2 CYCLE MAXVALUE 2
+4328	4328	engine	one_table@table	sequence/create_cycle_default_cache	CREATE SEQUENCE a MAXVALUE 5 CYCLE
+4329	4329	engine	one_table@table	sequence/create_descending_cycle	CREATE SEQUENCE a INCREMENT BY -1 CYCLE
+ok:6b02786db49e	ok:6b02786db49e	engine	one_table@table	sequence/create_descending_cycle_minvalue	CREATE SEQUENCE a INCREMENT BY -1 MINVALUE -100 CYCLE
+4326	4326	engine	one_table@table	sequence/create_cache_zero	CREATE SEQUENCE a CACHE 0
+ok:456946130c2c	ok:456946130c2c	engine	one_table@table	sequence/create_cache_two	CREATE SEQUENCE a CACHE 2
+4318	4318	engine	one_table@table	sequence/create_increment_zero	CREATE SEQUENCE a INCREMENT BY 0
+4318	4318	engine	one_table@table	sequence/create_increment_zero_cache_one	CREATE SEQUENCE a INCREMENT BY 0 CACHE 1
+4326	4326	engine	one_table@table	sequence/create_cache_one_maxvalue_one	CREATE SEQUENCE a CACHE 1 MAXVALUE 1
+4322	4322	engine	one_table@table	sequence/create_start_below_min	CREATE SEQUENCE a START WITH 0
+4322	4322	engine	one_table@table	sequence/create_start_negative	CREATE SEQUENCE a START WITH -5
+4324	4324	engine	one_table@table	sequence/create_start_above_max	CREATE SEQUENCE a START WITH 100 MAXVALUE 10
+4320	4320	engine	one_table@table	sequence/create_min_above_max	CREATE SEQUENCE a MINVALUE 10 MAXVALUE 5
+4320	4320	engine	one_table@table	sequence/create_min_at_int64	CREATE SEQUENCE a MINVALUE 9223372036854775807
+4321	4321	engine	one_table@table	sequence/create_increment_too_large	CREATE SEQUENCE a MINVALUE 1 MAXVALUE 3 INCREMENT BY 5
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence/create_maxvalue_past_int64	CREATE SEQUENCE a MAXVALUE 9223372036854775808
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence/create_maxvalue_past_uint64	CREATE SEQUENCE a MAXVALUE 99999999999999999999999999999
+ok:999c9eab4b46	ok:999c9eab4b46	engine	one_table@table	sequence/create_minvalue_past_int64	CREATE SEQUENCE a MINVALUE -99999999999999999999999999999 INCREMENT BY -1
+ok:141b3f63bd6f	ok:141b3f63bd6f	engine	one_table@table	sequence/create_maxvalue_whole_decimal	CREATE SEQUENCE a MAXVALUE 10.0
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence/create_maxvalue_wide_fraction	CREATE SEQUENCE a MAXVALUE 99999999999999999999.5
+4317	4317	engine	one_table@table	sequence/create_maxvalue_fraction_cycle	CREATE SEQUENCE a MAXVALUE 1.5 CYCLE
+4317	4317	engine	one_table@table	sequence/create_minvalue_fraction	CREATE SEQUENCE a MINVALUE 1.5
+4317	4317	engine	one_table@table	sequence/create_increment_fraction	CREATE SEQUENCE a INCREMENT BY 1.5
+4317	4317	engine	one_table@table	sequence/create_start_fraction	CREATE SEQUENCE a START WITH 1.5
+4317	4317	engine	one_table@table	sequence/create_cache_fraction	CREATE SEQUENCE a CACHE 1.5
+5114	5114	engine	one_table@table	sequence/create_maxvalue_exponent	CREATE SEQUENCE a MAXVALUE 1e5
+ok:999c9eab4b46	ok:999c9eab4b46	engine	one_table@table	sequence/create_nomaxvalue_descending	CREATE SEQUENCE a NOMAXVALUE INCREMENT BY -1
+4312	4312	engine	one_table@table	sequence/create_dup_increment	CREATE SEQUENCE a INCREMENT BY 1 INCREMENT BY 2
+4313	4313	engine	one_table@table	sequence/create_dup_start	CREATE SEQUENCE a START WITH 1 START WITH 2
+4301	4301	engine	one_table@table	sequence/create_dup_maxvalue	CREATE SEQUENCE a MAXVALUE 5 MAXVALUE 6
+4302	4302	engine	one_table@table	sequence/create_dup_minvalue	CREATE SEQUENCE a MINVALUE 1 MINVALUE 2
+4302	4302	engine	one_table@table	sequence/create_dup_nominvalue	CREATE SEQUENCE a NOMINVALUE NOMINVALUE
+4304	4304	engine	one_table@table	sequence/create_dup_cache	CREATE SEQUENCE a CACHE 2 CACHE 3
+4304	4304	engine	one_table@table	sequence/create_dup_nocache	CREATE SEQUENCE a NOCACHE NOCACHE
+4303	4303	engine	one_table@table	sequence/create_dup_cycle	CREATE SEQUENCE a CYCLE CYCLE
+4305	4305	engine	one_table@table	sequence/create_dup_order	CREATE SEQUENCE a ORDER ORDER
+4382	4382	engine	one_table@table	sequence/create_dup_restart	CREATE SEQUENCE a RESTART RESTART
+4306	4306	engine	one_table@table	sequence/create_conflict_maxvalue	CREATE SEQUENCE a MAXVALUE 5 NOMAXVALUE
+4307	4307	engine	one_table@table	sequence/create_conflict_minvalue	CREATE SEQUENCE a MINVALUE 5 NOMINVALUE
+4309	4309	engine	one_table@table	sequence/create_conflict_cache	CREATE SEQUENCE a CACHE 5 NOCACHE
+4310	4310	engine	one_table@table	sequence/create_conflict_order	CREATE SEQUENCE a ORDER NOORDER
+4308	4308	engine	one_table@table	sequence/create_conflict_cycle	CREATE SEQUENCE a NOCYCLE CYCLE
+4310	4310	engine	one_table@table	sequence/create_conflicts_in_order	CREATE SEQUENCE a CYCLE NOCYCLE ORDER NOORDER
+4330	4330	engine	one_table@table	sequence/create_if_not_exists_cycle	CREATE SEQUENCE IF NOT EXISTS a CYCLE
+4308	4308	engine	one_table@table	sequence/create_if_not_exists_conflict	CREATE SEQUENCE IF NOT EXISTS a CYCLE NOCYCLE
+1049	1049	engine	one_table@table	sequence/create_unknown_db	CREATE SEQUENCE nope.a
+1049	1049	engine	one_table@table	sequence/create_unknown_db_cycle	CREATE SEQUENCE nope.a CYCLE
+4308	4308	engine	one_table@table	sequence/create_unknown_db_conflict	CREATE SEQUENCE nope.a CYCLE NOCYCLE
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence/create_other_case	CREATE SEQUENCE A
+ok:e98c19b4c506	ok:e98c19b4c506	engine	one_table@table	sequence/create_other_name	CREATE SEQUENCE b
+ok:e8d8de32a130	ok:e8d8de32a130	engine	one_table@table	sequence/create_name_64	CREATE SEQUENCE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+1059	1059	engine	one_table@table	sequence/create_name_65	CREATE SEQUENCE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+4298	4298	engine	one_table@table	sequence/alter_nomaxvalue	ALTER SEQUENCE a NOMAXVALUE
+4298	4298	engine	one_table@table	sequence/alter_nominvalue	ALTER SEQUENCE a NOMINVALUE
+4298	4298	engine	one_table@table	sequence/alter_maxvalue_one	ALTER SEQUENCE a MAXVALUE 1
+4298	4298	engine	one_table@table	sequence/alter_maxvalue	ALTER SEQUENCE a MAXVALUE 1000
+4298	4298	engine	one_table@table	sequence/alter_minvalue	ALTER SEQUENCE a MINVALUE 1
+4298	4298	engine	one_table@table	sequence/alter_minvalue_negative	ALTER SEQUENCE a MINVALUE -50
+4298	4298	engine	one_table@table	sequence/alter_start	ALTER SEQUENCE a START WITH 1
+4298	4298	engine	one_table@table	sequence/alter_restart	ALTER SEQUENCE a RESTART
+4298	4298	engine	one_table@table	sequence/alter_restart_start	ALTER SEQUENCE a RESTART START WITH 5
+4298	4298	engine	one_table@table	sequence/alter_restart_start_above_max	ALTER SEQUENCE a RESTART START WITH 1000
+4298	4298	engine	one_table@table	sequence/alter_increment_descending	ALTER SEQUENCE a INCREMENT BY -1
+4298	4298	engine	one_table@table	sequence/alter_increment	ALTER SEQUENCE a INCREMENT BY 1
+4298	4298	engine	one_table@table	sequence/alter_increment_zero	ALTER SEQUENCE a INCREMENT BY 0
+4298	4298	engine	one_table@table	sequence/alter_increment_descending_restart	ALTER SEQUENCE a INCREMENT BY -1 RESTART
+4298	4298	engine	one_table@table	sequence/alter_cycle	ALTER SEQUENCE a CYCLE
+4298	4298	engine	one_table@table	sequence/alter_nocycle	ALTER SEQUENCE a NOCYCLE
+4298	4298	engine	one_table@table	sequence/alter_cache_one	ALTER SEQUENCE a CACHE 1
+4298	4298	engine	one_table@table	sequence/alter_cache	ALTER SEQUENCE a CACHE 2
+4298	4298	engine	one_table@table	sequence/alter_cache_large	ALTER SEQUENCE a CACHE 1000
+4298	4298	engine	one_table@table	sequence/alter_nocache	ALTER SEQUENCE a NOCACHE
+4298	4298	engine	one_table@table	sequence/alter_order	ALTER SEQUENCE a ORDER
+4298	4298	engine	one_table@table	sequence/alter_noorder	ALTER SEQUENCE a NOORDER
+4298	4298	engine	one_table@table	sequence/alter_maxvalue_fraction	ALTER SEQUENCE a MAXVALUE 1.5
+4298	4298	engine	one_table@table	sequence/alter_nomaxvalue_cycle	ALTER SEQUENCE a NOMAXVALUE CYCLE
+4308	4308	engine	one_table@table	sequence/alter_conflict_cycle	ALTER SEQUENCE a CYCLE NOCYCLE
+4382	4382	engine	one_table@table	sequence/alter_dup_restart	ALTER SEQUENCE a RESTART RESTART
+4298	4298	engine	one_table@table	sequence/alter_other_case	ALTER SEQUENCE A NOCACHE
+4298	4298	engine	one_table@table	sequence/alter_missing	ALTER SEQUENCE b NOCACHE
+4314	4314	engine	one_table@table	sequence/alter_missing_no_option	ALTER SEQUENCE b
+1049	1049	engine	one_table@table	sequence/alter_unknown_db	ALTER SEQUENCE nope.a NOCACHE
+1059	1059	engine	one_table@table	sequence/alter_name_65	ALTER SEQUENCE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+4298	4298	engine	one_table@table	sequence/drop_other_case	DROP SEQUENCE A
+4298	4298	engine	one_table@table	sequence/drop_missing	DROP SEQUENCE b
+ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	sequence/drop_if_exists_missing	DROP SEQUENCE IF EXISTS b
+1049	1049	engine	one_table@table	sequence/drop_unknown_db	DROP SEQUENCE nope.a
+1049	1049	engine	one_table@table	sequence/drop_if_exists_unknown_db	DROP SEQUENCE IF EXISTS nope.a
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	stmt/create_sequence_stmt	CREATE SEQUENCE a
+4314	4314	engine	objects@view	stmt/alter_sequence_stmt	ALTER SEQUENCE a
+4298	4298	engine	objects@view	stmt/drop_sequence_stmt	DROP SEQUENCE a
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	create_sequence_stmt/create_with_opt_hint_SEQUENCE_opt_if_not_exists_relation_factor_opt_sequence_option_list+opt_if_not_exists	CREATE SEQUENCE IF NOT EXISTS a
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	opt_sequence_option_list/sequence_option_list	CREATE SEQUENCE a NOMAXVALUE
+4301	4301	engine	objects@view	sequence_option_list/sequence_option_list_sequence_option	CREATE SEQUENCE a NOMAXVALUE NOMAXVALUE
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option_list/sequence_option_list_sequence_option!swap	CREATE SEQUENCE a NOMINVALUE NOMAXVALUE
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option/INCREMENT_BY_simple_num	CREATE SEQUENCE a INCREMENT BY 1
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option/START_WITH_simple_num	CREATE SEQUENCE a START WITH 1
+4320	4320	engine	objects@view	sequence_option/MAXVALUE_simple_num	CREATE SEQUENCE a MAXVALUE 1
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option/MINVALUE_simple_num	CREATE SEQUENCE a MINVALUE 1
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option/NOMINVALUE	CREATE SEQUENCE a NOMINVALUE
+4330	4330	engine	objects@view	sequence_option/CYCLE	CREATE SEQUENCE a CYCLE
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option/NOCYCLE	CREATE SEQUENCE a NOCYCLE
+4326	4326	engine	objects@view	sequence_option/CACHE_simple_num	CREATE SEQUENCE a CACHE 1
+ok:da90986016d7	ok:da90986016d7	engine	objects@view	sequence_option/NOCACHE	CREATE SEQUENCE a NOCACHE
+ok:9388cf7290a5	ok:9388cf7290a5	engine	objects@view	sequence_option/ORDER	CREATE SEQUENCE a ORDER
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option/NOORDER	CREATE SEQUENCE a NOORDER
+1149	1149	engine	objects@view	sequence_option/RESTART	CREATE SEQUENCE a RESTART
+4320	4320	engine	objects@view	simple_num/+_INTNUM	CREATE SEQUENCE a MAXVALUE + 1
+4320	4320	engine	objects@view	simple_num/-_INTNUM	CREATE SEQUENCE a MAXVALUE - 1
+4317	4317	engine	objects@view	simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE + 1.5
+4317	4317	engine	objects@view	simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE - 1.5
+4317	4317	engine	objects@view	simple_num/DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE 1.5
+ok:d166d05fe30b	ok:d166d05fe30b	engine	objects@view	drop_sequence_stmt/DROP_SEQUENCE_opt_if_exists_relation_factor+opt_if_exists	DROP SEQUENCE IF EXISTS a
+ok:e882a5f992a4	ok:e882a5f992a4	engine	objects@view	sequence/create_start_increment	CREATE SEQUENCE a START WITH 5 INCREMENT BY 2
+ok:d7635c30c3a7	ok:d7635c30c3a7	engine	objects@view	sequence/create_descending	CREATE SEQUENCE a INCREMENT BY -1
+ok:9f11089a78b6	ok:9f11089a78b6	engine	objects@view	sequence/create_descending_minvalue	CREATE SEQUENCE a MINVALUE -10 INCREMENT BY -2
+4324	4324	engine	objects@view	sequence/create_descending_start_above_max	CREATE SEQUENCE a INCREMENT BY -3 START WITH 4
+ok:d173b4b37c7a	ok:d173b4b37c7a	engine	objects@view	sequence/create_every_option	CREATE SEQUENCE a START WITH 5 INCREMENT BY 2 MINVALUE 1 MAXVALUE 100 CACHE 10 CYCLE ORDER
+ok:facee30af47d	ok:facee30af47d	engine	objects@view	sequence/create_cycle_cache_fits	CREATE SEQUENCE a MAXVALUE 100 CYCLE CACHE 10
+ok:d986e1bfb424	ok:d986e1bfb424	engine	objects@view	sequence/create_cycle_cache_two	CREATE SEQUENCE a CACHE 2 CYCLE MAXVALUE 3
+4328	4328	engine	objects@view	sequence/create_cycle_cache_too_large	CREATE SEQUENCE a MAXVALUE 100 CYCLE CACHE 200
+4328	4328	engine	objects@view	sequence/create_cycle_cache_one_cycle	CREATE SEQUENCE a CACHE 2 CYCLE MAXVALUE 2
+4328	4328	engine	objects@view	sequence/create_cycle_default_cache	CREATE SEQUENCE a MAXVALUE 5 CYCLE
+4329	4329	engine	objects@view	sequence/create_descending_cycle	CREATE SEQUENCE a INCREMENT BY -1 CYCLE
+ok:dbde74f88d52	ok:dbde74f88d52	engine	objects@view	sequence/create_descending_cycle_minvalue	CREATE SEQUENCE a INCREMENT BY -1 MINVALUE -100 CYCLE
+4326	4326	engine	objects@view	sequence/create_cache_zero	CREATE SEQUENCE a CACHE 0
+ok:69866c470c24	ok:69866c470c24	engine	objects@view	sequence/create_cache_two	CREATE SEQUENCE a CACHE 2
+4318	4318	engine	objects@view	sequence/create_increment_zero	CREATE SEQUENCE a INCREMENT BY 0
+4318	4318	engine	objects@view	sequence/create_increment_zero_cache_one	CREATE SEQUENCE a INCREMENT BY 0 CACHE 1
+4326	4326	engine	objects@view	sequence/create_cache_one_maxvalue_one	CREATE SEQUENCE a CACHE 1 MAXVALUE 1
+4322	4322	engine	objects@view	sequence/create_start_below_min	CREATE SEQUENCE a START WITH 0
+4322	4322	engine	objects@view	sequence/create_start_negative	CREATE SEQUENCE a START WITH -5
+4324	4324	engine	objects@view	sequence/create_start_above_max	CREATE SEQUENCE a START WITH 100 MAXVALUE 10
+4320	4320	engine	objects@view	sequence/create_min_above_max	CREATE SEQUENCE a MINVALUE 10 MAXVALUE 5
+4320	4320	engine	objects@view	sequence/create_min_at_int64	CREATE SEQUENCE a MINVALUE 9223372036854775807
+4321	4321	engine	objects@view	sequence/create_increment_too_large	CREATE SEQUENCE a MINVALUE 1 MAXVALUE 3 INCREMENT BY 5
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence/create_maxvalue_past_int64	CREATE SEQUENCE a MAXVALUE 9223372036854775808
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence/create_maxvalue_past_uint64	CREATE SEQUENCE a MAXVALUE 99999999999999999999999999999
+ok:d7635c30c3a7	ok:d7635c30c3a7	engine	objects@view	sequence/create_minvalue_past_int64	CREATE SEQUENCE a MINVALUE -99999999999999999999999999999 INCREMENT BY -1
+ok:c5910c08f00c	ok:c5910c08f00c	engine	objects@view	sequence/create_maxvalue_whole_decimal	CREATE SEQUENCE a MAXVALUE 10.0
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence/create_maxvalue_wide_fraction	CREATE SEQUENCE a MAXVALUE 99999999999999999999.5
+4317	4317	engine	objects@view	sequence/create_maxvalue_fraction_cycle	CREATE SEQUENCE a MAXVALUE 1.5 CYCLE
+4317	4317	engine	objects@view	sequence/create_minvalue_fraction	CREATE SEQUENCE a MINVALUE 1.5
+4317	4317	engine	objects@view	sequence/create_increment_fraction	CREATE SEQUENCE a INCREMENT BY 1.5
+4317	4317	engine	objects@view	sequence/create_start_fraction	CREATE SEQUENCE a START WITH 1.5
+4317	4317	engine	objects@view	sequence/create_cache_fraction	CREATE SEQUENCE a CACHE 1.5
+5114	5114	engine	objects@view	sequence/create_maxvalue_exponent	CREATE SEQUENCE a MAXVALUE 1e5
+ok:d7635c30c3a7	ok:d7635c30c3a7	engine	objects@view	sequence/create_nomaxvalue_descending	CREATE SEQUENCE a NOMAXVALUE INCREMENT BY -1
+4312	4312	engine	objects@view	sequence/create_dup_increment	CREATE SEQUENCE a INCREMENT BY 1 INCREMENT BY 2
+4313	4313	engine	objects@view	sequence/create_dup_start	CREATE SEQUENCE a START WITH 1 START WITH 2
+4301	4301	engine	objects@view	sequence/create_dup_maxvalue	CREATE SEQUENCE a MAXVALUE 5 MAXVALUE 6
+4302	4302	engine	objects@view	sequence/create_dup_minvalue	CREATE SEQUENCE a MINVALUE 1 MINVALUE 2
+4302	4302	engine	objects@view	sequence/create_dup_nominvalue	CREATE SEQUENCE a NOMINVALUE NOMINVALUE
+4304	4304	engine	objects@view	sequence/create_dup_cache	CREATE SEQUENCE a CACHE 2 CACHE 3
+4304	4304	engine	objects@view	sequence/create_dup_nocache	CREATE SEQUENCE a NOCACHE NOCACHE
+4303	4303	engine	objects@view	sequence/create_dup_cycle	CREATE SEQUENCE a CYCLE CYCLE
+4305	4305	engine	objects@view	sequence/create_dup_order	CREATE SEQUENCE a ORDER ORDER
+4382	4382	engine	objects@view	sequence/create_dup_restart	CREATE SEQUENCE a RESTART RESTART
+4306	4306	engine	objects@view	sequence/create_conflict_maxvalue	CREATE SEQUENCE a MAXVALUE 5 NOMAXVALUE
+4307	4307	engine	objects@view	sequence/create_conflict_minvalue	CREATE SEQUENCE a MINVALUE 5 NOMINVALUE
+4309	4309	engine	objects@view	sequence/create_conflict_cache	CREATE SEQUENCE a CACHE 5 NOCACHE
+4310	4310	engine	objects@view	sequence/create_conflict_order	CREATE SEQUENCE a ORDER NOORDER
+4308	4308	engine	objects@view	sequence/create_conflict_cycle	CREATE SEQUENCE a NOCYCLE CYCLE
+4310	4310	engine	objects@view	sequence/create_conflicts_in_order	CREATE SEQUENCE a CYCLE NOCYCLE ORDER NOORDER
+4330	4330	engine	objects@view	sequence/create_if_not_exists_cycle	CREATE SEQUENCE IF NOT EXISTS a CYCLE
+4308	4308	engine	objects@view	sequence/create_if_not_exists_conflict	CREATE SEQUENCE IF NOT EXISTS a CYCLE NOCYCLE
+1049	1049	engine	objects@view	sequence/create_unknown_db	CREATE SEQUENCE nope.a
+1049	1049	engine	objects@view	sequence/create_unknown_db_cycle	CREATE SEQUENCE nope.a CYCLE
+4308	4308	engine	objects@view	sequence/create_unknown_db_conflict	CREATE SEQUENCE nope.a CYCLE NOCYCLE
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence/create_other_case	CREATE SEQUENCE A
+ok:d391805639b1	ok:d391805639b1	engine	objects@view	sequence/create_other_name	CREATE SEQUENCE b
+ok:c3b7d5bfc7e1	ok:c3b7d5bfc7e1	engine	objects@view	sequence/create_name_64	CREATE SEQUENCE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+1059	1059	engine	objects@view	sequence/create_name_65	CREATE SEQUENCE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+4298	4298	engine	objects@view	sequence/alter_nomaxvalue	ALTER SEQUENCE a NOMAXVALUE
+4298	4298	engine	objects@view	sequence/alter_nominvalue	ALTER SEQUENCE a NOMINVALUE
+4298	4298	engine	objects@view	sequence/alter_maxvalue_one	ALTER SEQUENCE a MAXVALUE 1
+4298	4298	engine	objects@view	sequence/alter_maxvalue	ALTER SEQUENCE a MAXVALUE 1000
+4298	4298	engine	objects@view	sequence/alter_minvalue	ALTER SEQUENCE a MINVALUE 1
+4298	4298	engine	objects@view	sequence/alter_minvalue_negative	ALTER SEQUENCE a MINVALUE -50
+4298	4298	engine	objects@view	sequence/alter_start	ALTER SEQUENCE a START WITH 1
+4298	4298	engine	objects@view	sequence/alter_restart	ALTER SEQUENCE a RESTART
+4298	4298	engine	objects@view	sequence/alter_restart_start	ALTER SEQUENCE a RESTART START WITH 5
+4298	4298	engine	objects@view	sequence/alter_restart_start_above_max	ALTER SEQUENCE a RESTART START WITH 1000
+4298	4298	engine	objects@view	sequence/alter_increment_descending	ALTER SEQUENCE a INCREMENT BY -1
+4298	4298	engine	objects@view	sequence/alter_increment	ALTER SEQUENCE a INCREMENT BY 1
+4298	4298	engine	objects@view	sequence/alter_increment_zero	ALTER SEQUENCE a INCREMENT BY 0
+4298	4298	engine	objects@view	sequence/alter_increment_descending_restart	ALTER SEQUENCE a INCREMENT BY -1 RESTART
+4298	4298	engine	objects@view	sequence/alter_cycle	ALTER SEQUENCE a CYCLE
+4298	4298	engine	objects@view	sequence/alter_nocycle	ALTER SEQUENCE a NOCYCLE
+4298	4298	engine	objects@view	sequence/alter_cache_one	ALTER SEQUENCE a CACHE 1
+4298	4298	engine	objects@view	sequence/alter_cache	ALTER SEQUENCE a CACHE 2
+4298	4298	engine	objects@view	sequence/alter_cache_large	ALTER SEQUENCE a CACHE 1000
+4298	4298	engine	objects@view	sequence/alter_nocache	ALTER SEQUENCE a NOCACHE
+4298	4298	engine	objects@view	sequence/alter_order	ALTER SEQUENCE a ORDER
+4298	4298	engine	objects@view	sequence/alter_noorder	ALTER SEQUENCE a NOORDER
+4298	4298	engine	objects@view	sequence/alter_maxvalue_fraction	ALTER SEQUENCE a MAXVALUE 1.5
+4298	4298	engine	objects@view	sequence/alter_nomaxvalue_cycle	ALTER SEQUENCE a NOMAXVALUE CYCLE
+4308	4308	engine	objects@view	sequence/alter_conflict_cycle	ALTER SEQUENCE a CYCLE NOCYCLE
+4382	4382	engine	objects@view	sequence/alter_dup_restart	ALTER SEQUENCE a RESTART RESTART
+4298	4298	engine	objects@view	sequence/alter_other_case	ALTER SEQUENCE A NOCACHE
+4298	4298	engine	objects@view	sequence/alter_missing	ALTER SEQUENCE b NOCACHE
+4314	4314	engine	objects@view	sequence/alter_missing_no_option	ALTER SEQUENCE b
+1049	1049	engine	objects@view	sequence/alter_unknown_db	ALTER SEQUENCE nope.a NOCACHE
+1059	1059	engine	objects@view	sequence/alter_name_65	ALTER SEQUENCE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+4298	4298	engine	objects@view	sequence/drop_other_case	DROP SEQUENCE A
+4298	4298	engine	objects@view	sequence/drop_missing	DROP SEQUENCE b
+ok:d166d05fe30b	ok:d166d05fe30b	engine	objects@view	sequence/drop_if_exists_missing	DROP SEQUENCE IF EXISTS b
+1049	1049	engine	objects@view	sequence/drop_unknown_db	DROP SEQUENCE nope.a
+1049	1049	engine	objects@view	sequence/drop_if_exists_unknown_db	DROP SEQUENCE IF EXISTS nope.a
+4297	4297	engine	objects@sequence	stmt/create_sequence_stmt	CREATE SEQUENCE a
+4314	4314	engine	objects@sequence	stmt/alter_sequence_stmt	ALTER SEQUENCE a
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@sequence	stmt/drop_sequence_stmt	DROP SEQUENCE a
+ok:8304a329b142	ok:8304a329b142	engine	objects@sequence	create_sequence_stmt/create_with_opt_hint_SEQUENCE_opt_if_not_exists_relation_factor_opt_sequence_option_list+opt_if_not_exists	CREATE SEQUENCE IF NOT EXISTS a
+4297	4297	engine	objects@sequence	opt_sequence_option_list/sequence_option_list	CREATE SEQUENCE a NOMAXVALUE
+4301	4301	engine	objects@sequence	sequence_option_list/sequence_option_list_sequence_option	CREATE SEQUENCE a NOMAXVALUE NOMAXVALUE
+4297	4297	engine	objects@sequence	sequence_option_list/sequence_option_list_sequence_option!swap	CREATE SEQUENCE a NOMINVALUE NOMAXVALUE
+4297	4297	engine	objects@sequence	sequence_option/INCREMENT_BY_simple_num	CREATE SEQUENCE a INCREMENT BY 1
+4297	4297	engine	objects@sequence	sequence_option/START_WITH_simple_num	CREATE SEQUENCE a START WITH 1
+4297	4297	engine	objects@sequence	sequence_option/MAXVALUE_simple_num	CREATE SEQUENCE a MAXVALUE 1
+4297	4297	engine	objects@sequence	sequence_option/MINVALUE_simple_num	CREATE SEQUENCE a MINVALUE 1
+4297	4297	engine	objects@sequence	sequence_option/NOMINVALUE	CREATE SEQUENCE a NOMINVALUE
+4297	4297	engine	objects@sequence	sequence_option/CYCLE	CREATE SEQUENCE a CYCLE
+4297	4297	engine	objects@sequence	sequence_option/NOCYCLE	CREATE SEQUENCE a NOCYCLE
+4297	4297	engine	objects@sequence	sequence_option/CACHE_simple_num	CREATE SEQUENCE a CACHE 1
+4297	4297	engine	objects@sequence	sequence_option/NOCACHE	CREATE SEQUENCE a NOCACHE
+4297	4297	engine	objects@sequence	sequence_option/ORDER	CREATE SEQUENCE a ORDER
+4297	4297	engine	objects@sequence	sequence_option/NOORDER	CREATE SEQUENCE a NOORDER
+1149	1149	engine	objects@sequence	sequence_option/RESTART	CREATE SEQUENCE a RESTART
+4297	4297	engine	objects@sequence	simple_num/+_INTNUM	CREATE SEQUENCE a MAXVALUE + 1
+4297	4297	engine	objects@sequence	simple_num/-_INTNUM	CREATE SEQUENCE a MAXVALUE - 1
+4297	4297	engine	objects@sequence	simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE + 1.5
+4297	4297	engine	objects@sequence	simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE - 1.5
+4297	4297	engine	objects@sequence	simple_num/DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE 1.5
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@sequence	drop_sequence_stmt/DROP_SEQUENCE_opt_if_exists_relation_factor+opt_if_exists	DROP SEQUENCE IF EXISTS a
+4297	4297	engine	objects@sequence	sequence/create_start_increment	CREATE SEQUENCE a START WITH 5 INCREMENT BY 2
+4297	4297	engine	objects@sequence	sequence/create_descending	CREATE SEQUENCE a INCREMENT BY -1
+4297	4297	engine	objects@sequence	sequence/create_descending_minvalue	CREATE SEQUENCE a MINVALUE -10 INCREMENT BY -2
+4297	4297	engine	objects@sequence	sequence/create_descending_start_above_max	CREATE SEQUENCE a INCREMENT BY -3 START WITH 4
+4297	4297	engine	objects@sequence	sequence/create_every_option	CREATE SEQUENCE a START WITH 5 INCREMENT BY 2 MINVALUE 1 MAXVALUE 100 CACHE 10 CYCLE ORDER
+4297	4297	engine	objects@sequence	sequence/create_cycle_cache_fits	CREATE SEQUENCE a MAXVALUE 100 CYCLE CACHE 10
+4297	4297	engine	objects@sequence	sequence/create_cycle_cache_two	CREATE SEQUENCE a CACHE 2 CYCLE MAXVALUE 3
+4297	4297	engine	objects@sequence	sequence/create_cycle_cache_too_large	CREATE SEQUENCE a MAXVALUE 100 CYCLE CACHE 200
+4297	4297	engine	objects@sequence	sequence/create_cycle_cache_one_cycle	CREATE SEQUENCE a CACHE 2 CYCLE MAXVALUE 2
+4297	4297	engine	objects@sequence	sequence/create_cycle_default_cache	CREATE SEQUENCE a MAXVALUE 5 CYCLE
+4297	4297	engine	objects@sequence	sequence/create_descending_cycle	CREATE SEQUENCE a INCREMENT BY -1 CYCLE
+4297	4297	engine	objects@sequence	sequence/create_descending_cycle_minvalue	CREATE SEQUENCE a INCREMENT BY -1 MINVALUE -100 CYCLE
+4297	4297	engine	objects@sequence	sequence/create_cache_zero	CREATE SEQUENCE a CACHE 0
+4297	4297	engine	objects@sequence	sequence/create_cache_two	CREATE SEQUENCE a CACHE 2
+4297	4297	engine	objects@sequence	sequence/create_increment_zero	CREATE SEQUENCE a INCREMENT BY 0
+4297	4297	engine	objects@sequence	sequence/create_increment_zero_cache_one	CREATE SEQUENCE a INCREMENT BY 0 CACHE 1
+4297	4297	engine	objects@sequence	sequence/create_cache_one_maxvalue_one	CREATE SEQUENCE a CACHE 1 MAXVALUE 1
+4297	4297	engine	objects@sequence	sequence/create_start_below_min	CREATE SEQUENCE a START WITH 0
+4297	4297	engine	objects@sequence	sequence/create_start_negative	CREATE SEQUENCE a START WITH -5
+4297	4297	engine	objects@sequence	sequence/create_start_above_max	CREATE SEQUENCE a START WITH 100 MAXVALUE 10
+4297	4297	engine	objects@sequence	sequence/create_min_above_max	CREATE SEQUENCE a MINVALUE 10 MAXVALUE 5
+4297	4297	engine	objects@sequence	sequence/create_min_at_int64	CREATE SEQUENCE a MINVALUE 9223372036854775807
+4297	4297	engine	objects@sequence	sequence/create_increment_too_large	CREATE SEQUENCE a MINVALUE 1 MAXVALUE 3 INCREMENT BY 5
+4297	4297	engine	objects@sequence	sequence/create_maxvalue_past_int64	CREATE SEQUENCE a MAXVALUE 9223372036854775808
+4297	4297	engine	objects@sequence	sequence/create_maxvalue_past_uint64	CREATE SEQUENCE a MAXVALUE 99999999999999999999999999999
+4297	4297	engine	objects@sequence	sequence/create_minvalue_past_int64	CREATE SEQUENCE a MINVALUE -99999999999999999999999999999 INCREMENT BY -1
+4297	4297	engine	objects@sequence	sequence/create_maxvalue_whole_decimal	CREATE SEQUENCE a MAXVALUE 10.0
+4297	4297	engine	objects@sequence	sequence/create_maxvalue_wide_fraction	CREATE SEQUENCE a MAXVALUE 99999999999999999999.5
+4297	4297	engine	objects@sequence	sequence/create_maxvalue_fraction_cycle	CREATE SEQUENCE a MAXVALUE 1.5 CYCLE
+4297	4297	engine	objects@sequence	sequence/create_minvalue_fraction	CREATE SEQUENCE a MINVALUE 1.5
+4297	4297	engine	objects@sequence	sequence/create_increment_fraction	CREATE SEQUENCE a INCREMENT BY 1.5
+4297	4297	engine	objects@sequence	sequence/create_start_fraction	CREATE SEQUENCE a START WITH 1.5
+4297	4297	engine	objects@sequence	sequence/create_cache_fraction	CREATE SEQUENCE a CACHE 1.5
+5114	5114	engine	objects@sequence	sequence/create_maxvalue_exponent	CREATE SEQUENCE a MAXVALUE 1e5
+4297	4297	engine	objects@sequence	sequence/create_nomaxvalue_descending	CREATE SEQUENCE a NOMAXVALUE INCREMENT BY -1
+4312	4312	engine	objects@sequence	sequence/create_dup_increment	CREATE SEQUENCE a INCREMENT BY 1 INCREMENT BY 2
+4313	4313	engine	objects@sequence	sequence/create_dup_start	CREATE SEQUENCE a START WITH 1 START WITH 2
+4301	4301	engine	objects@sequence	sequence/create_dup_maxvalue	CREATE SEQUENCE a MAXVALUE 5 MAXVALUE 6
+4302	4302	engine	objects@sequence	sequence/create_dup_minvalue	CREATE SEQUENCE a MINVALUE 1 MINVALUE 2
+4302	4302	engine	objects@sequence	sequence/create_dup_nominvalue	CREATE SEQUENCE a NOMINVALUE NOMINVALUE
+4304	4304	engine	objects@sequence	sequence/create_dup_cache	CREATE SEQUENCE a CACHE 2 CACHE 3
+4304	4304	engine	objects@sequence	sequence/create_dup_nocache	CREATE SEQUENCE a NOCACHE NOCACHE
+4303	4303	engine	objects@sequence	sequence/create_dup_cycle	CREATE SEQUENCE a CYCLE CYCLE
+4305	4305	engine	objects@sequence	sequence/create_dup_order	CREATE SEQUENCE a ORDER ORDER
+4382	4382	engine	objects@sequence	sequence/create_dup_restart	CREATE SEQUENCE a RESTART RESTART
+4306	4306	engine	objects@sequence	sequence/create_conflict_maxvalue	CREATE SEQUENCE a MAXVALUE 5 NOMAXVALUE
+4307	4307	engine	objects@sequence	sequence/create_conflict_minvalue	CREATE SEQUENCE a MINVALUE 5 NOMINVALUE
+4309	4309	engine	objects@sequence	sequence/create_conflict_cache	CREATE SEQUENCE a CACHE 5 NOCACHE
+4310	4310	engine	objects@sequence	sequence/create_conflict_order	CREATE SEQUENCE a ORDER NOORDER
+4308	4308	engine	objects@sequence	sequence/create_conflict_cycle	CREATE SEQUENCE a NOCYCLE CYCLE
+4310	4310	engine	objects@sequence	sequence/create_conflicts_in_order	CREATE SEQUENCE a CYCLE NOCYCLE ORDER NOORDER
+ok:8304a329b142	ok:8304a329b142	engine	objects@sequence	sequence/create_if_not_exists_cycle	CREATE SEQUENCE IF NOT EXISTS a CYCLE
+4308	4308	engine	objects@sequence	sequence/create_if_not_exists_conflict	CREATE SEQUENCE IF NOT EXISTS a CYCLE NOCYCLE
+1049	1049	engine	objects@sequence	sequence/create_unknown_db	CREATE SEQUENCE nope.a
+1049	1049	engine	objects@sequence	sequence/create_unknown_db_cycle	CREATE SEQUENCE nope.a CYCLE
+4308	4308	engine	objects@sequence	sequence/create_unknown_db_conflict	CREATE SEQUENCE nope.a CYCLE NOCYCLE
+4297	4297	engine	objects@sequence	sequence/create_other_case	CREATE SEQUENCE A
+ok:0ca948d6c33f	ok:0ca948d6c33f	engine	objects@sequence	sequence/create_other_name	CREATE SEQUENCE b
+ok:5d05bb023ba7	ok:5d05bb023ba7	engine	objects@sequence	sequence/create_name_64	CREATE SEQUENCE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+1059	1059	engine	objects@sequence	sequence/create_name_65	CREATE SEQUENCE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+ok:7f43e6b01af9	ok:7f43e6b01af9	engine	objects@sequence	sequence/alter_nomaxvalue	ALTER SEQUENCE a NOMAXVALUE
+ok:3b9abd3cb949	ok:3b9abd3cb949	engine	objects@sequence	sequence/alter_nominvalue	ALTER SEQUENCE a NOMINVALUE
+4320	4320	engine	objects@sequence	sequence/alter_maxvalue_one	ALTER SEQUENCE a MAXVALUE 1
+ok:7390c86cfda1	ok:7390c86cfda1	engine	objects@sequence	sequence/alter_maxvalue	ALTER SEQUENCE a MAXVALUE 1000
+ok:8304a329b142	ok:8304a329b142	engine	objects@sequence	sequence/alter_minvalue	ALTER SEQUENCE a MINVALUE 1
+ok:aead7869239b	ok:aead7869239b	engine	objects@sequence	sequence/alter_minvalue_negative	ALTER SEQUENCE a MINVALUE -50
+4311	4311	engine	objects@sequence	sequence/alter_start	ALTER SEQUENCE a START WITH 1
+ok:8304a329b142	ok:8304a329b142	engine	objects@sequence	sequence/alter_restart	ALTER SEQUENCE a RESTART
+ok:200719c3fe97	ok:200719c3fe97	engine	objects@sequence	sequence/alter_restart_start	ALTER SEQUENCE a RESTART START WITH 5
+ok:fc55e628c718	ok:fc55e628c718	engine	objects@sequence	sequence/alter_restart_start_above_max	ALTER SEQUENCE a RESTART START WITH 1000
+ok:64b316a52624	ok:64b316a52624	engine	objects@sequence	sequence/alter_increment_descending	ALTER SEQUENCE a INCREMENT BY -1
+ok:8304a329b142	ok:8304a329b142	engine	objects@sequence	sequence/alter_increment	ALTER SEQUENCE a INCREMENT BY 1
+4318	4318	engine	objects@sequence	sequence/alter_increment_zero	ALTER SEQUENCE a INCREMENT BY 0
+ok:ffea9ceaba57	ok:ffea9ceaba57	engine	objects@sequence	sequence/alter_increment_descending_restart	ALTER SEQUENCE a INCREMENT BY -1 RESTART
+ok:21f1851ec676	ok:21f1851ec676	engine	objects@sequence	sequence/alter_cycle	ALTER SEQUENCE a CYCLE
+ok:8304a329b142	ok:8304a329b142	engine	objects@sequence	sequence/alter_nocycle	ALTER SEQUENCE a NOCYCLE
+4326	4326	engine	objects@sequence	sequence/alter_cache_one	ALTER SEQUENCE a CACHE 1
+ok:582abe33a407	ok:582abe33a407	engine	objects@sequence	sequence/alter_cache	ALTER SEQUENCE a CACHE 2
+ok:05ce1fdcbc31	ok:05ce1fdcbc31	engine	objects@sequence	sequence/alter_cache_large	ALTER SEQUENCE a CACHE 1000
+ok:b46b0cedfa03	ok:b46b0cedfa03	engine	objects@sequence	sequence/alter_nocache	ALTER SEQUENCE a NOCACHE
+ok:d4daa0851be7	ok:d4daa0851be7	engine	objects@sequence	sequence/alter_order	ALTER SEQUENCE a ORDER
+ok:8304a329b142	ok:8304a329b142	engine	objects@sequence	sequence/alter_noorder	ALTER SEQUENCE a NOORDER
+4317	4317	engine	objects@sequence	sequence/alter_maxvalue_fraction	ALTER SEQUENCE a MAXVALUE 1.5
+4330	4330	engine	objects@sequence	sequence/alter_nomaxvalue_cycle	ALTER SEQUENCE a NOMAXVALUE CYCLE
+4308	4308	engine	objects@sequence	sequence/alter_conflict_cycle	ALTER SEQUENCE a CYCLE NOCYCLE
+4382	4382	engine	objects@sequence	sequence/alter_dup_restart	ALTER SEQUENCE a RESTART RESTART
+ok:b46b0cedfa03	ok:b46b0cedfa03	engine	objects@sequence	sequence/alter_other_case	ALTER SEQUENCE A NOCACHE
+4298	4298	engine	objects@sequence	sequence/alter_missing	ALTER SEQUENCE b NOCACHE
+4314	4314	engine	objects@sequence	sequence/alter_missing_no_option	ALTER SEQUENCE b
+1049	1049	engine	objects@sequence	sequence/alter_unknown_db	ALTER SEQUENCE nope.a NOCACHE
+1059	1059	engine	objects@sequence	sequence/alter_name_65	ALTER SEQUENCE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@sequence	sequence/drop_other_case	DROP SEQUENCE A
+4298	4298	engine	objects@sequence	sequence/drop_missing	DROP SEQUENCE b
+ok:8304a329b142	ok:8304a329b142	engine	objects@sequence	sequence/drop_if_exists_missing	DROP SEQUENCE IF EXISTS b
+1049	1049	engine	objects@sequence	sequence/drop_unknown_db	DROP SEQUENCE nope.a
+1049	1049	engine	objects@sequence	sequence/drop_if_exists_unknown_db	DROP SEQUENCE IF EXISTS nope.a
+4297	4297	engine	objects@sequence_options	stmt/create_sequence_stmt	CREATE SEQUENCE a
+4314	4314	engine	objects@sequence_options	stmt/alter_sequence_stmt	ALTER SEQUENCE a
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@sequence_options	stmt/drop_sequence_stmt	DROP SEQUENCE a
+ok:4a375443b8ea	ok:4a375443b8ea	engine	objects@sequence_options	create_sequence_stmt/create_with_opt_hint_SEQUENCE_opt_if_not_exists_relation_factor_opt_sequence_option_list+opt_if_not_exists	CREATE SEQUENCE IF NOT EXISTS a
+4297	4297	engine	objects@sequence_options	opt_sequence_option_list/sequence_option_list	CREATE SEQUENCE a NOMAXVALUE
+4301	4301	engine	objects@sequence_options	sequence_option_list/sequence_option_list_sequence_option	CREATE SEQUENCE a NOMAXVALUE NOMAXVALUE
+4297	4297	engine	objects@sequence_options	sequence_option_list/sequence_option_list_sequence_option!swap	CREATE SEQUENCE a NOMINVALUE NOMAXVALUE
+4297	4297	engine	objects@sequence_options	sequence_option/INCREMENT_BY_simple_num	CREATE SEQUENCE a INCREMENT BY 1
+4297	4297	engine	objects@sequence_options	sequence_option/START_WITH_simple_num	CREATE SEQUENCE a START WITH 1
+4297	4297	engine	objects@sequence_options	sequence_option/MAXVALUE_simple_num	CREATE SEQUENCE a MAXVALUE 1
+4297	4297	engine	objects@sequence_options	sequence_option/MINVALUE_simple_num	CREATE SEQUENCE a MINVALUE 1
+4297	4297	engine	objects@sequence_options	sequence_option/NOMINVALUE	CREATE SEQUENCE a NOMINVALUE
+4297	4297	engine	objects@sequence_options	sequence_option/CYCLE	CREATE SEQUENCE a CYCLE
+4297	4297	engine	objects@sequence_options	sequence_option/NOCYCLE	CREATE SEQUENCE a NOCYCLE
+4297	4297	engine	objects@sequence_options	sequence_option/CACHE_simple_num	CREATE SEQUENCE a CACHE 1
+4297	4297	engine	objects@sequence_options	sequence_option/NOCACHE	CREATE SEQUENCE a NOCACHE
+4297	4297	engine	objects@sequence_options	sequence_option/ORDER	CREATE SEQUENCE a ORDER
+4297	4297	engine	objects@sequence_options	sequence_option/NOORDER	CREATE SEQUENCE a NOORDER
+1149	1149	engine	objects@sequence_options	sequence_option/RESTART	CREATE SEQUENCE a RESTART
+4297	4297	engine	objects@sequence_options	simple_num/+_INTNUM	CREATE SEQUENCE a MAXVALUE + 1
+4297	4297	engine	objects@sequence_options	simple_num/-_INTNUM	CREATE SEQUENCE a MAXVALUE - 1
+4297	4297	engine	objects@sequence_options	simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE + 1.5
+4297	4297	engine	objects@sequence_options	simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE - 1.5
+4297	4297	engine	objects@sequence_options	simple_num/DECIMAL_VAL	CREATE SEQUENCE a MAXVALUE 1.5
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@sequence_options	drop_sequence_stmt/DROP_SEQUENCE_opt_if_exists_relation_factor+opt_if_exists	DROP SEQUENCE IF EXISTS a
+4297	4297	engine	objects@sequence_options	sequence/create_start_increment	CREATE SEQUENCE a START WITH 5 INCREMENT BY 2
+4297	4297	engine	objects@sequence_options	sequence/create_descending	CREATE SEQUENCE a INCREMENT BY -1
+4297	4297	engine	objects@sequence_options	sequence/create_descending_minvalue	CREATE SEQUENCE a MINVALUE -10 INCREMENT BY -2
+4297	4297	engine	objects@sequence_options	sequence/create_descending_start_above_max	CREATE SEQUENCE a INCREMENT BY -3 START WITH 4
+4297	4297	engine	objects@sequence_options	sequence/create_every_option	CREATE SEQUENCE a START WITH 5 INCREMENT BY 2 MINVALUE 1 MAXVALUE 100 CACHE 10 CYCLE ORDER
+4297	4297	engine	objects@sequence_options	sequence/create_cycle_cache_fits	CREATE SEQUENCE a MAXVALUE 100 CYCLE CACHE 10
+4297	4297	engine	objects@sequence_options	sequence/create_cycle_cache_two	CREATE SEQUENCE a CACHE 2 CYCLE MAXVALUE 3
+4297	4297	engine	objects@sequence_options	sequence/create_cycle_cache_too_large	CREATE SEQUENCE a MAXVALUE 100 CYCLE CACHE 200
+4297	4297	engine	objects@sequence_options	sequence/create_cycle_cache_one_cycle	CREATE SEQUENCE a CACHE 2 CYCLE MAXVALUE 2
+4297	4297	engine	objects@sequence_options	sequence/create_cycle_default_cache	CREATE SEQUENCE a MAXVALUE 5 CYCLE
+4297	4297	engine	objects@sequence_options	sequence/create_descending_cycle	CREATE SEQUENCE a INCREMENT BY -1 CYCLE
+4297	4297	engine	objects@sequence_options	sequence/create_descending_cycle_minvalue	CREATE SEQUENCE a INCREMENT BY -1 MINVALUE -100 CYCLE
+4297	4297	engine	objects@sequence_options	sequence/create_cache_zero	CREATE SEQUENCE a CACHE 0
+4297	4297	engine	objects@sequence_options	sequence/create_cache_two	CREATE SEQUENCE a CACHE 2
+4297	4297	engine	objects@sequence_options	sequence/create_increment_zero	CREATE SEQUENCE a INCREMENT BY 0
+4297	4297	engine	objects@sequence_options	sequence/create_increment_zero_cache_one	CREATE SEQUENCE a INCREMENT BY 0 CACHE 1
+4297	4297	engine	objects@sequence_options	sequence/create_cache_one_maxvalue_one	CREATE SEQUENCE a CACHE 1 MAXVALUE 1
+4297	4297	engine	objects@sequence_options	sequence/create_start_below_min	CREATE SEQUENCE a START WITH 0
+4297	4297	engine	objects@sequence_options	sequence/create_start_negative	CREATE SEQUENCE a START WITH -5
+4297	4297	engine	objects@sequence_options	sequence/create_start_above_max	CREATE SEQUENCE a START WITH 100 MAXVALUE 10
+4297	4297	engine	objects@sequence_options	sequence/create_min_above_max	CREATE SEQUENCE a MINVALUE 10 MAXVALUE 5
+4297	4297	engine	objects@sequence_options	sequence/create_min_at_int64	CREATE SEQUENCE a MINVALUE 9223372036854775807
+4297	4297	engine	objects@sequence_options	sequence/create_increment_too_large	CREATE SEQUENCE a MINVALUE 1 MAXVALUE 3 INCREMENT BY 5
+4297	4297	engine	objects@sequence_options	sequence/create_maxvalue_past_int64	CREATE SEQUENCE a MAXVALUE 9223372036854775808
+4297	4297	engine	objects@sequence_options	sequence/create_maxvalue_past_uint64	CREATE SEQUENCE a MAXVALUE 99999999999999999999999999999
+4297	4297	engine	objects@sequence_options	sequence/create_minvalue_past_int64	CREATE SEQUENCE a MINVALUE -99999999999999999999999999999 INCREMENT BY -1
+4297	4297	engine	objects@sequence_options	sequence/create_maxvalue_whole_decimal	CREATE SEQUENCE a MAXVALUE 10.0
+4297	4297	engine	objects@sequence_options	sequence/create_maxvalue_wide_fraction	CREATE SEQUENCE a MAXVALUE 99999999999999999999.5
+4297	4297	engine	objects@sequence_options	sequence/create_maxvalue_fraction_cycle	CREATE SEQUENCE a MAXVALUE 1.5 CYCLE
+4297	4297	engine	objects@sequence_options	sequence/create_minvalue_fraction	CREATE SEQUENCE a MINVALUE 1.5
+4297	4297	engine	objects@sequence_options	sequence/create_increment_fraction	CREATE SEQUENCE a INCREMENT BY 1.5
+4297	4297	engine	objects@sequence_options	sequence/create_start_fraction	CREATE SEQUENCE a START WITH 1.5
+4297	4297	engine	objects@sequence_options	sequence/create_cache_fraction	CREATE SEQUENCE a CACHE 1.5
+5114	5114	engine	objects@sequence_options	sequence/create_maxvalue_exponent	CREATE SEQUENCE a MAXVALUE 1e5
+4297	4297	engine	objects@sequence_options	sequence/create_nomaxvalue_descending	CREATE SEQUENCE a NOMAXVALUE INCREMENT BY -1
+4312	4312	engine	objects@sequence_options	sequence/create_dup_increment	CREATE SEQUENCE a INCREMENT BY 1 INCREMENT BY 2
+4313	4313	engine	objects@sequence_options	sequence/create_dup_start	CREATE SEQUENCE a START WITH 1 START WITH 2
+4301	4301	engine	objects@sequence_options	sequence/create_dup_maxvalue	CREATE SEQUENCE a MAXVALUE 5 MAXVALUE 6
+4302	4302	engine	objects@sequence_options	sequence/create_dup_minvalue	CREATE SEQUENCE a MINVALUE 1 MINVALUE 2
+4302	4302	engine	objects@sequence_options	sequence/create_dup_nominvalue	CREATE SEQUENCE a NOMINVALUE NOMINVALUE
+4304	4304	engine	objects@sequence_options	sequence/create_dup_cache	CREATE SEQUENCE a CACHE 2 CACHE 3
+4304	4304	engine	objects@sequence_options	sequence/create_dup_nocache	CREATE SEQUENCE a NOCACHE NOCACHE
+4303	4303	engine	objects@sequence_options	sequence/create_dup_cycle	CREATE SEQUENCE a CYCLE CYCLE
+4305	4305	engine	objects@sequence_options	sequence/create_dup_order	CREATE SEQUENCE a ORDER ORDER
+4382	4382	engine	objects@sequence_options	sequence/create_dup_restart	CREATE SEQUENCE a RESTART RESTART
+4306	4306	engine	objects@sequence_options	sequence/create_conflict_maxvalue	CREATE SEQUENCE a MAXVALUE 5 NOMAXVALUE
+4307	4307	engine	objects@sequence_options	sequence/create_conflict_minvalue	CREATE SEQUENCE a MINVALUE 5 NOMINVALUE
+4309	4309	engine	objects@sequence_options	sequence/create_conflict_cache	CREATE SEQUENCE a CACHE 5 NOCACHE
+4310	4310	engine	objects@sequence_options	sequence/create_conflict_order	CREATE SEQUENCE a ORDER NOORDER
+4308	4308	engine	objects@sequence_options	sequence/create_conflict_cycle	CREATE SEQUENCE a NOCYCLE CYCLE
+4310	4310	engine	objects@sequence_options	sequence/create_conflicts_in_order	CREATE SEQUENCE a CYCLE NOCYCLE ORDER NOORDER
+ok:4a375443b8ea	ok:4a375443b8ea	engine	objects@sequence_options	sequence/create_if_not_exists_cycle	CREATE SEQUENCE IF NOT EXISTS a CYCLE
+4308	4308	engine	objects@sequence_options	sequence/create_if_not_exists_conflict	CREATE SEQUENCE IF NOT EXISTS a CYCLE NOCYCLE
+1049	1049	engine	objects@sequence_options	sequence/create_unknown_db	CREATE SEQUENCE nope.a
+1049	1049	engine	objects@sequence_options	sequence/create_unknown_db_cycle	CREATE SEQUENCE nope.a CYCLE
+4308	4308	engine	objects@sequence_options	sequence/create_unknown_db_conflict	CREATE SEQUENCE nope.a CYCLE NOCYCLE
+4297	4297	engine	objects@sequence_options	sequence/create_other_case	CREATE SEQUENCE A
+ok:f7476899a5c8	ok:f7476899a5c8	engine	objects@sequence_options	sequence/create_other_name	CREATE SEQUENCE b
+ok:3efc3c4f082a	ok:3efc3c4f082a	engine	objects@sequence_options	sequence/create_name_64	CREATE SEQUENCE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+1059	1059	engine	objects@sequence_options	sequence/create_name_65	CREATE SEQUENCE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+ok:8432830894cc	ok:8432830894cc	engine	objects@sequence_options	sequence/alter_nomaxvalue	ALTER SEQUENCE a NOMAXVALUE
+4329	4329	engine	objects@sequence_options	sequence/alter_nominvalue	ALTER SEQUENCE a NOMINVALUE
+4324	4324	engine	objects@sequence_options	sequence/alter_maxvalue_one	ALTER SEQUENCE a MAXVALUE 1
+ok:0bec90e3cb37	ok:0bec90e3cb37	engine	objects@sequence_options	sequence/alter_maxvalue	ALTER SEQUENCE a MAXVALUE 1000
+ok:45ca2a206ba2	ok:45ca2a206ba2	engine	objects@sequence_options	sequence/alter_minvalue	ALTER SEQUENCE a MINVALUE 1
+ok:6ed2ab5ff42d	ok:6ed2ab5ff42d	engine	objects@sequence_options	sequence/alter_minvalue_negative	ALTER SEQUENCE a MINVALUE -50
+4311	4311	engine	objects@sequence_options	sequence/alter_start	ALTER SEQUENCE a START WITH 1
+ok:6beeef3fc642	ok:6beeef3fc642	engine	objects@sequence_options	sequence/alter_restart	ALTER SEQUENCE a RESTART
+ok:a0fffe027967	ok:a0fffe027967	engine	objects@sequence_options	sequence/alter_restart_start	ALTER SEQUENCE a RESTART START WITH 5
+4324	4324	engine	objects@sequence_options	sequence/alter_restart_start_above_max	ALTER SEQUENCE a RESTART START WITH 1000
+ok:ffc9bfcbef06	ok:ffc9bfcbef06	engine	objects@sequence_options	sequence/alter_increment_descending	ALTER SEQUENCE a INCREMENT BY -1
+ok:3fab4cce68f5	ok:3fab4cce68f5	engine	objects@sequence_options	sequence/alter_increment	ALTER SEQUENCE a INCREMENT BY 1
+4318	4318	engine	objects@sequence_options	sequence/alter_increment_zero	ALTER SEQUENCE a INCREMENT BY 0
+ok:69ab7d9be93a	ok:69ab7d9be93a	engine	objects@sequence_options	sequence/alter_increment_descending_restart	ALTER SEQUENCE a INCREMENT BY -1 RESTART
+ok:4a375443b8ea	ok:4a375443b8ea	engine	objects@sequence_options	sequence/alter_cycle	ALTER SEQUENCE a CYCLE
+ok:84fddd5c231c	ok:84fddd5c231c	engine	objects@sequence_options	sequence/alter_nocycle	ALTER SEQUENCE a NOCYCLE
+4326	4326	engine	objects@sequence_options	sequence/alter_cache_one	ALTER SEQUENCE a CACHE 1
+ok:b57c1c7a8288	ok:b57c1c7a8288	engine	objects@sequence_options	sequence/alter_cache	ALTER SEQUENCE a CACHE 2
+4328	4328	engine	objects@sequence_options	sequence/alter_cache_large	ALTER SEQUENCE a CACHE 1000
+ok:3118440441de	ok:3118440441de	engine	objects@sequence_options	sequence/alter_nocache	ALTER SEQUENCE a NOCACHE
+ok:4a375443b8ea	ok:4a375443b8ea	engine	objects@sequence_options	sequence/alter_order	ALTER SEQUENCE a ORDER
+ok:777fa2b63adc	ok:777fa2b63adc	engine	objects@sequence_options	sequence/alter_noorder	ALTER SEQUENCE a NOORDER
+4317	4317	engine	objects@sequence_options	sequence/alter_maxvalue_fraction	ALTER SEQUENCE a MAXVALUE 1.5
+ok:8432830894cc	ok:8432830894cc	engine	objects@sequence_options	sequence/alter_nomaxvalue_cycle	ALTER SEQUENCE a NOMAXVALUE CYCLE
+4308	4308	engine	objects@sequence_options	sequence/alter_conflict_cycle	ALTER SEQUENCE a CYCLE NOCYCLE
+4382	4382	engine	objects@sequence_options	sequence/alter_dup_restart	ALTER SEQUENCE a RESTART RESTART
+ok:3118440441de	ok:3118440441de	engine	objects@sequence_options	sequence/alter_other_case	ALTER SEQUENCE A NOCACHE
+4298	4298	engine	objects@sequence_options	sequence/alter_missing	ALTER SEQUENCE b NOCACHE
+4314	4314	engine	objects@sequence_options	sequence/alter_missing_no_option	ALTER SEQUENCE b
+1049	1049	engine	objects@sequence_options	sequence/alter_unknown_db	ALTER SEQUENCE nope.a NOCACHE
+1059	1059	engine	objects@sequence_options	sequence/alter_name_65	ALTER SEQUENCE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@sequence_options	sequence/drop_other_case	DROP SEQUENCE A
+4298	4298	engine	objects@sequence_options	sequence/drop_missing	DROP SEQUENCE b
+ok:4a375443b8ea	ok:4a375443b8ea	engine	objects@sequence_options	sequence/drop_if_exists_missing	DROP SEQUENCE IF EXISTS b
+1049	1049	engine	objects@sequence_options	sequence/drop_unknown_db	DROP SEQUENCE nope.a
+1049	1049	engine	objects@sequence_options	sequence/drop_if_exists_unknown_db	DROP SEQUENCE IF EXISTS nope.a

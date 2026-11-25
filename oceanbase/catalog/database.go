@@ -19,6 +19,9 @@ type Database struct {
 	Procedures                map[string]*Routine // lowered name -> stored procedure
 	Triggers                  map[string]*Trigger // lowered name -> trigger
 	Events                    map[string]*Event   // lowered name -> event
+	// Sequences are the database's sequences, whose names are apart from its
+	// tables' and views'.
+	Sequences map[string]*Sequence // lowered name -> sequence
 }
 
 func newDatabase(name, charset, collation string) *Database {
@@ -34,6 +37,7 @@ func newDatabase(name, charset, collation string) *Database {
 		Procedures:                make(map[string]*Routine),
 		Triggers:                  make(map[string]*Trigger),
 		Events:                    make(map[string]*Event),
+		Sequences:                 make(map[string]*Sequence),
 	}
 }
 

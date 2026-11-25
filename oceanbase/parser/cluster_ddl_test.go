@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
@@ -93,6 +94,40 @@ func TestClusterDDL(t *testing.T) {
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) was accepted", sql)
+		}
+	}
+}
+
+// TestSequenceOptions pins what a sequence statement keeps: IF [NOT] EXISTS,
+// and each option's words and its number as written, the sign joined to it.
+func TestSequenceOptions(t *testing.T) {
+	for _, tc := range []struct {
+		sql      string
+		ifExists bool
+		options  string
+	}{
+		{"CREATE SEQUENCE IF NOT EXISTS d.s1 START WITH - 5 INCREMENT BY +2 MAXVALUE 1.5 NOMINVALUE CYCLE", true, "START WITH=-5 INCREMENT BY=2 MAXVALUE=1.5 NOMINVALUE CYCLE"},
+		{"CREATE SEQUENCE s1 MAXVALUE 18446744073709551616 CACHE 1e5 NOCACHE ORDER NOORDER", false, "MAXVALUE=18446744073709551616 CACHE=1e5 NOCACHE ORDER NOORDER"},
+		{"ALTER SEQUENCE s1 RESTART MINVALUE -1 NOMAXVALUE NOCYCLE", false, "RESTART MINVALUE=-1 NOMAXVALUE NOCYCLE"},
+		{"ALTER SEQUENCE s1", false, ""},
+		{"DROP SEQUENCE IF EXISTS s1", true, ""},
+		{"DROP SEQUENCE s1", false, ""},
+	} {
+		list, err := Parse(tc.sql)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.sql, err)
+		}
+		stmt := list.Items[0].(*nodes.ObjectDDLStmt)
+		var got []string
+		for _, o := range stmt.Options {
+			if o.Value != "" {
+				got = append(got, o.Name+"="+o.Value)
+			} else {
+				got = append(got, o.Name)
+			}
+		}
+		if stmt.IfExists != tc.ifExists || strings.Join(got, " ") != tc.options {
+			t.Errorf("%s: IfExists %v, options %q; want %v, %q", tc.sql, stmt.IfExists, strings.Join(got, " "), tc.ifExists, tc.options)
 		}
 	}
 }

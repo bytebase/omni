@@ -2623,17 +2623,37 @@ func (s *AlterSystemStmt) stmtNode() {}
 // sensitive rule. Action is the statement and its object as the grammar writes
 // them ("CREATE TENANT", "ALTER RESOURCE POOL", "CREATE OR REPLACE FORMAT
 // OUTLINE"); Schema and Name are the object's name, Name empty where the
-// statement names none (ALTER TENANT ALL, CREATE SNAPSHOT). The options, and
-// an outline's statements, are parsed and not kept.
+// statement names none (ALTER TENANT ALL, CREATE SNAPSHOT). IfExists is IF
+// EXISTS or IF NOT EXISTS before the name. A sequence's options are kept in
+// Options; every other object's options, and an outline's statements, are
+// parsed and not kept.
 type ObjectDDLStmt struct {
-	Loc    Loc
-	Action string
-	Schema string
-	Name   string
+	Loc      Loc
+	Action   string
+	Schema   string
+	Name     string
+	IfExists bool
+	Options  []*SequenceOption
 }
 
 func (s *ObjectDDLStmt) nodeTag()  {}
 func (s *ObjectDDLStmt) stmtNode() {}
+
+// SequenceOption is one option of CREATE or ALTER SEQUENCE, in written order.
+// Name is the option's words: "INCREMENT BY", "START WITH", "MAXVALUE",
+// "MINVALUE", "CACHE", "NOMAXVALUE", "NOMINVALUE", "CYCLE", "NOCYCLE",
+// "NOCACHE", "ORDER", "NOORDER" or "RESTART". Value is the number of the first
+// five as written, its sign joined to it ("-1", "1.5"), and empty for the rest.
+//
+// Ref: sequence_option and simple_num in sql_parser_mysql_mode.y (oceanbase
+// v4.3.5_CE_BP6).
+type SequenceOption struct {
+	Loc   Loc
+	Name  string
+	Value string
+}
+
+func (o *SequenceOption) nodeTag() {}
 
 // AuditStmt is OceanBase's AUDIT or NOAUDIT statement. What it audits is
 // parsed and not kept.

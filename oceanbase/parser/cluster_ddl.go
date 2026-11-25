@@ -25,8 +25,8 @@ var (
 		p.sys.name = name
 		return true
 	})
-	sysIfNotExists = sysOpt("IF NOT EXISTS")
-	sysIfExists    = sysOpt("IF EXISTS")
+	sysIfNotExists = sysOpt(sysIfWords("IF NOT EXISTS"))
+	sysIfExists    = sysOpt(sysIfWords("IF EXISTS"))
 	sysZoneList    = sysList(sysStr, sysOptComma) // zone_list
 	sysStrList     = sysList(sysStr, sysComma)    // resource_pool_list
 	sysIDList      = sysList(sysInt, sysComma)    // id_list
@@ -145,14 +145,93 @@ var (
 	)
 	sysPartsOfEither = sysAlt(sysRangeParts, sysListParts) // opt_partition_range_or_list
 
-	// simple_num and sequence_option.
-	sysSimpleNum      = sysSeq(sysOpt(sysAlt(sysTok('+'), sysTok('-'))), sysNumber)
+	// sequence_option.
 	sysSequenceOption = sysAlt(
-		sysSeq(sysAlt("INCREMENT BY", "START WITH", "MAXVALUE", "MINVALUE", "CACHE"), sysSimpleNum),
-		"NOMAXVALUE", "NOMINVALUE", "CYCLE", "NOCYCLE", "NOCACHE", "ORDER", "NOORDER", "RESTART",
+		sysSequenceNumber("INCREMENT BY"), sysSequenceNumber("START WITH"),
+		sysSequenceNumber("MAXVALUE"), sysSequenceNumber("MINVALUE"), sysSequenceNumber("CACHE"),
+		sysSequenceWord("NOMAXVALUE"), sysSequenceWord("NOMINVALUE"), sysSequenceWord("CYCLE"),
+		sysSequenceWord("NOCYCLE"), sysSequenceWord("NOCACHE"), sysSequenceWord("ORDER"),
+		sysSequenceWord("NOORDER"), sysSequenceWord("RESTART"),
 	)
 	sysSequenceOptions = sysOpt(sysList(sysSequenceOption, sysSeq()))
 )
+
+// sysIfWords matches IF EXISTS or IF NOT EXISTS and records that it stood
+// there, giving the record back when what follows does not match.
+func sysIfWords(words string) sysPat {
+	match := sysSeq(words)
+	return func(p *Parser, k func() bool) bool {
+		return match(p, func() bool {
+			p.sys.ifExists = true
+			if k() {
+				return true
+			}
+			p.sys.ifExists = false
+			return false
+		})
+	}
+}
+
+// sysSequenceWord matches a sequence option that is its words alone and keeps it.
+func sysSequenceWord(words string) sysPat {
+	return sysSequenceOptionOf(words, nil)
+}
+
+// sysSequenceNumber matches a sequence option of words and a simple_num,
+// '+' or '-' and then an INTNUM or a DECIMAL_VAL, and keeps it with the number
+// as written, its sign joined to it.
+func sysSequenceNumber(words string) sysPat {
+	return sysSequenceOptionOf(words, func(p *Parser) (string, bool) {
+		sign := ""
+		if p.cur.Type == '+' || p.cur.Type == '-' {
+			if p.cur.Type == '-' {
+				sign = "-"
+			}
+			p.advance()
+		}
+		if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
+			return "", false
+		}
+		value := sign + p.cur.Str
+		p.advance()
+		return value, true
+	})
+}
+
+// sysSequenceOptionOf matches words and then value, where value is not nil,
+// and appends the option to the statement's, giving it back when what follows
+// does not match.
+func sysSequenceOptionOf(words string, value func(p *Parser) (string, bool)) sysPat {
+	match := sysSeq(words)
+	return func(p *Parser, k func() bool) bool {
+		start := p.cur.Loc
+		return match(p, func() bool {
+			s := p.saveScan()
+			text := ""
+			if value != nil {
+				v, ok := value(p)
+				if !ok {
+					p.sysMiss() // at the token the value refused
+					p.restoreScan(s)
+					return false
+				}
+				text = v
+			}
+			kept := len(p.sys.sequenceOptions)
+			p.sys.sequenceOptions = append(p.sys.sequenceOptions, &nodes.SequenceOption{
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
+				Name:  words,
+				Value: text,
+			})
+			if k() {
+				return true
+			}
+			p.sys.sequenceOptions = p.sys.sequenceOptions[:kept]
+			p.restoreScan(s)
+			return false
+		})
+	}
+}
 
 // sysParens is a comma-separated list of item in parentheses.
 func sysParens(item sysPat) sysPat {
@@ -268,9 +347,11 @@ func (p *Parser) parseClusterDDL(start int, verb string) (nodes.Node, bool, erro
 		return nil, true, err
 	}
 	return &nodes.ObjectDDLStmt{
-		Loc:    nodes.Loc{Start: start, End: p.prev.End},
-		Action: verb + " " + object,
-		Schema: p.sys.schema,
-		Name:   p.sys.name,
+		Loc:      nodes.Loc{Start: start, End: p.prev.End},
+		Action:   verb + " " + object,
+		Schema:   p.sys.schema,
+		Name:     p.sys.name,
+		IfExists: p.sys.ifExists,
+		Options:  p.sys.sequenceOptions,
 	}, true, nil
 }
