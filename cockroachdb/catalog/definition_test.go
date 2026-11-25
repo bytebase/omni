@@ -190,3 +190,22 @@ func TestSchemaDefinitionOwnedSequence(t *testing.T) {
 	require.Contains(t, def, `ALTER SEQUENCE "app"."s" OWNED BY "app"."t"."n";`)
 	require.Less(t, strings.Index(def, `CREATE TABLE "app"."t"`), strings.Index(def, "OWNED BY"))
 }
+
+// TestMetadataMigrationRefusesCompositeInUse refuses to change a composite
+// type a kept column uses: CockroachDB alters no composite type in place,
+// and dropping it would take the column with it.
+func TestMetadataMigrationRefusesCompositeInUse(t *testing.T) {
+	snapshot := func(attributes ...string) *metadata.DatabaseSchemaMetadata {
+		composite := &metadata.CompositeTypeMetadata{Name: "c"}
+		for _, name := range attributes {
+			composite.Attributes = append(composite.Attributes, &metadata.CompositeTypeAttribute{Name: name, Type: "bigint"})
+		}
+		return &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name:           "app",
+			CompositeTypes: []*metadata.CompositeTypeMetadata{composite},
+			Tables:         []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "payload", Type: "app.c", Nullable: true}}}},
+		}}}
+	}
+	_, err := catalog.MetadataMigration(snapshot("v"), snapshot("v", "w"), catalog.MetadataMigrationOptions{})
+	require.ErrorContains(t, err, "app.t.payload")
+}

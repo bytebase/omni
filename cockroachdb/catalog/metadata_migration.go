@@ -290,7 +290,11 @@ func (d *differ) diffTypes() error {
 				// converted away.
 				dropped[getObjectID(schema.Name, t.name())] = phaseLateDropTypes
 			case (t.enum == nil || old.enum == nil) && d.typeDefinition(*old) != d.typeDefinition(t):
-				// A changed composite goes early, to be created again.
+				// A changed composite goes early, to be created again, which a
+				// kept column of the type would stop.
+				if column := d.keptColumnOfType(schema.Name, t.name()); column != "" {
+					return fmt.Errorf("composite type %s.%s changes while column %s uses it; CockroachDB cannot alter a composite type in place", schema.Name, t.name(), column)
+				}
 				dropped[getObjectID(schema.Name, t.name())] = phaseDropTypes
 			}
 		}
@@ -332,6 +336,25 @@ func (d *differ) diffTypes() error {
 		d.add(phaseCreateTypes, MigrationOp{Type: OpCreateType, SchemaName: t.schema, ObjectName: t.name(), SQL: d.typeDefinition(t)})
 	}
 	return nil
+}
+
+// keptColumnOfType names a column of a table both snapshots hold whose type
+// is schema.name, or returns "".
+func (d *differ) keptColumnOfType(schema, name string) string {
+	typeName := schema + "." + name
+	for _, s := range d.from.schemas {
+		for _, table := range s.Tables {
+			if d.to.table(s.Name, table.Name) == nil {
+				continue
+			}
+			for _, column := range table.Columns {
+				if column.Type == typeName || column.Type == typeName+"[]" {
+					return s.Name + "." + table.Name + "." + column.Name
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func (d *differ) fromType(schema string, t qualifiedType) *qualifiedType {
@@ -1130,7 +1153,15 @@ func (d *differ) planRoutines() {
 	for _, schema := range d.from.schemas {
 		for _, table := range schema.Tables {
 			if target := d.to.table(schema.Name, table.Name); target != nil {
-				retyped[getObjectID(schema.Name, table.Name)] = retypedColumns(table, target)
+				// A removed column counts too: a routine reading it holds the
+				// column in place.
+				altered := retypedColumns(table, target)
+				for _, column := range table.Columns {
+					if findColumn(target, column.Name) == nil {
+						altered[column.Name] = true
+					}
+				}
+				retyped[getObjectID(schema.Name, table.Name)] = altered
 			}
 		}
 	}
@@ -1267,9 +1298,12 @@ func routineRelations(definition string) []string {
 	if !ok {
 		return nil
 	}
+	ctes := cteNames(routineBody(definition))
 	var relations []string
 	ctx := tree.NewFmtCtx(tree.FmtSimple, tree.FmtReformatTableNames(func(ctx *tree.FmtCtx, tn *tree.TableName) {
-		relations = append(relations, getObjectID(schemaOf(tn), string(tn.ObjectName)))
+		if tn.ExplicitSchema || !ctes[string(tn.ObjectName)] {
+			relations = append(relations, getObjectID(schemaOf(tn), string(tn.ObjectName)))
+		}
 		ctx.WithReformatTableNames(nil, func() { ctx.FormatNode(tn) })
 	}))
 	defer ctx.Close()

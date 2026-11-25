@@ -2922,6 +2922,12 @@
 | CREATE VIEW fid_routines.a_count AS SELECT count(*) AS n FROM fid_routines.z_rel;
 < ok 0 -
 > exec
+| CREATE VIEW fid_routines.z_cte AS WITH a_count AS (SELECT 1 AS id) SELECT id FROM a_count;
+< ok 0 -
+> exec
+| CREATE VIEW fid_routines.a_reads_z AS SELECT id FROM fid_routines.z_cte;
+< ok 0 -
+> exec
 | CREATE MATERIALIZED VIEW fid_routines.a_mcount AS SELECT count(*) AS n FROM fid_routines.z_rel;
 < ok 0 -
 > query
@@ -3116,6 +3122,34 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| a_reads_z
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
 : string
 |
 : string
@@ -3774,6 +3808,34 @@
 : string
 | fid_routines
 : string
+| z_cte
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
 | z_rel
 : string
 | id
@@ -4155,6 +4217,14 @@
 : string
 | fid_routines
 : string
+| a_reads_z
+: string
+| SELECT id FROM omni_testdefinitionfidelity.fid_routines.z_cte
+: null
+< row
+: string
+| fid_routines
+: string
 | v_item_names
 : string
 | SELECT name FROM omni_testdefinitionfidelity.fid_routines.v_items
@@ -4174,6 +4244,14 @@
 | v_renamed
 : string
 | SELECT id, name FROM omni_testdefinitionfidelity.fid_routines.items
+: null
+< row
+: string
+| fid_routines
+: string
+| z_cte
+: string
+| WITH a_count AS (SELECT 1 AS id) SELECT id FROM a_count
 : null
 > query
 |
@@ -4204,6 +4282,22 @@
 < column "source_schema" "NAME"
 < column "source_table" "NAME"
 < column "column_name" "NAME"
+> query ^
+: string
+| fid_routines
+: string
+| a_reads_z
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
+< row
+: string
+| fid_routines
+: string
+| z_cte
+: string
+| id
 > query ^
 : string
 | fid_routines
@@ -4280,6 +4374,15 @@
 | items
 : string
 | name
+> query ^
+: string
+| fid_routines
+: string
+| z_cte
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
 > query
 |
 | SELECT m.schemaname, m.matviewname, m.definition, obj_description(c.oid, 'pg_class')
@@ -4863,6 +4966,14 @@
 | SELECT id, name FROM fid_routines.items;
 < ok 0 -
 > exec
+| CREATE VIEW "fid_routines"."z_cte" ("id") AS 
+| WITH a_count AS (SELECT 1 AS id) SELECT id FROM a_count;
+< ok 0 -
+> exec
+| CREATE VIEW "fid_routines"."a_reads_z" ("id") AS 
+| SELECT id FROM fid_routines.z_cte;
+< ok 0 -
+> exec
 | CREATE FUNCTION fid_routines.z_read()
 | 	RETURNS INT8
 | 	VOLATILE
@@ -5090,6 +5201,34 @@
 : null
 : string
 | YES
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| a_reads_z
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
 : string
 |
 : string
@@ -5748,6 +5887,34 @@
 : string
 | fid_routines
 : string
+| z_cte
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
 | z_rel
 : string
 | id
@@ -6129,6 +6296,14 @@
 : string
 | fid_routines
 : string
+| a_reads_z
+: string
+| SELECT id FROM omni_testdefinitionfidelity.fid_routines.z_cte
+: null
+< row
+: string
+| fid_routines
+: string
 | v_item_names
 : string
 | SELECT name FROM omni_testdefinitionfidelity.fid_routines.v_items
@@ -6148,6 +6323,14 @@
 | v_renamed
 : string
 | SELECT id, name FROM omni_testdefinitionfidelity.fid_routines.items
+: null
+< row
+: string
+| fid_routines
+: string
+| z_cte
+: string
+| WITH a_count AS (SELECT 1 AS id) SELECT id FROM a_count
 : null
 > query
 |
@@ -6178,6 +6361,22 @@
 < column "source_schema" "NAME"
 < column "source_table" "NAME"
 < column "column_name" "NAME"
+> query ^
+: string
+| fid_routines
+: string
+| a_reads_z
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
+< row
+: string
+| fid_routines
+: string
+| z_cte
+: string
+| id
 > query ^
 : string
 | fid_routines
@@ -6254,6 +6453,15 @@
 | items
 : string
 | name
+> query ^
+: string
+| fid_routines
+: string
+| z_cte
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
 > query
 |
 | SELECT m.schemaname, m.matviewname, m.definition, obj_description(c.oid, 'pg_class')

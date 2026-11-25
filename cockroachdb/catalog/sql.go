@@ -67,14 +67,46 @@ func queryRelations(query string) []string {
 	if err != nil {
 		return nil
 	}
+	ctes := cteNames(query)
 	var relations []string
 	ctx := tree.NewFmtCtx(tree.FmtSimple, tree.FmtReformatTableNames(func(ctx *tree.FmtCtx, tn *tree.TableName) {
-		relations = append(relations, getObjectID(schemaOf(tn), string(tn.ObjectName)))
+		if tn.ExplicitSchema || !ctes[string(tn.ObjectName)] {
+			relations = append(relations, getObjectID(schemaOf(tn), string(tn.ObjectName)))
+		}
 		ctx.WithReformatTableNames(nil, func() { ctx.FormatNode(tn) })
 	}))
 	ctx.FormatNode(stmt)
 	ctx.Close()
 	return relations
+}
+
+// cteNames returns the names a query's WITH clauses bind: a word followed by
+// AS ( or by a column list and AS (, after WITH, RECURSIVE or a comma. An
+// unqualified relation of one of these names is the CTE, not a stored
+// relation.
+func cteNames(query string) map[string]bool {
+	tokens, ok := crparser.Tokens(query)
+	if !ok {
+		return nil
+	}
+	names := make(map[string]bool)
+	for i := 1; i+1 < len(tokens); i++ {
+		before := strings.ToUpper(tokens[i-1].Str)
+		if before != "WITH" && before != "RECURSIVE" && before != "," {
+			continue
+		}
+		j := i + 1
+		if tokens[j].Str == "(" {
+			for j < len(tokens) && tokens[j].Str != ")" {
+				j++
+			}
+			j++
+		}
+		if j+1 < len(tokens) && strings.EqualFold(tokens[j].Str, "AS") {
+			names[tokens[i].Str] = true
+		}
+	}
+	return names
 }
 
 // routineDefinition returns a CREATE FUNCTION or CREATE PROCEDURE with the

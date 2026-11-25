@@ -6035,6 +6035,12 @@
 | CREATE FUNCTION fid_v.count_old_caller() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.count_old() $$;
 < ok 0 -
 > exec
+| CREATE TABLE fid_v.ab (id INT8 PRIMARY KEY, b INT8);
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.read_ab() RETURNS INT8 LANGUAGE SQL AS $$ SELECT max(b) FROM fid_v.ab $$;
+< ok 0 -
+> exec
 | ALTER TABLE fid_v.items ADD COLUMN doubled DECIMAL AS (price * 2) VIRTUAL;
 < ok 0 -
 > exec
@@ -6154,6 +6160,62 @@
 < column "is_hidden" "TEXT"
 < column "generation_expression" "TEXT"
 < column "attgenerated" "CHAR"
+< row
+: string
+| fid_v
+: string
+| ab
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| ab
+: string
+| b
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -6715,6 +6777,18 @@
 : string
 | fid_v
 : string
+| ab
+: string
+| ab_pkey
+: string
+| CREATE UNIQUE INDEX ab_pkey ON omni_testmigrationfidelity.fid_v.ab USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | items
 : string
 | items_pkey
@@ -6858,6 +6932,13 @@
 < column "tablename" "NAME"
 < column "estimate" "INT8"
 < column "comment" "TEXT"
+< row
+: string
+| fid_v
+: string
+| ab
+: int64 0
+: null
 < row
 : string
 | fid_v
@@ -7320,6 +7401,24 @@
 : string
 | fid_v
 : string
+| read_ab
+: string
+| read_ab()
+: string
+| CREATE FUNCTION fid_v.read_ab()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT max(b) FROM omni_testmigrationfidelity.fid_v.ab;
+| $$
+< row
+: string
+| fid_v
+: string
 | touch
 : string
 | touch()
@@ -7482,6 +7581,12 @@
 > exec
 | CREATE FUNCTION fid_v.count_old_caller() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.count_old() $$;
 < ok 0 -
+> exec
+| CREATE TABLE fid_v.ab (id INT8 PRIMARY KEY, a INT8, b INT8);
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.read_ab() RETURNS INT8 LANGUAGE SQL AS $$ SELECT max(a) FROM fid_v.ab $$;
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -7593,6 +7698,90 @@
 < column "is_hidden" "TEXT"
 < column "generation_expression" "TEXT"
 < column "attgenerated" "CHAR"
+< row
+: string
+| fid_v
+: string
+| ab
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| ab
+: string
+| a
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| ab
+: string
+| b
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 3
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -8296,6 +8485,18 @@
 : string
 | fid_v
 : string
+| ab
+: string
+| ab_pkey
+: string
+| CREATE UNIQUE INDEX ab_pkey ON omni_testmigrationfidelity.fid_v.ab USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | ct1
 : string
 | ct1_pkey
@@ -8463,6 +8664,13 @@
 < column "tablename" "NAME"
 < column "estimate" "INT8"
 < column "comment" "TEXT"
+< row
+: string
+| fid_v
+: string
+| ab
+: int64 0
+: null
 < row
 : string
 | fid_v
@@ -9025,6 +9233,24 @@
 | 	AS $$
 | 	SELECT fid_v.ra();
 | $$
+< row
+: string
+| fid_v
+: string
+| read_ab
+: string
+| read_ab()
+: string
+| CREATE FUNCTION fid_v.read_ab()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT max(a) FROM omni_testmigrationfidelity.fid_v.ab;
+| $$
 > query
 |
 | 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
@@ -9145,6 +9371,12 @@
 | DROP FUNCTION "fid_v"."ra"();
 < ok 0 -
 > exec
+| DROP FUNCTION "fid_v"."read_ab"();
+< ok 0 -
+> exec
+| ALTER TABLE "fid_v"."ab" DROP COLUMN "a";
+< ok 0 -
+> exec
 | ALTER TABLE "fid_v"."items" DROP COLUMN "legacy";
 < ok 0 -
 > exec
@@ -9240,6 +9472,18 @@
 > exec
 | CREATE VIEW "fid_v"."priced_names" ("name") AS 
 | SELECT name FROM fid_v.priced;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.read_ab()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| SELECT max(b) FROM fid_v.ab;
+| $$;
 < ok 0 -
 > exec
 | CREATE TABLE "fid_v"."scored" (
@@ -9380,6 +9624,62 @@
 < column "is_hidden" "TEXT"
 < column "generation_expression" "TEXT"
 < column "attgenerated" "CHAR"
+< row
+: string
+| fid_v
+: string
+| ab
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| ab
+: string
+| b
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 3
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_v
@@ -9941,6 +10241,18 @@
 : string
 | fid_v
 : string
+| ab
+: string
+| ab_pkey
+: string
+| CREATE UNIQUE INDEX ab_pkey ON omni_testmigrationfidelity.fid_v.ab USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | items
 : string
 | items_pkey
@@ -10084,6 +10396,13 @@
 < column "tablename" "NAME"
 < column "estimate" "INT8"
 < column "comment" "TEXT"
+< row
+: string
+| fid_v
+: string
+| ab
+: int64 0
+: null
 < row
 : string
 | fid_v
@@ -10541,6 +10860,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT fid_v.count_old();
+| $$
+< row
+: string
+| fid_v
+: string
+| read_ab
+: string
+| read_ab()
+: string
+| CREATE FUNCTION fid_v.read_ab()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT max(b) FROM omni_testmigrationfidelity.fid_v.ab;
 | $$
 < row
 : string
