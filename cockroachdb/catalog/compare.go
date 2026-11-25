@@ -59,6 +59,20 @@ func (literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 	if cmp, ok := expr.(*tree.ComparisonExpr); ok && literalOperand(cmp.Left) && literalOperand(cmp.Right) {
 		return false, expr
 	}
+	// A cast argument chooses the function's overload (length('é'::BYTES)
+	// is 2, length('é'::STRING) 1), so a call with one is kept whole; the
+	// REGCLASS CockroachDB adds to nextval's argument is the one it states.
+	if call, ok := expr.(*tree.FuncExpr); ok {
+		for _, arg := range call.Exprs {
+			cast, ok := unparen(arg).(*tree.CastExpr)
+			if !ok || !isLiteral(unparen(cast.Expr)) {
+				continue
+			}
+			if t, ok := tree.GetStaticallyKnownType(cast.Type); !ok || t.Family() != types.OidFamily {
+				return false, expr
+			}
+		}
+	}
 	if cast, ok := expr.(*tree.CastExpr); ok {
 		if _, ok := unparen(cast.Expr).(*tree.CastExpr); ok {
 			return false, expr

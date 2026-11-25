@@ -195,6 +195,10 @@ func TestSDLKeysKeepValues(t *testing.T) {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, CHECK (id > 0 OR '01'::INT8 = '1'::INT8));",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, CHECK (id > 0 OR '01'::STRING = '1'::STRING));",
 		},
+		"overload": {
+			"CREATE TABLE t (id INT8 PRIMARY KEY, n INT8 DEFAULT length('é'::BYTES));",
+			"CREATE TABLE t (id INT8 PRIMARY KEY, n INT8 DEFAULT length('é'::STRING));",
+		},
 		"grouping": {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT (1 + 2) * 3);",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT 1 + 2 * 3);",
@@ -248,6 +252,9 @@ func TestSDLViewColumns(t *testing.T) {
 	plan, err := catalog.BuildSDLMigrationPlan("CREATE VIEW v (a) AS SELECT 1 AS b;", "CREATE VIEW v AS SELECT 1 AS b;", catalog.SDLMigrationOptions{})
 	require.NoError(t, err)
 	require.NotNil(t, plan)
+	plan, err = catalog.BuildSDLMigrationPlan("CREATE TABLE t (id INT8 PRIMARY KEY); CREATE VIEW v (old_name) AS SELECT * FROM t;", "CREATE TABLE t (id INT8 PRIMARY KEY); CREATE VIEW v AS SELECT * FROM t;", catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, plan)
 	for name, pair := range map[string][2]string{
 		"alias": {"CREATE VIEW v (b) AS SELECT 1 AS b;", "CREATE VIEW v AS SELECT 1 AS b;"},
 		"names": {
@@ -255,8 +262,8 @@ func TestSDLViewColumns(t *testing.T) {
 			`CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); CREATE VIEW v AS SELECT 1, t.a, (id)::STRING, lower('x'), CASE WHEN true THEN 1 END, true FROM t;`,
 		},
 		"star": {
-			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); CREATE VIEW v (x, y) AS SELECT * FROM t;",
-			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); CREATE VIEW v AS SELECT * FROM t;",
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8, h INT8 NOT VISIBLE); CREATE VIEW v (id, a) AS SELECT * FROM t;",
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8, h INT8 NOT VISIBLE); CREATE VIEW v AS SELECT * FROM t;",
 		},
 		"cast constant": {"CREATE VIEW v (x) AS SELECT 'x'::STRING;", "CREATE VIEW v AS SELECT 'x'::STRING;"},
 	} {
@@ -434,4 +441,14 @@ CREATE VIEW public.z AS SELECT id FROM public.t;
 CREATE VIEW public.a AS SELECT z.id FROM z CROSS JOIN (WITH z AS (SELECT 1 AS n) SELECT n FROM z) AS q;`, catalog.SDLMigrationOptions{})
 	require.NoError(t, err)
 	require.Nil(t, plan, "%v", plan)
+}
+
+// TestLoadSDLSchemaAuthorization names a schema after its AUTHORIZATION role
+// when it names none.
+func TestLoadSDLSchemaAuthorization(t *testing.T) {
+	loaded, err := catalog.LoadSDL("CREATE SCHEMA AUTHORIZATION root;")
+	require.NoError(t, err)
+	require.Equal(t, "root", loaded.Schemas[0].Name)
+	_, err = catalog.LoadSDL("CREATE SCHEMA AUTHORIZATION CURRENT_USER;")
+	require.Error(t, err)
 }
