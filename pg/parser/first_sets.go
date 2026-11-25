@@ -369,28 +369,12 @@ func (p *Parser) isCreateStmtTailStart() bool {
 // sequence.go, and vice versa.
 var seqOptElemLeadTokens = []int{AS, CACHE, CYCLE, NO, INCREMENT, LOGGED, MAXVALUE, MINVALUE, OWNED, SEQUENCE, START, RESTART, UNLOGGED}
 
-// isSpannerSeqOptElemStart reports whether the current token starts a
-// Spanner-PG-specific SeqOptElem (BIT_REVERSED_POSITIVE or SKIP RANGE).
-//
-// DO NOT extend without also extending parseSeqOptElem in sequence.go, and
-// vice versa. Covered by TestIsSeqOptElemStartMatchesSlice in
-// seq_opt_elem_start_test.go.
-func (p *Parser) isSpannerSeqOptElemStart() bool {
-	if !p.isSpannerPG() {
-		return false
-	}
-	return p.isSpannerIdent("bit_reversed_positive") || p.cur.Type == SKIP
-}
-
 // isSeqOptElemStart reports whether the current token starts a SeqOptElem
 // after ALTER SEQUENCE name.
 //
 // No PG oracle test: TestIsSeqOptElemStartMatchesSlice checks the predicate
 // against the whole Keywords table.
 func (p *Parser) isSeqOptElemStart() bool {
-	if p.isSpannerSeqOptElemStart() {
-		return true
-	}
 	if !slices.Contains(seqOptElemLeadTokens, p.cur.Type) {
 		return false
 	}
@@ -398,8 +382,6 @@ func (p *Parser) isSeqOptElemStart() bool {
 		switch p.peekNext().Type {
 		case CYCLE, MAXVALUE, MINVALUE:
 			return true
-		case SKIP:
-			return p.isSpannerPG()
 		}
 		return false
 	}
@@ -414,7 +396,7 @@ func (p *Parser) isSeqOptElemStart() bool {
 // Its set is seqOptElemLeadTokens, which TestSeqOptElemLeadTokensMatchPG
 // holds to PostgreSQL.
 func (p *Parser) isSeqOptElemLead() bool {
-	return p.isSpannerSeqOptElemStart() || slices.Contains(seqOptElemLeadTokens, p.cur.Type)
+	return slices.Contains(seqOptElemLeadTokens, p.cur.Type)
 }
 
 // isFetchOptionStart reports whether tok starts what follows row_or_rows in
@@ -613,22 +595,4 @@ var keyActionLeadTokens = []int{NO, RESTRICT, CASCADE, SET}
 // Keywords table against keyActionLeadTokens.
 func isKeyActionStart(tok int) bool {
 	return slices.Contains(keyActionLeadTokens, tok)
-}
-
-// isSpannerColOnUpdateStart reports whether the current token begins Cloud
-// Spanner PG's column-level ON UPDATE b_expr constraint rather than a foreign
-// key ON UPDATE key_action clause.
-//
-// In Spanner-PG's parser.c lookahead, ON followed by UPDATE is reclassified as
-// the column-constraint lead whenever the token after UPDATE is not in
-// FIRST(key_action) (NO, RESTRICT, CASCADE, SET). Covered across all Keywords
-// by TestIsSpannerColOnUpdateStartMatchesKeywords in spanner_pg_test.go.
-func (p *Parser) isSpannerColOnUpdateStart() bool {
-	if !p.isSpannerPG() || p.cur.Type != ON {
-		return false
-	}
-	if p.peekNext().Type != UPDATE {
-		return false
-	}
-	return !isKeyActionStart(p.peekTokenAfterNext().Type)
 }

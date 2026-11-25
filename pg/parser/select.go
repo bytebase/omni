@@ -1578,7 +1578,7 @@ func (p *Parser) parseTableRefPrimary() (nodes.Node, error) {
 		}
 		return n, nil
 	case JSON_TABLE:
-		if p.isSpannerPG() || p.peekNext().Type != '(' {
+		if p.peekNext().Type != '(' {
 			return p.parseRelationOrFuncTable()
 		}
 		n, err := p.parseJsonTable()
@@ -1946,7 +1946,7 @@ func (p *Parser) parseLateralTableRef() (nodes.Node, error) {
 	}
 
 	// LATERAL json_table opt_alias_clause
-	if p.cur.Type == JSON_TABLE && !p.isSpannerPG() {
+	if p.cur.Type == JSON_TABLE {
 		n, err := p.parseJsonTable()
 		if err != nil {
 			return nil, err
@@ -2089,7 +2089,7 @@ func (p *Parser) parseRelationOrFuncTable() (nodes.Node, error) {
 	// func_application: the col_name_keywords that lead a function of
 	// their own were taken before, as func_expr_common_subexpr, but for
 	// MERGE_ACTION '(' ')'.
-	if p.peekNext().Type == '(' && p.isColNameKeyword() && !(p.isSpannerPG() && isPG17SQLJsonKeyword(p.cur.Type)) {
+	if p.peekNext().Type == '(' && p.isColNameKeyword() {
 		if p.cur.Type != MERGE_ACTION {
 			p.advance()
 			return nil, p.syntaxErrorAtCur()

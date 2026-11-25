@@ -1034,6 +1034,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if err := validateIndexColumnsExist(tbl, idxCols); err != nil {
 			return err
 		}
+		if err := checkNonVectorHNSW(resolveConstraintIndexType(con)); err != nil {
+			return err
+		}
 		pkIdx := &Index{
 			Name:      "PRIMARY",
 			Table:     tbl,
@@ -1092,6 +1095,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		}
 		idxCols := buildIndexColumns(con)
 		if err := validateIndexColumnsExist(tbl, idxCols); err != nil {
+			return err
+		}
+		if err := checkNonVectorHNSW(resolveConstraintIndexType(con)); err != nil {
 			return err
 		}
 		uqIdx := &Index{
@@ -1227,6 +1233,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return err
 		}
 		if err := checkFunctionalKeyColumns(tbl, con.IndexColumns); err != nil {
+			return err
+		}
+		if err := checkNonVectorHNSW(resolveConstraintIndexType(con)); err != nil {
 			return err
 		}
 		keyIdx := &Index{

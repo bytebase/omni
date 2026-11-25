@@ -23,23 +23,14 @@ import (
 
 // openDriver returns a driver over database on instance, whose client is t's
 // tape: a replay of its tape, or, in a recording, the pinned emulator with every
-// call written down. The database itself is created by the test's own fixture,
-// and its dialect is GoogleSQL, which every fixture but the PostgreSQL ones is.
+// call written down. The database itself is created by the test's own fixture.
 func openDriver(t testing.TB, instance, database string) *Driver {
 	t.Helper()
-	return openDriverWithDialect(t, instance, database, googleSQL)
-}
-
-// openDriverWithDialect is openDriver for a fixture of a named dialect.
-func openDriverWithDialect(t testing.TB, instance, database string, d dialect) *Driver {
-	t.Helper()
-	driver := &Driver{
+	return &Driver{
 		client:       OpenTape(t, instance, database),
 		databaseName: database,
 		instancePath: testcontainer.InstancePath(instance),
 	}
-	driver.setDialect(d)
-	return driver
 }
 
 // OpenTape returns t's client to database on instance: a replay of its tape or,
@@ -92,8 +83,8 @@ func (c *tapeClient) UpdateDatabaseDdl(_ context.Context, database string, state
 	return err
 }
 
-func (c *tapeClient) CreateDatabase(_ context.Context, instancePath, createStatement string, extra []string, dialect string) error {
-	_, err := c.call(request{Op: opCreateDatabase, InstancePath: instancePath, CreateStatement: createStatement, ExtraStatements: extra, Dialect: dialect})
+func (c *tapeClient) CreateDatabase(_ context.Context, instancePath, createStatement string, extra []string) error {
+	_, err := c.call(request{Op: opCreateDatabase, InstancePath: instancePath, CreateStatement: createStatement, ExtraStatements: extra})
 	return err
 }
 
@@ -209,12 +200,8 @@ type request struct {
 	Statements      []string `json:"statements,omitempty"`
 	CreateStatement string   `json:"createStatement,omitempty"`
 	ExtraStatements []string `json:"extraStatements,omitempty"`
-	// Dialect is the dialect a creation asks for, and empty for GoogleSQL: a
-	// creation that names its database with backticks asks for the API's
-	// default, and a tape records what the driver asked.
-	Dialect   string `json:"dialect,omitempty"`
-	Statement string `json:"statement,omitempty"`
-	ReadWrite bool   `json:"readWrite,omitempty"`
+	Statement       string   `json:"statement,omitempty"`
+	ReadWrite       bool     `json:"readWrite,omitempty"`
 }
 
 func (r request) text() (string, error) {
@@ -388,7 +375,8 @@ func (e *tapeError) Error() string { return e.text }
 func (e *tapeError) GRPCStatus() *status.Status { return status.New(e.code, e.text) }
 
 // live answers one request from the pinned emulator, through the client the
-// driver itself opens.
+// driver itself opens. It skips Open, which refuses a PostgreSQL-dialect
+// database, so a test can record that refusal.
 func live(t testing.TB, instance, database, text string) (string, error) {
 	var req request
 	if err := unmarshalJSON([]byte(text), &req); err != nil {
@@ -397,7 +385,7 @@ func live(t testing.TB, instance, database, text string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	d, err := Open(ctx, driver.Config{
+	c, err := newClient(ctx, driver.Config{
 		Host:     testcontainer.Host(t),
 		Database: database,
 		Params: map[string]string{
@@ -409,35 +397,35 @@ func live(t testing.TB, instance, database, text string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = d.Close() }()
+	defer func() { _ = c.Close() }()
 
 	a := answer{}
 	switch req.Op {
 	case opPing:
-		err = d.client.Ping(ctx)
+		err = c.Ping(ctx)
 	case opClose:
-		err = d.client.Close()
+		err = c.Close()
 	case opListDatabases:
-		a.Databases, err = d.client.ListDatabases(ctx)
+		a.Databases, err = c.ListDatabases(ctx)
 	case opGetDatabase:
 		var database Database
-		database, err = d.client.GetDatabase(ctx, req.Database)
+		database, err = c.GetDatabase(ctx, req.Database)
 		a.Dialect = database.Dialect
 	case opUpdateDatabaseDdl:
-		err = d.client.UpdateDatabaseDdl(ctx, req.Database, req.Statements)
+		err = c.UpdateDatabaseDdl(ctx, req.Database, req.Statements)
 	case opCreateDatabase:
-		err = d.client.CreateDatabase(ctx, req.InstancePath, req.CreateStatement, req.ExtraStatements, req.Dialect)
+		err = c.CreateDatabase(ctx, req.InstancePath, req.CreateStatement, req.ExtraStatements)
 	case opGetDatabaseDdl:
-		a.Ddl, err = d.client.GetDatabaseDdl(ctx, req.Database)
+		a.Ddl, err = c.GetDatabaseDdl(ctx, req.Database)
 	case opRead:
 		var iter RowIterator
-		iter, err = d.client.Read(ctx, req.Statement)
+		iter, err = c.Read(ctx, req.Statement)
 		if err == nil {
 			a, err = readAnswer(iter, a)
 		}
 	case opQuery:
 		var reader Reader
-		reader, err = d.client.Snapshot(ctx)
+		reader, err = c.Snapshot(ctx)
 		if err == nil {
 			defer reader.Close()
 			var iter RowIterator
@@ -447,14 +435,14 @@ func live(t testing.TB, instance, database, text string) (string, error) {
 			}
 		}
 	case opUpdate:
-		a.Count, err = d.client.Update(ctx, req.Statement)
+		a.Count, err = c.Update(ctx, req.Statement)
 	case opBatchUpdate:
-		a.Counts, err = d.client.BatchUpdate(ctx, req.Statements)
+		a.Counts, err = c.BatchUpdate(ctx, req.Statements)
 	case opPartitionedUpdate:
-		a.Count, err = d.client.PartitionedUpdate(ctx, req.Statement)
+		a.Count, err = c.PartitionedUpdate(ctx, req.Statement)
 	case opAnalyzeQuery:
 		var queryPlan *sppb.QueryPlan
-		queryPlan, err = d.client.AnalyzeQuery(ctx, req.Statement, req.ReadWrite)
+		queryPlan, err = c.AnalyzeQuery(ctx, req.Statement, req.ReadWrite)
 		if queryPlan != nil {
 			a.Plan = &plan{plan: queryPlan}
 		}

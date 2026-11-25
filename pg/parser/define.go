@@ -1393,7 +1393,7 @@ func (p *Parser) parseAlterStatisticsStmt(stmtLoc int) (nodes.Node, error) {
 	}
 	stmt := &nodes.AlterStatsStmt{Defnames: defnames, MissingOk: missingOk}
 	// set_statistics_value: SignedIconst | DEFAULT
-	if p.cur.Type == DEFAULT && !p.isSpannerPG() {
+	if p.cur.Type == DEFAULT {
 		p.advance()
 	} else {
 		neg := false
@@ -1588,9 +1588,6 @@ func (p *Parser) parseOperatorDefElem() (*nodes.DefElem, error) {
 			return nil, err
 		}
 		return &nodes.DefElem{Defname: label, Arg: arg, Loc: nodes.NoLoc()}, nil
-	}
-	if p.isSpannerPG() {
-		return nil, p.syntaxErrorAtCur()
 	}
 	return &nodes.DefElem{Defname: label, Loc: nodes.NoLoc()}, nil
 }
