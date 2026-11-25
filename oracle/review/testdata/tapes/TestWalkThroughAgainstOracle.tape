@@ -3849,31 +3849,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -9538,31 +9547,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -11062,31 +11080,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -16164,31 +16191,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -20350,31 +20386,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -28012,31 +28057,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -29695,31 +29749,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -37662,31 +37725,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -41115,36 +41187,47 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | TT
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -45350,31 +45433,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -57793,31 +57885,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -63660,31 +63761,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -66841,31 +66951,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -70578,31 +70697,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -78515,31 +78643,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -84806,31 +84943,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -87462,31 +87608,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -92845,31 +93000,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -98180,36 +98344,47 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | JCT
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -100963,31 +101138,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -103508,31 +103692,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -106530,31 +106723,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -109602,31 +109804,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -111203,31 +111414,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -112790,31 +113010,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -116092,31 +116321,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -119052,41 +119290,54 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | ML
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | MLOG$_ML
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -125397,51 +125648,68 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | CHILD
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | CHILD2
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | PARENT
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | PARENT2
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -125772,14 +126040,14 @@
 | 0
 < row
 : string
-| SYS_FK0000089060N00002$
+| SYS_FK0000092586N00002$
 : string
 | NESTED_TABLE_ID
 : string
 | 0
 < row
 : string
-| SYS_FK0000089064N00002$
+| SYS_FK0000092590N00002$
 : string
 | NESTED_TABLE_ID
 : string
@@ -125882,14 +126150,14 @@
 : string
 | CHILD
 : string
-| SYS_FK0000089060N00002$
+| SYS_FK0000092586N00002$
 : string
 | NORMAL
 < row
 : string
 | CHILD2
 : string
-| SYS_FK0000089064N00002$
+| SYS_FK0000092590N00002$
 : string
 | NORMAL
 < row
@@ -129740,31 +130008,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -136646,31 +136923,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -138323,31 +138609,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -139913,31 +140208,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -142085,31 +142389,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -144953,31 +145266,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -149697,31 +150019,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -151944,31 +152275,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -154172,31 +154512,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -156314,31 +156663,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -160798,31 +161156,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -165222,31 +165589,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -171960,31 +172336,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -178890,31 +179275,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -186694,31 +187088,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -195833,31 +196236,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -198518,31 +198930,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -201192,31 +201613,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -203973,31 +204403,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -212674,31 +213113,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -219064,31 +219512,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -226874,31 +227331,40 @@
 : string
 | MV
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | MV
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | NOKEY
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | P
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result

@@ -2955,7 +2955,7 @@
 | types the dump reads
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, NUM_ROWS
+| 		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 | 		FROM all_tables
 | 		WHERE OWNER = 'OMNI_DUMP'
 | 		AND TABLE_NAME NOT IN (
@@ -2966,17 +2966,21 @@
 < column "OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | OMNI_DUMP
 : string
 | CHILD
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_DUMP
 : string
 | HASH_PART
+: null
 : null
 < row
 : string
@@ -2984,23 +2988,30 @@
 : string
 | IDENT
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_DUMP
 : string
 | IDENT_NOCACHE
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_DUMP
 : string
 | IDENT_OPTS
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_DUMP
 : string
 | INTERVAL_PART
+: null
 : null
 < row
 : string
@@ -3008,17 +3019,21 @@
 : string
 | LIST_PART
 : null
+: null
 < row
 : string
 | OMNI_DUMP
 : string
 | PARENT
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_DUMP
 : string
 | RANGE_PART
+: null
 : null
 < row
 : string
@@ -3026,15 +3041,19 @@
 : string
 | REUSED
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_DUMP
 : string
 | TYPES
 : null
+: string
+| USERS
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, NUM_ROWS
+| 		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 | 		FROM all_object_tables
 | 		WHERE OWNER = 'OMNI_DUMP'
 | 		AND TABLE_NAME NOT IN (
@@ -3045,6 +3064,7 @@
 < column "OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT OWNER, TABLE_NAME, COMMENTS
@@ -69785,7 +69805,7 @@
 | types the dump reads
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, NUM_ROWS
+| 		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 | 		FROM all_tables
 | 		WHERE OWNER = 'OMNI_DUMP'
 | 		AND TABLE_NAME NOT IN (
@@ -69796,17 +69816,21 @@
 < column "OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | OMNI_DUMP
 : string
 | CHILD
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_DUMP
 : string
 | HASH_PART
+: null
 : null
 < row
 : string
@@ -69814,23 +69838,30 @@
 : string
 | IDENT
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_DUMP
 : string
 | IDENT_NOCACHE
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_DUMP
 : string
 | IDENT_OPTS
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_DUMP
 : string
 | INTERVAL_PART
+: null
 : null
 < row
 : string
@@ -69838,17 +69869,21 @@
 : string
 | LIST_PART
 : null
+: null
 < row
 : string
 | OMNI_DUMP
 : string
 | PARENT
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_DUMP
 : string
 | RANGE_PART
+: null
 : null
 < row
 : string
@@ -69856,15 +69891,19 @@
 : string
 | REUSED
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_DUMP
 : string
 | TYPES
 : null
+: string
+| USERS
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, NUM_ROWS
+| 		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 | 		FROM all_object_tables
 | 		WHERE OWNER = 'OMNI_DUMP'
 | 		AND TABLE_NAME NOT IN (
@@ -69875,6 +69914,7 @@
 < column "OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT OWNER, TABLE_NAME, COMMENTS

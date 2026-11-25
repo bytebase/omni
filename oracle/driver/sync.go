@@ -573,10 +573,15 @@ func getTables(
 			// NUMBER in Oracle can hold 38 decimal digits, so int64 is not enough with its 19 decimal digits.
 			// float64 is a little bit better - not precise enough, but won't overflow.
 			var count sql.NullFloat64
-			if err := rows.Scan(&schemaName, &table.Name, &count); err != nil {
+			var tablespace sql.NullString
+			if err := rows.Scan(&schemaName, &table.Name, &count, &tablespace); err != nil {
 				return err
 			}
 			table.RowCount = int64(count.Float64)
+			// Oracle gives no tablespace to a partitioned, index-organized,
+			// or external table, so one says the table is a heap table of
+			// no partitions, which WALK_THROUGH reads (TestSyncTablespace).
+			table.Tablespace = tablespace.String
 			key := tableKey{Schema: schemaName, Table: table.Name}
 			table.Columns = columnMap[key]
 			table.Indexes = indexMap[key]
@@ -597,7 +602,7 @@ func getTables(
 	}
 
 	query := fmt.Sprintf(`
-		SELECT OWNER, TABLE_NAME, NUM_ROWS
+		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 		FROM all_tables
 		WHERE OWNER = '%s'
 		AND TABLE_NAME NOT IN (
@@ -615,7 +620,7 @@ func getTables(
 	// the plan on the owner index: without it Oracle full-scans OBJ$, which holds
 	// every schema's objects.
 	objectTableQuery := fmt.Sprintf(`
-		SELECT OWNER, TABLE_NAME, NUM_ROWS
+		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 		FROM all_object_tables
 		WHERE OWNER = '%s'
 		AND TABLE_NAME NOT IN (
