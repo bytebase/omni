@@ -43,12 +43,9 @@ func omniVerdict(sql string) string {
 	return compat.Accept
 }
 
-// compatJudge implements the BigQuery ∪ Spanner union judge for DialectDefault:
-// a statement is accepted iff EITHER the pinned Spanner emulator accepts it
-// (via googlesql/spanner-oracle and compatJudgeVerdict) OR live BigQuery
-// dry-run accepts it (via bigQueryDryRunJudge, matching
-// bigquery/parser/compat_test.go). It runs only in a recording or verification,
-// outside any tape.
+// compatJudge asks the pinned Spanner emulator (via googlesql/spanner-oracle
+// and compatJudgeVerdict) whether it accepts a statement. It runs only in a
+// recording or verification, outside any tape.
 func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) {
 	t.Helper()
 	// testcontainer.Judge starts the shared emulator under the default role;
@@ -89,45 +86,9 @@ func compatJudge(t testing.TB, pin enginetest.Pin) func(string) (string, error) 
 			t.Fatalf("compatJudge spanner startup probe %q: got (%q, %v), want (%q, nil)", probe.sql, got, err, probe.want)
 		}
 	}
-	askSpanner := func(sql string) (string, error) {
+	return func(sql string) (string, error) {
 		return compatJudgeVerdict(sql, ask)
 	}
-
-	askBigQuery := bigQueryDryRunJudge(t)
-
-	return func(sql string) (string, error) {
-		return unionJudgeVerdict(sql, askSpanner, askBigQuery)
-	}
-}
-
-// unionJudgeVerdict returns compat.Accept iff either askSpanner or askBigQuery
-// accepts sql. Both halves are fail-closed: an infra/transport error from
-// askSpanner aborts immediately, and an infra/transport error from askBigQuery
-// (when Spanner rejected) aborts rather than turning an unknown verdict into a
-// rejection. When Spanner already accepts, askBigQuery is skipped.
-func unionJudgeVerdict(
-	sql string,
-	askSpanner func(string) (string, error),
-	askBigQuery func(string) (string, error),
-) (string, error) {
-	sv, err := askSpanner(sql)
-	if err != nil {
-		return "", fmt.Errorf("spanner judge: %w", err)
-	}
-	if sv == compat.Accept {
-		return compat.Accept, nil
-	}
-	if sv != compat.Reject {
-		return "", fmt.Errorf("spanner judge: unexpected verdict %q", sv)
-	}
-	bv, err := askBigQuery(sql)
-	if err != nil {
-		return "", fmt.Errorf("bigquery judge: %w", err)
-	}
-	if bv != compat.Accept && bv != compat.Reject {
-		return "", fmt.Errorf("bigquery judge: unexpected verdict %q", bv)
-	}
-	return bv, nil
 }
 
 // compatJudgeVerdict evaluates sql with ask and maps the emulator's answer to
