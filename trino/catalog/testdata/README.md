@@ -24,6 +24,20 @@ changes on a view (`objects@view`): the memory connector fails on them with
 omni refuses with `TABLE_NOT_FOUND`, as a connector that does not hand a view
 to `ALTER TABLE` does.
 
+## What Exec does not model
+
+Exec types a CREATE TABLE AS or view query only as far as the stored columns
+need. What follows is left unmodelled: the statement is taken, and a column
+it cannot type has no type.
+
+- The type of an expression other than a column, a literal or a DATE
+  literal: functions, aggregates, arithmetic, CASE, casts.
+- The refusals Trino's analyzer makes of a query's shape: an alias list
+  (`AS x(a)`, a WITH query's) whose width is not the relation's, set
+  operation sides of different widths or types, GROUP BY and window
+  rules.
+- The columns of UNNEST, LATERAL and table functions.
+
 ## Commands
 
 From `<repo root>`. Commit the rows a catalog fix moved to Trino's answer:
