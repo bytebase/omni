@@ -1,9 +1,33 @@
 # The server this engine's committed answers come from. default records the
-# tapes: the Cloud Spanner emulator, released from the source tag v1.5.54 of
-# GoogleCloudPlatform/cloud-spanner-emulator. The googlesql tree, Spanner's
-# grammar, pins the same emulator for its parser's oracle
-# (googlesql/testdata/pins.tsv); default is the driver's own, because the
-# driver's answers are recorded from the service's clients and can move with
-# an image bump of their own.
+# grammar's tapes (spanner/parser, spanner/analysis): the Cloud Spanner
+# emulator 1.5.54, released from the source tag v1.5.54 of
+# GoogleCloudPlatform/cloud-spanner-emulator, which builds against GoogleSQL
+# 2026.01.1 (its MODULE.bazel). googlesql.tm, which the rows are generated
+# from through GoogleSQL.g4, is googlesql/parser/googlesql.tm at that GoogleSQL
+# tag, beside this file byte for byte, Apache-2.0 (GoogleSQL.LICENSE). The
+# emulator reads DDL with a parser of its own.
+# The judge revision counts how spanner/spanner-oracle and compatJudge read
+# the emulator's answers: 2 reads GoogleSQL's grammar refusals
+# (grammar_refusals.go) as rejections.
+#
+# parser judges spanner/parser/testdata/compat.tsv at the same emulator
+# 1.5.54 release so a judge revision bump rejudges compat.tsv without touching
+# the default-pinned tapes.
+#
+# parser judge revision 3 classifies GoogleSQL's parse-error fallback
+# ("Statement not supported: <Kind>Stmt"), lookahead EXCEPT and duplicate
+# DYNAMIC LABEL|PROPERTIES syntax refusals as reject, and re-asks CREATE VIEW
+# missing SQL SECURITY with a SQL SECURITY INVOKER stand-in so the view query
+# body is parsed.
+# parser judge revision 4 judged compat.tsv with a BigQuery ∪ Spanner union
+# judge. Revision 5 is the Spanner emulator alone again, with the rev 3 rules:
+# this tree is Spanner's grammar, and BigQuery's is bigquery/parser, judged by
+# BigQuery itself.
+#
+# driver records spanner/driver's tapes from the same emulator release. It is
+# a row of its own because the driver's answers are recorded from the service's
+# clients and can move with an image bump of their own.
 # columns: role, image, digest, source tag, judge revision
-default	gcr.io/cloud-spanner-emulator/emulator:1.5.54	sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2	v1.5.54
+default	gcr.io/cloud-spanner-emulator/emulator:1.5.54	sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2	v1.5.54	2
+parser	gcr.io/cloud-spanner-emulator/emulator:1.5.54	sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2	v1.5.54	5
+driver	gcr.io/cloud-spanner-emulator/emulator:1.5.54	sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2	v1.5.54

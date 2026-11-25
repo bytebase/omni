@@ -1,13 +1,13 @@
 # BigQuery
 
-BigQuery's own tree, forked from `googlesql` the way `redshift` forked from
+BigQuery's own tree, forked from `spanner` (then `googlesql`) the way `redshift` forked from
 `pg`: a mechanical copy of `ast`, `parser`, `analysis`, `diagnostics` and
-`v1review`, then BigQuery's dialect deltas. `googlesql` is Spanner's grammar.
+`v1review`, then BigQuery's dialect deltas. `spanner` holds Spanner's grammar.
 
 - `bigquery/parser` is judged by live BigQuery in
   [`parser/testdata/compat.tsv`](parser/testdata/compat.tsv) (see
   [`parser/testdata/README.md`](parser/testdata/README.md)). Its rows come from
-  `googlesql/testdata/GoogleSQL.g4`, the GoogleSQL grammar both engines share.
+  `spanner/testdata/GoogleSQL.g4`, the GoogleSQL grammar both engines share.
 - `bigquery/driver` is a port of Bytebase's `backend/plugin/db/bigquery`, and
   all six driver tests replay offline in CI from committed tapes under
   `bigquery/driver/testdata/tapes/` through `bigquery/internal/testcontainer`

@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/bytebase/omni/driver"
-	googlesqlanalysis "github.com/bytebase/omni/googlesql/analysis"
+	spanneranalysis "github.com/bytebase/omni/spanner/analysis"
 )
 
 // TestPing reads one database name as a connectivity check.
@@ -130,7 +130,7 @@ func TestRewriteResultLimit(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, googlesqlanalysis.RewriteResultLimit(tc.statement, tc.limit))
+			require.Equal(t, tc.want, spanneranalysis.RewriteResultLimit(tc.statement, tc.limit))
 		})
 	}
 }

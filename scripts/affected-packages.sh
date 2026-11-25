@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Prints what CI tests for the commits between <base> and HEAD: `go test`
 # targets of the root module (./mysql/...) and nested modules with their own
-# go.mod (googlesql/spanner-oracle), space-separated. Nothing printed means
+# go.mod (spanner/spanner-oracle), space-separated. Nothing printed means
 # nothing to test.
 #
 # The engines are independent Go trees, so a change tests its top-level directory
@@ -10,14 +10,14 @@
 # import them. Besides that:
 #
 #   - go.mod, go.sum and .github/ test everything.
-#   - docs/migration/<engine>/ counts as <engine>, Markdown included: googlesql
+#   - docs/migration/<engine>/ counts as <engine>, Markdown included: spanner
 #     reads its official corpus from .md files there.
 #   - Other Markdown tests nothing, wherever it is, and so do root files, the rest
 #     of docs/ and the scripts that are not Go.
 #   - proto/ counts as metadata, which is generated from it.
 #   - A nested module lives in the engine that execs it, so it tests that module
-#     and, as any subdirectory would, its engine: googlesql/spanner-oracle tests
-#     googlesql. A nested module that imports an affected engine is tested too.
+#     and, as any subdirectory would, its engine: spanner/spanner-oracle tests
+#     spanner. A nested module that imports an affected engine is tested too.
 #
 # Usage: scripts/affected-packages.sh origin/main [HEAD]
 set -euo pipefail
