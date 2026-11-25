@@ -181,8 +181,8 @@ func (c *Catalog) execCall(fc *nodes.FuncCall) error {
 
 // plStraightLine collects the statements of a block that runs every one of
 // them in order, whatever the data: nested blocks without declarations or
-// handlers, NULL, RAISE, CALL and DO, and SQL statements that return no
-// rows (one that does needs INTO).
+// handlers, NULL, RAISE, CALL and DO, and the SQL statements
+// plRunnableSQL takes.
 func plStraightLine(b *plast.PLBlock, out *[]plast.Node) bool {
 	if len(b.Declarations) > 0 || len(b.Exceptions) > 0 {
 		return false
@@ -202,7 +202,7 @@ func plStraightLine(b *plast.PLBlock, out *[]plast.Node) bool {
 			}
 			*out = append(*out, v)
 		case *plast.PLExecSQL:
-			if v.Into != nil || plReturnsRows(v.SQLText) {
+			if v.Into != nil || !plRunnableSQL(v.SQLText) {
 				return false
 			}
 			*out = append(*out, v)
@@ -213,40 +213,59 @@ func plStraightLine(b *plast.PLBlock, out *[]plast.Node) bool {
 	return true
 }
 
-// plReturnsRows reports whether a statement returns rows: a SELECT, VALUES
-// or TABLE, or DML with RETURNING. PL/pgSQL refuses one without INTO.
+// plRunnableSQL reports whether runPLpgSQL can run a SQL statement: it
+// returns no rows (PL/pgSQL refuses one without INTO: a SELECT, VALUES or
+// TABLE, DML with RETURNING, SHOW, EXPLAIN, FETCH, EXECUTE) and names no
+// FOUND, the variable every PL/pgSQL block has, which the catalog does not
+// bind.
 //
 // pg: src/pl/plpgsql/src/pl_exec.c — exec_stmt_execsql ("query has no destination for result data")
-func plReturnsRows(text string) bool {
+// pg: src/pl/plpgsql/src/pl_comp.c — plpgsql_build_variable ("found")
+func plRunnableSQL(text string) bool {
 	list, err := parser.Parse(text)
 	if err != nil || list == nil {
-		return true
+		return false
 	}
 	for _, item := range list.Items {
 		switch s := unwrapRawStmt(item).(type) {
 		case *nodes.SelectStmt:
 			if s.IntoClause == nil {
-				return true
+				return false
 			}
 		case *nodes.InsertStmt:
 			if s.ReturningList != nil && len(s.ReturningList.Items) > 0 {
-				return true
+				return false
 			}
 		case *nodes.UpdateStmt:
 			if s.ReturningList != nil && len(s.ReturningList.Items) > 0 {
-				return true
+				return false
 			}
 		case *nodes.DeleteStmt:
 			if s.ReturningList != nil && len(s.ReturningList.Items) > 0 {
-				return true
+				return false
 			}
 		case *nodes.MergeStmt:
 			if s.ReturningList != nil && len(s.ReturningList.Items) > 0 {
-				return true
+				return false
+			}
+		case *nodes.VariableShowStmt, *nodes.ExplainStmt, *nodes.ExecuteStmt:
+			return false
+		case *nodes.FetchStmt:
+			if !s.Ismove {
+				return false
 			}
 		}
 	}
-	return false
+	found := false
+	nodes.Inspect(list, func(n nodes.Node) bool {
+		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Fields != nil && len(cr.Fields.Items) > 0 {
+			if str, ok := cr.Fields.Items[0].(*nodes.String); ok && strings.EqualFold(str.Str, "found") {
+				found = true
+			}
+		}
+		return !found
+	})
+	return !found
 }
 
 // plRaiseMessage is a RAISE format with no parameters as the message it

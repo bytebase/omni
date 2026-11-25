@@ -13,6 +13,7 @@ CREATE SCHEMA s2;
 CREATE FUNCTION app.mt(mood, text) RETURNS boolean LANGUAGE sql AS 'SELECT true';
 CREATE OPERATOR app.= (LEFTARG = mood, RIGHTARG = text, FUNCTION = app.mt);
 CREATE TABLE t (id int);
+CREATE TABLE flags (flag boolean);
 CREATE PROCEDURE q(int) LANGUAGE plpgsql AS $$ BEGIN NULL; END $$;
 CREATE PROCEDURE p(x int) LANGUAGE plpgsql AS $$ BEGIN CALL q(x); CREATE TABLE made_p (a int); END $$;
 CREATE PROCEDURE qs() LANGUAGE plpgsql AS $$ DECLARE u int; BEGIN RAISE EXCEPTION 'stop'; END $$;
@@ -41,6 +42,9 @@ CREATE PROCEDURE pfail() LANGUAGE plpgsql AS $$ BEGIN CREATE TABLE made_fail (a 
 		{stmt: `DO $$ BEGIN CREATE INDEX CONCURRENTLY ix ON t (id); END $$`, code: "25001"},
 		{stmt: `DO $$ BEGIN DO 'BEGIN CREATE TABLE inner_do (a int); END'; END $$`, made: "inner_do"},
 		{stmt: `DO $$ BEGIN CREATE TABLE made_raise (a int); RAISE EXCEPTION 'x'; END $$`, code: "P0001", notMade: "made_raise"},
+		// A statement that returns rows, or names FOUND, is not run.
+		{stmt: `DO $$ BEGIN SHOW search_path; CREATE TABLE made_show (a int); END $$`, notMade: "made_show"},
+		{stmt: `DO $$ BEGIN INSERT INTO flags VALUES (found); CREATE TABLE made_found (a int); END $$`, notMade: "made_found"},
 		// A user-defined operator takes the literal as its own type.
 		{stmt: `CREATE FUNCTION fo(m mood) RETURNS boolean RETURN m OPERATOR(app.=) 'arbitrary'`},
 		{stmt: `CREATE FUNCTION fe(m mood) RETURNS boolean RETURN m = 'arbitrary'`, code: "22P02"},
