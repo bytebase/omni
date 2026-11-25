@@ -211,6 +211,12 @@ func TestCompleteSessionNames(t *testing.T) {
 		{input: "DROP VIEW |", typ: CandidateView, want: []string{"order_totals"}},
 		{input: "DETACH VIEW IF EXISTS |", typ: CandidateView, want: []string{"order_totals"}},
 		{input: "DROP MATERIALIZED VIEW |", typ: CandidateMaterializedView, want: []string{"daily_orders"}},
+		{input: "SELECT | FROM (orders, users)", typ: CandidateColumn, want: []string{"amount", "id", "name", "user_id"}},
+		{input: "SELECT * FROM (orders, |)", typ: CandidateTable, want: []string{"`back\\\\slash`", "`my-table`", "orders", "other", "users"}},
+		{input: "SELECT | FROM orders JOIN users USING (id), other.events", typ: CandidateColumn, want: []string{"amount", "id", "name", "ts", "user_id"}},
+		{input: "SELECT * FROM orders JOIN users USING (id), |", typ: CandidateTable, want: []string{"`back\\\\slash`", "`my-table`", "orders", "other", "users"}},
+		{input: "SELECT * FROM orders JOIN users USING (id, |)", typ: CandidateTable},
+		{input: "SELECT * FROM numbers(1, |)", typ: CandidateTable},
 		{input: "ALTER TABLE orders UPDATE amount = 0 WHERE |", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
 	} {
 		t.Run(tc.input, func(t *testing.T) {

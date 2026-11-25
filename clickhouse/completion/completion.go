@@ -245,9 +245,12 @@ func ifExistsLength(toks []parser.Token) int {
 // parenthesis, and a clause keyword, ON or USING ends it.
 func fromListCommas(toks []parser.Token) []bool {
 	commas := make([]bool, len(toks))
-	inList := []bool{false}
+	// Each parenthesis has a frame: whether its tokens are in a FROM list,
+	// and whether closing it resumes the list it is in, as after USING (a).
+	type frame struct{ inList, resume bool }
+	stack := []frame{{}}
 	for i, tok := range toks {
-		top := len(inList) - 1
+		top := &stack[len(stack)-1]
 		// A keyword that names a relation, as in system.settings or FROM
 		// settings, is no clause.
 		if tok.IsKeyword() && i > 0 && (toks[i-1].Type == parser.TokDot || commas[i-1] ||
@@ -256,22 +259,32 @@ func fromListCommas(toks []parser.Token) []bool {
 		}
 		switch tok.Type {
 		case parser.TokLParen:
-			inList = append(inList, false)
+			// FROM (a, b) groups relations; a subquery or a function's
+			// arguments are no list.
+			grouped := top.inList && i > 0 && !startsQuery(toks[i:]) &&
+				(toks[i-1].Type == parser.KwFrom || toks[i-1].Type == parser.KwJoin ||
+					toks[i-1].Type == parser.TokLParen || commas[i-1])
+			resume := i > 0 && toks[i-1].Type == parser.KwUsing
+			stack = append(stack, frame{inList: grouped, resume: resume})
 		case parser.TokRParen:
-			if top > 0 {
-				inList = inList[:top]
+			if len(stack) > 1 {
+				closed := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				if closed.resume {
+					stack[len(stack)-1].inList = true
+				}
 			}
 		case parser.TokComma:
-			commas[i] = inList[top]
+			commas[i] = top.inList
 		case parser.KwFrom:
-			inList[top] = relationFrom(toks, i)
+			top.inList = relationFrom(toks, i)
 		case parser.KwJoin:
-			inList[top] = i == 0 || toks[i-1].Type != parser.KwArray
+			top.inList = i == 0 || toks[i-1].Type != parser.KwArray
 		case parser.KwArray, parser.KwOn, parser.KwUsing, parser.KwWhere, parser.KwPrewhere,
 			parser.KwGroup, parser.KwOrder, parser.KwHaving, parser.KwLimit, parser.KwSettings,
 			parser.KwFormat, parser.KwWindow, parser.KwQualify, parser.KwSelect, parser.KwValues,
 			parser.KwUnion, parser.KwIntersect, parser.KwExcept, parser.KwInto:
-			inList[top] = false
+			top.inList = false
 		}
 	}
 	return commas
