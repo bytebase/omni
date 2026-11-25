@@ -58,11 +58,6 @@ func LoadSDL(text string) (*metadatapb.DatabaseSchemaMetadata, error) {
 			return nil, fmt.Errorf("%s: %w", stmt.SQL, err)
 		}
 	}
-	for _, view := range l.starViews {
-		for _, name := range l.starNames(view.query) {
-			*view.columns = append(*view.columns, &metadatapb.ColumnMetadata{Name: name})
-		}
-	}
 	for _, fk := range l.keyless {
 		referenced := schemaTable(l.schema(fk.ReferencedSchema), fk.ReferencedTable)
 		if referenced == nil {
@@ -86,9 +81,6 @@ type sdlLoader struct {
 	schemas map[string]*metadatapb.SchemaMetadata
 	// keyless holds the foreign keys that name no referenced columns.
 	keyless []*metadatapb.ForeignKeyMetadata
-	// starViews holds the views whose output names wait on the columns of
-	// the relation they select a star from.
-	starViews []starView
 }
 
 // star reports whether a select expression is * or relation.*.
@@ -102,15 +94,10 @@ func star(expr tree.Expr) bool {
 	return false
 }
 
-type starView struct {
-	columns *[]*metadatapb.ColumnMetadata
-	query   *tree.Select
-}
-
 // starNames returns a query's output names where it selects from one stored
-// relation the SDL declares, a star standing for that relation's visible
-// columns, as CockroachDB expands it when it creates the view; nil when it
-// cannot tell.
+// relation the SDL has declared so far, a star standing for that relation's
+// visible columns as they are now, which is when CockroachDB expands it; nil
+// when it cannot tell.
 func (l *sdlLoader) starNames(query *tree.Select) []string {
 	if query.With != nil {
 		return nil
@@ -900,6 +887,9 @@ func (l *sdlLoader) createView(n *tree.CreateView) error {
 	if len(names) == 0 {
 		names = outputNames(n.AsSource)
 	}
+	if len(names) == 0 {
+		names = l.starNames(n.AsSource)
+	}
 	var columns []*metadatapb.ColumnMetadata
 	for _, name := range names {
 		columns = append(columns, &metadatapb.ColumnMetadata{Name: name})
@@ -907,15 +897,9 @@ func (l *sdlLoader) createView(n *tree.CreateView) error {
 	if n.Materialized {
 		view := &metadatapb.MaterializedViewMetadata{Name: string(n.Name.ObjectName), Definition: definition, DependencyColumns: dependencies, Columns: columns}
 		s.MaterializedViews = append(s.MaterializedViews, view)
-		if names == nil {
-			l.starViews = append(l.starViews, starView{&view.Columns, n.AsSource})
-		}
 		return nil
 	}
 	view := &metadatapb.ViewMetadata{Name: string(n.Name.ObjectName), Definition: definition, DependencyColumns: dependencies, Columns: columns}
-	if names == nil {
-		l.starViews = append(l.starViews, starView{&view.Columns, n.AsSource})
-	}
 	// CREATE OR REPLACE VIEW replaces a view the SDL created before.
 	if i := slices.IndexFunc(s.Views, func(v *metadatapb.ViewMetadata) bool { return v.Name == view.Name }); i >= 0 && n.Replace {
 		s.Views[i] = view

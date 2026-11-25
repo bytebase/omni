@@ -207,6 +207,10 @@ func TestSDLKeysKeepValues(t *testing.T) {
 			"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT length('é':::BYTES) $$;",
 			"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT length('é':::STRING) $$;",
 		},
+		"oid argument": {
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT pg_typeof(1::OID)::STRING);",
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT pg_typeof(1)::STRING);",
+		},
 		"grouping": {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT (1 + 2) * 3);",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT 1 + 2 * 3);",
@@ -497,4 +501,29 @@ func TestSDLKeysKeepTypedConditionals(t *testing.T) {
 		catalog.SDLMigrationOptions{})
 	require.NoError(t, err)
 	require.NotNil(t, plan)
+}
+
+// TestSDLStarAtCreation expands a star against the relation as it is when
+// the view is created, as CockroachDB does.
+func TestSDLStarAtCreation(t *testing.T) {
+	loaded, err := catalog.LoadSDL("CREATE TABLE t (id INT8 PRIMARY KEY); CREATE VIEW v AS SELECT * FROM t; ALTER TABLE t ADD COLUMN extra STRING;")
+	require.NoError(t, err)
+	var names []string
+	for _, column := range loaded.Schemas[0].Views[0].Columns {
+		names = append(names, column.Name)
+	}
+	require.Equal(t, []string{"id"}, names)
+}
+
+// TestSDLColumnAliasRebuildsView rebuilds a view that reads a column through
+// a relation's column alias when the column changes.
+func TestSDLColumnAliasRebuildsView(t *testing.T) {
+	plan, err := catalog.BuildSDLMigrationPlan(
+		"CREATE TABLE t (id INT8 PRIMARY KEY, n INT8); CREATE VIEW v AS SELECT renamed FROM t AS x (id, renamed);",
+		"CREATE TABLE t (id INT8 PRIMARY KEY, n STRING); CREATE VIEW v AS SELECT renamed FROM t AS x (id, renamed);",
+		catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	sql := plan.SQL()
+	require.Contains(t, sql, `DROP VIEW "public"."v"`)
+	require.Less(t, strings.Index(sql, `DROP VIEW "public"."v"`), strings.Index(sql, `ALTER COLUMN "n"`), sql)
 }

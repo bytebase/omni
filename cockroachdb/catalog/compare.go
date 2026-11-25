@@ -55,8 +55,8 @@ type literalCastStripper struct{}
 // VisitPre drops a cast or annotation on a literal only where the context
 // fixes the literal's type anyway, which is where CockroachDB adds them to
 // what it stores: a side of a comparison whose other side is not a literal
-// (s > 'a'::STRING, an IN list's elements), and a REGCLASS argument
-// (nextval('s'::REGCLASS)). Anywhere else a cast chooses a type, of an
+// (s > 'a'::STRING, an IN list's elements), and the sequence's REGCLASS in
+// nextval('s'::REGCLASS), currval and setval. Anywhere else a cast chooses a type, of an
 // overload, an operator, a COALESCE or a comparison of literals, and stays.
 func (literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 	switch e := expr.(type) {
@@ -73,24 +73,24 @@ func (literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 		}
 		return true, &cmp
 	case *tree.FuncExpr:
-		var args tree.Exprs
-		for i, arg := range e.Exprs {
-			cast, ok := unparen(arg).(*tree.CastExpr)
-			if !ok || !isLiteral(unparen(cast.Expr)) {
-				continue
-			}
-			if t, ok := tree.GetStaticallyKnownType(cast.Type); ok && t.Family() == types.OidFamily {
-				if args == nil {
-					args = append(tree.Exprs(nil), e.Exprs...)
-				}
-				args[i] = unparen(cast.Expr)
-			}
+		// nextval, currval and setval take their sequence as a REGCLASS,
+		// which CockroachDB writes on the name it stores.
+		name, ok := e.Func.FunctionReference.(*tree.UnresolvedName)
+		if !ok || len(e.Exprs) == 0 {
+			break
 		}
-		if args != nil {
-			call := *e
-			call.Exprs = args
-			return true, &call
+		switch strings.ToLower(name.Parts[0]) {
+		case "nextval", "currval", "setval":
+		default:
+			return true, expr
 		}
+		cast, ok := unparen(e.Exprs[0]).(*tree.CastExpr)
+		if !ok || !isLiteral(unparen(cast.Expr)) || !strings.EqualFold(cast.Type.SQLString(), "REGCLASS") {
+			break
+		}
+		call := *e
+		call.Exprs = append(tree.Exprs{unparen(cast.Expr)}, e.Exprs[1:]...)
+		return true, &call
 	}
 	return true, expr
 }
@@ -445,7 +445,8 @@ var annotateToken = func() int32 {
 
 // identifiers returns the words of a query, a superset of the columns it
 // reads, and whether it may read columns it does not name: through a star,
-// or through a NATURAL join's shared columns.
+// a NATURAL join's shared columns, or a relation's column aliases (FROM t AS
+// x (a, b), whose a and b name t's columns by position).
 func identifiers(query string) (map[string]bool, bool) {
 	tokens, ok := crparser.Tokens(query)
 	if !ok {
@@ -453,9 +454,15 @@ func identifiers(query string) (map[string]bool, bool) {
 	}
 	words := make(map[string]bool)
 	star := false
-	for _, token := range tokens {
+	ident := tokenID("x")
+	for i, token := range tokens {
 		words[token.Str] = true
 		if token.Str == "*" || strings.EqualFold(token.Str, "natural") {
+			star = true
+		}
+		// An alias with a column list: AS x ( or t x (.
+		if i+2 < len(tokens) && tokens[i+1].TokenID == ident && tokens[i+2].TokenID == tokenID("(") &&
+			(token.TokenID == tokenID("as") || token.TokenID == ident) {
 			star = true
 		}
 	}
