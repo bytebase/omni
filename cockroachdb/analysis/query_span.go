@@ -13,6 +13,7 @@ import (
 	plpgsqlparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/plpgsql/parser"
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/plpgsqltree"
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
+	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/types"
 
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/metadata"
@@ -331,6 +332,9 @@ type spanRelation struct {
 	opaque      bool
 	opaqueReads analysis.ColumnSet
 	opaqueTable *analysis.ColumnResource
+	// scalar marks a function in FROM that returns one value a row, whose
+	// column a table alias names.
+	scalar bool
 }
 
 func (rel *spanRelation) opaqueColumn(name string) spanColumn {
@@ -762,8 +766,8 @@ func (r *spanResolver) tableExpr(te tree.TableExpr, sc *spanScope) *fromItem {
 			inner := item.relations[0]
 			rel.name, rel.schema, rel.database = inner.name, inner.schema, inner.database
 		}
-		if fn, ok := n.Expr.(*tree.RowsFromExpr); ok && len(fn.Items) == 1 && len(item.columns) == 1 && n.As.Alias != "" && len(n.As.Cols) == 0 {
-			// A function's one column takes the alias's name.
+		if len(item.relations) == 1 && item.relations[0].scalar && n.As.Alias != "" && len(n.As.Cols) == 0 {
+			// A function returning one value names its column by the alias.
 			rel.columns[0].name = rel.name
 		}
 		for _, inner := range item.opaque() {
@@ -814,7 +818,8 @@ func (r *spanResolver) tableExpr(te tree.TableExpr, sc *spanScope) *fromItem {
 		rel := &spanRelation{}
 		reads := analysis.ColumnSet{}
 		for _, fn := range n.Items {
-			cols, known := r.functionColumns(fn, sc)
+			cols, known, scalar := r.functionColumns(fn, sc)
+			rel.scalar = len(n.Items) == 1 && scalar
 			for _, c := range cols {
 				reads = union(reads, c.sources)
 			}
@@ -848,22 +853,36 @@ func (r *spanResolver) tableExpr(te tree.TableExpr, sc *spanScope) *fromItem {
 // functionColumns returns the columns a function in FROM returns, each with
 // the arguments it reads, and whether they are known. A function of unknown
 // columns, such as a user-defined one or json_to_record, is one column here.
-func (r *spanResolver) functionColumns(e tree.Expr, sc *spanScope) ([]spanColumn, bool) {
+func (r *spanResolver) functionColumns(e tree.Expr, sc *spanScope) (cols []spanColumn, known, scalar bool) {
 	name := renderName(tree.SelectExpr{Expr: e})
 	fn, ok := e.(*tree.FuncExpr)
 	if !ok {
 		// A special form such as COALESCE or a cast returns one value.
-		return []spanColumn{{name: name, sources: r.sources(e, sc)}}, true
+		return []spanColumn{{name: name, sources: r.sources(e, sc)}}, true, true
 	}
 	args := make([]analysis.ColumnSet, len(fn.Exprs))
-	all := r.functionReads(fn)
-	if len(all) > 0 {
-		// A user-defined function's columns are unknown.
+	if udfs := r.userFunctions(fn); len(udfs) > 0 {
+		// A synced function's columns are those it declares; each reads
+		// everything the call reads, since which reads which is unknown.
+		all := r.functionReads(fn)
 		for _, arg := range fn.Exprs {
 			all = union(all, r.sources(arg, sc))
 		}
-		return []spanColumn{{name: name, sources: all}}, false
+		names, scalar, known := r.declaredColumns(udfs)
+		if r.mayBeBuiltin(fn, name) {
+			// A built-in of the name may be the one called instead.
+			known = false
+		}
+		if !known {
+			return []spanColumn{{name: name, sources: all}}, false, false
+		}
+		cols := make([]spanColumn, len(names))
+		for i, n := range names {
+			cols[i] = spanColumn{name: n, sources: all}
+		}
+		return cols, true, scalar
 	}
+	all := analysis.ColumnSet{}
 	for i, arg := range fn.Exprs {
 		args[i] = r.sources(arg, sc)
 		all = union(all, args[i])
@@ -875,13 +894,80 @@ func (r *spanResolver) functionColumns(e tree.Expr, sc *spanScope) ([]spanColumn
 		for i := range args {
 			cols[i] = spanColumn{name: name, sources: args[i]}
 		}
-		return cols, true
+		return cols, true, false
 	case keyValueFunctions[name]:
-		return []spanColumn{{name: "key", sources: all}, {name: "value", sources: union(all)}}, true
+		return []spanColumn{{name: "key", sources: all}, {name: "value", sources: union(all)}}, true, false
 	case oneColumnFunctions[name]:
-		return []spanColumn{{name: name, sources: all}}, true
+		return []spanColumn{{name: name, sources: all}}, true, true
 	}
-	return []spanColumn{{name: name, sources: all}}, false
+	return []spanColumn{{name: name, sources: all}}, false, false
+}
+
+// mayBeBuiltin reports whether a call of a synced function's name may
+// resolve to a built-in this resolver knows the columns of instead: an
+// unqualified call, since pg_catalog is always on CockroachDB's search path.
+// A qualified call reaches only its schema's functions.
+func (r *spanResolver) mayBeBuiltin(fn *tree.FuncExpr, name string) bool {
+	if !keyValueFunctions[name] && !oneColumnFunctions[name] {
+		return false
+	}
+	written := fn.Func.ReferenceByName
+	return written == nil || !written.HasExplicitSchema()
+}
+
+// declaredColumns returns the result columns every overload of a synced
+// function declares: its OUT and TABLE parameters, the columns of the table
+// whose type it returns, or one column named for it when it returns a scalar.
+// known is false when they differ or one returns a record of unknown
+// columns.
+func (r *spanResolver) declaredColumns(udfs []userFunction) (names []string, scalar, known bool) {
+	for i, udf := range udfs {
+		n, s, ok := r.declaredBy(udf)
+		if !ok || (i > 0 && (s != scalar || !slices.Equal(n, names))) {
+			return nil, false, false
+		}
+		names, scalar = n, s
+	}
+	return names, scalar, true
+}
+
+func (r *spanResolver) declaredBy(udf userFunction) (names []string, scalar, known bool) {
+	create, err := parseRoutine(udf.meta.GetDefinition())
+	if err != nil || create.ReturnType == nil {
+		return nil, false, false
+	}
+	for _, param := range create.Params {
+		if tree.IsOutParamClass(param.Class) {
+			names = append(names, string(param.Name))
+		}
+	}
+	if len(names) > 0 {
+		return names, false, true
+	}
+	switch t := create.ReturnType.Type.(type) {
+	case *types.T:
+		if t.Family() == types.TupleFamily {
+			return nil, false, false
+		}
+		return []string{udf.meta.GetName()}, true, true
+	case *tree.UnresolvedObjectName:
+		tn := t.ToTableName()
+		resource, db := r.locate(&tn)
+		if db == nil || isSystemResource(resource) {
+			return nil, false, false
+		}
+		table := db.GetTable(resource.Schema, resource.Table)
+		if table == nil {
+			return nil, false, false
+		}
+		for _, c := range table.GetColumns() {
+			if !c.GetIsInvisible() {
+				names = append(names, c.GetName())
+			}
+		}
+		return names, false, len(names) > 0
+	}
+	return nil, false, false
 }
 
 // keyValueFunctions return a key and a value column; oneColumnFunctions
@@ -1117,18 +1203,16 @@ func (r *spanResolver) locate(tn *tree.TableName) (analysis.ColumnResource, Data
 	default:
 		db := r.database(resource.Database)
 		for _, schema := range r.effectiveSearchPath() {
-			switch schema {
-			case "pg_catalog", "pg_extension":
-				if systemRelations[schema][name] {
+			if relations, ok := systemRelations[schema]; ok {
+				if relations[name] {
 					resource.Schema = schema
 					return resource, nil
 				}
-			default:
-				if db != nil {
-					if found, _ := db.SearchRelation([]string{schema}, name); found != "" {
-						resource.Schema = found
-						return resource, db
-					}
+			}
+			if db != nil {
+				if found, _ := db.SearchRelation([]string{schema}, name); found != "" {
+					resource.Schema = found
+					return resource, db
 				}
 			}
 		}
@@ -1664,6 +1748,24 @@ type functionBody struct {
 // statement's own. A function the sync does not hold, such as a builtin,
 // reads nothing more than its arguments.
 func (r *spanResolver) functionReads(fn *tree.FuncExpr) analysis.ColumnSet {
+	reads := analysis.ColumnSet{}
+	for _, udf := range r.userFunctions(fn) {
+		reads = union(reads, r.applyBody(r.analyzeFunction(udf.key, udf.meta)))
+	}
+	return reads
+}
+
+// userFunction is a synced function a call may resolve to.
+type userFunction struct {
+	key  string
+	meta *metadata.FunctionMetadata
+}
+
+// userFunctions returns every synced function a call may resolve to: each
+// overload of its name in its qualifying schema, or, since CockroachDB picks
+// an overload by its arguments across the whole search path, in every schema
+// the path reaches.
+func (r *spanResolver) userFunctions(fn *tree.FuncExpr) []userFunction {
 	if _, ok := fn.Func.FunctionReference.(*tree.FunctionOID); ok {
 		r.failStatement(errors.New("a function called by OID names no function the metadata can resolve"))
 		return nil
@@ -1691,29 +1793,20 @@ func (r *spanResolver) functionReads(fn *tree.FuncExpr) analysis.ColumnSet {
 	if db == nil {
 		return nil
 	}
-	reads := analysis.ColumnSet{}
+	var out []userFunction
 	for _, schema := range schemas {
-		var overloads []*metadata.FunctionMetadata
 		for _, s := range db.Metadata().GetSchemas() {
 			if s.GetName() != schema {
 				continue
 			}
 			for _, f := range s.GetFunctions() {
 				if f.GetName() == written.Object() {
-					overloads = append(overloads, f)
+					out = append(out, userFunction{key: database + "." + schema + "." + f.GetSignature(), meta: f})
 				}
 			}
 		}
-		if len(overloads) == 0 {
-			continue
-		}
-		// CockroachDB picks an overload by its arguments across the whole
-		// search path, so every overload of the name may be the one called.
-		for _, f := range overloads {
-			reads = union(reads, r.applyBody(r.analyzeFunction(database+"."+schema+"."+f.GetSignature(), f)))
-		}
 	}
-	return reads
+	return out
 }
 
 // applyBody records what a function's body reads as the statement's own and
@@ -1780,18 +1873,27 @@ func (b *functionBody) size() int {
 	return n
 }
 
-// walkFunction walks the body of a CREATE FUNCTION or CREATE PROCEDURE.
-func (r *spanResolver) walkFunction(definition string) error {
+// parseRoutine parses a synced CREATE FUNCTION or CREATE PROCEDURE.
+func parseRoutine(definition string) (*tree.CreateRoutine, error) {
 	stmts, err := Parse(definition)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var create *tree.CreateRoutine
 	if len(stmts) == 1 {
 		create, _ = stmts[0].AST.(*tree.CreateRoutine)
 	}
 	if create == nil {
-		return errors.New("the definition is not a CREATE FUNCTION")
+		return nil, errors.New("the definition is not a CREATE FUNCTION")
+	}
+	return create, nil
+}
+
+// walkFunction walks the body of a CREATE FUNCTION or CREATE PROCEDURE.
+func (r *spanResolver) walkFunction(definition string) error {
+	create, err := parseRoutine(definition)
+	if err != nil {
+		return err
 	}
 	language, body := tree.RoutineLangSQL, ""
 	for _, option := range create.Options {
@@ -1835,40 +1937,91 @@ func (r *spanResolver) walkFunction(definition string) error {
 	return nil
 }
 
-// systemRelations are the relations of the system schemas an unqualified
-// name reaches through the search path.
+// systemRelations are the relations of CockroachDB v25.2.3's virtual schemas,
+// as its information_schema.tables lists them, which an unqualified name
+// reaches through the search path. The sync stores none of them.
 var systemRelations = map[string]map[string]bool{
-	"pg_catalog":   pgCatalogRelations,
-	"pg_extension": setOf("geography_columns", "geometry_columns", "spatial_ref_sys"),
+	"crdb_internal": setOf(
+		"active_range_feeds", "backward_dependencies", "builtin_functions", "cluster_contended_indexes",
+		"cluster_contended_keys", "cluster_contended_tables", "cluster_contention_events",
+		"cluster_database_privileges", "cluster_distsql_flows", "cluster_execution_insights",
+		"cluster_inflight_traces", "cluster_locks", "cluster_queries",
+		"cluster_replication_node_stream_checkpoints", "cluster_replication_node_stream_spans",
+		"cluster_replication_node_streams", "cluster_replication_spans", "cluster_sessions", "cluster_settings",
+		"cluster_statement_statistics", "cluster_transaction_statistics", "cluster_transactions",
+		"cluster_txn_execution_insights", "create_function_statements", "create_procedure_statements",
+		"create_schema_statements", "create_statements", "create_type_statements", "cross_db_references",
+		"databases", "default_privileges", "feature_usage", "forward_dependencies", "fully_qualified_names",
+		"gossip_alerts", "gossip_liveness", "gossip_network", "gossip_nodes", "index_columns", "index_spans",
+		"index_usage_statistics", "invalid_objects", "jobs", "kv_builtin_function_comments", "kv_catalog_comments",
+		"kv_catalog_descriptor", "kv_catalog_namespace", "kv_catalog_zones", "kv_dropped_relations",
+		"kv_flow_control_handles", "kv_flow_control_handles_v2", "kv_flow_controller", "kv_flow_controller_v2",
+		"kv_flow_token_deductions", "kv_flow_token_deductions_v2", "kv_inherited_role_members", "kv_node_liveness",
+		"kv_node_status", "kv_protected_ts_records", "kv_repairable_catalog_corruptions", "kv_session_based_leases",
+		"kv_store_status", "kv_system_privileges", "leases", "logical_replication_node_processors",
+		"logical_replication_spans", "lost_descriptors_with_data", "node_build_info", "node_contention_events",
+		"node_distsql_flows", "node_execution_insights", "node_inflight_trace_spans", "node_memory_monitors",
+		"node_metrics", "node_queries", "node_runtime_info", "node_sessions", "node_statement_statistics",
+		"node_tenant_capabilities_cache", "node_transaction_statistics", "node_transactions",
+		"node_txn_execution_insights", "node_txn_stats", "partitions", "pg_catalog_table_is_implemented", "ranges",
+		"ranges_no_leases", "regions", "schema_changes", "session_trace", "session_variables", "statement_activity",
+		"statement_statistics", "statement_statistics_persisted", "statement_statistics_persisted_v22_2",
+		"store_liveness_support_for", "store_liveness_support_from", "super_regions", "system_jobs",
+		"table_columns", "table_indexes", "table_row_statistics", "table_spans", "tables", "tenant_usage_details",
+		"transaction_activity", "transaction_contention_events", "transaction_statistics",
+		"transaction_statistics_persisted", "transaction_statistics_persisted_v22_2", "zones",
+	),
+	"information_schema": setOf(
+		"administrable_role_authorizations", "applicable_roles", "attributes", "character_sets",
+		"check_constraint_routine_usage", "check_constraints", "collation_character_set_applicability",
+		"collations", "column_column_usage", "column_domain_usage", "column_options", "column_privileges",
+		"column_statistics", "column_udt_usage", "columns", "columns_extensions", "constraint_column_usage",
+		"constraint_table_usage", "data_type_privileges", "domain_constraints", "domain_udt_usage", "domains",
+		"element_types", "enabled_roles", "engines", "events", "files", "foreign_data_wrapper_options",
+		"foreign_data_wrappers", "foreign_server_options", "foreign_servers", "foreign_table_options",
+		"foreign_tables", "information_schema_catalog_name", "key_column_usage", "keywords", "optimizer_trace",
+		"parameters", "partitions", "plugins", "processlist", "profiling", "referential_constraints",
+		"resource_groups", "role_column_grants", "role_routine_grants", "role_table_grants", "role_udt_grants",
+		"role_usage_grants", "routine_privileges", "routines", "schema_privileges", "schemata",
+		"schemata_extensions", "sequences", "session_variables", "sql_features", "sql_implementation_info",
+		"sql_parts", "sql_sizing", "st_geometry_columns", "st_spatial_reference_systems", "st_units_of_measure",
+		"statistics", "table_constraints", "table_constraints_extensions", "table_privileges", "tables",
+		"tables_extensions", "tablespaces", "tablespaces_extensions", "transforms", "triggered_update_columns",
+		"triggers", "type_privileges", "udt_privileges", "usage_privileges", "user_attributes",
+		"user_defined_types", "user_mapping_options", "user_mappings", "user_privileges", "view_column_usage",
+		"view_routine_usage", "view_table_usage", "views",
+	),
+	"pg_catalog": setOf(
+		"pg_aggregate", "pg_am", "pg_amop", "pg_amproc", "pg_attrdef", "pg_attribute", "pg_auth_members",
+		"pg_authid", "pg_available_extension_versions", "pg_available_extensions", "pg_cast", "pg_class",
+		"pg_collation", "pg_config", "pg_constraint", "pg_conversion", "pg_cursors", "pg_database",
+		"pg_db_role_setting", "pg_default_acl", "pg_depend", "pg_description", "pg_enum", "pg_event_trigger",
+		"pg_extension", "pg_file_settings", "pg_foreign_data_wrapper", "pg_foreign_server", "pg_foreign_table",
+		"pg_group", "pg_hba_file_rules", "pg_index", "pg_indexes", "pg_inherits", "pg_init_privs", "pg_language",
+		"pg_largeobject", "pg_largeobject_metadata", "pg_locks", "pg_matviews", "pg_namespace", "pg_opclass",
+		"pg_operator", "pg_opfamily", "pg_partitioned_table", "pg_policies", "pg_policy", "pg_prepared_statements",
+		"pg_prepared_xacts", "pg_proc", "pg_publication", "pg_publication_rel", "pg_publication_tables", "pg_range",
+		"pg_replication_origin", "pg_replication_origin_status", "pg_replication_slots", "pg_rewrite", "pg_roles",
+		"pg_rules", "pg_seclabel", "pg_seclabels", "pg_sequence", "pg_sequences", "pg_settings", "pg_shadow",
+		"pg_shdepend", "pg_shdescription", "pg_shmem_allocations", "pg_shseclabel", "pg_stat_activity",
+		"pg_stat_all_indexes", "pg_stat_all_tables", "pg_stat_archiver", "pg_stat_bgwriter", "pg_stat_database",
+		"pg_stat_database_conflicts", "pg_stat_gssapi", "pg_stat_progress_analyze", "pg_stat_progress_basebackup",
+		"pg_stat_progress_cluster", "pg_stat_progress_create_index", "pg_stat_progress_vacuum",
+		"pg_stat_replication", "pg_stat_slru", "pg_stat_ssl", "pg_stat_subscription", "pg_stat_sys_indexes",
+		"pg_stat_sys_tables", "pg_stat_user_functions", "pg_stat_user_indexes", "pg_stat_user_tables",
+		"pg_stat_wal_receiver", "pg_stat_xact_all_tables", "pg_stat_xact_sys_tables", "pg_stat_xact_user_functions",
+		"pg_stat_xact_user_tables", "pg_statio_all_indexes", "pg_statio_all_sequences", "pg_statio_all_tables",
+		"pg_statio_sys_indexes", "pg_statio_sys_sequences", "pg_statio_sys_tables", "pg_statio_user_indexes",
+		"pg_statio_user_sequences", "pg_statio_user_tables", "pg_statistic", "pg_statistic_ext",
+		"pg_statistic_ext_data", "pg_stats", "pg_stats_ext", "pg_subscription", "pg_subscription_rel", "pg_tables",
+		"pg_tablespace", "pg_timezone_abbrevs", "pg_timezone_names", "pg_transform", "pg_trigger", "pg_ts_config",
+		"pg_ts_config_map", "pg_ts_dict", "pg_ts_parser", "pg_ts_template", "pg_type", "pg_user", "pg_user_mapping",
+		"pg_user_mappings", "pg_views",
+	),
+	"pg_extension": setOf(
+		"geography_columns", "geometry_columns", "spatial_ref_sys",
+	),
 }
-
-// pgCatalogRelations are the relations of CockroachDB v25.2's pg_catalog.
-var pgCatalogRelations = setOf(
-	"pg_aggregate", "pg_am", "pg_amop", "pg_amproc", "pg_attrdef", "pg_attribute", "pg_auth_members", "pg_authid",
-	"pg_available_extension_versions", "pg_available_extensions", "pg_cast", "pg_class", "pg_collation", "pg_config",
-	"pg_constraint", "pg_conversion", "pg_cursors", "pg_database", "pg_db_role_setting", "pg_default_acl", "pg_depend",
-	"pg_description", "pg_enum", "pg_event_trigger", "pg_extension", "pg_file_settings", "pg_foreign_data_wrapper",
-	"pg_foreign_server", "pg_foreign_table", "pg_group", "pg_hba_file_rules", "pg_index", "pg_indexes", "pg_inherits",
-	"pg_init_privs", "pg_language", "pg_largeobject", "pg_largeobject_metadata", "pg_locks", "pg_matviews",
-	"pg_namespace", "pg_opclass", "pg_operator", "pg_opfamily", "pg_partitioned_table", "pg_policies", "pg_policy",
-	"pg_prepared_statements", "pg_prepared_xacts", "pg_proc", "pg_publication", "pg_publication_rel",
-	"pg_publication_tables", "pg_range", "pg_replication_origin", "pg_replication_origin_status",
-	"pg_replication_slots", "pg_rewrite", "pg_roles", "pg_rules", "pg_seclabel", "pg_seclabels", "pg_sequence",
-	"pg_sequences", "pg_settings", "pg_shadow", "pg_shdepend", "pg_shdescription", "pg_shmem_allocations",
-	"pg_shseclabel", "pg_stat_activity", "pg_stat_all_indexes", "pg_stat_all_tables", "pg_stat_archiver",
-	"pg_stat_bgwriter", "pg_stat_database", "pg_stat_database_conflicts", "pg_stat_gssapi", "pg_stat_progress_analyze",
-	"pg_stat_progress_basebackup", "pg_stat_progress_cluster", "pg_stat_progress_create_index",
-	"pg_stat_progress_vacuum", "pg_stat_replication", "pg_stat_slru", "pg_stat_ssl", "pg_stat_subscription",
-	"pg_stat_sys_indexes", "pg_stat_sys_tables", "pg_stat_user_functions", "pg_stat_user_indexes",
-	"pg_stat_user_tables", "pg_stat_wal_receiver", "pg_stat_xact_all_tables", "pg_stat_xact_sys_tables",
-	"pg_stat_xact_user_functions", "pg_stat_xact_user_tables", "pg_statio_all_indexes", "pg_statio_all_sequences",
-	"pg_statio_all_tables", "pg_statio_sys_indexes", "pg_statio_sys_sequences", "pg_statio_sys_tables",
-	"pg_statio_user_indexes", "pg_statio_user_sequences", "pg_statio_user_tables", "pg_statistic", "pg_statistic_ext",
-	"pg_statistic_ext_data", "pg_stats", "pg_stats_ext", "pg_subscription", "pg_subscription_rel", "pg_tables",
-	"pg_tablespace", "pg_timezone_abbrevs", "pg_timezone_names", "pg_transform", "pg_trigger", "pg_ts_config",
-	"pg_ts_config_map", "pg_ts_dict", "pg_ts_parser", "pg_ts_template", "pg_type", "pg_user", "pg_user_mapping",
-	"pg_user_mappings", "pg_views",
-)
 
 func setOf(names ...string) map[string]bool {
 	out := make(map[string]bool, len(names))

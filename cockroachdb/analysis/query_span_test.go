@@ -63,6 +63,13 @@ func spanTestMetadata() map[string]*metadatapb.DatabaseSchemaMetadata {
 					sqlFunction("cycle_a()", "RETURNS STRING LANGUAGE SQL AS $$ SELECT db.public.cycle_b() $$"),
 					sqlFunction("cycle_b()", "RETURNS STRING LANGUAGE SQL AS $$ SELECT db.public.cycle_c() $$"),
 					sqlFunction("cycle_c()", "RETURNS STRING LANGUAGE SQL AS $$ SELECT db.public.cycle_a() || name FROM db.public.t LIMIT 1 $$"),
+					// Synced functions named as built-ins, whose columns are
+					// the ones they declare.
+					sqlFunction("unnest(x STRING)", "RETURNS TABLE(a STRING, b STRING) LANGUAGE SQL AS $$ SELECT x, x $$"),
+					sqlFunction("table_rows(x STRING)", "RETURNS SETOF db.public.t LANGUAGE SQL AS $$ SELECT * FROM db.public.t $$"),
+					sqlFunction("one_column()", "RETURNS TABLE(a STRING) LANGUAGE SQL AS $$ SELECT name FROM db.public.t $$"),
+					sqlFunction("pairs(x STRING, OUT k STRING, OUT v STRING)", "RETURNS RECORD LANGUAGE SQL AS $$ SELECT x, x $$"),
+					sqlFunction("anything(x STRING)", "RETURNS SETOF RECORD LANGUAGE SQL AS $$ SELECT x, x $$"),
 					sqlFunction("pick(i INT8)", "RETURNS STRING LANGUAGE SQL AS $$ SELECT ssn FROM db.public.t LIMIT 1 $$"),
 				},
 				Views: []*metadatapb.ViewMetadata{
@@ -170,7 +177,7 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 		{"SELECT x.n FROM generate_series(1, 2) AS x(n)", []string{"n:"}},
 		// A name a function's unknown columns may hold reads the function's
 		// arguments too.
-		{"SELECT (SELECT ssn FROM f(t.name)) FROM t", []string{"ssn: db.public.t.name db.public.t.ssn"}},
+		{"SELECT (SELECT ssn FROM unknown_fn(t.name)) FROM t", []string{"ssn: db.public.t.name db.public.t.ssn"}},
 		{"SELECT o.ordinality, o.name FROM t WITH ORDINALITY AS o", []string{"ordinality:", "name: db.public.t.name"}},
 		// A tuple's fields are columns of their own; a value of unknown
 		// fields stays one column.
@@ -357,19 +364,19 @@ func TestResolveQuerySpanDerivedColumns(t *testing.T) {
 		{"SELECT r.b FROM t, ROWS FROM (json_each(t.ssn::JSONB), generate_series(1, 2)) AS r(a, b, c)", []string{"b: db.public.t.ssn"}},
 		{"SELECT r.c FROM t, ROWS FROM (json_each(t.ssn::JSONB), generate_series(1, 2)) AS r(a, b, c)", []string{"c:"}},
 		{"SELECT * FROM t AS x, json_each(x.ssn::JSONB)", []string{"id: db.public.t.id", "ssn: db.public.t.ssn", "name: db.public.t.name", "key: db.public.t.ssn", "value: db.public.t.ssn"}},
-		{"SELECT * FROM t AS x, unnest(ARRAY[x.ssn], ARRAY[x.name]) AS y(p, q)", []string{"id: db.public.t.id", "ssn: db.public.t.ssn", "name: db.public.t.name", "p: db.public.t.ssn", "q: db.public.t.name"}},
+		{"SELECT * FROM t AS x, pg_catalog.unnest(ARRAY[x.ssn], ARRAY[x.name]) AS y(p, q)", []string{"id: db.public.t.id", "ssn: db.public.t.ssn", "name: db.public.t.name", "p: db.public.t.ssn", "q: db.public.t.name"}},
 		{"SELECT (SELECT ssn FROM json_each(t.name::JSONB)) FROM t", []string{"ssn: db.public.t.ssn"}},
 		// Past a function of unknown columns, every column reads every
 		// argument of the item.
-		{"SELECT r.b FROM t, ROWS FROM (f(t.ssn), generate_series(1, t.id)) AS r(a, b)", []string{"b: db.public.t.id db.public.t.ssn"}},
-		{"SELECT r.generate_series FROM t, ROWS FROM (generate_series(1, t.id), f(t.ssn)) AS r", []string{"generate_series: db.public.t.id db.public.t.ssn"}},
+		{"SELECT r.b FROM t, ROWS FROM (unknown_fn(t.ssn), generate_series(1, t.id)) AS r(a, b)", []string{"b: db.public.t.id db.public.t.ssn"}},
+		{"SELECT r.generate_series FROM t, ROWS FROM (generate_series(1, t.id), unknown_fn(t.ssn)) AS r", []string{"generate_series: db.public.t.id db.public.t.ssn"}},
 		// A name an aggregate, a set operation or a values list makes reads
 		// every input.
 		{"SELECT x FROM (SELECT ssn FROM t UNION ALL SELECT note FROM u) AS q(x)", []string{"x: db.public.t.ssn db.public.u.note"}},
 		{"SELECT column2 FROM (VALUES (1, (SELECT ssn FROM t LIMIT 1)))", []string{"column2: db.public.t.ssn"}},
 		// A correlated name in a subquery of an unknown relation keeps the
 		// outer column and the relation's reads.
-		{"SELECT (SELECT ssn FROM f(t.name)) FROM t", []string{"ssn: db.public.t.name db.public.t.ssn"}},
+		{"SELECT (SELECT ssn FROM unknown_fn(t.name)) FROM t", []string{"ssn: db.public.t.name db.public.t.ssn"}},
 	} {
 		t.Run(tc.statement, func(t *testing.T) {
 			span, err := resolveSpan(tc.statement)
@@ -638,6 +645,13 @@ func TestResolveQuerySpanSearchPath(t *testing.T) {
 		{"public", "SELECT * FROM geometry_columns", analysis.SelectInfoSchema, "db.pg_extension.geometry_columns"},
 		{"public,pg_extension", "SELECT * FROM geometry_columns", analysis.Select, "db.public.geometry_columns"},
 		{"hr", "SELECT * FROM geometry_columns", analysis.QueryTypeUnknown, ""},
+		// Every virtual schema the path names reaches its relations, after a
+		// user table earlier in the path.
+		{"public,information_schema", "SELECT table_name FROM tables", analysis.SelectInfoSchema, "db.information_schema.tables"},
+		{"public,crdb_internal", "SELECT * FROM jobs", analysis.SelectInfoSchema, "db.crdb_internal.jobs"},
+		{"information_schema,public", "SELECT * FROM columns", analysis.SelectInfoSchema, "db.information_schema.columns"},
+		{"public,information_schema", "SELECT * FROM pg_class", analysis.SelectInfoSchema, "db.pg_catalog.pg_class"},
+		{"hr,information_schema", "SELECT * FROM t", analysis.Select, "db.hr.t"},
 	} {
 		span, err := resolveSpanIn(tc.statement, tc.searchPath)
 		if tc.queryType == analysis.QueryTypeUnknown {
@@ -654,6 +668,9 @@ func TestResolveQuerySpanSearchPath(t *testing.T) {
 		if span.Type != tc.queryType || columnNames(span.SourceColumns) != tc.tables {
 			t.Errorf("%s under %s: got %s %q, want %s %q", tc.statement, tc.searchPath, span.Type, columnNames(span.SourceColumns), tc.queryType, tc.tables)
 		}
+	}
+	if _, err := resolveSpanIn("SELECT table_name, name FROM tables, t", "public,information_schema"); !errors.Is(err, ErrMixUserSystemTables) {
+		t.Errorf("got %v, want ErrMixUserSystemTables", err)
 	}
 	span, err := resolveSpanIn("SELECT relname FROM pg_class", "public,pg_catalog")
 	if err != nil {
@@ -760,5 +777,45 @@ func TestResolveQuerySpanFunctionBody(t *testing.T) {
 		if got := columnNames(body.sources); got != want || !body.writes {
 			t.Errorf("%s: reads %q, writes %v; want %q and a write", name, got, body.writes, want)
 		}
+	}
+}
+
+// TestResolveQuerySpanFunctionWidths holds a function in FROM to the columns
+// it returns: a synced function's declared ones, and a built-in's only when
+// the call may reach the built-in.
+func TestResolveQuerySpanFunctionWidths(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		want      []string
+	}{
+		// A synced unnest whose body reads only its parameter is still the
+		// synced function, two columns wide.
+		{"SELECT r.b FROM t, ROWS FROM (public.unnest(t.ssn), pg_catalog.generate_series(1, 2)) AS r(a, b)", []string{"b: db.public.t.ssn"}},
+		{"SELECT r.c FROM t, ROWS FROM (public.unnest(t.ssn), pg_catalog.generate_series(1, 2)) AS r(a, b, c)", []string{"c:"}},
+		{"SELECT * FROM t AS x, public.unnest(x.ssn) AS u", []string{"id: db.public.t.id", "ssn: db.public.t.ssn", "name: db.public.t.name", "a: db.public.t.ssn", "b: db.public.t.ssn"}},
+		{"SELECT * FROM table_rows('x')", []string{"id: db.public.t.id db.public.t.name db.public.t.ssn", "ssn: db.public.t.id db.public.t.name db.public.t.ssn", "name: db.public.t.id db.public.t.name db.public.t.ssn"}},
+		{"SELECT * FROM t AS x, pairs(x.ssn)", []string{"id: db.public.t.id", "ssn: db.public.t.ssn", "name: db.public.t.name", "k: db.public.t.ssn", "v: db.public.t.ssn"}},
+		// A record of unknown columns, or a name the built-in may answer, is
+		// of unknown width: every column reads everything.
+		{"SELECT r.b FROM t, ROWS FROM (anything(t.ssn), generate_series(1, 2)) AS r(a, b)", []string{"b: db.public.t.ssn"}},
+		{"SELECT r.b FROM t, ROWS FROM (unnest(t.ssn), generate_series(1, t.id)) AS r(a, b)", []string{"b: db.public.t.id db.public.t.ssn"}},
+		{"SELECT r.c FROM t, ROWS FROM (unnest(t.ssn), generate_series(1, t.id)) AS r(a, b, c)", []string{"c: db.public.t.id db.public.t.ssn"}},
+		// pg_catalog's is always the built-in.
+		{"SELECT * FROM t AS x, pg_catalog.json_each(x.ssn::JSONB)", []string{"id: db.public.t.id", "ssn: db.public.t.ssn", "name: db.public.t.name", "key: db.public.t.ssn", "value: db.public.t.ssn"}},
+		{"SELECT u FROM t, pg_catalog.unnest(ARRAY[t.ssn]) AS u", []string{"u: db.public.t.ssn"}},
+		// A synced scalar function's column takes the alias's name; a table
+		// function's does not.
+		{"SELECT s FROM get_ssn() AS s", []string{"s: db.public.t.ssn"}},
+		{"SELECT * FROM one_column() AS u", []string{"a: db.public.t.name"}},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			span, err := resolveSpan(tc.statement)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(tc.want, lineage(span)); diff != "" {
+				t.Errorf("lineage (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
