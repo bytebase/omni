@@ -1029,6 +1029,10 @@ func getCompositeTypes(txn *sql.Tx) (map[string][]*metadatapb.CompositeTypeMetad
 // PER NODE CACHE is another option.
 var sequenceCache = regexp.MustCompile(`(?:^|[^E]) CACHE (\d+)`)
 
+// quotedName matches a quoted identifier, which the cache match skips so a
+// name holding "CACHE 4" supplies no option.
+var quotedName = regexp.MustCompile(`"(?:[^"]|"")*"`)
+
 func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error) {
 	// A sequence's OWNED BY column is its pg_depend row of type 'a': the
 	// owning table and, as refobjsubid, the column's attnum.
@@ -1059,7 +1063,7 @@ func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error
 		}
 		// CockroachDB states a sequence's CACHE only in its CREATE statement:
 		// pg_sequence.seqcache reads 1 whatever it is.
-		if m := sequenceCache.FindStringSubmatch(createStatement.String); m != nil {
+		if m := sequenceCache.FindStringSubmatch(quotedName.ReplaceAllString(createStatement.String, `""`)); m != nil {
 			sequence.CacheSize = m[1]
 		}
 		sequence.OwnerTable, sequence.OwnerColumn = ownerTable.String, ownerColumn.String

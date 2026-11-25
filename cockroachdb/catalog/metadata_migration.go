@@ -636,7 +636,8 @@ func findMaterializedView(schema *metadatapb.SchemaMetadata, name string) *metad
 }
 
 // cascadedForeignKeys returns the source foreign keys, by schema, table and
-// name, that reference the key columns of a unique index the migration drops.
+// name, that reference the key columns of a unique index or primary key the
+// migration drops.
 // The index drops with CASCADE, which takes such a key with it, so the key is
 // dropped and added again like a changed one.
 func (d *differ) cascadedForeignKeys() map[string]bool {
@@ -646,6 +647,14 @@ func (d *differ) cascadedForeignKeys() map[string]bool {
 			target := d.to.table(schema.Name, table.Name)
 			if target == nil {
 				continue
+			}
+			// A primary key being replaced is dropped like an index: a foreign
+			// key referencing it is detached, then added again once the
+			// target's supporting index exists.
+			_, oldPrimary, _ := tableShape(table)
+			_, newPrimary, _ := tableShape(target)
+			if oldPrimary != nil && (newPrimary == nil || primaryKeyClause(oldPrimary) != primaryKeyClause(newPrimary)) {
+				dropped[getObjectID(schema.Name, table.Name)+objectIDSeparator+columnSet(oldPrimary.Expressions)] = true
 			}
 			for _, index := range table.Indexes {
 				if !index.Unique || index.Primary {
@@ -781,6 +790,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	// in place.
 	// A computed column goes before the columns its expression reads.
 	var afterKey, relaxAfterKey []string
+	keyPhase := phaseAlterTables
 	dropOrder := slices.Clone(oldColumns)
 	slices.SortStableFunc(dropOrder, func(a, b *metadatapb.ColumnMetadata) int {
 		return boolOrder(b.Generation != nil) - boolOrder(a.Generation != nil)
@@ -827,6 +837,10 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 			bare.Default, bare.Nullable = "", true
 			d.r.writeColumnDefinition(&buf, bare)
 			alter(phaseAlterTables, OpAddColumn, column.Name, "ADD COLUMN "+buf.String())
+			// A primary key on this column waits for its backfill.
+			if defaultPhase == phaseLateColumns && slices.Contains(newPrimary.GetExpressions(), column.Name) {
+				keyPhase = phaseLateColumns
+			}
 			alter(defaultPhase, OpAlterColumn, column.Name, "ALTER COLUMN "+quoteIdent(column.Name)+" SET DEFAULT "+defaultExpression(column.Default))
 			d.add(defaultPhase, MigrationOp{Type: OpAlterTable, SchemaName: schema, ObjectName: column.Name, ParentObject: new.Name,
 				SQL: fmt.Sprintf("UPDATE %s SET %s = %s WHERE %s IS NULL", name, quoteIdent(column.Name), defaultExpression(column.Default), quoteIdent(column.Name))})
@@ -891,18 +905,18 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 		case newPrimary == nil:
 			return fmt.Errorf("table %s.%s drops its primary key, which CockroachDB cannot do", schema, new.Name)
 		case oldPrimary == nil:
-			alter(phaseAlterTables, OpAddConstraint, newPrimary.Name, "ADD "+newKey)
+			alter(keyPhase, OpAddConstraint, newPrimary.Name, "ADD "+newKey)
 		default:
 			// Dropping and adding the key in one statement keeps CockroachDB
 			// from leaving the old key behind as a unique index.
-			alter(phaseAlterTables, OpAddConstraint, newPrimary.Name, "DROP CONSTRAINT "+quoteIdent(oldPrimary.Name)+", ADD "+newKey)
+			alter(keyPhase, OpAddConstraint, newPrimary.Name, "DROP CONSTRAINT "+quoteIdent(oldPrimary.Name)+", ADD "+newKey)
 		}
 	}
 	for _, name := range afterKey {
-		alter(phaseAlterTables, OpDropColumn, name, "DROP COLUMN "+quoteIdent(name))
+		alter(keyPhase, OpDropColumn, name, "DROP COLUMN "+quoteIdent(name))
 	}
 	for _, name := range relaxAfterKey {
-		alter(phaseAlterTables, OpAlterColumn, name, "ALTER COLUMN "+quoteIdent(name)+" DROP NOT NULL")
+		alter(keyPhase, OpAlterColumn, name, "ALTER COLUMN "+quoteIdent(name)+" DROP NOT NULL")
 	}
 
 	for _, check := range newChecks {

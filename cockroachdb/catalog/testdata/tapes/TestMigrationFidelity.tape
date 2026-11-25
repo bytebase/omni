@@ -110,6 +110,12 @@
 | CREATE SEQUENCE fid_m.reset_seq;
 < ok 0 -
 > exec
+| CREATE TABLE fid_m.parent2 (id INT8 NOT NULL, replacement INT8 PRIMARY KEY, UNIQUE INDEX parent2_id_key (id));
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.child2 (id INT8 PRIMARY KEY, pid INT8 REFERENCES fid_m.parent2 (id));
+< ok 0 -
+> exec
 | CREATE TABLE fid_m.rekey2 (id INT8, replacement INT8 PRIMARY KEY);
 < ok 0 -
 > query
@@ -300,6 +306,62 @@
 : null
 : string
 | NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| child2
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| child2
+: string
+| pid
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
 : null
 : string
 | pg_catalog
@@ -826,6 +888,62 @@
 : string
 | fid_m
 : string
+| parent2
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| parent2
+: string
+| replacement
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | prices
 : string
 | id
@@ -1261,6 +1379,18 @@
 : string
 | fid_m
 : string
+| child2
+: string
+| child2_pkey
+: string
+| CREATE UNIQUE INDEX child2_pkey ON omni_testmigrationfidelity.fid_m.child2 USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | codes
 : string
 | codes_code_key
@@ -1384,6 +1514,29 @@
 | paints_pkey
 : string
 | CREATE UNIQUE INDEX paints_pkey ON omni_testmigrationfidelity.fid_m.paints USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| parent2
+: string
+| parent2_id_key
+: string
+| CREATE UNIQUE INDEX parent2_id_key ON omni_testmigrationfidelity.fid_m.parent2 USING btree (id ASC)
+: null
+: null
+< row
+: string
+| fid_m
+: string
+| parent2
+: string
+| parent2_pkey
+: string
+| CREATE UNIQUE INDEX parent2_pkey ON omni_testmigrationfidelity.fid_m.parent2 USING btree (replacement ASC)
 : string
 | PRIMARY KEY
 : null
@@ -1554,6 +1707,25 @@
 : string
 | fid_m
 : string
+| child2
+: string
+| child2_pid_fkey
+: string
+| fid_m
+: string
+| parent2
+: string
+| a
+: string
+| a
+: string
+| s
+: string
+| FOREIGN KEY (pid) REFERENCES fid_m.parent2(id)
+< row
+: string
+| fid_m
+: string
 | orders
 : string
 | orders_customer_fk
@@ -1653,6 +1825,13 @@
 : string
 | fid_m
 : string
+| child2
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | codes
 : int64 0
 : null
@@ -1690,6 +1869,13 @@
 | fid_m
 : string
 | paints
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| parent2
 : int64 0
 : null
 < row
@@ -2149,6 +2335,12 @@
 | CREATE SEQUENCE fid_m.reset_seq CACHE 4;
 < ok 0 -
 > exec
+| CREATE TABLE fid_m.parent2 (id INT8 PRIMARY KEY, replacement INT8 NOT NULL);
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.child2 (id INT8 PRIMARY KEY, pid INT8 REFERENCES fid_m.parent2 (id));
+< ok 0 -
+> exec
 | CREATE TABLE fid_m.rekey2 (id INT8 PRIMARY KEY, replacement INT8 NOT NULL);
 < ok 0 -
 > exec
@@ -2412,6 +2604,62 @@
 | a + 1
 : string
 | s
+< row
+: string
+| fid_m
+: string
+| child2
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| child2
+: string
+| pid
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 < row
 : string
 | fid_m
@@ -2979,6 +3227,62 @@
 : string
 | fid_m
 : string
+| parent2
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| parent2
+: string
+| replacement
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | prices
 : string
 | id
@@ -3329,6 +3633,18 @@
 : string
 | fid_m
 : string
+| child2
+: string
+| child2_pkey
+: string
+| CREATE UNIQUE INDEX child2_pkey ON omni_testmigrationfidelity.fid_m.child2 USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | codes
 : string
 | codes_code_key
@@ -3475,6 +3791,18 @@
 | paints_pkey
 : string
 | CREATE UNIQUE INDEX paints_pkey ON omni_testmigrationfidelity.fid_m.paints USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| parent2
+: string
+| parent2_pkey
+: string
+| CREATE UNIQUE INDEX parent2_pkey ON omni_testmigrationfidelity.fid_m.parent2 USING btree (id ASC)
 : string
 | PRIMARY KEY
 : null
@@ -3635,6 +3963,25 @@
 : string
 | fid_m
 : string
+| child2
+: string
+| child2_pid_fkey
+: string
+| fid_m
+: string
+| parent2
+: string
+| a
+: string
+| a
+: string
+| s
+: string
+| FOREIGN KEY (pid) REFERENCES fid_m.parent2(id)
+< row
+: string
+| fid_m
+: string
 | gone
 : string
 | gone_customer_id_fkey
@@ -3734,6 +4081,13 @@
 : string
 | fid_m
 : string
+| child2
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | codes
 : int64 0
 : null
@@ -3778,6 +4132,13 @@
 | fid_m
 : string
 | paints
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| parent2
 : int64 0
 : null
 < row
@@ -4162,6 +4523,9 @@
 | ALTER TABLE "fid_m"."tickets" ALTER COLUMN "n" DROP DEFAULT;
 < ok 0 -
 > exec
+| ALTER TABLE "fid_m"."child2" DROP CONSTRAINT "child2_pid_fkey";
+< ok 0 -
+> exec
 | ALTER TABLE "fid_m"."gone" DROP CONSTRAINT "gone_customer_id_fkey";
 < ok 0 -
 > exec
@@ -4273,6 +4637,9 @@
 | ALTER TABLE "fid_m"."paints" ALTER COLUMN "shade" SET DATA TYPE text;
 < ok 0 -
 > exec
+| ALTER TABLE "fid_m"."parent2" DROP CONSTRAINT "parent2_pkey", ADD CONSTRAINT "parent2_pkey" PRIMARY KEY (replacement ASC);
+< ok 0 -
+> exec
 | ALTER TABLE "fid_m"."prices" ALTER COLUMN "price" SET DATA TYPE double precision;
 < ok 0 -
 > exec
@@ -4344,7 +4711,15 @@
 | ALTER TABLE "fid_m"."customers" ADD CONSTRAINT "customers_email_check" CHECK ((email != ''::STRING));
 < ok 0 -
 > exec
+| CREATE UNIQUE INDEX parent2_id_key ON fid_m.parent2 (id ASC);
+< ok 0 -
+> exec
 | ALTER TABLE "fid_m"."prices" ADD CONSTRAINT "prices_price_check" CHECK ((price > 0.0));
+< ok 0 -
+> exec
+| ALTER TABLE "fid_m"."child2"
+|     ADD CONSTRAINT "child2_pid_fkey" FOREIGN KEY ("pid")
+|     REFERENCES "fid_m"."parent2" ("id");
 < ok 0 -
 > exec
 | ALTER TABLE "fid_m"."orders"
@@ -4570,6 +4945,62 @@
 : null
 : string
 | NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| child2
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| child2
+: string
+| pid
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
 : null
 : string
 | pg_catalog
@@ -5096,6 +5527,62 @@
 : string
 | fid_m
 : string
+| parent2
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| parent2
+: string
+| replacement
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | prices
 : string
 | id
@@ -5531,6 +6018,18 @@
 : string
 | fid_m
 : string
+| child2
+: string
+| child2_pkey
+: string
+| CREATE UNIQUE INDEX child2_pkey ON omni_testmigrationfidelity.fid_m.child2 USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | codes
 : string
 | codes_code_key
@@ -5654,6 +6153,29 @@
 | paints_pkey
 : string
 | CREATE UNIQUE INDEX paints_pkey ON omni_testmigrationfidelity.fid_m.paints USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| parent2
+: string
+| parent2_id_key
+: string
+| CREATE UNIQUE INDEX parent2_id_key ON omni_testmigrationfidelity.fid_m.parent2 USING btree (id ASC)
+: null
+: null
+< row
+: string
+| fid_m
+: string
+| parent2
+: string
+| parent2_pkey
+: string
+| CREATE UNIQUE INDEX parent2_pkey ON omni_testmigrationfidelity.fid_m.parent2 USING btree (replacement ASC)
 : string
 | PRIMARY KEY
 : null
@@ -5824,6 +6346,25 @@
 : string
 | fid_m
 : string
+| child2
+: string
+| child2_pid_fkey
+: string
+| fid_m
+: string
+| parent2
+: string
+| a
+: string
+| a
+: string
+| s
+: string
+| FOREIGN KEY (pid) REFERENCES fid_m.parent2(id)
+< row
+: string
+| fid_m
+: string
 | orders
 : string
 | orders_customer_fk
@@ -5923,6 +6464,13 @@
 : string
 | fid_m
 : string
+| child2
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | codes
 : int64 0
 : null
@@ -5960,6 +6508,13 @@
 | fid_m
 : string
 | paints
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| parent2
 : int64 0
 : null
 < row
@@ -6411,6 +6966,12 @@
 < ok 0 -
 > exec
 | CREATE TABLE fid_v.grow (id INT8 PRIMARY KEY, s INT8 DEFAULT fid_v.seven(), e INT8 NOT NULL DEFAULT fid_v.eight());
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.next_id() RETURNS INT8 LANGUAGE SQL VOLATILE AS $$ SELECT unique_rowid() $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_v.keyed (id INT8 NOT NULL, n INT8 NOT NULL DEFAULT fid_v.next_id(), CONSTRAINT keyed_pkey PRIMARY KEY (n));
 < ok 0 -
 > exec
 | CREATE MATERIALIZED VIEW fid_v.m_named (after_name) AS SELECT id FROM fid_v.items;
@@ -6895,6 +7456,63 @@
 : int64 0
 : int64 1
 : null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| keyed
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| keyed
+: string
+| n
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_v.next_id()
 : string
 | NO
 : null
@@ -7491,6 +8109,18 @@
 : string
 | fid_v
 : string
+| keyed
+: string
+| keyed_pkey
+: string
+| CREATE UNIQUE INDEX keyed_pkey ON omni_testmigrationfidelity.fid_v.keyed USING btree (n ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | m_named
 : string
 | m_named_pkey
@@ -7682,6 +8312,13 @@
 | fid_v
 : string
 | keep
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| keyed
 : int64 0
 : null
 < row
@@ -8188,6 +8825,24 @@
 : string
 | fid_v
 : string
+| next_id
+: string
+| next_id()
+: string
+| CREATE FUNCTION fid_v.next_id()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT unique_rowid();
+| $$
+< row
+: string
+| fid_v
+: string
 | pf
 : string
 | pf()
@@ -8478,6 +9133,12 @@
 < ok 0 -
 > exec
 | INSERT INTO fid_v.grow VALUES (1), (2);
+< ok 2 -
+> exec
+| CREATE TABLE fid_v.keyed (id INT8 PRIMARY KEY);
+< ok 0 -
+> exec
+| INSERT INTO fid_v.keyed VALUES (1), (2);
 < ok 2 -
 > exec
 | CREATE FUNCTION fid_v.ov() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
@@ -9044,6 +9705,34 @@
 | fid_v.colfn()
 : string
 | YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| keyed
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
 : null
 : string
 | pg_catalog
@@ -9690,6 +10379,18 @@
 : string
 | fid_v
 : string
+| keyed
+: string
+| keyed_pkey
+: string
+| CREATE UNIQUE INDEX keyed_pkey ON omni_testmigrationfidelity.fid_v.keyed USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | m_named
 : string
 | m_named_pkey
@@ -9895,6 +10596,13 @@
 | fid_v
 : string
 | keep
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| keyed
 : int64 0
 : null
 < row
@@ -10439,24 +11147,6 @@
 : string
 | ov
 : string
-| ov(int8)
-: string
-| CREATE FUNCTION fid_v.ov(n INT8)
-| 	RETURNS INT8
-| 	VOLATILE
-| 	NOT LEAKPROOF
-| 	CALLED ON NULL INPUT
-| 	LANGUAGE SQL
-| 	SECURITY INVOKER
-| 	AS $$
-| 	SELECT fid_v.ov() + n;
-| $$
-< row
-: string
-| fid_v
-: string
-| ov
-: string
 | ov()
 : string
 | CREATE FUNCTION fid_v.ov()
@@ -10468,6 +11158,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT 1;
+| $$
+< row
+: string
+| fid_v
+: string
+| ov
+: string
+| ov(int8)
+: string
+| CREATE FUNCTION fid_v.ov(n INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_v.ov() + n;
 | $$
 < row
 : string
@@ -10751,6 +11459,9 @@
 | ALTER TABLE "fid_v"."items" ADD COLUMN "doubled" numeric AS (price * 2) VIRTUAL;
 < ok 0 -
 > exec
+| ALTER TABLE "fid_v"."keyed" ADD COLUMN "n" bigint;
+< ok 0 -
+> exec
 | CREATE OR REPLACE FUNCTION fid_v.add(a INT8, b INT8)
 | 	RETURNS INT8
 | 	IMMUTABLE
@@ -10829,6 +11540,18 @@
 > exec
 | CREATE VIEW "fid_v"."named" ("other") AS 
 | SELECT id FROM fid_v.items;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.next_id()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT unique_rowid();
+| $$;
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_v.pf()
@@ -10953,6 +11676,18 @@
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."items" ALTER COLUMN "bonus" SET DEFAULT fid_v.bonus();
+< ok 0 -
+> exec
+| ALTER TABLE "fid_v"."keyed" ALTER COLUMN "n" SET DEFAULT fid_v.next_id();
+< ok 0 -
+> exec
+| UPDATE "fid_v"."keyed" SET "n" = fid_v.next_id() WHERE "n" IS NULL;
+< ok 2 -
+> exec
+| ALTER TABLE "fid_v"."keyed" ALTER COLUMN "n" SET NOT NULL;
+< ok 0 -
+> exec
+| ALTER TABLE "fid_v"."keyed" DROP CONSTRAINT "keyed_pkey", ADD CONSTRAINT "keyed_pkey" PRIMARY KEY (n ASC);
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."puse" ALTER COLUMN "v" SET DEFAULT fid_v.pf();
@@ -11428,6 +12163,63 @@
 : int64 0
 : int64 1
 : null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| keyed
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| keyed
+: string
+| n
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_v.next_id()
 : string
 | NO
 : null
@@ -12024,6 +12816,18 @@
 : string
 | fid_v
 : string
+| keyed
+: string
+| keyed_pkey
+: string
+| CREATE UNIQUE INDEX keyed_pkey ON omni_testmigrationfidelity.fid_v.keyed USING btree (n ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | m_named
 : string
 | m_named_pkey
@@ -12215,6 +13019,13 @@
 | fid_v
 : string
 | keep
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| keyed
 : int64 0
 : null
 < row
@@ -12716,6 +13527,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT 8;
+| $$
+< row
+: string
+| fid_v
+: string
+| next_id
+: string
+| next_id()
+: string
+| CREATE FUNCTION fid_v.next_id()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT unique_rowid();
 | $$
 < row
 : string
