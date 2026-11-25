@@ -21,6 +21,8 @@ func TestLoadSDLRefuses(t *testing.T) {
 		"unknown sequence": "ALTER SEQUENCE s INCREMENT BY 2",
 		"locality":         "CREATE TABLE t (id INT8 PRIMARY KEY) LOCALITY GLOBAL",
 		"temporary":        "CREATE TEMP TABLE t (id INT8 PRIMARY KEY)",
+		"schema rename":    "CREATE SCHEMA old; CREATE TABLE old.t (id INT8 PRIMARY KEY); ALTER SCHEMA old RENAME TO new",
+		"table twice":      "CREATE TABLE t (id INT8 PRIMARY KEY); CREATE TABLE t (id INT8 PRIMARY KEY)",
 		"not valid":        "CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); ALTER TABLE t ADD CONSTRAINT positive CHECK (a > 0) NOT VALID",
 		"rowid reference":  "CREATE TABLE p (a INT8); CREATE TABLE c (id INT8 PRIMARY KEY, pid INT8 REFERENCES p)",
 		"storage params":   "CREATE TABLE t (id INT8 PRIMARY KEY, expires_at TIMESTAMPTZ) WITH (ttl_expiration_expression = 'expires_at')",
@@ -333,4 +335,16 @@ func TestLoadSDLInlinePrimaryKeyName(t *testing.T) {
 	loaded, err := catalog.LoadSDL("CREATE TABLE t (id INT8 CONSTRAINT custom_pk PRIMARY KEY); COMMENT ON CONSTRAINT custom_pk ON t IS 'key';")
 	require.NoError(t, err)
 	require.Equal(t, "custom_pk", loaded.Schemas[0].Tables[0].Indexes[0].Name)
+}
+
+// TestSDLRoutineUserTypes reads a routine's unqualified user-defined types as
+// the ones in public, and skips a CREATE TABLE IF NOT EXISTS of a table the
+// SDL created.
+func TestSDLRoutineUserTypes(t *testing.T) {
+	plan, err := catalog.BuildSDLMigrationPlan(
+		"CREATE TYPE public.mood AS ENUM ('ok'); CREATE FUNCTION public.f(x public.mood) RETURNS public.mood LANGUAGE SQL AS $$ SELECT x $$; CREATE TABLE t (id INT8 PRIMARY KEY);",
+		"CREATE TYPE public.mood AS ENUM ('ok'); CREATE FUNCTION f(x mood) RETURNS mood LANGUAGE SQL AS $$ SELECT x $$; CREATE TABLE t (id INT8 PRIMARY KEY); CREATE TABLE IF NOT EXISTS t (id INT8 PRIMARY KEY, extra STRING);",
+		catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	require.Nil(t, plan, "%v", plan)
 }

@@ -98,7 +98,13 @@ func (l *sdlLoader) schema(name string) *metadatapb.SchemaMetadata {
 
 func (l *sdlLoader) load(stmt tree.Statement) error {
 	switch n := stmt.(type) {
-	case *tree.SetVar, *tree.Select, *tree.AlterTableOwner, *tree.AlterSchema:
+	case *tree.SetVar, *tree.Select, *tree.AlterTableOwner:
+		return nil
+	case *tree.AlterSchema:
+		// A dump sets owners; a rename is a change, not a definition.
+		if _, ok := n.Cmd.(*tree.AlterSchemaOwner); !ok {
+			return fmt.Errorf("ALTER SCHEMA %s is not a schema definition", tree.AsString(n.Cmd))
+		}
 		return nil
 	case *tree.CreateSchema:
 		l.schema(string(n.Schema.SchemaName))
@@ -377,6 +383,13 @@ func (l *sdlLoader) createTable(n *tree.CreateTable) error {
 	}
 	schema := schemaOf(&n.Table)
 	s := l.schema(schema)
+	if schemaTable(s, string(n.Table.ObjectName)) != nil {
+		if n.IfNotExists {
+			// The engine skips it.
+			return nil
+		}
+		return fmt.Errorf("table %s is created twice", n.Table.String())
+	}
 	table := &metadatapb.TableMetadata{Name: string(n.Table.ObjectName)}
 	s.Tables = append(s.Tables, table)
 	// CockroachDB names a table's own checks and foreign keys before its
@@ -827,6 +840,17 @@ func (l *sdlLoader) createRoutine(n *tree.CreateRoutine) error {
 	schema := "public"
 	if n.Name.ExplicitSchema {
 		schema = string(n.Name.SchemaName)
+	}
+	// A user-defined type is named by its schema, as in a table's columns.
+	for i := range n.Params {
+		if _, ok := tree.GetStaticallyKnownType(n.Params[i].Type); !ok {
+			n.Params[i].Type = schemaQualified(n.Params[i].Type)
+		}
+	}
+	if n.ReturnType != nil {
+		if _, ok := tree.GetStaticallyKnownType(n.ReturnType.Type); !ok {
+			n.ReturnType.Type = schemaQualified(n.ReturnType.Type)
+		}
 	}
 	var args []string
 	for _, param := range n.Params {
