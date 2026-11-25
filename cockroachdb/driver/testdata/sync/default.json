@@ -344,6 +344,7 @@
           "increment": "5"
         }
       ],
+      "comment": "the application",
       "enumTypes": [
         {
           "name": "mood",

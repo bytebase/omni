@@ -8,6 +8,9 @@
 | CREATE SCHEMA fid_new;
 < ok 0 -
 > exec
+| COMMENT ON SCHEMA fid_m IS 'migrated';
+< ok 0 -
+> exec
 | CREATE TYPE fid_m.status AS ENUM ('new', 'paid', 'done', 'void');
 < ok 0 -
 > exec
@@ -146,22 +149,27 @@
 < ok
 > query
 |
-| SELECT nspname
+| SELECT nspname, obj_description(oid, 'pg_namespace')
 | FROM pg_catalog.pg_namespace
 | WHERE nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
 | ORDER BY nspname;
 |
 < result
 < column "nspname" "NAME"
+< column "obj_description" "TEXT"
 < row
 : string
 | fid_m
+: string
+| migrated
 < row
 : string
 | fid_new
+: null
 < row
 : string
 | public
+: null
 > query
 |
 | SELECT
@@ -1893,19 +1901,22 @@
 < ok
 > query
 |
-| SELECT nspname
+| SELECT nspname, obj_description(oid, 'pg_namespace')
 | FROM pg_catalog.pg_namespace
 | WHERE nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
 | ORDER BY nspname;
 |
 < result
 < column "nspname" "NAME"
+< column "obj_description" "TEXT"
 < row
 : string
 | fid_m
+: null
 < row
 : string
 | public
+: null
 > query
 |
 | SELECT
@@ -3660,6 +3671,9 @@
 |     REFERENCES "fid_m"."customers" ("id");
 < ok 0 -
 > exec
+| COMMENT ON SCHEMA "fid_m" IS 'migrated';
+< ok 0 -
+> exec
 | COMMENT ON INDEX "fid_m"."customers"@"customers_joined_key" IS 'joins';
 < ok 0 -
 > exec
@@ -3728,22 +3742,27 @@
 < ok
 > query
 |
-| SELECT nspname
+| SELECT nspname, obj_description(oid, 'pg_namespace')
 | FROM pg_catalog.pg_namespace
 | WHERE nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
 | ORDER BY nspname;
 |
 < result
 < column "nspname" "NAME"
+< column "obj_description" "TEXT"
 < row
 : string
 | fid_m
+: string
+| migrated
 < row
 : string
 | fid_new
+: null
 < row
 : string
 | public
+: null
 > query
 |
 | SELECT
@@ -5448,19 +5467,22 @@
 < ok
 > query
 |
-| SELECT nspname
+| SELECT nspname, obj_description(oid, 'pg_namespace')
 | FROM pg_catalog.pg_namespace
 | WHERE nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
 | ORDER BY nspname;
 |
 < result
 < column "nspname" "NAME"
+< column "obj_description" "TEXT"
 < row
 : string
 | fid_v
+: null
 < row
 : string
 | public
+: null
 > query
 |
 | SELECT
@@ -6748,19 +6770,22 @@
 < ok
 > query
 |
-| SELECT nspname
+| SELECT nspname, obj_description(oid, 'pg_namespace')
 | FROM pg_catalog.pg_namespace
 | WHERE nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
 | ORDER BY nspname;
 |
 < result
 < column "nspname" "NAME"
+< column "obj_description" "TEXT"
 < row
 : string
 | fid_v
+: null
 < row
 : string
 | public
+: null
 > query
 |
 | SELECT
@@ -8110,19 +8135,22 @@
 < ok
 > query
 |
-| SELECT nspname
+| SELECT nspname, obj_description(oid, 'pg_namespace')
 | FROM pg_catalog.pg_namespace
 | WHERE nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
 | ORDER BY nspname;
 |
 < result
 < column "nspname" "NAME"
+< column "obj_description" "TEXT"
 < row
 : string
 | fid_v
+: null
 < row
 : string
 | public
+: null
 > query
 |
 | SELECT

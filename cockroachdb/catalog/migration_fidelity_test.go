@@ -66,6 +66,7 @@ CREATE SEQUENCE fid_m.gone_owner_seq OWNED BY fid_m.gone_owner.n;
 `,
 			target: `CREATE SCHEMA fid_m;
 CREATE SCHEMA fid_new;
+COMMENT ON SCHEMA fid_m IS 'migrated';
 CREATE TYPE fid_m.status AS ENUM ('new', 'paid', 'done', 'void');
 CREATE TYPE fid_m.level AS ENUM ('low', 'mid', 'high');
 CREATE SEQUENCE fid_m.ids START WITH 10 INCREMENT BY 2 CACHE 4;

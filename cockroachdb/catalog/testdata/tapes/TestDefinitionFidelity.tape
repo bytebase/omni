@@ -7,6 +7,8 @@
 > exec
 | COMMENT ON SCHEMA fid_cols IS 'columns';
 < ok 0 -
+> exec ^
+< ok 0 -
 > exec
 | CREATE TYPE fid_cols.mood AS ENUM ('happy', 'sad', 'it''s complicated');
 < ok 0 -
@@ -132,19 +134,23 @@
 < ok
 > query
 |
-| SELECT nspname
+| SELECT nspname, obj_description(oid, 'pg_namespace')
 | FROM pg_catalog.pg_namespace
 | WHERE nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
 | ORDER BY nspname;
 |
 < result
 < column "nspname" "NAME"
+< column "obj_description" "TEXT"
 < row
 : string
 | fid_cols
+: string
+| columns
 < row
 : string
 | public
+: null
 > query
 |
 | SELECT
@@ -1418,6 +1424,9 @@
 | CREATE SCHEMA IF NOT EXISTS "fid_cols";
 < ok 0 -
 > exec
+| COMMENT ON SCHEMA "fid_cols" IS 'columns';
+< ok 0 -
+> exec
 | CREATE TYPE "fid_cols"."address" AS (
 |     "street" text,
 |     "city" character varying(50),
@@ -1569,19 +1578,23 @@
 < ok
 > query
 |
-| SELECT nspname
+| SELECT nspname, obj_description(oid, 'pg_namespace')
 | FROM pg_catalog.pg_namespace
 | WHERE nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
 | ORDER BY nspname;
 |
 < result
 < column "nspname" "NAME"
+< column "obj_description" "TEXT"
 < row
 : string
 | fid_cols
+: string
+| columns
 < row
 : string
 | public
+: null
 > query
 |
 | SELECT
@@ -2952,19 +2965,22 @@
 < ok
 > query
 |
-| SELECT nspname
+| SELECT nspname, obj_description(oid, 'pg_namespace')
 | FROM pg_catalog.pg_namespace
 | WHERE nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
 | ORDER BY nspname;
 |
 < result
 < column "nspname" "NAME"
+< column "obj_description" "TEXT"
 < row
 : string
 | fid_routines
+: null
 < row
 : string
 | public
+: null
 > query
 |
 | SELECT
@@ -4722,19 +4738,22 @@
 < ok
 > query
 |
-| SELECT nspname
+| SELECT nspname, obj_description(oid, 'pg_namespace')
 | FROM pg_catalog.pg_namespace
 | WHERE nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
 | ORDER BY nspname;
 |
 < result
 < column "nspname" "NAME"
+< column "obj_description" "TEXT"
 < row
 : string
 | fid_routines
+: null
 < row
 : string
 | public
+: null
 > query
 |
 | SELECT
@@ -6289,22 +6308,26 @@
 < ok
 > query
 |
-| SELECT nspname
+| SELECT nspname, obj_description(oid, 'pg_namespace')
 | FROM pg_catalog.pg_namespace
 | WHERE nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
 | ORDER BY nspname;
 |
 < result
 < column "nspname" "NAME"
+< column "obj_description" "TEXT"
 < row
 : string
 | Fid Mixed
+: null
 < row
 : string
 | fid_a
+: null
 < row
 : string
 | public
+: null
 > query
 |
 | SELECT
@@ -7011,22 +7034,26 @@
 < ok
 > query
 |
-| SELECT nspname
+| SELECT nspname, obj_description(oid, 'pg_namespace')
 | FROM pg_catalog.pg_namespace
 | WHERE nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
 | ORDER BY nspname;
 |
 < result
 < column "nspname" "NAME"
+< column "obj_description" "TEXT"
 < row
 : string
 | Fid Mixed
+: null
 < row
 : string
 | fid_a
+: null
 < row
 : string
 | public
+: null
 > query
 |
 | SELECT

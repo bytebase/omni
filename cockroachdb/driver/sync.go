@@ -81,7 +81,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 	defer txn.Rollback()
 
-	schemas, err := getSchemas(txn)
+	schemas, schemaComments, err := getSchemas(txn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get schemas from database %q: %w", d.databaseName, err)
 	}
@@ -151,6 +151,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		}
 		databaseMetadata.Schemas = append(databaseMetadata.Schemas, &metadatapb.SchemaMetadata{
 			Name:              schemaName,
+			Comment:           schemaComments[schemaName],
 			Tables:            tables,
 			ExternalTables:    externalTableMap[schemaName],
 			Views:             viewMap[schemaName],
@@ -421,34 +422,38 @@ func getColumnList(definition string) ([]string, error) {
 }
 
 var listSchemaQuery = fmt.Sprintf(`
-SELECT nspname
+SELECT nspname, obj_description(oid, 'pg_namespace')
 FROM pg_catalog.pg_namespace
 WHERE nspname NOT IN (%s)
 ORDER BY nspname;
 `, crrawanalysis.SystemSchemaWhereClause)
 
-func getSchemas(txn *sql.Tx) ([]string, error) {
+// getSchemas returns the database's schemas and their comments.
+func getSchemas(txn *sql.Tx) ([]string, map[string]string, error) {
 	rows, err := txn.Query(listSchemaQuery)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
 
 	var schemaNames []string
+	comments := make(map[string]string)
 	for rows.Next() {
 		var schemaName string
-		if err := rows.Scan(&schemaName); err != nil {
-			return nil, err
+		var comment sql.NullString
+		if err := rows.Scan(&schemaName, &comment); err != nil {
+			return nil, nil, err
 		}
 		if crrawanalysis.IsSystemSchema(schemaName) {
 			continue
 		}
 		schemaNames = append(schemaNames, schemaName)
+		comments[schemaName] = comment.String
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return schemaNames, nil
+	return schemaNames, comments, nil
 }
 
 func getListForeignTableQuery() string {

@@ -126,25 +126,31 @@
 < ok
 > query
 |
-| SELECT nspname
+| SELECT nspname, obj_description(oid, 'pg_namespace')
 | FROM pg_catalog.pg_namespace
 | WHERE nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
 | ORDER BY nspname;
 |
 < result
 < column "nspname" "NAME"
+< column "obj_description" "TEXT"
 < row
 : string
 | Mixed Case
+: null
 < row
 : string
 | app
+: string
+| the application
 < row
 : string
 | audit
+: null
 < row
 : string
 | public
+: null
 > query
 |
 | SELECT
