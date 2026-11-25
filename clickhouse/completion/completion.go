@@ -201,7 +201,7 @@ func nameKindAfter(before []parser.Token) nameKind {
 		if len(before) < 2 || before[len(before)-2].Type != parser.KwArray {
 			return kindRelation
 		}
-	case parser.KwInto, parser.KwTable,
+	case parser.KwInto, parser.KwTable, parser.KwView,
 		parser.KwDescribe, parser.KwDesc, parser.KwTruncate, parser.KwExchange:
 		return kindRelation
 	case parser.KwUse, parser.KwDatabase:

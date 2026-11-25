@@ -208,6 +208,9 @@ func TestCompleteSessionNames(t *testing.T) {
 		{input: "DROP DATABASE IF EXISTS |", typ: CandidateDatabase, want: []string{"db", "other"}},
 		{input: "CREATE TABLE IF NOT EXISTS |", typ: CandidateTable, want: []string{"`back\\\\slash`", "`my-table`", "orders", "other", "users"}},
 		{input: "ALTER TABLE IF EXISTS orders UPDATE amount = 0 WHERE |", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
+		{input: "DROP VIEW |", typ: CandidateView, want: []string{"order_totals"}},
+		{input: "DETACH VIEW IF EXISTS |", typ: CandidateView, want: []string{"order_totals"}},
+		{input: "DROP MATERIALIZED VIEW |", typ: CandidateMaterializedView, want: []string{"daily_orders"}},
 		{input: "ALTER TABLE orders UPDATE amount = 0 WHERE |", typ: CandidateColumn, want: []string{"amount", "id", "user_id"}},
 	} {
 		t.Run(tc.input, func(t *testing.T) {
