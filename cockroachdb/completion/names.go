@@ -182,7 +182,12 @@ func nameCandidates(nc *nameContext, cat *catalog, typed string, quoted bool) []
 				}
 			}
 		}
-		builtins := slices.Concat(builtinFunctions, specialForms())
+		// COALESCE, NULLIF and the like are grammar, not pg_proc functions, so a
+		// schema-qualified call cannot name them.
+		builtins := builtinFunctions
+		if len(nc.qualifier) == 0 {
+			builtins = slices.Concat(builtinFunctions, specialForms())
+		}
 		addObjects(schemaObjects(cat, nc.qualifier, builtins, func(s *schema) []string { return s.functions }), CandidateFunction)
 	case kindTargetColumn:
 		a := &analyzer{ctx: context.Background(), cat: cat}
@@ -194,7 +199,11 @@ func nameCandidates(nc *nameContext, cat *catalog, typed string, quoted bool) []
 			add(col, CandidateColumn)
 		}
 	case kindType:
-		builtins := slices.Concat(builtinTypes, typeKeywords())
+		// Type keywords such as INT are grammar aliases, not pg_type names.
+		builtins := builtinTypes
+		if len(nc.qualifier) == 0 {
+			builtins = slices.Concat(builtinTypes, typeKeywords())
+		}
 		addObjects(schemaObjects(cat, nc.qualifier, builtins, func(s *schema) []string { return s.types }), CandidateType_)
 	case kindIndex:
 		if nc.target != nil && !nc.target.derived {

@@ -545,6 +545,22 @@ func TestCompleteSessionMetadataMatrix(t *testing.T) {
 			want:  []Candidate{{Text: "now()", Type: CandidateFunction}},
 		},
 		{
+			name:   "pg_catalog-qualified call leaves out grammar special forms",
+			input:  "SELECT pg_catalog.coa| FROM orders",
+			absent: []string{"coalesce()", "coalesce", "COALESCE"},
+		},
+		{
+			name:  "an unqualified call offers grammar special forms",
+			input: "SELECT coa| FROM orders",
+			want:  []Candidate{{Text: "coalesce()", Type: CandidateFunction}},
+		},
+		{
+			name:   "pg_catalog-qualified type leaves out type keywords",
+			input:  "SELECT amount::pg_catalog.IN| FROM orders",
+			want:   []Candidate{{Text: "INT8", Type: CandidateType_}},
+			absent: []string{"INT", "INTEGER"},
+		},
+		{
 			name:  "schema-qualified type",
 			input: "SELECT amount::public.st| FROM orders",
 			want:  []Candidate{{Text: "status", Type: CandidateType_}},
