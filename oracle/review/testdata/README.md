@@ -34,8 +34,15 @@ either Oracle's error code or the fixture's real Oracle inventory synced via
 
 Its `queries` subtest walks `../../catalog/testdata/queries/simulate.tsv`, each
 query as `CREATE VIEW v AS <query>` on the catalog's fixtures, and asks Oracle for
-each verdict on the same tape. The walk resolves no view query, so it catches 6 / 255
-refusals (2.4%); the subtest holds it to zero false positives.
+each verdict on the same tape. The walk asks `oracle/catalog` about a view's query
+when every table it reads is synced in full, and catches 205 / 256 refusals (80.1%)
+with zero false positives. It leaves the rest to Oracle, as the sync cannot show
+them: a missing column or name, which a function, a public synonym or another
+schema may supply (00904, 00942); a type mismatch, which an object or collection
+type may cause (00932, 01790, 22905); flashback and periods (08181, 55603); database
+links (02019); `GROUP BY 1` (03162, by `GROUP_BY_POSITION_ENABLED`); and a view
+the query reads (00957). `FOR UPDATE` in a view (03048) is a syntax error the parser
+reports, which the subtest does not count.
 
 Its `programs` subtest walks `../../catalog/testdata/programs/simulate.tsv` the
 same way: procedures, functions, packages, triggers and types with bodies, and
