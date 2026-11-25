@@ -313,6 +313,13 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.AliasedQueries {
 			Walk(v, c)
 		}
+	case *CreatePlacementStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 	case *CreateProcedureStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -472,6 +479,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Name)
 		}
 	case *DropLocalityGroupStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *DropPlacementStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}

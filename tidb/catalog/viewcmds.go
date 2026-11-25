@@ -37,7 +37,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	// Tables, views, and sequences share the same namespace in TiDB.
 	// CREATE OR REPLACE VIEW over a non-view answers 1347 ("is not VIEW"),
 	// while plain CREATE VIEW answers 1050 (read on v8.5.5).
-	if (db.Tables[key] != nil && !db.Tables[key].Temporary) || db.Sequences[key] != nil {
+	if db.Tables[key] != nil || db.Sequences[key] != nil {
 		if stmt.OrReplace {
 			return errWrongObjectKind(db.Name, stmt.Name.Name, "VIEW")
 		}
@@ -318,7 +318,7 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 		// only a name nothing holds: TiDB v8.5.5 answers 1347
 		// "'<db>.<name>' is not VIEW" for DROP VIEW over a table or sequence
 		// with or without the flag (read on v8.5.5).
-		if (db.Tables[key] != nil && !db.Tables[key].Temporary) || db.Sequences[key] != nil {
+		if db.Tables[key] != nil || db.Sequences[key] != nil {
 			return errWrongObjectKind(db.Name, ref.Name, "VIEW")
 		}
 		if _, exists := db.Views[key]; !exists {

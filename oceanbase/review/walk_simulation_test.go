@@ -40,8 +40,9 @@ func TestWalkSimulation(t *testing.T) {
 		// A sequence is not synced, so the walk finds only what OceanBase
 		// refuses of the statement itself, never a sequence that exists or not
 		// (4297, 4298), a database that does not (1049), or what ALTER SEQUENCE
-		// makes of the sequence's own options.
-		{"sequences", filepath.Join("..", "catalog", "testdata", "sequences", "simulate.tsv"), 280},
+		// makes of the options the statement leaves to the sequence (4320,
+		// 4324, 4328, 4329, 4330).
+		{"sequences", filepath.Join("..", "catalog", "testdata", "sequences", "simulate.tsv"), 300},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{

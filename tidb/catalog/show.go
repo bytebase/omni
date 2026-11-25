@@ -123,8 +123,8 @@ func showCreateTable(tbl *Table) string {
 	// `... partition by hash(a) partitions 10 on commit delete rows` parses on
 	// v8.5.5 and `... on commit delete rows comment 'x'` does not. With no
 	// partitions it lands where the server writes it, last on the options
-	// line. The server refuses a partitioned temporary table (1562), so that
-	// state is one only this catalog reaches; the order still has to parse.
+	// line. The server and Exec refuse a partitioned temporary table (1562),
+	// so only a loaded schema could hold one; the order still has to parse.
 	if tbl.OnCommit != "" {
 		b.WriteString(" ON COMMIT ")
 		b.WriteString(tbl.OnCommit)

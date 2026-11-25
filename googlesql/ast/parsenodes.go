@@ -4350,6 +4350,31 @@ type DropLocalityGroupStmt struct {
 // Tag implements Node.
 func (n *DropLocalityGroupStmt) Tag() NodeTag { return T_DropLocalityGroupStmt }
 
+// CreatePlacementStmt is a CREATE PLACEMENT statement (Spanner; truth1
+// DDL-044):
+//
+//	CREATE PLACEMENT [IF NOT EXISTS] name OPTIONS ( placement_option [, ...] )
+type CreatePlacementStmt struct {
+	IfNotExists bool
+	Name        *PathExpr
+	Options     []*OptionsEntry
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreatePlacementStmt) Tag() NodeTag { return T_CreatePlacementStmt }
+
+// DropPlacementStmt is a DROP PLACEMENT statement (Spanner; truth1 DDL-045):
+// `DROP PLACEMENT [IF EXISTS] name`.
+type DropPlacementStmt struct {
+	IfExists bool
+	Name     *PathExpr
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *DropPlacementStmt) Tag() NodeTag { return T_DropPlacementStmt }
+
 // CreateProtoBundleStmt is a CREATE PROTO BUNDLE statement (Spanner; truth1
 // DDL-046):
 //
@@ -4398,6 +4423,8 @@ var (
 	_ Node = (*DropLocalityGroupStmt)(nil)
 	_ Node = (*CreateProtoBundleStmt)(nil)
 	_ Node = (*AlterProtoBundleStmt)(nil)
+	_ Node = (*CreatePlacementStmt)(nil)
+	_ Node = (*DropPlacementStmt)(nil)
 )
 
 // ---------------------------------------------------------------------------

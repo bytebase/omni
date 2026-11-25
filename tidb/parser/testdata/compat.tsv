@@ -2064,6 +2064,9 @@ accept	accept	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_Table
 reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+IfNotExists!drop-3	CREATE TABLE NOT EXISTS ident LIKE ident
 reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+IfNotExists!drop-4	CREATE TABLE IF EXISTS ident LIKE ident
 reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+IfNotExists!drop-5	CREATE TABLE IF NOT ident LIKE ident
+accept	accept	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident LIKE ident
+reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+OptTemporary/GLOBAL_TEMPORARY	CREATE GLOBAL TEMPORARY TABLE ident LIKE ident
+reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+OptTemporary/GLOBAL_TEMPORARY!drop-3	CREATE GLOBAL TABLE ident LIKE ident
 accept	accept	engine	OnCommitOpt/%empty	CREATE TABLE ident
 reject	reject	engine	OnCommitOpt/ON_COMMIT_DELETE_ROWS	CREATE TABLE ident ON COMMIT DELETE ROWS
 reject	reject	engine	OnCommitOpt/ON_COMMIT_DELETE_ROWS!drop-1	CREATE TABLE ident COMMIT DELETE ROWS
@@ -2649,6 +2652,9 @@ reject	reject	engine	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_Tabl
 accept	accept	engine	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt+IfExists	DROP TABLE IF EXISTS ident
 reject	reject	engine	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt+IfExists!drop-3	DROP TABLE EXISTS ident
 reject	reject	engine	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt+IfExists!drop-4	DROP TABLE IF ident
+accept	accept	engine	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt+OptTemporary/TEMPORARY	DROP TEMPORARY TABLE ident
+accept	accept	engine	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt+OptTemporary/GLOBAL_TEMPORARY	DROP GLOBAL TEMPORARY TABLE ident
+reject	reject	engine	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt+OptTemporary/GLOBAL_TEMPORARY!drop-3	DROP GLOBAL TABLE ident
 accept	accept	engine	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt+TableOrTables/TABLES	DROP TABLES ident
 accept	accept	engine	OptTemporary/%empty	CREATE TABLE ident
 reject	reject	engine	OptTemporary/%empty!insert	CREATE zzz TABLE ident
@@ -44053,299 +44059,301 @@ accept	accept	engine	suite:tidb-extensions	CREATE DATABASE IF NOT EXISTS d_pp1 P
 accept	accept	engine	suite:tidb-extensions	ALTER TABLE t_tf SET TIFLASH REPLICA 0
 accept	accept	engine	suite:tidb-extensions	CREATE TABLE t_cmt1 (id BIGINT /*T! AUTO_RANDOM */ PRIMARY KEY)
 accept	accept	engine	suite:tidb-extensions	CREATE TABLE t_cmt2 (id BIGINT /*T![auto_rand] AUTO_RANDOM */ PRIMARY KEY)
-reject	reject	engine	suite:reject-fuzz-sweep	select 1 from dual not exists ( select 2 )
-accept	accept	engine	suite:reject-fuzz-sweep	prepare prepare_1 from " select v2,, v from t1 left join t2 on v1 != v2 "
-reject	reject	engine	suite:reject-fuzz-sweep	explain select * from test1 where partition_no =
-reject	reject	engine	suite:reject-fuzz-sweep	create index idx on t ( b , ( cast ( a as signed array ) ) , ( cast ( as signed array ) ) )
-reject	reject	engine	suite:reject-fuzz-sweep	insert into  values(1,null)
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER USER 'semuser1' COMMENT 'comment1' FROM
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' SELECT ) * FROM t WHERE a BETWEEN 999998 AND 2000000
-reject	reject	engine	suite:reject-fuzz-sweep	select cast ( 1e100 as float 's' ( 40 ) ) = 1e100
-reject	reject	engine	suite:reject-fuzz-sweep	select INSTR ( p3 , n4 from t1
-reject	reject	engine	suite:reject-fuzz-sweep	create create user 'explain' @'%'
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = brief select a from t order by a desc limit
-reject	reject	engine	suite:reject-fuzz-sweep	insert into ( t_mc a ) values ( "200012.498" )
-accept	accept	engine	suite:reject-fuzz-sweep	PLAN REPLAYER CAPTURE 'binary' 'binnary'
-reject	reject	engine	suite:reject-fuzz-sweep	format = 'brief' select * from information_schema . inspection_result where item in ( 'ddl.lease' , 'raftstore.threadpool' ) and rule in ( 'ddl' , 'config' )
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT + 1 1
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t values (1, 1 1), (2, 2, 2)
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT DATE_ADD(c1, INTERVAL 1 DY_HOUR) from test
-reject	reject	engine	suite:reject-fuzz-sweep	insert insert into t1 values ( 'b' )
-accept	accept	engine	suite:reject-fuzz-sweep	select tidb_distsql_scan_concurrency @@
-accept	accept	engine	suite:reject-fuzz-sweep	select * from t w
-reject	reject	engine	suite:reject-fuzz-sweep	create global temporary table global_partition_table (a int, b int) prtition by hash(a) partitions 3 ON COMMIT DELETE ROWS
-reject	reject	engine	suite:reject-fuzz-sweep	UPDATE tb1 , ( code SELECT AS cid , code , MAX ( class ) AS class FROM tb2 GROUP BY code ) tb3 SET tb1 . cid = tb3 . cid , tb1 . code = tb3 . code , tb1 . class = tb3 . class
-reject	reject	engine	suite:reject-fuzz-sweep	create table t4 ( c int ( 10 ) , c1 varchar ( 32 ) default ( str_to_date ( '01-01' , '%Y-%m-%d' ) FROM ) )
-reject	reject	engine	suite:reject-fuzz-sweep	create table t2 ( id int key , 's' a int , index ( a ) , constraint fk_1 foreign key ( a ) references t1 ( a ) )
-reject	reject	engine	suite:reject-fuzz-sweep	create table t (c 'nt) placement policy="ww";
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' * FROM t WHERE a BETWEEN - 2147483648 AND - 2146483649
-reject	reject	engine	suite:reject-fuzz-sweep	use
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE ALGORITHM = UNDEFINED DEFINER = `root` @`localhost` SQL SECURITY DEFINER VIEW `v` ( `name_exp_1` ) ) AS SELECT _UTF8MB4 'a' AS `bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb` FROM `executor__ddl` . `t`
-reject	reject	engine	suite:reject-fuzz-sweep	seect a+1 from t order by a+1
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE t ADD VECTOR INDEX ((lower(,))) USING HNSW COMMENT 'a'
-reject	reject	engine	suite:reject-fuzz-sweep	select avg ( val ) over ( ROWS CURRENT
-accept	accept	engine	suite:reject-fuzz-sweep	select table1.`col_int` as field1, table1.`col_int` as field2 from V as table1 left join F as table2 on table1.`col_int` = able2.`col_int` order by field1, field2 desc limit 2
-reject	reject	engine	suite:reject-fuzz-sweep	from t2
-accept	accept	engine	suite:reject-fuzz-sweep	select floor ( 18446744073709551615.1233 ) ceil , ( 18446744073709551615.1233 )
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ( 5 , 6
-reject	reject	engine	suite:reject-fuzz-sweep	drop User
-accept	accept	engine	suite:reject-fuzz-sweep	select * from ( ( select a from t ) t1 join t t2 ) join t3 t3
-reject	reject	engine	suite:reject-fuzz-sweep	database drop natural_join_update
-reject	reject	engine	suite:reject-fuzz-sweep	set tidb_enable_non_prepared_plan_cache session = default
-reject	reject	engine	suite:reject-fuzz-sweep	insert insert_err 1 values ( 1 , 'abcdabcdabcd' )
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'verbose' ) select a , b from t4 where ( a = 1 or a = 3 ) and b = 'xx'
-accept	accept	engine	suite:reject-fuzz-sweep	select table_schema
-reject	reject	engine	suite:reject-fuzz-sweep	inser
-reject	reject	engine	suite:reject-fuzz-sweep	UPDATE t1 USE INDEX(idx_a) SET t1.price=3.25 W
-reject	reject	engine	suite:reject-fuzz-sweep	create table t ( a int , b varchar ( 255 ) primary key clustered
-reject	reject	engine	suite:reject-fuzz-sweep	into insert t values ( '"18446744073709551615"' )
-reject	reject	engine	suite:reject-fuzz-sweep	import into t from '/file.csv' format 'parquet' with SELECT fields_enclosed_by = 'a'
-reject	reject	engine	suite:reject-fuzz-sweep	drop index a db on . `tb-ttb`
-reject	reject	engine	suite:reject-fuzz-sweep	alter table t reorganize partition p1 into ( partition p0 values in ( , 51 , 13 ) , partition p1 values in ( 23 ) )
-accept	accept	engine	suite:reject-fuzz-sweep	select _tidbb_rowid from t tablesample regions() order by _tidb_rowid
-accept	accept	engine	suite:reject-fuzz-sweep	SELECT user, host, attribute FROM i
-reject	reject	engine	suite:reject-fuzz-sweep	create table t (
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT TRIM 's' ( LEADING 'x' FROM 'xxxbarxxx' ) ;
-reject	reject	engine	suite:reject-fuzz-sweep	split tabl, t between (0) and (100) regions 10
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE't (id smallint)
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE t*ROW_FORMAT = default
-reject	reject	engine	suite:reject-fuzz-sweep	drop binding for select * from t where a in (1) and b in (1,2) and c inn (1,2,3)
-reject	reject	engine	suite:reject-fuzz-sweep	TABLE t ADD COLUMN c int
-reject	reject	engine	suite:reject-fuzz-sweep	set SQL_MODE ( = NO_AUTO_VALUE_ON_ZERO
-accept	accept	engine	suite:reject-fuzz-sweep	select q.a in (select not exists (select 1 from t1 p where q.a >1 and p.a = s.a) from t1 s) from t1 q
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE products ADD CONSTRAINT fk_category FOREIGN KEY category_id ) REFERENCES categories ( id )
-reject	reject	engine	suite:reject-fuzz-sweep	alter table t_n change column ident ident long character 's' varying binary charset utf8 first , tablespace ident
-reject	reject	engine	suite:reject-fuzz-sweep	desc select * from t wheree a+1=3
-reject	reject	engine	suite:reject-fuzz-sweep	FORMAT EXPLAIN = VERBOSE SELECT *
-reject	reject	engine	suite:reject-fuzz-sweep	WITH tt2 AS (
-reject	reject	engine	suite:reject-fuzz-sweep	ELECT * FROM t PARTITION(p00)
-accept	accept	engine	suite:reject-fuzz-sweep	select coun
-accept	accept	engine	suite:reject-fuzz-sweep	select /*+ set_var(tidb_opt_prefix_ndex_single_scan=0) */ @@tidb_opt_prefix_index_single_scan
-reject	reject	engine	suite:reject-fuzz-sweep	select collation('a'), charset('a
-reject	reject	engine	suite:reject-fuzz-sweep	drop ta
-reject	reject	engine	suite:reject-fuzz-sweep	expl
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t set a a := default
-reject	reject	engine	suite:reject-fuzz-sweep	@b = "123"
-reject	reject	engine	suite:reject-fuzz-sweep	select
-accept	accept	engine	suite:reject-fuzz-sweep	SET txread_only = 1
-accept	accept	engine	suite:reject-fuzz-sweep	insert into t values ('cn', 1822)
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT c1 + zzz 0 , COUNT ( c1 ) FROM t1 GROUP BY c1 order by c1
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' SELECT ds , p1 , p2 , p3 , p4 , p5 , p6_md5 , p7_md5 , count ( dic ) as install_device FROM dt use index ( cm ) WHERE ( ds >= '2016-09-01' ) AND ( ds <= '2016-11-03' ) AND ( cm IN ( '1062' , '1086' , '1423' , '1424' , '1425' , '1426' , '1427' , '1428' , '1429' , '1430' , '1431' , '1432' , '1433' , '1434' , '1435' , '1436' , '1437' , '1438' , '1439' , '1440' , '1441' , '1442' , '1443' , '1444' , '1445' , '1446' , '1447' , '1448' , '1449' , '1450' , '1451' , '1452' , '1488' , '1489' , '1490' , '1491' , '1492' , '1493' , '1494' , '1495' , '1496' , '1497' , '1550' , '1551' , '1552' , '1553' , '1554' , '1555' , '1556' , '1557' , '1558' , '1559' , '1597' , '1598' , '1599' , '1600' , '1601' , '1602' , '1603' , '1604' , '1605' , '1606' , '1607' , '1608' , '1609' , '1610' , '1611' , '1612' , '1613' , '1614' , '1615' , '1616' , '1623' , '1624' , '1625' , '1626' , '1627' , '1628' , '1629' , '1630' , '1631' , '1632' , '1709' , '1719' , '1720' , '1843' , '2813' , '2814' , '2815' , '2816' , '2817' , '2818' , '2819' , '2820' , '2821' , '2822' , '2823' , '2824' , '2825' , '2826' , '2827' , '2828' , '2829' , '2830' , '2831' , '2832' , '2833' , '2834' , '2835' , '2836' , '2837' , '2838' , '2839' , '2840' , '2841' , '2842' , '2843' , '2844' , '2845' , '2846' , '2847' , '2848' , '2849' , '2850' , '2851' , '2852' , '2853' , '2854' , '2855' , '2856' , '2857' , '2858' , '2859' , '2860' , '2861' , '2862' , '2863' , '2864' , '2865' , '2866' , '2867' , '2868' , '2869' , '2870' , '2871' , '2872' , '3139' , '3140' , '3141' , '3142' , '3143' , '3144' , '3145' , '3146' , '3147' , '3148' , '3149' , '3150' , '3151' , '3152' , '3153' , '3154' , '3155' , '3156' , '3157' , '3158' , '3386' , '3387' , '3388' , '3389' , '3390' , '3391' , '3392' , '3393' , '3394' , '3395' , '3664' , '3665' , '3666' , '3667' , '3668' , '3670' , '3671' , '3672' , '3673' , '3674' , '3676' , '3677' , '3678' , '3679' , '3680' , '3681' , '3682' , '3683' , '3684' , '3685' , '3686' , '3687' , '3688' , '3689' , '3690' , '3691' , '3692' , '3693' , '3694' , '3695' , '3696' , '3697' , '3698' , '3699' , '3700' , '3701' , '3702' , '3703' , '3704' , '3705' , '3706' , '3707' , '3708' , '3709' , '3710' , '3711' , '3712' , '3713' , '3714' , '3715' , '3960' , '3961' , '3962' , '3963' , '3964' , '3965' , , '3967' , '3968' , '3978' , '3979' , '3980' , '3981' , '3982' , '3983' , '3984' , '3985' , '3986' , '3987' , '4208' , '4209' , '4210' , '4211' , '4212' , '4304' , '4305' , '4306' , '4307' , '4308' , '4866' , '4867' , '4868' , '4869' , '4870' , '4871' , '4872' , '4873' , '4874' , '4875' ) ) GROUP BY ds , p1 , p2 , p3 , p4 , p5 , p6_md5 , p7_md5 ORDER BY ds2 DESC
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT * FRO
-reject	reject	engine	suite:reject-fuzz-sweep	create
-reject	reject	engine	suite:reject-fuzz-sweep	select * from (select * from t orer by a limit 3) as t1 order by a limit 5
-accept	accept	engine	suite:reject-fuzz-sweep	explain select * from char_
-reject	reject	engine	suite:reject-fuzz-sweep	explai
-reject	reject	engine	suite:reject-fuzz-sweep	INSERT INTO t 1 VALUES ( 4 , '4 Filler...' )
-reject	reject	engine	suite:reject-fuzz-sweep	EXECUTE ENC.YPTION_METHOD
-reject	reject	engine	suite:reject-fuzz-sweep	alter table t drop partition p0 )
-reject	reject	engine	suite:reject-fuzz-sweep	BACKUP DATABASE ident
-reject	reject	engine	suite:reject-fuzz-sweep	create table t a ( varchar ( 255 ) , b int primary key nonclustered , key ( a ) ) partition by key ( b ) partitions 3
-reject	reject	engine	suite:reject-fuzz-sweep	drop table if exists 
-reject	reject	engine	suite:reject-fuzz-sweep	EXECUTE EXPIRE EXPIRE
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select * fro
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' SELECT * FROM t WHERE a IN (
-reject	reject	engine	suite:reject-fuzz-sweep	select * from information_schema tidb_indexes . where table_name = 't4' and table_schema = 'explain_easy'
-reject	reject	engine	suite:reject-fuzz-sweep	explain 
-accept	accept	engine	suite:reject-fuzz-sweep	EXECUTE RUNNIN
-reject	reject	engine	suite:reject-fuzz-sweep	SET SESSION SESSION sql_mode = ''
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT IS_IPV4_COMPAT INET6_ATON ( ( '::10.0.5.9' ) ) ;
-reject	reject	engine	suite:reject-fuzz-sweep	create table tp ( a timestamp , b int ) partition by range unix_timestamp ( ( a ) ) ( partition p0 values less than ( 1580670000 ) , partition p1 values less than ( 1597622400 ) , partition p2 values less than ( 1629158400 ) )
-reject	reject	engine	suite:reject-fuzz-sweep	EXECUTE ERROR ERROR
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select * from t1 left jo
-reject	reject	engine	suite:reject-fuzz-sweep	select * from t1 right join on t2 t1 . c_str = t2 . c_str
-reject	reject	engine	suite:reject-fuzz-sweep	select * from t1 union all select
-reject	reject	engine	suite:reject-fuzz-sweep	a
-reject	reject	engine	suite:reject-fuzz-sweep	EXECUTE
-reject	reject	engine	suite:reject-fuzz-sweep	CAUSAL
-reject	reject	engine	suite:reject-fuzz-sweep	create table t(a varcar(30), b int, primary key(a) clustered)
-reject	reject	engine	suite:reject-fuzz-sweep	set @@ SESSION . = information_schema_stats_expiry default
-reject	reject	engine	suite:reject-fuzz-sweep	INSERT INTO tkey14 values ( 1 , 1 , 1 , 1 ) , ( 1 , 1 , 2 , 2 ) , ( 3 , 3 , 3 , 3 ) , ( 3 , 3 , 4 , 3 ) , ( 4 , 4 , 4 , 4 ) , ( 5 , 5 , 5 , 5 ) , ( 6 , 6 , 6 , 6 ) , ( 7 , 7 , 7 , 7 ) , ( 8 , 8 , 8 , 8 ) , ( 9 , 9 , 9 , 9 ) , ( 10 , 10 , 10 , 5 ) , ( 11 , 11 , 11 , 6 ) , ( 12 , 12 , 12 , 12 ) , ( 13 ,
-reject	reject	engine	suite:reject-fuzz-sweep	CREAT PROCEDURE `proc_2`() CASE WHEN _UTF8MB4'1980-10-01' THEN SELECT 1;WHEN _UTF8MB4'1980-10-02' THEN SELECT 2; END CASE
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE t t ( id INT ( 11 ) auto_increment )
-reject	reject	engine	suite:reject-fuzz-sweep	cre,te table t6 (id bigint, a bigint, primary key(id), unique key(a))
-reject	reject	engine	suite:reject-fuzz-sweep	DO ROW_NUMBER ( ) OVER ( CURRENT ROW )
-accept	accept	engine	suite:reject-fuzz-sweep	select *
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE TABLE ident OPTIMIZE PARTITION LOCAL ALL
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE d_n . . t_n ALGORITHM = DEFAULT , SECONDARY_LOAD
-reject	reject	engine	suite:reject-fuzz-sweep	create or replace algorithm = merge definer = 'root' sql security invoker view v(a,b) as (select * from t with local check option
-reject	reject	engine	suite:reject-fuzz-sweep	batch on c limit 10 dry run from delete t where c = 10
-reject	reject	engine	suite:reject-fuzz-sweep	select * from point wheree id = 1 and c = 0
-reject	reject	engine	suite:reject-fuzz-sweep	create table decimals ( a
-reject	reject	engine	suite:reject-fuzz-sweep	set ,a=0, @b=1
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t vlues (1.0)
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t (year, c) val'es (2040, space(256))
-reject	reject	engine	suite:reject-fuzz-sweep	select * from t a where > - 184467440737095516167.1
-reject	reject	engine	suite:reject-fuzz-sweep	zzz insert into tbl_500 select - 34 , 'lrfGPPPUuZjtT' , '{"obj1": {"sub_obj0": 100}}' , 0x6C47636D , 1325624 , 7306.3843 , 'abc' , '1976-12-08' , 4757891479624162031 , 0
-reject	reject	engine	suite:reject-fuzz-sweep	INSERT INTO t VALUES ( 148307968 , DEFAULT , 'nndsjofmpdxvhqv' ) , ( - 1327693824 , DEFAULT , 'pnndsjofmpdxvhqvfny' ) , ( - 277544960 , DEFAULT 'fpnndsjo' )
-reject	reject	engine	suite:reject-fuzz-sweep	set binding enabled for select * from t where 
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE t1 DISCARD PARTITION p0 , p1 FROM TABLESPACE
-reject	reject	engine	suite:reject-fuzz-sweep	explain explain format = 'brief' select t1 . a , t2 . a from t1 join t2 on t1 . a = t2 . a and t1 . b = t2 . b
-reject	reject	engine	suite:reject-fuzz-sweep	select t4 . d from t1 join ( t2 as t3 left join t2 as t4 on t4 . d = 3 ) on t1 . a =
-reject	reject	engine	suite:reject-fuzz-sweep	;elect a from t_ci where a='a   '
-reject	reject	engine	suite:reject-fuzz-sweep	select a , b , c from t where ( a , b , c ) in ( ( 1 , 1 , 1
-reject	reject	engine	suite:reject-fuzz-sweep	select avg ( c1 ) , avg ( c2
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT a . b . * t FROM
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief'
-reject	reject	engine	suite:reject-fuzz-sweep	explain select * fro
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE ident ADD NO_WRITE_TO_BINLOG
-reject	reject	engine	suite:reject-fuzz-sweep	create table t ( a int , b varchar ( 32 ) , c datetime , key ( a )
-reject	reject	engine	suite:reject-fuzz-sweep	create temporary table t1 ( c1 int , c2 int , key ( c1 ) , key ( ) c2 )
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT count ( Column_priv ) FROM mysql . columns_priv WHERE , User = "test" and Column_name = 'Host'
-reject	reject	engine	suite:reject-fuzz-sweep	drop resource group if exists
-reject	reject	engine	suite:reject-fuzz-sweep	import into t from '/file.csv' , with character_set
-accept	accept	engine	suite:reject-fuzz-sweep	INSERT INTO t VALUES (1,'abc',1), (3,'ggg',3),(5,'ggg',5), (9,'ggg',9),(10,'mm',10),(19,'xxx',19)
-reject	reject	engine	suite:reject-fuzz-sweep	trace format 'row' = select c1 from t1 union ( select c2 from t2 ) limit 1 , 1
-reject	reject	engine	suite:reject-fuzz-sweep	with recursive cte1 ( c1 ) as ( select 1 union select c1 + 1 c1 from cte1 where c1 < 0 select ) * from cte1
-reject	reject	engine	suite:reject-fuzz-sweep	with t_cte as ( select * from t ) ) select * from t_cte
-reject	reject	engine	suite:reject-fuzz-sweep	execute stmt using
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ( 5 , 5 , 5 ) )
-reject	reject	engine	suite:reject-fuzz-sweep	select ( select sum ( sum ( a )
-reject	reject	engine	suite:reject-fuzz-sweep	.nsert into t values (1, 1, 1, 'abc'), (2, 2, 2, 'abd'), (3, 3, 3, 'axe'), (4, 4, 4, 'axf'), (5, 5, 5, 'azd')
-reject	reject	engine	suite:reject-fuzz-sweep	select * 's' from t GROUP BY a , b desc
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE t1 ( c1 TINYTEXT CHARACTER 's' SET utf8mb4 )
-reject	reject	engine	suite:reject-fuzz-sweep	select * fr)m t where a = 'abc' order by a
-accept	accept	engine	suite:reject-fuzz-sweep	insert into t2 values ( 1 , '1' ) , ( 2 , '2' ) , ( null , null ) , ( null , '3' '3' )
-reject	reject	engine	suite:reject-fuzz-sweep	drop
-accept	accept	engine	suite:reject-fuzz-sweep	explain format = 'brief' select t1.a, (select t2.b from t2 where t22.a = t1.b) from t1
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE t (
-reject	reject	engine	suite:reject-fuzz-sweep	alter table t modify bny
-accept	accept	engine	suite:reject-fuzz-sweep	create  table t(a int, b int, key(a), key(b))
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE ident ADD i
-reject	reject	engine	suite:reject-fuzz-sweep	create table t (id int, val varchar(255), comment varchar(255)) partition by range,(id) interval (100) first partition less than (-100) last partition less than (250)
-reject	reject	engine	suite:reject-fuzz-sweep	insert intto A values (2, 1), (3, 2)
-accept	accept	engine	suite:reject-fuzz-sweep	explain format='bri(f' SELECT * FROM t WHERE NOT (a <= 2 OR a > -1)
-reject	reject	engine	suite:reject-fuzz-sweep	batch on a limit 5 insert into session__nontransactional.s selct t1.* from session__nontransactional.t as t1
-reject	reject	engine	suite:reject-fuzz-sweep	stmt from 'with a as (select /*+ qb_name(qb1) */ * from t)  select /*+ leading(@qb1)*/ * from a;'
-reject	reject	engine	suite:reject-fuzz-sweep	drop table if exists
-reject	reject	engine	suite:reject-fuzz-sweep	create table t1(c1 bigint unsigned, c2 bigint un
-reject	reject	engine	suite:reject-fuzz-sweep	explain select * * from tstring where b = '4' and c = '4'
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT * FROMt WHERE a != 4
-reject	reject	engine	suite:reject-fuzz-sweep	select * rom t where (a = 1 and b = 2) or (a = 2 and b = 1)
-accept	accept	engine	suite:reject-fuzz-sweep	create table de
-accept	accept	engine	suite:reject-fuzz-sweep	explain select * from topn_after_hist_no_inex where a = 7
-reject	reject	engine	suite:reject-fuzz-sweep	TABLE CREATE foo ( name CHAR ( 50 ) CHARACTER SET utf8 COLLATE utf8_bin COLLATE ascii_bin )
+reject	reject	engine	suite:reject-fuzz-sweep	select coercibility concat ( mb4unicode , mb4bin , concat ( mb4general ) ) ) from t
+reject	reject	engine	suite:reject-fuzz-sweep	select /*+ inl_merge_join(t1,t2) */ * from t1 left joinn t2 on t1.a = t2.a and t1.c = t2.c and t1.b = t2.b order by t1.a desc
+reject	reject	engine	suite:reject-fuzz-sweep	select * t1 union ( select * from t2 union all select * from t3 )
+reject	reject	engine	suite:reject-fuzz-sweep	grant DROP ROLE on * . * testCreateRole
+accept	accept	engine	suite:reject-fuzz-sweep	load stats 's/wih_cluster_index_tbl_0.json'
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT DATABASE ( ) ; FROM
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT ) CASE WHEN var_fld > 5000 THEN ( 1 / var_fld ) ELSE 5000 END case_var FROM t1
+reject	reject	engine	suite:reject-fuzz-sweep	select b from t where a < 2 or b >= 10 's' or c > 100 or c < 1 order by b
+reject	reject	engine	suite:reject-fuzz-sweep	select * from t use index ia ) where a like ' _' order by a , _tidb_rowid
+reject	reject	engine	suite:reject-fuzz-sweep	INSERT INTO t2 VALUES ( 1 , , 1 )
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE `t` ( blob DEFAULT NULL , `col_11` decimal ( 17 , 5 ) NOT NULL , `col_13` varchar ( 381 ) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Yr' , PRIMARY KEY ( `col_13` , `col_11` ) CLUSTERED , KEY `idx_4` ( `col_10` ( 3 ) ) ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_bin
+reject	reject	engine	suite:reject-fuzz-sweep	executor__infoschema_reader use
+reject	reject	engine	suite:reject-fuzz-sweep	drop tabble t, t2, t3, t4
+reject	reject	engine	suite:reject-fuzz-sweep	USER IF EXISTS ru6 @localhost
+reject	reject	engine	suite:reject-fuzz-sweep	insert into test values 2 ( , 20 )
+accept	accept	engine	suite:reject-fuzz-sweep	select subtime(col0, time '-1 12:00:01.341300') from t order by cl0, col1 asc
+accept	accept	engine	suite:reject-fuzz-sweep	insert into t(a, b) value (1, 1)
+accept	accept	engine	suite:reject-fuzz-sweep	with cte1 ( a ) as ( select 36 ) update t1 set a = 1 where a in ( select a from cte1 cte1 )
+reject	reject	engine	suite:reject-fuzz-sweep	select * from t1 join t2 on t1 . a = t2 . join a t3 on t2 . b = t3 . b
+accept	accept	engine	suite:reject-fuzz-sweep	delete from mysql.opt_rule_black
+reject	reject	engine	suite:reject-fuzz-sweep	select a from tuse index (idx) order by a
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT * from t where a = 2 and a 3 =
+reject	reject	engine	suite:reject-fuzz-sweep	UPDATE golang1 a SET procst = ( SELECT 1 FROM golang2 c WHERE c . procst = a . procst ) WHERE fcbpdt = '20230925' AND fcbpsq = '12023092502158016' FROM
+reject	reject	engine	suite:reject-fuzz-sweep	select @@ 's' global . tidb_enable_plan_cache_for_subquery
+reject	reject	engine	suite:reject-fuzz-sweep	drop tabl' if exists tc
+reject	reject	engine	suite:reject-fuzz-sweep	TABLE ttt ( id bigint ( 20 ) NOT NULL , host varchar ( 30 ) NOT NULL , PRIMARY KEY ( id ) , UNIQUE KEY i_host ( host ) )
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' SELECT * FROM t WHERE 1 = 0 OR a = - 1 OR a = 0 OR a = 1 OR a = 2 OR a = 3 OR a = 4 OR a a = 5 OR a = 6
+reject	reject	engine	suite:reject-fuzz-sweep	DELETE FROMt1 WHERE t1.a > 0 ORDER BY t1.a LIMIT 1
+reject	reject	engine	suite:reject-fuzz-sweep	create table t1 (id int, benc,_type varchar(10),version varchar(10),tps int(20))
 reject	reject	engine	suite:reject-fuzz-sweep	ALTER
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER SEQUENCE ident 1 MINVALUE
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT @@ SESSION . default_storage_engine , @@ GLOBAL . default_storage_engine default_storage_engine
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT select p3 REGEXP n3 from t1
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brie
-reject	reject	engine	suite:reject-fuzz-sweep	create table t ( a char , b ) partition by range columns ( a ) ( partition p0 values less than ( 'z' ) )
-reject	reject	engine	suite:reject-fuzz-sweep	seleect c2 from t where c2 = 'abcf'
-reject	reject	engine	suite:reject-fuzz-sweep	create table t (a int, b varchar(255), primary key(b, a) /*T![clus`ered_index] clustered */)
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t3 values (2,2.1),(3,,3)
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ( 'cn'
-reject	reject	engine	suite:reject-fuzz-sweep	explain selec( /*+ use_index_merge(t1) */ * from t1 where c1 < 10 or c2 < 10 and c3 > SOME(select count(1) from t2) order by 1
-reject	reject	engine	suite:reject-fuzz-sweep	select /*+ USE_INDEX_MERGE(t1 c1) */ * fro= t1 join t2
-reject	reject	engine	suite:reject-fuzz-sweep	desc format = 'brief' select max ( a from ) tt
-reject	reject	engine	suite:reject-fuzz-sweep	alter table t modify modify nil blob
-accept	accept	engine	suite:reject-fuzz-sweep	create table t(a int primary key, b int,  c int, d int, e int, index idx(b,c,d))
-reject	reject	engine	suite:reject-fuzz-sweep	select partition_name , partition_method , partition_expression , partition_description , table_rows from information_schema . partitions where table_schema = 'ddl__db_partition' table_name and = 't'
-reject	reject	engine	suite:reject-fuzz-sweep	alter table t mdify f bigint
-reject	reject	engine	suite:reject-fuzz-sweep	update
-reject	reject	engine	suite:reject-fuzz-sweep	al
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ( cast ( cast ( , "2024-10-24 11:11:11.12346" as datetime ( 6 ) ) as json ) )
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t1 set a
-reject	reject	engine	suite:reject-fuzz-sweep	select DATE_ADD ( '2007-03-28 22:08:28' , "-2.2" INTERVAL SECOND )
-accept	accept	engine	suite:reject-fuzz-sweep	grant update, select, insert, delete on executor__gant.testatomic to r1, r2, r3
-reject	reject	engine	suite:reject-fuzz-sweep	t . id = 1.234 from t right join s on t . a = s . a
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t (b) v=lues (2)
-reject	reject	engine	suite:reject-fuzz-sweep	replace into t2 ( id ) ( values 2 )
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE ident AVG_ROWLENGTH 1
-reject	reject	engine	suite:reject-fuzz-sweep	select v from t where v<'b and id<=3
-reject	reject	engine	suite:reject-fuzz-sweep	SELCT * FROM t
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT TRUNCATE);
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE t1 ADD CHECK ( > @@ global . tidb_mem_quota_query )
-reject	reject	engine	suite:reject-fuzz-sweep	analyze table t1 , , t2 all columns
-reject	reject	engine	suite:reject-fuzz-sweep	table create t ( c int ) comment 'comment'
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE t RENAME INDEX TO a b ;
-accept	accept	engine	suite:reject-fuzz-sweep	insert into.t1pk(id, v) values('abc', 1)
-reject	reject	engine	suite:reject-fuzz-sweep	prepare s1 SELECT from 'select * from t4 where a=?'
-accept	accept	engine	suite:reject-fuzz-sweep	SET SESSION tidb_opt_fix_control = '44262,ON'
-reject	reject	engine	suite:reject-fuzz-sweep	create table test.t )a int)
-reject	reject	engine	suite:reject-fuzz-sweep	create or replace algorithm = merge definer 'root' sql security invoker view v ( a , b ) as select * from t union select * from t with cascaded check option
-reject	reject	engine	suite:reject-fuzz-sweep	select * t1 where t1 . a in ( select t2 . a from t2 where t1 . b = t2 . b )
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select * from t2 where t2 . a '111' = and t2 . b = 1
-reject	reject	engine	suite:reject-fuzz-sweep	create table t1 ( a1 int b1 , enum ( 'B' , 'A' ) )
-reject	reject	engine	suite:reject-fuzz-sweep	DELETE FROM t1 's' , t2 USING t1 INNER JOIN t2 INNER JOIN t3 WHERE t1 . id = t2 . id AND t2 . id = t3 . id ;
-accept	accept	engine	suite:reject-fuzz-sweep	table th
-reject	reject	engine	suite:reject-fuzz-sweep	create table t2  (c_int int, c_str varchar(40), c_decimal decimal(12, 6), primary key (c_int) , key(c_str) , key(c_decimal) ) partition by has
-accept	accept	engine	suite:reject-fuzz-sweep	select c1.a, c3.b, count(*) from customer2 c3 join (customer1 c1 left join customer2 c2 on c1.a=1) on c3.b=1 where c2.pk in (7,9) 
-reject	reject	engine	suite:reject-fuzz-sweep	select x . b , t . * from t right join x on t . . b = x . b group by x . b , t . d
-accept	accept	engine	suite:reject-fuzz-sweep	drop table i
-reject	reject	engine	suite:reject-fuzz-sweep	select col, != 1 from t7
-accept	accept	engine	suite:reject-fuzz-sweep	explain format='brief' select* from t where a = "ä" collate utf8mb4_bin
-reject	reject	engine	suite:reject-fuzz-sweep	create table t c ( datetime ( 6 ) )
-reject	reject	engine	suite:reject-fuzz-sweep	select sum(o.c_id is null) from c left joino on c.c_id=o.c_id
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER USER testuser4 IDENTIFIED BY '''
-reject	reject	engine	suite:reject-fuzz-sweep	create index i(on t (a) local
-reject	reject	engine	suite:reject-fuzz-sweep	create idx_2 on t ( c )
-accept	accept	engine	suite:reject-fuzz-sweep	create resource group defaul ru_per_sec=20, priority=LOW, burstable
-reject	reject	engine	suite:reject-fuzz-sweep	select * from t t1, t t2 wherre t1.mb4unicode = t2.mb4general collate utf8mb4_general_ci
-accept	accept	engine	suite:reject-fuzz-sweep	select @tidb_min_paging_size
-reject	reject	engine	suite:reject-fuzz-sweep	select count ( * ) from
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t1 value ( '测试' ) , ( '测试  ' ) , 'xxx ' ( )
-accept	accept	engine	suite:reject-fuzz-sweep	insert into t1 values (4, "202011-28")
-reject	reject	engine	suite:reject-fuzz-sweep	alter table t modify d enum ( '2020-10-30' , '19:38:25.001' , '20201030082133.455555' '2020' )
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE `issue25528` ( `c1` int ( 11 ) NOT NULL , `c2` int ( 11 ) DEFAULT NULL , `c3` int ( 11 ) DEFAULT NULL , `c4` int ( 11 ) DEFAULT NULL , PRIMARY KEY ( `c1` ) CLUSTERED , KEY `k2` ( ( `c2` ) , KEY `k3` ( `c3` ) ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_bin PARTITION BY HASH ( `c1` ) PARTITIONS 10
-reject	reject	engine	suite:reject-fuzz-sweep	create table t(a se
-reject	reject	engine	suite:reject-fuzz-sweep	select * from t1 right join t2 on t1 . id = t2 . id where ( t1 . a <= 1 or t1 . a <= 3 ) t2 and . a BETWEEN 1 AND 3
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT CAST ( - 1 UNSIGNED as ) - cast ( 9223372036854775807 as unsigned )
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE
-reject	reject	engine	suite:reject-fuzz-sweep	alter table t modif
-reject	reject	engine	suite:reject-fuzz-sweep	ANALYZ
-reject	reject	engine	suite:reject-fuzz-sweep	drop t=mporary table tb
-reject	reject	engine	suite:reject-fuzz-sweep	select * from t1 where ( `col_float_key_signed` % `col_float_key_signed` ) IS
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t1 t1 values ( 4 , default )
-reject	reject	engine	suite:reject-fuzz-sweep	EXECUE HASH
-reject	reject	engine	suite:reject-fuzz-sweep	insert in)o t values ('[1.2]')
-accept	accept	engine	suite:reject-fuzz-sweep	select * , length ( ) a from t use index ( ia ) where a like '你好%' order by a , _tidb_rowid
-reject	reject	engine	suite:reject-fuzz-sweep	create table t_v1(, int, b int)
-reject	reject	engine	suite:reject-fuzz-sweep	PLAN REPLAYER DUMP EXPLAIN
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = = 'brief' select * from t1 join t2 partition ( p0 ) on t1 . c_int = t2 . c_int and t1 . c_str < t2 . c_str
-accept	accept	engine	suite:reject-fuzz-sweep	create table drop_est (a int)
-reject	reject	engine	suite:reject-fuzz-sweep	select /*+ MAX_EXECUTION_TIME(
-reject	reject	engine	suite:reject-fuzz-sweep	show tables liike `T`
-reject	reject	engine	suite:reject-fuzz-sweep	select * from t1 where a = 1 order by id,a,,b
-reject	reject	engine	suite:reject-fuzz-sweep	selct * from t1 where a <= 5 or (a+b=3)
-reject	reject	engine	suite:reject-fuzz-sweep	PAUSE BACKUP LOGS CHECKSU( REQUIRED
-reject	reject	engine	suite:reject-fuzz-sweep	select b between '2018-11-01' and '2
-reject	reject	engine	suite:reject-fuzz-sweep	table t1 except ( table ) t2
-reject	reject	engine	suite:reject-fuzz-sweep	explain select * from tpk2 where a = SELECT 1 or b = 4
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ('cn*, 394)
-reject	reject	engine	suite:reject-fuzz-sweep	aalyze table dd all columns
-reject	reject	engine	suite:reject-fuzz-sweep	GRANT SELECT ( ) ON mysql . db TO test
-reject	reject	engine	suite:reject-fuzz-sweep	select date_sub ( "2011-11-11 10:10:10.123456"
-reject	reject	engine	suite:reject-fuzz-sweep	cre
-reject	reject	engine	suite:reject-fuzz-sweep	sele=t 1 is true, 0 is true, null is true, "aaa" is true, "" is true, -12.00 is true, 0.0 is true, 0.0000001 is true
-reject	reject	engine	suite:reject-fuzz-sweep	INSERT INTO t (fid, oty, oid; pid, bid, r5) VALUES (139, 'm',  1125, 1,  2432, 'LE2005_r5')
-reject	reject	engine	suite:reject-fuzz-sweep	calibrate START_TIME resource '2021-04-15 00:00:00'
-reject	reject	engine	suite:reject-fuzz-sweep	create table t (c1 enum('a', 'b'), c2 set('a', 'b')))
-reject	reject	engine	suite:reject-fuzz-sweep	exlain select /*+ use_index_merge(t, ia, ib, ic, id, ie) */ * from t where a = 10 and b = 20 and c > 30 and d is null and e in (0, 100)
+accept	accept	engine	suite:reject-fuzz-sweep	select /*+ set_var(tidb_index_merge_intersection_concurrecy=2) */ @@tidb_index_merge_intersection_concurrency
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT ( ) ;
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' SELECT * FROM t WHERE > a 6
+reject	reject	engine	suite:reject-fuzz-sweep	update ap . record t inner join tp . record tt on t . id = tt . id set t . name = tt .
+accept	accept	engine	suite:reject-fuzz-sweep	select * from t1
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t1 values ( 0000 ) , ( 00 ) , ( "0000" ) , ( "000" ) , ( "00" ) , ( "0" ) , ( 79 ) ) , ( "79" )
+reject	reject	engine	suite:reject-fuzz-sweep	set @@ = tidb_mem_quota_query 10000
+reject	reject	engine	suite:reject-fuzz-sweep	update t2 partition ( p0 p1 , ) set a = 40
+reject	reject	engine	suite:reject-fuzz-sweep	select b from 1 tl partition ( p0 , P3 ) order by a
+reject	reject	engine	suite:reject-fuzz-sweep	drop database ) if exists executor__infoschema_reader_2
+reject	reject	engine	suite:reject-fuzz-sweep	insert into a select x from b ON DUPLICATE KEY UPDATE
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT * FROM t WHERE NOT
+reject	reject	engine	suite:reject-fuzz-sweep	select `
+reject	reject	engine	suite:reject-fuzz-sweep	select b from t1 group a
+reject	reject	engine	suite:reject-fuzz-sweep	SET @@ = time_zone @old_time_zone
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT select json_length ( '1' , 'fsdfds' )
+reject	reject	engine	suite:reject-fuzz-sweep	SET SESSION mpp_version unspecified =
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT SUM ( IF ( v > 1 , v , - v ) ) FROM
+accept	accept	engine	suite:reject-fuzz-sweep	select  * from rt1pk
+accept	accept	engine	suite:reject-fuzz-sweep	select cast
+reject	reject	engine	suite:reject-fuzz-sweep	UPDATE t_generated SET b =
+reject	reject	engine	suite:reject-fuzz-sweep	's' INSERT INTO tab1 VALUES ( 1 , 37 , 20.85 , 30 , 10.69 )
+reject	reject	engine	suite:reject-fuzz-sweep	select * from , where a = 10 and b = "2022-01-01" and c < "Wow"
+reject	reject	engine	suite:reject-fuzz-sweep	select c is null fro' t group by b
+reject	reject	engine	suite:reject-fuzz-sweep	crea*e table t (expire int)
+accept	accept	engine	suite:reject-fuzz-sweep	select a  from pt where a = 1
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT * FROM t WHERE a <
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ( 'cn' , ( 311 )
+reject	reject	engine	suite:reject-fuzz-sweep	trace pln target = 'estimation' select * from char_name where imdb_index > 'V'
+reject	reject	engine	suite:reject-fuzz-sweep	@@ collation_database
+reject	reject	engine	suite:reject-fuzz-sweep	set @@ tidb_opt_fix_control 's' = '52869:ON'
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t valuess ('cn', 30)
+reject	reject	engine	suite:reject-fuzz-sweep	create temporary table db2 . ( tplacement4 id int )
+reject	reject	engine	suite:reject-fuzz-sweep	update no_retry set id =
+reject	reject	engine	suite:reject-fuzz-sweep	create table t c_int int, c_str varchar(40))
+reject	reject	engine	suite:reject-fuzz-sweep	create table t_varchar(id int, col_va
+reject	reject	engine	suite:reject-fuzz-sweep	select /*+ hash_join_probe(t2@sel_2) */ * from 1 where t1.a not in (select t2.a from t2 where t1.b = t2.b)
+reject	reject	engine	suite:reject-fuzz-sweep	select /*+ TIDB_SMJ(t) */ * from t right outer join t1 on t.c1 = t1.c1 where t.c1 = 1 or t1.c2 > 
+accept	accept	engine	suite:reject-fuzz-sweep	select b from i
+reject	reject	engine	suite:reject-fuzz-sweep	SE
+reject	reject	engine	suite:reject-fuzz-sweep	prepare stmt1 from from "execute stmt0"
+reject	reject	engine	suite:reject-fuzz-sweep	select * from a where PK = 0 union all ( select * from b where PK = 0 union all ( select * from b PK != 0 ) order by pk limit 1 )
+reject	reject	engine	suite:reject-fuzz-sweep	EXECUTE
+accept	accept	engine	suite:reject-fuzz-sweep	insert into tprefix values ('111', '111'), ('222', '222'), ('333', '333'), ('444', '444'), ('555', '555'), ('66', '666')
+reject	reject	engine	suite:reject-fuzz-sweep	anaalyze table dd all columns
+reject	reject	engine	suite:reject-fuzz-sweep	UPDATE test t1 zzz , test2 t2 SET t1 . c1 = 1 , t2 . c2 = 2 WHERE t1 . c1 = t2 . c1
+reject	reject	engine	suite:reject-fuzz-sweep	alter table test_gv_ddl change column c cnew
+reject	reject	engine	suite:reject-fuzz-sweep	(SELECT *) ORDE
+reject	reject	engine	suite:reject-fuzz-sweep	GRANT
+reject	reject	engine	suite:reject-fuzz-sweep	alter table t2 rerganize partition pMax into (partition p4 values less than (90))
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select * from t1 where (t1.a, t1.b) not in (sel
+reject	reject	engine	suite:reject-fuzz-sweep	analyze table tdouble all columns with
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE t1 1 ( c1 int )
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE ident A.D ident NATIONAL CHARACTER VARYING(1)
+reject	reject	engine	suite:reject-fuzz-sweep	) insert into t2 values ( '-9223372036854775809' , "1000-01-01 00:00:00" + INTERVAL - 9223372036854775809 YEAR )
+reject	reject	engine	suite:reject-fuzz-sweep	select
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT * from thash where a in ( 2 3 , )
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE t(a int) C
+reject	reject	engine	suite:reject-fuzz-sweep	DELETE ident FROM ident TABLESAMPLE ( ) )
+reject	reject	engine	suite:reject-fuzz-sweep	create table t(id bigint(20) primary key, col varchar(255) unique key
+reject	reject	engine	suite:reject-fuzz-sweep	set @@
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ( '81' 162 , )
+accept	accept	engine	suite:reject-fuzz-sweep	SELECT co
+accept	accept	engine	suite:reject-fuzz-sweep	select TABLE_NAME from information_schema.columns where table_schema = 'PLANNER__COR__MEMTABLE_PREDICATE_EXTRACTOR' and column_name like 'I%'
+reject	reject	engine	suite:reject-fuzz-sweep	select date_sub date_sub ( "2011-11-11 10:10:10.123456" , interval 1 year )
+reject	reject	engine	suite:reject-fuzz-sweep	create table t ( a varchar ( ) 255 , b int , c float , primary key ( c , a ) )
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT COUNT ( * ) FROM tkey14 partition ( ) p3
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT CAST ( 'test collated returns' AS CHAR CHARACTER SET utf8 ) COLLATE COLLATE utf8_bin ;
+reject	reject	engine	suite:reject-fuzz-sweep	select /*+ inl_join(s)*
+reject	reject	engine	suite:reject-fuzz-sweep	alter table t add index a_b a ( , b ) invisible
+reject	reject	engine	suite:reject-fuzz-sweep	INSERT INTO foo VALUES (
+accept	accept	engine	suite:reject-fuzz-sweep	drop table if exists cach
+accept	accept	engine	suite:reject-fuzz-sweep	TABLE jd5
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select * ta where a = 1
+reject	reject	engine	suite:reject-fuzz-sweep	insert into db_one.nt vaues (80, 80)
+reject	reject	engine	suite:reject-fuzz-sweep	select * from t1 , t2 where . t1 a in ( t2 . b , 3 )
+reject	reject	engine	suite:reject-fuzz-sweep	create
+accept	accept	engine	suite:reject-fuzz-sweep	truncate table tidbbackground_subtask_history
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ( '2021-08-20' ) )
+accept	accept	engine	suite:reject-fuzz-sweep	explain select /*+ order_index(t, ,rimary) */ * from t where a<10 limit 1
+reject	reject	engine	suite:reject-fuzz-sweep	QUERY ADD ACTION DRYRUN
+reject	reject	engine	suite:reject-fuzz-sweep	select * from t1 , t2 where t1 . a =
+reject	reject	engine	suite:reject-fuzz-sweep	select select sum ( a ) from t1 group by c order by c
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t t values ( 'cn' , 480 )
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE t ADD (a1 int, CONSTRAINT PRIMARY KEY a1))
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = brief select * from use t index ( primary ) where b like '안녕하세요%' and a like 'asd%' order by a , b
+accept	accept	engine	suite:reject-fuzz-sweep	select /*+ INL_HASH_JOIN(t2) */ t1.a from t t11 join t t2 on t1.a=t2.a order by t1.a
+reject	reject	engine	suite:reject-fuzz-sweep	select avg ( val ) over ( rows between INTERVAL '2:30' MINUTE_SECOND FOLLOWING and current row
+reject	reject	engine	suite:reject-fuzz-sweep	sele,t (1,1) in (select * from t2) from t1
+reject	reject	engine	suite:reject-fuzz-sweep	alter table t modfy t varchar(30)
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT * FROM t1 NATURAL 'EFT JOIN t2 WHERE not(t1.a <=> t2.a)
+reject	reject	engine	suite:reject-fuzz-sweep	select id , a , "1900-01-01 00:00:00" + INTERVAL a MICROSECOND as
+reject	reject	engine	suite:reject-fuzz-sweep	UPDATE mysql . User SET Select_priv = WHERE 'Y' User = "testflush" and Host = "localhost"
+reject	reject	engine	suite:reject-fuzz-sweep	zzz INSERT INTO t0 ( t0 ) VALUES ( NULL ) , ( NULL )
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' SELECT * FROM t WHERE > - 1
+reject	reject	engine	suite:reject-fuzz-sweep	DROP TABLE IF
+reject	reject	engine	suite:reject-fuzz-sweep	create resource group x ru_per_sec = 20 , priority = FROM LOW , burstable
+reject	reject	engine	suite:reject-fuzz-sweep	alter alter table t add index idx_t ( c ( 16 ) )
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t (
+reject	reject	engine	suite:reject-fuzz-sweep	select * from t004 use index(eidx; where timestampadd(microsecond, 1, a) = timestampadd(microsecond, 1, '2021-08-20')
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE t CONNECTION
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE
+reject	reject	engine	suite:reject-fuzz-sweep	CHAR SET SET 'binary'
+reject	reject	engine	suite:reject-fuzz-sweep	select date_sub("2011-11-11 10:10:10.123456", interval "10:10" minute_sec
+reject	reject	engine	suite:reject-fuzz-sweep	admin show ddl job qu
+reject	reject	engine	suite:reject-fuzz-sweep	select * from tpk2 a = 1 or b = 4
+reject	reject	engine	suite:reject-fuzz-sweep	alter table t add column if not exists
+reject	reject	engine	suite:reject-fuzz-sweep	insert into values t ( 6 , 12 )
+reject	reject	engine	suite:reject-fuzz-sweep	EXECUTE , DECLARE
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE child (id INT, parent_id INT, INDEX par_ind (parent_id), FOREIGN KEY (parent_id) REFERENCES parent(id) 
+reject	reject	engine	suite:reject-fuzz-sweep	create table posts , ( id int auto_increment primary key , title varchar ( 500 ) character set utf8 , subtitle varchar ( 500 ) character set utf8 , unique key ( title , subtitle ) )
+accept	accept	engine	suite:reject-fuzz-sweep	drop view v_nestd, v_nested2
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE ident ADD
+reject	reject	engine	suite:reject-fuzz-sweep	select * from t1 where id 3 = order by id , a , b
+reject	reject	engine	suite:reject-fuzz-sweep	`imdbload` USE
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE child ( id INT , parent_id INT , CONSTRAINT fk_123 FOREIGN KEY ( ( parent_id + 1 ) ) REFERENCES parent ( id ) ON DELETE CASCADE ON UPDATE RESTRICT ) )
+reject	reject	engine	suite:reject-fuzz-sweep	create table tday ( a date , b datetime ) partition by list ( DAY ( a ) ) ( partition p0 values in ( 0
+accept	accept	engine	suite:reject-fuzz-sweep	explain format = 'brief' SELECT * FROM t t WHERE a <= 2000000
+accept	accept	engine	suite:reject-fuzz-sweep	CREATE USER 'ttt' @'localhost' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 1
+reject	reject	engine	suite:reject-fuzz-sweep	explain select a from t order by a .imit 1 offset 2
+accept	accept	engine	suite:reject-fuzz-sweep	explain format = 'brief' select e 's' from t where e < 2
+reject	reject	engine	suite:reject-fuzz-sweep	's' drop table db_one . nt , db_two . pt
+accept	accept	engine	suite:reject-fuzz-sweep	DROP USER 'root'@'localho)t', 'root1'@'localhost'
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t2 values ( 1 ) , ( 5 ) , ( 10 ) , ( 25 ) , ( 40 ) , ( ( 60 ) , ( 100 )
+reject	reject	engine	suite:reject-fuzz-sweep	create table t ( i int key
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select /*+ leading(t1, t2) */ * from (t1 join t2 on t1.a==t2.a) join (t3 join t4 on t3.a=t4.a) on t2.a=t4.a
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ( 68 , , 68 )
+accept	accept	engine	suite:reject-fuzz-sweep	select collation(compress('abbc'))
+accept	accept	engine	suite:reject-fuzz-sweep	select a and b as d, a 
+reject	reject	engine	suite:reject-fuzz-sweep	set @@tidb_enable_reuse_chunk=defaul,
+accept	accept	engine	suite:reject-fuzz-sweep	with recursive qn as ((select 1 as a from dual order by a) union  all select a+1 from qn where a<3) select * from qn
+reject	reject	engine	suite:reject-fuzz-sweep	explain select /*+ use_index_merge(t1) */ * from t1 where (c1 < 10 and c2 < 10) or (c3 < 10 an
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' SELECT ta.NAME,(SELECT /*+ no_decorrelate() */ sum(tb.CODE) FROM tb WHERE ta.id = tb.id and exists (select 1 from tc w(ere tb.name=tc.name and tc.`code` like '999%')) tb_sum_code FROM ta WHERE ta.NAME LIKE 'chad999%'
+reject	reject	engine	suite:reject-fuzz-sweep	SELCT c FROM test_gc_read_cast_1
+reject	reject	engine	suite:reject-fuzz-sweep	table tt ( a int , b int , c int , primary key ( b , a ) nonclustered )
+reject	reject	engine	suite:reject-fuzz-sweep	select from_unixtime ( if
+accept	accept	engine	suite:reject-fuzz-sweep	explain format='brief' SELECT * FROM t WH
+accept	accept	engine	suite:reject-fuzz-sweep	WITH `cte` ( col1 , col2 ) AS ( SELECT * from t UNION ALL SELECT 3 , 4 ) SELECT col1 , col2 col2 FROM cte ;
+accept	accept	engine	suite:reject-fuzz-sweep	alter table t add index dx_wrong((json_merge_preserve(b, '{"k": "v"}')))
+reject	reject	engine	suite:reject-fuzz-sweep	drop temprary table if exists t1
+reject	reject	engine	suite:reject-fuzz-sweep	INSERT INTO 
+accept	accept	engine	suite:reject-fuzz-sweep	INSERT INTO t1 VALUES (2084,0.02040000000000000000),(35324,0.02190000000000000000),(43760,0.00510000000000000000),(46084,0.01400000000000000000),(46312,0.00560000000000000000),(61632,0.02730000000000000000),(94676,0.0066000000000000000),(102244,0.01810000000000000000),(113144,0.02140000000000000000),(157024,0.02750000000000000000),(157144,0.01750000000000000000),(182076,0.02370000000000000000),(188696,0.02330000000000000000),(833,0.00390000000000000000),(6701,0.00230000000000000000),(8533,0.01690000000000000000),(13801,0.01360000000000000000),(20797,0.00680000000000000000),(36677,0.00550000000000000000),(46305,0.01290000000000000000),(76113,0.00430000000000000000),(76753,0.02400000000000000000),(92393,0.01720000000000000000),(111733,0.02690000000000000000),(152757,0.00250000000000000000),(162393,0.02760000000000000000),(167169,0.00440000000000000000),(168097,0.01360000000000000000),(180309,0.01720000000000000000),(19918,0.02620000000000000000),(58674,0.01820000000000000000),(67454,0.01510000000000000000),(70870,0.02880000000000000000),(89614,0.02530000000000000000),(106742,0.00180000000000000000),(107886,0.01580000000000000000),(147506,0.02230000000000000000),(148366,0.01340000000000000000),(167258,0.01860000000000000000),(194438,0.00500000000000000000),(10307,0.02850000000000000000),(14539,0.02210000000000000000),(27703,0.00050000000000000000),(32495,0.00680000000000000000),(39235,0.01450000000000000000),(52379,0.01640000000000000000),(54551,0.01910000000000000000),(85659,0.02330000000000000000),(104483,0.02670000000000000000),(109911,0.02040000000000000000),(114523,0.02110000000000000000),(119495,0.02120000000000000000),(137603,0.01910000000000000000),(154031,0.02580000000000000000)
+reject	reject	engine	suite:reject-fuzz-sweep	select from * t1 join t2 on t2 . b = t1 . id and t2 . a = t1 . id
+reject	reject	engine	suite:reject-fuzz-sweep	INSERT INTO dd (
+reject	reject	engine	suite:reject-fuzz-sweep	format explain = 'brief' select * from t1 join t2 on t1 . a = t2 . a and t1 . c = t2 . c
+accept	accept	engine	suite:reject-fuzz-sweep	update t set id = 8 where name = 'aa' 'aa'
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT drop database test_db_2
+reject	reject	engine	suite:reject-fuzz-sweep	create table 
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select * from where a between "3" and "4"
+reject	reject	engine	suite:reject-fuzz-sweep	alter tablle t modify t year
+reject	reject	engine	suite:reject-fuzz-sweep	select max(a collat` utf8mb4_bin) from tt
+accept	accept	engine	suite:reject-fuzz-sweep	explain format = brief select * from t use index  (ia) where a like 'aa' order by a,_tidb_rowid
+accept	accept	engine	suite:reject-fuzz-sweep	select * from t where t . a
+reject	reject	engine	suite:reject-fuzz-sweep	create(table t1(c1 int)
+reject	reject	engine	suite:reject-fuzz-sweep	create table tcolidx1 (a int, b int, key(a), key(b)) partition by list columns(a) (partition p0 values in (0=)
+reject	reject	engine	suite:reject-fuzz-sweep	select b from tr partition ( r0 ) by order a
+reject	reject	engine	suite:reject-fuzz-sweep	set @@ tidb_max_bytes_before_tiflash_external_join = default default
+reject	reject	engine	suite:reject-fuzz-sweep	crreate table t(dou double, varc varchar(100))
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = select brief * from t where a >= 'aabb' and a <= 'aabd' and b = 456 order by a , _tidb_rowid
+reject	reject	engine	suite:reject-fuzz-sweep	create view nt18 as select id frm nt17
 reject	reject	engine	suite:reject-fuzz-sweep	insert
-accept	accept	engine	suite:reject-fuzz-sweep	insert into t values ( "1" , "a    " , "a" "a" )
-reject	reject	engine	suite:reject-fuzz-sweep	( wi;h cte(n) as ( select * from t )  select n+1 from cte  union select n+2 from cte) union select 1
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE TEMPOR
-reject	reject	engine	suite:reject-fuzz-sweep	set 's' @@ tidb_default_string_match_selectivity = 0.8
-reject	reject	engine	suite:reject-fuzz-sweep	table if exists different_charset
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE child ( id INT , parent_id INT , INDEX par_ind ( parent_id ) , FOREIGN
-reject	reject	engine	suite:reject-fuzz-sweep	select * t from where a > 1 and a = "b"
-reject	reject	engine	suite:reject-fuzz-sweep	batch on _tidb_rowid limit 3 dry delete from t
-reject	reject	engine	suite:reject-fuzz-sweep	create table dt1piu(id varchar(200) prim
-reject	reject	engine	suite:reject-fuzz-sweep	IMPORT INTO ident ( NULL ident , ident ) FROM 'binary'
-reject	reject	engine	suite:reject-fuzz-sweep	select * from 
-accept	accept	engine	suite:reject-fuzz-sweep	select a from t_ci where a = 'A' 'A'
-reject	reject	engine	suite:reject-fuzz-sweep	explain forat = 'brief' select * from t1, (select /*+ no_decorrelate() */ * from t2) n
-reject	reject	engine	suite:reject-fuzz-sweep	( select * from b where pk = 0 union all ( select * from b where pk != 0 ) order
-reject	reject	engine	suite:reject-fuzz-sweep	create table t ( c c int ) table_checksum 1
-reject	reject	engine	suite:reject-fuzz-sweep	DO VALUES(i*ent)
-reject	reject	engine	suite:reject-fuzz-sweep	delete ignore
-reject	reject	engine	suite:reject-fuzz-sweep	INSERT INTO t_range VALUES (-1, NULL), (1, NULL), ((2, NULL), (3, NULL)
-reject	reject	engine	suite:reject-fuzz-sweep	replace into test1(c2) vallues(2)
-reject	reject	engine	suite:reject-fuzz-sweep	replace into t ( a select ) 1
-reject	reject	engine	suite:reject-fuzz-sweep	create table t(a varchar(100), b int, c int, index idx_a*(a, b))
-reject	reject	engine	suite:reject-fuzz-sweep	alter t1_tmp add foreign key ( c ) REFERENCES t2 ( a )
-accept	accept	engine	suite:reject-fuzz-sweep	grant create view on v_versin29_c to 'u_version29'@'%'
-reject	reject	engine	suite:reject-fuzz-sweep	select * from a al left join b bl onal.a1 > bl.b1, a ar right join b br on ar.a1 > br.b1
-reject	reject	engine	suite:reject-fuzz-sweep	insert ignore into t ( values 200 , default ) on duplicate key update a = 100
-accept	accept	engine	suite:reject-fuzz-sweep	load data local infile '~/11.csv' into table `t_ascii` lines starting by X'6B6B' terminated by X'6B6B';
+reject	reject	engine	suite:reject-fuzz-sweep	create table auto_random_tbl6 (a bigint /*T![aut
+reject	reject	engine	suite:reject-fuzz-sweep	create table t2 ( a int primary key , , b int not null )
+reject	reject	engine	suite:reject-fuzz-sweep	use
+reject	reject	engine	suite:reject-fuzz-sweep	set group_concat_max_len session = 8
+accept	accept	engine	suite:reject-fuzz-sweep	select cstr, (select /*+ INL_HASH_JOIN(t1,t3) */ max(t1.c_int) from t1, t3 where t1.c_int = t3.c_int and t2.c_str > t3.c_str) q from t2 order by c_str
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t ( id , name ) values ( 1 , 'a' ) , ( 3 , 'c' ) , ( , 'e' )
+reject	reject	engine	suite:reject-fuzz-sweep	select * fr=m cte.v1
+reject	reject	engine	suite:reject-fuzz-sweep	INTERVAL DO ( )
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE t1 (CHECK (c1 <> c2), c1 INT CHECK (c1 > 10), c2 INT CONSTRAIT c2_positive_for_t1 CHECK (c2 > 0))
+reject	reject	engine	suite:reject-fuzz-sweep	aler resource group x burstable=false
+accept	accept	engine	suite:reject-fuzz-sweep	insert into mysql.exprpushdown_blacklist values('cast', 'tikv,tiflash,tidb', 'for test')
+accept	accept	engine	suite:reject-fuzz-sweep	CREATE TABLE t(c1 INT, index idx_(c1))
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER USER PASSWORD EXPIRE INTERVAL 3 DAY
+reject	reject	engine	suite:reject-fuzz-sweep	insert insert into t_mc ( a ) values ( 20060102150405 )
+reject	reject	engine	suite:reject-fuzz-sweep	session set tidb_enable_extended_stats = off
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select * tp from where a = '2020-08-17 00:00:00'
+accept	accept	engine	suite:reject-fuzz-sweep	SELECT 19000101000000 + INTERVAL 1 <<.31 MINUTE
+reject	reject	engine	suite:reject-fuzz-sweep	with recursive cte1 ( c1 ) as ( select c1 from t1 union select c1 + 1 from cte1 limit SELECT 3 offset 4 ) select * from cte1
+reject	reject	engine	suite:reject-fuzz-sweep	DO,NOW()
+reject	reject	engine	suite:reject-fuzz-sweep	set session collation_serv)r = 'utf8_roman_ci'
+reject	reject	engine	suite:reject-fuzz-sweep	select * from t by c_int
+reject	reject	engine	suite:reject-fuzz-sweep	warnings
+reject	reject	engine	suite:reject-fuzz-sweep	alter table m partition t placement = policy "ww" ;
+reject	reject	engine	suite:reject-fuzz-sweep	select timestampadd ( second 6 , / 4 , a ) from t
+reject	reject	engine	suite:reject-fuzz-sweep	set @@ 's' tidb_enable_exchange_partition = default
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' insert into t2 values 1 )
+reject	reject	engine	suite:reject-fuzz-sweep	SET ident = 
+reject	reject	engine	suite:reject-fuzz-sweep	explai
+reject	reject	engine	suite:reject-fuzz-sweep	LOCK TABLES ident READ READ
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT * from thash where a in 
+reject	reject	engine	suite:reject-fuzz-sweep	set global,password_history = DEFAULT
+reject	reject	engine	suite:reject-fuzz-sweep	create table t(a int primar key auto_increment, b time)
+reject	reject	engine	suite:reject-fuzz-sweep	cte_max_recursion_depth set = default
+accept	accept	engine	suite:reject-fuzz-sweep	select /*+ us_index_merge(t1) */ * from t1 where t1.c1 = (select avg(t2.c1) from t2 where t1.c1 = t2.c1 group by t2.c1) and (c1 < 10 or c2 < -1) and c3 < 10 order by 1
+accept	accept	engine	suite:reject-fuzz-sweep	explain format  = 'brief' select * from t where a = 'AA'
+reject	reject	engine	suite:reject-fuzz-sweep	explain select * from tint where(b=4 and c=4
+reject	reject	engine	suite:reject-fuzz-sweep	select str_to_date 2019 , '%Y' )
+accept	accept	engine	suite:reject-fuzz-sweep	alter table t add column c4 int default (REPLACE(UPPER('ddkj-kjkl-d'), '-', ''))
+accept	accept	engine	suite:reject-fuzz-sweep	select /*+ USE_INDEX_MERGE(@sel1 t1 c1) */ * from t1 join tt2
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE t1 (c2 YEA, PRIMARY KEY (c2))
+reject	reject	engine	suite:reject-fuzz-sweep	insert into
+reject	reject	engine	suite:reject-fuzz-sweep	d select , 1 - d as d , c as d from t order by d
+reject	reject	engine	suite:reject-fuzz-sweep	inser into t values('b')
+reject	reject	engine	suite:reject-fuzz-sweep	set @@ = default
+reject	reject	engine	suite:reject-fuzz-sweep	alter ( table t5 add foreign key ( a ) references t1 ( a ) on delete no action
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select /*+ USE_INDEX_MERGE(t, a, c) */ * from t where 
+reject	reject	engine	suite:reject-fuzz-sweep	batch limit 10 dry run insert into t1 select * from where t2 c = 10
+reject	reject	engine	suite:reject-fuzz-sweep	select * t from group by 2 order by d
+reject	reject	engine	suite:reject-fuzz-sweep	INSERT INTO t1
+reject	reject	engine	suite:reject-fuzz-sweep	cr
+reject	reject	engine	suite:reject-fuzz-sweep	drop
+reject	reject	engine	suite:reject-fuzz-sweep	create definer='root'@'localhost' view recursive_vie=2 as select * from recursive_view1
+reject	reject	engine	suite:reject-fuzz-sweep	select count ( 1 ) from t join ( select max ( a ) from t where false group by a ) as
+reject	reject	engine	suite:reject-fuzz-sweep	drop table table if exists xxx
+reject	reject	engine	suite:reject-fuzz-sweep	selec * from tu where d = 2
+reject	reject	engine	suite:reject-fuzz-sweep	alter sequence seq start with 1 i)crement by 1
+reject	reject	engine	suite:reject-fuzz-sweep	select date_add ( , "2011-11-11 10:10:10.123456" interval 1 quarter )
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE ident ADD K,Y ident TYPE HYPO(ident)
+reject	reject	engine	suite:reject-fuzz-sweep	create table t1 ( id int key , b int , index (
+reject	reject	engine	suite:reject-fuzz-sweep	select MAX ( DISTINCT a a ) OVER ( PARTITION BY a ) from t
+accept	accept	engine	suite:reject-fuzz-sweep	CREATE TABLE t2 LIKE t
+reject	reject	engine	suite:reject-fuzz-sweep	set GLOBAL tidb_enabl
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select c1 from t2 union all sellect c1 from t2 union select c1 from t2
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT * FROM t WHHERE NOT (a <= 2 OR a > 2)
+reject	reject	engine	suite:reject-fuzz-sweep	create table t1(idint, a int, b int)
+accept	accept	engine	suite:reject-fuzz-sweep	explain select * from t wher
+reject	reject	engine	suite:reject-fuzz-sweep	explain format 'brief' = select max ( col_304 ) from ( select * from tbl_43 where not ( tbl_43 . col_304 between 'YEpfYfPVvhMlHGHSMKm' and 'PE' ) or tbl_43 . col_304 in ( 'LUBGzGMA' ) and tbl_43 . col_304 between 'HpsjfuSReCwBoh' and 'fta' or not ( tbl_43 . col_304 between 'MFWmuOsoyDv' and 'TSeMYpDXnFIyp' ) order by col_304 ) x
+reject	reject	engine	suite:reject-fuzz-sweep	select * from t use index ( e SELECT )
+reject	reject	engine	suite:reject-fuzz-sweep	(select * from t order by a) except (se*ect * from t1 order by a)
+accept	accept	engine	suite:reject-fuzz-sweep	DESC est_gv_ddl
+reject	reject	engine	suite:reject-fuzz-sweep	SOURCE
+reject	reject	engine	suite:reject-fuzz-sweep	insert into b values ( '22' , '22'
+reject	reject	engine	suite:reject-fuzz-sweep	ANALYZE INCREMENT
+reject	reject	engine	suite:reject-fuzz-sweep	create table t4(a =nt, b int, c int, d int, e int)
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT * FROM t WHERE NOT;(a >= 2 AND a <= -1)
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE MODIFY t COLUMN a int AFTER b
+reject	reject	engine	suite:reject-fuzz-sweep	create tabble t1(c1 bit(24))
+accept	accept	engine	suite:reject-fuzz-sweep	create table t(a date, b year)
+reject	reject	engine	suite:reject-fuzz-sweep	prepare
+reject	reject	engine	suite:reject-fuzz-sweep	create table table t4 like t1
+reject	reject	engine	suite:reject-fuzz-sweep	explain select /*+ use_index_merge(t1) */ *;from t1 where (c1 < 10 or c2 < 10) and c3 < 10 for update
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t (c1, c3, c4) values('a', '2018-09-21', 1
+reject	reject	engine	suite:reject-fuzz-sweep	create table t ( f set ( 0xD2BB , 0xC8FD ) , e enum ( 0xBAEC , 0x6A59 ) 's' )
+reject	reject	engine	suite:reject-fuzz-sweep	select * from t2 where a in ( , 2 ) or a = 4
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE INDEX idx
+reject	reject	engine	suite:reject-fuzz-sweep	alter table t modify bigint f32
+reject	reject	engine	suite:reject-fuzz-sweep	COS ( 0 ) ;
+reject	reject	engine	suite:reject-fuzz-sweep	alter tab
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t8 values ( 0 , 0 ) , ( 1 , 1 ) NULL
+reject	reject	engine	suite:reject-fuzz-sweep	select * from naaj_A where (a, b) != all (select a, b from naaj_B
+reject	reject	engine	suite:reject-fuzz-sweep	AL)ER TABLE t PASSWORD = ''
+accept	accept	engine	suite:reject-fuzz-sweep	select * from t t where 'B' collate utf8mb4_general_ci in ( a )
+reject	reject	engine	suite:reject-fuzz-sweep	grant r1,r2,r3 to currnt_user()
+reject	reject	engine	suite:reject-fuzz-sweep	create temporary table local_temp_auto_id ( id int primary key auto_increment ) auto_increment =
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER USER 'binary' PASSWORD EXPIRE EXPIRE DEFAULT
+reject	reject	engine	suite:reject-fuzz-sweep	DO NTH_VALUE(*dent, ident) OVER ident
+reject	reject	engine	suite:reject-fuzz-sweep	prepare prepare_1
+accept	accept	engine	suite:reject-fuzz-sweep	create table t1(a int) partition by range (10 div a) (partition p0 values less than (10), partition p11 values less than maxvalue)
+accept	accept	engine	suite:reject-fuzz-sweep	insert into tt1 values ("2001--01-01 00:00:00")
+reject	reject	engine	suite:reject-fuzz-sweep	json_unquote select ( '"" ' )
+reject	reject	engine	suite:reject-fuzz-sweep	select c from t1 where a=1 and b is not nu*l and c>2 order by c
+reject	reject	engine	suite:reject-fuzz-sweep	insert into values ( 1 ) , ( 2 )
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' selec count(*) from test t1 where exists (select value from test t2 where t1.id = t2.id limit 1)
+reject	reject	engine	suite:reject-fuzz-sweep	(select c1 from t1) intersect elect c2 from t2 intersect (select c3 from t3) order by c1 limit 1
+reject	reject	engine	suite:reject-fuzz-sweep	json_valid select ( '{"a":1}' )
+accept	accept	engine	suite:reject-fuzz-sweep	set @aa=-7235178122860450591

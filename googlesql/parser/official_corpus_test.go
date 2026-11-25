@@ -48,8 +48,8 @@ import (
 //     v2 migration store and are the to-do list for a future grammar fix. Each is
 //     annotated with the oracle verdict that proves it is a real gap.
 //
-// Coverage: 310/350 blocks parse clean, 40 skipped (see the counts on each
-// bucket below). (The vector-array column-type block spanner/ddl.md#51 graduated
+// Coverage: 160 of the 185 Spanner blocks parse clean, 25 skipped (see the
+// counts on each bucket below). (The vector-array column-type block spanner/ddl.md#51 graduated
 // from the skip-list when googlesql/maint-vector-array-type wired the ARRAY
 // vector-length parameter; spanner/expressions.md#6 stays skipped as DOC-REJECTED
 // — its constructor statement is rejected by the oracle itself.)
@@ -212,15 +212,6 @@ var officialCorpusSkips = map[string]string{
 	// constructor ACCEPTS was stale.) The TOKENIZE_NGRAMS(... =>) statement in the
 	// same block parses fine.
 	"spanner/expressions.md#6": "DOC-REJECTED: `SELECT ARRAY<FLOAT32>(vector_length => 128)` — the live Spanner oracle REJECTS a typed-ARRAY value constructor (\"Expected '[' but got '('\"); omni's reject (\"syntax error at or near =>\") matches. vector_length is a column-schema parameter, not an expression form. (The first statement, TOKENIZE_NGRAMS named args, parses.)",
-
-	// ============ RESIDUAL GAP: Spanner forms omni rejects (3) ============
-	// The live Spanner oracle ACCEPTS these and omni rejects them. The union
-	// parser accepted them through BigQuery's grammar (generic entities, the ML
-	// OPTIONS clause), which googlesql no longer parses; Spanner's own forms need
-	// a parser of their own.
-	"spanner/ddl.md#37": "RESIDUAL GAP: CREATE MODEL … REMOTE OPTIONS (endpoints = […]) — oracle accepts; omni rejects the OPTIONS clause after REMOTE. Fix: parse a non-empty OPTIONS list in parseCreateModel.",
-	"spanner/ddl.md#43": "RESIDUAL GAP: CREATE PLACEMENT us_placement OPTIONS (instance_partition = '…') — oracle accepts; omni has no CREATE PLACEMENT. Fix: parse CREATE PLACEMENT name [OPTIONS (…)].",
-	"spanner/ddl.md#44": "RESIDUAL GAP: DROP PLACEMENT us_placement — oracle accepts (semantic: Placement not found); omni has no DROP PLACEMENT. Fix: parse DROP PLACEMENT name.",
 
 	// =========== DOC-REJECTED: QUALIFY (1) ===========
 	"spanner/query.md#22": "DOC-REJECTED: SELECT … QUALIFY rn = 1 — Spanner's docs show QUALIFY, but the pinned emulator leaves FEATURE_QUALIFY off and GoogleSQL's grammar refuses it (\"QUALIFY is not supported\", googlesql.tm:8461); omni rejects too (parity).",

@@ -166,6 +166,35 @@ func resolveSequenceOptions(opts []*nodes.SequenceOption, alter bool) (*sequence
 // Ref: src/share/sequence/ob_sequence_option_builder.cpp (oceanbase
 // v4.3.5_CE_BP6).
 func checkSequenceOption(set int, o *sequenceOption) error {
+	if err := checkSequenceNumbers(set, o); err != nil {
+		return err
+	}
+	step := new(big.Rat).Abs(o.increment)
+	valueRange := new(big.Rat).Sub(o.max, o.min)
+	cacheRange := new(big.Rat).Mul(new(big.Rat).Sub(o.cache, big.NewRat(1, 1)), step)
+	switch {
+	case o.hasMin() && o.hasMax() && o.min.Cmp(o.max) >= 0:
+		return seqError(4320, "HY000", "MINVALUE must be less than MAXVALUE")
+	case o.hasMax() && o.start.Cmp(o.max) > 0:
+		return seqError(4324, "HY000", "START WITH cannot be more than MAXVALUE")
+	case o.hasMin() && o.start.Cmp(o.min) < 0:
+		return seqError(4322, "HY000", "START WITH cannot be less than MINVALUE")
+	case valueRange.Cmp(step) < 0:
+		return seqError(4321, "HY000", "INCREMENT must be less than MAXVALUE minus MINVALUE")
+	}
+	if err := checkSequenceCycle(o); err != nil {
+		return err
+	}
+	if o.cycle && valueRange.Cmp(cacheRange) <= 0 {
+		return seqError(4328, "HY000", "number to CACHE must be less than one cycle")
+	}
+	return nil
+}
+
+// checkSequenceNumbers is the start of check_sequence_option, which reads
+// only the numbers the statement sets: each a whole number, a nonzero
+// increment, and a cache of more than one.
+func checkSequenceNumbers(set int, o *sequenceOption) error {
 	for _, c := range []struct {
 		bit  int
 		v    *big.Rat
@@ -181,28 +210,11 @@ func checkSequenceOption(set int, o *sequenceOption) error {
 			return seqError(4317, "HY000", fmt.Sprintf("sequence parameter %s must be an integer", c.name))
 		}
 	}
-	step := new(big.Rat).Abs(o.increment)
-	valueRange := new(big.Rat).Sub(o.max, o.min)
-	cacheRange := new(big.Rat).Mul(new(big.Rat).Sub(o.cache, big.NewRat(1, 1)), step)
 	switch {
 	case o.increment.Sign() == 0:
 		return seqError(4318, "HY000", "INCREMENT must be a nonzero integer")
 	case o.cache.Cmp(big.NewRat(1, 1)) <= 0 && set&seqCacheBit != 0:
 		return seqError(4326, "HY000", "the number of values to CACHE must be greater than 1")
-	case o.hasMin() && o.hasMax() && o.min.Cmp(o.max) >= 0:
-		return seqError(4320, "HY000", "MINVALUE must be less than MAXVALUE")
-	case o.hasMax() && o.start.Cmp(o.max) > 0:
-		return seqError(4324, "HY000", "START WITH cannot be more than MAXVALUE")
-	case o.hasMin() && o.start.Cmp(o.min) < 0:
-		return seqError(4322, "HY000", "START WITH cannot be less than MINVALUE")
-	case valueRange.Cmp(step) < 0:
-		return seqError(4321, "HY000", "INCREMENT must be less than MAXVALUE minus MINVALUE")
-	}
-	if err := checkSequenceCycle(o); err != nil {
-		return err
-	}
-	if o.cycle && valueRange.Cmp(cacheRange) <= 0 {
-		return seqError(4328, "HY000", "number to CACHE must be less than one cycle")
 	}
 	return nil
 }
@@ -281,15 +293,36 @@ func buildCreateSequenceOption(o *sequenceOption, set int) error {
 // CheckSequenceStatement reports the refusal OceanBase gives a CREATE, ALTER
 // or DROP SEQUENCE whatever its database holds, nil where that depends on the
 // database. Its resolver reads the name and the options before anything else,
-// and a CREATE SEQUENCE without IF NOT EXISTS whose options the builder
-// refuses is refused either way: with 4297 when the name is taken, with the
-// builder's error when it is not.
+// and a statement whose options the builder refuses is refused either way: a
+// CREATE SEQUENCE without IF NOT EXISTS with 4297 when the name is taken, an
+// ALTER SEQUENCE with 4298 when the sequence is missing, and with the
+// builder's error otherwise. Of an ALTER SEQUENCE the builder's checks that
+// read only the statement's own options are known: START WITH without
+// RESTART, and checkSequenceNumbers, which an unset increment (the
+// sequence's, never zero) and an unset cache pass.
 func CheckSequenceStatement(stmt *nodes.ObjectDDLStmt) error {
 	o, set, err := resolveSequenceStatement(stmt)
-	if err != nil || stmt.Action != "CREATE SEQUENCE" || stmt.IfExists {
+	switch {
+	case err != nil:
 		return err
+	case stmt.Action == "CREATE SEQUENCE" && !stmt.IfExists:
+		return buildCreateSequenceOption(o, set)
+	case stmt.Action == "ALTER SEQUENCE":
+		if err := checkAlterSequenceStart(set); err != nil {
+			return err
+		}
+		return checkSequenceNumbers(set, o)
 	}
-	return buildCreateSequenceOption(o, set)
+	return nil
+}
+
+// checkAlterSequenceStart refuses START WITH without RESTART, which
+// build_alter_sequence_option checks before the options.
+func checkAlterSequenceStart(set int) error {
+	if set&seqRestartBit == 0 && set&seqStartWith != 0 {
+		return seqError(4311, "HY000", "cannot alter starting sequence number")
+	}
+	return nil
 }
 
 // execSequence runs CREATE, ALTER or DROP SEQUENCE: the statement's name and
@@ -366,11 +399,10 @@ func buildAlterSequenceOption(o *sequenceOption, set int, old *sequenceOption) e
 	if set&(seqOrderBit|seqNoOrderBit) == 0 {
 		o.order = old.order
 	}
-	restart := set&seqRestartBit != 0
-	switch {
-	case !restart && set&seqStartWith != 0:
-		return seqError(4311, "HY000", "cannot alter starting sequence number")
-	case restart && set&seqStartWith == 0:
+	if err := checkAlterSequenceStart(set); err != nil {
+		return err
+	}
+	if set&seqRestartBit != 0 && set&seqStartWith == 0 {
 		if o.increment.Sign() > 0 {
 			o.start = new(big.Rat).Set(o.min)
 		} else {
