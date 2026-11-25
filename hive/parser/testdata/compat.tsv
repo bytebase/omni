@@ -172,6 +172,16 @@ reject	reject	engine	execStatement/executeStatement!drop-4	EXECUTE a USING
 reject	reject	engine	execStatement/executeStatement!insert	EXECUTE a USING 1 zzz
 reject	reject	engine	execStatement/executeStatement!swap	EXECUTED a USING 1
 accept	accept	engine	loadStatement/KW_LOAD_KW_DATA_(KW_LOCAL)?_KW_INPATH_StringLiteral_(KW~08aa8fe6	LOAD DATA INPATH 'a' INTO TABLE a
+accept	accept	engine	loadStatement/KW_LOAD_KW_DATA_(KW_LOCAL)?_KW_INPATH_StringLiteral_(KW~08aa8fe6+tableName/identifier_DOT_identifier_(DOT_identifier)?	LOAD DATA INPATH 'a' INTO TABLE a.a
+reject	reject	engine	loadStatement/KW_LOAD_KW_DATA_(KW_LOCAL)?_KW_INPATH_StringLiteral_(KW~08aa8fe6+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-7	LOAD DATA INPATH 'a' INTO TABLE.a
+reject	reject	engine	loadStatement/KW_LOAD_KW_DATA_(KW_LOCAL)?_KW_INPATH_StringLiteral_(KW~08aa8fe6+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-8	LOAD DATA INPATH 'a' INTO TABLE a a
+reject	reject	engine	loadStatement/KW_LOAD_KW_DATA_(KW_LOCAL)?_KW_INPATH_StringLiteral_(KW~08aa8fe6+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-9	LOAD DATA INPATH 'a' INTO TABLE a.
+accept	accept	engine	loadStatement/KW_LOAD_KW_DATA_(KW_LOCAL)?_KW_INPATH_StringLiteral_(KW~08aa8fe6+tableOrPartition(partitionSpec)?/partitionSpec	LOAD DATA INPATH 'a' INTO TABLE a PARTITION(a)
+reject	reject	engine	loadStatement/KW_LOAD_KW_DATA_(KW_LOCAL)?_KW_INPATH_StringLiteral_(KW~08aa8fe6+tableOrPartition(partitionSpec)?/partitionSpec!drop-7	LOAD DATA INPATH 'a' INTO TABLE PARTITION(a)
+reject	reject	engine	loadStatement/KW_LOAD_KW_DATA_(KW_LOCAL)?_KW_INPATH_StringLiteral_(KW~08aa8fe6+tableOrPartition(partitionSpec)?/partitionSpec!drop-8	LOAD DATA INPATH 'a' INTO TABLE a(a)
+reject	reject	engine	loadStatement/KW_LOAD_KW_DATA_(KW_LOCAL)?_KW_INPATH_StringLiteral_(KW~08aa8fe6+tableOrPartition(partitionSpec)?/partitionSpec!drop-9	LOAD DATA INPATH 'a' INTO TABLE a PARTITION a)
+reject	reject	engine	loadStatement/KW_LOAD_KW_DATA_(KW_LOCAL)?_KW_INPATH_StringLiteral_(KW~08aa8fe6+tableOrPartition(partitionSpec)?/partitionSpec!drop-10	LOAD DATA INPATH 'a' INTO TABLE a PARTITION()
+reject	reject	engine	loadStatement/KW_LOAD_KW_DATA_(KW_LOCAL)?_KW_INPATH_StringLiteral_(KW~08aa8fe6+tableOrPartition(partitionSpec)?/partitionSpec!drop-11	LOAD DATA INPATH 'a' INTO TABLE a PARTITION(a
 accept	accept	engine	loadStatement(KW_LOCAL)?/%empty	LOAD DATA INPATH 'a' INTO TABLE a
 reject	reject	engine	loadStatement(KW_LOCAL)?/%empty!insert	LOAD DATA zzz INPATH 'a' INTO TABLE a
 accept	accept	engine	loadStatement(KW_LOCAL)?/KW_LOCAL	LOAD DATA LOCAL INPATH 'a' INTO TABLE a
@@ -207,6 +217,16 @@ reject	reject	engine	replicationClause(KW_METADATA)?/KW_METADATA!truncate	DROP T
 reject	reject	engine	replicationClause(KW_METADATA)?/KW_METADATA!insert	DROP TABLE a FOR METADATA zzz REPLICATION('a')
 reject	reject	engine	replicationClause(KW_METADATA)?/KW_METADATA!swap	DROP TABLE a FOR MINUS REPLICATION('a')
 accept	accept	engine	exportStatement/KW_EXPORT_KW_TABLE_tableOrPartition_KW_TO_StringLiteral~dfe3c2ed	EXPORT TABLE a TO 'a'
+accept	accept	engine	exportStatement/KW_EXPORT_KW_TABLE_tableOrPartition_KW_TO_StringLiteral~dfe3c2ed+tableName/identifier_DOT_identifier_(DOT_identifier)?	EXPORT TABLE a.a TO 'a'
+reject	reject	engine	exportStatement/KW_EXPORT_KW_TABLE_tableOrPartition_KW_TO_StringLiteral~dfe3c2ed+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-3	EXPORT TABLE.a TO 'a'
+reject	reject	engine	exportStatement/KW_EXPORT_KW_TABLE_tableOrPartition_KW_TO_StringLiteral~dfe3c2ed+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-4	EXPORT TABLE a a TO 'a'
+reject	reject	engine	exportStatement/KW_EXPORT_KW_TABLE_tableOrPartition_KW_TO_StringLiteral~dfe3c2ed+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-5	EXPORT TABLE a.TO 'a'
+accept	accept	engine	exportStatement/KW_EXPORT_KW_TABLE_tableOrPartition_KW_TO_StringLiteral~dfe3c2ed+tableOrPartition(partitionSpec)?/partitionSpec	EXPORT TABLE a PARTITION(a) TO 'a'
+reject	reject	engine	exportStatement/KW_EXPORT_KW_TABLE_tableOrPartition_KW_TO_StringLiteral~dfe3c2ed+tableOrPartition(partitionSpec)?/partitionSpec!drop-3	EXPORT TABLE PARTITION(a) TO 'a'
+reject	reject	engine	exportStatement/KW_EXPORT_KW_TABLE_tableOrPartition_KW_TO_StringLiteral~dfe3c2ed+tableOrPartition(partitionSpec)?/partitionSpec!drop-4	EXPORT TABLE a(a) TO 'a'
+reject	reject	engine	exportStatement/KW_EXPORT_KW_TABLE_tableOrPartition_KW_TO_StringLiteral~dfe3c2ed+tableOrPartition(partitionSpec)?/partitionSpec!drop-5	EXPORT TABLE a PARTITION a) TO 'a'
+reject	reject	engine	exportStatement/KW_EXPORT_KW_TABLE_tableOrPartition_KW_TO_StringLiteral~dfe3c2ed+tableOrPartition(partitionSpec)?/partitionSpec!drop-6	EXPORT TABLE a PARTITION() TO 'a'
+reject	reject	engine	exportStatement/KW_EXPORT_KW_TABLE_tableOrPartition_KW_TO_StringLiteral~dfe3c2ed+tableOrPartition(partitionSpec)?/partitionSpec!drop-7	EXPORT TABLE a PARTITION(a TO 'a'
 accept	accept	engine	exportStatement(replicationClause)?/%empty	EXPORT TABLE a TO 'a'
 accept	accept	engine	exportStatement(replicationClause)?/replicationClause	EXPORT TABLE a TO 'a' FOR REPLICATION('a')
 reject	reject	engine	exportStatement(replicationClause)?/replicationClause!drop-1	EXPORT TABLE a TO 'a' REPLICATION('a')
@@ -225,6 +245,16 @@ reject	reject	engine	importStatement((KW_EXTERNAL)?_KW_TABLE_(tableOrPartition))
 reject	reject	engine	importStatement((KW_EXTERNAL)?_KW_TABLE_(tableOrPartition))?/(KW_EXTERNAL)?_KW_TABLE_tableOrPartition!truncate	IMPORT TABLE
 reject	reject	engine	importStatement((KW_EXTERNAL)?_KW_TABLE_(tableOrPartition))?/(KW_EXTERNAL)?_KW_TABLE_tableOrPartition!insert	IMPORT TABLE a zzz FROM 'a'
 reject	reject	engine	importStatement((KW_EXTERNAL)?_KW_TABLE_(tableOrPartition))?/(KW_EXTERNAL)?_KW_TABLE_tableOrPartition!swap	IMPORT TABLES a FROM 'a'
+accept	accept	engine	importStatement((KW_EXTERNAL)?_KW_TABLE_(tableOrPartition))?/(KW_EXTERNAL)?_KW_TABLE_tableOrPartition+tableName/identifier_DOT_identifier_(DOT_identifier)?	IMPORT TABLE a.a FROM 'a'
+reject	reject	engine	importStatement((KW_EXTERNAL)?_KW_TABLE_(tableOrPartition))?/(KW_EXTERNAL)?_KW_TABLE_tableOrPartition+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-2	IMPORT TABLE.a FROM 'a'
+reject	reject	engine	importStatement((KW_EXTERNAL)?_KW_TABLE_(tableOrPartition))?/(KW_EXTERNAL)?_KW_TABLE_tableOrPartition+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-3	IMPORT TABLE a a FROM 'a'
+reject	reject	engine	importStatement((KW_EXTERNAL)?_KW_TABLE_(tableOrPartition))?/(KW_EXTERNAL)?_KW_TABLE_tableOrPartition+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-4	IMPORT TABLE a.FROM 'a'
+accept	accept	engine	importStatement((KW_EXTERNAL)?_KW_TABLE_(tableOrPartition))?/(KW_EXTERNAL)?_KW_TABLE_tableOrPartition+tableOrPartition(partitionSpec)?/partitionSpec	IMPORT TABLE a PARTITION(a) FROM 'a'
+reject	reject	engine	importStatement((KW_EXTERNAL)?_KW_TABLE_(tableOrPartition))?/(KW_EXTERNAL)?_KW_TABLE_tableOrPartition+tableOrPartition(partitionSpec)?/partitionSpec!drop-2	IMPORT TABLE PARTITION(a) FROM 'a'
+reject	reject	engine	importStatement((KW_EXTERNAL)?_KW_TABLE_(tableOrPartition))?/(KW_EXTERNAL)?_KW_TABLE_tableOrPartition+tableOrPartition(partitionSpec)?/partitionSpec!drop-3	IMPORT TABLE a(a) FROM 'a'
+reject	reject	engine	importStatement((KW_EXTERNAL)?_KW_TABLE_(tableOrPartition))?/(KW_EXTERNAL)?_KW_TABLE_tableOrPartition+tableOrPartition(partitionSpec)?/partitionSpec!drop-4	IMPORT TABLE a PARTITION a) FROM 'a'
+reject	reject	engine	importStatement((KW_EXTERNAL)?_KW_TABLE_(tableOrPartition))?/(KW_EXTERNAL)?_KW_TABLE_tableOrPartition+tableOrPartition(partitionSpec)?/partitionSpec!drop-5	IMPORT TABLE a PARTITION() FROM 'a'
+reject	reject	engine	importStatement((KW_EXTERNAL)?_KW_TABLE_(tableOrPartition))?/(KW_EXTERNAL)?_KW_TABLE_tableOrPartition+tableOrPartition(partitionSpec)?/partitionSpec!drop-6	IMPORT TABLE a PARTITION(a FROM 'a'
 accept	accept	engine	importStatement(KW_EXTERNAL)?/%empty	IMPORT TABLE a FROM 'a'
 reject	reject	engine	importStatement(KW_EXTERNAL)?/%empty!insert	IMPORT zzz TABLE a FROM 'a'
 accept	accept	engine	importStatement(KW_EXTERNAL)?/KW_EXTERNAL	IMPORT EXTERNAL TABLE a FROM 'a'
@@ -823,6 +853,16 @@ accept	accept	engine	descStatement(KW_FORMATTED|KW_EXTENDED)/KW_EXTENDED	DESCRIB
 accept	accept	engine	descStatement(KW_FORMATTED|KW_EXTENDED)/KW_EXTENDED!insert	DESCRIBE EXTENDED zzz a
 reject	reject	engine	descStatement(KW_FORMATTED|KW_EXTENDED)/KW_EXTENDED!swap	DESCRIBE EXTERNAL a
 accept	accept	engine	analyzeStatement/KW_ANALYZE_KW_TABLE_tableOrPartition_(KW_COMPUTE_KW_STA~3e6e9ad4	ANALYZE TABLE a COMPUTE STATISTICS
+accept	accept	engine	analyzeStatement/KW_ANALYZE_KW_TABLE_tableOrPartition_(KW_COMPUTE_KW_STA~3e6e9ad4+tableName/identifier_DOT_identifier_(DOT_identifier)?	ANALYZE TABLE a.a COMPUTE STATISTICS
+reject	reject	engine	analyzeStatement/KW_ANALYZE_KW_TABLE_tableOrPartition_(KW_COMPUTE_KW_STA~3e6e9ad4+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-3	ANALYZE TABLE.a COMPUTE STATISTICS
+reject	reject	engine	analyzeStatement/KW_ANALYZE_KW_TABLE_tableOrPartition_(KW_COMPUTE_KW_STA~3e6e9ad4+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-4	ANALYZE TABLE a a COMPUTE STATISTICS
+reject	reject	engine	analyzeStatement/KW_ANALYZE_KW_TABLE_tableOrPartition_(KW_COMPUTE_KW_STA~3e6e9ad4+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-5	ANALYZE TABLE a.COMPUTE STATISTICS
+accept	accept	engine	analyzeStatement/KW_ANALYZE_KW_TABLE_tableOrPartition_(KW_COMPUTE_KW_STA~3e6e9ad4+tableOrPartition(partitionSpec)?/partitionSpec	ANALYZE TABLE a PARTITION(a) COMPUTE STATISTICS
+reject	reject	engine	analyzeStatement/KW_ANALYZE_KW_TABLE_tableOrPartition_(KW_COMPUTE_KW_STA~3e6e9ad4+tableOrPartition(partitionSpec)?/partitionSpec!drop-3	ANALYZE TABLE PARTITION(a) COMPUTE STATISTICS
+reject	reject	engine	analyzeStatement/KW_ANALYZE_KW_TABLE_tableOrPartition_(KW_COMPUTE_KW_STA~3e6e9ad4+tableOrPartition(partitionSpec)?/partitionSpec!drop-4	ANALYZE TABLE a(a) COMPUTE STATISTICS
+reject	reject	engine	analyzeStatement/KW_ANALYZE_KW_TABLE_tableOrPartition_(KW_COMPUTE_KW_STA~3e6e9ad4+tableOrPartition(partitionSpec)?/partitionSpec!drop-5	ANALYZE TABLE a PARTITION a) COMPUTE STATISTICS
+reject	reject	engine	analyzeStatement/KW_ANALYZE_KW_TABLE_tableOrPartition_(KW_COMPUTE_KW_STA~3e6e9ad4+tableOrPartition(partitionSpec)?/partitionSpec!drop-6	ANALYZE TABLE a PARTITION() COMPUTE STATISTICS
+reject	reject	engine	analyzeStatement/KW_ANALYZE_KW_TABLE_tableOrPartition_(KW_COMPUTE_KW_STA~3e6e9ad4+tableOrPartition(partitionSpec)?/partitionSpec!drop-7	ANALYZE TABLE a PARTITION(a COMPUTE STATISTICS
 accept	accept	engine	analyzeStatement(KW_COMPUTE_KW_STATISTICS_((KW_NOSCAN~4b06a60b)/KW_COMPUTE_KW_STATISTICS_((KW_NOSCAN)|(KW_FOR_KW_COLUMN~93ef45a3	ANALYZE TABLE a COMPUTE STATISTICS
 reject	reject	engine	analyzeStatement(KW_COMPUTE_KW_STATISTICS_((KW_NOSCAN~4b06a60b)/KW_COMPUTE_KW_STATISTICS_((KW_NOSCAN)|(KW_FOR_KW_COLUMN~93ef45a3!swap	ANALYZE TABLE a CONCATENATE STATISTICS
 accept	accept	engine	analyzeStatement(KW_COMPUTE_KW_STATISTICS_((KW_NOSCAN~4b06a60b)/KW_CACHE_KW_METADATA	ANALYZE TABLE a CACHE METADATA
@@ -893,6 +933,11 @@ reject	reject	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)
 reject	reject	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45!drop-5	SHOW TABLE EXTENDED LIKE
 reject	reject	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45!insert	SHOW TABLE EXTENDED LIKE a zzz
 reject	reject	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45!swap	SHOW_DATABASE TABLE EXTENDED LIKE a
+accept	accept	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45+showStatement(partitionSpec)?	SHOW TABLE EXTENDED LIKE a PARTITION(a)
+reject	reject	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45+showStatement(partitionSpec)?!drop-6	SHOW TABLE EXTENDED LIKE a(a)
+reject	reject	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45+showStatement(partitionSpec)?!drop-7	SHOW TABLE EXTENDED LIKE a PARTITION a)
+reject	reject	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45+showStatement(partitionSpec)?!drop-8	SHOW TABLE EXTENDED LIKE a PARTITION()
+reject	reject	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45+showStatement(partitionSpec)?!drop-9	SHOW TABLE EXTENDED LIKE a PARTITION(a
 accept	accept	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45+showStmtIdentifier/StringLiteral	SHOW TABLE EXTENDED LIKE 'a'
 accept	accept	engine	showStatement/KW_SHOW_KW_TBLPROPERTIES_tableName_(LPAREN_StringLitera~6142dd29	SHOW TBLPROPERTIES a
 reject	reject	engine	showStatement/KW_SHOW_KW_TBLPROPERTIES_tableName_(LPAREN_StringLitera~6142dd29!drop-1	TBLPROPERTIES a
@@ -3190,6 +3235,10 @@ reject	reject	engine	insertClause/KW_INSERT_KW_OVERWRITE_destination_(ifNotExist
 accept	accept	engine	insertClause/KW_INSERT_KW_INTO_(KW_TABLE)?_tableOrPartition_(LPAREN_~c86d9207	INSERT INTO a SELECT *
 reject	reject	engine	insertClause/KW_INSERT_KW_INTO_(KW_TABLE)?_tableOrPartition_(LPAREN_~c86d9207!truncate	INSERT INTO
 reject	reject	engine	insertClause/KW_INSERT_KW_INTO_(KW_TABLE)?_tableOrPartition_(LPAREN_~c86d9207!insert	INSERT INTO a zzz SELECT *
+accept	accept	engine	insertClause/KW_INSERT_KW_INTO_(KW_TABLE)?_tableOrPartition_(LPAREN_~c86d9207+tableName/identifier_DOT_identifier_(DOT_identifier)?	INSERT INTO a.a SELECT *
+reject	reject	engine	insertClause/KW_INSERT_KW_INTO_(KW_TABLE)?_tableOrPartition_(LPAREN_~c86d9207+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-3	INSERT INTO.a SELECT *
+reject	reject	engine	insertClause/KW_INSERT_KW_INTO_(KW_TABLE)?_tableOrPartition_(LPAREN_~c86d9207+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-4	INSERT INTO a a SELECT *
+reject	reject	engine	insertClause/KW_INSERT_KW_INTO_(KW_TABLE)?_tableOrPartition_(LPAREN_~c86d9207+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-5	INSERT INTO a.SELECT *
 accept	accept	engine	insertClause(ifNotExists)?/%empty	INSERT OVERWRITE DIRECTORY 'a' SELECT *
 accept	accept	engine	insertClause(ifNotExists)?/ifNotExists	INSERT OVERWRITE DIRECTORY 'a' IF NOT EXISTS SELECT *
 reject	reject	engine	insertClause(ifNotExists)?/ifNotExists!drop-1	INSERT OVERWRITE DIRECTORY 'a' NOT EXISTS SELECT *
@@ -3218,6 +3267,16 @@ reject	reject	engine	destination/KW_TABLE_tableOrPartition!drop-2	INSERT OVERWRI
 reject	reject	engine	destination/KW_TABLE_tableOrPartition!truncate	INSERT OVERWRITE TABLE
 reject	reject	engine	destination/KW_TABLE_tableOrPartition!insert	INSERT OVERWRITE TABLE a zzz SELECT *
 reject	reject	engine	destination/KW_TABLE_tableOrPartition!swap	INSERT OVERWRITE TABLES a SELECT *
+accept	accept	engine	destination/KW_TABLE_tableOrPartition+tableName/identifier_DOT_identifier_(DOT_identifier)?	INSERT OVERWRITE TABLE a.a SELECT *
+reject	reject	engine	destination/KW_TABLE_tableOrPartition+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-2	INSERT OVERWRITE TABLE.a SELECT *
+reject	reject	engine	destination/KW_TABLE_tableOrPartition+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-3	INSERT OVERWRITE TABLE a a SELECT *
+reject	reject	engine	destination/KW_TABLE_tableOrPartition+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-4	INSERT OVERWRITE TABLE a.SELECT *
+accept	accept	engine	destination/KW_TABLE_tableOrPartition+tableOrPartition(partitionSpec)?/partitionSpec	INSERT OVERWRITE TABLE a PARTITION(a) SELECT *
+reject	reject	engine	destination/KW_TABLE_tableOrPartition+tableOrPartition(partitionSpec)?/partitionSpec!drop-2	INSERT OVERWRITE TABLE PARTITION(a) SELECT *
+reject	reject	engine	destination/KW_TABLE_tableOrPartition+tableOrPartition(partitionSpec)?/partitionSpec!drop-3	INSERT OVERWRITE TABLE a(a) SELECT *
+reject	reject	engine	destination/KW_TABLE_tableOrPartition+tableOrPartition(partitionSpec)?/partitionSpec!drop-4	INSERT OVERWRITE TABLE a PARTITION a) SELECT *
+reject	reject	engine	destination/KW_TABLE_tableOrPartition+tableOrPartition(partitionSpec)?/partitionSpec!drop-5	INSERT OVERWRITE TABLE a PARTITION() SELECT *
+reject	reject	engine	destination/KW_TABLE_tableOrPartition+tableOrPartition(partitionSpec)?/partitionSpec!drop-6	INSERT OVERWRITE TABLE a PARTITION(a SELECT *
 accept	accept	engine	destination(KW_LOCAL)?/%empty	INSERT OVERWRITE DIRECTORY 'a' SELECT *
 reject	reject	engine	destination(KW_LOCAL)?/%empty!insert	INSERT OVERWRITE zzz DIRECTORY 'a' SELECT *
 accept	accept	engine	destination(KW_LOCAL)?/KW_LOCAL	INSERT OVERWRITE LOCAL DIRECTORY 'a' SELECT *
@@ -3608,6 +3667,73 @@ reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionSt
 reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix!drop-4	ALTER TABLE a PARTITION(a CONCATENATE
 reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix!insert	ALTER TABLE a PARTITION(a) CONCATENATE zzz
 reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix!swap	ALTER TABLE a PARTITIONED(a) CONCATENATE
+accept	accept	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixFileFormat	ALTER TABLE a PARTITION(a) SET FILEFORMAT a
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixFileFormat!drop-5	ALTER TABLE a PARTITION(a) FILEFORMAT a
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixFileFormat!drop-6	ALTER TABLE a PARTITION(a) SET a
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixFileFormat!drop-7	ALTER TABLE a PARTITION(a) SET FILEFORMAT
+accept	accept	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixLocation	ALTER TABLE a PARTITION(a) SET LOCATION 'a'
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixLocation!drop-5	ALTER TABLE a PARTITION(a) LOCATION 'a'
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixLocation!drop-6	ALTER TABLE a PARTITION(a) SET 'a'
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixLocation!drop-7	ALTER TABLE a PARTITION(a) SET LOCATION
+accept	accept	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixSerdeProperties	ALTER TABLE a PARTITION(a) SET SERDE 'a'
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixSerdeProperties!drop-5	ALTER TABLE a PARTITION(a) SERDE 'a'
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixSerdeProperties!drop-7	ALTER TABLE a PARTITION(a) SET SERDE
+accept	accept	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixRenamePart	ALTER TABLE a PARTITION(a) RENAME TO PARTITION(a)
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixRenamePart!drop-5	ALTER TABLE a PARTITION(a) TO PARTITION(a)
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixRenamePart!drop-6	ALTER TABLE a PARTITION(a) RENAME PARTITION(a)
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixRenamePart!drop-7	ALTER TABLE a PARTITION(a) RENAME TO(a)
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixRenamePart!drop-8	ALTER TABLE a PARTITION(a) RENAME TO PARTITION a)
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixRenamePart!drop-9	ALTER TABLE a PARTITION(a) RENAME TO PARTITION()
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixRenamePart!drop-10	ALTER TABLE a PARTITION(a) RENAME TO PARTITION(a
+accept	accept	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixBucketNum	ALTER TABLE a PARTITION(a) INTO 1 BUCKETS
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixBucketNum!drop-5	ALTER TABLE a PARTITION(a) 1 BUCKETS
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixBucketNum!drop-6	ALTER TABLE a PARTITION(a) INTO BUCKETS
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixBucketNum!drop-7	ALTER TABLE a PARTITION(a) INTO 1
+accept	accept	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterTblPartitionStatementSuffixSkewedLocation	ALTER TABLE a PARTITION(a) SET SKEWED LOCATION(1 = 'a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterTblPartitionStatementSuffixSkewedLocation!drop-5	ALTER TABLE a PARTITION(a) SKEWED LOCATION(1 = 'a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterTblPartitionStatementSuffixSkewedLocation!drop-6	ALTER TABLE a PARTITION(a) SET LOCATION(1 = 'a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterTblPartitionStatementSuffixSkewedLocation!drop-7	ALTER TABLE a PARTITION(a) SET SKEWED(1 = 'a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterTblPartitionStatementSuffixSkewedLocation!drop-8	ALTER TABLE a PARTITION(a) SET SKEWED LOCATION 1 = 'a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterTblPartitionStatementSuffixSkewedLocation!drop-9	ALTER TABLE a PARTITION(a) SET SKEWED LOCATION(= 'a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterTblPartitionStatementSuffixSkewedLocation!drop-10	ALTER TABLE a PARTITION(a) SET SKEWED LOCATION(1 'a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterTblPartitionStatementSuffixSkewedLocation!drop-11	ALTER TABLE a PARTITION(a) SET SKEWED LOCATION(1 =)
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterTblPartitionStatementSuffixSkewedLocation!drop-12	ALTER TABLE a PARTITION(a) SET SKEWED LOCATION(1 = 'a'
+accept	accept	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixClusterbySortby	ALTER TABLE a PARTITION(a) NOT CLUSTERED
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixClusterbySortby!drop-5	ALTER TABLE a PARTITION(a) CLUSTERED
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixClusterbySortby!drop-6	ALTER TABLE a PARTITION(a) NOT
+accept	accept	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixCompact	ALTER TABLE a PARTITION(a) COMPACT 'a'
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixCompact!drop-5	ALTER TABLE a PARTITION(a) 'a'
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixCompact!drop-6	ALTER TABLE a PARTITION(a) COMPACT
+accept	accept	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateStatsCol	ALTER TABLE a PARTITION(a) UPDATE STATISTICS FOR a SET('a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateStatsCol!drop-5	ALTER TABLE a PARTITION(a) STATISTICS FOR a SET('a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateStatsCol!drop-6	ALTER TABLE a PARTITION(a) UPDATE FOR a SET('a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateStatsCol!drop-7	ALTER TABLE a PARTITION(a) UPDATE STATISTICS a SET('a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateStatsCol!drop-8	ALTER TABLE a PARTITION(a) UPDATE STATISTICS FOR SET('a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateStatsCol!drop-9	ALTER TABLE a PARTITION(a) UPDATE STATISTICS FOR a('a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateStatsCol!drop-10	ALTER TABLE a PARTITION(a) UPDATE STATISTICS FOR a SET 'a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateStatsCol!drop-11	ALTER TABLE a PARTITION(a) UPDATE STATISTICS FOR a SET()
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateStatsCol!drop-12	ALTER TABLE a PARTITION(a) UPDATE STATISTICS FOR a SET('a'
+accept	accept	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateStats	ALTER TABLE a PARTITION(a) UPDATE STATISTICS SET('a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateStats!drop-5	ALTER TABLE a PARTITION(a) STATISTICS SET('a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateStats!drop-6	ALTER TABLE a PARTITION(a) UPDATE SET('a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateStats!drop-7	ALTER TABLE a PARTITION(a) UPDATE STATISTICS('a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateStats!drop-8	ALTER TABLE a PARTITION(a) UPDATE STATISTICS SET 'a')
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateStats!drop-9	ALTER TABLE a PARTITION(a) UPDATE STATISTICS SET()
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateStats!drop-10	ALTER TABLE a PARTITION(a) UPDATE STATISTICS SET('a'
+accept	accept	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixRenameCol	ALTER TABLE a PARTITION(a) CHANGE a a TINYINT
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixRenameCol!drop-5	ALTER TABLE a PARTITION(a) a a TINYINT
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixRenameCol!drop-6	ALTER TABLE a PARTITION(a) CHANGE a TINYINT
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixRenameCol!drop-8	ALTER TABLE a PARTITION(a) CHANGE a a
+accept	accept	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixAddCol	ALTER TABLE a PARTITION(a) ADD COLUMNS(a TINYINT)
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixAddCol!drop-5	ALTER TABLE a PARTITION(a) COLUMNS(a TINYINT)
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixAddCol!drop-6	ALTER TABLE a PARTITION(a) ADD(a TINYINT)
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixAddCol!drop-7	ALTER TABLE a PARTITION(a) ADD COLUMNS a TINYINT)
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixAddCol!drop-8	ALTER TABLE a PARTITION(a) ADD COLUMNS(TINYINT)
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixAddCol!drop-9	ALTER TABLE a PARTITION(a) ADD COLUMNS(a)
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixAddCol!drop-10	ALTER TABLE a PARTITION(a) ADD COLUMNS(a TINYINT
+accept	accept	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateColumns	ALTER TABLE a PARTITION(a) UPDATE COLUMNS
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateColumns!drop-5	ALTER TABLE a PARTITION(a) COLUMNS
+reject	reject	engine	alterTableStatementSuffix/partitionSpec_alterTblPartitionStatementSuffix+alterTblPartitionStatementSuffix/alterStatementSuffixUpdateColumns!drop-6	ALTER TABLE a PARTITION(a) UPDATE
 accept	accept	engine	alterTableStatementSuffix/alterStatementSuffixSetOwner	ALTER TABLE a SET OWNER USER a
 reject	reject	engine	alterTableStatementSuffix/alterStatementSuffixSetOwner!drop-1	ALTER TABLE a OWNER USER a
 reject	reject	engine	alterTableStatementSuffix/alterStatementSuffixSetOwner!drop-2	ALTER TABLE a SET USER a
@@ -3932,6 +4058,11 @@ reject	reject	engine	alterStatementSuffixTouch(partitionSpec)*/partitionSpec_(pa
 reject	reject	engine	alterStatementSuffixTouch(partitionSpec)*/partitionSpec_(partitionSpec)*!drop-4	ALTER TABLE a TOUCH PARTITION(a
 reject	reject	engine	alterStatementSuffixTouch(partitionSpec)*/partitionSpec_(partitionSpec)*!insert	ALTER TABLE a TOUCH PARTITION(a) zzz
 reject	reject	engine	alterStatementSuffixTouch(partitionSpec)*/partitionSpec_(partitionSpec)*!swap	ALTER TABLE a TOUCH PARTITIONED(a)
+accept	accept	engine	alterStatementSuffixTouch(partitionSpec)*/partitionSpec_(partitionSpec)*+alterStatementSuffixTouch(partitionSpec)*	ALTER TABLE a TOUCH PARTITION(a) PARTITION(a)
+reject	reject	engine	alterStatementSuffixTouch(partitionSpec)*/partitionSpec_(partitionSpec)*+alterStatementSuffixTouch(partitionSpec)*!drop-5	ALTER TABLE a TOUCH PARTITION(a)(a)
+reject	reject	engine	alterStatementSuffixTouch(partitionSpec)*/partitionSpec_(partitionSpec)*+alterStatementSuffixTouch(partitionSpec)*!drop-6	ALTER TABLE a TOUCH PARTITION(a) PARTITION a)
+reject	reject	engine	alterStatementSuffixTouch(partitionSpec)*/partitionSpec_(partitionSpec)*+alterStatementSuffixTouch(partitionSpec)*!drop-7	ALTER TABLE a TOUCH PARTITION(a) PARTITION()
+reject	reject	engine	alterStatementSuffixTouch(partitionSpec)*/partitionSpec_(partitionSpec)*+alterStatementSuffixTouch(partitionSpec)*!drop-8	ALTER TABLE a TOUCH PARTITION(a) PARTITION(a
 accept	accept	engine	alterStatementSuffixArchive/KW_ARCHIVE_(partitionSpec)*	ALTER TABLE a ARCHIVE
 accept	accept	engine	alterStatementSuffixArchive(partitionSpec)*/%empty	ALTER TABLE a ARCHIVE
 accept	accept	engine	alterStatementSuffixArchive(partitionSpec)*/partitionSpec_(partitionSpec)*	ALTER TABLE a ARCHIVE PARTITION(a)
@@ -3941,6 +4072,11 @@ reject	reject	engine	alterStatementSuffixArchive(partitionSpec)*/partitionSpec_(
 reject	reject	engine	alterStatementSuffixArchive(partitionSpec)*/partitionSpec_(partitionSpec)*!drop-4	ALTER TABLE a ARCHIVE PARTITION(a
 reject	reject	engine	alterStatementSuffixArchive(partitionSpec)*/partitionSpec_(partitionSpec)*!insert	ALTER TABLE a ARCHIVE PARTITION(a) zzz
 reject	reject	engine	alterStatementSuffixArchive(partitionSpec)*/partitionSpec_(partitionSpec)*!swap	ALTER TABLE a ARCHIVE PARTITIONED(a)
+accept	accept	engine	alterStatementSuffixArchive(partitionSpec)*/partitionSpec_(partitionSpec)*+alterStatementSuffixArchive(partitionSpec)*	ALTER TABLE a ARCHIVE PARTITION(a) PARTITION(a)
+reject	reject	engine	alterStatementSuffixArchive(partitionSpec)*/partitionSpec_(partitionSpec)*+alterStatementSuffixArchive(partitionSpec)*!drop-5	ALTER TABLE a ARCHIVE PARTITION(a)(a)
+reject	reject	engine	alterStatementSuffixArchive(partitionSpec)*/partitionSpec_(partitionSpec)*+alterStatementSuffixArchive(partitionSpec)*!drop-6	ALTER TABLE a ARCHIVE PARTITION(a) PARTITION a)
+reject	reject	engine	alterStatementSuffixArchive(partitionSpec)*/partitionSpec_(partitionSpec)*+alterStatementSuffixArchive(partitionSpec)*!drop-7	ALTER TABLE a ARCHIVE PARTITION(a) PARTITION()
+reject	reject	engine	alterStatementSuffixArchive(partitionSpec)*/partitionSpec_(partitionSpec)*+alterStatementSuffixArchive(partitionSpec)*!drop-8	ALTER TABLE a ARCHIVE PARTITION(a) PARTITION(a
 accept	accept	engine	alterStatementSuffixUnArchive/KW_UNARCHIVE_(partitionSpec)*	ALTER TABLE a UNARCHIVE
 accept	accept	engine	alterStatementSuffixUnArchive(partitionSpec)*/%empty	ALTER TABLE a UNARCHIVE
 accept	accept	engine	alterStatementSuffixUnArchive(partitionSpec)*/partitionSpec_(partitionSpec)*	ALTER TABLE a UNARCHIVE PARTITION(a)
@@ -3950,6 +4086,11 @@ reject	reject	engine	alterStatementSuffixUnArchive(partitionSpec)*/partitionSpec
 reject	reject	engine	alterStatementSuffixUnArchive(partitionSpec)*/partitionSpec_(partitionSpec)*!drop-4	ALTER TABLE a UNARCHIVE PARTITION(a
 reject	reject	engine	alterStatementSuffixUnArchive(partitionSpec)*/partitionSpec_(partitionSpec)*!insert	ALTER TABLE a UNARCHIVE PARTITION(a) zzz
 reject	reject	engine	alterStatementSuffixUnArchive(partitionSpec)*/partitionSpec_(partitionSpec)*!swap	ALTER TABLE a UNARCHIVE PARTITIONED(a)
+accept	accept	engine	alterStatementSuffixUnArchive(partitionSpec)*/partitionSpec_(partitionSpec)*+alterStatementSuffixUnArchive(partitionSpec)*	ALTER TABLE a UNARCHIVE PARTITION(a) PARTITION(a)
+reject	reject	engine	alterStatementSuffixUnArchive(partitionSpec)*/partitionSpec_(partitionSpec)*+alterStatementSuffixUnArchive(partitionSpec)*!drop-5	ALTER TABLE a UNARCHIVE PARTITION(a)(a)
+reject	reject	engine	alterStatementSuffixUnArchive(partitionSpec)*/partitionSpec_(partitionSpec)*+alterStatementSuffixUnArchive(partitionSpec)*!drop-6	ALTER TABLE a UNARCHIVE PARTITION(a) PARTITION a)
+reject	reject	engine	alterStatementSuffixUnArchive(partitionSpec)*/partitionSpec_(partitionSpec)*+alterStatementSuffixUnArchive(partitionSpec)*!drop-7	ALTER TABLE a UNARCHIVE PARTITION(a) PARTITION()
+reject	reject	engine	alterStatementSuffixUnArchive(partitionSpec)*/partitionSpec_(partitionSpec)*+alterStatementSuffixUnArchive(partitionSpec)*!drop-8	ALTER TABLE a UNARCHIVE PARTITION(a) PARTITION(a
 accept	accept	engine	partitionLocation/KW_LOCATION_StringLiteral	ALTER TABLE a ADD PARTITION(a) LOCATION 'a'
 accept	accept	engine	alterStatementSuffixDropPartitions/KW_DROP_(ifExists)?_KW_PARTITION_partitionSelectorSpec_~d31b7b33	ALTER TABLE a DROP PARTITION(a LIKE 1)
 accept	accept	engine	alterStatementSuffixDropPartitions(ifExists)?/%empty	ALTER TABLE a DROP PARTITION(a LIKE 1)
@@ -6017,10 +6158,6 @@ accept	accept	engine	booleanValueTok/KW_FALSE	SET AUTOCOMMIT FALSE
 reject	reject	engine	booleanValueTok/KW_FALSE!insert	SET AUTOCOMMIT FALSE zzz
 reject	reject	engine	booleanValueTok/KW_FALSE!swap	SET AUTOCOMMIT FETCH
 accept	accept	engine	tableOrPartition/tableName_(partitionSpec)?	INSERT INTO a SELECT *
-accept	accept	engine	tableOrPartition/tableName_(partitionSpec)?+tableName/identifier_DOT_identifier_(DOT_identifier)?	INSERT INTO a.a SELECT *
-reject	reject	engine	tableOrPartition/tableName_(partitionSpec)?+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-1	INSERT INTO.a SELECT *
-reject	reject	engine	tableOrPartition/tableName_(partitionSpec)?+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-2	INSERT INTO a a SELECT *
-reject	reject	engine	tableOrPartition/tableName_(partitionSpec)?+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-3	INSERT INTO a.SELECT *
 accept	accept	engine	tableOrPartition(partitionSpec)?/%empty	INSERT INTO a SELECT *
 accept	accept	engine	tableOrPartition(partitionSpec)?/partitionSpec	INSERT INTO a PARTITION(a) SELECT *
 reject	reject	engine	tableOrPartition(partitionSpec)?/partitionSpec!drop-2	INSERT INTO a PARTITION a) SELECT *

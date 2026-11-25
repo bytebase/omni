@@ -39,9 +39,52 @@ KW_TIMESTAMPTZ	(unreachable)	IdentifiersParser.g:974 stale nonReserved entry, no
 # Optional clauses tried at every site the grammar allows them, and not only
 # at the one site the shortest row reaches. Each names the rule ReadANTLR
 # lowers the group to, <owner>(<group>)?. HiveParser.g gives most statements a
-# rule of their own, so only these two share a clause between alternatives.
+# rule of their own, so most of these name one site; the clause still gets a
+# row in each alternative of the rule that names it.
 createDatabaseStatement(ifNotExists)?	(every site)	HiveParser.g:1171 createDatabaseStatement: CREATE [REMOTE] DATABASE IF NOT EXISTS
 createTableStatement(ifNotExists)?	(every site)	CreateDDLParser.g:53 createTableStatement: CREATE [MANAGED] TABLE IF NOT EXISTS
+dropDatabaseStatement(ifExists)?	(every site)	HiveParser.g:1234 dropDatabaseStatement: DROP DATABASE IF EXISTS
+dropDatabaseStatement(restrictOrCascade)?	(every site)	HiveParser.g:1234 dropDatabaseStatement: DROP DATABASE ... RESTRICT or CASCADE
+dropTableStatement(ifExists)?	(every site)	HiveParser.g:1254 dropTableStatement: DROP TABLE IF EXISTS
+dropTableStatement(KW_PURGE)?	(every site)	HiveParser.g:1254 dropTableStatement: DROP TABLE ... PURGE
+partTypeExpr(partitionSpec)?	(every site)	HiveParser.g:1284 partTypeExpr: a table with a PARTITION spec
+tabPartColTypeExpr(partitionSpec)?	(every site)	HiveParser.g:1290 tabPartColTypeExpr: a table with a PARTITION spec
+showStatement(partitionSpec)?	(every site)	HiveParser.g:1327 showStatement: SHOW PARTITIONS and SHOW TABLE EXTENDED with a PARTITION spec
+lockStatement(partitionSpec)?	(every site)	HiveParser.g:1380 lockStatement: LOCK TABLE with a PARTITION spec
+unlockStatement(partitionSpec)?	(every site)	HiveParser.g:1398 unlockStatement: UNLOCK TABLE with a PARTITION spec
+privObject(partitionSpec)?	(every site)	HiveParser.g:1519 privObject: a table with a PARTITION spec
+privObjectCols(partitionSpec)?	(every site)	HiveParser.g:1526 privObjectCols: a table with a PARTITION spec
+createFunctionStatement(KW_TEMPORARY)?	(every site)	HiveParser.g:1638 createFunctionStatement: CREATE TEMPORARY FUNCTION
+dropFunctionStatement(KW_TEMPORARY)?	(every site)	HiveParser.g:1647 dropFunctionStatement: DROP TEMPORARY FUNCTION
+dropFunctionStatement(ifExists)?	(every site)	HiveParser.g:1647 dropFunctionStatement: DROP FUNCTION IF EXISTS
+dropMacroStatement(ifExists)?	(every site)	HiveParser.g:1668 dropMacroStatement: DROP TEMPORARY MACRO IF EXISTS
+createViewStatement(orReplace)?	(every site)	HiveParser.g:1675 createViewStatement: CREATE OR REPLACE VIEW
+createViewStatement(ifNotExists)?	(every site)	HiveParser.g:1675 createViewStatement: CREATE VIEW IF NOT EXISTS
+dropViewStatement(ifExists)?	(every site)	HiveParser.g:1738 dropViewStatement: DROP VIEW IF EXISTS
+createMaterializedViewStatement(ifNotExists)?	(every site)	HiveParser.g:1744 createMaterializedViewStatement: CREATE MATERIALIZED VIEW IF NOT EXISTS
+dropMaterializedViewStatement(ifExists)?	(every site)	HiveParser.g:1767 dropMaterializedViewStatement: DROP MATERIALIZED VIEW IF EXISTS
+insertClause(ifNotExists)?	(every site)	HiveParser.g:2783 insertClause: INSERT OVERWRITE TABLE ... IF NOT EXISTS
+importStatement(KW_EXTERNAL)?	(every site)	HiveParser.g:995 importStatement: IMPORT EXTERNAL TABLE
+createTableStatement(KW_TEMPORARY)?	(every site)	CreateDDLParser.g:53 createTableStatement: CREATE TEMPORARY TABLE
+createTableStatement(KW_EXTERNAL)?	(every site)	CreateDDLParser.g:53 createTableStatement: CREATE EXTERNAL TABLE
+createDataConnectorStatement(ifNotExists)?	(every site)	CreateDDLParser.g:119 createDataConnectorStatement: CREATE DATACONNECTOR IF NOT EXISTS
+dropDataConnectorStatement(ifExists)?	(every site)	CreateDDLParser.g:154 dropDataConnectorStatement: DROP DATACONNECTOR IF EXISTS
+alterStatementSuffixAddCol(restrictOrCascade)?	(every site)	AlterClauseParser.g:200 alterStatementSuffixAddCol: ADD or REPLACE COLUMNS ... RESTRICT or CASCADE
+alterStatementSuffixUpdateColumns(restrictOrCascade)?	(every site)	AlterClauseParser.g:216 alterStatementSuffixUpdateColumns: UPDATE COLUMNS ... RESTRICT or CASCADE
+alterStatementSuffixRenameCol(restrictOrCascade)?	(every site)	AlterClauseParser.g:230 alterStatementSuffixRenameCol: CHANGE COLUMN ... RESTRICT or CASCADE
+alterStatementSuffixAddPartitions(ifNotExists)?	(every site)	AlterClauseParser.g:259 alterStatementSuffixAddPartitions: ADD IF NOT EXISTS PARTITION
+alterStatementSuffixTouch(partitionSpec)*	(every site)	AlterClauseParser.g:271 alterStatementSuffixTouch: TOUCH with PARTITION specs
+alterStatementSuffixArchive(partitionSpec)*	(every site)	AlterClauseParser.g:278 alterStatementSuffixArchive: ARCHIVE with PARTITION specs
+alterStatementSuffixUnArchive(partitionSpec)*	(every site)	AlterClauseParser.g:285 alterStatementSuffixUnArchive: UNARCHIVE with PARTITION specs
+alterStatementSuffixDropPartitions(ifExists)?	(every site)	AlterClauseParser.g:299 alterStatementSuffixDropPartitions: DROP IF EXISTS PARTITION
+alterStatementSuffixDropPartitions(KW_PURGE)?	(every site)	AlterClauseParser.g:299 alterStatementSuffixDropPartitions: DROP PARTITION ... PURGE
+alterStatementSuffixProperties(ifExists)?	(every site)	AlterClauseParser.g:307 alterStatementSuffixProperties: UNSET TBLPROPERTIES IF EXISTS
+alterViewSuffixProperties(ifExists)?	(every site)	AlterClauseParser.g:316 alterViewSuffixProperties: UNSET TBLPROPERTIES IF EXISTS
+tablePartitionPrefix(partitionSpec)?	(every site)	AlterClauseParser.g:339 tablePartitionPrefix: a table with a PARTITION spec
+alterStatementSuffixDropBranch(ifExists)?	(every site)	AlterClauseParser.g:508 alterStatementSuffixDropBranch: DROP BRANCH IF EXISTS
+alterStatementSuffixDropTag(ifExists)?	(every site)	AlterClauseParser.g:549 alterStatementSuffixDropTag: DROP TAG IF EXISTS
+createResourcePlanStatement(ifNotExists)?	(every site)	ResourcePlanParser.g:93 createResourcePlanStatement: CREATE RESOURCE PLAN IF NOT EXISTS
+dropResourcePlanStatement(ifExists)?	(every site)	ResourcePlanParser.g:141 dropResourcePlanStatement: DROP RESOURCE PLAN IF EXISTS
 # Choices tried at every site that names them, and not only where the rule's
 # own alternatives are reached. Each cites the rule in vendor/*.g.
 restrictOrCascade	(every alternative)	HiveParser.g:1120 RESTRICT or CASCADE
@@ -63,3 +106,6 @@ tableName	(every alternative)	FromClauseParser.g:234 db.table[.meta] or table
 constant	(every alternative)	IdentifiersParser.g:418 a literal
 intervalValue	(every alternative)	IdentifiersParser.g:497 string or number interval value
 intervalQualifiers	(every alternative)	IdentifiersParser.g:520 an interval unit
+tableOrPartition	(every alternative)	IdentifiersParser.g:810 a table, with or without a PARTITION spec
+tableOrPartition(partitionSpec)?	(every alternative)	IdentifiersParser.g:810 the PARTITION spec tableOrPartition may add, or none
+alterTblPartitionStatementSuffix	(every alternative)	AlterClauseParser.g:85 the ALTER TABLE suffixes that also take a PARTITION spec
