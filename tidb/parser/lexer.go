@@ -2008,6 +2008,11 @@ type Lexer struct {
 	// (tag v8.5.5).
 	identDot bool
 
+	// bareAtAt reads a @@ that no name follows as upstream does. Parse sets it;
+	// completion needs `SELECT @@` at a caret to stay a system variable prefix.
+	// See scanVariable.
+	bareAtAt bool
+
 	// errMsg/errPos record the first lexing error (unterminated comment, string,
 	// or quoted identifier). A malformed token that runs to EOF without its closing
 	// delimiter must never index past the buffer; instead the scan stops at EOF and
@@ -2518,6 +2523,11 @@ func (l *Lexer) scanVariable() Token {
 	// System variable: @@ → emit tokAt2 and let the parser handle the rest
 	if l.pos < len(l.input) && l.input[l.pos] == '@' {
 		l.pos++ // skip second @
+		if l.bareAtAt {
+			if tok, ok := l.bareSysVar(); ok {
+				return tok
+			}
+		}
 		return Token{Type: tokAt2, Str: "@@", Loc: start}
 	}
 
@@ -2551,6 +2561,36 @@ func (l *Lexer) scanVariable() Token {
 	}
 
 	return Token{Type: tokIDENT, Str: "@" + name, Loc: start}
+}
+
+// bareSysVar reads what follows a @@ that no name follows, as TiDB's lexer
+// does: it skips a GLOBAL., SESSION. or LOCAL. prefix, and returns the next
+// byte as a token of that byte's code without consuming it, so the byte is
+// lexed again; at the end of the input that is the end. `SELECT 1 @@` and
+// `SELECT 1 @@;` therefore parse on v8.5.5, where `SELECT 1 @@ ` and `SELECT
+// (1 @@)` are 1064s. It reports false when a name or a quote follows.
+//
+// Ref: startWithAt and scanIdentifierOrString in pkg/parser/lexer.go:618
+// (tag v8.5.5), whose name characters are isUserVarChar's (misc.go:49).
+func (l *Lexer) bareSysVar() (Token, bool) {
+	pos := l.pos
+	for _, prefix := range []string{"global.", "session.", "local."} {
+		if len(l.input)-pos >= len(prefix) && strings.EqualFold(l.input[pos:pos+len(prefix)], prefix) {
+			pos += len(prefix)
+			break
+		}
+	}
+	if pos >= len(l.input) {
+		l.pos = pos
+		return Token{Type: tokEOF, Loc: pos}, true
+	}
+	switch ch := l.input[pos]; {
+	case ch == '\'', ch == '"', ch == '`', isIdentChar(ch), ch == '.':
+		return Token{}, false
+	default:
+		l.pos = pos
+		return Token{Type: int(ch), Str: string(ch), Loc: pos}, true
+	}
 }
 
 func (l *Lexer) scanBacktickIdent() Token {

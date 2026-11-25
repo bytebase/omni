@@ -63,7 +63,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 	if opts.SDLFormat {
 		return databaseSDL(metadata), nil
 	}
-	r := renderer{database: metadata.Name}
+	r := newRenderer(metadata.Name, metadata.Schemas)
 	var buf strings.Builder
 	if opts.PrintHeader {
 		buf.WriteString(header)
@@ -78,7 +78,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 	for _, extension := range metadata.Extensions {
 		writeExtension(&buf, extension)
 	}
-	writeTypes(&buf, collectTypes(metadata.Schemas, true))
+	r.writeTypes(&buf, collectTypes(metadata.Schemas, true))
 	for _, schema := range metadata.Schemas {
 		if schema.SkipDump {
 			continue
@@ -118,13 +118,14 @@ func SchemaDefinition(schema *metadatapb.SchemaMetadata) (string, error) {
 	var buf strings.Builder
 	writeSchema(&buf, schema)
 	writeSchemaOwnerAndComment(&buf, schema)
-	writeTypes(&buf, collectTypes([]*metadatapb.SchemaMetadata{schema}, false))
+	r := newRenderer("", []*metadatapb.SchemaMetadata{schema})
+	r.writeTypes(&buf, collectTypes([]*metadatapb.SchemaMetadata{schema}, false))
 	for _, sequence := range schema.Sequences {
 		if !sequence.SkipDump {
 			writeCreateSequence(&buf, schema.Name, sequence)
 		}
 	}
-	renderer{}.writeObjects(&buf, []*metadatapb.SchemaMetadata{schema})
+	r.writeObjects(&buf, []*metadatapb.SchemaMetadata{schema})
 	writeSchemaForeignKeys(&buf, schema)
 	return buf.String(), nil
 }
@@ -180,6 +181,34 @@ func SequenceDefinition(schema string, sequence *metadatapb.SequenceMetadata) (s
 // one object is rendered alone, which then keeps its names as stored.
 type renderer struct {
 	database string
+	// userTypes maps an enum or composite type as the sync states a column
+	// of it, schema and name unquoted, to the name a definition writes.
+	userTypes map[string]string
+}
+
+func newRenderer(database string, schemas []*metadatapb.SchemaMetadata) renderer {
+	r := renderer{database: database, userTypes: make(map[string]string)}
+	for _, schema := range schemas {
+		for _, t := range collectTypes([]*metadatapb.SchemaMetadata{schema}, false) {
+			r.userTypes[schema.Name+"."+t.name()] = quoteIdent(schema.Name) + "." + quoteIdent(t.name())
+		}
+	}
+	return r
+}
+
+// typeName returns a synced column type as a definition writes it. The sync
+// states a user-defined type as schema.name, unquoted, so a name that needs
+// quoting is quoted from the snapshot's own types.
+func (r renderer) typeName(t string) string {
+	if quoted, ok := r.userTypes[t]; ok {
+		return quoted
+	}
+	if element, ok := strings.CutSuffix(t, "[]"); ok {
+		if quoted, ok := r.userTypes[element]; ok {
+			return quoted + "[]"
+		}
+	}
+	return columnType(t)
 }
 
 // writeObjects writes the functions, tables, views and materialized views of
@@ -326,7 +355,7 @@ func orderObjects(schemas []*metadatapb.SchemaMetadata) []objectRef {
 // comments, and its secondary indexes.
 func (r renderer) writeTable(buf *strings.Builder, schema string, table *metadatapb.TableMetadata) {
 	columns, primary, checks := tableShape(table)
-	writeCreateTable(buf, schema, table.Name, columns, primary, checks)
+	r.writeCreateTable(buf, schema, table.Name, columns, primary, checks)
 	buf.WriteString(";\n\n")
 	if table.Owner != "" {
 		fmt.Fprintf(buf, "ALTER TABLE %s.%s OWNER TO %s;\n\n", quoteIdent(schema), quoteIdent(table.Name), quoteIdent(table.Owner))
@@ -415,7 +444,7 @@ func isShardColumn(column *metadatapb.ColumnMetadata) bool {
 	return column.IsInvisible && strings.HasPrefix(column.Name, "crdb_internal_")
 }
 
-func writeCreateTable(buf *strings.Builder, schema, table string, columns []*metadatapb.ColumnMetadata, primary *metadatapb.IndexMetadata, checks []*metadatapb.CheckConstraintMetadata) {
+func (r renderer) writeCreateTable(buf *strings.Builder, schema, table string, columns []*metadatapb.ColumnMetadata, primary *metadatapb.IndexMetadata, checks []*metadatapb.CheckConstraintMetadata) {
 	fmt.Fprintf(buf, "CREATE TABLE %s.%s (", quoteIdent(schema), quoteIdent(table))
 	first := true
 	sep := func() {
@@ -428,7 +457,7 @@ func writeCreateTable(buf *strings.Builder, schema, table string, columns []*met
 	}
 	for _, column := range columns {
 		sep()
-		writeColumnDefinition(buf, column)
+		r.writeColumnDefinition(buf, column)
 	}
 	if primary != nil {
 		sep()
@@ -441,8 +470,8 @@ func writeCreateTable(buf *strings.Builder, schema, table string, columns []*met
 	buf.WriteString("\n)")
 }
 
-func writeColumnDefinition(buf *strings.Builder, column *metadatapb.ColumnMetadata) {
-	fmt.Fprintf(buf, "%s %s", quoteIdent(column.Name), columnType(column.Type))
+func (r renderer) writeColumnDefinition(buf *strings.Builder, column *metadatapb.ColumnMetadata) {
+	fmt.Fprintf(buf, "%s %s", quoteIdent(column.Name), r.typeName(column.Type))
 	if column.Collation != "" {
 		fmt.Fprintf(buf, " COLLATE %s", quoteIdent(column.Collation))
 	}
@@ -662,7 +691,7 @@ func orderTypes(types []qualifiedType) []qualifiedType {
 	return out
 }
 
-func writeTypes(buf *strings.Builder, types []qualifiedType) {
+func (r renderer) writeTypes(buf *strings.Builder, types []qualifiedType) {
 	for _, t := range types {
 		if t.enum != nil {
 			writeEnum(buf, t.schema, t.enum)
@@ -672,7 +701,7 @@ func writeTypes(buf *strings.Builder, types []qualifiedType) {
 			}
 			continue
 		}
-		writeCompositeType(buf, t.schema, t.composite)
+		r.writeCompositeType(buf, t.schema, t.composite)
 		buf.WriteString(";\n\n")
 		if t.composite.Comment != "" {
 			writeRelationComment(buf, "TYPE", t.schema, t.composite.Name, t.composite.Comment)
@@ -691,13 +720,13 @@ func writeEnum(buf *strings.Builder, schema string, enum *metadatapb.EnumTypeMet
 	buf.WriteString("\n)")
 }
 
-func writeCompositeType(buf *strings.Builder, schema string, composite *metadatapb.CompositeTypeMetadata) {
+func (r renderer) writeCompositeType(buf *strings.Builder, schema string, composite *metadatapb.CompositeTypeMetadata) {
 	fmt.Fprintf(buf, "CREATE TYPE %s.%s AS (\n", quoteIdent(schema), quoteIdent(composite.Name))
 	for i, attribute := range composite.Attributes {
 		if i > 0 {
 			buf.WriteString(",\n")
 		}
-		fmt.Fprintf(buf, "    %s %s", quoteIdent(attribute.Name), columnType(attribute.Type))
+		fmt.Fprintf(buf, "    %s %s", quoteIdent(attribute.Name), r.typeName(attribute.Type))
 		if attribute.Collation != "" {
 			fmt.Fprintf(buf, " COLLATE %s", attribute.Collation)
 		}

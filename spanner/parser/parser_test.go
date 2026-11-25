@@ -5,7 +5,6 @@ import (
 
 	bigqueryparser "github.com/bytebase/omni/bigquery/parser"
 	googlesqlparser "github.com/bytebase/omni/googlesql/parser"
-	pgparser "github.com/bytebase/omni/pg/parser"
 )
 
 func TestSpannerAcceptedSyntax(t *testing.T) {
@@ -323,90 +322,6 @@ func TestDialectsRemainIndependent(t *testing.T) {
 		}
 		if _, err := bigqueryparser.Parse(sql); err == nil {
 			t.Errorf("bigquery/parser.Parse(%q): want error, got nil", sql)
-		}
-	}
-}
-
-func TestParsePostgres(t *testing.T) {
-	accepted := []string{
-		"SELECT 1",
-		"SELECT 'a'::text, ARRAY[1, 2, 3]",
-		"CREATE TABLE singers (id bigint PRIMARY KEY, name varchar(1024) NOT NULL)",
-		"CREATE TABLE albums (id bigint, album_id bigint, PRIMARY KEY (id, album_id)) INTERLEAVE IN PARENT singers ON DELETE CASCADE",
-		"CREATE TABLE events (id bigint PRIMARY KEY, ts timestamptz) TTL INTERVAL '30 days' ON ts",
-		"CREATE CHANGE STREAM cs FOR ALL WITH (retention_period = '7d')",
-		"CREATE VIEW singer_names SQL SECURITY INVOKER AS SELECT id, name FROM singers",
-		"CREATE SEQUENCE seq BIT_REVERSED_POSITIVE SKIP RANGE 1000 5000 START COUNTER WITH 100",
-		"CREATE INDEX idx ON albums (album_id) INCLUDE (id) INTERLEAVE IN singers",
-		"CREATE SEARCH INDEX sidx ON singers (name_tokens) PARTITION BY id ORDER BY id DESC",
-		"CREATE LOCALITY GROUP IF NOT EXISTS lg",
-		"ALTER DATABASE db SET spanner.default_sequence_kind = 'bit_reversed_positive'",
-		"INSERT INTO singers (id, name) VALUES (1, 'Ada') RETURNING id",
-		"ALTER TABLE singers ADD COLUMN bio text",
-		"DROP TABLE IF EXISTS singers",
-	}
-	for _, sql := range accepted {
-		list, err := ParsePostgres(sql)
-		if err != nil {
-			t.Errorf("ParsePostgres(%q) unexpected error: %v", sql, err)
-		}
-		if list == nil || len(list.Items) != 1 {
-			t.Errorf("ParsePostgres(%q) got %v, want 1 statement", sql, list)
-		}
-	}
-
-	rejected := []string{
-		"",
-		";",
-		"SELECT FROM",
-		"CREATE TABLE",
-		"INSERT INTO",
-		"SELECT (1 + )",
-		"SELECT XMLELEMENT(NAME a)",
-		"SELECT JSON_QUERY(a, a PASSING a AS a)",
-		"SELECT a AT LOCAL",
-		"CREATE VIEW v SQL SECURITY UNKNOWN AS SELECT 1",
-		"CREATE SEQUENCE s SKIP RANGE 1000",
-		"ALTER TABLE a SET zzz",
-		"ALTER TABLE a ALTER COLUMN c SET",
-		"ALTER DATABASE a TARGET",
-		"ALTER DATABASE a JSON 1.5",
-		"CREATE DOMAIN a a REFERENCES a ON UPDATE NO",
-		"CREATE DOMAIN a a REFERENCES a ON UPDATE SET",
-		"CREATE DOMAIN a a REFERENCES a ON UPDATE DEFAULT",
-		"CREATE DOMAIN a a REFERENCES a ON UPDATE SETOF DEFAULT",
-		"CREATE DOMAIN a a REFERENCES a ON DELETE ACTION",
-		"CREATE TABLE t (a int PRIMARY KEY, FOREIGN KEY (a) REFERENCES p ON UPDATE ACTION)",
-		"CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE CASCADE)",
-		"CREATE TABLE t (a int PRIMARY KEY, b int ON UPDATE a AND b)",
-	}
-	for _, sql := range rejected {
-		if _, err := ParsePostgres(sql); err == nil {
-			t.Errorf("ParsePostgres(%q) expected error, got nil", sql)
-		}
-	}
-
-	// Spanner-PG 1.5.54 grammar forms accepted by ParsePostgres (DialectSpannerPG)
-	// and strictly rejected by standard PostgreSQL 17 (pg/parser.Parse).
-	spannerPGOnly := []string{
-		"ALTER TABLE a SET",
-		"ALTER TABLE a SET, ADD COLUMN b int",
-		"ALTER DATABASE a TARGET 1.5",
-		"ALTER DATABASE a SOURCE = 1.5",
-		"CREATE DATABASE a TARGET 1.5",
-		"CREATE DOMAIN a a REFERENCES a ON UPDATE ACTION",
-		"CREATE DOMAIN a a REFERENCES a ON UPDATE RETURN",
-		"CREATE DOMAIN a a REFERENCES a ON UPDATE CASCADED",
-		"CREATE DOMAIN a a REFERENCES a ON UPDATE NULL",
-		"CREATE DOMAIN a a REFERENCES a ON UPDATE SETOF NULL",
-		"CREATE TABLE t (a bigint PRIMARY KEY, ts timestamptz DEFAULT spanner.pending_commit_timestamp() ON UPDATE spanner.pending_commit_timestamp())",
-	}
-	for _, sql := range spannerPGOnly {
-		if _, err := ParsePostgres(sql); err != nil {
-			t.Errorf("ParsePostgres(%q) unexpected error: %v", sql, err)
-		}
-		if _, err := pgparser.Parse(sql); err == nil {
-			t.Errorf("pg/parser.Parse(%q) unexpectedly succeeded in DialectDefault; want error", sql)
 		}
 	}
 }

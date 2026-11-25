@@ -18,7 +18,7 @@ type DefinitionFile struct {
 // databaseSDL renders a snapshot as SDL: one statement per object, with a
 // table's keys, checks and foreign keys inside its CREATE TABLE.
 func databaseSDL(metadata *metadatapb.DatabaseSchemaMetadata) string {
-	r := renderer{database: metadata.Name}
+	r := newRenderer(metadata.Name, metadata.Schemas)
 	var buf strings.Builder
 	for _, schema := range metadata.Schemas {
 		if schema.SkipDump {
@@ -32,7 +32,7 @@ func databaseSDL(metadata *metadatapb.DatabaseSchemaMetadata) string {
 	for _, extension := range metadata.Extensions {
 		writeExtension(&buf, extension)
 	}
-	writeTypes(&buf, collectTypes(metadata.Schemas, true))
+	r.writeTypes(&buf, collectTypes(metadata.Schemas, true))
 	for _, schema := range metadata.Schemas {
 		if schema.SkipDump {
 			continue
@@ -96,7 +96,7 @@ func (r renderer) writeTableSDL(buf *strings.Builder, schema string, table *meta
 	}
 	for _, column := range columns {
 		sep()
-		writeColumnDefinition(buf, column)
+		r.writeColumnDefinition(buf, column)
 	}
 	if primary != nil {
 		sep()
@@ -178,7 +178,7 @@ func MultiFileDefinition(metadata *metadatapb.DatabaseSchemaMetadata) ([]Definit
 	if len(metadata.GetSchemas()) == 0 {
 		return []DefinitionFile{}, nil
 	}
-	r := renderer{database: metadata.Name}
+	r := newRenderer(metadata.Name, metadata.Schemas)
 	var files []DefinitionFile
 	add := func(name string, write func(*strings.Builder)) {
 		var buf strings.Builder
@@ -208,7 +208,7 @@ func MultiFileDefinition(metadata *metadatapb.DatabaseSchemaMetadata) ([]Definit
 			continue
 		}
 		add(fmt.Sprintf("schemas/%s/types.sql", schema.Name), func(buf *strings.Builder) {
-			writeTypes(buf, collectTypes([]*metadatapb.SchemaMetadata{schema}, false))
+			r.writeTypes(buf, collectTypes([]*metadatapb.SchemaMetadata{schema}, false))
 		})
 		for _, table := range schema.Tables {
 			if table.SkipDump {

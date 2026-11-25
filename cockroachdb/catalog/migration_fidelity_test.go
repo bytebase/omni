@@ -49,6 +49,8 @@ CREATE TABLE fid_m.orders (
     CONSTRAINT orders_pkey PRIMARY KEY (id)
 );
 CREATE TABLE fid_m.gone (id INT8 PRIMARY KEY, customer_id INT8 REFERENCES fid_m.customers (id));
+CREATE TYPE fid_m."Mood" AS ENUM ('ok');
+CREATE TABLE fid_m.rekey (id INT8 PRIMARY KEY, replacement INT8 NOT NULL);
 `,
 			target: `CREATE SCHEMA fid_m;
 CREATE SCHEMA fid_new;
@@ -79,6 +81,9 @@ CREATE TABLE fid_m.orders (
 );
 CREATE TABLE fid_new.audit (at TIMESTAMPTZ, customer_id INT8 REFERENCES fid_m.customers (id), id INT8 DEFAULT nextval('fid_m.ids'));
 COMMENT ON TABLE fid_new.audit IS e'first;\n\nsecond';
+CREATE TYPE fid_m."Mood" AS ENUM ('ok');
+CREATE TABLE fid_m.moods (id INT8 PRIMARY KEY, m fid_m."Mood" DEFAULT 'ok');
+CREATE TABLE fid_m.rekey (replacement INT8 PRIMARY KEY);
 `,
 		},
 		{
@@ -94,6 +99,9 @@ CREATE INDEX totals_name_idx ON fid_v.totals (name);
 CREATE FUNCTION fid_v.add(a INT8, b INT8) RETURNS INT8 LANGUAGE SQL IMMUTABLE AS $$ SELECT a + b $$;
 CREATE FUNCTION fid_v.gone() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
 CREATE FUNCTION fid_v.count_items() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELECT count(*) FROM fid_v.items $$;
+CREATE TABLE fid_v.tagged (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_v.gone());
+CREATE TABLE fid_v.old_items (id INT8 PRIMARY KEY);
+CREATE FUNCTION fid_v.count_old() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELECT count(*) FROM fid_v.old_items $$;
 `,
 			target: `CREATE SCHEMA fid_v;
 CREATE TABLE fid_v.items (id INT8 PRIMARY KEY, name STRING, price DECIMAL(10, 2), bonus INT8);
@@ -107,6 +115,8 @@ CREATE FUNCTION fid_v.count_items() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELEC
 CREATE FUNCTION fid_v.touch() RETURNS INT8 LANGUAGE PLPGSQL AS $$ BEGIN RETURN (SELECT count(*) FROM fid_v.items); END $$;
 CREATE FUNCTION fid_v.bonus() RETURNS INT8 LANGUAGE SQL IMMUTABLE AS $$ SELECT 5 $$;
 ALTER TABLE fid_v.items ALTER COLUMN bonus SET DEFAULT fid_v.bonus();
+CREATE TABLE fid_v.tagged (id INT8 PRIMARY KEY, v INT8);
+CREATE FUNCTION fid_v.count_old() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELECT count(*) FROM fid_v.items $$;
 CREATE TABLE fid_v.scored (id INT8 PRIMARY KEY, score INT8 DEFAULT fid_v.add(1, 2));
 CREATE VIEW fid_v.cheap AS SELECT p.id FROM fid_v.priced AS p JOIN fid_v.items AS i ON i.id = p.id;
 `,

@@ -1332,8 +1332,8 @@
 |     "alt_id" bigint,
 |     "email" text NOT NULL,
 |     "name" character varying(50) COLLATE "en_US" DEFAULT ('anon' COLLATE en_US) NOT NULL,
-|     "mood" fid_cols.mood DEFAULT 'happy',
-|     "home" fid_cols.address,
+|     "mood" "fid_cols"."mood" DEFAULT 'happy',
+|     "home" "fid_cols"."address",
 |     "tags" _text DEFAULT ARRAY[],
 |     "balance" numeric(12,2) DEFAULT 0,
 |     "ratio" double precision,
@@ -4712,9 +4712,13 @@
 | CREATE TABLE fid_a.parents (id INT8 PRIMARY KEY);
 < ok 0 -
 > exec
+| CREATE TYPE "Fid Mixed"."Kind" AS ENUM ('first', 'second');
+< ok 0 -
+> exec
 | CREATE TABLE "Fid Mixed"."Children" (
 |     id INT8 PRIMARY KEY,
-|     "Parent Id" INT8 REFERENCES fid_a.parents (id)
+|     "Parent Id" INT8 REFERENCES fid_a.parents (id),
+|     kind "Fid Mixed"."Kind" DEFAULT 'first'
 | );
 < ok 0 -
 > exec
@@ -4872,6 +4876,31 @@
 | pg_catalog
 : string
 | int8
+: null
+: string
+| NO
+< row
+: string
+| Fid Mixed
+: string
+| Children
+: string
+| kind
+: string
+| USER-DEFINED
+: null
+: null
+: null
+: int64 3
+: string
+| 'first'
+: string
+| YES
+: null
+: string
+| Fid Mixed
+: string
+| Kind
 : null
 : string
 | NO
@@ -5264,6 +5293,20 @@
 < column "nspname" "NAME"
 < column "typname" "NAME"
 < column "enumlabel" "TEXT"
+< row
+: string
+| Fid Mixed
+: string
+| Kind
+: string
+| first
+< row
+: string
+| Fid Mixed
+: string
+| Kind
+: string
+| second
 > query
 |
 | SELECT pn.nspname, pt.typname, a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod)
@@ -5336,12 +5379,19 @@
 | CREATE SCHEMA IF NOT EXISTS "fid_a";
 < ok 0 -
 > exec
+| CREATE TYPE "Fid Mixed"."Kind" AS ENUM (
+|     'first',
+|     'second'
+| );
+< ok 0 -
+> exec
 | SET default_tablespace = '';
 < ok 0 -
 > exec
 | CREATE TABLE "Fid Mixed"."Children" (
 |     "id" bigint NOT NULL,
 |     "Parent Id" bigint,
+|     "kind" "Fid Mixed"."Kind" DEFAULT 'first',
 |     CONSTRAINT "Children_pkey" PRIMARY KEY (id ASC)
 | );
 < ok 0 -
@@ -5519,6 +5569,31 @@
 : string
 | Fid Mixed
 : string
+| Children
+: string
+| kind
+: string
+| USER-DEFINED
+: null
+: null
+: null
+: int64 3
+: string
+| 'first'
+: string
+| YES
+: null
+: string
+| Fid Mixed
+: string
+| Kind
+: null
+: string
+| NO
+< row
+: string
+| Fid Mixed
+: string
 | family
 : string
 | id
@@ -5904,6 +5979,20 @@
 < column "nspname" "NAME"
 < column "typname" "NAME"
 < column "enumlabel" "TEXT"
+< row
+: string
+| Fid Mixed
+: string
+| Kind
+: string
+| first
+< row
+: string
+| Fid Mixed
+: string
+| Kind
+: string
+| second
 > query
 |
 | SELECT pn.nspname, pt.typname, a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod)

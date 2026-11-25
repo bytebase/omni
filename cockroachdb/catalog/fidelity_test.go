@@ -115,9 +115,11 @@ CREATE TABLE fid_routines.scored (id INT8 PRIMARY KEY, score INT8 DEFAULT fid_ro
 			sql: `CREATE SCHEMA fid_a;
 CREATE SCHEMA "Fid Mixed";
 CREATE TABLE fid_a.parents (id INT8 PRIMARY KEY);
+CREATE TYPE "Fid Mixed"."Kind" AS ENUM ('first', 'second');
 CREATE TABLE "Fid Mixed"."Children" (
     id INT8 PRIMARY KEY,
-    "Parent Id" INT8 REFERENCES fid_a.parents (id)
+    "Parent Id" INT8 REFERENCES fid_a.parents (id),
+    kind "Fid Mixed"."Kind" DEFAULT 'first'
 );
 CREATE VIEW "Fid Mixed".family AS SELECT p.id, c.id AS child FROM fid_a.parents AS p JOIN "Fid Mixed"."Children" AS c ON c."Parent Id" = p.id;
 `,

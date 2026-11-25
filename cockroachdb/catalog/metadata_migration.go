@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	crparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
+	plpgsqlparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/plpgsql/parser"
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 
 	metadatapb "github.com/bytebase/omni/metadata"
@@ -152,10 +153,11 @@ func (s *snapshot) table(schema, name string) *metadatapb.TableMetadata {
 
 // phase indexes: the order the statements run in.
 const (
-	phaseDropForeignKeys = iota
+	phaseDetachDefaults = iota
+	phaseDropForeignKeys
+	phaseDropRoutinesFirst
 	phaseDropViews
 	phaseDropIndexes
-	phaseDropRoutinesFirst
 	phaseDropTables
 	phaseDropColumns
 	phaseDropRoutines
@@ -183,6 +185,14 @@ type differ struct {
 	// newRoutines holds the names, bare and schema-qualified, of the routines
 	// the target adds.
 	newRoutines map[string]bool
+	// droppedRoutines holds the names, bare and schema-qualified, of the
+	// source routines the migration drops: removed, or recreated.
+	droppedRoutines map[string]bool
+	// recreated holds the routines, by object ID, that are dropped and
+	// created again rather than replaced in place.
+	recreated map[string]bool
+	// r renders the target's objects; its types are both sides'.
+	r renderer
 }
 
 func (d *differ) add(phase int, op MigrationOp) {
@@ -190,6 +200,7 @@ func (d *differ) add(phase int, op MigrationOp) {
 }
 
 func (d *differ) diff() error {
+	d.r = newRenderer(d.to.database, append(slices.Clone(d.to.schemas), d.from.schemas...))
 	d.diffSchemas()
 	d.diffExtensions()
 	if err := d.diffTypes(); err != nil {
@@ -206,6 +217,7 @@ func (d *differ) diff() error {
 			}
 		}
 	}
+	d.planRoutines()
 	if err := d.diffTables(); err != nil {
 		return err
 	}
@@ -265,7 +277,7 @@ func (d *differ) diffTypes() error {
 	for _, schema := range d.from.schemas {
 		for _, t := range collectTypes([]*metadatapb.SchemaMetadata{schema}, false) {
 			old := d.toType(schema.Name, t)
-			if old == nil || (t.enum == nil || old.enum == nil) && typeDefinition(*old) != typeDefinition(t) {
+			if old == nil || (t.enum == nil || old.enum == nil) && d.typeDefinition(*old) != d.typeDefinition(t) {
 				dropped[getObjectID(schema.Name, t.name())] = true
 			}
 		}
@@ -289,7 +301,7 @@ func (d *differ) diffTypes() error {
 				if err := d.alterEnum(schema.Name, old.enum, t.enum); err != nil {
 					return err
 				}
-			case typeDefinition(*old) != typeDefinition(t):
+			case d.typeDefinition(*old) != d.typeDefinition(t):
 				// A composite type has no ALTER that CockroachDB supports:
 				// it was dropped above and is created again.
 				created = append(created, t)
@@ -304,7 +316,7 @@ func (d *differ) diffTypes() error {
 		}
 	}
 	for _, t := range orderTypes(created) {
-		d.add(phaseCreateTypes, MigrationOp{Type: OpCreateType, SchemaName: t.schema, ObjectName: t.name(), SQL: typeDefinition(t)})
+		d.add(phaseCreateTypes, MigrationOp{Type: OpCreateType, SchemaName: t.schema, ObjectName: t.name(), SQL: d.typeDefinition(t)})
 	}
 	return nil
 }
@@ -329,12 +341,12 @@ func findType(schema *metadatapb.SchemaMetadata, t qualifiedType) *qualifiedType
 	return nil
 }
 
-func typeDefinition(t qualifiedType) string {
+func (d *differ) typeDefinition(t qualifiedType) string {
 	var buf strings.Builder
 	if t.enum != nil {
 		writeEnum(&buf, t.schema, t.enum)
 	} else {
-		writeCompositeType(&buf, t.schema, t.composite)
+		d.r.writeCompositeType(&buf, t.schema, t.composite)
 	}
 	return buf.String()
 }
@@ -611,10 +623,25 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	}
 	d.diffIndexes(schema, new.Name, old.Indexes, new.Indexes)
 
+	oldKey, newKey := "", ""
+	if oldPrimary != nil {
+		oldKey = primaryKeyClause(oldPrimary)
+	}
+	if newPrimary != nil {
+		newKey = primaryKeyClause(newPrimary)
+	}
+	// A column of a primary key that changes is dropped once the new key is
+	// in place.
+	var afterKey []string
 	for _, column := range oldColumns {
-		if findColumnIn(newColumns, column.Name) == nil {
-			alter(phaseDropColumns, OpDropColumn, column.Name, "DROP COLUMN "+quoteIdent(column.Name))
+		if findColumnIn(newColumns, column.Name) != nil {
+			continue
 		}
+		if oldKey != newKey && slices.Contains(oldPrimary.GetExpressions(), column.Name) {
+			afterKey = append(afterKey, column.Name)
+			continue
+		}
+		alter(phaseDropColumns, OpDropColumn, column.Name, "DROP COLUMN "+quoteIdent(column.Name))
 	}
 	for _, column := range newColumns {
 		oldColumn := findColumnIn(oldColumns, column.Name)
@@ -627,13 +654,21 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 		}
 		if oldColumn == nil {
 			var buf strings.Builder
-			writeColumnDefinition(&buf, column)
+			d.r.writeColumnDefinition(&buf, column)
 			alter(defaultPhase, OpAddColumn, column.Name, "ADD COLUMN "+buf.String())
 			continue
 		}
 		col := "ALTER COLUMN " + quoteIdent(column.Name) + " "
+		// A default calling a routine the migration drops is detached first.
+		detached := false
+		for _, name := range calledFunctions(oldColumn.Default) {
+			if d.droppedRoutines[name] && !detached {
+				detached = true
+				alter(phaseDetachDefaults, OpAlterColumn, column.Name, col+"DROP DEFAULT")
+			}
+		}
 		if columnType(oldColumn.Type) != columnType(column.Type) || oldColumn.Collation != column.Collation {
-			typ := columnType(column.Type)
+			typ := d.r.typeName(column.Type)
 			if column.Collation != "" {
 				typ += " COLLATE " + quoteIdent(column.Collation)
 			}
@@ -642,7 +677,9 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 		if generationText(oldColumn) != generationText(column) {
 			return fmt.Errorf("column %s.%s.%s changes its computed expression, which CockroachDB cannot alter in place", schema, new.Name, column.Name)
 		}
-		if oldColumn.Default != column.Default {
+		if detached && column.Default != "" {
+			alter(defaultPhase, OpAlterColumn, column.Name, col+"SET DEFAULT "+defaultExpression(column.Default))
+		} else if !detached && oldColumn.Default != column.Default {
 			if column.Default == "" {
 				alter(phaseAlterTables, OpAlterColumn, column.Name, col+"DROP DEFAULT")
 			} else {
@@ -665,13 +702,6 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 		}
 	}
 
-	oldKey, newKey := "", ""
-	if oldPrimary != nil {
-		oldKey = primaryKeyClause(oldPrimary)
-	}
-	if newPrimary != nil {
-		newKey = primaryKeyClause(newPrimary)
-	}
 	if oldKey != newKey {
 		switch {
 		case newPrimary == nil:
@@ -683,6 +713,9 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 			// from leaving the old key behind as a unique index.
 			alter(phaseAlterTables, OpAddConstraint, newPrimary.Name, "DROP CONSTRAINT "+quoteIdent(oldPrimary.Name)+", ADD "+newKey)
 		}
+	}
+	for _, name := range afterKey {
+		alter(phaseAlterTables, OpDropColumn, name, "DROP COLUMN "+quoteIdent(name))
 	}
 
 	for _, check := range newChecks {
@@ -817,33 +850,112 @@ func (d *differ) diffViews() {
 	d.phases[phaseDropViews] = append(d.phases[phaseDropViews], drops...)
 }
 
-// diffRoutines drops the routines that go. A routine whose definition changes
-// is replaced in place when the new objects are created.
-func (d *differ) diffRoutines() {
-	// A removed routine a removed table's default or check calls is dropped
-	// after the table; the others before, so a removed table they read is
-	// still there to drop.
-	calledByDropped := make(map[string]bool)
-	for _, schema := range d.from.schemas {
+// planRoutines decides which source routines the migration drops: those the
+// target removes, and those it drops and creates again. A routine whose
+// definition changes, or whose body reads a relation the migration drops or
+// rebuilds, is recreated, so the relation can go while nothing reads it. A
+// routine a kept table's default or check still calls cannot be dropped, so it
+// is replaced in place instead.
+func (d *differ) planRoutines() {
+	d.droppedRoutines = make(map[string]bool)
+	d.recreated = make(map[string]bool)
+	pinned := make(map[string]bool)
+	for _, schema := range d.to.schemas {
 		for _, table := range schema.Tables {
-			if d.to.table(schema.Name, table.Name) != nil {
+			if d.from.table(schema.Name, table.Name) == nil {
 				continue
 			}
+			for _, name := range tableCalls(table) {
+				pinned[name] = true
+			}
+		}
+	}
+	gone := make(map[string]bool)
+	for id := range d.rebuilt {
+		gone[id] = true
+	}
+	for _, schema := range d.from.schemas {
+		target := d.to.byName[schema.Name]
+		for _, table := range schema.Tables {
+			if d.to.table(schema.Name, table.Name) == nil {
+				gone[getObjectID(schema.Name, table.Name)] = true
+			}
+		}
+		for _, view := range schema.Views {
+			if findView(target, view.Name) == nil {
+				gone[getObjectID(schema.Name, view.Name)] = true
+			}
+		}
+		for _, view := range schema.MaterializedViews {
+			if findMaterializedView(target, view.Name) == nil {
+				gone[getObjectID(schema.Name, view.Name)] = true
+			}
+		}
+	}
+	for _, schema := range d.from.schemas {
+		for _, function := range schema.Functions {
+			names := []string{function.Name, schema.Name + "." + function.Name}
+			newFunction := findFunction(d.to.byName[schema.Name], metadataFuncIdentity(function))
+			if newFunction == nil {
+				d.droppedRoutines[names[0]], d.droppedRoutines[names[1]] = true, true
+				continue
+			}
+			if pinned[names[0]] || pinned[names[1]] {
+				continue
+			}
+			recreate := routineDefinition(function.Definition, d.from.database) != routineDefinition(newFunction.Definition, d.to.database)
+			for _, relation := range routineRelations(function.Definition) {
+				recreate = recreate || gone[relation]
+			}
+			if recreate {
+				d.recreated[getObjectID(schema.Name, metadataFuncIdentity(function))] = true
+				d.droppedRoutines[names[0]], d.droppedRoutines[names[1]] = true, true
+			}
+		}
+	}
+}
+
+// tableCalls returns the routines a table's defaults and checks call.
+func tableCalls(table *metadatapb.TableMetadata) []string {
+	var names []string
+	for _, column := range table.Columns {
+		names = append(names, calledFunctions(column.Default)...)
+	}
+	for _, check := range table.CheckConstraints {
+		names = append(names, calledFunctions(check.Expression)...)
+	}
+	return names
+}
+
+// diffRoutines drops the routines planRoutines chose. A routine that a
+// dropped table's or column's default, or any check, calls is dropped after
+// the tables, columns and checks go; the others first, before the relations
+// their bodies read. A kept column's default is detached from a dropped
+// routine before either.
+func (d *differ) diffRoutines() {
+	late := make(map[string]bool)
+	for _, schema := range d.from.schemas {
+		for _, table := range schema.Tables {
+			target := d.to.table(schema.Name, table.Name)
 			for _, column := range table.Columns {
+				if target != nil && findColumn(target, column.Name) != nil {
+					continue
+				}
 				for _, name := range calledFunctions(column.Default) {
-					calledByDropped[name] = true
+					late[name] = true
 				}
 			}
 			for _, check := range table.CheckConstraints {
 				for _, name := range calledFunctions(check.Expression) {
-					calledByDropped[name] = true
+					late[name] = true
 				}
 			}
 		}
 	}
 	for _, schema := range d.from.schemas {
 		for _, function := range schema.Functions {
-			if findFunction(d.to.byName[schema.Name], metadataFuncIdentity(function)) != nil {
+			recreated := d.recreated[getObjectID(schema.Name, metadataFuncIdentity(function))]
+			if !recreated && findFunction(d.to.byName[schema.Name], metadataFuncIdentity(function)) != nil {
 				continue
 			}
 			kind := "FUNCTION"
@@ -851,13 +963,68 @@ func (d *differ) diffRoutines() {
 				kind = "PROCEDURE"
 			}
 			phase := phaseDropRoutinesFirst
-			if calledByDropped[function.Name] || calledByDropped[schema.Name+"."+function.Name] {
+			if late[function.Name] || late[schema.Name+"."+function.Name] {
 				phase = phaseDropRoutines
 			}
-			d.add(phase, MigrationOp{Type: OpDropFunction, SchemaName: schema.Name, ObjectName: function.Name,
+			typ := OpDropFunction
+			if recreated {
+				typ = OpAlterFunction
+			}
+			d.add(phase, MigrationOp{Type: typ, SchemaName: schema.Name, ObjectName: function.Name,
 				SQL: fmt.Sprintf("DROP %s %s.%s", kind, quoteIdent(schema.Name), routineSignature(function))})
 		}
 	}
+}
+
+// routineRelations returns the relations a routine's body names, by object ID.
+func routineRelations(definition string) []string {
+	stmt, err := parseOne(strings.TrimSuffix(strings.TrimSpace(definition), ";"))
+	if err != nil {
+		return nil
+	}
+	routine, ok := stmt.(*tree.CreateRoutine)
+	if !ok {
+		return nil
+	}
+	var relations []string
+	ctx := tree.NewFmtCtx(tree.FmtSimple, tree.FmtReformatTableNames(func(ctx *tree.FmtCtx, tn *tree.TableName) {
+		relations = append(relations, getObjectID(schemaOf(tn), string(tn.ObjectName)))
+		ctx.WithReformatTableNames(nil, func() { ctx.FormatNode(tn) })
+	}))
+	defer ctx.Close()
+	language := ""
+	for _, option := range routine.Options {
+		if l, ok := option.(tree.RoutineLanguage); ok {
+			language = strings.ToLower(string(l))
+		}
+	}
+	for _, option := range routine.Options {
+		body, ok := option.(tree.RoutineBodyStr)
+		if !ok {
+			continue
+		}
+		switch language {
+		case "sql":
+			if stmts, err := crparser.Parse(string(body)); err == nil {
+				for _, s := range stmts {
+					ctx.FormatNode(s.AST)
+				}
+			}
+		case "plpgsql":
+			if block, err := plpgsqlparser.Parse(string(body)); err == nil {
+				ctx.FormatNode(block.AST)
+			}
+		}
+	}
+	return relations
+}
+
+// schemaOf returns a table name's schema, public when it names none.
+func schemaOf(name *tree.TableName) string {
+	if name.ExplicitSchema {
+		return string(name.SchemaName)
+	}
+	return "public"
 }
 
 // routineSignature is a routine's synced signature with its name quoted.
@@ -881,7 +1048,7 @@ func findFunction(schema *metadatapb.SchemaMetadata, identity string) *metadatap
 // materialized views, and the new routines, each after what it depends on,
 // and replaces the routines whose definition changes.
 func (d *differ) createObjects() {
-	r := renderer{database: d.to.database}
+	r := d.r
 	var schemas []*metadatapb.SchemaMetadata
 	for _, schema := range d.to.schemas {
 		old := d.from.byName[schema.Name]
@@ -903,7 +1070,7 @@ func (d *differ) createObjects() {
 		}
 		for _, function := range schema.Functions {
 			oldFunction := findFunction(old, metadataFuncIdentity(function))
-			if oldFunction == nil || routineDefinition(oldFunction.Definition, d.from.database) != routineDefinition(function.Definition, d.to.database) {
+			if oldFunction == nil || d.recreated[getObjectID(schema.Name, metadataFuncIdentity(function))] || routineDefinition(oldFunction.Definition, d.from.database) != routineDefinition(function.Definition, d.to.database) {
 				subset.Functions = append(subset.Functions, function)
 			}
 		}
@@ -915,7 +1082,10 @@ func (d *differ) createObjects() {
 		case object.function != nil:
 			typ := OpCreateFunction
 			definition := r.routine(object.function)
-			if findFunction(d.from.byName[object.schema], metadataFuncIdentity(object.function)) != nil {
+			switch {
+			case d.recreated[getObjectID(object.schema, metadataFuncIdentity(object.function))]:
+				typ = OpAlterFunction
+			case findFunction(d.from.byName[object.schema], metadataFuncIdentity(object.function)) != nil:
 				typ = OpAlterFunction
 				definition = replaceRoutine(definition)
 			}

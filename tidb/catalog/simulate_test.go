@@ -79,8 +79,23 @@ var simulationFamilies = []string{
 	"CREATE VIEW ", "CREATE OR ", "CREATE ALGORITHM ", "CREATE DEFINER ", "CREATE SQL ", "DROP VIEW ",
 }
 
+// simulationExcluded are statements a family's leading words reach that change
+// nothing in the database a row reads back: CREATE OR REPLACE PLACEMENT POLICY
+// makes a server-wide policy.
+var simulationExcluded = []string{"CREATE OR REPLACE PLACEMENT "}
+
+// sessionOnly are the words of a statement whose effect lives in the session:
+// a hypothetical index (USING HYPO, TYPE HYPO) is kept in the session's
+// variables, outlives DROP DATABASE there, and shows in every later SHOW CREATE
+// TABLE of a table of that name, so a row after it on the connection would
+// read it back (measured on v8.5.5).
+var sessionOnly = []string{"USING HYPO", "TYPE HYPO"}
+
 func simulated(statement string) bool {
-	return slices.ContainsFunc(simulationFamilies, func(words string) bool { return strings.HasPrefix(statement, words) })
+	has := func(words string) bool { return strings.HasPrefix(statement, words) }
+	holds := func(words string) bool { return strings.Contains(statement, words) }
+	return slices.ContainsFunc(simulationFamilies, has) && !slices.ContainsFunc(simulationExcluded, has) &&
+		!slices.ContainsFunc(sessionOnly, holds)
 }
 
 // simulationDatabase holds every row's fixture, on the server and in omni.

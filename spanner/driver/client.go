@@ -42,9 +42,8 @@ type client interface {
 	UpdateDatabaseDdl(ctx context.Context, database string, statements []string) error
 	// CreateDatabase creates a database in instancePath from createStatement,
 	// applies extra as its extra DDL statements, and waits for the operation.
-	// dialect is the dialect the statement is written in: POSTGRESQL, or empty
-	// for the admin API's own, GoogleSQL.
-	CreateDatabase(ctx context.Context, instancePath, createStatement string, extra []string, dialect string) error
+	// The database is GoogleSQL, the admin API's default dialect.
+	CreateDatabase(ctx context.Context, instancePath, createStatement string, extra []string) error
 	// GetDatabaseDdl returns database's DDL statements, in the order the server
 	// holds them.
 	GetDatabaseDdl(ctx context.Context, database string) ([]string, error)
@@ -96,9 +95,16 @@ type Database struct {
 const (
 	// DialectGoogleSQL is Spanner's own dialect, and the admin API's default.
 	DialectGoogleSQL = "GOOGLE_STANDARD_SQL"
-	// DialectPostgresSQL is the database's PostgreSQL dialect.
+	// DialectPostgresSQL is the database's PostgreSQL dialect, which this
+	// driver does not serve.
 	DialectPostgresSQL = "POSTGRESQL"
 )
+
+// errPostgres is the refusal of a PostgreSQL-dialect database: omni parses
+// Spanner's GoogleSQL dialect only.
+func errPostgres(database string) error {
+	return fmt.Errorf("spanner database %q uses the PostgreSQL dialect, which is not supported; only GoogleSQL databases are", database)
+}
 
 // Reader reads one snapshot of a database.
 type Reader interface {
@@ -344,18 +350,12 @@ func (c *liveClient) UpdateDatabaseDdl(ctx context.Context, database string, sta
 }
 
 // CreateDatabase creates a database and waits for it to exist.
-func (c *liveClient) CreateDatabase(ctx context.Context, instancePath, createStatement string, extra []string, dialect string) error {
-	request := &databasepb.CreateDatabaseRequest{
+func (c *liveClient) CreateDatabase(ctx context.Context, instancePath, createStatement string, extra []string) error {
+	op, err := c.admin.CreateDatabase(ctx, &databasepb.CreateDatabaseRequest{
 		Parent:          instancePath,
 		CreateStatement: createStatement,
 		ExtraStatements: extra,
-	}
-	// An empty dialect leaves the API's own, GoogleSQL, so a GoogleSQL creation
-	// asks what the driver asked before PostgreSQL was supported.
-	if dialect == DialectPostgresSQL {
-		request.DatabaseDialect = databasepb.DatabaseDialect_POSTGRESQL
-	}
-	op, err := c.admin.CreateDatabase(ctx, request)
+	})
 	if err != nil {
 		return err
 	}

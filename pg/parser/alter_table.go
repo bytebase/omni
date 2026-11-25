@@ -208,10 +208,6 @@ func (p *Parser) parseAlterIndex(alterLoc int) (nodes.Node, error) {
 		}, nil
 	}
 
-	if p.isSpannerPG() {
-		return nil, p.syntaxErrorAtCur()
-	}
-
 	cmds, err := p.parseAlterTableCmds()
 	if err != nil {
 		return nil, err
@@ -879,17 +875,6 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		return nil, nil
 	}
 
-	if p.isSpannerPG() && p.isSpannerIdent("ttl") && p.peekNext().Type == INTERVAL {
-		ttl, err := p.parseSpannerTTLClause()
-		if err != nil {
-			return nil, err
-		}
-		return &nodes.AlterTableCmd{
-			Subtype: int(nodes.AT_SpannerAddTTL),
-			Def:     ttl,
-		}, nil
-	}
-
 	if p.startsTableConstraint() {
 		// ADD TableConstraint
 		constr, err := p.parseTableConstraint()
@@ -972,21 +957,6 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		return nil, nil
 	}
 
-	if p.isSpannerPG() {
-		if p.isSpannerIdent("ttl") && p.peekNext().Type != CASCADE && p.peekNext().Type != RESTRICT {
-			p.advance() // consume TTL
-			return &nodes.AlterTableCmd{
-				Subtype: int(nodes.AT_SpannerDropTTL),
-			}, nil
-		}
-		if p.isSpannerIdent("interleave") && p.peekNext().Type != CASCADE && p.peekNext().Type != RESTRICT {
-			p.advance() // consume INTERLEAVE
-			return &nodes.AlterTableCmd{
-				Subtype: int(nodes.AT_SpannerDropInterleave),
-			}, nil
-		}
-	}
-
 	subtype := nodes.AT_DropColumn
 	switch p.cur.Type {
 	case COLUMN:
@@ -1047,17 +1017,6 @@ func (p *Parser) parseAlterTableAlter() (*nodes.AlterTableCmd, error) {
 	if hasColumnKeyword && p.collectMode() {
 		p.addRuleCandidate("columnref")
 		return nil, nil
-	}
-
-	if !hasColumnKeyword && p.isSpannerPG() && p.isSpannerIdent("ttl") && p.peekNext().Type == INTERVAL {
-		ttl, err := p.parseSpannerTTLClause()
-		if err != nil {
-			return nil, err
-		}
-		return &nodes.AlterTableCmd{
-			Subtype: int(nodes.AT_SpannerAlterTTL),
-			Def:     ttl,
-		}, nil
 	}
 
 	// Check for ALTER CONSTRAINT (no column involved)
@@ -1259,9 +1218,6 @@ func (p *Parser) parseAlterColumnSet(colname string) (*nodes.AlterTableCmd, erro
 			Def:     &nodes.String{Str: compVal},
 		}, nil
 	case EXPRESSION:
-		if p.isSpannerPG() {
-			return nil, p.syntaxErrorAtCur()
-		}
 		// SET EXPRESSION AS '(' a_expr ')'
 		p.advance()
 		if _, err := p.expect(AS); err != nil {
@@ -1756,7 +1712,7 @@ func (p *Parser) parseAlterTableSet() (*nodes.AlterTableCmd, error) {
 		if _, err := p.expect(METHOD); err != nil {
 			return nil, err
 		}
-		if p.cur.Type == DEFAULT && !p.isSpannerPG() {
+		if p.cur.Type == DEFAULT {
 			p.advance()
 			return &nodes.AlterTableCmd{
 				Subtype: int(nodes.AT_SetAccessMethod),
@@ -1793,39 +1749,8 @@ func (p *Parser) parseAlterTableSet() (*nodes.AlterTableCmd, error) {
 		p.advance()
 		return p.parseAlterTableNamedCmd(nodes.AT_SetTableSpace)
 	case ON:
-		if p.isSpannerPG() {
-			p.advance() // consume ON
-			if _, err := p.expect(DELETE_P); err != nil {
-				return nil, err
-			}
-			action, err := p.parseSpannerOnDeleteAction()
-			if err != nil {
-				return nil, err
-			}
-			return &nodes.AlterTableCmd{
-				Subtype: int(nodes.AT_SpannerSetOnDelete),
-				Def:     &nodes.String{Str: string(action)},
-			}, nil
-		}
 		return nil, p.syntaxErrorAtCur()
 	default:
-		if p.isSpannerPG() && p.isSpannerIdent("interleave") {
-			interleave, err := p.parseSpannerTableInterleave(false)
-			if err != nil {
-				return nil, err
-			}
-			return &nodes.AlterTableCmd{
-				Subtype: int(nodes.AT_SpannerSetInterleave),
-				Def:     interleave,
-			}, nil
-		}
-		if p.isSpannerPG() && (p.cur.Type == 0 || p.cur.Type == ';' || p.cur.Type == ',') {
-			// Spanner-PG's modified alter_table_cmd grammar permits a bare SET
-			// subcommand when terminated by ',', ';', or EOF.
-			return &nodes.AlterTableCmd{
-				Subtype: int(nodes.AT_SpannerSetEmpty),
-			}, nil
-		}
 		// exhaustive-gap fix: SET <unknown>. No legal SET alternative matched.
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -2036,7 +1961,7 @@ func (p *Parser) parseGeneratedWhen() (byte, error) {
 //
 //	set_statistics_value: SignedIconst | DEFAULT
 func (p *Parser) parseSetStatisticsValue() (nodes.Node, error) {
-	if p.cur.Type == DEFAULT && !p.isSpannerPG() {
+	if p.cur.Type == DEFAULT {
 		p.advance()
 		return nil, nil
 	}

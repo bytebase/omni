@@ -58,6 +58,15 @@
 > exec
 | COMMENT ON TABLE fid_new.audit IS e'first;\n\nsecond';
 < ok 0 -
+> exec
+| CREATE TYPE fid_m."Mood" AS ENUM ('ok');
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.moods (id INT8 PRIMARY KEY, m fid_m."Mood" DEFAULT 'ok');
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.rekey (replacement INT8 PRIMARY KEY);
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -292,6 +301,55 @@
 : string
 | fid_m
 : string
+| moods
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+< row
+: string
+| fid_m
+: string
+| moods
+: string
+| m
+: string
+| USER-DEFINED
+: null
+: null
+: null
+: int64 2
+: string
+| 'ok'
+: string
+| YES
+: null
+: string
+| fid_m
+: string
+| Mood
+: null
+: string
+| NO
+< row
+: string
+| fid_m
+: string
 | orders
 : string
 | id
@@ -376,6 +434,30 @@
 : int64 4
 : string
 | 1
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+< row
+: string
+| fid_m
+: string
+| rekey
+: string
+| replacement
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
 : string
 | NO
 : null
@@ -557,11 +639,35 @@
 : string
 | fid_m
 : string
+| moods
+: string
+| moods_pkey
+: string
+| CREATE UNIQUE INDEX moods_pkey ON omni_testmigrationfidelity.fid_m.moods USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | orders
 : string
 | orders_pkey
 : string
 | CREATE UNIQUE INDEX orders_pkey ON omni_testmigrationfidelity.fid_m.orders USING btree (id ASC, line ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| rekey
+: string
+| rekey_pkey
+: string
+| CREATE UNIQUE INDEX rekey_pkey ON omni_testmigrationfidelity.fid_m.rekey USING btree (replacement ASC)
 : string
 | PRIMARY KEY
 : null
@@ -723,7 +829,21 @@
 : string
 | fid_m
 : string
+| moods
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | orders
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| rekey
 : int64 0
 : null
 < row
@@ -861,6 +981,13 @@
 : string
 | fid_m
 : string
+| Mood
+: string
+| ok
+< row
+: string
+| fid_m
+: string
 | level
 : string
 | low
@@ -985,6 +1112,12 @@
 < ok 0 -
 > exec
 | CREATE TABLE fid_m.gone (id INT8 PRIMARY KEY, customer_id INT8 REFERENCES fid_m.customers (id));
+< ok 0 -
+> exec
+| CREATE TYPE fid_m."Mood" AS ENUM ('ok');
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.rekey (id INT8 PRIMARY KEY, replacement INT8 NOT NULL);
 < ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
@@ -1333,6 +1466,54 @@
 : null
 : string
 | NO
+< row
+: string
+| fid_m
+: string
+| rekey
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+< row
+: string
+| fid_m
+: string
+| rekey
+: string
+| replacement
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -1422,6 +1603,18 @@
 | orders_pkey
 : string
 | CREATE UNIQUE INDEX orders_pkey ON omni_testmigrationfidelity.fid_m.orders USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| rekey
+: string
+| rekey_pkey
+: string
+| CREATE UNIQUE INDEX rekey_pkey ON omni_testmigrationfidelity.fid_m.rekey USING btree (id ASC)
 : string
 | PRIMARY KEY
 : null
@@ -1571,6 +1764,13 @@
 | orders
 : int64 0
 : null
+< row
+: string
+| fid_m
+: string
+| rekey
+: int64 0
+: null
 > query
 |
 | SELECT
@@ -1696,6 +1896,13 @@
 : string
 | fid_m
 : string
+| Mood
+: string
+| ok
+< row
+: string
+| fid_m
+: string
 | level
 : string
 | high
@@ -1807,6 +2014,19 @@
 < ok 0 -
 > exec
 | ALTER TABLE "fid_m"."orders" DROP CONSTRAINT "orders_pkey", ADD CONSTRAINT "orders_pkey" PRIMARY KEY (id ASC, line ASC);
+< ok 0 -
+> exec
+| ALTER TABLE "fid_m"."rekey" DROP CONSTRAINT "rekey_pkey", ADD CONSTRAINT "rekey_pkey" PRIMARY KEY (replacement ASC);
+< ok 0 -
+> exec
+| ALTER TABLE "fid_m"."rekey" DROP COLUMN "id";
+< ok 0 -
+> exec
+| CREATE TABLE "fid_m"."moods" (
+|     "id" bigint NOT NULL,
+|     "m" "fid_m"."Mood" DEFAULT 'ok',
+|     CONSTRAINT "moods_pkey" PRIMARY KEY (id ASC)
+| );
 < ok 0 -
 > exec
 | CREATE TABLE "fid_new"."audit" (
@@ -2086,6 +2306,55 @@
 : string
 | fid_m
 : string
+| moods
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+< row
+: string
+| fid_m
+: string
+| moods
+: string
+| m
+: string
+| USER-DEFINED
+: null
+: null
+: null
+: int64 2
+: string
+| 'ok'
+: string
+| YES
+: null
+: string
+| fid_m
+: string
+| Mood
+: null
+: string
+| NO
+< row
+: string
+| fid_m
+: string
 | orders
 : string
 | id
@@ -2170,6 +2439,30 @@
 : int64 4
 : string
 | 1
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+< row
+: string
+| fid_m
+: string
+| rekey
+: string
+| replacement
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
 : string
 | NO
 : null
@@ -2351,11 +2644,35 @@
 : string
 | fid_m
 : string
+| moods
+: string
+| moods_pkey
+: string
+| CREATE UNIQUE INDEX moods_pkey ON omni_testmigrationfidelity.fid_m.moods USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | orders
 : string
 | orders_pkey
 : string
 | CREATE UNIQUE INDEX orders_pkey ON omni_testmigrationfidelity.fid_m.orders USING btree (id ASC, line ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| rekey
+: string
+| rekey_pkey
+: string
+| CREATE UNIQUE INDEX rekey_pkey ON omni_testmigrationfidelity.fid_m.rekey USING btree (replacement ASC)
 : string
 | PRIMARY KEY
 : null
@@ -2517,7 +2834,21 @@
 : string
 | fid_m
 : string
+| moods
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | orders
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| rekey
 : int64 0
 : null
 < row
@@ -2655,6 +2986,13 @@
 : string
 | fid_m
 : string
+| Mood
+: string
+| ok
+< row
+: string
+| fid_m
+: string
 | level
 : string
 | low
@@ -2776,6 +3114,12 @@
 < ok 0 -
 > exec
 | ALTER TABLE fid_v.items ALTER COLUMN bonus SET DEFAULT fid_v.bonus();
+< ok 0 -
+> exec
+| CREATE TABLE fid_v.tagged (id INT8 PRIMARY KEY, v INT8);
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.count_old() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELECT count(*) FROM fid_v.items $$;
 < ok 0 -
 > exec
 | CREATE TABLE fid_v.scored (id INT8 PRIMARY KEY, score INT8 DEFAULT fid_v.add(1, 2));
@@ -3133,6 +3477,54 @@
 : string
 | fid_v
 : string
+| tagged
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+< row
+: string
+| fid_v
+: string
+| tagged
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+< row
+: string
+| fid_v
+: string
 | totals
 : string
 | name
@@ -3276,6 +3668,18 @@
 : string
 | fid_v
 : string
+| tagged
+: string
+| tagged_pkey
+: string
+| CREATE UNIQUE INDEX tagged_pkey ON omni_testmigrationfidelity.fid_v.tagged USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | totals
 : string
 | totals_pkey
@@ -3383,6 +3787,13 @@
 | fid_v
 : string
 | scored
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| tagged
 : int64 0
 : null
 > query
@@ -3723,6 +4134,24 @@
 : string
 | fid_v
 : string
+| count_old
+: string
+| count_old()
+: string
+| CREATE FUNCTION fid_v.count_old()
+| 	RETURNS INT8
+| 	STABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT count(*) FROM omni_testmigrationfidelity.fid_v.items;
+| $$
+< row
+: string
+| fid_v
+: string
 | touch
 : string
 | touch()
@@ -3829,6 +4258,15 @@
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_v.count_items() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELECT count(*) FROM fid_v.items $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_v.tagged (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_v.gone());
+< ok 0 -
+> exec
+| CREATE TABLE fid_v.old_items (id INT8 PRIMARY KEY);
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.count_old() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELECT count(*) FROM fid_v.old_items $$;
 < ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
@@ -4082,6 +4520,30 @@
 : string
 | fid_v
 : string
+| old_items
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+< row
+: string
+| fid_v
+: string
 | priced
 : string
 | id
@@ -4171,6 +4633,55 @@
 | pg_catalog
 : string
 | text
+: null
+: string
+| NO
+< row
+: string
+| fid_v
+: string
+| tagged
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+< row
+: string
+| fid_v
+: string
+| tagged
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_v.gone()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
 : null
 : string
 | NO
@@ -4309,6 +4820,30 @@
 : string
 | fid_v
 : string
+| old_items
+: string
+| old_items_pkey
+: string
+| CREATE UNIQUE INDEX old_items_pkey ON omni_testmigrationfidelity.fid_v.old_items USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
+| tagged
+: string
+| tagged_pkey
+: string
+| CREATE UNIQUE INDEX tagged_pkey ON omni_testmigrationfidelity.fid_v.tagged USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | totals
 : string
 | totals_name_idx
@@ -4409,6 +4944,20 @@
 | fid_v
 : string
 | items
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| old_items
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| tagged
 : int64 0
 : null
 > query
@@ -4731,6 +5280,24 @@
 : string
 | fid_v
 : string
+| count_old
+: string
+| count_old()
+: string
+| CREATE FUNCTION fid_v.count_old()
+| 	RETURNS INT8
+| 	STABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT count(*) FROM omni_testmigrationfidelity.fid_v.old_items;
+| $$
+< row
+: string
+| fid_v
+: string
 | gone
 : string
 | gone()
@@ -4801,6 +5368,21 @@
 > commit
 < ok
 > exec
+| ALTER TABLE "fid_v"."tagged" ALTER COLUMN "v" DROP DEFAULT;
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."add"(int8, int8);
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."count_items"();
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."count_old"();
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."gone"();
+< ok 0 -
+> exec
 | DROP VIEW "fid_v"."priced_names";
 < ok 0 -
 > exec
@@ -4813,7 +5395,7 @@
 | DROP INDEX "fid_v"."totals"@"totals_name_idx";
 < ok 0 -
 > exec
-| DROP FUNCTION "fid_v"."gone"();
+| DROP TABLE "fid_v"."old_items";
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."items" DROP COLUMN "legacy";
@@ -4831,7 +5413,7 @@
 | SELECT name FROM fid_v.priced;
 < ok 0 -
 > exec
-| CREATE OR REPLACE FUNCTION fid_v.add(a INT8, b INT8)
+| CREATE FUNCTION fid_v.add(a INT8, b INT8)
 | 	RETURNS INT8
 | 	IMMUTABLE
 | 	NOT LEAKPROOF
@@ -4862,7 +5444,7 @@
 | $$;
 < ok 0 -
 > exec
-| CREATE OR REPLACE FUNCTION fid_v.count_items()
+| CREATE FUNCTION fid_v.count_items()
 | 	RETURNS INT8
 | 	STABLE
 | 	NOT LEAKPROOF
@@ -4871,6 +5453,18 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | SELECT count(*) FROM fid_v.priced;
+| $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.count_old()
+| 	RETURNS INT8
+| 	STABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| SELECT count(*) FROM fid_v.items;
 | $$;
 < ok 0 -
 > exec
@@ -5244,6 +5838,54 @@
 : string
 | fid_v
 : string
+| tagged
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+< row
+: string
+| fid_v
+: string
+| tagged
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+< row
+: string
+| fid_v
+: string
 | totals
 : string
 | name
@@ -5387,6 +6029,18 @@
 : string
 | fid_v
 : string
+| tagged
+: string
+| tagged_pkey
+: string
+| CREATE UNIQUE INDEX tagged_pkey ON omni_testmigrationfidelity.fid_v.tagged USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | totals
 : string
 | totals_pkey
@@ -5494,6 +6148,13 @@
 | fid_v
 : string
 | scored
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| tagged
 : int64 0
 : null
 > query
@@ -5829,6 +6490,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT count(*) FROM omni_testmigrationfidelity.fid_v.priced;
+| $$
+< row
+: string
+| fid_v
+: string
+| count_old
+: string
+| count_old()
+: string
+| CREATE FUNCTION fid_v.count_old()
+| 	RETURNS INT8
+| 	STABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT count(*) FROM omni_testmigrationfidelity.fid_v.items;
 | $$
 < row
 : string

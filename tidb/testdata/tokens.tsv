@@ -8,6 +8,47 @@
 # where their own alternative's row reaches (see grammar.EverySite).
 IfNotExists	(every site)	IF NOT EXISTS
 IfExists	(every site)	IF EXISTS
+OrReplace	(every alternative)	parser.y:5125 OR REPLACE
+
+# Keyword choices tried at every site that names them, and not only where
+# their own alternatives' rows reach (see grammar.EveryAlternative).
+WithClustered	(every alternative)	parser.y:2812 CLUSTERED or NONCLUSTERED
+GlobalOrLocalOpt	(every alternative)	parser.y:2822 LOCAL or GLOBAL
+AlgorithmClause	(every alternative)	parser.y:2835 ALGORITHM = DEFAULT, COPY, INPLACE, INSTANT or a name
+LockClause	(every alternative)	parser.y:2858 LOCK = DEFAULT or a name
+KeyOrIndex	(every alternative)	parser.y:2889 KEY or INDEX
+EnforcedOrNot	(every alternative)	parser.y:3620 ENFORCED or NOT ENFORCED
+ReferOpt	(every alternative)	parser.y:4017 a foreign key's referential action
+BindingStatusType	(every alternative)	parser.y:4194 ENABLED or DISABLED
+DuplicateOpt	(every alternative)	parser.y:5013 IGNORE or REPLACE
+RestrictOrCascadeOpt	(every alternative)	parser.y:5441 RESTRICT or CASCADE
+TableOrTables	(every alternative)	parser.y:5446 TABLE or TABLES
+ExplainSym	(every alternative)	parser.y:5501 EXPLAIN, DESCRIBE or DESC
+OptionLevel	(every alternative)	parser.y:6075 OFF, OPTIONAL or REQUIRED
+RegexpSym	(every alternative)	parser.y:6449 REGEXP or RLIKE
+IndexTypeName	(every alternative)	parser.y:6741 BTREE, HASH, RTREE, HYPO or HNSW
+IndexInvisible	(every alternative)	parser.y:6763 VISIBLE or INVISIBLE
+ValueSym	(every alternative)	parser.y:7480 VALUE or VALUES
+OptOrder	(every alternative)	parser.y:7748 ASC or DESC
+DistinctKwd	(every alternative)	parser.y:8073 DISTINCT or DISTINCTROW
+TrimDirection	(every alternative)	parser.y:8423 BOTH, LEADING or TRAILING
+Priority	(every alternative)	parser.y:9046 LOW_PRIORITY, HIGH_PRIORITY or DELAYED
+OptNullTreatment	(every alternative)	parser.y:9845 RESPECT NULLS or IGNORE NULLS
+JoinType	(every alternative)	parser.y:10086 LEFT or RIGHT
+CrossOpt	(every alternative)	parser.y:10100 JOIN, CROSS JOIN or INNER JOIN
+ShowIndexKwd	(every alternative)	parser.y:11832 INDEX, INDEXES or KEYS
+FromOrIn	(every alternative)	parser.y:11837 FROM or IN
+GlobalScope	(every alternative)	parser.y:12089 GLOBAL or SESSION
+NoWriteToBinLogAliasOpt	(every alternative)	parser.y:12239 NO_WRITE_TO_BINLOG or LOCAL
+OptInteger	(every alternative)	parser.y:13049 INTEGER or INT
+Char	(every alternative)	parser.y:13290 CHARACTER or CHAR
+NChar	(every alternative)	parser.y:13294 NCHAR, NATIONAL CHARACTER or NATIONAL CHAR
+Varchar	(every alternative)	parser.y:13299 CHARACTER VARYING, CHAR VARYING, VARCHAR or VARCHARACTER
+CharsetKw	(every alternative)	parser.y:13556 CHARACTER SET, CHARSET or CHAR SET
+ObjectType	(every alternative)	parser.y:14710 TABLE, FUNCTION or PROCEDURE
+FieldsOrColumns	(every alternative)	parser.y:14931 FIELDS or COLUMNS
+TablesTerminalSym	(every alternative)	parser.y:15187 TABLES or TABLE
+KillOrKillTiDB	(every alternative)	parser.y:15321 KILL or KILL TIDB
 
 identifier	ident
 stringLit	'binary'	a string that is also a charset and a collation: TiDB looks those names up while parsing, and an unknown one answers before a later syntax error
