@@ -717,13 +717,10 @@ func TestGetQuerySpan_SetOpMergesBothArms(t *testing.T) {
 	}
 }
 
-// TestGetQuerySpan_ScalarSubqueryInSelectListIsOpaque pins the SELECT-list
-// scalar-subquery lineage shape: the subquery's projected columns are NOT
-// surfaced as the output column's direct sources (the column is treated as
-// opaque, matching the restored BigQuery goldens — a SELECT-list `(SELECT c FROM
-// u)` yields an empty source set). Its inner tables and correlation predicates
-// are still discovered by the walk.
-func TestGetQuerySpan_ScalarSubqueryInSelectListIsOpaque(t *testing.T) {
+// TestGetQuerySpan_ScalarSubqueryInSelectList pins the SELECT-list
+// scalar-subquery lineage: the output column reads the subquery's columns.
+// The subquery's tables and correlation predicates are still discovered.
+func TestGetQuerySpan_ScalarSubqueryInSelectList(t *testing.T) {
 	sql := "SELECT (SELECT NAME FROM people), ID FROM people"
 	span, err := GetQuerySpan(sql)
 	if err != nil {
@@ -732,9 +729,8 @@ func TestGetQuerySpan_ScalarSubqueryInSelectListIsOpaque(t *testing.T) {
 	if len(span.Results) != 2 {
 		t.Fatalf("got %d results, want 2", len(span.Results))
 	}
-	// The scalar subquery output column has no direct source columns.
-	if got := resultSourceColumns(span.Results[0]); len(got) != 0 {
-		t.Errorf("scalar-subquery result sources = %v, want empty", got)
+	if got := resultSourceColumns(span.Results[0]); !eqStrings(got, []string{"people.NAME"}) {
+		t.Errorf("scalar-subquery result sources = %v, want [people.NAME]", got)
 	}
 	// The sibling bare column resolves normally.
 	if got := resultSourceColumns(span.Results[1]); !eqStrings(got, []string{"people.ID"}) {

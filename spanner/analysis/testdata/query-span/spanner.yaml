@@ -676,7 +676,7 @@
         table: PAINTINGS
         column: ""
     predicatecolumns: []
-- description: FIXME(zp)Expression subquery
+- description: Expression subquery
   statement: SELECT (SELECT Name FROM Customers), ID FROM Customers;
   defaultDatabase: maskingdb
   metadata: |-
@@ -705,7 +705,12 @@
     type: 1
     results:
       - name: ""
-        sourcecolumns: []
+        sourcecolumns:
+          - server: ""
+            database: maskingdb
+            schema: ""
+            table: Customers
+            column: Name
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
@@ -2393,7 +2398,12 @@
     type: 1
     results:
       - name: ""
-        sourcecolumns: []
+        sourcecolumns:
+          - server: ""
+            database: spannerdb
+            schema: ""
+            table: users
+            column: email
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
@@ -2444,7 +2454,12 @@
         sourcefieldpaths: []
         selectasterisk: false
       - name: owner_ssn
-        sourcecolumns: []
+        sourcecolumns:
+          - server: ""
+            database: spannerdb
+            schema: ""
+            table: users
+            column: ssn
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false

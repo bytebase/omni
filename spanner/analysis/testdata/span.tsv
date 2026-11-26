@@ -124,10 +124,10 @@ Status	Status	engine	shop	default	results	SELECT Status FROM Orders@{FORCE_INDEX
 Orders.Status	~	engine	shop	default	lineage	SELECT Status FROM Orders@{FORCE_INDEX=_BASE_TABLE}
 Orders	Orders	engine	shop	default	tables	SELECT Status FROM Orders@{FORCE_INDEX=_BASE_TABLE}
 Name, top	Name, top	engine	shop	default	results	SELECT Name, (SELECT MAX(Amount) FROM Orders) AS top FROM Customers
-Customers.Name | -	~ | ~	engine	shop	default	lineage	SELECT Name, (SELECT MAX(Amount) FROM Orders) AS top FROM Customers
+Customers.Name | Orders.Amount	~ | ~	engine	shop	default	lineage	SELECT Name, (SELECT MAX(Amount) FROM Orders) AS top FROM Customers
 Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT Name, (SELECT MAX(Amount) FROM Orders) AS top FROM Customers
 Name, top	Name, top	engine	shop	default	results	SELECT Name, (SELECT MAX(o.Amount) FROM Orders o WHERE o.CustomerId = c.CustomerId) AS top FROM Customers c
-Customers.Name | -	~ | ~	engine	shop	default	lineage	SELECT Name, (SELECT MAX(o.Amount) FROM Orders o WHERE o.CustomerId = c.CustomerId) AS top FROM Customers c
+Customers.Name | Orders.Amount	~ | ~	engine	shop	default	lineage	SELECT Name, (SELECT MAX(o.Amount) FROM Orders o WHERE o.CustomerId = c.CustomerId) AS top FROM Customers c
 Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT Name, (SELECT MAX(o.Amount) FROM Orders o WHERE o.CustomerId = c.CustomerId) AS top FROM Customers c
 Name	Name	engine	shop	default	results	SELECT Name FROM Customers WHERE CustomerId IN (SELECT CustomerId FROM Orders)
 Customers.Name	~	engine	shop	default	lineage	SELECT Name FROM Customers WHERE CustomerId IN (SELECT CustomerId FROM Orders)
@@ -145,10 +145,10 @@ Name	Name	engine	shop	default	results	SELECT Name FROM Customers WHERE Region = 
 Customers.Name	~	engine	shop	default	lineage	SELECT Name FROM Customers WHERE Region = (SELECT Region FROM sales.Targets ORDER BY Goal DESC LIMIT 1)
 Customers, sales.Targets	Customers, sales.Targets	engine	shop	default	tables	SELECT Name FROM Customers WHERE Region = (SELECT Region FROM sales.Targets ORDER BY Goal DESC LIMIT 1)
 ids	ids	engine	shop	default	results	SELECT ARRAY(SELECT OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId) AS ids FROM Customers c
--	~	engine	shop	default	lineage	SELECT ARRAY(SELECT OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId) AS ids FROM Customers c
+Orders.OrderId	~	engine	shop	default	lineage	SELECT ARRAY(SELECT OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId) AS ids FROM Customers c
 Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT ARRAY(SELECT OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId) AS ids FROM Customers c
 Name, orders	Name, orders	engine	shop	default	results	SELECT Name, ARRAY(SELECT AS STRUCT o.OrderId, o.Amount FROM Orders o WHERE o.CustomerId = c.CustomerId) AS orders FROM Customers c
-Customers.Name | -	~ | ~	engine	shop	default	lineage	SELECT Name, ARRAY(SELECT AS STRUCT o.OrderId, o.Amount FROM Orders o WHERE o.CustomerId = c.CustomerId) AS orders FROM Customers c
+Customers.Name | Orders.Amount Orders.OrderId	~ | ~	engine	shop	default	lineage	SELECT Name, ARRAY(SELECT AS STRUCT o.OrderId, o.Amount FROM Orders o WHERE o.CustomerId = c.CustomerId) AS orders FROM Customers c
 Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT Name, ARRAY(SELECT AS STRUCT o.OrderId, o.Amount FROM Orders o WHERE o.CustomerId = c.CustomerId) AS orders FROM Customers c
 CustomerId, Amount	CustomerId, Amount	engine	shop	default	results	WITH big AS (SELECT CustomerId, Amount FROM Orders WHERE Amount > 100) SELECT * FROM big
 Orders.CustomerId | Orders.Amount	~ | ~	engine	shop	default	lineage	WITH big AS (SELECT CustomerId, Amount FROM Orders WHERE Amount > 100) SELECT * FROM big
@@ -313,7 +313,7 @@ Customers	error:Unimplemented	engine	shop	default	tables	SELECT AS STRUCT Custom
 Customers.CustomerId	error:Unimplemented	engine	shop	default	lineage	SELECT AS VALUE STRUCT(CustomerId AS id) FROM Customers
 Customers	error:Unimplemented	engine	shop	default	tables	SELECT AS VALUE STRUCT(CustomerId AS id) FROM Customers
 OrderId	OrderId	engine	shop	default	results	SELECT e.OrderId FROM Customers c, UNNEST(ARRAY(SELECT AS STRUCT o.OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId)) AS e
--	~	engine	shop	default	lineage	SELECT e.OrderId FROM Customers c, UNNEST(ARRAY(SELECT AS STRUCT o.OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId)) AS e
+Orders.OrderId	~	engine	shop	default	lineage	SELECT e.OrderId FROM Customers c, UNNEST(ARRAY(SELECT AS STRUCT o.OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId)) AS e
 Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT e.OrderId FROM Customers c, UNNEST(ARRAY(SELECT AS STRUCT o.OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId)) AS e
 Name	Name	engine	shop	default	results	SELECT Name FROM Customers TABLESAMPLE BERNOULLI (10 PERCENT)
 Customers.Name	~	engine	shop	default	lineage	SELECT Name FROM Customers TABLESAMPLE BERNOULLI (10 PERCENT)

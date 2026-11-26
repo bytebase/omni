@@ -366,6 +366,10 @@ type spanWalker struct {
 	// recursiveWiths records, for each node scanned by holdsRecursiveWith,
 	// whether its subtree holds a WITH RECURSIVE clause.
 	recursiveWiths map[ast.Node]bool
+	// subqueryCols holds the projection of each expression subquery the walk
+	// visited, so the select item holding a scalar or ARRAY subquery reads the
+	// subquery's columns (subquerySources).
+	subqueryCols map[ast.Node][]projColumn
 }
 
 // failClosed records a fail-closed condition (first one wins).
@@ -1227,13 +1231,10 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 		}
 	}
 
-	// Resolve the select list against the FROM relations (relation-aware lineage),
-	// then walk each item for nested-subquery tables (the direct refs are resolved
-	// by the projection resolver; the subquery walk only discovers tables).
-	var results []projColumn
-	if !w.tablesOnly {
-		results = w.resolveSelectProjection(stmt, fromRels)
-	}
+	// Walk each select item's subqueries for their tables and projections, then
+	// resolve the select list against the FROM relations (relation-aware
+	// lineage), where a scalar or ARRAY subquery reads the projection the walk
+	// kept.
 	for _, item := range stmt.Items {
 		if item == nil {
 			continue
@@ -1247,7 +1248,10 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 			}
 		}
 	}
-	return results
+	if w.tablesOnly {
+		return nil
+	}
+	return w.resolveSelectProjection(stmt, fromRels)
 }
 
 // ---------------------------------------------------------------------------
@@ -2206,10 +2210,13 @@ func (w *spanWalker) walkWindowSpec(spec *ast.WindowSpec) {
 // collecting a select item's DIRECT columns, which must not cross a subquery
 // boundary).
 type exprWalk struct {
-	w         *spanWalker
-	onColumn  func(ColumnRef)
-	onParts   func([]string) // raw dotted-name parts of a column reference (for relation-aware resolution); nil to ignore
-	followSub bool
+	w        *spanWalker
+	onColumn func(ColumnRef)
+	onParts  func([]string) // raw dotted-name parts of a column reference (for relation-aware resolution); nil to ignore
+	// onSubquery receives the body of each scalar or ARRAY subquery whose
+	// value the expression holds (not an EXISTS); nil to ignore.
+	onSubquery func(ast.Node)
+	followSub  bool
 }
 
 // walk is the shared expression traversal over the googlesql expression AST. It
@@ -2248,10 +2255,12 @@ func (ew *exprWalk) walk(node ast.Node) {
 	// --- Subquery bodies (parsed into real QueryStmt by the parser) ---
 	case *ast.SubqueryExpr:
 		ew.followSubquery(e.Query)
+		ew.emitSubquery(e.Query)
 	case *ast.ExistsExpr:
 		ew.followSubquery(e.Query)
 	case *ast.ArraySubqueryExpr:
 		ew.followSubquery(e.Query)
+		ew.emitSubquery(e.Query)
 
 	// --- Composite expressions: recurse into children ---
 	case *ast.ParenExpr:
@@ -2396,6 +2405,12 @@ func (ew *exprWalk) emitParts(parts []string) {
 	ew.onParts(append([]string{}, parts...))
 }
 
+func (ew *exprWalk) emitSubquery(query ast.Node) {
+	if ew.onSubquery != nil && query != nil {
+		ew.onSubquery(query)
+	}
+}
+
 // followSubquery recurses into a parsed subquery body when this pass follows
 // subqueries. The body is a *QueryStmt (or set-op / select) the parser already
 // filled, so the walk reaches it directly.
@@ -2403,10 +2418,16 @@ func (ew *exprWalk) followSubquery(query ast.Node) {
 	if !ew.followSub || query == nil {
 		return
 	}
-	// A subquery in an expression position is walked for its tables/predicates;
-	// its output columns are discarded (a SELECT-list scalar subquery is opaque
-	// to lineage — see makeColumnInfo).
-	ew.w.visitBody(query)
+	// A subquery in an expression position is walked for its tables and
+	// predicates, and its projection is kept for the expression's lineage
+	// (subquerySources).
+	cols := ew.w.visitBody(query)
+	if !ew.w.tablesOnly {
+		if ew.w.subqueryCols == nil {
+			ew.w.subqueryCols = map[ast.Node][]projColumn{}
+		}
+		ew.w.subqueryCols[query] = cols
+	}
 }
 
 // walkGraph walks a graph subquery's or graph expression's internals as a
