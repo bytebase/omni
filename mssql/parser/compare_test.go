@@ -95,13 +95,13 @@ func TestParseBasicSelect(t *testing.T) {
 // TestParseComparison tests comparison operators.
 func TestParseComparison(t *testing.T) {
 	tests := []string{
-		"SELECT 1 = 2",
-		"SELECT 1 <> 2",
-		"SELECT 1 != 2",
-		"SELECT 1 < 2",
-		"SELECT 1 > 2",
-		"SELECT 1 <= 2",
-		"SELECT 1 >= 2",
+		"SELECT 1 WHERE 1 = 2",
+		"SELECT 1 WHERE 1 <> 2",
+		"SELECT 1 WHERE 1 != 2",
+		"SELECT 1 WHERE 1 < 2",
+		"SELECT 1 WHERE 1 > 2",
+		"SELECT 1 WHERE 1 <= 2",
+		"SELECT 1 WHERE 1 >= 2",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -129,8 +129,8 @@ func TestParseBoolean(t *testing.T) {
 // TestParseIsNull tests IS NULL / IS NOT NULL.
 func TestParseIsNull(t *testing.T) {
 	tests := []string{
-		"SELECT NULL IS NULL",
-		"SELECT 1 IS NOT NULL",
+		"SELECT 1 WHERE NULL IS NULL",
+		"SELECT 1 WHERE 1 IS NOT NULL",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -142,8 +142,8 @@ func TestParseIsNull(t *testing.T) {
 // TestParseBetween tests BETWEEN expressions.
 func TestParseBetween(t *testing.T) {
 	tests := []string{
-		"SELECT 5 BETWEEN 1 AND 10",
-		"SELECT 5 NOT BETWEEN 1 AND 10",
+		"SELECT 1 WHERE 5 BETWEEN 1 AND 10",
+		"SELECT 1 WHERE 5 NOT BETWEEN 1 AND 10",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -155,8 +155,8 @@ func TestParseBetween(t *testing.T) {
 // TestParseIn tests IN expressions.
 func TestParseIn(t *testing.T) {
 	tests := []string{
-		"SELECT 1 IN (1, 2, 3)",
-		"SELECT 1 NOT IN (1, 2, 3)",
+		"SELECT 1 WHERE 1 IN (1, 2, 3)",
+		"SELECT 1 WHERE 1 NOT IN (1, 2, 3)",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -168,8 +168,8 @@ func TestParseIn(t *testing.T) {
 // TestParseLike tests LIKE expressions.
 func TestParseLike(t *testing.T) {
 	tests := []string{
-		"SELECT 'foo' LIKE 'f%'",
-		"SELECT 'foo' NOT LIKE 'f%'",
+		"SELECT 1 WHERE 'foo' LIKE 'f%'",
+		"SELECT 1 WHERE 'foo' NOT LIKE 'f%'",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -816,15 +816,15 @@ func TestParseExpressions(t *testing.T) {
 
 	t.Run("comparison", func(t *testing.T) {
 		tests := []string{
-			"SELECT 1 = 1",
-			"SELECT 1 <> 2",
-			"SELECT 1 != 2",
-			"SELECT 1 < 2",
-			"SELECT 1 > 2",
-			"SELECT 1 <= 2",
-			"SELECT 1 >= 2",
-			"SELECT 1 !< 2",
-			"SELECT 1 !> 2",
+			"SELECT 1 WHERE 1 = 1",
+			"SELECT 1 WHERE 1 <> 2",
+			"SELECT 1 WHERE 1 != 2",
+			"SELECT 1 WHERE 1 < 2",
+			"SELECT 1 WHERE 1 > 2",
+			"SELECT 1 WHERE 1 <= 2",
+			"SELECT 1 WHERE 1 >= 2",
+			"SELECT 1 WHERE 1 !< 2",
+			"SELECT 1 WHERE 1 !> 2",
 		}
 		for _, sql := range tests {
 			t.Run(sql, func(t *testing.T) {
@@ -851,17 +851,16 @@ func TestParseExpressions(t *testing.T) {
 
 	t.Run("between", func(t *testing.T) {
 		tests := []string{
-			"SELECT 5 BETWEEN 1 AND 10",
-			"SELECT 5 NOT BETWEEN 1 AND 10",
+			"SELECT 1 WHERE 5 BETWEEN 1 AND 10",
+			"SELECT 1 WHERE 5 NOT BETWEEN 1 AND 10",
 		}
 		for _, sql := range tests {
 			t.Run(sql, func(t *testing.T) {
 				result := ParseAndCheck(t, sql)
 				stmt := result.Items[0].(*ast.SelectStmt)
-				target := stmt.TargetList.Items[0].(*ast.ResTarget)
-				_, ok := target.Val.(*ast.BetweenExpr)
+				_, ok := stmt.WhereClause.(*ast.BetweenExpr)
 				if !ok {
-					t.Fatalf("expected *BetweenExpr, got %T", target.Val)
+					t.Fatalf("expected *BetweenExpr, got %T", stmt.WhereClause)
 				}
 			})
 		}
@@ -869,17 +868,16 @@ func TestParseExpressions(t *testing.T) {
 
 	t.Run("in", func(t *testing.T) {
 		tests := []string{
-			"SELECT 1 IN (1, 2, 3)",
-			"SELECT 1 NOT IN (1, 2, 3)",
+			"SELECT 1 WHERE 1 IN (1, 2, 3)",
+			"SELECT 1 WHERE 1 NOT IN (1, 2, 3)",
 		}
 		for _, sql := range tests {
 			t.Run(sql, func(t *testing.T) {
 				result := ParseAndCheck(t, sql)
 				stmt := result.Items[0].(*ast.SelectStmt)
-				target := stmt.TargetList.Items[0].(*ast.ResTarget)
-				_, ok := target.Val.(*ast.InExpr)
+				_, ok := stmt.WhereClause.(*ast.InExpr)
 				if !ok {
-					t.Fatalf("expected *InExpr, got %T", target.Val)
+					t.Fatalf("expected *InExpr, got %T", stmt.WhereClause)
 				}
 			})
 		}
@@ -887,9 +885,9 @@ func TestParseExpressions(t *testing.T) {
 
 	t.Run("like", func(t *testing.T) {
 		tests := []string{
-			"SELECT 'foo' LIKE 'f%'",
-			"SELECT 'foo' NOT LIKE 'f%'",
-			"SELECT 'foo' LIKE 'f%' ESCAPE '\\'",
+			"SELECT 1 WHERE 'foo' LIKE 'f%'",
+			"SELECT 1 WHERE 'foo' NOT LIKE 'f%'",
+			"SELECT 1 WHERE 'foo' LIKE 'f%' ESCAPE '\\'",
 		}
 		for _, sql := range tests {
 			t.Run(sql, func(t *testing.T) {
@@ -900,17 +898,16 @@ func TestParseExpressions(t *testing.T) {
 
 	t.Run("is_null", func(t *testing.T) {
 		tests := []string{
-			"SELECT NULL IS NULL",
-			"SELECT 1 IS NOT NULL",
+			"SELECT 1 WHERE NULL IS NULL",
+			"SELECT 1 WHERE 1 IS NOT NULL",
 		}
 		for _, sql := range tests {
 			t.Run(sql, func(t *testing.T) {
 				result := ParseAndCheck(t, sql)
 				stmt := result.Items[0].(*ast.SelectStmt)
-				target := stmt.TargetList.Items[0].(*ast.ResTarget)
-				_, ok := target.Val.(*ast.IsExpr)
+				_, ok := stmt.WhereClause.(*ast.IsExpr)
 				if !ok {
-					t.Fatalf("expected *IsExpr, got %T", target.Val)
+					t.Fatalf("expected *IsExpr, got %T", stmt.WhereClause)
 				}
 			})
 		}

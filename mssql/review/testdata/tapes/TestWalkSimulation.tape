@@ -6164,6 +6164,259 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = 1 WHERE a = 2
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = IIF(a IS NULL, 1, a)
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE FROM a WHERE a = 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE a IS NULL
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE STATISTICS s ON a (a) WHERE a = 1
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x IN (1, 2)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -12328,6 +12581,259 @@
 | ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
 < error
 | 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = 1 WHERE a = 2
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = IIF(a IS NULL, 1, a)
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE FROM a WHERE a = 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE a IS NULL
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE STATISTICS s ON a (a) WHERE a = 1
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x IN (1, 2)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -18498,6 +19004,265 @@
 | 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
 | 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
 | 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = 1 WHERE a = 2
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = IIF(a IS NULL, 1, a)
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE FROM a WHERE a = 1
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE a IS NULL
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+< error
+| 207 1 16 1 Invalid column name 'a'.
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE STATISTICS s ON a (a) WHERE a = 1
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+< error
+| 207 1 16 1 Invalid column name 'a'.
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+< error
+| 207 1 16 1 Invalid column name 'a'.
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+< error
+| 207 1 16 1 Invalid column name 'a'.
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+< error
+| 207 1 16 1 Invalid column name 'a'.
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x IN (1, 2)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+< error
+| 207 1 16 1 Invalid column name 'a'.
+| 207 1 16 1 Invalid column name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -24701,6 +25466,242 @@
 | 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
 | 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
 | 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = 1 WHERE a = 2
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = IIF(a IS NULL, 1, a)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE FROM a WHERE a = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE a IS NULL
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE STATISTICS s ON a (a) WHERE a = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+< error
+| 213 1 16 1 Column name or number of supplied values does not match table definition.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x IN (1, 2)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -30909,6 +31910,242 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = 1 WHERE a = 2
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = IIF(a IS NULL, 1, a)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE FROM a WHERE a = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE a IS NULL
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE STATISTICS s ON a (a) WHERE a = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+< error
+| 213 1 16 1 Column name or number of supplied values does not match table definition.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x IN (1, 2)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -37069,6 +38306,249 @@
 | ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
 < error
 | 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = 1 WHERE a = 2
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = IIF(a IS NULL, 1, a)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE FROM a WHERE a = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE a IS NULL
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+< error
+| 10610 1 16 1 Filtered index 'i' cannot be created on object 'a' because it is not a user table. Filtered indexes are only supported on tables. If you are trying to create a filtered index on a view, consider creating an indexed view with the filter expression incorporated in the view definition.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+< error
+| 10610 1 16 1 Filtered index 'i' cannot be created on object 'a' because it is not a user table. Filtered indexes are only supported on tables. If you are trying to create a filtered index on a view, consider creating an indexed view with the filter expression incorporated in the view definition.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+< error
+| 10610 1 16 1 Filtered index 'i' cannot be created on object 'a' because it is not a user table. Filtered indexes are only supported on tables. If you are trying to create a filtered index on a view, consider creating an indexed view with the filter expression incorporated in the view definition.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+< error
+| 10610 1 16 1 Filtered index 'i' cannot be created on object 'a' because it is not a user table. Filtered indexes are only supported on tables. If you are trying to create a filtered index on a view, consider creating an indexed view with the filter expression incorporated in the view definition.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE STATISTICS s ON a (a) WHERE a = 1
+< error
+| 10623 1 16 1 Filtered statistics 's' cannot be created on object 'a' because it is not a user table. Filtered statistics are only supported on user tables.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+< error
+| 213 1 16 1 Column name or number of supplied values does not match table definition.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x IN (1, 2)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -43234,6 +44714,259 @@
 | ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
 < error
 | 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = 1 WHERE a = 2
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = IIF(a IS NULL, 1, a)
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE FROM a WHERE a = 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE a IS NULL
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE STATISTICS s ON a (a) WHERE a = 1
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x IN (1, 2)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -49409,6 +51142,259 @@
 | ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
 < error
 | 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = 1 WHERE a = 2
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = IIF(a IS NULL, 1, a)
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE FROM a WHERE a = 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE a IS NULL
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE STATISTICS s ON a (a) WHERE a = 1
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x IN (1, 2)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -55608,6 +57594,259 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = 1 WHERE a = 2
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = IIF(a IS NULL, 1, a)
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE FROM a WHERE a = 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE a IS NULL
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE STATISTICS s ON a (a) WHERE a = 1
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x IN (1, 2)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -61771,6 +64010,249 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = 1 WHERE a = 2
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = IIF(a IS NULL, 1, a)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE FROM a WHERE a = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE a IS NULL
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE STATISTICS s ON a (a) WHERE a = 1
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+< error
+| 213 1 16 1 Column name or number of supplied values does not match table definition.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x IN (1, 2)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -67921,6 +70403,259 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = 1 WHERE a = 2
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = IIF(a IS NULL, 1, a)
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE FROM a WHERE a = 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE a IS NULL
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE STATISTICS s ON a (a) WHERE a = 1
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x IN (1, 2)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -73993,6 +76728,259 @@
 | ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
 < error
 | 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = 1 WHERE a = 2
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = IIF(a IS NULL, 1, a)
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE FROM a WHERE a = 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE a IS NULL
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE STATISTICS s ON a (a) WHERE a = 1
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x IN (1, 2)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+< error
+| 208 1 16 1 Invalid object name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -80139,6 +83127,259 @@
 | ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
 < error
 | 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = 1 WHERE a = 2
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = IIF(a IS NULL, 1, a)
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE FROM a WHERE a = 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE a IS NULL
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE STATISTICS s ON a (a) WHERE a = 1
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x IN (1, 2)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -86302,6 +89543,259 @@
 | ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
 < error
 | 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = 1 WHERE a = 2
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = IIF(a IS NULL, 1, a)
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE FROM a WHERE a = 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE a IS NULL
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE STATISTICS s ON a (a) WHERE a = 1
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x IN (1, 2)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+< error
+| 208 3 16 1 Invalid object name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -92486,6 +95980,258 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = 1 WHERE a = 2
+< error
+| 206 2 16 1 Operand type clash: xml is incompatible with tinyint
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+< error
+| 206 2 16 1 Operand type clash: xml is incompatible with tinyint
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = IIF(a IS NULL, 1, a)
+< error
+| 206 2 16 1 Operand type clash: int is incompatible with xml
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE FROM a WHERE a = 1
+< error
+| 206 2 16 1 Operand type clash: xml is incompatible with tinyint
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE a IS NULL
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+< error
+| 206 2 16 1 Operand type clash: xml is incompatible with tinyint
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+< error
+| 206 2 16 1 Operand type clash: xml is incompatible with tinyint
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+< error
+| 206 2 16 1 Operand type clash: xml is incompatible with tinyint
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+< error
+| 1977 1 16 1 Could not create index 'i' on table 'a'. Only XML Index can be created on XML column 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+< error
+| 206 2 16 1 Operand type clash: xml is incompatible with tinyint
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+< error
+| 206 2 16 1 Operand type clash: xml is incompatible with tinyint
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE STATISTICS s ON a (a) WHERE a = 1
+< error
+| 206 2 16 1 Operand type clash: xml is incompatible with tinyint
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+< error
+| 209 1 16 1 Ambiguous column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+< error
+| 209 1 16 1 Ambiguous column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+< error
+| 209 1 16 1 Ambiguous column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+< error
+| 209 1 16 1 Ambiguous column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+< error
+| 209 1 16 1 Ambiguous column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x IN (1, 2)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+< error
+| 209 1 16 1 Ambiguous column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -98663,6 +102409,258 @@
 | 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
 | 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
 | 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = 1 WHERE a = 2
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals equal to, type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals equal to, type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = IIF(a IS NULL, 1, a)
+< error
+| 206 2 16 1 Operand type clash: int is incompatible with geography
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE FROM a WHERE a = 1
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals equal to, type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE a IS NULL
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals greater than, type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals not equal to, type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals equal to, type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+< error
+| 10619 1 16 1 Filtered index 'i' cannot be created on table 'a' because the column 'a' in the filter expression is of a CLR data type. Rewrite the filter expression so that it does not include this column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals equal to, type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals not equal to, type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE STATISTICS s ON a (a) WHERE a = 1
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals equal to, type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+< error
+| 209 1 16 1 Ambiguous column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+< error
+| 209 1 16 1 Ambiguous column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+< error
+| 209 1 16 1 Ambiguous column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+< error
+| 209 1 16 1 Ambiguous column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+< error
+| 209 1 16 1 Ambiguous column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x = 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE RULE r AS @x IN (1, 2)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+< error
+| 209 1 16 1 Ambiguous column name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -

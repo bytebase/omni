@@ -18834,3 +18834,171 @@ accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, y INT I
 accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+reject	reject	engine	suite:search-condition	SELECT 1 = 1
+reject	reject	engine	suite:search-condition	SELECT a.a = 1 FROM a
+reject	reject	engine	suite:search-condition	SELECT 1 IS NULL
+reject	reject	engine	suite:search-condition	SELECT 1 IS NOT NULL
+reject	reject	engine	suite:search-condition	DECLARE @x XML; SELECT @x.value('.', 'int') = 1
+reject	reject	engine	suite:search-condition	UPDATE a SET @v = a = b = 1
+reject	reject	engine	suite:search-condition	SELECT 1 <> 1
+reject	reject	engine	suite:search-condition	SELECT 1 != 1
+reject	reject	engine	suite:search-condition	SELECT 1 < 1
+reject	reject	engine	suite:search-condition	SELECT 1 > 1
+reject	reject	engine	suite:search-condition	SELECT 1 <= 1
+reject	reject	engine	suite:search-condition	SELECT 1 >= 1
+reject	reject	engine	suite:search-condition	SELECT 1 !< 1
+reject	reject	engine	suite:search-condition	SELECT 1 !> 1
+reject	reject	engine	suite:search-condition	SELECT 1 IN (1)
+reject	reject	engine	suite:search-condition	SELECT 1 NOT IN (1)
+reject	reject	engine	suite:search-condition	SELECT 1 LIKE 1
+reject	reject	engine	suite:search-condition	SELECT 1 NOT LIKE 1
+reject	reject	engine	suite:search-condition	SELECT 1 BETWEEN 1 AND 2
+reject	reject	engine	suite:search-condition	SELECT 1 NOT BETWEEN 1 AND 2
+reject	reject	engine	suite:search-condition	SELECT 1 = ALL (SELECT 1)
+reject	reject	engine	suite:search-condition	SELECT (1 = 1)
+reject	reject	engine	suite:search-condition	SELECT ABS(1 = 1)
+reject	reject	engine	suite:search-condition	SELECT CAST(1 = 1 AS INT)
+reject	reject	engine	suite:search-condition	SELECT a = 1 = 1 FROM a
+reject	reject	engine	suite:search-condition	SELECT a = (1 = 1) FROM a
+reject	reject	engine	suite:search-condition	SELECT CASE WHEN 1 = 1 THEN 1 = 1 END
+reject	reject	engine	suite:search-condition	SELECT CASE WHEN 1 = 1 THEN 1 ELSE 1 = 1 END
+reject	reject	engine	suite:search-condition	SELECT CASE 1 = 1 WHEN 1 THEN 1 END
+reject	reject	engine	suite:search-condition	SELECT CASE 1 WHEN 1 = 1 THEN 1 END
+reject	reject	engine	suite:search-condition	SELECT IIF(1 = 1, 1 = 1, 0)
+reject	reject	engine	suite:search-condition	SELECT IIF(1 = 1, 1, 0 IS NULL)
+reject	reject	engine	suite:search-condition	UPDATE a SET a = 1 = 1
+reject	reject	engine	suite:search-condition	UPDATE a SET a = a IS NULL
+reject	reject	engine	suite:search-condition	UPDATE a SET a = a IN (1)
+reject	reject	engine	suite:search-condition	UPDATE a SET @v = a = 1 = 1
+reject	reject	engine	suite:search-condition	SET @v = 1 = 1
+reject	reject	engine	suite:search-condition	DECLARE @v INT = 1 = 1
+reject	reject	engine	suite:search-condition	SELECT @v = 1 = 1
+reject	reject	engine	suite:search-condition	SELECT 1 FROM a ORDER BY a = 1
+reject	reject	engine	suite:search-condition	SELECT 1 FROM a GROUP BY a = 1
+reject	reject	engine	suite:search-condition	SELECT TOP (1 = 1) 1
+reject	reject	engine	suite:search-condition	INSERT a VALUES (1 = 1)
+reject	reject	engine	suite:search-condition	INSERT a SELECT 1 = 1
+reject	reject	engine	suite:search-condition	PRINT 1 = 1
+reject	reject	engine	suite:search-condition	RETURN 1 = 1
+reject	reject	engine	suite:search-condition	SELECT * FROM a WHERE a = (1 = 1)
+reject	reject	engine	suite:search-condition	SELECT * FROM a WHERE (a = 1) = 1
+reject	reject	engine	suite:search-condition	SELECT * FROM a WHERE a = 1 = 1
+reject	reject	engine	suite:search-condition	SELECT * FROM a WHERE ABS(a = 1) = 1
+reject	reject	engine	suite:search-condition	SELECT * FROM a WHERE a + (a = 1) = 2
+reject	reject	engine	suite:search-condition	SELECT * FROM a WHERE a IN (1 = 1)
+reject	reject	engine	suite:search-condition	SELECT * FROM a WHERE a BETWEEN 1 = 1 AND 2
+reject	reject	engine	suite:search-condition	SELECT * FROM a WHERE a LIKE 1 = 1
+reject	reject	engine	suite:search-condition	SELECT * FROM a WHERE CASE WHEN a = 1 THEN a = 1 END = 1
+reject	reject	engine	suite:search-condition	EXEC sp_who @x = 1 = 1
+accept	accept	engine	suite:search-condition	SELECT a = 1 FROM a
+accept	accept	engine	suite:search-condition	SELECT a = a + 1 FROM a
+accept	accept	engine	suite:search-condition	SELECT @v = 1
+accept	accept	engine	suite:search-condition	SELECT @v = a FROM a
+accept	accept	engine	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+accept	accept	engine	suite:search-condition	UPDATE a SET @v = a = 1
+accept	accept	engine	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+accept	accept	engine	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+accept	accept	engine	suite:search-condition	DELETE FROM a WHERE a = 1
+accept	accept	engine	suite:search-condition	DELETE a WHERE a IS NULL
+accept	accept	engine	suite:search-condition	SET @v = 1
+accept	accept	engine	suite:search-condition	DECLARE @v INT = 1
+accept	accept	engine	suite:search-condition	SELECT CASE WHEN 1 <> 1 THEN 1 END
+accept	accept	engine	suite:search-condition	SELECT CASE WHEN 1 !< 1 THEN 1 END
+accept	accept	engine	suite:search-condition	SELECT CASE WHEN 1 IS NULL THEN 1 END
+accept	accept	engine	suite:search-condition	SELECT CASE WHEN 1 IS NOT NULL THEN 1 END
+accept	accept	engine	suite:search-condition	SELECT CASE WHEN 1 IN (1) THEN 1 END
+accept	accept	engine	suite:search-condition	SELECT CASE WHEN 1 NOT IN (1) THEN 1 END
+accept	accept	engine	suite:search-condition	SELECT CASE WHEN 1 LIKE 1 THEN 1 END
+accept	accept	engine	suite:search-condition	SELECT CASE WHEN 1 BETWEEN 1 AND 2 THEN 1 END
+accept	accept	engine	suite:search-condition	SELECT CASE WHEN (1 = 1) THEN 1 END
+accept	accept	engine	suite:search-condition	SELECT CASE WHEN 1 = 1 AND 2 = 2 THEN 1 END
+accept	accept	engine	suite:search-condition	SELECT CASE WHEN 1 = ALL (SELECT 1) THEN 1 END
+accept	accept	engine	suite:search-condition	SELECT COUNT(CASE WHEN a = 1 THEN 1 END) FROM a
+accept	accept	engine	suite:search-condition	SELECT IIF(1 = 1, 1, 0)
+accept	accept	engine	suite:search-condition	SELECT IIF(1 IS NULL, 1, 0)
+accept	accept	engine	suite:search-condition	SELECT IIF(1 IN (1), 1, 0)
+accept	accept	engine	suite:search-condition	SELECT IIF(1 LIKE 1, 1, 0)
+accept	accept	engine	suite:search-condition	SELECT IIF(1 BETWEEN 1 AND 2, 1, 0)
+accept	accept	engine	suite:search-condition	SELECT IIF((1 = 1), 1, 0)
+accept	accept	engine	suite:search-condition	SELECT IIF(1 > 1 OR 1 < 1, 1, 0)
+accept	accept	engine	suite:search-condition	IF 1 <> 1 SELECT 1
+accept	accept	engine	suite:search-condition	IF 1 IN (1) SELECT 1
+accept	accept	engine	suite:search-condition	IF 1 BETWEEN 1 AND 2 SELECT 1
+accept	accept	engine	suite:search-condition	IF (1 = 1) SELECT 1
+accept	accept	engine	suite:search-condition	DECLARE @x XML; IF @x.value('.', 'int') = 1 SELECT 1
+accept	accept	engine	suite:search-condition	WHILE 1 = 0 BREAK
+accept	accept	engine	suite:search-condition	WHILE 1 < 0 SELECT 1
+accept	accept	engine	suite:search-condition	WHILE 1 IS NULL BREAK
+accept	accept	engine	suite:search-condition	WHILE 1 IN (2) BREAK
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE a = 1
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE a <> 1
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE a !> 1
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE a IS NULL
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE a IN (1)
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE a NOT IN (1)
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE a LIKE 'a'
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE a BETWEEN 1 AND 2
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE (a = 1)
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE ((a = 1))
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE (a) = 1
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE (a = 1) AND (a IS NULL OR a IN (1))
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE NOT a = 1
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE ABS(a) = 1
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE (SELECT 1) = 1
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE a = (SELECT 1 WHERE 1 = 1)
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE a IN (SELECT a FROM a WHERE a = 1)
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE EXISTS (SELECT 1 WHERE 1 = 1)
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE a = ALL (SELECT 1)
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE CASE WHEN a = 1 THEN 1 END = 1
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE IIF(a = 1, 1, 0) = 1
+accept	accept	engine	suite:search-condition	SELECT 1 WHERE 1 IS DISTINCT FROM 2
+accept	accept	engine	suite:search-condition	SELECT a FROM a GROUP BY a HAVING a = 1
+accept	accept	engine	suite:search-condition	SELECT a FROM a GROUP BY a HAVING COUNT(*) > 1
+accept	accept	engine	suite:search-condition	SELECT a FROM a GROUP BY a HAVING a IS NOT NULL
+accept	accept	engine	suite:search-condition	SELECT * FROM a JOIN a b ON a.a = b.a
+accept	accept	engine	suite:search-condition	SELECT * FROM a JOIN a b ON (a.a = b.a)
+accept	accept	engine	suite:search-condition	SELECT * FROM a LEFT JOIN a b ON a.a = b.a AND b.a IS NULL
+accept	accept	engine	suite:search-condition	SELECT * FROM a JOIN a b ON a.a IN (1)
+accept	accept	engine	suite:search-condition	SELECT * FROM a JOIN a b ON a.a BETWEEN 1 AND b.a
+accept	accept	engine	suite:search-condition	SELECT * FROM a CROSS APPLY (SELECT 1 x WHERE a.a = 1) b
+accept	accept	engine	suite:search-condition	SELECT * FROM a ORDER BY CASE WHEN a = 1 THEN 0 END
+accept	accept	engine	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+accept	accept	engine	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+accept	accept	engine	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+accept	accept	engine	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+accept	accept	engine	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+accept	accept	engine	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+accept	accept	engine	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+accept	accept	engine	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+accept	accept	engine	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+accept	accept	engine	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+accept	accept	engine	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+accept	accept	engine	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+accept	accept	engine	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+accept	accept	engine	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+accept	accept	engine	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+accept	accept	engine	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+accept	accept	engine	suite:search-condition	CREATE RULE r AS @x = 1
+accept	accept	engine	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+accept	accept	engine	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+accept	accept	engine	suite:search-condition	DECLARE @t TABLE (a INT CHECK (a IS NOT NULL))
+accept	accept	engine	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE (a) IN (1)
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE (a + 1) = 2
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE ((a) = 1)
+reject	reject	engine	suite:search-condition	SELECT * FROM a WHERE (a = 1) + 1 = 2
+reject	reject	engine	suite:search-condition	SELECT * FROM a WHERE -(a = 1) = 1
+reject	reject	engine	suite:search-condition	SELECT * FROM a WHERE (a = 1) IS NULL
+reject	reject	engine	suite:search-condition	SELECT * FROM a WHERE (a = 1) IN (1)
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE a = 1 AND (a IN (1) OR (a LIKE 'a'))
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE CASE a WHEN 1 THEN 1 END = 1
+reject	reject	engine	suite:search-condition	SELECT * FROM a WHERE CASE WHEN a = 1 THEN 1 ELSE a = 1 END = 1
+reject	reject	engine	suite:search-condition	SELECT * FROM a WHERE IIF(a = 1, a = 1, 0) = 1
+reject	reject	engine	suite:search-condition	SELECT * FROM a WHERE COALESCE(a = 1, 0) = 1
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE a = 1 OR NOT (a = 2)
+accept	accept	engine	suite:search-condition	SELECT * FROM a WHERE a = 1 AND a = (SELECT a FROM a WHERE a IN (1))
+accept	accept	engine	suite:search-condition	IF (1 = 1) AND (2 = 2) SELECT 1
+accept	accept	engine	suite:search-condition	IF ((1) = 1) SELECT 1
+accept	accept	engine	suite:search-condition	WHILE (SELECT 1) = 1 BREAK
+accept	accept	engine	suite:search-condition	SELECT CASE WHEN (1) = 1 THEN 1 END
+accept	accept	engine	suite:search-condition	SELECT IIF((1 = 1) AND 1 IN (1), 1, 0)

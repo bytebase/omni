@@ -18,6 +18,7 @@ on a fresh server confirmed every row.
 | `suite:lexer` | 66 | 66 | 0 | 0 |
 | `suite:optional-clauses` | 100 | 100 | 0 | 0 |
 | `issue:BYT-10538` | 356 | 356 | 0 | 0 |
+| `suite:search-condition` | 168 | 168 | 0 | 0 |
 
 6,044 alternatives include the rows `tokens.tsv` adds with an optional clause
 written out at each site a rule names it (`(every site)`), such as
@@ -26,6 +27,10 @@ choice at each site that names it (`(every alternative)`), such as
 `WHERE a ! = 1` in an index filter. `suite:optional-clauses` holds
 `IF EXISTS`, `IF NOT EXISTS`, `CREATE OR ALTER`, `CREATE OR REPLACE`,
 `TEMPORARY` and `CASCADE` where T-SQL has none, which no grammar row reaches.
+`suite:search-condition` holds the comparisons, `IS NULL`, `IN`, `LIKE` and
+`BETWEEN`, which SQL Server reads only in a search condition: in a select
+list, a SET, a value and an operand, where it refuses them, and in each place
+that takes a search condition, where it accepts them.
 
 The rev 3 judge accepts 3,208 of the 5,592 alternatives. Five more alternatives get
 no row: they name a token neither keyword table gives a text
@@ -139,8 +144,11 @@ go test ./mssql/parser/ -run '^TestCompatibility$' -update-compat
 
 ## The work list
 
-18,834 / 18,834 rows agree (**100.00%**). `issue:BYT-10538` holds the forms a
-T-SQL codebase failed on and the forms beside them, every one closed. The `(every alternative)` rows found 5
+19,002 / 19,002 rows agree (**100.00%**). `issue:BYT-10538` holds the forms a
+T-SQL codebase failed on and the forms beside them, every one closed.
+`suite:search-condition` found 58 comparisons omni read outside a search
+condition (`SELECT 1 = 1`, `UPDATE a SET a = 1 = 1`, `WHERE a = (1 = 1)`),
+closed. The `(every alternative)` rows found 5
 gaps, closed: a split comparison operator in an index filter, HOLDLOCK and no
 condition in a table-valued function's list, a variable as OPENXML's column
 pattern, and a pseudo-column as a text column's last part. The `(every site)` and
@@ -175,7 +183,8 @@ STREAM` option-duplication row, 1 `COPY INTO ... WITH(IDENTITY_INSERT = a)`
 row, and 1 duplicate `FORMAT_OPTIONS(USE_TYPE_DEFAULT = ...)` row).
 
 0 rows disagree: all 6,044 alternatives, all 12,268 near-misses, all 66
-`suite:lexer` and all 100 `suite:optional-clauses` rows agree.
+`suite:lexer`, all 100 `suite:optional-clauses`, all 356 `issue:BYT-10538`
+and all 168 `suite:search-condition` rows agree.
 
 ### Closed over-accepts (3)
 

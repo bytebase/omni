@@ -507,6 +507,32 @@ ok	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT IND
 8168	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+208	one_table@missing	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+137	one_table@missing	suite:search-condition	UPDATE a SET @v = a = 1
+208	one_table@missing	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+208	one_table@missing	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+208	one_table@missing	suite:search-condition	DELETE FROM a WHERE a = 1
+208	one_table@missing	suite:search-condition	DELETE a WHERE a IS NULL
+ok	one_table@missing	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	one_table@missing	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	one_table@missing	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	one_table@missing	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4902	one_table@missing	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4902	one_table@missing	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+208	one_table@missing	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+208	one_table@missing	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+208	one_table@missing	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+208	one_table@missing	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+208	one_table@missing	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+208	one_table@missing	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+208	one_table@missing	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+208	one_table@missing	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+208	one_table@missing	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+208	one_table@missing	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+ok	one_table@missing	suite:search-condition	CREATE RULE r AS @x = 1
+ok	one_table@missing	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+ok	one_table@missing	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+208	one_table@missing	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 ok	one_table@type	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	one_table@type	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	one_table@type	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1014,6 +1040,32 @@ ok	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX 
 8168	one_table@type	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	one_table@type	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	one_table@type	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+208	one_table@type	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+137	one_table@type	suite:search-condition	UPDATE a SET @v = a = 1
+208	one_table@type	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+208	one_table@type	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+208	one_table@type	suite:search-condition	DELETE FROM a WHERE a = 1
+208	one_table@type	suite:search-condition	DELETE a WHERE a IS NULL
+ok	one_table@type	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	one_table@type	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	one_table@type	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	one_table@type	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4902	one_table@type	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4902	one_table@type	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+208	one_table@type	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+208	one_table@type	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+208	one_table@type	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+208	one_table@type	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+208	one_table@type	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+208	one_table@type	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+208	one_table@type	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+208	one_table@type	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+208	one_table@type	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+208	one_table@type	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+ok	one_table@type	suite:search-condition	CREATE RULE r AS @x = 1
+ok	one_table@type	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+ok	one_table@type	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+208	one_table@type	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 ok	one_table@table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	one_table@table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	one_table@table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1521,6 +1573,32 @@ ok	one_table@table	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEG
 8168	one_table@table	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	one_table@table	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	one_table@table	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+207	one_table@table	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+137	one_table@table	suite:search-condition	UPDATE a SET @v = a = 1
+207	one_table@table	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+207	one_table@table	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+207	one_table@table	suite:search-condition	DELETE FROM a WHERE a = 1
+207	one_table@table	suite:search-condition	DELETE a WHERE a IS NULL
+ok	one_table@table	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	one_table@table	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	one_table@table	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	one_table@table	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+207	one_table@table	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+207	one_table@table	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+207	one_table@table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+207	one_table@table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+207	one_table@table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+207	one_table@table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+207	one_table@table	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+207	one_table@table	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+207	one_table@table	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+207	one_table@table	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+207	one_table@table	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+207	one_table@table	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+ok	one_table@table	suite:search-condition	CREATE RULE r AS @x = 1
+ok	one_table@table	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+ok	one_table@table	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+207	one_table@table	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 ok	one_table@column	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	one_table@column	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	one_table@column	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2028,6 +2106,32 @@ ok	one_table@column	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BE
 8168	one_table@column	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	one_table@column	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	one_table@column	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+ok	one_table@column	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+137	one_table@column	suite:search-condition	UPDATE a SET @v = a = 1
+ok	one_table@column	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+ok	one_table@column	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+ok	one_table@column	suite:search-condition	DELETE FROM a WHERE a = 1
+ok	one_table@column	suite:search-condition	DELETE a WHERE a IS NULL
+ok	one_table@column	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	one_table@column	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	one_table@column	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	one_table@column	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+ok	one_table@column	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+ok	one_table@column	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+ok	one_table@column	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+ok	one_table@column	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+ok	one_table@column	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+ok	one_table@column	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+ok	one_table@column	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+ok	one_table@column	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+ok	one_table@column	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+ok	one_table@column	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+ok	one_table@column	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+213	one_table@column	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+ok	one_table@column	suite:search-condition	CREATE RULE r AS @x = 1
+ok	one_table@column	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+ok	one_table@column	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+ok	one_table@column	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 ok	one_table@index	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	one_table@index	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	one_table@index	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2535,6 +2639,32 @@ ok	one_table@index	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEG
 8168	one_table@index	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	one_table@index	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	one_table@index	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+ok	one_table@index	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+137	one_table@index	suite:search-condition	UPDATE a SET @v = a = 1
+ok	one_table@index	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+ok	one_table@index	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+ok	one_table@index	suite:search-condition	DELETE FROM a WHERE a = 1
+ok	one_table@index	suite:search-condition	DELETE a WHERE a IS NULL
+ok	one_table@index	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	one_table@index	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	one_table@index	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	one_table@index	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+ok	one_table@index	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+ok	one_table@index	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+ok	one_table@index	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+ok	one_table@index	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+ok	one_table@index	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+ok	one_table@index	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+ok	one_table@index	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+ok	one_table@index	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+ok	one_table@index	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+ok	one_table@index	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+ok	one_table@index	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+213	one_table@index	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+ok	one_table@index	suite:search-condition	CREATE RULE r AS @x = 1
+ok	one_table@index	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+ok	one_table@index	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+ok	one_table@index	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 ok	objects@view	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@view	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@view	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3042,6 +3172,32 @@ ok	objects@view	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN 
 8168	objects@view	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	objects@view	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	objects@view	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+ok	objects@view	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+137	objects@view	suite:search-condition	UPDATE a SET @v = a = 1
+ok	objects@view	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+ok	objects@view	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+ok	objects@view	suite:search-condition	DELETE FROM a WHERE a = 1
+ok	objects@view	suite:search-condition	DELETE a WHERE a IS NULL
+ok	objects@view	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	objects@view	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	objects@view	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	objects@view	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4909	objects@view	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4909	objects@view	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+10610	objects@view	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+10610	objects@view	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+10610	objects@view	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+10610	objects@view	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+10623	objects@view	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+ok	objects@view	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+ok	objects@view	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+ok	objects@view	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+ok	objects@view	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+213	objects@view	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+ok	objects@view	suite:search-condition	CREATE RULE r AS @x = 1
+ok	objects@view	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+ok	objects@view	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+ok	objects@view	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 ok	objects@sequence	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@sequence	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@sequence	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3549,6 +3705,32 @@ ok	objects@sequence	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BE
 8168	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+208	objects@sequence	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+137	objects@sequence	suite:search-condition	UPDATE a SET @v = a = 1
+208	objects@sequence	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+208	objects@sequence	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+208	objects@sequence	suite:search-condition	DELETE FROM a WHERE a = 1
+208	objects@sequence	suite:search-condition	DELETE a WHERE a IS NULL
+ok	objects@sequence	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	objects@sequence	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	objects@sequence	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	objects@sequence	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4909	objects@sequence	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4909	objects@sequence	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+208	objects@sequence	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+208	objects@sequence	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+208	objects@sequence	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+208	objects@sequence	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+208	objects@sequence	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+208	objects@sequence	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+208	objects@sequence	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+208	objects@sequence	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+208	objects@sequence	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+208	objects@sequence	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+ok	objects@sequence	suite:search-condition	CREATE RULE r AS @x = 1
+ok	objects@sequence	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+ok	objects@sequence	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+208	objects@sequence	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 ok	objects@procedure	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@procedure	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@procedure	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -4056,6 +4238,32 @@ ok	objects@procedure	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS B
 8168	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+208	objects@procedure	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+137	objects@procedure	suite:search-condition	UPDATE a SET @v = a = 1
+208	objects@procedure	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+208	objects@procedure	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+208	objects@procedure	suite:search-condition	DELETE FROM a WHERE a = 1
+208	objects@procedure	suite:search-condition	DELETE a WHERE a IS NULL
+ok	objects@procedure	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	objects@procedure	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	objects@procedure	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	objects@procedure	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4909	objects@procedure	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4909	objects@procedure	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+208	objects@procedure	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+208	objects@procedure	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+208	objects@procedure	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+208	objects@procedure	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+208	objects@procedure	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+208	objects@procedure	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+208	objects@procedure	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+208	objects@procedure	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+208	objects@procedure	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+208	objects@procedure	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+ok	objects@procedure	suite:search-condition	CREATE RULE r AS @x = 1
+ok	objects@procedure	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+ok	objects@procedure	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+208	objects@procedure	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 ok	objects@function	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@function	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@function	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -4563,6 +4771,32 @@ ok	objects@function	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BE
 8168	objects@function	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	objects@function	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	objects@function	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+208	objects@function	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+137	objects@function	suite:search-condition	UPDATE a SET @v = a = 1
+208	objects@function	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+208	objects@function	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+208	objects@function	suite:search-condition	DELETE FROM a WHERE a = 1
+208	objects@function	suite:search-condition	DELETE a WHERE a IS NULL
+ok	objects@function	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	objects@function	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	objects@function	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	objects@function	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4909	objects@function	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4909	objects@function	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+208	objects@function	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+208	objects@function	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+208	objects@function	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+208	objects@function	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+208	objects@function	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+208	objects@function	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+208	objects@function	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+208	objects@function	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+208	objects@function	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+208	objects@function	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+ok	objects@function	suite:search-condition	CREATE RULE r AS @x = 1
+ok	objects@function	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+ok	objects@function	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+208	objects@function	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 ok	objects@synonym	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@synonym	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@synonym	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -5070,6 +5304,32 @@ ok	objects@synonym	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEG
 8168	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+ok	objects@synonym	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+137	objects@synonym	suite:search-condition	UPDATE a SET @v = a = 1
+ok	objects@synonym	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+ok	objects@synonym	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+ok	objects@synonym	suite:search-condition	DELETE FROM a WHERE a = 1
+ok	objects@synonym	suite:search-condition	DELETE a WHERE a IS NULL
+ok	objects@synonym	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	objects@synonym	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	objects@synonym	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	objects@synonym	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4909	objects@synonym	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4909	objects@synonym	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+208	objects@synonym	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+208	objects@synonym	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+208	objects@synonym	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+208	objects@synonym	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+208	objects@synonym	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+ok	objects@synonym	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+ok	objects@synonym	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+ok	objects@synonym	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+ok	objects@synonym	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+213	objects@synonym	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+ok	objects@synonym	suite:search-condition	CREATE RULE r AS @x = 1
+ok	objects@synonym	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+ok	objects@synonym	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+ok	objects@synonym	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 2714	objects@schema	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@schema	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@schema	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -5577,6 +5837,32 @@ ok	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX 
 8168	objects@schema	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	objects@schema	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	objects@schema	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+208	objects@schema	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+137	objects@schema	suite:search-condition	UPDATE a SET @v = a = 1
+208	objects@schema	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+208	objects@schema	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+208	objects@schema	suite:search-condition	DELETE FROM a WHERE a = 1
+208	objects@schema	suite:search-condition	DELETE a WHERE a IS NULL
+ok	objects@schema	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	objects@schema	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	objects@schema	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	objects@schema	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4902	objects@schema	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4902	objects@schema	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+208	objects@schema	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+208	objects@schema	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+208	objects@schema	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+208	objects@schema	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+208	objects@schema	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+208	objects@schema	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+208	objects@schema	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+208	objects@schema	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+208	objects@schema	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+208	objects@schema	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+ok	objects@schema	suite:search-condition	CREATE RULE r AS @x = 1
+ok	objects@schema	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+ok	objects@schema	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+208	objects@schema	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 2714	objects@schema_nonempty	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@schema_nonempty	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@schema_nonempty	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -6084,6 +6370,32 @@ ok	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b I
 8168	objects@schema_nonempty	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	objects@schema_nonempty	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	objects@schema_nonempty	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+208	objects@schema_nonempty	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+137	objects@schema_nonempty	suite:search-condition	UPDATE a SET @v = a = 1
+208	objects@schema_nonempty	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+208	objects@schema_nonempty	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+208	objects@schema_nonempty	suite:search-condition	DELETE FROM a WHERE a = 1
+208	objects@schema_nonempty	suite:search-condition	DELETE a WHERE a IS NULL
+ok	objects@schema_nonempty	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	objects@schema_nonempty	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	objects@schema_nonempty	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	objects@schema_nonempty	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4902	objects@schema_nonempty	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4902	objects@schema_nonempty	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+208	objects@schema_nonempty	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+208	objects@schema_nonempty	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+208	objects@schema_nonempty	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+208	objects@schema_nonempty	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+208	objects@schema_nonempty	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+208	objects@schema_nonempty	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+208	objects@schema_nonempty	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+208	objects@schema_nonempty	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+208	objects@schema_nonempty	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+208	objects@schema_nonempty	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+ok	objects@schema_nonempty	suite:search-condition	CREATE RULE r AS @x = 1
+ok	objects@schema_nonempty	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+ok	objects@schema_nonempty	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+208	objects@schema_nonempty	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 ok	objects@constraint	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@constraint	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@constraint	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -6591,6 +6903,32 @@ ok	objects@constraint	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS 
 8168	objects@constraint	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	objects@constraint	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	objects@constraint	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+208	objects@constraint	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+137	objects@constraint	suite:search-condition	UPDATE a SET @v = a = 1
+208	objects@constraint	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+208	objects@constraint	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+208	objects@constraint	suite:search-condition	DELETE FROM a WHERE a = 1
+208	objects@constraint	suite:search-condition	DELETE a WHERE a IS NULL
+ok	objects@constraint	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	objects@constraint	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	objects@constraint	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	objects@constraint	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4909	objects@constraint	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4909	objects@constraint	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+208	objects@constraint	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+208	objects@constraint	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+208	objects@constraint	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+208	objects@constraint	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+208	objects@constraint	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+208	objects@constraint	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+208	objects@constraint	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+208	objects@constraint	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+208	objects@constraint	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+208	objects@constraint	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+ok	objects@constraint	suite:search-condition	CREATE RULE r AS @x = 1
+ok	objects@constraint	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+ok	objects@constraint	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+208	objects@constraint	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 ok	objects@trigger	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@trigger	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@trigger	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -7098,6 +7436,32 @@ ok	objects@trigger	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEG
 8168	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+208	objects@trigger	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+137	objects@trigger	suite:search-condition	UPDATE a SET @v = a = 1
+208	objects@trigger	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+208	objects@trigger	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+208	objects@trigger	suite:search-condition	DELETE FROM a WHERE a = 1
+208	objects@trigger	suite:search-condition	DELETE a WHERE a IS NULL
+ok	objects@trigger	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	objects@trigger	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	objects@trigger	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	objects@trigger	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4909	objects@trigger	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4909	objects@trigger	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+208	objects@trigger	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+208	objects@trigger	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+208	objects@trigger	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+208	objects@trigger	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+208	objects@trigger	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+208	objects@trigger	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+208	objects@trigger	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+208	objects@trigger	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+208	objects@trigger	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+208	objects@trigger	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+ok	objects@trigger	suite:search-condition	CREATE RULE r AS @x = 1
+ok	objects@trigger	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+ok	objects@trigger	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+208	objects@trigger	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 ok	objects@xml_table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@xml_table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@xml_table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -7605,6 +7969,32 @@ ok	objects@xml_table	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS B
 8168	objects@xml_table	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	objects@xml_table	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	objects@xml_table	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+206	objects@xml_table	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+137	objects@xml_table	suite:search-condition	UPDATE a SET @v = a = 1
+206	objects@xml_table	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+206	objects@xml_table	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+206	objects@xml_table	suite:search-condition	DELETE FROM a WHERE a = 1
+ok	objects@xml_table	suite:search-condition	DELETE a WHERE a IS NULL
+ok	objects@xml_table	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	objects@xml_table	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	objects@xml_table	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	objects@xml_table	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+206	objects@xml_table	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+206	objects@xml_table	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+206	objects@xml_table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+1977	objects@xml_table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+206	objects@xml_table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+206	objects@xml_table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+206	objects@xml_table	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+209	objects@xml_table	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+209	objects@xml_table	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+209	objects@xml_table	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+209	objects@xml_table	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+209	objects@xml_table	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+ok	objects@xml_table	suite:search-condition	CREATE RULE r AS @x = 1
+ok	objects@xml_table	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+ok	objects@xml_table	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+209	objects@xml_table	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 ok	objects@spatial_table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@spatial_table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@spatial_table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -8112,3 +8502,29 @@ ok	objects@spatial_table	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER 
 8168	objects@spatial_table	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	objects@spatial_table	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	objects@spatial_table	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+403	objects@spatial_table	suite:search-condition	UPDATE a SET a = 1 WHERE a = 2
+137	objects@spatial_table	suite:search-condition	UPDATE a SET @v = a = 1
+403	objects@spatial_table	suite:search-condition	UPDATE a SET a = CASE WHEN a = 1 THEN 2 END
+206	objects@spatial_table	suite:search-condition	UPDATE a SET a = IIF(a IS NULL, 1, a)
+403	objects@spatial_table	suite:search-condition	DELETE FROM a WHERE a = 1
+ok	objects@spatial_table	suite:search-condition	DELETE a WHERE a IS NULL
+ok	objects@spatial_table	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	objects@spatial_table	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	objects@spatial_table	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	objects@spatial_table	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+403	objects@spatial_table	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+403	objects@spatial_table	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+403	objects@spatial_table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+10619	objects@spatial_table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+403	objects@spatial_table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+403	objects@spatial_table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+403	objects@spatial_table	suite:search-condition	CREATE STATISTICS s ON a (a) WHERE a = 1
+209	objects@spatial_table	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED THEN DELETE;
+209	objects@spatial_table	suite:search-condition	MERGE a USING a b ON (a.a = b.a) WHEN MATCHED THEN DELETE;
+209	objects@spatial_table	suite:search-condition	MERGE a USING a b ON a.a IS NULL WHEN MATCHED THEN DELETE;
+209	objects@spatial_table	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN MATCHED AND a.a = 1 THEN DELETE;
+209	objects@spatial_table	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED AND b.a IN (1) THEN INSERT VALUES (1);
+ok	objects@spatial_table	suite:search-condition	CREATE RULE r AS @x = 1
+ok	objects@spatial_table	suite:search-condition	CREATE RULE r AS @x IN (1, 2)
+ok	objects@spatial_table	suite:search-condition	CREATE TYPE t AS TABLE (a INT CHECK (a > 0))
+209	objects@spatial_table	suite:search-condition	MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;

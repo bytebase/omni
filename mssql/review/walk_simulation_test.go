@@ -120,13 +120,16 @@ func TestWalkSimulation(t *testing.T) {
 // view, raised queries to 86.2%. FILESTREAM_ON on a table no column of
 // which can be FILESTREAM, IDENTITYCOL in a filtered index, PARTITION =
 // a name that is no column, and VALUES rows of the wrong width for a
-// synced table raised ddl to 95.5%.
+// synced table raised ddl to 95.5%. The suite:search-condition rows of
+// compat.tsv added binding refusals the walk does not model (207 on a
+// column a CHECK or filtered index names, 10610 and 10623 on a filter over a
+// column that cannot have one), which moved ddl to 95.4%.
 var walkSimSuites = []struct {
 	name, path, database string
 	minPct               float64
 	minFound             int
 }{
-	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 95.5, 3169},
+	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 95.4, 3169},
 	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 86.2, 394},
 	{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), "omni_TestProgramSimulation", 91.7, 67},
 }
@@ -245,8 +248,11 @@ func walkCompatSimulation(t *testing.T, db *sql.DB) {
 	// The issue:BYT-10538 rows added binding refusals the walk does not
 	// model (4104 on a multi-part SET target, 10791 on a HASH index outside a
 	// memory-optimized table, 258 on a method of a non-CLR value, 7202 on a
-	// linked server), which moved it to 89.3%.
-	const minWalkSimRecall = 89.3
+	// linked server), which moved it to 89.3%. The suite:search-condition
+	// rows added more (207 and 209 on a column a WHERE or MERGE ON names,
+	// 206 and 403 on a comparison of mismatched types, 213 on an INSERT of
+	// the wrong width), which moved it to 89.1%.
+	const minWalkSimRecall = 89.1
 	pct := 0.0
 	if refusedCount > 0 {
 		pct = 100 * float64(foundCount) / float64(refusedCount)

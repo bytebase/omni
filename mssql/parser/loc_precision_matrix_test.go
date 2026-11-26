@@ -25,12 +25,12 @@ var locPrecisionMatrixExactSliceCases = []locMatrixCase{
 	{name: "multiline select stmt", sql: "SELECT\n  1", typeName: "SelectStmt", want: "SELECT\n  1"},
 	{name: "unicode byte range select stmt", sql: "SELECT N'你好'", typeName: "SelectStmt", want: "SELECT N'你好'"},
 
-	// Comparison and predicates.
-	{name: "not in", sql: "SELECT c NOT IN (1, 2)", typeName: "InExpr", want: "c NOT IN (1, 2)"},
-	{name: "not between", sql: "SELECT c NOT BETWEEN 1 AND 2", typeName: "BetweenExpr", want: "c NOT BETWEEN 1 AND 2"},
-	{name: "not like escape", sql: "SELECT c NOT LIKE 'x%' ESCAPE '\\'", typeName: "LikeExpr", want: "c NOT LIKE 'x%' ESCAPE '\\'"},
+	// Comparison and predicates, which belong to a search condition.
+	{name: "not in", sql: "SELECT 1 WHERE c NOT IN (1, 2)", typeName: "InExpr", want: "c NOT IN (1, 2)"},
+	{name: "not between", sql: "SELECT 1 WHERE c NOT BETWEEN 1 AND 2", typeName: "BetweenExpr", want: "c NOT BETWEEN 1 AND 2"},
+	{name: "not like escape", sql: "SELECT 1 WHERE c NOT LIKE 'x%' ESCAPE '\\'", typeName: "LikeExpr", want: "c NOT LIKE 'x%' ESCAPE '\\'"},
 	{name: "equals any subquery", sql: "SELECT * FROM t WHERE c = ANY (SELECT x FROM s)", typeName: "SubqueryComparisonExpr", want: "c = ANY (SELECT x FROM s)"},
-	{name: "in subquery", sql: "SELECT c IN (SELECT x FROM s)", typeName: "InExpr", want: "c IN (SELECT x FROM s)"},
+	{name: "in subquery", sql: "SELECT 1 WHERE c IN (SELECT x FROM s)", typeName: "InExpr", want: "c IN (SELECT x FROM s)"},
 
 	// Boolean and arithmetic.
 	{name: "or and precedence", sql: "SELECT a WHERE a OR a AND a", typeName: "BinaryExpr", want: "a OR a AND a"},

@@ -43,14 +43,14 @@ func TestMSSQLLocPrecision_ExpressionRanges(t *testing.T) {
 		sql  string
 		want string
 	}{
-		{sql: "SELECT c > 0", want: "c > 0"},
-		{sql: "SELECT c IN (1, 2)", want: "c IN (1, 2)"},
-		{sql: "SELECT c BETWEEN 1 AND 2", want: "c BETWEEN 1 AND 2"},
-		{sql: "SELECT c LIKE 'x%'", want: "c LIKE 'x%'"},
-		{sql: "SELECT c IS NOT NULL", want: "c IS NOT NULL"},
+		{sql: "SELECT 1 WHERE c > 0", want: "c > 0"},
+		{sql: "SELECT 1 WHERE c IN (1, 2)", want: "c IN (1, 2)"},
+		{sql: "SELECT 1 WHERE c BETWEEN 1 AND 2", want: "c BETWEEN 1 AND 2"},
+		{sql: "SELECT 1 WHERE c LIKE 'x%'", want: "c LIKE 'x%'"},
+		{sql: "SELECT 1 WHERE c IS NOT NULL", want: "c IS NOT NULL"},
 		{sql: "SELECT a + b * c", want: "a + b * c"},
 		{
-			sql:  "SELECT name COLLATE Latin1_General_CI_AS LIKE 'A%'",
+			sql:  "SELECT 1 WHERE name COLLATE Latin1_General_CI_AS LIKE 'A%'",
 			want: "name COLLATE Latin1_General_CI_AS LIKE 'A%'",
 		},
 		{sql: "SELECT dt AT TIME ZONE 'UTC'", want: "dt AT TIME ZONE 'UTC'"},
@@ -58,7 +58,7 @@ func TestMSSQLLocPrecision_ExpressionRanges(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.sql, func(t *testing.T) {
-			expr := firstSelectTargetExpr(t, tt.sql)
+			expr := firstSelectExpr(t, tt.sql)
 			if got := locText(t, tt.sql, ast.NodeLoc(expr)); got != tt.want {
 				t.Fatalf("loc text = %q, want %q", got, tt.want)
 			}
@@ -220,6 +220,17 @@ func locPrecisionExprNode(n ast.Node) bool {
 	default:
 		return false
 	}
+}
+
+// firstSelectExpr returns the WHERE of a SELECT that has one, which holds
+// the predicates SQL Server reads only in a search condition, and else its
+// first target.
+func firstSelectExpr(t *testing.T, sql string) ast.ExprNode {
+	t.Helper()
+	if stmt, ok := ParseAndCheck(t, sql).Items[0].(*ast.SelectStmt); ok && stmt.WhereClause != nil {
+		return stmt.WhereClause
+	}
+	return firstSelectTargetExpr(t, sql)
 }
 
 func firstSelectTargetExpr(t *testing.T, sql string) ast.ExprNode {
