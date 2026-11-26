@@ -117,6 +117,8 @@ type tidbSnapshot struct {
 	checkSets map[string]string
 	// partLists holds each partitioned table's partitions (walk_partition.go).
 	partLists map[string]string
+	// columnSets holds each table's columns (walk_column_set.go).
+	columnSets map[string]string
 }
 
 func newTiDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *tidbSnapshot {
@@ -138,6 +140,7 @@ func newTiDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *tidb
 		clustered:        make(map[string]bool),
 		checkSets:        make(map[string]string),
 		partLists:        make(map[string]string),
+		columnSets:       make(map[string]string),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
 	// set lists a name of a table's space, or of the database's relations
@@ -288,7 +291,7 @@ func (s *tidbSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			}
 		}
 		return walk.Unknown, ""
-	case spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache, spaceCheckSet, spaceClustered, spacePartList:
+	case spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache, spaceCheckSet, spaceClustered, spacePartList, spaceColumnSet:
 		if len(path) != 2 {
 			return walk.Unknown, ""
 		}

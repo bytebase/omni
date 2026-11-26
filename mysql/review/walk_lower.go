@@ -348,13 +348,15 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 			if n, ok := b.key(spaceForeignKey, c.Name); ok {
 				b.need(objKey(spaceForeignKey, r.db, n), walk.Absent, nil, rangeOf(c.Loc), "", alreadyExists("foreign key", ident(c.Name), "")) // 1826; 1022 on 5.7
 			}
-			if b.fkAddFails(r, c, func(col string) string {
+			if b.fkAddFails(r, c, func(col string) colShape {
 				for _, cd := range v.Columns {
 					if strings.EqualFold(cd.Name, col) {
-						return astBaseType(cd.TypeName)
+						s := defShape(cd)
+						s.notNull = s.notNull || createPrimaryHolds(v, col)
+						return s
 					}
 				}
-				return ""
+				return colShape{}
 			}) {
 				return true
 			}

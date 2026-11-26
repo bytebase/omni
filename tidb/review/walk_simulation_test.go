@@ -29,12 +29,12 @@ func TestWalkSimulation(t *testing.T) {
 		// other databases (schemas@cross), CHECK constraints while
 		// tidb_enable_check_constraint is a session's switch (3814, 3818,
 		// 3822, 3940, 8200), column lengths under sql_mode (1074), and the
-		// rows omni's parser refuses first. Left: modifying generated
-		// columns (3106, 3108), converting columns of other character sets
-		// (8200, 3780), invisible primary keys (1176, 3522), repartitioning
-		// a partitioned table (1503) and DATE to DATETIME on one (8200).
-		// The queries misses are rows omni's parser refuses (1064).
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 97.1},
+		// rows omni's parser refuses first. Left: partition definitions
+		// CREATE TABLE gets wrong (1480, 1484, 1492, 1504), a column moved
+		// AFTER itself (1054), CREATE TEMPORARY TABLE LIKE a partitioned
+		// table (1562), and an HNSW key on a column that isn't a vector
+		// (8200). The queries misses are rows omni's parser refuses (1064).
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 97.8},
 		{"sequences", filepath.Join("..", "catalog", "testdata", "sequences", "simulate.tsv"), 100.0},
 		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 96.5},
 	} {

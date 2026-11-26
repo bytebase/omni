@@ -66,9 +66,16 @@ func checkColumns(expr string) ([]string, bool) {
 	if err != nil || list == nil || len(list.Items) != 1 {
 		return nil, false
 	}
+	return exprColumns(list.Items[0])
+}
+
+// exprColumns returns the keys of the distinct columns an expression
+// reads, in the order it first reads each, false when the walk cannot read
+// it.
+func exprColumns(node ast.Node) ([]string, bool) {
 	var cols []string
 	ok := true
-	ast.Inspect(list.Items[0], func(n ast.Node) bool {
+	ast.Inspect(node, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.ColumnRef:
 			k, readable := plainName(spaceColumn, n.Column)
