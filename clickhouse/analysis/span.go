@@ -430,13 +430,17 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 			// A column is named by its own name (a Nested column's is
 			// dotted), and a qualified one keeps its qualifier unless the
 			// bare name reads the same column.
-			if found, ok := lookup(parts, sc); ok == found1 && found.rel != nil {
-				if n := nameParts(parts, found.name); n > 0 {
-					c.name = found.name
-					if len(parts) > n && !bareNames(found, sc) {
-						c.name = strings.Join(parts, ".")
-					}
+			found, ok := lookup(parts, sc)
+			switch n := nameParts(parts, found.name); {
+			case ok == found1 && found.rel != nil && n > 0:
+				c.name = found.name
+				if len(parts) > n && !bareNames(found, sc) {
+					c.name = strings.Join(parts, ".")
 				}
+			case len(parts) > 1 && (ok == foundNone || n == 0):
+				// A member of a tuple (an alias's, or a column's) is named
+				// as written.
+				c.name = strings.Join(parts, ".")
 			}
 		}
 		out = append(out, c)
@@ -1168,9 +1172,10 @@ func (sc *spanScope) window(name string) *parser.WindowSpec {
 	return nil
 }
 
-// countStar reports whether f is count(*).
+// countStar reports whether f is count(*), which reads no column;
+// count(DISTINCT *) reads them all.
 func countStar(f *parser.FuncCallExpr) bool {
-	if len(f.Args) != 1 || !strings.EqualFold(f.Name, "count") {
+	if len(f.Args) != 1 || f.Distinct || !strings.EqualFold(f.Name, "count") {
 		return false
 	}
 	s, ok := f.Args[0].(*parser.StarExpr)
@@ -1244,6 +1249,13 @@ func (r *spanResolver) ident(parts []string, sc *spanScope, ctes *cteBinding) So
 					r.ambiguous = name
 				}
 				return c.sources
+			}
+		}
+		if len(parts) > 1 {
+			// t.e where t is no relation or column: a member of an alias's
+			// tuple, which reads what the alias reads.
+			if out, ok := r.alias(parts[0], scopes, sc, ctes); ok {
+				return out
 			}
 		}
 		lv = next
@@ -1343,7 +1355,13 @@ func (r *spanResolver) tableExists(database, table string) bool {
 		return true
 	}
 	db, err := r.opts.Catalog.GetDatabase(database)
-	if err != nil || db == nil {
+	if err != nil {
+		// The span fails rather than report an unreadable catalog as a
+		// missing name.
+		r.err = errors.Join(r.err, err)
+		return false
+	}
+	if db == nil {
 		return false
 	}
 	return db.GetTable(table) != nil || db.GetView(table) != nil

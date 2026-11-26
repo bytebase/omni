@@ -338,6 +338,11 @@
 | {"columns":["countDistinct(customer_id)"],"lineage":[["shop.orders.customer_id"]],"tables":["shop.orders"]}
 > raw
 | span shop
+| SELECT count(DISTINCT *) FROM customers
+< raw
+| {"columns":["countDistinct(id, name, email, country, created)"],"lineage":[["shop.customers.country","shop.customers.created","shop.customers.email","shop.customers.id","shop.customers.name"]],"tables":["shop.customers"]}
+> raw
+| span shop
 | SELECT customer_id, sum(amount) FROM orders GROUP BY customer_id
 < raw
 | {"columns":["customer_id","sum(amount)"],"lineage":[["shop.orders.customer_id"],["shop.orders.amount"]],"tables":["shop.orders"]}
@@ -666,6 +671,11 @@
 | WITH upper(name) AS n SELECT n, email FROM customers
 < raw
 | {"columns":["n","email"],"lineage":[["shop.customers.name"],["shop.customers.email"]],"tables":["shop.customers"]}
+> raw
+| span shop
+| WITH CAST(tuple(email), 'Tuple(e String)') AS t SELECT t.e FROM customers
+< raw
+| {"columns":["t.e"],"lineage":[["shop.customers.email"]],"tables":["shop.customers"]}
 > raw
 | span shop
 | WITH x -> concat(x, email) AS f SELECT f(name) FROM customers

@@ -192,6 +192,9 @@ shop.orders	shop.orders	engine	shop	shop	tables	SELECT COUNT(id) FROM orders
 countDistinct(customer_id)	countDistinct(customer_id)	engine	shop	shop	results	SELECT count(DISTINCT customer_id) FROM orders
 shop.orders.customer_id	shop.orders.customer_id	engine	shop	shop	lineage	SELECT count(DISTINCT customer_id) FROM orders
 shop.orders	shop.orders	engine	shop	shop	tables	SELECT count(DISTINCT customer_id) FROM orders
+countDistinct(id, name, email, country, created)	countDistinct(id, name, email, country, created)	engine	shop	shop	results	SELECT count(DISTINCT *) FROM customers
+shop.customers.country shop.customers.created shop.customers.email shop.customers.id shop.customers.name	shop.customers.country shop.customers.created shop.customers.email shop.customers.id shop.customers.name	engine	shop	shop	lineage	SELECT count(DISTINCT *) FROM customers
+shop.customers	shop.customers	engine	shop	shop	tables	SELECT count(DISTINCT *) FROM customers
 customer_id, sum(amount)	customer_id, sum(amount)	engine	shop	shop	results	SELECT customer_id, sum(amount) FROM orders GROUP BY customer_id
 shop.orders.customer_id | shop.orders.amount	shop.orders.customer_id | shop.orders.amount	engine	shop	shop	lineage	SELECT customer_id, sum(amount) FROM orders GROUP BY customer_id
 shop.orders	shop.orders	engine	shop	shop	tables	SELECT customer_id, sum(amount) FROM orders GROUP BY customer_id
@@ -390,6 +393,9 @@ shop.orders	shop.orders	engine	shop	shop	tables	WITH (SELECT max(amount) FROM or
 n, email	n, email	engine	shop	shop	results	WITH upper(name) AS n SELECT n, email FROM customers
 shop.customers.name | shop.customers.email	shop.customers.name | shop.customers.email	engine	shop	shop	lineage	WITH upper(name) AS n SELECT n, email FROM customers
 shop.customers	shop.customers	engine	shop	shop	tables	WITH upper(name) AS n SELECT n, email FROM customers
+t.e	t.e	engine	shop	shop	results	WITH CAST(tuple(email), 'Tuple(e String)') AS t SELECT t.e FROM customers
+shop.customers.email	shop.customers.email	engine	shop	shop	lineage	WITH CAST(tuple(email), 'Tuple(e String)') AS t SELECT t.e FROM customers
+shop.customers	shop.customers	engine	shop	shop	tables	WITH CAST(tuple(email), 'Tuple(e String)') AS t SELECT t.e FROM customers
 f(name)	f(name)	engine	shop	shop	results	WITH x -> concat(x, email) AS f SELECT f(name) FROM customers
 shop.customers.email shop.customers.name	shop.customers.email shop.customers.name	engine	shop	shop	lineage	WITH x -> concat(x, email) AS f SELECT f(name) FROM customers
 shop.customers	shop.customers	engine	shop	shop	tables	WITH x -> concat(x, email) AS f SELECT f(name) FROM customers

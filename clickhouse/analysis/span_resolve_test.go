@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -133,5 +134,17 @@ func TestResolveQuerySpanDeepExpression(t *testing.T) {
 	}
 	if len(got.Results) != 1 || got.Results[0].Name != q[len("SELECT "):] {
 		t.Fatalf("results %d, name of %d bytes", len(got.Results), len(got.Results[0].Name))
+	}
+}
+
+// A catalog that fails fails the span, also where x IN t asks for t.
+func TestResolveQuerySpanCatalogError(t *testing.T) {
+	broken := errors.New("catalog unavailable")
+	_, err := ResolveQuerySpan("SELECT 1 IN allowed_ids", ResolveOptions{
+		DefaultDatabase: "shop",
+		Catalog:         Catalog{GetDatabase: func(string) (Database, error) { return nil, broken }},
+	})
+	if !errors.Is(err, broken) {
+		t.Fatalf("err %v, want the catalog's", err)
 	}
 }

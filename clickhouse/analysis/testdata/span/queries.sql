@@ -73,6 +73,7 @@ SELECT tuple(customers.*) FROM customers
 SELECT count(), sum(amount) FROM orders
 SELECT COUNT(id) FROM orders
 SELECT count(DISTINCT customer_id) FROM orders
+SELECT count(DISTINCT *) FROM customers
 SELECT customer_id, sum(amount) FROM orders GROUP BY customer_id
 SELECT customer_id, sum(amount) AS total FROM orders GROUP BY customer_id HAVING total > 10
 SELECT status, max(amount), min(amount), avg(amount) FROM orders GROUP BY status
@@ -145,6 +146,7 @@ WITH 10 AS threshold SELECT threshold, id FROM orders
 WITH amount * 2 AS doubled SELECT doubled FROM orders
 WITH (SELECT max(amount) FROM orders) AS top SELECT id, top FROM orders
 WITH upper(name) AS n SELECT n, email FROM customers
+WITH CAST(tuple(email), 'Tuple(e String)') AS t SELECT t.e FROM customers
 WITH x -> concat(x, email) AS f SELECT f(name) FROM customers
 WITH c AS (SELECT id, name FROM customers) SELECT name FROM c UNION ALL SELECT sku FROM items
 WITH customers AS (SELECT order_id AS id FROM items) SELECT id FROM customers
