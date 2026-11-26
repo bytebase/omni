@@ -162,6 +162,7 @@ SELECT * FROM customer_totals PIVOT (sum(total) FOR customer_id IN (1, 2))
 SELECT * FROM orders o PIVOT (sum(o.amount), count(id) FOR status IN ('open'))
 SELECT * FROM (SELECT customer_id, status, amount FROM orders) t PIVOT (sum((amount)), max(customer_id + 1) FOR status IN ('open'))
 SELECT * FROM hr.staff PIVOT (sum(salary), count(*) FOR dept_id IN (1, 2))
+SELECT * FROM orders PIVOT (sum(abs(amount)), count(*) FOR customer_id IN (1))
 WITH c AS (SELECT status, amount FROM orders) SELECT * FROM c PIVOT (sum(amount), min(amount) FOR status IN ('open'))
 SELECT * FROM (SELECT id, created_at FROM orders) t PIVOT (count(id) FOR created_at IN (DATETIME '2026-01-01 00:00:00'))
 SELECT * FROM orders PIVOT (sum(amount) FOR status IN ('open')) WHERE status = 'open'

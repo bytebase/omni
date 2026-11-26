@@ -702,6 +702,11 @@
 | {"columns":["id","name","1_sum(hr.staff.salary)","1_count(*)","2_sum(hr.staff.salary)","2_count(*)"],"tables":["hr.staff"],"plan":["- Output =\u003e [1:id, 2:name, 9:sum, 10:count, 11:sum, 12:count]","    - AGGREGATE(GLOBAL) [1:id, 2:name]","            9:sum := sum(5:case)","            10:count := count(6:case)","            11:sum := sum(7:case)","            12:count := count(8:case)","        - SCAN [staff] =\u003e [1:id, 2:name, 5:case, 6:case, 7:case, 8:case]","                5:case := if(13:expr, 3:salary, null)","                6:case := if(13:expr, 1, null)","                7:case := if(14:expr, 3:salary, null)","                8:case := if(14:expr, 1, null)","                13:expr := 4:dept_id = 1, ","                14:expr := 4:dept_id = 2, "]}
 > raw
 | span shop
+| SELECT * FROM orders PIVOT (sum(abs(amount)), count(*) FOR customer_id IN (1))
+< raw
+| {"columns":["id","amount","status","created_at","1_sum(abs(shop.orders.amount))","1_count(*)"],"tables":["shop.orders"],"plan":["- Output =\u003e [1:id, 3:amount, 4:status, 5:created_at, 8:sum, 9:count]","    - AGGREGATE(GLOBAL) [1:id, 3:amount, 4:status, 5:created_at]","            8:sum := sum(6:case)","            9:count := count(7:case)","        - SCAN [orders] =\u003e [1:id, 3:amount, 4:status, 5:created_at, 6:case, 7:case]","                6:case := if(10:expr, abs(3:amount), null)","                7:case := if(10:expr, 1, null)","                10:expr := 2:customer_id = 1, "]}
+> raw
+| span shop
 | WITH c AS (SELECT status, amount FROM orders) SELECT * FROM c PIVOT (sum(amount), min(amount) FOR status IN ('open'))
 < raw
 | {"columns":["'open'_sum(c.amount)","'open'_min(c.amount)"],"tables":["shop.orders"],"plan":["- Output =\u003e [7:sum, 8:min]","    - AGGREGATE(GLOBAL) []","            7:sum := sum(6:case)","            8:min := min(6:case)","        - SCAN [orders] =\u003e [6:case]","                6:case := if(4:status = 'open', 3:amount, null)"]}

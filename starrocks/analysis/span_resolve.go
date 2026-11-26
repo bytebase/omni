@@ -441,15 +441,24 @@ func (r *spanResolver) pivot(p *ast.PivotClause, sc *spanScope, ctes *cteBinding
 }
 
 // aggregateName is the name StarRocks gives an unaliased PIVOT aggregate
-// (AstToStringBuilder.visitFunctionCall): the function's name in lower
-// case, then its arguments as StarRocks prints them once analyzed,
-// separated by ", ", where a column carries its relation's name (see
-// qualifiedColumn). A call with an ORDER BY or a SEPARATOR keeps its text
-// as written.
+// (AstToStringBuilder.visitFunctionCall): the call as StarRocks prints it
+// once analyzed, where each column carries its relation's name (see
+// qualifiedColumn).
 func (r *spanResolver) aggregateName(node ast.Node, sc *spanScope) string {
-	call, ok := node.(*ast.FuncCallExpr)
-	if !ok || call.Name == nil || len(call.Name.Parts) != 1 || len(call.OrderBy) > 0 || call.SeparatorExpr != nil || call.Separator != "" || call.Over != nil {
-		return r.slice(node)
+	saved := r.qualify
+	r.qualify = sc
+	defer func() { r.qualify = saved }()
+	return r.printed(node)
+}
+
+// printedCall renders a call as StarRocks prints an analyzed one
+// (AstToStringBuilder.visitFunctionCall): the function's name in lower
+// case, then its arguments, each printed, separated by ", ". It reports
+// false for a call with a qualified name, an ORDER BY, a SEPARATOR or a
+// window, which keeps its text as written.
+func (r *spanResolver) printedCall(call *ast.FuncCallExpr) (string, bool) {
+	if call.Name == nil || len(call.Name.Parts) != 1 || len(call.OrderBy) > 0 || call.SeparatorExpr != nil || call.Separator != "" || call.Over != nil {
+		return "", false
 	}
 	var b strings.Builder
 	b.WriteString(strings.ToLower(call.Name.Parts[0]) + "(")
@@ -459,15 +468,12 @@ func (r *spanResolver) aggregateName(node ast.Node, sc *spanScope) string {
 	if call.Distinct {
 		b.WriteString("DISTINCT ")
 	}
-	saved := r.qualify
-	r.qualify = sc
-	defer func() { r.qualify = saved }()
 	args := make([]string, len(call.Args))
 	for i, a := range call.Args {
 		args[i] = r.printed(a)
 	}
 	b.WriteString(strings.Join(args, ", ") + ")")
-	return b.String()
+	return b.String(), true
 }
 
 // from adds a FROM item's relations to sc. A derived table sees only the
@@ -1015,6 +1021,11 @@ func (r *spanResolver) printed(node ast.Node) string {
 	case *ast.FuncCallExpr:
 		if w := e.Over; w != nil && w.Name == "" && w.Frame == nil {
 			return r.printedWindow(e, w)
+		}
+		if r.qualify != nil {
+			if name, ok := r.printedCall(e); ok {
+				return name
+			}
 		}
 	case *ast.ParenExpr:
 		if r.qualify != nil {
