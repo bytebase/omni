@@ -79,6 +79,9 @@ func (w *spanWalker) pipeOperator(op ast.Node, in *pipeTable) *pipeTable {
 		if n.Select == nil || n.Select.As != ast.SelectAsNone {
 			return w.pipeFailClosed("a pipe SELECT AS STRUCT or AS VALUE")
 		}
+		if w.starOverValueElem(n.Select.Items, cols) {
+			return w.pipeFailClosed("a pipe SELECT star over an UNNEST element, which expands a struct element's fields,")
+		}
 		return &pipeTable{cols: w.resolveSelectProjection(n.Select, []*relation{{columns: cols}})}
 	case *ast.PipeExtend:
 		w.visitPipeOp(op)
@@ -106,6 +109,32 @@ func (w *spanWalker) pipeOperator(op ast.Node, in *pipeTable) *pipeTable {
 	return w.pipeFailClosed(fmt.Sprintf("the pipe operator %T", op))
 }
 
+// starOverValueElem reports whether a star item of items expands an UNNEST
+// element column: a bare star over cols, or `rel.*` over a range variable
+// holding one.
+func (w *spanWalker) starOverValueElem(items []*ast.SelectItem, cols []projColumn) bool {
+	for _, item := range items {
+		if item == nil || !item.Star {
+			continue
+		}
+		over := cols
+		if item.Expr != nil {
+			over = nil
+			if parts := exprToParts(item.Expr); len(parts) == 1 {
+				if rel := w.leaves.find(parts[0]); rel != nil {
+					over = rel.columns
+				}
+			}
+		}
+		for _, c := range over {
+			if c.valueElem {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // pipeFailClosed fails the span closed for a pipe operator omni does not
 // resolve and returns the nil table that stops the resolution.
 func (w *spanWalker) pipeFailClosed(what string) *pipeTable {
@@ -117,17 +146,21 @@ func (w *spanWalker) pipeFailClosed(what string) *pipeTable {
 // unqualified name reads t's columns, and a qualified one a range variable. It
 // returns the function that restores the previous scope.
 func (w *spanWalker) enterPipeScope(t *pipeTable) func() {
-	prevLeaves, prevFrom, prevUnresolved := w.leaves, w.fromAliases, w.fromUnresolved
+	prevLeaves, prevFrom, prevUnresolved, prevRows := w.leaves, w.fromAliases, w.fromUnresolved, w.pipeRowNames
 	w.leaves = &leafSet{}
 	w.fromAliases = map[string]bool{}
 	w.fromUnresolved = false
+	w.pipeRowNames = map[string]bool{}
 	w.leaves.add(&relation{columns: t.cols})
 	for _, rel := range t.ranges {
 		w.leaves.add(rel)
 		w.registerFromAlias(rel.name)
+		if !rel.valueTable {
+			w.pipeRowNames[foldKey(rel.name)] = true
+		}
 	}
 	return func() {
-		w.leaves, w.fromAliases, w.fromUnresolved = prevLeaves, prevFrom, prevUnresolved
+		w.leaves, w.fromAliases, w.fromUnresolved, w.pipeRowNames = prevLeaves, prevFrom, prevUnresolved, prevRows
 	}
 }
 

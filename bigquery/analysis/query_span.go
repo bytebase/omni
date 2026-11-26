@@ -380,6 +380,9 @@ type spanWalker struct {
 	// operator, and the FROM clause an unaliased subquery of it sits in, read
 	// them. A reader takes it right after visitBody.
 	outRanges []*relation
+	// pipeRowNames holds, folded, the range variables a pipe operator's
+	// expressions see that stand for a whole row (not an UNNEST element).
+	pipeRowNames map[string]bool
 	// fixpoints counts the recursive-CTE fixpoints started, so
 	// recursiveFixpoint can tell whether a recursive arm holds another one.
 	fixpoints int
@@ -1704,6 +1707,9 @@ func (w *spanWalker) unnestElementColumns(array ast.Node) []projColumn {
 func (w *spanWalker) finishUnnestRelation(cols []projColumn, alias string, withOffset bool, offsetAlias string) *relation {
 	if alias != "" && len(cols) == 1 {
 		cols[0].name = alias
+	}
+	for i := range cols {
+		cols[i].valueElem = true
 	}
 	if withOffset {
 		name := offsetAlias

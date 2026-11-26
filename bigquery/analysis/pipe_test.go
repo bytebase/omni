@@ -138,6 +138,12 @@ func TestGetQuerySpanPipe(t *testing.T) {
 			// A PIVOT source's output is not its input's columns.
 			"SELECT 0 AS p |> CROSS JOIN (SELECT s, c FROM t) PIVOT(MAX(s) FOR c IN ('a', 'b'))",
 			"FROM (SELECT s, c FROM t) PIVOT(MAX(s) FOR c IN ('a', 'b')) |> SELECT *",
+			// A star expands a struct element's fields.
+			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> SELECT *",
+			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> AS z |> SELECT z.*",
+			// A range variable on its own is the whole row.
+			"SELECT public, secret FROM t |> AS a |> SELECT TO_JSON_STRING(a)",
+			"FROM (SELECT public, secret FROM t) AS a |> EXTEND TO_JSON_STRING(a) AS j",
 		} {
 			if _, err := GetQuerySpan(sql); err == nil {
 				t.Errorf("GetQuerySpan(%q) returned a span; want fail closed", sql)
