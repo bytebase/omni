@@ -1361,14 +1361,14 @@ func TestGetQuerySpanPreparedStringLocationsAndScopes(t *testing.T) {
 }
 
 // A PIVOT reads its FROM's tables, and the tables a subquery in one of its
-// aggregates reads.
+// aggregates or INTERVAL values reads.
 func TestGetQuerySpan_Pivot(t *testing.T) {
-	span, err := GetQuerySpan("SELECT * FROM t PIVOT (SUM((SELECT MAX(x) FROM u)) FOR b IN (1))")
+	span, err := GetQuerySpan("SELECT * FROM t PIVOT (SUM((SELECT MAX(x) FROM u)) FOR b IN (INTERVAL (SELECT MAX(y) FROM v) DAY))")
 	if err != nil {
 		t.Fatal(err)
 	}
 	sigs := toSigs(span.AccessTables)
-	for _, want := range []tableSig{{Table: "t"}, {Table: "u"}} {
+	for _, want := range []tableSig{{Table: "t"}, {Table: "u"}, {Table: "v"}} {
 		if !containsSig(sigs, want) {
 			t.Errorf("AccessTables %v, want %v", sigs, want)
 		}

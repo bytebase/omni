@@ -61,3 +61,26 @@ func TestPivotAlias(t *testing.T) {
 		}
 	}
 }
+
+// Hoisting a TRACE set operation's INTO OUTFILE off its last arm keeps that
+// arm's PIVOT inside the arm's range.
+func TestPivotArmRangeAfterInto(t *testing.T) {
+	sql := "TRACE ALL SELECT 1 UNION SELECT * FROM t PIVOT (SUM(a) FOR b IN (1)) INTO OUTFILE 'x'"
+	file, err := Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var arm *ast.SelectStmt
+	ast.Inspect(file, func(n ast.Node) bool {
+		if s, ok := n.(*ast.SelectStmt); ok && s.Pivot != nil {
+			arm = s
+		}
+		return true
+	})
+	if arm == nil {
+		t.Fatal("no SELECT with a PIVOT")
+	}
+	if got, want := sql[arm.Loc.Start:arm.Loc.End], "SELECT * FROM t PIVOT (SUM(a) FOR b IN (1))"; got != want {
+		t.Errorf("arm text %q, want %q", got, want)
+	}
+}
