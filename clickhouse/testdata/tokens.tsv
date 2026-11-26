@@ -27,6 +27,19 @@ createStmt(clusterClause)?	(every site)	ClickHouseParser.g4:99 CREATE ... ON CLU
 dropStmt(clusterClause)?	(every site)	ClickHouseParser.g4:191 DROP ... ON CLUSTER
 alterTableClause(IN_partitionClause)?	(every site)	ClickHouseParser.g4:48 CLEAR, MATERIALIZE ... IN PARTITION
 alterTableClause(AFTER_nestedIdentifier)?	(every site)	ClickHouseParser.g4:43 ADD ... AFTER
+createStmt(uuidClause)?	(every site)	ClickHouseParser.g4:101 CREATE DICTIONARY, MATERIALIZED VIEW, TABLE, VIEW ... UUID 'uuid'
+createStmt(tableSchemaClause)?	(every site)	ClickHouseParser.g4:102 CREATE MATERIALIZED VIEW, TABLE, VIEW ... (columns)
+tableColumnDfnt(COMMENT_stringLiteral)?	(every site)	ClickHouseParser.g4:171 a column's COMMENT, with or without its type
+tableColumnDfnt(codecExpr)?	(every site)	ClickHouseParser.g4:171 a column's CODEC, with or without its type
+tableColumnDfnt(TTL_columnExpr)?	(every site)	ClickHouseParser.g4:171 a column's TTL, with or without its type
+joinOp(OUTER)?	(every site)	ClickHouseParser.g4:330 LEFT, RIGHT or FULL ... OUTER, before or after the strictness
+columnExpr(NOT)?	(every site)	ClickHouseParser.g4:458 NOT BETWEEN, NOT IN, NOT LIKE, IS NOT NULL
+showStmt(LIMIT_DECIMAL_LITERAL)?	(every site)	ClickHouseParser.g4:374 SHOW DATABASES, DICTIONARIES, TABLES, COLUMNS, CLUSTERS, MERGES ... LIMIT n
+showStmt(EXTENDED)?	(every site)	ClickHouseParser.g4:377 SHOW EXTENDED COLUMNS, SHOW EXTENDED INDEX
+showStmt(FULL)?	(every site)	ClickHouseParser.g4:376 SHOW FULL TABLES, SHOW FULL COLUMNS
+showStmt(CREATE)?	(every site)	ClickHouseParser.g4:371 SHOW CREATE DATABASE, SHOW CREATE VIEW
+showStmt(SETTINGS)?	(every site)	ClickHouseParser.g4:385 SHOW CREATE SETTINGS PROFILE, SHOW SETTINGS PROFILES
+showStmt(ROW)?	(every site)	ClickHouseParser.g4:383 SHOW CREATE ROW POLICY, SHOW ROW POLICIES
 # Choices tried at every site that names them, and not only where the rule's
 # own alternatives are reached.
 stringLiteral	(every alternative)	ClickHouseParser.g4:547 hexadecimal, binary or quoted string literal
@@ -36,3 +49,35 @@ partitionClause	(every alternative)	ClickHouseParser.g4:82 PARTITION expr or PAR
 identifierOrNull	(every alternative)	ClickHouseParser.g4:585 an identifier or Null
 tableSchemaClause	(every alternative)	ClickHouseParser.g4:142 a column list, AS table or AS table function
 columnTypeExpr	(every alternative)	ClickHouseParser.g4:433 simple, Nested, Enum, complex or parametric type
+createStmt(ATTACH|CREATE)	(every alternative)	ClickHouseParser.g4:99 ATTACH or CREATE DATABASE, MATERIALIZED VIEW, VIEW
+createStmt(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)	(every alternative)	ClickHouseParser.g4:100 ATTACH, CREATE [OR REPLACE] or REPLACE DICTIONARY, TABLE
+dropStmt(DETACH|DROP)	(every alternative)	ClickHouseParser.g4:191 DETACH or DROP a database, dictionary, table or view
+systemStmt(START|STOP)	(every alternative)	ClickHouseParser.g4:412 SYSTEM START or STOP sends, fetches or merges
+showStmt(LIKE|ILIKE)	(every alternative)	ClickHouseParser.g4:374 SHOW ... LIKE or ILIKE 'pattern'
+showStmt(FROM|IN)	(every alternative)	ClickHouseParser.g4:376 SHOW TABLES, COLUMNS, INDEX ... FROM or IN
+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?	(every alternative)	ClickHouseParser.g4:374 SHOW DATABASES, DICTIONARIES, TABLES, COLUMNS ... [NOT] LIKE 'pattern' or WHERE expr
+showStmt(NOT?_(LIKE|ILIKE)_stringLiteral)?	(every alternative)	ClickHouseParser.g4:394 SHOW CLUSTERS, MERGES ... [NOT] LIKE 'pattern'
+showStmt(NOT)?	(every alternative)	ClickHouseParser.g4:374 NOT LIKE in a SHOW filter
+clusterClause	(every alternative)	ClickHouseParser.g4:138 ON CLUSTER name or 'name'
+clusterClause(identifier|stringLiteral)	(every alternative)	ClickHouseParser.g4:138 a cluster named by an identifier or a string
+winFrameBound	(every alternative)	ClickHouseParser.g4:360 a window frame bound
+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)	(every alternative)	ClickHouseParser.g4:360 CURRENT ROW, UNBOUNDED or n PRECEDING or FOLLOWING
+limitExpr	(every alternative)	ClickHouseParser.g4:345 LIMIT n, LIMIT m, n or LIMIT n OFFSET m
+limitExpr((COMMA|OFFSET)_columnExpr)?	(every alternative)	ClickHouseParser.g4:345 , n or OFFSET n after a limit
+limitExpr(COMMA|OFFSET)	(every alternative)	ClickHouseParser.g4:345 , or OFFSET in a limit
+engineExpr	(every alternative)	ClickHouseParser.g4:163 ENGINE [=] name [(args)] for a database or a table
+engineExpr(EQ_SINGLE)?	(every alternative)	ClickHouseParser.g4:163 = after ENGINE
+engineExpr(LPAREN_columnExprList?_RPAREN)?	(every alternative)	ClickHouseParser.g4:163 an engine's argument list
+ttlClause	(every alternative)	ClickHouseParser.g4:161 a table TTL in CREATE TABLE or ALTER TABLE MODIFY TTL
+ttlExpr	(every alternative)	ClickHouseParser.g4:179 a TTL that deletes, moves or groups rows
+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?	(every alternative)	ClickHouseParser.g4:180 DELETE, TO DISK or TO VOLUME after a TTL expression
+tableColumnDfnt	(every alternative)	ClickHouseParser.g4:170 a column with or without its type, in CREATE TABLE, ADD COLUMN and MODIFY COLUMN
+tableColumnPropertyExpr	(every alternative)	ClickHouseParser.g4:174 a column's DEFAULT, MATERIALIZED or ALIAS
+tableColumnPropertyExpr(DEFAULT|MATERIALIZED|ALIAS)	(every alternative)	ClickHouseParser.g4:174 DEFAULT, MATERIALIZED or ALIAS
+groupByClause	(every alternative)	ClickHouseParser.g4:307 GROUP BY ALL, CUBE, ROLLUP, GROUPING SETS or a list, in SELECT, a projection and a TTL
+groupByClause(CUBE|ROLLUP)	(every alternative)	ClickHouseParser.g4:309 CUBE or ROLLUP
+tableExpr	(every alternative)	ClickHouseParser.g4:516 a table, table function, subquery or aliased table, in DESCRIBE and FROM
+joinOp(LEFT|RIGHT)	(every alternative)	ClickHouseParser.g4:330 LEFT or RIGHT join
+joinOp(ALL|ANY)?	(every alternative)	ClickHouseParser.g4:333 ALL or ANY beside FULL
+joinOp(SEMI|ALL|ANTI|ANY|ASOF)?	(every alternative)	ClickHouseParser.g4:330 a LEFT or RIGHT join's strictness, before or after it
+joinOp(ALL|ANY|ASOF)?	(every alternative)	ClickHouseParser.g4:328 an INNER join's strictness, before or after it

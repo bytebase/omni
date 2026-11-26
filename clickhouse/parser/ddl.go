@@ -1222,25 +1222,31 @@ func (p *parser) parseTableProjectionDfnt(start int) (*TableElement, error) {
 		return nil, err
 	}
 	proj.Columns = cols
+	// ClickHouse's ParserProjectionSelectQuery reads GROUP BY and ORDER BY as
+	// plain expression lists (ParserExpressionList(false)): no aliases, no
+	// trailing comma, and no GROUP BY ALL, CUBE, ROLLUP or GROUPING SETS
+	// syntax, so ALL, CUBE() and ROLLUP(a) are an identifier and function
+	// calls there. The grammar's projectionSelectStmt names groupByClause and
+	// columnExprList (ClickHouseParser.g4:271), which the server does not.
 	if p.cur().Type == KwGroup && p.peek(1).Type == KwBy {
-		if p.peek(2).Type == TokRParen {
-			// ClickHouse's ParserProjectionSelectQuery permits an empty GROUP BY
-			// immediately before the closing ')'.
-			gbStart := p.advance().Pos // GROUP
-			byTok := p.advance()       // BY
-			proj.GroupBy = &GroupByClause{span: span{Pos: gbStart, End: byTok.End}}
-		} else {
-			gb, err := p.parseGroupByClause()
+		gbStart := p.advance().Pos // GROUP
+		byTok := p.advance()       // BY
+		gb := &GroupByClause{span: span{Pos: gbStart, End: byTok.End}}
+		// An empty GROUP BY immediately before the closing ')' is accepted.
+		if p.cur().Type != TokRParen {
+			exprs, err := p.parseProjectionExprList()
 			if err != nil {
 				return nil, err
 			}
-			proj.GroupBy = gb
+			gb.Exprs = exprs
+			gb.End = p.peek(-1).End
 		}
+		proj.GroupBy = gb
 	}
 	if p.cur().Type == KwOrder && p.peek(1).Type == KwBy {
 		p.advance()
 		p.advance()
-		orderExprs, err := p.parseColumnExprList()
+		orderExprs, err := p.parseProjectionExprList()
 		if err != nil {
 			return nil, err
 		}
@@ -1262,6 +1268,31 @@ func (p *parser) parseTableProjectionDfnt(start int) (*TableElement, error) {
 		Name:       name,
 		Projection: proj,
 	}, nil
+}
+
+// parseProjectionExprList parses a projection's GROUP BY or ORDER BY list:
+// comma-separated expressions without aliases, as ParserExpressionList(false)
+// reads them. An expression may be an asterisk.
+func (p *parser) parseProjectionExprList() ([]Expr, error) {
+	var list []Expr
+	for {
+		var expr Expr
+		var err error
+		if p.cur().Type == TokStar {
+			expr, err = p.parseStarExpr(nil, p.cur().Pos)
+		} else if parts, startPos, ok := p.tryMatchQualifiedStar(); ok {
+			expr, err = p.parseStarExpr(parts, startPos)
+		} else {
+			expr, err = p.parseExpr()
+		}
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, expr)
+		if !p.match(TokComma) {
+			return list, nil
+		}
+	}
 }
 
 func (p *parser) parseCodecExpr() (*CodecExpr, error) {
@@ -1465,6 +1496,15 @@ func (p *parser) parseTTLClause(inAlter bool) ([]*TTLExpr, error) {
 				}
 				ttl.Where = where
 			}
+		case p.cur().Type == KwWhere:
+			// ClickHouse's ParserTTLElement reads a TTL with no action as
+			// DELETE and lets a WHERE follow it, as after DELETE.
+			p.advance()
+			where, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			ttl.Where = where
 		case p.cur().Type == KwTo && (p.peek(1).Type == KwDisk || p.peek(1).Type == KwVolume):
 			p.advance() // TO
 			destKind := strings.ToUpper(p.advance().Val)
@@ -1514,7 +1554,12 @@ func (p *parser) parseTTLClause(inAlter bool) ([]*TTLExpr, error) {
 		}
 		ttl.End = p.peek(-1).End
 		ttls = append(ttls, ttl)
-		if p.cur().Type == TokComma && (!inAlter || !isAlterClauseStart(p.peek(1).Type)) {
+		// In ALTER, ClickHouse's ParserAlterCommand ends the TTL list only
+		// before MODIFY TTL, REMOVE TTL or MATERIALIZE TTL; anything else after
+		// the comma is another TTL element, a bare keyword such as DELETE or
+		// DROP read as an identifier. So MODIFY TTL a, DELETE is one TTL list,
+		// and MODIFY TTL a, DROP COLUMN b fails at COLUMN.
+		if p.cur().Type == TokComma && (!inAlter || !isAlterTTLCommandStart(p.peek(1).Type, p.peek(2).Type)) {
 			p.advance()
 			continue
 		}
@@ -1608,12 +1653,13 @@ func (p *parser) parseTTLGroupByKeys(start int) (*GroupByClause, error) {
 	return gb, nil
 }
 
-func isAlterClauseStart(tt TokenType) bool {
-	switch tt {
-	case KwAdd, KwAttach, KwClear, KwComment, KwDelete, KwDetach, KwDrop,
-		KwFreeze, KwMaterialize, KwModify, KwMove, KwRemove, KwRename,
-		KwReplace, KwUpdate:
-		return true
+// isAlterTTLCommandStart reports whether two tokens start an ALTER command
+// that a MODIFY TTL list stops before: MODIFY TTL, REMOVE TTL or MATERIALIZE
+// TTL.
+func isAlterTTLCommandStart(first, second TokenType) bool {
+	switch first {
+	case KwModify, KwRemove, KwMaterialize:
+		return second == KwTtl
 	default:
 		return false
 	}
@@ -1857,6 +1903,20 @@ func (p *parser) parseAlterTableClause() (*AlterClause, error) {
 
 	case KwMaterialize:
 		p.advance()
+		if p.cur().Type == KwTtl {
+			// MATERIALIZE TTL [IN PARTITION partition_expr]
+			// (https://clickhouse.com/docs/sql-reference/statements/alter/ttl#materialize-ttl).
+			p.advance()
+			var part *PartitionClause
+			if p.match(KwIn) {
+				var err error
+				part, err = p.parsePartitionClause()
+				if err != nil {
+					return nil, err
+				}
+			}
+			return &AlterClause{span: span{Pos: start, End: p.peek(-1).End}, Action: "MATERIALIZE TTL", Partition: part}, nil
+		}
 		var kind string
 		switch p.cur().Type {
 		case KwIndex, KwProjection, KwColumn:
