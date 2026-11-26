@@ -266,8 +266,8 @@ ok:ec596c38eba1	ok:ec596c38eba1	engine	one_table@column	expressionPrimary(odbcFu
 ok:599ad5964e0b	ok:599ad5964e0b	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/jsonArrayCall_JSON_ARRAY!insert	CREATE VIEW _v AS SELECT JSON_ARRAY() zzz
 8116	8116	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/trimCall_TRIM	CREATE VIEW _v AS SELECT TRIM(1)
 8116	8116	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/trimCall_TRIM!insert	CREATE VIEW _v AS SELECT TRIM(1) zzz
-4511	208	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/partitionFunctionCall	CREATE VIEW _v AS SELECT $PARTITION.a(1)
-ok	208	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/partitionFunctionCall!insert	CREATE VIEW _v AS SELECT $PARTITION.a(1) zzz
+208	208	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/partitionFunctionCall	CREATE VIEW _v AS SELECT $PARTITION.a(1)
+208	208	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/partitionFunctionCall!insert	CREATE VIEW _v AS SELECT $PARTITION.a(1) zzz
 11719	11719	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/nextValueForCall_NEXT	CREATE VIEW _v AS SELECT NEXT VALUE FOR a
 11719	11719	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/nextValueForCall_NEXT!insert	CREATE VIEW _v AS SELECT NEXT VALUE FOR a zzz
 4511	4511	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/nullIfExpression	CREATE VIEW _v AS SELECT NULLIF(1, 1)
@@ -328,7 +328,7 @@ ok:e1b83eaff11c	ok:e1b83eaff11c	engine	one_table@column	parameterlessCall/Curren
 207	207	engine	one_table@column	specialColumn/RowGuidColumn!insert	CREATE VIEW _v AS SELECT ROWGUIDCOL zzz
 207	207	engine	one_table@column	specialColumn/RowGuidColumn!swap	CREATE VIEW _v AS SELECT ROWS
 4511	208	engine	one_table@column	partitionFunctionCall(identifier_Dot)?/identifier_Dot	CREATE VIEW _v AS SELECT a.$PARTITION.a(1)
-4511	208	engine	one_table@column	partitionFunctionCall(identifier_Dot)?/identifier_Dot!drop-1	CREATE VIEW _v AS SELECT.$PARTITION.a(1)
+208	208	engine	one_table@column	partitionFunctionCall(identifier_Dot)?/identifier_Dot!drop-1	CREATE VIEW _v AS SELECT.$PARTITION.a(1)
 107	107	engine	one_table@column	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/Dot_specialColumn	CREATE VIEW _v AS SELECT a.IDENTITYCOL
 107	107	engine	one_table@column	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/Dot_specialColumn!insert	CREATE VIEW _v AS SELECT a.IDENTITYCOL zzz
 107	107	engine	one_table@column	selectStarExpression(multiPartIdentifier_Dot_Star|Star)/multiPartIdentifier_Dot_Star	CREATE VIEW _v AS SELECT a.*

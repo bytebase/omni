@@ -66,6 +66,10 @@ type Catalog struct {
 	hiddenColumns         map[*metadata.ColumnMetadata]bool
 	systemTimeTables      map[tableKey][2]string
 	systemVersionedTables map[tableKey]bool
+	// partitionFunctions holds, lower-cased, the partition functions Exec
+	// created. A synced snapshot records none, so a catalog loaded from
+	// one does not read it.
+	partitionFunctions map[string]bool
 }
 
 type tableKey struct {
@@ -285,6 +289,7 @@ func (c *Catalog) loadPrimaryMetadata(meta *metadata.DatabaseSchemaMetadata, dat
 	c.tableByName = make(map[tableKey]*metadata.TableMetadata)
 	c.systemTimeTables = make(map[tableKey][2]string)
 	c.systemVersionedTables = make(map[tableKey]bool)
+	c.partitionFunctions = nil
 	for _, schema := range meta.GetSchemas() {
 		c.addSchema(cloneSchema(schema))
 	}
@@ -532,6 +537,11 @@ func (c *Catalog) execStatement(node ast.Node, source string) error {
 		return c.execCreateOrAlterTrigger(n, source)
 	case *ast.CreateSynonymStmt:
 		return c.execCreateSynonym(n)
+	case *ast.CreatePartitionFunctionStmt:
+		if c.partitionFunctions == nil {
+			c.partitionFunctions = make(map[string]bool)
+		}
+		c.partitionFunctions[strings.ToLower(n.Name)] = true
 	case *ast.AlterTableStmt:
 		return c.execAlterTable(n, source)
 	case *ast.DropStmt:
