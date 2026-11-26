@@ -2383,12 +2383,12 @@ func (c *Catalog) viewTypeUser(schema, name, what string) error {
 // viewSequenceUser refuses renaming, moving or dropping a sequence a view's
 // query calls, which the catalog does not track or rewrite.
 func (c *Catalog) viewSequenceUser(schema, name string, kind relKind) error {
-	return c.sequenceUserOutside(schema, name, kind, "")
+	return c.sequenceUserOutside(schema, name, kind, "", nil)
 }
 
 // sequenceUserOutside is viewSequenceUser without the views and routines of
 // the schema dropping, which go with it.
-func (c *Catalog) sequenceUserOutside(schema, name string, kind relKind, dropping string) error {
+func (c *Catalog) sequenceUserOutside(schema, name string, kind relKind, dropping string, going func(schema, name string) bool) error {
 	if kind != relSequence {
 		return nil
 	}
@@ -2404,10 +2404,14 @@ func (c *Catalog) sequenceUserOutside(schema, name string, kind relKind, droppin
 		}
 		var definitions []string
 		for _, v := range s.Views {
-			definitions = append(definitions, v.Definition)
+			if going == nil || !going(s.Name, v.Name) {
+				definitions = append(definitions, v.Definition)
+			}
 		}
 		for _, v := range s.MaterializedViews {
-			definitions = append(definitions, v.Definition)
+			if going == nil || !going(s.Name, v.Name) {
+				definitions = append(definitions, v.Definition)
+			}
 		}
 		for _, definition := range definitions {
 			stmt, err := parser.ParseOne(definition)
@@ -2832,7 +2836,8 @@ func (c *Catalog) dropRelations(names tree.TableNames, ifExists bool, behavior t
 			if inSchema {
 				droppingSchema = t.s.Name
 			}
-			if err := c.sequenceUserOutside(t.s.Name, t.name, relSequence, droppingSchema); err != nil {
+			// Views the statement drops too go with the sequence.
+			if err := c.sequenceUserOutside(t.s.Name, t.name, relSequence, droppingSchema, dropping); err != nil {
 				return err
 			}
 			var users []*metadatapb.ColumnMetadata

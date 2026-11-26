@@ -559,3 +559,8 @@ func TestExecRound35(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "ARRAY['blue'::mood]::mood[]", c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
 }
+
+func TestExecRound36(t *testing.T) {
+	_, err := execLast(t, "CREATE TABLE t (a INT8); CREATE SEQUENCE sq OWNED BY t.a; CREATE VIEW v AS SELECT a, nextval('sq') AS n FROM t; DROP TABLE t CASCADE")
+	require.NoError(t, err)
+}
