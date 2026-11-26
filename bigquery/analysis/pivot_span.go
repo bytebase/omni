@@ -61,13 +61,17 @@ func (w *spanWalker) pivotColumns(in []projColumn, pv *ast.PivotClause) []projCo
 }
 
 // markRead adds to used, folded, the input column each column reference of
-// expr names: its first part, or its second where the first names a range
-// variable, and every column of a range variable read whole.
+// expr names: its first part, its second where the first names a range
+// variable, the column of a path that names a base table in full
+// (`ds.t.c`), and every column of a range variable read whole.
 func (w *spanWalker) markRead(used map[string]bool, expr ast.Node) {
 	paths, _ := w.collectColumnPaths(expr)
 	for _, parts := range paths {
 		rel := w.leaves.find(parts[0])
+		ref := columnRefFromParts(parts)
 		switch {
+		case rel == nil && w.qualifierNamesBaseRelation(ref):
+			used[foldKey(ref.Column)] = true
 		case rel != nil && len(parts) >= 2:
 			used[foldKey(parts[1])] = true
 		case rel != nil:

@@ -449,12 +449,19 @@ func (w *spanWalker) resolvePath(parts []string) (string, []ColumnRef) {
 	// column of the current scope with the same name shadows it, which omni
 	// cannot always tell without metadata, so both are read.
 	for i := len(w.enclosing) - 1; i >= 0; i-- {
-		if w.enclosing[i].find(parts[0]) != nil {
-			inner := w.leaves
-			w.leaves = w.enclosing[i]
-			refs := w.resolveColumn(parts[0], parts[1])
-			w.leaves = inner
-			return parts[1], append(refs, w.resolveColumn("", parts[0])...)
+		inner := w.leaves
+		w.leaves = w.enclosing[i]
+		var refs []ColumnRef
+		name := ""
+		switch {
+		case w.leaves.find(parts[0]) != nil:
+			name, refs = parts[1], w.resolveColumn(parts[0], parts[1])
+		case w.qualifierNamesBaseRelation(ref):
+			name, refs = ref.Column, []ColumnRef{ref}
+		}
+		w.leaves = inner
+		if refs != nil {
+			return name, append(refs, w.resolveColumn("", parts[0])...)
 		}
 	}
 	// Otherwise the leading identifier is a struct/field column root (`s.field`,

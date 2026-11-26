@@ -286,6 +286,9 @@ func TestResolveQuerySpanRangeVariableLineage(t *testing.T) {
 		{"FROM t |> SELECT secret AS renamed |> EXTEND (SELECT renamed) AS leaked |> SELECT leaked", [][]string{{"leaked", "t.secret"}}},
 		{"SELECT (SELECT renamed FROM u) AS v FROM (SELECT secret AS renamed FROM t)", [][]string{{"v", "t.secret"}}},
 		{"FROM (SELECT secret FROM t) AS a |> EXTEND (SELECT a) AS leaked |> SELECT leaked", [][]string{{"leaked", "t.secret"}}},
+		{"FROM ds1.t |> EXTEND (SELECT ds1.t.secret) AS leaked |> SELECT leaked", [][]string{{"leaked", "t.secret"}}},
+		// A PIVOT aggregate's fully qualified column is not a grouping column.
+		{"FROM ds1.t |> PIVOT (MAX(ds1.t.secret) FOR y IN ('v'))", [][]string{{"x", "t.x"}, {"v", "t.secret"}}},
 		{"FROM (SELECT 1 AS secret) AS a |> EXTEND (SELECT a.secret FROM (SELECT STRUCT(secret AS secret) AS a FROM t)) AS leaked |> SELECT leaked", [][]string{{"leaked", "t.secret"}}},
 		{"SELECT (SELECT secret FROM u) AS v FROM t", [][]string{{"v", "t.secret"}}},
 		{"SELECT (SELECT STRING_AGG(e) FROM UNNEST([p.secret]) AS e) AS v FROM t AS p", [][]string{{"v", "t.secret"}}},
