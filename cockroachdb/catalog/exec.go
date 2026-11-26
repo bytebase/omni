@@ -96,7 +96,7 @@ func (c *Catalog) Exec(sql string) ([]ExecResult, error) {
 			return nil, err
 		}
 		line := strings.Count(sql[:seg.ByteStart], "\n") + 1
-		line += strings.Count(seg.Text[:len(seg.Text)-len(strings.TrimLeft(seg.Text, " \t\r\n"))], "\n")
+		line += strings.Count(seg.Text[:leadLength(seg.Text)], "\n")
 		for _, s := range list {
 			stmts = append(stmts, parsed{text: s.SQL, line: line, ast: s.AST})
 		}
@@ -115,6 +115,33 @@ func (c *Catalog) Exec(sql string) ([]ExecResult, error) {
 		}
 	}
 	return results, nil
+}
+
+// leadLength is the length of the whitespace and comments a statement's
+// text starts with.
+func leadLength(text string) int {
+	i := 0
+	for i < len(text) {
+		switch {
+		case strings.ContainsRune(" \t\r\n", rune(text[i])):
+			i++
+		case strings.HasPrefix(text[i:], "--"):
+			end := strings.IndexByte(text[i:], '\n')
+			if end < 0 {
+				return len(text)
+			}
+			i += end + 1
+		case strings.HasPrefix(text[i:], "/*"):
+			end := strings.Index(text[i+2:], "*/")
+			if end < 0 {
+				return len(text)
+			}
+			i += end + 4
+		default:
+			return i
+		}
+	}
+	return i
 }
 
 // restore puts back what the catalog held before a refused statement.
@@ -389,6 +416,14 @@ func (c *Catalog) dropSchema(n *tree.DropSchema) error {
 		if !empty && n.DropBehavior != tree.DropCascade {
 			return refuse(codeDependentObjects, "schema %q is not empty and CASCADE was not specified", name)
 		}
+		for _, typ := range append(slices.Clone(enumNames(s)), compositeNames(s)...) {
+			for _, user := range c.typeUsers(name, typ) {
+				if !slices.ContainsFunc(s.Tables, func(t *metadatapb.TableMetadata) bool { return t.Name == user }) &&
+					!slices.ContainsFunc(s.CompositeTypes, func(t *metadatapb.CompositeTypeMetadata) bool { return t.Name == user }) {
+					return refuse(codeFeatureNotSupport, "unimplemented: cannot drop type %q because other objects (%s) still depend on it", typ, user)
+				}
+			}
+		}
 		// Each relation goes with what CASCADE takes along, in other
 		// schemas too.
 		in := func(names ...string) tree.TableNames {
@@ -488,6 +523,22 @@ func (c *Catalog) createTable(n *tree.CreateTable) error {
 				return err
 			}
 		}
+	}
+	primaryKeys := 0
+	for _, def := range n.Defs {
+		switch d := def.(type) {
+		case *tree.ColumnTableDef:
+			if d.PrimaryKey.IsPrimaryKey {
+				primaryKeys++
+			}
+		case *tree.UniqueConstraintTableDef:
+			if d.PrimaryKey {
+				primaryKeys++
+			}
+		}
+	}
+	if primaryKeys > 1 {
+		return refuse("XXUUU", "multiple primary keys for table %q are not allowed", name)
 	}
 	// The new table's columns, for the foreign keys it declares.
 	pending := &metadatapb.TableMetadata{Name: name}
@@ -1038,7 +1089,7 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 		c.eachTable(func(_ *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
 			for _, column := range table.Columns {
 				if column.Type == typ && column.Default != "" {
-					column.Default = relabelIn(column.Default, string(cmd.OldVal), string(cmd.NewVal))
+					column.Default = relabelIn(column.Default, typ, string(cmd.OldVal), string(cmd.NewVal))
 				}
 			}
 		})
@@ -1151,15 +1202,36 @@ func retypeIn(text, old, now string) string {
 	return tree.AsString(out)
 }
 
-// relabelIn returns a default with an enum label renamed.
-func relabelIn(text, from, to string) string {
+// relabelIn returns a default of enum type typ with a label renamed: the
+// default itself when it is the label, and the label cast or annotated to
+// the type anywhere in it. Other strings are left as written.
+func relabelIn(text, typ, from, to string) string {
 	expr, err := parser.ParseExpr(text)
 	if err != nil {
 		return text
 	}
+	if str, ok := unparen(expr).(*tree.StrVal); ok && str.RawString() == from {
+		return tree.AsString(tree.NewStrVal(to))
+	}
+	label := func(inner tree.Expr, t tree.ResolvableTypeReference) bool {
+		str, ok := unparen(inner).(*tree.StrVal)
+		_, known := tree.GetStaticallyKnownType(t)
+		return ok && !known && str.RawString() == from && schemaQualified(t).SQLString() == typ
+	}
 	out, err := tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
-		if str, ok := e.(*tree.StrVal); ok && str.RawString() == from {
-			return false, tree.NewStrVal(to), nil
+		switch x := e.(type) {
+		case *tree.CastExpr:
+			if label(x.Expr, x.Type) {
+				cast := *x
+				cast.Expr = tree.NewStrVal(to)
+				return false, &cast, nil
+			}
+		case *tree.AnnotateTypeExpr:
+			if label(x.Expr, x.Type) {
+				annotation := *x
+				annotation.Expr = tree.NewStrVal(to)
+				return false, &annotation, nil
+			}
 		}
 		return true, e, nil
 	})
@@ -1167,6 +1239,22 @@ func relabelIn(text, from, to string) string {
 		return text
 	}
 	return tree.AsString(out)
+}
+
+func enumNames(s *metadatapb.SchemaMetadata) []string {
+	var out []string
+	for _, e := range s.EnumTypes {
+		out = append(out, e.Name)
+	}
+	return out
+}
+
+func compositeNames(s *metadatapb.SchemaMetadata) []string {
+	var out []string
+	for _, t := range s.CompositeTypes {
+		out = append(out, t.Name)
+	}
+	return out
 }
 
 // labelUser returns a table a column default of which holds an enum label.

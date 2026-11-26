@@ -51,6 +51,8 @@ func TestExecRefusals(t *testing.T) {
 		{"CREATE TABLE p (id INT8 PRIMARY KEY); CREATE TABLE c (id INT8 REFERENCES p (id)); ALTER TABLE c ALTER COLUMN id TYPE STRING", "0A000"},
 		{"CREATE TABLE p (id INT8 PRIMARY KEY); CREATE TABLE c (id INT8 REFERENCES p (id)); ALTER TABLE p ALTER COLUMN id TYPE STRING", "0A000"},
 		{"CREATE FUNCTION missing.f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$", "3F000"},
+		{"CREATE TABLE t (a INT8 PRIMARY KEY, b INT8 PRIMARY KEY)", "XXUUU"},
+		{"CREATE SCHEMA s; CREATE TYPE s.m AS ENUM ('a'); CREATE TABLE t (m s.m); DROP SCHEMA s CASCADE", "0A000"},
 	} {
 		_, err := execLast(t, tc.script)
 		require.Equal(t, tc.code, code(err), "%s: %v", tc.script, err)
@@ -132,4 +134,16 @@ func TestExecFollowsLabelAndSchemaRenames(t *testing.T) {
 	require.Equal(t, "nextval('s2.sq')", c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
 	_, err = execLast(t, "CREATE SCHEMA s; CREATE TABLE t (a INT8); CREATE SEQUENCE sq OWNED BY t.a; ALTER TABLE t SET SCHEMA s")
 	require.Error(t, err)
+}
+
+func TestExecRelabelsOnlyTheEnum(t *testing.T) {
+	c, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (m mood DEFAULT CASE WHEN current_user = 'sad' THEN 'sad'::mood ELSE 'happy'::mood END); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.NoError(t, err)
+	require.Equal(t, "CASE WHEN current_user() = 'sad' THEN 'blue'::mood ELSE 'happy'::mood END", c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
+}
+
+func TestExecLineSkipsComments(t *testing.T) {
+	results, err := catalog.New().Exec("CREATE TABLE t (a INT8);\n-- migration\n/* two\nlines */\nALTER TABLE missing ADD COLUMN a INT8;")
+	require.NoError(t, err)
+	require.Equal(t, 5, results[len(results)-1].Line)
 }
