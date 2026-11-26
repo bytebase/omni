@@ -18827,3 +18827,10 @@ accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a INDEX ix_a
 accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
 accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
 accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX a;
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX A_D_IDX;
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX PK_a;
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);

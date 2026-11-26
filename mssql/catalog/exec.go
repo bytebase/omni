@@ -2478,15 +2478,62 @@ func (c *Catalog) execAlterTableInCatalog(n *ast.AlterTableStmt, source string) 
 
 func checkAlterTablePreLookup(n *ast.AlterTableStmt) error {
 	seenDrop := make(map[string]bool)
+	// One ADD list names its indexes, and the PRIMARY KEY and UNIQUE
+	// constraints whose indexes share the name, once each: ADD x INT INDEX
+	// ix, y INT INDEX ix is 8168 before the table is looked up (measured,
+	// simulate.tsv).
+	seenAdd := make(map[string]bool)
+	addName := func(name string) error {
+		if name == "" {
+			return nil
+		}
+		low := strings.ToLower(name)
+		if seenAdd[low] {
+			return mssqlErr(ErrDupTargetInAlter, "Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named '%s' in this context.", name)
+		}
+		seenAdd[low] = true
+		return nil
+	}
+	addKeyName := func(cd *ast.ConstraintDef) error {
+		if cd == nil || cd.Type != ast.ConstraintPrimaryKey && cd.Type != ast.ConstraintUnique {
+			return nil
+		}
+		return addName(cd.Name)
+	}
 	for _, item := range n.Actions.Items {
 		action, ok := item.(*ast.AlterTableAction)
 		if !ok {
 			continue
 		}
 		switch action.Type {
+		case ast.ATAddColumn:
+			if action.Column == nil {
+				break
+			}
+			if action.Column.Constraints != nil {
+				for _, ci := range action.Column.Constraints.Items {
+					if err := addKeyName(ci.(*ast.ConstraintDef)); err != nil {
+						return err
+					}
+				}
+			}
+			if action.Column.Indexes != nil {
+				for _, ii := range action.Column.Indexes.Items {
+					if err := addName(ii.(*ast.InlineIndexDef).Name); err != nil {
+						return err
+					}
+				}
+			}
+		case ast.ATAddConstraint:
+			if err := addKeyName(action.Constraint); err != nil {
+				return err
+			}
 		case ast.ATAddIndex:
 			if action.Index == nil || action.Index.Columns == nil || len(action.Index.Columns.Items) == 0 {
 				return mssqlErr(ErrAlterTableAddIndexSyntax, "Table level constraint or index does not specify column list.")
+			}
+			if err := addName(action.Index.Name); err != nil {
+				return err
 			}
 		case ast.ATDropConstraint, ast.ATDropColumn:
 			// One DROP list names a column and a constraint alike: DROP
@@ -2532,6 +2579,12 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 		}
 		if columnByName(table, action.Column.Name) != nil {
 			return mssqlErr(ErrDupColumn, "Column names in each table must be unique. Column name '%s' in table '%s' is specified more than once.", action.Column.Name, table.Name)
+		}
+		// A column's INDEX is an ADD INDEX, which only a memory-optimized
+		// table takes: ALTER TABLE a ADD x INT INDEX ix is 10785 (measured,
+		// simulate.tsv).
+		if action.Column.Indexes != nil && len(action.Column.Indexes.Items) > 0 {
+			return mssqlErr(ErrAlterTableIndexDiskTable, "The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.")
 		}
 		if !c.lenientMetadataLoad && action.Column.Computed == nil && !isValidDataType(action.Column.DataType, false) {
 			typeName := ""

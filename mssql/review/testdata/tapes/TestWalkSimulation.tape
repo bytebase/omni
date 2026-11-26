@@ -6093,6 +6093,77 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX a;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX A_D_IDX;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX PK_a;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'x', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -12189,6 +12260,77 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX a;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX A_D_IDX;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX PK_a;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'x', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -18274,6 +18416,88 @@
 < error
 | 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
 | 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX a;
+< error
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX A_D_IDX;
+< error
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX PK_a;
+< error
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'x', table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -24395,6 +24619,88 @@
 < error
 | 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
 | 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX a;
+< error
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX A_D_IDX;
+< error
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX PK_a;
+< error
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'x', table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -30521,6 +30827,88 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX a;
+< error
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX A_D_IDX;
+< error
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX PK_a;
+< error
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'x', table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -36610,6 +36998,77 @@
 < error
 | 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
 | 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX A_D_IDX;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX PK_a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'x', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -42704,6 +43163,77 @@
 < error
 | 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
 | 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX A_D_IDX;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX PK_a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'x', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -48808,6 +49338,77 @@
 < error
 | 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
 | 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX A_D_IDX;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX PK_a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'x', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -54936,6 +55537,77 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX A_D_IDX;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX PK_a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'x', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -61028,6 +61700,77 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX A_D_IDX;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX PK_a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'x', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -67107,6 +67850,77 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX a;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX A_D_IDX;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX PK_a;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'x', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -73108,6 +73922,77 @@
 < error
 | 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
 | 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX a;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX A_D_IDX;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX PK_a;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'x', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -79183,6 +80068,77 @@
 < error
 | 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
 | 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX A_D_IDX;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX PK_a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'x', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -85275,6 +86231,77 @@
 < error
 | 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
 | 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX A_D_IDX;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX PK_a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'x', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -91377,6 +92404,88 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX a;
+< error
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX A_D_IDX;
+< error
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX PK_a;
+< error
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'x', table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -97472,6 +98581,88 @@
 < error
 | 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
 | 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX a;
+< error
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX A_D_IDX;
+< error
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX PK_a;
+< error
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'x', table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
