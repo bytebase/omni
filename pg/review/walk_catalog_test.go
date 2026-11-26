@@ -24,6 +24,12 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 			}, {
 				Name:       "p",
 				Definition: "CREATE OR REPLACE PROCEDURE public.p()\n LANGUAGE plpgsql\nAS $procedure$BEGIN CREATE VIEW v AS SELECT p FROM now(); END$procedure$\n",
+			}, {
+				Name:       "r",
+				Definition: "CREATE OR REPLACE PROCEDURE public.r()\n LANGUAGE plpgsql\nAS $procedure$BEGIN CALL r('1'::text); END$procedure$\n",
+			}, {
+				Name:       "r",
+				Definition: "CREATE OR REPLACE PROCEDURE public.r(a integer)\n LANGUAGE plpgsql\nAS $procedure$BEGIN NULL; END$procedure$\n",
 			}},
 		}},
 	}}
@@ -69,6 +75,8 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		"DO $$ BEGIN CREATE VIEW v AS SELECT n FROM now(); END $$;",
 		"CREATE FUNCTION g() RETURNS int LANGUAGE sql AS 'SELECT n FROM now()';",
 		"CALL p();",
+		// A nested CALL may reach its procedure through an unsynced cast.
+		"CALL r();",
 		"CREATE FUNCTION g() RETURNS int LANGUAGE plpgsql AS $$ BEGIN CALL now(); RETURN 1; END $$;",
 		// DROP ROUTINE also drops an aggregate, which the sync does not list.
 		"DROP ROUTINE nope_agg(int);",

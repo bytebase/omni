@@ -3,6 +3,7 @@ package review
 import (
 	"context"
 	"errors"
+	"math"
 	"slices"
 	"strings"
 
@@ -235,8 +236,9 @@ func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []strin
 }
 
 // resolvesCall reports whether err is call's failure to resolve the
-// procedure it names, as pg/catalog's checkCall words it, rather than a
-// refusal of a statement the procedure's body runs.
+// procedure it names, rather than a refusal of a statement the procedure's
+// body runs: it must be checkCall's wording, with the types of call's own
+// arguments, each a literal.
 func resolvesCall(err *pgcatalog.Error, call *ast.CallStmt) bool {
 	if call.Funccall == nil {
 		return false
@@ -245,14 +247,52 @@ func resolvesCall(err *pgcatalog.Error, call *ast.CallStmt) bool {
 	if len(parts) == 0 {
 		return false
 	}
-	name := parts[len(parts)-1]
+	types, ok := literalArgTypes(call.Funccall.Args)
+	if !ok {
+		return false
+	}
+	signature := parts[len(parts)-1] + "(" + strings.Join(types, ", ") + ")"
 	switch err.Code {
 	case "42883":
-		return strings.HasPrefix(err.Message, "procedure "+name+"(") && strings.HasSuffix(err.Message, ") does not exist")
+		return err.Message == "procedure "+signature+" does not exist"
 	case "42809":
-		return strings.HasPrefix(err.Message, name+"(") && strings.HasSuffix(err.Message, ") is not a procedure")
+		return err.Message == signature+" is not a procedure"
 	}
 	return false
+}
+
+// literalArgTypes returns the type PostgreSQL gives each argument, when
+// each is a literal: a quoted string or NULL is unknown, an integer that
+// fits integer is integer.
+func literalArgTypes(args *ast.List) ([]string, bool) {
+	var types []string
+	if args == nil {
+		return types, true
+	}
+	for _, item := range args.Items {
+		if named, ok := item.(*ast.NamedArgExpr); ok {
+			item = named.Arg
+		}
+		c, ok := item.(*ast.A_Const)
+		if !ok {
+			return nil, false
+		}
+		switch v := c.Val.(type) {
+		case *ast.String:
+			types = append(types, "unknown")
+		case *ast.Integer:
+			if v.Ival < math.MinInt32 || v.Ival > math.MaxInt32 {
+				return nil, false
+			}
+			types = append(types, "integer")
+		default:
+			if !c.Isnull {
+				return nil, false
+			}
+			types = append(types, "unknown")
+		}
+	}
+	return types, true
 }
 
 // namesAny reports whether a refusal's message names one of the routines.
