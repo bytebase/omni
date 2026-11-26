@@ -164,6 +164,19 @@ func (b *builder) alterAlgorithmFails(v *ast.AlterTableStmt, r tableRef) bool {
 			return true
 		}
 		switch c.Type {
+		case ast.ATDropColumn:
+			// Dropping a column an index holds changes the index (1845,
+			// verified on mysql:8.0.46).
+			k, ok := b.key(spaceColumn, c.Name)
+			if !ok || algorithm != "INSTANT" {
+				continue
+			}
+			for _, im := range b.w.tableIndexes[relKey(r.db, r.name)] {
+				if im != nil && containsString(im.cols, k) {
+					b.fail(b.anchor(), nil, review.UnsupportedForm, unsupported("ALGORITHM=INSTANT", "drop a column an index holds"))
+					return true
+				}
+			}
 		case ast.ATModifyColumn, ast.ATChangeColumn:
 			if c.Column == nil {
 				continue

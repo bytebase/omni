@@ -172,6 +172,7 @@ type fkRef struct {
 	cols     []string
 	refCols  []string
 	refTable string
+	setsNull bool
 }
 
 // isStringType reports a character or binary string type.
@@ -206,13 +207,21 @@ func fkClash(fk, col, colType, parent, refCol, refType string) string {
 }
 
 // fkAddFails fails a foreign key a CREATE TABLE or ALTER TABLE adds, with
-// foreign keys checked, whose referenced table the walk knows: a referenced
-// column the table doesn't have (3734), or a pair of columns of clashing
-// types (3780). childType gives the type each column of the child has
-// once the statement runs, "" when not known.
-func (b *builder) fkAddFails(r tableRef, c *ast.Constraint, childType func(string) string) bool {
+// foreign keys checked: an action its column can't take (fkActionFault),
+// and, where the walk knows the referenced table, a referenced column the
+// table doesn't have (3734), a pair of columns of clashing types or
+// character sets (3780), or no index the foreign key can use
+// (parentKeyMissing). child gives what the walk knows of each column of
+// the child once the statement runs.
+func (b *builder) fkAddFails(r tableRef, c *ast.Constraint, child func(string) colShape) bool {
 	if b.w.fkChecks != review.SwitchOn || c == nil || c.Type != ast.ConstrForeignKey || c.RefTable == nil || b.renames {
 		return false
+	}
+	for _, col := range c.Columns {
+		if msg := fkActionFault(c, col, child(col)); msg != "" {
+			b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, msg)
+			return true
+		}
 	}
 	ref := *c.RefTable
 	if ref.Schema == "" {
@@ -240,14 +249,20 @@ func (b *builder) fkAddFails(r tableRef, c *ast.Constraint, childType func(strin
 		if f != walk.Present || i >= len(c.Columns) {
 			continue
 		}
-		if ct, pt := childType(c.Columns[i]), b.w.colTypes[ck]; fkTypesClash(ct, pt) {
-			name := c.Name
-			if name == "" {
-				name = c.IndexName
-			}
-			b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, fkClash(name, c.Columns[i], ct, parent, rc, pt))
+		cs, pt := child(c.Columns[i]), b.w.colTypes[ck]
+		if fkTypesClash(cs.typ, pt) {
+			b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, fkClash(fkName(c), c.Columns[i], cs.typ, parent, rc, pt))
 			return true
 		}
+		if pf, ok := b.w.colFacts[ck]; ok && isTextBaseType(cs.typ) && isTextBaseType(pt) &&
+			cs.charset != "" && cs.charset != "binary" && pf.charset != "" && pf.charset != cs.charset {
+			b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, fkCharsetClash(fkName(c), c.Columns[i], cs.charset, parent, rc, pf.charset))
+			return true
+		}
+	}
+	if len(c.RefColumns) == len(c.Columns) && b.parentKeyMissing(t, c.RefColumns) {
+		b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, parentKeyMissingText(parent, c.RefColumns))
+		return true
 	}
 	return false
 }
@@ -368,9 +383,9 @@ func (b *builder) forgetSynced(r tableRef) {
 	rel := relKey(r.db, r.name)
 	parent := tablePath(r.db, r.name)
 	b.Session(func() {
-		for ck := range b.w.colGen {
+		for ck := range b.w.colFacts {
 			if ck.Parent == parent {
-				delete(b.w.colGen, ck)
+				delete(b.w.colFacts, ck)
 			}
 		}
 		delete(b.w.checkCols, rel)

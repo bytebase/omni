@@ -70,7 +70,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	b.forgetGenerated(r)
 	delta := b.buildAlterDelta(r, v, engine, sets)
 	b.forgetFKRefs(r, delta)
-	if b.alterTextFails(v, r, delta) || b.alterAlgorithmFails(v, r) || b.uniqueKeyPartitionFails(r, v, delta) || b.checkUsesFails(r, v) || b.generatedChangeFails(r, v) || b.alterKeysFail(r, v) || b.droppedReferencedColumnFails(r, v) || b.exprColumnsFail(r, v, delta) || b.fkTypeChangeFails(r, delta.droppedFKs, b.changedType(r, delta)) {
+	if b.alterTextFails(v, r, delta) || b.alterAlgorithmFails(v, r) || b.uniqueKeyPartitionFails(r, v, delta) || b.checkUsesFails(r, v) || b.generatedChangeFails(r, v) || b.alterKeysFail(r, v) || b.droppedReferencedColumnFails(r, v) || b.exprColumnsFail(r, v, delta) || b.fkTypeChangeFails(r, delta.droppedFKs, b.changedType(r, delta)) || b.syncedColumnsFail(r, v, delta) {
 		return true
 	}
 	var rename *ast.AlterTableCmd
@@ -109,9 +109,11 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 type alterDelta struct {
 	addedCols                 map[string]string // colKey -> baseType
 	droppedCols               map[string]bool
-	renamedFrom               map[string]string // oldColKey -> newColKey
-	renamedTo                 map[string]string // newColKey -> oldColKey
-	modifiedCols              map[string]string // colKey -> new baseType
+	renamedFrom               map[string]string         // oldColKey -> newColKey
+	renamedTo                 map[string]string         // newColKey -> oldColKey
+	modifiedCols              map[string]string         // colKey -> new baseType
+	defs                      map[string]*ast.ColumnDef // colKey -> the definition ADD, MODIFY or CHANGE gives it
+	converts                  bool                      // CONVERT TO CHARACTER SET
 	droppedIndexes            map[string]bool
 	addedIndexes              []*indexMeta
 	droppedFKs                map[string]bool
@@ -132,6 +134,7 @@ func (b *builder) buildAlterDelta(r tableRef, v *ast.AlterTableStmt, setEngine s
 		renamedFrom:               make(map[string]string),
 		renamedTo:                 make(map[string]string),
 		modifiedCols:              make(map[string]string),
+		defs:                      make(map[string]*ast.ColumnDef),
 		droppedIndexes:            make(map[string]bool),
 		droppedFKs:                make(map[string]bool),
 		addedOrRenamedConstraints: make(map[string]bool),
@@ -174,6 +177,7 @@ func (b *builder) buildAlterDelta(r tableRef, v *ast.AlterTableStmt, setEngine s
 			for _, col := range cols {
 				if k, ok := b.key(spaceColumn, col.Name); ok {
 					d.addedCols[k] = astBaseType(col.TypeName)
+					d.defs[k] = col
 				}
 				d.recordInlineColumnKeys(col)
 				markColConstraints(col)
@@ -192,6 +196,7 @@ func (b *builder) buildAlterDelta(r tableRef, v *ast.AlterTableStmt, setEngine s
 			if c.Column != nil {
 				if k, ok := b.key(spaceColumn, c.Column.Name); ok {
 					d.modifiedCols[k] = astBaseType(c.Column.TypeName)
+					d.defs[k] = c.Column
 				}
 				d.recordInlineColumnKeys(c.Column)
 				markColConstraints(c.Column)
@@ -206,6 +211,7 @@ func (b *builder) buildAlterDelta(r tableRef, v *ast.AlterTableStmt, setEngine s
 						d.renamedTo[tk] = fk
 					}
 					d.modifiedCols[tk] = astBaseType(c.Column.TypeName)
+					d.defs[tk] = c.Column
 				}
 				d.recordInlineColumnKeys(c.Column)
 				markColConstraints(c.Column)
@@ -268,6 +274,8 @@ func (b *builder) buildAlterDelta(r tableRef, v *ast.AlterTableStmt, setEngine s
 			if c.Constraint != nil {
 				markConstraintName(b.constraintName(c.Constraint))
 			}
+		case ast.ATConvertCharset:
+			d.converts = true
 		case ast.ATRemovePartitioning:
 			d.removesPartitioning = true
 			d.finalPartitioned = false
@@ -1308,9 +1316,8 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint, d *alterDelta) {
 		if k, ok := b.key(spaceForeignKey, c.Name); ok {
 			b.need(objKey(spaceForeignKey, r.db, k), walk.Absent, nil, rng, "", alreadyExists("foreign key", ident(c.Name), "")) // 1826; 1022 on 5.7
 		}
-		if b.fkAddFails(r, c, func(col string) string {
-			_, t, _ := b.alterFinalCol(r, d, col)
-			return t
+		if b.fkAddFails(r, c, func(col string) colShape {
+			return b.alterChildShape(r, d, col)
 		}) {
 			return
 		}
