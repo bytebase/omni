@@ -9864,7 +9864,7 @@ accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_part
 accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT IF NOT EXISTS p OPTIONS (instance_partition = 'x')
 accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT `p` OPTIONS (instance_partition = 'x')
 accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT s.p OPTIONS (instance_partition = 'x')
-accept	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = 'x', read_lease_regions = 'a')
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = 'x', read_lease_regions = 'a')
 reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p
 reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT IF NOT EXISTS p
 reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT s.p
@@ -10146,8 +10146,8 @@ reject	reject	engine	suite:bq-ddl	DROP TABLE FUNCTION ds.f
 reject	reject	engine	suite:bq-ddl	DROP VECTOR INDEX idx ON ds.t
 reject	reject	engine	suite:bq-ddl	DROP SEARCH INDEX idx ON ds.t
 reject	reject	engine	suite:bq-ddl	ALTER VECTOR INDEX idx ON ds.t REBUILD
-accept	reject	engine	suite:bq-ddl	ALTER SEARCH INDEX idx ADD STORED COLUMN c
-accept	reject	engine	suite:bq-ddl	ALTER SEARCH INDEX idx DROP STORED COLUMN c
+reject	reject	engine	suite:bq-ddl	ALTER SEARCH INDEX idx ADD STORED COLUMN c
+reject	reject	engine	suite:bq-ddl	ALTER SEARCH INDEX idx DROP STORED COLUMN c
 reject	reject	engine	suite:bq-ddl	CREATE FUNCTION ds.f(x INT64) AS (x + 1)
 accept	accept	engine	suite:bq-ddl	CREATE OR REPLACE FUNCTION ds.f(x INT64) RETURNS INT64 AS (x)
 accept	accept	engine	suite:bq-ddl	CREATE VECTOR INDEX my_index ON ds.t(embedding) OPTIONS(distance_type='COSINE')

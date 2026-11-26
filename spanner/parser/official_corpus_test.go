@@ -169,12 +169,13 @@ var officialCorpusSkips = map[string]string{
 	"spanner/datatypes.md#14": "FRAGMENT: DT-015 bare INTERVAL literal example, not a statement",
 	"spanner/datatypes.md#15": "FRAGMENT: DT-016 bare proto-enum `col1` column-def snippet, not a statement",
 
-	// ========================== DOC-REJECTED (6) ==========================
+	// ========================== DOC-REJECTED (7) ==========================
 	// One statement in the block is REJECTED by the live Spanner oracle too, so
 	// omni's reject matches the oracle (parity holds). The block is skipped only
 	// because that statement is not universally valid GoogleSQL.
 	"spanner/ddl.md#12":         "DOC-REJECTED: DDL block — `ALTER TABLE … ALTER COLUMN … SET NOT NULL` rejected by Spanner oracle (\"ALTER COLUMN SET NOT NULL not supported without a column type\"); omni rejects too (parity). Other ALTER COLUMN statements in the block parse.",
 	"spanner/ddl.md#15":         "DOC-REJECTED: DDL block — `ALTER TABLE … ALTER ROW DELETION POLICY (…)` rejected by Spanner oracle (\"Expecting 'EOF' but found 'POLICY'\" — only ADD/DROP ROW DELETION POLICY exist); omni rejects too (parity). ADD/DROP forms in the block parse.",
+	"spanner/ddl.md#48":         "DOC-REJECTED: DDL-049 `ALTER SEARCH INDEX … {ADD|DROP} STORED COLUMN` rejected by Spanner oracle (\"Encountered 'SEARCH' while parsing: alter_statement\"); omni rejects too (parity).",
 	"spanner/ddl.md#53":         "DOC-REJECTED: DDL-… `DEFAULT (NEXT VALUE FOR Seq)` in a column default rejected by Spanner oracle (Error parsing Spanner DDL statement); omni rejects too (parity).",
 	"spanner/expressions.md#36": "DOC-REJECTED: EXPR block — `VALUES (NEXT VALUE FOR Seq, …)` rejected by Spanner oracle (Syntax error: keyword VALUE); omni rejects too (parity). GET_NEXT_SEQUENCE_VALUE(SEQUENCE …) parses, but the block also has the rejected form.",
 	"spanner/expressions.md#38": "DOC-REJECTED: EXPR-… proto construction `NEW \\`pkg.Msg\\`(field: value)` rejected by Spanner oracle (Syntax error: got ':'); omni rejects too (parity).",
@@ -187,11 +188,6 @@ var officialCorpusSkips = map[string]string{
 	// googlesql/maint-quantified-comparison node — it now parses clean and is
 	// covered by TestExpr_QuantifiedComparison + the live differential, so its
 	// skip entry was removed.
-	// NOTE: spanner/ddl.md#48 (DDL-049 `ALTER SEARCH INDEX … {ADD|DROP} STORED
-	// COLUMN`) was likewise removed — it is now WIRED (alter_table.go,
-	// AlterSearchIndex). It is a documented Spanner form the union parser accepts;
-	// the live emulator non-authoritatively rejects it (proven in the
-	// the suite:bq-ddl rows of testdata/compat.tsv triangulation guard). Divergence #203.
 	// DOC-REJECTED: the block's `SELECT ARRAY<FLOAT32>(vector_length => 128)`
 	// statement is rejected by the live Spanner oracle itself — a value
 	// constructor `ARRAY<scalar>(...)` is not a query expression form (oracle @
