@@ -315,13 +315,14 @@ func isoLocalDateTime(s string) (string, bool) {
 	return rest, true
 }
 
-// isoOffset reads an offset ID: Z, or a sign and HH, HH:mm or HH:mm:ss, no
+// isoOffset reads an offset ID: Z or z, or a sign and HH, HH:mm or HH:mm:ss, no
 // more than 18 hours.
 func isoOffset(s string) (string, bool) {
 	if s == "" {
 		return "", false
 	}
-	if s[0] == 'Z' {
+	// ISO_OFFSET_DATE_TIME reads its offset case-insensitively.
+	if s[0] == 'Z' || s[0] == 'z' {
 		return s[1:], true
 	}
 	if s[0] != '+' && s[0] != '-' {
