@@ -18,6 +18,7 @@ BINARY_DOUBLE_QUOTED_TEXT	X"00"	StarRocksLex.g4:556 X and a double-quoted string
 ATTACHMENT	$$a$$	StarRocksLex.g4:610 text between $$ and $$
 CONCAT	(unreachable)	StarRocksLex.g4:24 declared in tokens { }, made of || only under sql_mode PIPES_AS_CONCAT (StarRocksLex.g4:514)
 .	SELECT	StarRocks.g4:2081 translateSQL is any tokens (.+), a statement of the dialect TRANSLATE names
+pivotAggregationExpression	SUM(a)	StarRocks.g4:2207 a function call; functionCall's shortest form, CURRENT_USER, builds no FunctionCallExpr, which AstBuilder.visitPivotAggregationExpression casts it to
 # Optional clauses tried at every site the grammar allows them, and not only
 # at the one its own row reaches: the rules ifNotExists and orReplace, and the
 # inline (...)? groups a rule writes at more than one of its alternatives,

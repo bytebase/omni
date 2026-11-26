@@ -118,6 +118,12 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *IntoOutfileClause:
 		return v.Loc
+	case *PivotClause:
+		return v.Loc
+	case *PivotAggregation:
+		return v.Loc
+	case *PivotValue:
+		return v.Loc
 	case *CreateTableStmt:
 		return v.Loc
 	case *ColumnDef:
@@ -544,6 +550,12 @@ func SetNodeLoc(n Node, loc Loc) {
 	case *ParenSelect:
 		v.Loc = loc
 	case *IntoOutfileClause:
+		v.Loc = loc
+	case *PivotClause:
+		v.Loc = loc
+	case *PivotAggregation:
+		v.Loc = loc
+	case *PivotValue:
 		v.Loc = loc
 	case *CreateTableStmt:
 		v.Loc = loc
