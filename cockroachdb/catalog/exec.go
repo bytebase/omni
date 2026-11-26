@@ -1836,6 +1836,42 @@ func (c *Catalog) routineReaders(schema, name string) []string {
 	return out
 }
 
+// routineColumn refuses renaming or dropping a column a routine that reads
+// its table may name, whose stored body the catalog does not rewrite.
+func (c *Catalog) routineColumn(schema, table, column string) error {
+	for _, reader := range c.routineReaders(schema, table) {
+		for _, s := range c.l.meta.Schemas {
+			for _, function := range s.Functions {
+				if typeName(s.Name, function.Name) == reader && identifierIn(routineBody(function.Definition), column) {
+					return &Error{Message: fmt.Sprintf("changing column %q, which routine %s may read, is not supported", column, reader)}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// identifierIn reports whether a text holds a name as a whole word.
+func identifierIn(text, name string) bool {
+	for i := strings.Index(text, name); i >= 0; {
+		before := i == 0 || !isIdentChar(text[i-1])
+		after := i+len(name) >= len(text) || !isIdentChar(text[i+len(name)])
+		if before && after {
+			return true
+		}
+		next := strings.Index(text[i+1:], name)
+		if next < 0 {
+			break
+		}
+		i += next + 1
+	}
+	return false
+}
+
+func isIdentChar(b byte) bool {
+	return b == '_' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9'
+}
+
 // routineNamesType reports whether a routine's parameters or result have a
 // type, as the catalog names a user-defined type.
 func routineNamesType(definition, typ string) bool {
@@ -2112,7 +2148,9 @@ func hasColumnAliases(stmt tree.Statement) bool {
 				}
 			}
 		case *tree.JoinTableExpr:
-			if _, natural := t.Cond.(tree.NaturalJoinCond); natural {
+			switch t.Cond.(type) {
+			case tree.NaturalJoinCond, *tree.UsingJoinCond:
+				// A join on columns it names as a list, or on all.
 				return true
 			}
 			return tables(t.Left) || tables(t.Right)
@@ -2799,6 +2837,9 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 		if deps := c.dependents(schema, table.Name, col.Name); len(deps) > 0 {
 			return refuse(codeDependentObjects, "cannot rename column %q because view %q depends on it", col.Name, deps[0].name)
 		}
+		if err := c.routineColumn(schema, table.Name, col.Name); err != nil {
+			return err
+		}
 		if columns[string(cmd.NewName)] {
 			return refuse(codeDuplicateColumn, "column %q of relation %q already exists", cmd.NewName, table.Name)
 		}
@@ -3009,6 +3050,9 @@ func (c *Catalog) dropColumn(schema string, table *metadatapb.TableMetadata, nam
 		return refuse("42P10", "column %q is referenced by the primary key", name)
 	}
 	cascade := behavior == tree.DropCascade
+	if err := c.routineColumn(schema, table.Name, name); err != nil {
+		return err
+	}
 	for _, column := range table.Columns {
 		if column.Generation == nil || column.Name == name {
 			continue

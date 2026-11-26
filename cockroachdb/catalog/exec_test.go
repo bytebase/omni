@@ -341,3 +341,10 @@ func TestExecRound14(t *testing.T) {
 	_, err = execLast(t, `CREATE SCHEMA "a.b"; CREATE SEQUENCE "a.b".sq; CREATE TABLE t (id INT8 DEFAULT nextval('"a.b".sq'))`)
 	require.NoError(t, err)
 }
+
+func TestExecRound15(t *testing.T) {
+	_, err := execLast(t, "CREATE TABLE t (a INT8); CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT a FROM t LIMIT 1 $$; ALTER TABLE t RENAME COLUMN a TO b")
+	require.Error(t, err)
+	_, err = execLast(t, "CREATE TABLE t (a INT8, b INT8); CREATE TABLE u (a INT8); CREATE VIEW v AS SELECT t.b FROM t JOIN u USING (a); ALTER TABLE t DROP COLUMN a")
+	require.Equal(t, "2BP01", code(err))
+}
