@@ -3,6 +3,7 @@ package review
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oracle/ast"
@@ -15,10 +16,11 @@ import (
 // hold whatever else the schema holds, once the tables the query reads are
 // known in full: each is pinned by oracle/catalog's query suite
 // (testdata/queries/simulate.tsv) on Oracle 23. Left out are the errors an
-// object the sync does not list can cause or cure: a missing name (00904,
-// 00942), a user-defined aggregate (viewGroupCodes unless the query calls
-// no user function), a collection or object type (22905, 00932, 01790),
-// and periods, flashback and database links.
+// object the sync does not list can cause or cure: a missing name (00942,
+// and 00904 unless namesNoRoutine), a user-defined aggregate or a
+// function's type (viewGroupCodes unless the query calls no user
+// function), a collection (22905), and periods, flashback and database
+// links.
 var viewQueryCodes = map[string]bool{
 	"00913": true, // too many values
 	"00918": true, // column ambiguously defined
@@ -46,16 +48,19 @@ var viewQueryCodes = map[string]bool{
 	"62503": true, // illegal variable definition
 }
 
-// viewGroupCodes are the group-function errors. The catalog reads a call it
-// does not know as a scalar function, which a user-defined aggregate is
-// not, so they hold only for a query that calls no user function.
+// viewGroupCodes are the group-function and datatype errors. The catalog
+// reads a call it does not know as a scalar function of no known type,
+// which a user-defined aggregate is not, so they hold only for a query
+// that calls no user function.
 // A name that is no column fails first with 00904, which the walk does not
 // report, so a function called without parentheses cannot reach them.
 var viewGroupCodes = map[string]bool{
+	"00932": true, // inconsistent datatypes
 	"00934": true, // group function is not allowed here
 	"00937": true, // not a single-group group function
 	"00978": true, // nested group function without GROUP BY
 	"00979": true, // not a GROUP BY expression
+	"01790": true, // expression must have same datatype as corresponding expression
 	"56902": true, // non-aggregate expression inside PIVOT
 }
 
@@ -133,10 +138,32 @@ func (b *builder) viewQueryFails(v *ast.CreateViewStmt, r objRef) bool {
 	}
 	err := viewCatalogRefusal(&metadata.DatabaseSchemaMetadata{Name: w.meta.GetName(), Schemas: []*metadata.SchemaMetadata{schema}}, v, w.sql)
 	var refusal *catalog.Error
-	if !errors.As(err, &refusal) || !viewQueryCodes[refusal.Code] && !(viewGroupCodes[refusal.Code] && b.callsNoUserFunction(v.Query)) {
+	if !errors.As(err, &refusal) || !viewQueryCodes[refusal.Code] && !(viewGroupCodes[refusal.Code] && b.callsNoUserFunction(v.Query)) && !(refusal.Code == "00904" && b.namesNoRoutine(refusal.Message)) {
 		return false
 	}
 	b.fail(r.rng, review.UnsupportedForm, "Oracle refuses the view's query: ORA-"+refusal.Code+": "+refusal.Message+".")
+	return true
+}
+
+// namesNoRoutine reports whether a 00904 message names, with no
+// qualifier, what is no function, procedure or package of the schema and
+// no private or public synonym: Oracle reads such a name as a call of a
+// function with no arguments, and the sync lists those in full, so a name
+// none holds is no identifier at all.
+func (b *builder) namesNoRoutine(message string) bool {
+	name, ok := strings.CutSuffix(message, `": invalid identifier`)
+	if !ok || !strings.HasPrefix(name, `"`) || strings.Contains(name[1:], `"`) {
+		return false
+	}
+	r, ok := b.ref(&ast.ObjectName{Name: name[1:]})
+	if !ok || r.schema != b.w.snap.schema {
+		return false
+	}
+	for _, k := range []walk.Key{r.key(spaceRoutine), r.key(spaceSynonym), publicKey(r.name)} {
+		if f, _ := b.look(k); f != walk.Absent {
+			return false
+		}
+	}
 	return true
 }
 
