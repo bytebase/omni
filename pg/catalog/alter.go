@@ -3350,6 +3350,15 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 		}
 	}
 
+	// An identity column's sequence takes the new type, so it must be an
+	// integer type.
+	// pg: src/backend/commands/sequence.c — init_params (for_identity)
+	if col.Identity != 0 {
+		if _, err := identitySequenceTypeOID(newOID); err != nil {
+			return err
+		}
+	}
+
 	oldTypeOID := col.TypeOID
 	oldUserCollOID := col.UserCollationOID
 	col.TypeOID = newOID
@@ -3405,8 +3414,8 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 	// pg: ATExecAlterColumnType rebuilds the attribute tuple without preserving attcompression.
 	col.Compression = 0
 
-	// An identity column's sequence takes the new type, which must be an
-	// integer type. A partition's column may run its parent's sequence.
+	// An identity column's sequence takes the new type. A partition's
+	// column may run its parent's sequence.
 	// pg: src/backend/commands/tablecmds.c — ATExecAlterColumnType (attidentity)
 	if col.Identity != 0 {
 		for _, seq := range c.sequenceByOID {

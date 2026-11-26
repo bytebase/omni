@@ -404,9 +404,6 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 					}
 					if resolvedOID != INT2OID && resolvedOID != INT4OID && resolvedOID != INT8OID {
 						*seq = orig
-						if stmt.ForIdentity {
-							return errInvalidParameterValue("identity column type must be smallint, integer, or bigint")
-						}
 						return &Error{
 							Code:    CodeFeatureNotSupported,
 							Message: "sequence type must be smallint, integer, or bigint",

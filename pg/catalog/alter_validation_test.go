@@ -129,6 +129,9 @@ func TestAlterColumnTypeOnIdentityColumn(t *testing.T) {
 		t.Errorf("identity sequence type = %d, want bigint", seq.TypeOID)
 	}
 	assertErrorCode(t, results[1].Error, CodeInvalidParameterValue)
+	if rel.Columns[0].TypeOID != INT8OID {
+		t.Errorf("column type after the refused change = %d, want bigint", rel.Columns[0].TypeOID)
+	}
 }
 
 func TestAlterColumnTypeWithDependentView(t *testing.T) {
