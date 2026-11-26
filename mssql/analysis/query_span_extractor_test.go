@@ -201,6 +201,7 @@ func TestQuerySpanExtractorSupportedShapes(t *testing.T) {
 				{"v", []ColumnResource{src("db", "dbo", "t", "a"), src("db", "dbo", "t", "b")}},
 				{"k", nil},
 			},
+			wantPredicate:    []ColumnResource{src("db", "dbo", "t", "a"), src("db", "dbo", "t", "b")},
 			wantAccessTables: []ColumnResource{access("db", "dbo", "t")},
 		},
 	}

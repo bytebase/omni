@@ -1353,6 +1353,8 @@ func (q *querySpanExtractor) resolvePivot(p *ast.PivotExpr) (tableSource, error)
 // name pass through, then come the value column and the FOR column, in that
 // order. The value column holds the IN columns' values, and the
 // FOR column their names, which the query spells, so it reads no column.
+// UNPIVOT drops a row whose value is NULL, so the IN columns also decide
+// which rows return.
 func (q *querySpanExtractor) resolveUnpivot(u *ast.UnpivotExpr) (tableSource, error) {
 	var refs []*ast.ColumnRef
 	if u.InCols != nil {
@@ -1368,6 +1370,7 @@ func (q *querySpanExtractor) resolveUnpivot(u *ast.UnpivotExpr) (tableSource, er
 	if err != nil {
 		return nil, err
 	}
+	q.predicateColumns, _ = mergeColumnSet(q.predicateColumns, read)
 	cols := q.pivotGroupingColumns(input, refs)
 	if u.ValueCol != nil {
 		cols = append(cols, QuerySpanResult{Name: u.ValueCol.Column, SourceColumns: read})
