@@ -13895,3 +13895,4 @@ reject	reject	engine	suite:mysql-every-site-ports	SELECT * FROM JSON_TABLE('[]',
 reject	reject	engine	suite:mysql-every-site-ports	CREATE LOGFILE GROUP g ADD UNDOFILE 'u' STORAGE ENGINE = ndb, WAIT;
 reject	reject	engine	suite:mysql-every-site-ports	CREATE TABLESPACE ts ADD DATAFILE 'f' STORAGE ENGINE = ndb, WAIT;
 reject	reject	engine	suite:mysql-every-site-ports	DROP LOGFILE GROUP g STORAGE ENGINE ndb WAIT;
+accept	accept	engine	suite:column-compression	CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);

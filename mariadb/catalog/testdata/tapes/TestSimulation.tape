@@ -6905,6 +6905,13 @@
 : bytes
 | utf8mb4_uca1400_ai_ci
 > exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
+< error
+| 1050 42S01 Table 't' already exists
+> exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -19957,6 +19964,62 @@
 : bytes
 | utf8mb4_uca1400_ai_ci
 > exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` blob /*M!100301 COMPRESSED*/ DEFAULT NULL,
+|   `b` varbinary(5) /*M!100301 COMPRESSED*/ DEFAULT NULL,
+|   `c` longblob /*M!100301 COMPRESSED*/ NOT NULL DEFAULT ''
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -32425,6 +32488,62 @@
 : bytes
 | utf8mb4_uca1400_ai_ci
 > exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` blob /*M!100301 COMPRESSED*/ DEFAULT NULL,
+|   `b` varbinary(5) /*M!100301 COMPRESSED*/ DEFAULT NULL,
+|   `c` longblob /*M!100301 COMPRESSED*/ NOT NULL DEFAULT ''
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
@@ -44523,6 +44642,62 @@
 : bytes
 | utf8mb4_uca1400_ai_ci
 > exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` blob /*M!100301 COMPRESSED*/ DEFAULT NULL,
+|   `b` varbinary(5) /*M!100301 COMPRESSED*/ DEFAULT NULL,
+|   `c` longblob /*M!100301 COMPRESSED*/ NOT NULL DEFAULT ''
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
@@ -52693,6 +52868,14 @@
 | utf8mb4_uca1400_ai_ci
 : bytes
 | utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
+< error
+| 1050 42S01 Table 't' already exists
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
@@ -66404,6 +66587,65 @@
 | utf8mb4_uca1400_ai_ci
 : bytes
 | utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`,`a`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY RANGE (`a`)
+| (PARTITION `p0` VALUES LESS THAN (100) ENGINE = InnoDB,
+|  PARTITION `a` VALUES LESS THAN (200) ENGINE = InnoDB)
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` blob /*M!100301 COMPRESSED*/ DEFAULT NULL,
+|   `b` varbinary(5) /*M!100301 COMPRESSED*/ DEFAULT NULL,
+|   `c` longblob /*M!100301 COMPRESSED*/ NOT NULL DEFAULT ''
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
@@ -84516,6 +84758,84 @@
 : bytes
 | utf8mb4_uca1400_ai_ci
 > exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `a` (`a`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `parent` (`b`),
+|   CONSTRAINT `chk_d` CHECK (`d` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` blob /*M!100301 COMPRESSED*/ DEFAULT NULL,
+|   `b` varbinary(5) /*M!100301 COMPRESSED*/ DEFAULT NULL,
+|   `c` longblob /*M!100301 COMPRESSED*/ NOT NULL DEFAULT ''
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE SEQUENCE a
 < ok 0 0
 > exec
@@ -94273,6 +94593,56 @@
 : bytes
 | utf8mb4_uca1400_ai_ci
 > exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| SEQUENCE
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+> query
+| SHOW CREATE SEQUENCE omni_simulation.`a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE SEQUENCE `a` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` blob /*M!100301 COMPRESSED*/ DEFAULT NULL,
+|   `b` varbinary(5) /*M!100301 COMPRESSED*/ DEFAULT NULL,
+|   `c` longblob /*M!100301 COMPRESSED*/ NOT NULL DEFAULT ''
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE PROCEDURE a() COMMIT;
 | CREATE FUNCTION a() RETURNS INT RETURN 1
 < ok 0 0
@@ -103207,6 +103577,98 @@
 : bytes
 | utf8mb4_uca1400_ai_ci
 > exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE PROCEDURE a() COMMIT;
+| CREATE FUNCTION a() RETURNS INT RETURN 1
+< ok 0 0
+> exec
+| CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| PROCEDURE
+: bytes
+| a
+< row
+: bytes
+| FUNCTION
+: bytes
+| a
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` blob /*M!100301 COMPRESSED*/ DEFAULT NULL,
+|   `b` varbinary(5) /*M!100301 COMPRESSED*/ DEFAULT NULL,
+|   `c` longblob /*M!100301 COMPRESSED*/ NOT NULL DEFAULT ''
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE PROCEDURE omni_simulation.`a`
+< result
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| CREATE DEFINER=`root`@`%` PROCEDURE `a`()
+| COMMIT
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE FUNCTION omni_simulation.`a`
+< result
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| CREATE DEFINER=`root`@`%` FUNCTION `a`() RETURNS int(11)
+| RETURN 1
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d));
 | CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
 < ok 0 0
@@ -112240,6 +112702,14 @@
 | utf8mb4_uca1400_ai_ci
 : bytes
 | 2026-11-13 00:00:00.00
+> exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d));
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+< ok 0 0
+> exec
+| CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
+< error
+| 1050 42S01 Table 't' already exists
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
 < ok 0 0
@@ -120344,6 +120814,71 @@
 : bytes
 | utf8mb4_uca1400_ai_ci
 > exec
+| DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' DO BEGIN END
+< ok 0 0
+> exec
+| CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
+< ok 0 0
+> query
+| SHOW FULL TABLES FROM omni_simulation
+< result
+< column "Tables_in_omni_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SELECT 'PROCEDURE', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'PROCEDURE' UNION ALL SELECT 'FUNCTION', ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = 'omni_simulation' AND ROUTINE_TYPE = 'FUNCTION' UNION ALL SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = 'omni_simulation' UNION ALL SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'omni_simulation'
+< result
+< column "PROCEDURE" "VARCHAR" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| a
+> query
+| SHOW CREATE TABLE omni_simulation.`t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` blob /*M!100301 COMPRESSED*/ DEFAULT NULL,
+|   `b` varbinary(5) /*M!100301 COMPRESSED*/ DEFAULT NULL,
+|   `c` longblob /*M!100301 COMPRESSED*/ NOT NULL DEFAULT ''
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE EVENT omni_simulation.`a`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `a` ON SCHEDULE EVERY 1 DAY STARTS '2026-11-13 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO BEGIN END
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
 < ok 0 0
 > exec
@@ -122839,7 +123374,7 @@
 > exec
 | ALTER TABLE items DROP PRIMARY KEY
 < error
-| 1025 HY000 Error on rename of './omni_simulation/#sql-alter-1-7' to './omni_simulation/items' (errno: 150 "Foreign key constraint is incorrectly formed")
+| 1025 HY000 Error on rename of './omni_simulation/#sql-alter-1-5' to './omni_simulation/items' (errno: 150 "Foreign key constraint is incorrectly formed")
 > exec
 | DROP DATABASE IF EXISTS omni_simulation; CREATE DATABASE omni_simulation; USE omni_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
 | CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));

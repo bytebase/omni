@@ -691,6 +691,7 @@ ok:c0b508a8c204	ok:c0b508a8c204	engine	one_table@missing	create_routine/create_o
 1146	1146	engine	one_table@missing	suite:lock-wait-timeout	RENAME TABLE a WAIT 1 TO b, c NOWAIT TO d;
 ok:309d59bf3b5f	ok:309d59bf3b5f	engine	one_table@missing	suite:lock-wait-timeout	CREATE PROCEDURE p() DROP TABLE a;
 ok:3001304d728b	ok:3001304d728b	engine	one_table@missing	suite:mysql-every-site-ports	CREATE PROCEDURE p(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin) COMMIT;
+1050	1050	engine	one_table@missing	suite:column-compression	CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	verb_clause/alter	ALTER TABLE a;
 1050	1050	engine	one_table@table	verb_clause/create	CREATE TABLE a;
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	verb_clause/drop	DROP TABLE a;
@@ -1382,6 +1383,7 @@ ok:9be5fc206962	ok:9be5fc206962	engine	one_table@table	suite:column-compression	
 1146	1146	engine	one_table@table	suite:lock-wait-timeout	RENAME TABLE a WAIT 1 TO b, c NOWAIT TO d;
 ok:203a4d46418e	ok:203a4d46418e	engine	one_table@table	suite:lock-wait-timeout	CREATE PROCEDURE p() DROP TABLE a;
 ok:6d0acd009852	ok:6d0acd009852	engine	one_table@table	suite:mysql-every-site-ports	CREATE PROCEDURE p(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin) COMMIT;
+ok:8719eb28ad36	ok:8719eb28ad36	engine	one_table@table	suite:column-compression	CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	verb_clause/alter	ALTER TABLE a;
 1050	1050	engine	one_table@column	verb_clause/create	CREATE TABLE a;
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	verb_clause/drop	DROP TABLE a;
@@ -2073,6 +2075,7 @@ ok:fb7c29f1d901	ok:fb7c29f1d901	engine	one_table@column	suite:column-compression
 1146	1146	engine	one_table@column	suite:lock-wait-timeout	RENAME TABLE a WAIT 1 TO b, c NOWAIT TO d;
 ok:168549d45ff2	ok:168549d45ff2	engine	one_table@column	suite:lock-wait-timeout	CREATE PROCEDURE p() DROP TABLE a;
 ok:0eef2fc27235	ok:0eef2fc27235	engine	one_table@column	suite:mysql-every-site-ports	CREATE PROCEDURE p(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin) COMMIT;
+ok:4d1ee8797f3f	ok:4d1ee8797f3f	engine	one_table@column	suite:column-compression	CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	verb_clause/alter	ALTER TABLE a;
 1050	1050	engine	one_table@index	verb_clause/create	CREATE TABLE a;
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	verb_clause/drop	DROP TABLE a;
@@ -2764,6 +2767,7 @@ ok:87250b56edf9	ok:87250b56edf9	engine	one_table@index	suite:column-compression	
 1146	1146	engine	one_table@index	suite:lock-wait-timeout	RENAME TABLE a WAIT 1 TO b, c NOWAIT TO d;
 ok:a8422e0c932a	ok:a8422e0c932a	engine	one_table@index	suite:lock-wait-timeout	CREATE PROCEDURE p() DROP TABLE a;
 ok:72c40be55899	ok:72c40be55899	engine	one_table@index	suite:mysql-every-site-ports	CREATE PROCEDURE p(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin) COMMIT;
+ok:2e6e19c75cbf	ok:2e6e19c75cbf	engine	one_table@index	suite:column-compression	CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
 1347	1347	engine	objects@view	verb_clause/alter	ALTER TABLE a;
 1050	1050	engine	objects@view	verb_clause/create	CREATE TABLE a;
 1965	1965	engine	objects@view	verb_clause/drop	DROP TABLE a;
@@ -3455,6 +3459,7 @@ ok:8afdc9f376c1	ok:8afdc9f376c1	engine	objects@view	create_routine/create_or_rep
 1146	1146	engine	objects@view	suite:lock-wait-timeout	RENAME TABLE a WAIT 1 TO b, c NOWAIT TO d;
 ok:9ed5a7041da4	ok:9ed5a7041da4	engine	objects@view	suite:lock-wait-timeout	CREATE PROCEDURE p() DROP TABLE a;
 ok:4f2d091ea96a	ok:4f2d091ea96a	engine	objects@view	suite:mysql-every-site-ports	CREATE PROCEDURE p(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin) COMMIT;
+1050	1050	engine	objects@view	suite:column-compression	CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
 ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	verb_clause/alter	ALTER TABLE a;
 1050	1050	engine	objects@partitioned	verb_clause/create	CREATE TABLE a;
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@partitioned	verb_clause/drop	DROP TABLE a;
@@ -4146,6 +4151,7 @@ ok:96adb9878bc5	ok:96adb9878bc5	engine	objects@partitioned	suite:column-compress
 1146	1146	engine	objects@partitioned	suite:lock-wait-timeout	RENAME TABLE a WAIT 1 TO b, c NOWAIT TO d;
 ok:fb8c78ffff8c	ok:fb8c78ffff8c	engine	objects@partitioned	suite:lock-wait-timeout	CREATE PROCEDURE p() DROP TABLE a;
 ok:8336a51da5fd	ok:8336a51da5fd	engine	objects@partitioned	suite:mysql-every-site-ports	CREATE PROCEDURE p(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin) COMMIT;
+ok:f9a2ae36c2f0	ok:f9a2ae36c2f0	engine	objects@partitioned	suite:column-compression	CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
 ok:5d49c7807648	ok:5d49c7807648	engine	objects@fk	verb_clause/alter	ALTER TABLE a;
 1050	1050	engine	objects@fk	verb_clause/create	CREATE TABLE a;
 ok:5f5764457ed5	ok:5f5764457ed5	engine	objects@fk	verb_clause/drop	DROP TABLE a;
@@ -4837,6 +4843,7 @@ ok:75465f7adcaf	ok:75465f7adcaf	engine	objects@fk	suite:column-compression	CREAT
 1146	1146	engine	objects@fk	suite:lock-wait-timeout	RENAME TABLE a WAIT 1 TO b, c NOWAIT TO d;
 ok:c1f9c0a90089	ok:c1f9c0a90089	engine	objects@fk	suite:lock-wait-timeout	CREATE PROCEDURE p() DROP TABLE a;
 ok:0a0d69f1b3cf	ok:0a0d69f1b3cf	engine	objects@fk	suite:mysql-every-site-ports	CREATE PROCEDURE p(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin) COMMIT;
+ok:30aa2b0dde6b	ok:30aa2b0dde6b	engine	objects@fk	suite:column-compression	CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
 ok:f09350955cc7	ok:f09350955cc7	engine	objects@sequence	verb_clause/alter	ALTER TABLE a;
 1050	1050	engine	objects@sequence	verb_clause/create	CREATE TABLE a;
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@sequence	verb_clause/drop	DROP TABLE a;
@@ -5528,6 +5535,7 @@ ok:a1c299b86939	ok:a1c299b86939	engine	objects@sequence	suite:column-compression
 1146	1146	engine	objects@sequence	suite:lock-wait-timeout	RENAME TABLE a WAIT 1 TO b, c NOWAIT TO d;
 ok:d0ba6bc3c9ea	ok:d0ba6bc3c9ea	engine	objects@sequence	suite:lock-wait-timeout	CREATE PROCEDURE p() DROP TABLE a;
 ok:4d716b8658d8	ok:4d716b8658d8	engine	objects@sequence	suite:mysql-every-site-ports	CREATE PROCEDURE p(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin) COMMIT;
+ok:b67b7020305c	ok:b67b7020305c	engine	objects@sequence	suite:column-compression	CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
 1146	1146	engine	objects@routine	verb_clause/alter	ALTER TABLE a;
 1113	1113	engine	objects@routine	verb_clause/create	CREATE TABLE a;
 1051	1051	engine	objects@routine	verb_clause/drop	DROP TABLE a;
@@ -6219,6 +6227,7 @@ ok:33fb5b7136bf	ok:33fb5b7136bf	engine	objects@routine	suite:column-compression	
 1146	1146	engine	objects@routine	suite:lock-wait-timeout	RENAME TABLE a WAIT 1 TO b, c NOWAIT TO d;
 ok:e1ba2724d83a	ok:e1ba2724d83a	engine	objects@routine	suite:lock-wait-timeout	CREATE PROCEDURE p() DROP TABLE a;
 ok:850441e530e7	ok:850441e530e7	engine	objects@routine	suite:mysql-every-site-ports	CREATE PROCEDURE p(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin) COMMIT;
+ok:2f5a1952f26e	ok:2f5a1952f26e	engine	objects@routine	suite:column-compression	CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
 1146	1146	engine	objects@trigger	verb_clause/alter	ALTER TABLE a;
 1113	1113	engine	objects@trigger	verb_clause/create	CREATE TABLE a;
 1051	1051	engine	objects@trigger	verb_clause/drop	DROP TABLE a;
@@ -6910,6 +6919,7 @@ ok:c992ef143e8d	ok:c992ef143e8d	engine	objects@trigger	create_routine/create_or_
 1146	1146	engine	objects@trigger	suite:lock-wait-timeout	RENAME TABLE a WAIT 1 TO b, c NOWAIT TO d;
 ok:9bbec12b75c8	ok:9bbec12b75c8	engine	objects@trigger	suite:lock-wait-timeout	CREATE PROCEDURE p() DROP TABLE a;
 ok:98dd4a220793	ok:98dd4a220793	engine	objects@trigger	suite:mysql-every-site-ports	CREATE PROCEDURE p(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin) COMMIT;
+1050	1050	engine	objects@trigger	suite:column-compression	CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
 1146	1146	engine	objects@event	verb_clause/alter	ALTER TABLE a;
 1113	1113	engine	objects@event	verb_clause/create	CREATE TABLE a;
 1051	1051	engine	objects@event	verb_clause/drop	DROP TABLE a;
@@ -7601,6 +7611,7 @@ ok:465e7ee771a3	ok:465e7ee771a3	engine	objects@event	suite:column-compression	CR
 1146	1146	engine	objects@event	suite:lock-wait-timeout	RENAME TABLE a WAIT 1 TO b, c NOWAIT TO d;
 ok:67756873c861	ok:67756873c861	engine	objects@event	suite:lock-wait-timeout	CREATE PROCEDURE p() DROP TABLE a;
 ok:d94a79c1db1b	ok:d94a79c1db1b	engine	objects@event	suite:mysql-every-site-ports	CREATE PROCEDURE p(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin) COMMIT;
+ok:b14b31d7a77f	ok:b14b31d7a77f	engine	objects@event	suite:column-compression	CREATE TABLE t (a TEXT COMPRESSED CHARACTER SET binary, b VARCHAR(5) COMPRESSED CHARACTER SET binary, c LONGTEXT COMPRESSED CHARSET binary NOT NULL);
 ok:d230cf71e434	ok:d230cf71e434	engine	features@charset	charset:convert	ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4
 ok:797b7354df81	ok:797b7354df81	engine	features@charset	charset:convert	ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 ok:13db976085c0	ok:13db976085c0	engine	features@charset	charset:convert	ALTER TABLE notes CONVERT TO CHARACTER SET latin1

@@ -3284,6 +3284,14 @@ func isStringType(dt string) bool {
 // convertToBinaryType converts a string-type column with CHARACTER SET binary
 // to the equivalent binary type (char->binary, varchar->varbinary, text->blob, etc.).
 func convertToBinaryType(col *Column, dt *nodes.DataType) *Column {
+	// A compressed column keeps its comment through the conversion: measured on
+	// mariadb:11.8.8, `TEXT COMPRESSED CHARACTER SET binary` is
+	// blob /*M!100301 COMPRESSED*/.
+	var suffix string
+	if i := strings.Index(col.ColumnType, " /*"); i >= 0 {
+		suffix = col.ColumnType[i:]
+	}
+	defer func() { col.ColumnType += suffix }()
 	switch col.DataType {
 	case "char":
 		col.DataType = "binary"
