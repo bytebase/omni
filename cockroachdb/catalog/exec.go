@@ -1146,14 +1146,31 @@ func (c *Catalog) createView(n *tree.CreateView) error {
 			if now == nil {
 				return &Error{Message: fmt.Sprintf("the columns of view %q are not known", name)}
 			}
-			return keepsColumns(oldColumns, now)
+			if err := keepsColumns(oldColumns, now); err != nil {
+				return err
+			}
+			return uniqueColumns(now)
 		}
 	case n.Replace:
 		return refuse(codeWrongObjectType, "%q is not a view", name)
 	default:
 		return refuse(codeDuplicateRelation, "relation %q already exists", name)
 	}
-	return c.l.load(n)
+	if err := c.l.load(n); err != nil {
+		return err
+	}
+	// A star is expanded once loaded: its names count too.
+	var names []string
+	if v := findView(s, name); v != nil && !n.Materialized {
+		for _, column := range v.Columns {
+			names = append(names, column.Name)
+		}
+	} else if v := findMaterializedView(s, name); v != nil {
+		for _, column := range v.Columns {
+			names = append(names, column.Name)
+		}
+	}
+	return uniqueColumns(names)
 }
 
 // checkViewColumns refuses a query on one table that names a column the
@@ -1283,6 +1300,18 @@ func (c *Catalog) reaches(schema, name, targetSchema, target string) bool {
 		return false
 	}
 	return walk(schema, name)
+}
+
+// uniqueColumns refuses a view whose columns repeat a name.
+func uniqueColumns(names []string) error {
+	seen := map[string]bool{}
+	for _, name := range names {
+		if seen[name] {
+			return refuse(codeDuplicateColumn, "duplicate column name: %q", name)
+		}
+		seen[name] = true
+	}
+	return nil
 }
 
 // keepsColumns refuses a replacement view whose columns drop or rename the
@@ -1590,7 +1619,7 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 			// a form relabelIn does not know: refused.
 			relabelRead := func(text string) string {
 				out := relabel(text)
-				if expr, err := parser.ParseExpr(out); err == nil && uncastLabel(expr, from) && stuck == nil {
+				if expr, err := parser.ParseExpr(out); err == nil && (uncastLabel(expr, from) || arrayLiteral(out, typ, from)) && stuck == nil {
 					stuck = &Error{Message: fmt.Sprintf("renaming enum value %q, which an expression of table %q holds uncast, is not supported", from, table.Name)}
 				}
 				return out
@@ -2213,7 +2242,11 @@ func (c *Catalog) typeUsers(schema, name string) []string {
 			}
 		}
 		for _, v := range s.MaterializedViews {
-			if viewNamesType(v.Definition, typ) {
+			uses := viewNamesType(v.Definition, typ)
+			for _, index := range v.Indexes {
+				uses = uses || indexNamesType(index.Definition, typ)
+			}
+			if uses {
 				users = append(users, typeName(s.Name, v.Name))
 			}
 		}

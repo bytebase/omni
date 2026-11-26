@@ -500,3 +500,12 @@ func TestExecRound29(t *testing.T) {
 	_, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'x'); CREATE TABLE t (m mood[] DEFAULT '{sad}'::mood[]); ALTER TYPE mood DROP VALUE 'sad'")
 	require.Equal(t, "2BP01", code(err))
 }
+
+func TestExecRound30(t *testing.T) {
+	_, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad'); CREATE TABLE t (m mood[] AS ('{sad}'::mood[]) STORED); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.Error(t, err)
+	_, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE MATERIALIZED VIEW v AS SELECT 1 AS a; CREATE INDEX ix ON v ((CASE WHEN a > 0 THEN 'sad'::mood ELSE 'happy'::mood END)); DROP TYPE mood")
+	require.Equal(t, "2BP01", code(err))
+	_, err = execLast(t, "CREATE TABLE t (a INT8); CREATE VIEW v AS SELECT *, a FROM t")
+	require.Equal(t, "42701", code(err))
+}
