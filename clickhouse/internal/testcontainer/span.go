@@ -326,7 +326,7 @@ func (t *queryTree) lookups() bool {
 
 func lookupFunction(name string) bool {
 	n := strings.ToLower(name)
-	return n == "joinget" || n == "joingetornull" || strings.HasPrefix(n, "dictget")
+	return n == "joinget" || n == "joingetornull" || strings.HasPrefix(n, "dictget") || n == "dicthas" || n == "dictisin"
 }
 
 // lineage is the sources of the root's i-th projection column.

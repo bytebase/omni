@@ -800,12 +800,18 @@ func (r *spanResolver) merge(f *parser.FuncCallExpr, name string) *relation {
 			continue
 		}
 		for _, c := range cols {
+			sources := c.sources
+			if c.alias != "" {
+				// An ALIAS column reads its expression's columns, in each
+				// table merge reads.
+				sources = union(sources, r.aliasColumn(database, table, c.name, c.alias))
+			}
 			i := slices.IndexFunc(rel.columns, func(o spanColumn) bool { return o.name == c.name })
 			if i < 0 {
-				rel.columns = append(rel.columns, spanColumn{name: c.name, sources: c.sources, plain: true})
+				rel.columns = append(rel.columns, spanColumn{name: c.name, sources: sources, plain: c.plain, omitted: c.omitted})
 				continue
 			}
-			rel.columns[i].sources = union(rel.columns[i].sources, c.sources)
+			rel.columns[i].sources = union(rel.columns[i].sources, sources)
 		}
 	}
 	return rel
@@ -1410,19 +1416,19 @@ func (r *spanResolver) isKeyword(e parser.Expr, kw string) bool {
 	return ok && len(id.Parts) == 1 && e.EndPos() <= len(r.text) && strings.EqualFold(r.text[e.StartPos():e.EndPos()], kw)
 }
 
-// lookupFunction reports whether a function reads a column of a table or
-// dictionary its first argument names: joinGet, joinGetOrNull, and the
-// dictGet family.
+// lookupFunction reports whether a function reads the table or dictionary
+// its first argument names: joinGet, joinGetOrNull, the dictGet family,
+// dictHas and dictIsIn.
 func lookupFunction(name string) bool {
 	n := strings.ToLower(name)
-	return n == "joinget" || n == "joingetornull" || strings.HasPrefix(n, "dictget")
+	return n == "joinget" || n == "joingetornull" || strings.HasPrefix(n, "dictget") || n == "dicthas" || n == "dictisin"
 }
 
 // lookupSources is what a joinGet or dictGet call reads from the table or
 // dictionary it names, and records that table as read.
 func (r *spanResolver) lookupSources(f *parser.FuncCallExpr) SourceColumnSet {
 	out := SourceColumnSet{}
-	if len(f.Args) < 2 {
+	if len(f.Args) < 1 {
 		return out
 	}
 	table, ok1 := f.Args[0].(*parser.LiteralExpr)
@@ -1435,17 +1441,26 @@ func (r *spanResolver) lookupSources(f *parser.FuncCallExpr) SourceColumnSet {
 		database, name = db, t
 	}
 	r.tables[ColumnResource{Database: database, Table: name}] = true
+	// The second argument names the column (or, for dictGet, a tuple of
+	// attributes) when it is a string; dictHas, dictIsIn and the
+	// hierarchy functions take keys there, and read the dictionary itself.
 	var columns []string
-	switch c := f.Args[1].(type) {
-	case *parser.LiteralExpr:
-		columns = []string{c.Val}
-	case *parser.TupleExpr:
-		// dictGet('d', ('a', 'b'), key) reads several attributes.
-		for _, item := range c.Items {
-			if lit, ok := item.(*parser.LiteralExpr); ok {
-				columns = append(columns, lit.Val)
+	if len(f.Args) > 1 {
+		switch c := f.Args[1].(type) {
+		case *parser.LiteralExpr:
+			if c.Kind == "STRING" {
+				columns = []string{c.Val}
+			}
+		case *parser.TupleExpr:
+			for _, item := range c.Items {
+				if lit, ok := item.(*parser.LiteralExpr); ok && lit.Kind == "STRING" {
+					columns = append(columns, lit.Val)
+				}
 			}
 		}
+	}
+	if n := strings.ToLower(f.Name); n == "dicthas" || n == "dictisin" {
+		columns = nil
 	}
 	if len(columns) == 0 {
 		out[ColumnResource{Database: database, Table: name}] = true

@@ -378,3 +378,41 @@ func TestResolveQuerySpanColumnsWithoutCatalog(t *testing.T) {
 		t.Errorf("reads %v, want %v", names(got.Results[0].SourceColumns), want)
 	}
 }
+
+func (d tableDatabase) TableNames() []string { return []string{d.table.Name} }
+
+// merge() keeps an ALIAS column's dependencies on the columns it reads.
+func TestResolveQuerySpanMergeAliasColumn(t *testing.T) {
+	db := tableDatabase{table: &metadata.TableMetadata{Name: "calc", Columns: []*metadata.ColumnMetadata{
+		{Name: "email"},
+		{Name: "a", Generation: &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_VIRTUAL, Expression: "email"}},
+	}}}
+	opts := ResolveOptions{DefaultDatabase: "shop", Catalog: Catalog{GetDatabase: func(string) (Database, error) { return db, nil }}}
+	got, err := ResolveQuerySpan("SELECT a FROM merge('shop', '^calc$')", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"shop.calc.a", "shop.calc.email"}; !slices.Equal(names(got.Results[0].SourceColumns), want) {
+		t.Errorf("reads %v, want %v", names(got.Results[0].SourceColumns), want)
+	}
+	got, err = ResolveQuerySpan("SELECT * FROM merge('shop', '^calc$')", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Results) != 1 || got.Results[0].Name != "email" {
+		t.Errorf("* over merge returns %+v, want email alone", got.Results)
+	}
+}
+
+// dictHas and dictIsIn read the dictionary they name.
+func TestResolveQuerySpanDictionaryPredicates(t *testing.T) {
+	for _, q := range []string{"SELECT dictHas('shop.d', toUInt64(1))", "SELECT dictIsIn('shop.d', toUInt64(1), toUInt64(2))"} {
+		got, err := ResolveQuerySpan(q, ResolveOptions{DefaultDatabase: "shop"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := []string{"shop.d"}; !slices.Equal(names(got.SourceColumns), want) || !slices.Equal(names(got.Results[0].SourceColumns), want) {
+			t.Errorf("%s: tables %v, result %v, want %v", q, names(got.SourceColumns), names(got.Results[0].SourceColumns), want)
+		}
+	}
+}
