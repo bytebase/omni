@@ -121,7 +121,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 						return true
 					}
 				}
-				if c.Action == ast.AT_ALTER_PROPERTY && pkFact == walk.Absent && isIOTPropertySubtype(c.Subtype) {
+				if c.Action == ast.AT_ALTER_PROPERTY && (pkFact == walk.Absent || b.heapTable(r)) && isIOTPropertySubtype(c.Subtype) {
 					b.fail(rangeOf(c.Loc), review.UnsupportedForm, "Index-organized table clause is not allowed on non-IOT table "+review.Code(r.written)+".")
 					return true
 				}
@@ -676,7 +676,7 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 				return true
 			}
 		}
-		if b.checkUpdateIndexesText(c.Loc, rng) {
+		if b.checkUpdateIndexesText(c.Loc, r, rng) {
 			return true
 		}
 		if b.moveHasPartition(c.Loc) {

@@ -23,9 +23,8 @@ import (
 // drop.go. CREATE EXTERNAL SCHEMA is a BigQuery dialect-node form.
 //
 // Verified against the live Spanner emulator (database_schema_oracle_test.go):
-// CREATE SCHEMA [IF NOT EXISTS] and CREATE DATABASE accept; BigQuery's
-// `DEFAULT COLLATE` / `OPTIONS` on CREATE SCHEMA are non-authoritative against
-// the Spanner oracle (triangulated from the .g4 + BigQuery truth1).
+// CREATE SCHEMA [IF NOT EXISTS] and CREATE DATABASE accept; the emulator
+// refuses `DEFAULT COLLATE` on CREATE SCHEMA (compat.tsv).
 
 // parseCreateSchema parses a CREATE SCHEMA body after the shared CREATE prefix
 // (OR REPLACE) has been consumed and cur is at the SCHEMA keyword. (opt_create_scope
@@ -54,15 +53,11 @@ func (p *Parser) parseCreateSchema(create Token, orReplace bool) (ast.Node, erro
 	}
 	stmt.Name = name
 
-	// opt_default_collate_clause?  — DEFAULT collate_clause (BigQuery).
-	if p.cur.Type == kwDEFAULT {
-		p.advance() // DEFAULT
-		coll, _, err := p.parseCollateClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.DefaultCollate = coll
-	}
+	// GoogleSQL's opt_default_collate_clause (googlesql.tm:8796) is not
+	// Spanner's: CREATE SCHEMA takes only [IF NOT EXISTS] and a name
+	// (https://cloud.google.com/spanner/docs/reference/standard-sql/data-definition-language#create-schema),
+	// and the emulator refuses CREATE SCHEMA a DEFAULT COLLATE 'a'. DEFAULT
+	// is left for the end-of-statement check to refuse.
 
 	// opt_options_list?  — OPTIONS ( … ) (BigQuery).
 	if p.cur.Type == kwOPTIONS {

@@ -49,6 +49,11 @@ func (p *Parser) parseDropTableStmt(start int, temporary bool) (*nodes.DropTable
 	if err := refuseRepeatedTables(stmt.Tables); err != nil {
 		return nil, err
 	}
+	// drop: ... table_list opt_lock_wait_timeout opt_restrict (sql_yacc.yy:13451).
+	var err error
+	if stmt.NoWait, stmt.HasWait, stmt.WaitSeconds, err = p.parseIndexLockWait(); err != nil {
+		return nil, err
+	}
 
 	// RESTRICT | CASCADE
 	if _, ok := p.match(kwRESTRICT); ok {
@@ -245,6 +250,12 @@ func (p *Parser) parseRenameTableStmt(start int) (*nodes.RenameTableStmt, error)
 		if err != nil {
 			return nil, err
 		}
+		// table_to_table: table_ident opt_lock_wait_timeout TO_SYM table_ident
+		// (sql_yacc.yy:8751).
+		noWait, hasWait, waitSeconds, err := p.parseIndexLockWait()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(kwTO); err != nil {
 			return nil, err
 		}
@@ -262,6 +273,10 @@ func (p *Parser) parseRenameTableStmt(start int) (*nodes.RenameTableStmt, error)
 			Loc: nodes.Loc{Start: pairStart, End: p.prev.End},
 			Old: old,
 			New: newRef,
+
+			NoWait:      noWait,
+			HasWait:     hasWait,
+			WaitSeconds: waitSeconds,
 		})
 		if p.cur.Type != ',' {
 			break

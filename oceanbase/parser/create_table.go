@@ -1321,6 +1321,12 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 		if p.isIdentToken() && p.cur.Type != '(' {
 			constr.Name, _, _ = p.parseIdent()
 		}
+		// SPATIAL opt_key_or_index opt_index_name opt_index_using_algorithm
+		// '(' sort_column_list ')' (lines 6016 and 19880): an index type may
+		// stand before the key parts, as for FULLTEXT.
+		if err := p.parseIndexTypeClause(constr); err != nil {
+			return nil, err
+		}
 		idxCols, err := p.parseParenIndexKeyParts()
 		if err != nil {
 			return nil, err

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/bigquery/ast"
@@ -27,12 +28,26 @@ type querySpanResolver struct {
 
 	// metaCache memoises database metadata lookups within a single span.
 	metaCache map[string]*metadata.DatabaseSchemaMetadata
+
+	// views memoises each view's resolved definition, keyed by the view's
+	// table-level resource with its metadata name. A view being resolved maps
+	// to nil, so a definition that reaches its own view stops there. The
+	// resolvers of a span and of the views it reads share both caches.
+	views map[ColumnResource]*resolvedView
+}
+
+// resolvedView is a view's definition resolved against the metadata: its
+// columns as the metadata lists them, and the span of its query.
+type resolvedView struct {
+	columns []string
+	span    *ResolvedQuerySpan
 }
 
 func newQuerySpanResolver(opts ResolveOptions) *querySpanResolver {
 	return &querySpanResolver{
 		opts:      opts,
 		metaCache: make(map[string]*metadata.DatabaseSchemaMetadata),
+		views:     make(map[ColumnResource]*resolvedView),
 	}
 }
 
@@ -49,11 +64,18 @@ func (q *querySpanResolver) getQuerySpan(statement string) (*ResolvedQuerySpan, 
 		return nil, fmt.Errorf("expecting only one statement to get query span, but got %d", count)
 	}
 
-	rawSpan, err := GetQuerySpan(single)
+	rawSpan, err := getQuerySpan(single, func(ref ColumnRef) ([]string, bool) {
+		_, columns, err := q.tableColumns(ref.Database, ref.Schema, ref.Table)
+		return columns, err == nil && len(columns) > 0
+	})
 	if err != nil {
 		return nil, err
 	}
+	return q.resolveSpan(single, rawSpan)
+}
 
+// resolveSpan resolves the walker's span of statement against the metadata.
+func (q *querySpanResolver) resolveSpan(single string, rawSpan *QuerySpan) (*ResolvedQuerySpan, error) {
 	// Reject a statement that reads from both user and system
 	// (INFORMATION_SCHEMA / SPANNER_SYS) tables.
 	allSystems, mixed := classifyAccess(rawSpan)
@@ -90,7 +112,10 @@ func (q *querySpanResolver) getQuerySpan(statement string) (*ResolvedQuerySpan, 
 	// (Column empty) — the legacy spans report accessed tables, not
 	// column-expanded source columns. Uses the table name AS WRITTEN in the
 	// query, with the dialect defaults filled in.
-	accessTables := q.toTableResources(rawSpan)
+	accessTables, err := q.toTableResources(rawSpan)
+	if err != nil {
+		return nil, err
+	}
 
 	// Only a read-only query produces per-column results; DML/DDL/Explain/
 	// Unknown keep the accessed tables and no per-column lineage.
@@ -117,7 +142,10 @@ func (q *querySpanResolver) getQuerySpan(statement string) (*ResolvedQuerySpan, 
 		return nil, err
 	}
 
-	results := q.expandColumnInfos(rawSpan.Results, fullSourceColumns, aliasMap)
+	results := nameResults(q.expandColumnInfos(rawSpan.Results, fullSourceColumns, aliasMap))
+	if err := q.addViewLineage(results); err != nil {
+		return nil, err
+	}
 
 	span := &ResolvedQuerySpan{
 		Type:          queryType,
@@ -133,6 +161,50 @@ func (q *querySpanResolver) getQuerySpan(statement string) (*ResolvedQuerySpan, 
 		span.NotFoundError = notFound
 	}
 	return span, nil
+}
+
+// nameResults names a query's output columns as BigQuery names the fields of
+// its result: a named column keeps its name, an anonymous one takes the first
+// f<k>_ (k from 0) no column is named, and a repeat of an earlier name takes the
+// first <name>_<k> (k from 1) no column is named. Names compare without case.
+func nameResults(results []ResolvedQuerySpanResult) []ResolvedQuerySpanResult {
+	taken := map[string]bool{}
+	for _, r := range results {
+		taken[strings.ToLower(r.Name)] = true
+	}
+	seen := map[string]bool{}
+	// Each stem's counter only moves forward: every suffix below it is taken,
+	// by a written name or by one this pass gave out.
+	counters := map[string]int{}
+	next := func(stem, key string, first int) string {
+		k, ok := counters[key]
+		if !ok {
+			k = first
+		}
+		for ; ; k++ {
+			name := stem + strconv.Itoa(k)
+			if key == "" {
+				name += "_"
+			}
+			if !taken[strings.ToLower(name)] {
+				taken[strings.ToLower(name)] = true
+				counters[key] = k + 1
+				return name
+			}
+		}
+	}
+	for i, r := range results {
+		key := strings.ToLower(r.Name)
+		switch {
+		case r.Name == "":
+			results[i].Name = next("f", "", 0)
+		case seen[key]:
+			results[i].Name = next(r.Name+"_", key, 1)
+		default:
+			seen[key] = true
+		}
+	}
+	return results
 }
 
 // singleNonEmptyStatement splits the input and returns its single non-empty
@@ -200,26 +272,170 @@ func (q *querySpanResolver) resourceDatabase(written string) string {
 //
 // BigQuery keeps the table and schema names AS WRITTEN, and lists CTE
 // references too, as the legacy access-table listeners recorded every FROM
-// table path. Spanner lists no CTE, names a table as its metadata does (its
-// names are case-insensitive), and lists the tables and views every view read
-// reads, through nested views, as the emulator resolves them
-// (testdata/span.tsv).
-func (q *querySpanResolver) toTableResources(span *QuerySpan) ColumnSet {
+// table path. A view read also lists the tables and views its definition reads,
+// through nested views, as a dry run's referencedTables and
+// referencedLogicalViews do (testdata/span.tsv).
+func (q *querySpanResolver) toTableResources(span *QuerySpan) (ColumnSet, error) {
 	out := ColumnSet{}
-	q.addTableResources(out, span, map[ColumnResource]bool{})
-	return out
-}
-
-func (q *querySpanResolver) addTableResources(out ColumnSet, span *QuerySpan, views map[ColumnResource]bool) {
 	if span == nil {
-		return
+		return out, nil
 	}
-	refs := span.AccessTables
-	refs = append(slices.Clone(refs), span.CTEReferences...)
-	for _, t := range refs {
+	for _, t := range span.AccessTables {
 		r := ColumnResource{Database: q.resourceDatabase(t.Database), Schema: t.Schema, Table: t.Table}
 		out[r] = true
+		if t.IsSystem {
+			continue
+		}
+		view, err := q.resolveView(t.Database, t.Table)
+		if err != nil {
+			return nil, err
+		}
+		if view != nil {
+			for c := range view.span.SourceColumns {
+				out[c] = true
+			}
+		}
 	}
+	return out, nil
+}
+
+// addViewLineage adds, to each result read from a view's column, the lineage of
+// that column in the view's definition, so a result names the base table columns
+// it comes from as well as the view's. The masking consumer finds a column's
+// semantic type on a table, never on a view, so without it a masked column read
+// through a view would come back unmasked. A result is a plain field only when
+// the view's column is one too.
+func (q *querySpanResolver) addViewLineage(results []ResolvedQuerySpanResult) error {
+	for i := range results {
+		var add []ColumnSet
+		plain := results[i].IsPlainField
+		for c := range results[i].SourceColumns {
+			if c.Column == "" || c.Schema != "" {
+				continue
+			}
+			view, err := q.resolveView(c.Database, c.Table)
+			if err != nil {
+				return err
+			}
+			if view == nil {
+				continue
+			}
+			column := view.result(c.Column)
+			if column == nil {
+				continue
+			}
+			add = append(add, column.SourceColumns)
+			plain = plain && column.IsPlainField
+		}
+		if len(add) == 0 {
+			continue
+		}
+		for _, set := range add {
+			for c := range set {
+				results[i].SourceColumns[c] = true
+			}
+		}
+		results[i].IsPlainField = plain
+	}
+	return nil
+}
+
+// result returns the result of the view's query that is the view's column
+// named column. The metadata lists a view's columns in the order of its
+// query's results, so the column's position names the result; when omni
+// resolves another number of results than the metadata lists (a star it does
+// not expand), the result of that name is taken instead.
+func (v *resolvedView) result(column string) *ResolvedQuerySpanResult {
+	results := v.span.Results
+	for i, name := range v.columns {
+		if !strings.EqualFold(name, column) {
+			continue
+		}
+		if len(v.columns) == len(results) {
+			return &results[i]
+		}
+		break
+	}
+	for i := range results {
+		if strings.EqualFold(results[i].Name, column) {
+			return &results[i]
+		}
+	}
+	return nil
+}
+
+// resolveView resolves the definition of the view a reference names, or
+// returns nil when it names a table, a relation the metadata does not hold, or
+// a view whose definition omni cannot resolve; the view itself stays listed
+// then. The definition is resolved in the view's own dataset, as BigQuery
+// resolves it. Only an error the metadata lookup fails with is returned.
+//
+// A view's definition reading a dataset the metadata does not hold is not a
+// ResourceNotFoundError of the query that reads the view: the span carries what
+// was resolved, and the query is not refused for a dataset it does not name.
+func (q *querySpanResolver) resolveView(writtenDatabase, table string) (*resolvedView, error) {
+	database := q.resourceDatabase(writtenDatabase)
+	view, err := q.findViewMetadata(database, table)
+	if err != nil || view == nil {
+		return nil, err
+	}
+	key := ColumnResource{Database: database, Table: view.GetName()}
+	if resolved, ok := q.views[key]; ok {
+		return resolved, nil
+	}
+	q.views[key] = nil
+	rawSpan, err := GetQuerySpan(view.GetDefinition())
+	if err != nil {
+		// The definition is one BigQuery stored, so it parses; one omni
+		// cannot parse adds nothing.
+		return nil, nil
+	}
+	opts := q.opts
+	opts.DefaultDatabase = database
+	child := &querySpanResolver{opts: opts, metaCache: q.metaCache, views: q.views}
+	span, err := child.resolveSpan(view.GetDefinition(), rawSpan)
+	if errors.Is(err, ErrMixUserSystemTables) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	resolved := &resolvedView{span: span}
+	for _, c := range view.GetColumns() {
+		resolved.columns = append(resolved.columns, c.GetName())
+	}
+	q.views[key] = resolved
+	return resolved, nil
+}
+
+// findViewMetadata returns the view a reference in database names, as
+// tableColumns resolves it: tables shadow views, and a name that matches none
+// exactly matches case-folded. It returns nil for a table or a relation the
+// metadata does not hold, and an error only for a failed metadata lookup.
+func (q *querySpanResolver) findViewMetadata(database, table string) (*metadata.ViewMetadata, error) {
+	if q.opts.SchemaScopedMetadata {
+		return nil, nil
+	}
+	dbMetadata, err := q.getDatabaseMetadata(database)
+	if err != nil {
+		var notFound *ResourceNotFoundError
+		if errors.As(err, &notFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	schemaMeta := findSchema(dbMetadata, "")
+	if schemaMeta == nil {
+		return nil, nil
+	}
+	canonical, _, err := q.tableColumns(database, "", table)
+	if err != nil || canonical == "" {
+		return nil, nil
+	}
+	if findTable(schemaMeta, canonical) != nil {
+		return nil, nil
+	}
+	return findView(schemaMeta, canonical), nil
 }
 
 // expandTablesToColumns expands each accessed table into one resource per column
@@ -379,9 +595,9 @@ func (q *querySpanResolver) buildSetOpMergeResults(m *SetOpMergeInfo, fullSource
 			}
 		}
 		if i < len(right) {
-			// Spanner names the column after the left arm even when it is
-			// anonymous ("").
-			if i >= len(left) || (name == "") {
+			// GoogleSQL names the column after the left arm even when it is
+			// anonymous.
+			if i >= len(left) {
 				name = right[i].Name
 			}
 			for sc := range right[i].SourceColumns {
@@ -609,18 +825,14 @@ func applyStarModifiers(expanded []ResolvedQuerySpanResult, r ColumnInfo, fullSo
 // column (the legacy first-select-name rule); otherwise the concrete arm's name
 // is kept. The merged column is never a plain field.
 //
-// Naming: a concrete-arm output name is uppercased (the legacy expression-name
-// rendering, both engines). A LEFT-star-derived name is uppercased under the
-// BigQuery model but keeps the star column's metadata case under the spanner
-// model (the legacy spanner first-arm rule passed the PhysicalTable field name
-// through unchanged).
+// Naming: a concrete arm's output name is kept as written, and a LEFT-star
+// derived one keeps the star column's metadata case, as BigQuery names them.
 func (q *querySpanResolver) buildStarMergeResult(r ColumnInfo, fullSourceColumns ColumnSet, aliasMap map[string][]string) ResolvedQuerySpanResult {
 	sourceColumns := ColumnSet{}
 	for _, ref := range r.SourceColumns {
 		addMatchingColumns(sourceColumns, fullSourceColumns, ref.Column, ref.Table, aliasMap)
 	}
 	name := r.Name
-	name = strings.ToUpper(name)
 	// A StarMerge always carries a bare single-base-table star (a
 	// USING-coalesced or otherwise multi-segment star arm defers to SetOpMerge
 	// instead), so there are no except columns to apply here.
@@ -631,9 +843,6 @@ func (q *querySpanResolver) buildStarMergeResult(r ColumnInfo, fullSourceColumns
 		}
 		if r.StarMerge.LeftStar {
 			name = starCols[idx].Name
-			if q.opts.UppercaseStarMergeName {
-				name = strings.ToUpper(name)
-			}
 		}
 	}
 	return ResolvedQuerySpanResult{
@@ -643,20 +852,11 @@ func (q *querySpanResolver) buildStarMergeResult(r ColumnInfo, fullSourceColumns
 	}
 }
 
-// resultName renders an explicit select-item's output column name. Spanner
-// keeps the walker's name, which is GoogleSQL's. BigQuery matches the legacy
-// extractors (extractTableSourceFromSelect): the name is UPPER-CASED,
-// and for an expression that has no written name of its own the walker leaves
-// Name empty — in that case the legacy code used the name of the single bare
-// column the expression's DFS surfaced (e.g. `ID+1` → "ID"), which is the
-// walker's first source column. A name-less expression with no column reference
-// (a literal, or an opaque scalar subquery) stays "".
+// resultName renders an explicit select-item's output column name: the
+// walker's name, which is GoogleSQL's (testdata/span.tsv). An anonymous one
+// stays "" here; nameResults names it as BigQuery does.
 func (q *querySpanResolver) resultName(r ColumnInfo) string {
-	name := r.Name
-	if name == "" && len(r.SourceColumns) > 0 {
-		name = r.SourceColumns[0].Column
-	}
-	return strings.ToUpper(name)
+	return r.Name
 }
 
 // addMatchingColumns adds every column in fullSourceColumns whose name matches

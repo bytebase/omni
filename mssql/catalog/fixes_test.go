@@ -2262,3 +2262,19 @@ func TestCollateOperandOfCaseDistinctColumns(t *testing.T) {
 		}
 	}
 }
+
+func TestViewPartitionFunctionMustExist(t *testing.T) {
+	c := New()
+	view := func() error {
+		results, err := c.Exec("CREATE OR ALTER VIEW v AS SELECT $PARTITION.pf(1) AS p", nil)
+		require.NoError(t, err)
+		return results[0].Error
+	}
+	require.ErrorContains(t, view(), "Invalid object name '$partition.pf'.")
+	_, err := c.Exec("CREATE PARTITION FUNCTION PF (INT) AS RANGE LEFT FOR VALUES (1)", nil)
+	require.NoError(t, err)
+	require.NoError(t, view())
+	_, err = c.Exec("DROP VIEW v; DROP PARTITION FUNCTION pf", nil)
+	require.NoError(t, err)
+	require.ErrorContains(t, view(), "Invalid object name '$partition.pf'.")
+}

@@ -85,6 +85,11 @@ type ConstraintDef struct {
 	ExclOpClasses []string
 	AccessMethod  string // EXCLUDE only: access method (default "gist")
 	IndexSpace    string // PK/UNIQUE/EXCLUDE: tablespace for the backing index
+	// Options holds the backing index's WITH (...) storage parameters
+	// (PK/UNIQUE/EXCLUDE), validated as DefineIndex validates them.
+	Options *nodes.List
+	// WhereClause is an EXCLUDE constraint's raw WHERE predicate.
+	WhereClause nodes.Node
 }
 
 // --- TRIGGER ---

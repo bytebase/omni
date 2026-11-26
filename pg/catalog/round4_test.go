@@ -47,7 +47,9 @@ func TestDuplicateParentInherits(t *testing.T) {
 		&nodes.RangeVar{Relname: "p"},
 	}}
 	err := c.DefineRelation(child, 'r')
-	assertErrorCode(t, err, CodeDuplicateObject)
+	// PostgreSQL 17 raises ERRCODE_DUPLICATE_TABLE here.
+	// pg: src/backend/commands/tablecmds.c:815 (REL_17_12) — DefineRelation
+	assertErrorCode(t, err, CodeDuplicateTable)
 }
 
 func TestListPartitionMultiColumn(t *testing.T) {
@@ -106,8 +108,8 @@ func TestAlterEnumRenameValue(t *testing.T) {
 	// Rename "red" → "blue".
 	err := c.AlterEnumStmt(&nodes.AlterEnumStmt{
 		Typname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "color"}}},
-		Oldval:   "red",
-		Newval:   "blue",
+		Oldval:  "red",
+		Newval:  "blue",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -132,8 +134,8 @@ func TestAlterEnumRenameValueDuplicate(t *testing.T) {
 
 	err := c.AlterEnumStmt(&nodes.AlterEnumStmt{
 		Typname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "color"}}},
-		Oldval:   "red",
-		Newval:   "green", // already exists
+		Oldval:  "red",
+		Newval:  "green", // already exists
 	})
 	assertErrorCode(t, err, CodeDuplicateObject)
 }
@@ -147,8 +149,8 @@ func TestAlterEnumRenameValueNotFound(t *testing.T) {
 
 	err := c.AlterEnumStmt(&nodes.AlterEnumStmt{
 		Typname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "color"}}},
-		Oldval:   "nosuch",
-		Newval:   "blue",
+		Oldval:  "nosuch",
+		Newval:  "blue",
 	})
 	assertErrorCode(t, err, CodeInvalidParameterValue)
 }
@@ -212,9 +214,9 @@ func TestAlterDomainAddNonCheckError(t *testing.T) {
 	})
 
 	err := c.AlterDomainStmt(&nodes.AlterDomainStmt{
-		Typname:  &nodes.List{Items: []nodes.Node{&nodes.String{Str: "d"}}},
-		Subtype:  'C',
-		Def:      &nodes.Constraint{Contype: nodes.CONSTR_UNIQUE},
+		Typname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "d"}}},
+		Subtype: 'C',
+		Def:     &nodes.Constraint{Contype: nodes.CONSTR_UNIQUE},
 	})
 	assertErrorCode(t, err, CodeSyntaxError)
 }

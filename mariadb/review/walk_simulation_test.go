@@ -37,11 +37,11 @@ func TestWalkSimulation(t *testing.T) {
 		// function may hold; one FOLLOWS a trigger of another time or event
 		// (4031); and one moves an event into the past (1589).
 		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 64.4, 448},
-		// Of the 197 refusals, 20 are statements the parser refuses. The 39
-		// the walk misses call a function the target doesn't hold (1305,
-		// 1630), which a loadable function may answer to unqualified, or
-		// qualified by a database other than the target's.
-		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 70.0, 138},
+		// Of the 209 refusals, 21 are statements the parser refuses. The 12
+		// the walk misses call a function the target doesn't hold, which a
+		// loadable function may answer to unqualified (1305), or qualified
+		// by a database other than the target's (1305, 1630).
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 84.2, 176},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{

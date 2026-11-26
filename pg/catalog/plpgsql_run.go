@@ -184,7 +184,14 @@ func (c *Catalog) execCall(fc *nodes.FuncCall) error {
 	if up == nil || up.Kind != 'p' || !strings.EqualFold(up.Language, "plpgsql") || len(up.ArgNames) > 0 || len(up.ArgTypes) > 0 || len(up.SetConfig) > 0 || up.SecDef {
 		return errNotRun
 	}
-	return c.runPLpgSQL(up.Body)
+	err := c.runPLpgSQL(up.Body)
+	var e *Error
+	if errors.As(err, &e) {
+		inBody := *e
+		inBody.InCall = true
+		return &inBody
+	}
+	return err
 }
 
 // plStraightLine collects the statements of a block that runs every one of

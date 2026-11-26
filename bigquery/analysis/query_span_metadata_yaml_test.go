@@ -16,7 +16,9 @@ import (
 // The corpora under testdata/query-span were recorded from the two legacy
 // ANTLR resolvers Bytebase shipped for BigQuery and Spanner. They are the
 // masking-parity bar for this package and must be reproduced, never re-recorded
-// against this implementation.
+// against this implementation. Where BigQuery itself answers otherwise
+// (testdata/span.tsv), the corpus holds BigQuery's answer: results are named as
+// BigQuery names them, and a CTE is not a table the query reads.
 
 type spanCorpusCase struct {
 	Description     string `yaml:"description"`

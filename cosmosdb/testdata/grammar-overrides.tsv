@@ -74,3 +74,8 @@ accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] pr
 accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT false zzz
 accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT null zzz
 accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT undefined zzz
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c AND c c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c OR c c
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c ALL
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c FIRST
+accept	docs	https://learn.microsoft.com/en-us/cosmos-db/query/select [ [ AS ] property_alias ]	SELECT c LAST

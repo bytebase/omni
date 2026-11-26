@@ -59,7 +59,12 @@ fresh container (`OMNI_RECORD=verify`).
   in `USING TIMESTAMP` and `TTL`, a table named `role` after `ON`, and a
   duration as a property value were refused, and a GRANT or REVOKE none of
   whose permissions the resource takes (`GRANT CREATE ON a`, which
-  filterPermissions refuses at Parser.g:149) was accepted.
+  filterPermissions refuses at Parser.g:149) was accepted. A second round
+  opted in the name rules (a column, field, keyspace, table, index, role,
+  user, identity, function and type name, each as a name, a quoted name, a
+  string or an unreserved keyword such as `TTL`), a tuple's marker and a
+  property set to a value or a map. It added 332 rows, all agreeing with
+  `cassandra:5.0.9` (3,517 / 3,517).
 
 After a parser fix, commit the rows that now agree:
 

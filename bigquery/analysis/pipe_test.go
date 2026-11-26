@@ -2,6 +2,10 @@ package analysis
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/bytebase/omni/metadata"
 )
 
 // Unit tests for the pipe syntax's analysis: the classification and statement
@@ -98,13 +102,61 @@ func TestGetQuerySpanPipe(t *testing.T) {
 		}
 	})
 
-	t.Run("a projection-changing suffix fails closed", func(t *testing.T) {
+	t.Run("a projection-changing suffix over concrete columns resolves", func(t *testing.T) {
+		for sql, want := range map[string][]string{
+			"SELECT secret FROM t |> EXTEND secret AS copy": {"secret", "copy"},
+			"SELECT x FROM t |> SELECT x AS y":              {"y"},
+			"SELECT x, y FROM t |> DROP x":                  {"y"},
+			"SELECT x FROM t |> AGGREGATE COUNT(*)":         {""},
+		} {
+			span, err := GetQuerySpan(sql)
+			if err != nil {
+				t.Errorf("GetQuerySpan(%q): %v", sql, err)
+				continue
+			}
+			if got := resultNames(span); !eqStrings(got, want) {
+				t.Errorf("GetQuerySpan(%q) results = %q, want %q", sql, got, want)
+			}
+		}
+	})
+
+	t.Run("a projection-changing suffix it cannot place fails closed", func(t *testing.T) {
 		for _, sql := range []string{
-			"SELECT secret FROM t |> EXTEND secret AS copy",
+			// A base table's columns are unknown without metadata.
+			"FROM t |> DROP x",
+			"FROM t |> RENAME x AS y",
 			"SELECT x FROM t |> JOIN u ON true",
-			"SELECT x FROM t |> SELECT x AS y",
-			"SELECT x FROM t |> DROP x",
-			"SELECT x FROM t |> AGGREGATE COUNT(*)",
+			"SELECT * EXCEPT (x) FROM t |> SELECT y",
+			// Operators whose output omni does not derive.
+			"SELECT x FROM t |> PIVOT (SUM(x) FOR x IN (1, 2))",
+			"SELECT x FROM t |> CALL f()",
+			"SELECT x FROM t |> NATURAL JOIN (SELECT 1 AS x)",
+			"SELECT x, y FROM t |> SET x = 1, x = 2 |> SELECT x |> RENAME z AS w",
+			// Name matching that keeps only the shared columns.
+			"SELECT x, y FROM t |> INNER UNION ALL BY NAME (SELECT x FROM u)",
+			"SELECT x, y FROM t |> UNION ALL CORRESPONDING (SELECT x FROM u)",
+			// A PIVOT source's output is not its input's columns.
+			"SELECT 0 AS p |> CROSS JOIN (SELECT s, c FROM t) PIVOT(MAX(s) FOR c IN ('a', 'b'))",
+			"FROM (SELECT s, c FROM t) PIVOT(MAX(s) FOR c IN ('a', 'b')) |> SELECT *",
+			// A star expands a struct element's fields.
+			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> SELECT *",
+			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> AS z |> SELECT z.*",
+			// A struct element's field read by its name alone.
+			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> SELECT y",
+			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> EXTEND y.z AS q",
+			// A value table is one struct column.
+			"SELECT AS STRUCT public, secret FROM t |> UNION ALL (SELECT AS STRUCT public, secret FROM u)",
+			"(SELECT AS VALUE STRUCT(public, secret) FROM t) |> SELECT *",
+			"SELECT x FROM t |> JOIN (SELECT AS STRUCT public, secret FROM u) AS s ON true",
+			"SELECT x FROM t |> UNION ALL (SELECT AS STRUCT secret FROM u)",
+			// A subquery's lineage is not resolved.
+			"SELECT 0 AS p |> EXTEND (SELECT secret FROM t LIMIT 1) AS s",
+			"SELECT 0 AS p |> SELECT ARRAY(SELECT secret FROM t) AS s",
+			"SELECT x FROM t |> SET x = (SELECT MAX(secret) FROM t)",
+			"SELECT x FROM t |> AGGREGATE COUNT(*) GROUP BY (SELECT 1)",
+			// A range variable on its own is the whole row.
+			"SELECT public, secret FROM t |> AS a |> SELECT TO_JSON_STRING(a)",
+			"FROM (SELECT public, secret FROM t) AS a |> EXTEND TO_JSON_STRING(a) AS j",
 		} {
 			if _, err := GetQuerySpan(sql); err == nil {
 				t.Errorf("GetQuerySpan(%q) returned a span; want fail closed", sql)
@@ -142,4 +194,47 @@ func TestGetQuerySpanPipe(t *testing.T) {
 			t.Errorf("StatementTypeOf = %v, want Execute", got)
 		}
 	})
+}
+
+// BigQuery's dry run states no column lineage, so span.tsv holds only the
+// arity of a pipe's results. These pin the lineage each operator gives, as
+// BigQuery evaluates it on inline tables: a range variable reads the original
+// row after SET, DROP and RENAME, and SET's values read the input.
+func TestResolveQuerySpanPipeLineage(t *testing.T) {
+	schemas := pinTables(
+		&metadata.TableMetadata{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "x"}, {Name: "y"}, {Name: "secret"}}},
+		&metadata.TableMetadata{Name: "u", Columns: []*metadata.ColumnMetadata{{Name: "x"}, {Name: "z"}}},
+	)
+	tests := []struct {
+		sql  string
+		want [][]string // each result's name, then its sources
+	}{
+		{"FROM t |> SET x = secret, secret = x", [][]string{{"x", "t.secret"}, {"y", "t.y"}, {"secret", "t.x"}}},
+		{"FROM t AS a |> SET x = secret |> SELECT a.x, x", [][]string{{"x", "t.x"}, {"x_1", "t.secret"}}},
+		{"FROM t AS a |> DROP secret |> SELECT a.secret, *", [][]string{{"secret", "t.secret"}, {"x", "t.x"}, {"y", "t.y"}}},
+		{"FROM t AS a |> RENAME x AS w |> SELECT a.x, w", [][]string{{"x", "t.x"}, {"w", "t.x"}}},
+		{"FROM t |> SET x = secret |> AS a |> SELECT a.x", [][]string{{"x", "t.secret"}}},
+		{"FROM t |> EXTEND secret AS s |> DROP secret |> RENAME s AS secret", [][]string{{"x", "t.x"}, {"y", "t.y"}, {"secret", "t.secret"}}},
+		{"FROM t |> JOIN u USING (x)", [][]string{{"x", "t.x", "u.x"}, {"y", "t.y"}, {"secret", "t.secret"}, {"z", "u.z"}}},
+		{"FROM t |> JOIN u ON t.x = u.x |> SELECT u.x, t.x", [][]string{{"x", "u.x"}, {"x_1", "t.x"}}},
+		{"FROM t |> AGGREGATE MAX(secret) AS m GROUP BY y", [][]string{{"y", "t.y"}, {"m", "t.secret"}}},
+		{"FROM t |> AGGREGATE COUNT(*) GROUP BY ROLLUP(y, x)", [][]string{{"y", "t.y"}, {"x", "t.x"}, {"f0_"}}},
+		{"FROM t |> SELECT x |> UNION ALL (SELECT z FROM u)", [][]string{{"x", "t.x", "u.z"}}},
+		{"FROM t |> SELECT x, y |> UNION ALL BY NAME (SELECT z AS y, x FROM u)", [][]string{{"x", "t.x", "u.x"}, {"y", "t.y", "u.z"}}},
+		{"FROM t |> SELECT * REPLACE (secret AS x) |> SELECT x", [][]string{{"x", "t.secret"}}},
+		// A FROM-first query's range variables survive parentheses and an
+		// unaliased FROM subquery.
+		{"(FROM t AS a) |> SELECT a.secret", [][]string{{"secret", "t.secret"}}},
+		{"(FROM t AS a |> AS b) |> SELECT b.secret", [][]string{{"secret", "t.secret"}}},
+		{"SELECT a.secret FROM (FROM t AS a)", [][]string{{"secret", "t.secret"}}},
+		{"FROM (FROM t AS a |> SET secret = x) |> SELECT a.secret, secret", [][]string{{"secret", "t.secret"}, {"secret_1", "t.x"}}},
+	}
+	for _, tc := range tests {
+		span := resolvePin(t, bigqueryResolveOptions(), tc.sql, "ds1", schemas)
+		var got [][]string
+		for _, r := range span.Results {
+			got = append(got, append([]string{r.Name}, sourcesOf(r)...))
+		}
+		require.Equal(t, tc.want, got, "statement: %s", tc.sql)
+	}
 }

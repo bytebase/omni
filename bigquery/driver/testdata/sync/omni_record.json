@@ -55,9 +55,12 @@
               "type": "INT64"
             }
           ]
-        },
+        }
+      ],
+      "views": [
         {
           "name": "recent",
+          "definition": "SELECT id, city FROM `omni_record.customers` WHERE id > 1",
           "columns": [
             {
               "name": "id",

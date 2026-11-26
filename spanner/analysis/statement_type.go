@@ -231,7 +231,7 @@ func alterStatementType(kind ast.AlterObjectKind) StatementType {
 		return AlterTable
 	case ast.AlterView:
 		return AlterView
-	case ast.AlterIndex, ast.AlterSearchIndex:
+	case ast.AlterIndex:
 		return AlterIndex
 	case ast.AlterDatabase:
 		return AlterDatabase

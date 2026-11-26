@@ -847,8 +847,15 @@ UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE own
 		}
 		indexCols[v[0].String] = append(indexCols[v[0].String], v[1].String)
 	})
+	// An index is visible unless Oracle says INVISIBLE, as the driver reads
+	// ALL_INDEXES.VISIBILITY.
+	invisible := make(map[string]bool)
+	query(`SELECT index_name FROM dba_indexes WHERE owner = :1 AND visibility = 'INVISIBLE' ORDER BY 1`, func(v []sql.NullString) {
+		invisible[v[0].String] = true
+	})
 	indexed := make(map[string]bool)
 	addIndex := func(table string, idx *metadata.IndexMetadata) {
+		idx.Visible = !invisible[idx.Name]
 		if tb, ok := tables[table]; ok {
 			tb.Indexes = append(tb.Indexes, idx)
 		} else if mv, ok := mviews[table]; ok {

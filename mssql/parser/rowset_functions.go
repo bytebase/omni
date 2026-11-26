@@ -323,6 +323,11 @@ func (p *Parser) parseRowsetWithClause(isJSON bool) (*nodes.List, error) {
 				IsNChar: tok.Type == tokNSCONST,
 				Loc:     nodes.Loc{Start: tok.Loc, End: p.prevEnd()},
 			}
+		} else if !isJSON && (p.cur.Type == tokVARIABLE || p.cur.Type == tokSYSVARIABLE) {
+			// openXmlSchemaItem (TSql160.g:20564) takes stringOrVariable;
+			// openJsonSchemaItem (TSql160.g:20633) takes a string only.
+			tok := p.advance()
+			col.PathVar = &nodes.VariableRef{Name: tok.Str, Loc: nodes.Loc{Start: tok.Loc, End: p.prevEnd()}}
 		}
 		if isJSON && p.cur.Type == kwAS && p.peekNext().Type == kwJSON {
 			p.advance() // consume AS

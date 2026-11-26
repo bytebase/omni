@@ -151,6 +151,15 @@ reject	reject	engine	alterStmt(clusterClause)?/clusterClause!drop-3	ALTER TABLE 
 reject	reject	engine	alterStmt(clusterClause)?/clusterClause!truncate	ALTER TABLE a ON CLUSTER
 reject	reject	engine	alterStmt(clusterClause)?/clusterClause!insert	ALTER TABLE a ON CLUSTER a zzz FREEZE
 reject	reject	engine	alterStmt(clusterClause)?/clusterClause!swap	ALTER TABLE a OPTIMIZE CLUSTER a FREEZE
+accept	accept	engine	alterStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral	ALTER TABLE a ON CLUSTER X'00' FREEZE
+reject	reject	engine	alterStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-1	ALTER TABLE a CLUSTER X'00' FREEZE
+reject	reject	engine	alterStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-2	ALTER TABLE a ON X'00' FREEZE
+accept	accept	engine	alterStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL	ALTER TABLE a ON CLUSTER B'00' FREEZE
+reject	reject	engine	alterStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-1	ALTER TABLE a CLUSTER B'00' FREEZE
+reject	reject	engine	alterStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-2	ALTER TABLE a ON B'00' FREEZE
+accept	accept	engine	alterStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL	ALTER TABLE a ON CLUSTER 'a' FREEZE
+reject	reject	engine	alterStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-1	ALTER TABLE a CLUSTER 'a' FREEZE
+reject	reject	engine	alterStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-2	ALTER TABLE a ON 'a' FREEZE
 accept	accept	engine	alterStmt(COMMA_alterTableClause)*/%empty	ALTER TABLE a FREEZE
 accept	accept	engine	alterStmt(COMMA_alterTableClause)*/COMMA_alterTableClause_(COMMA_alterTableClause)*	ALTER TABLE a FREEZE, FREEZE
 reject	reject	engine	alterStmt(COMMA_alterTableClause)*/COMMA_alterTableClause_(COMMA_alterTableClause)*!drop-1	ALTER TABLE a FREEZE FREEZE
@@ -163,6 +172,25 @@ reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfn
 reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808!drop-3	ALTER TABLE a ADD COLUMN a
 reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808!insert	ALTER TABLE a ADD COLUMN a a zzz
 reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808!swap	ALTER TABLE a AFTER COLUMN a a
+reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_identifier_columnTypeExpr_(COMMA_iden~f42ab16a	ALTER TABLE a ADD COLUMN a a(a a)
+reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_identifier_columnTypeExpr_(COMMA_iden~f42ab16a!drop-3	ALTER TABLE a ADD COLUMN a(a a)
+reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_identifier_columnTypeExpr_(COMMA_iden~f42ab16a!drop-5	ALTER TABLE a ADD COLUMN a a a a)
+reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_identifier_columnTypeExpr_(COMMA_iden~f42ab16a!drop-8	ALTER TABLE a ADD COLUMN a a(a a
+accept	accept	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN	ALTER TABLE a ADD COLUMN a a(X'00' = 1e1)
+reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-3	ALTER TABLE a ADD COLUMN a(X'00' = 1e1)
+reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-5	ALTER TABLE a ADD COLUMN a a X'00' = 1e1)
+reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-6	ALTER TABLE a ADD COLUMN a a(= 1e1)
+reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-7	ALTER TABLE a ADD COLUMN a a(X'00' 1e1)
+reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-8	ALTER TABLE a ADD COLUMN a a(X'00' =)
+reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-9	ALTER TABLE a ADD COLUMN a a(X'00' = 1e1
+accept	accept	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_columnTypeExpr_(COMMA_columnTypeExpr)*_RPAREN	ALTER TABLE a ADD COLUMN a a(a)
+reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_columnTypeExpr_(COMMA_columnTypeExpr)*_RPAREN!drop-3	ALTER TABLE a ADD COLUMN a(a)
+reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_columnTypeExpr_(COMMA_columnTypeExpr)*_RPAREN!drop-5	ALTER TABLE a ADD COLUMN a a a)
+reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_columnTypeExpr_(COMMA_columnTypeExpr)*_RPAREN!drop-7	ALTER TABLE a ADD COLUMN a a(a
+accept	accept	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_(columnExprList)?_RPAREN	ALTER TABLE a ADD COLUMN a a()
+reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_(columnExprList)?_RPAREN!drop-3	ALTER TABLE a ADD COLUMN a()
+reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_(columnExprList)?_RPAREN!drop-5	ALTER TABLE a ADD COLUMN a a)
+reject	reject	engine	alterTableClause/ADD_COLUMN_(IF_NOT_EXISTS)?_tableColumnDfnt_(AFTER_nest~d8296808+columnTypeExpr/identifier_LPAREN_(columnExprList)?_RPAREN!drop-6	ALTER TABLE a ADD COLUMN a a(
 accept	accept	engine	alterTableClause/ADD_INDEX_(IF_NOT_EXISTS)?_tableIndexDfnt_(AFTER_nested~d6b9d882	ALTER TABLE a ADD INDEX a 1e1 TYPE a GRANULARITY 1
 reject	reject	engine	alterTableClause/ADD_INDEX_(IF_NOT_EXISTS)?_tableIndexDfnt_(AFTER_nested~d6b9d882!drop-1	ALTER TABLE a INDEX a 1e1 TYPE a GRANULARITY 1
 reject	reject	engine	alterTableClause/ADD_INDEX_(IF_NOT_EXISTS)?_tableIndexDfnt_(AFTER_nested~d6b9d882!drop-2	ALTER TABLE a ADD a 1e1 TYPE a GRANULARITY 1
@@ -384,6 +412,33 @@ reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt
 accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+alterTableClause(IF_EXISTS)?	ALTER TABLE a MODIFY COLUMN IF EXISTS a a
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+alterTableClause(IF_EXISTS)?!drop-3	ALTER TABLE a MODIFY COLUMN EXISTS a a
 reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+alterTableClause(IF_EXISTS)?!drop-4	ALTER TABLE a MODIFY COLUMN IF a a
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_identifier_columnTypeExpr_(COMMA_iden~f42ab16a	ALTER TABLE a MODIFY COLUMN a a(a a)
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_identifier_columnTypeExpr_(COMMA_iden~f42ab16a!drop-3	ALTER TABLE a MODIFY COLUMN a(a a)
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_identifier_columnTypeExpr_(COMMA_iden~f42ab16a!drop-5	ALTER TABLE a MODIFY COLUMN a a a a)
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_identifier_columnTypeExpr_(COMMA_iden~f42ab16a!drop-8	ALTER TABLE a MODIFY COLUMN a a(a a
+accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN	ALTER TABLE a MODIFY COLUMN a a(X'00' = 1e1)
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-3	ALTER TABLE a MODIFY COLUMN a(X'00' = 1e1)
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-5	ALTER TABLE a MODIFY COLUMN a a X'00' = 1e1)
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-6	ALTER TABLE a MODIFY COLUMN a a(= 1e1)
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-7	ALTER TABLE a MODIFY COLUMN a a(X'00' 1e1)
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-8	ALTER TABLE a MODIFY COLUMN a a(X'00' =)
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-9	ALTER TABLE a MODIFY COLUMN a a(X'00' = 1e1
+accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_columnTypeExpr_(COMMA_columnTypeExpr)*_RPAREN	ALTER TABLE a MODIFY COLUMN a a(a)
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_columnTypeExpr_(COMMA_columnTypeExpr)*_RPAREN!drop-5	ALTER TABLE a MODIFY COLUMN a a a)
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_columnTypeExpr_(COMMA_columnTypeExpr)*_RPAREN!drop-7	ALTER TABLE a MODIFY COLUMN a a(a
+accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_(columnExprList)?_RPAREN	ALTER TABLE a MODIFY COLUMN a a()
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_(columnExprList)?_RPAREN!drop-3	ALTER TABLE a MODIFY COLUMN a()
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_(columnExprList)?_RPAREN!drop-5	ALTER TABLE a MODIFY COLUMN a a)
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+columnTypeExpr/identifier_LPAREN_(columnExprList)?_RPAREN!drop-6	ALTER TABLE a MODIFY COLUMN a a(
+accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3	ALTER TABLE a MODIFY COLUMN a DEFAULT 1e1
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3!drop-3	ALTER TABLE a MODIFY COLUMN DEFAULT 1e1
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3!drop-4	ALTER TABLE a MODIFY COLUMN a 1e1
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3!drop-5	ALTER TABLE a MODIFY COLUMN a DEFAULT
+accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+tableColumnPropertyExpr(DEFAULT|MATERIALIZED|ALIAS)/MATERIALIZED	ALTER TABLE a MODIFY COLUMN a MATERIALIZED 1e1
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+tableColumnPropertyExpr(DEFAULT|MATERIALIZED|ALIAS)/MATERIALIZED!drop-3	ALTER TABLE a MODIFY COLUMN MATERIALIZED 1e1
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+tableColumnPropertyExpr(DEFAULT|MATERIALIZED|ALIAS)/MATERIALIZED!drop-5	ALTER TABLE a MODIFY COLUMN a MATERIALIZED
+accept	accept	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+tableColumnPropertyExpr(DEFAULT|MATERIALIZED|ALIAS)/ALIAS	ALTER TABLE a MODIFY COLUMN a ALIAS 1e1
+reject	reject	engine	alterTableClause/MODIFY_COLUMN_(IF_EXISTS)?_tableColumnDfnt+tableColumnPropertyExpr(DEFAULT|MATERIALIZED|ALIAS)/ALIAS!drop-3	ALTER TABLE a MODIFY COLUMN ALIAS 1e1
 accept	accept	engine	alterTableClause/MODIFY_ORDER_BY_columnExpr	ALTER TABLE a MODIFY ORDER BY 1e1
 reject	reject	engine	alterTableClause/MODIFY_ORDER_BY_columnExpr!drop-1	ALTER TABLE a ORDER BY 1e1
 reject	reject	engine	alterTableClause/MODIFY_ORDER_BY_columnExpr!drop-2	ALTER TABLE a MODIFY BY 1e1
@@ -397,6 +452,75 @@ reject	reject	engine	alterTableClause/MODIFY_ttlClause!drop-2	ALTER TABLE a MODI
 reject	reject	engine	alterTableClause/MODIFY_ttlClause!drop-3	ALTER TABLE a MODIFY TTL
 reject	reject	engine	alterTableClause/MODIFY_ttlClause!insert	ALTER TABLE a MODIFY TTL 1e1 zzz
 reject	reject	engine	alterTableClause/MODIFY_ttlClause!swap	ALTER TABLE a MONTH TTL 1e1
+accept	accept	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/BINARY_STRING_LITERAL	ALTER TABLE a MODIFY TTL 1e1 TO DISK B'00'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/BINARY_STRING_LITERAL!drop-2	ALTER TABLE a MODIFY 1e1 TO DISK B'00'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/BINARY_STRING_LITERAL!drop-3	ALTER TABLE a MODIFY TTL TO DISK B'00'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/BINARY_STRING_LITERAL!drop-4	ALTER TABLE a MODIFY TTL 1e1 DISK B'00'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/BINARY_STRING_LITERAL!drop-5	ALTER TABLE a MODIFY TTL 1e1 TO B'00'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/BINARY_STRING_LITERAL!drop-6	ALTER TABLE a MODIFY TTL 1e1 TO DISK
+accept	accept	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/STRING_LITERAL	ALTER TABLE a MODIFY TTL 1e1 TO DISK 'a'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/STRING_LITERAL!drop-2	ALTER TABLE a MODIFY 1e1 TO DISK 'a'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/STRING_LITERAL!drop-3	ALTER TABLE a MODIFY TTL TO DISK 'a'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/STRING_LITERAL!drop-4	ALTER TABLE a MODIFY TTL 1e1 DISK 'a'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/STRING_LITERAL!drop-5	ALTER TABLE a MODIFY TTL 1e1 TO 'a'
+accept	accept	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/BINARY_STRING_LITERAL#2	ALTER TABLE a MODIFY TTL 1e1 TO VOLUME B'00'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/BINARY_STRING_LITERAL#2!drop-2	ALTER TABLE a MODIFY 1e1 TO VOLUME B'00'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/BINARY_STRING_LITERAL#2!drop-3	ALTER TABLE a MODIFY TTL TO VOLUME B'00'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/BINARY_STRING_LITERAL#2!drop-4	ALTER TABLE a MODIFY TTL 1e1 VOLUME B'00'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/BINARY_STRING_LITERAL#2!drop-6	ALTER TABLE a MODIFY TTL 1e1 TO VOLUME
+accept	accept	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/STRING_LITERAL#2	ALTER TABLE a MODIFY TTL 1e1 TO VOLUME 'a'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/STRING_LITERAL#2!drop-2	ALTER TABLE a MODIFY 1e1 TO VOLUME 'a'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/STRING_LITERAL#2!drop-3	ALTER TABLE a MODIFY TTL TO VOLUME 'a'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+stringLiteral/STRING_LITERAL#2!drop-4	ALTER TABLE a MODIFY TTL 1e1 VOLUME 'a'
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN	ALTER TABLE a MODIFY TTL 1e1 GROUP BY CUBE(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-2	ALTER TABLE a MODIFY 1e1 GROUP BY CUBE(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-3	ALTER TABLE a MODIFY TTL GROUP BY CUBE(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-4	ALTER TABLE a MODIFY TTL 1e1 BY CUBE(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-5	ALTER TABLE a MODIFY TTL 1e1 GROUP CUBE(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-6	ALTER TABLE a MODIFY TTL 1e1 GROUP BY(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-7	ALTER TABLE a MODIFY TTL 1e1 GROUP BY CUBE *) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-8	ALTER TABLE a MODIFY TTL 1e1 GROUP BY CUBE() SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-9	ALTER TABLE a MODIFY TTL 1e1 GROUP BY CUBE(* SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-10	ALTER TABLE a MODIFY TTL 1e1 GROUP BY CUBE(*) 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-11	ALTER TABLE a MODIFY TTL 1e1 GROUP BY CUBE(*) SET = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-12	ALTER TABLE a MODIFY TTL 1e1 GROUP BY CUBE(*) SET 1e1 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-13	ALTER TABLE a MODIFY TTL 1e1 GROUP BY CUBE(*) SET 1e1 =
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP	ALTER TABLE a MODIFY TTL 1e1 GROUP BY ROLLUP(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-2	ALTER TABLE a MODIFY 1e1 GROUP BY ROLLUP(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-3	ALTER TABLE a MODIFY TTL GROUP BY ROLLUP(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-4	ALTER TABLE a MODIFY TTL 1e1 BY ROLLUP(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-5	ALTER TABLE a MODIFY TTL 1e1 GROUP ROLLUP(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-7	ALTER TABLE a MODIFY TTL 1e1 GROUP BY ROLLUP *) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-8	ALTER TABLE a MODIFY TTL 1e1 GROUP BY ROLLUP() SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-9	ALTER TABLE a MODIFY TTL 1e1 GROUP BY ROLLUP(* SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-10	ALTER TABLE a MODIFY TTL 1e1 GROUP BY ROLLUP(*) 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-11	ALTER TABLE a MODIFY TTL 1e1 GROUP BY ROLLUP(*) SET = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-12	ALTER TABLE a MODIFY TTL 1e1 GROUP BY ROLLUP(*) SET 1e1 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-13	ALTER TABLE a MODIFY TTL 1e1 GROUP BY ROLLUP(*) SET 1e1 =
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN	ALTER TABLE a MODIFY TTL 1e1 GROUP BY GROUPING SETS(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-2	ALTER TABLE a MODIFY 1e1 GROUP BY GROUPING SETS(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-3	ALTER TABLE a MODIFY TTL GROUP BY GROUPING SETS(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-4	ALTER TABLE a MODIFY TTL 1e1 BY GROUPING SETS(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-5	ALTER TABLE a MODIFY TTL 1e1 GROUP GROUPING SETS(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-6	ALTER TABLE a MODIFY TTL 1e1 GROUP BY SETS(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-7	ALTER TABLE a MODIFY TTL 1e1 GROUP BY GROUPING(*) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-8	ALTER TABLE a MODIFY TTL 1e1 GROUP BY GROUPING SETS *) SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-9	ALTER TABLE a MODIFY TTL 1e1 GROUP BY GROUPING SETS() SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-10	ALTER TABLE a MODIFY TTL 1e1 GROUP BY GROUPING SETS(* SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-11	ALTER TABLE a MODIFY TTL 1e1 GROUP BY GROUPING SETS(*) 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-12	ALTER TABLE a MODIFY TTL 1e1 GROUP BY GROUPING SETS(*) SET = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-13	ALTER TABLE a MODIFY TTL 1e1 GROUP BY GROUPING SETS(*) SET 1e1 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-14	ALTER TABLE a MODIFY TTL 1e1 GROUP BY GROUPING SETS(*) SET 1e1 =
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_columnExprList	ALTER TABLE a MODIFY TTL 1e1 GROUP BY * SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_columnExprList!drop-2	ALTER TABLE a MODIFY 1e1 GROUP BY * SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_columnExprList!drop-3	ALTER TABLE a MODIFY TTL GROUP BY * SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_columnExprList!drop-4	ALTER TABLE a MODIFY TTL 1e1 BY * SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_columnExprList!drop-5	ALTER TABLE a MODIFY TTL 1e1 GROUP * SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_columnExprList!drop-6	ALTER TABLE a MODIFY TTL 1e1 GROUP BY SET 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_columnExprList!drop-7	ALTER TABLE a MODIFY TTL 1e1 GROUP BY * 1e1 = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_columnExprList!drop-8	ALTER TABLE a MODIFY TTL 1e1 GROUP BY * SET = 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_columnExprList!drop-9	ALTER TABLE a MODIFY TTL 1e1 GROUP BY * SET 1e1 1e1
+reject	reject	engine	alterTableClause/MODIFY_ttlClause+groupByClause/GROUP_BY_columnExprList!drop-10	ALTER TABLE a MODIFY TTL 1e1 GROUP BY * SET 1e1 =
 accept	accept	engine	alterTableClause/MOVE_partitionClause_(TO_DISK_stringLiteral|TO_VOLUME_s~88380327	ALTER TABLE a MOVE PARTITION 1e1 TO DISK X'00'
 reject	reject	engine	alterTableClause/MOVE_partitionClause_(TO_DISK_stringLiteral|TO_VOLUME_s~88380327!drop-1	ALTER TABLE a PARTITION 1e1 TO DISK X'00'
 reject	reject	engine	alterTableClause/MOVE_partitionClause_(TO_DISK_stringLiteral|TO_VOLUME_s~88380327!drop-2	ALTER TABLE a MOVE 1e1 TO DISK X'00'
@@ -588,6 +712,15 @@ reject	reject	engine	attachStmt(clusterClause)?/clusterClause!drop-2	ATTACH DICT
 reject	reject	engine	attachStmt(clusterClause)?/clusterClause!drop-3	ATTACH DICTIONARY a ON CLUSTER
 reject	reject	engine	attachStmt(clusterClause)?/clusterClause!insert	ATTACH DICTIONARY a ON CLUSTER a zzz
 reject	reject	engine	attachStmt(clusterClause)?/clusterClause!swap	ATTACH DICTIONARY a OPTIMIZE CLUSTER a
+accept	accept	engine	attachStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral	ATTACH DICTIONARY a ON CLUSTER X'00'
+reject	reject	engine	attachStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-1	ATTACH DICTIONARY a CLUSTER X'00'
+reject	reject	engine	attachStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-2	ATTACH DICTIONARY a ON X'00'
+accept	accept	engine	attachStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL	ATTACH DICTIONARY a ON CLUSTER B'00'
+reject	reject	engine	attachStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-1	ATTACH DICTIONARY a CLUSTER B'00'
+reject	reject	engine	attachStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-2	ATTACH DICTIONARY a ON B'00'
+accept	accept	engine	attachStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL	ATTACH DICTIONARY a ON CLUSTER 'a'
+reject	reject	engine	attachStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-1	ATTACH DICTIONARY a CLUSTER 'a'
+reject	reject	engine	attachStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-2	ATTACH DICTIONARY a ON 'a'
 accept	accept	engine	checkStmt/CHECK_TABLE_tableIdentifier_(partitionClause)?	CHECK TABLE a
 accept	accept	engine	checkStmt(partitionClause)?/%empty	CHECK TABLE a
 accept	accept	engine	checkStmt(partitionClause)?/partitionClause	CHECK TABLE a PARTITION 1e1
@@ -605,10 +738,15 @@ reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY
 reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(IF_NOT_EXISTS)?!drop-3	ATTACH DICTIONARY NOT EXISTS a(a a)
 reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(IF_NOT_EXISTS)?!drop-4	ATTACH DICTIONARY IF EXISTS a(a a)
 reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(IF_NOT_EXISTS)?!drop-5	ATTACH DICTIONARY IF NOT a(a a)
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(uuidClause)?	ATTACH DICTIONARY a UUID X'00'(a a)
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(uuidClause)?!drop-4	ATTACH DICTIONARY a X'00'(a a)
+reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(uuidClause)?!drop-5	ATTACH DICTIONARY a UUID(a a)
 reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(clusterClause)?	ATTACH DICTIONARY a ON CLUSTER a(a a)
 reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(clusterClause)?!drop-4	ATTACH DICTIONARY a CLUSTER a(a a)
 reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(clusterClause)?!drop-5	ATTACH DICTIONARY a ON a(a a)
 reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(clusterClause)?!drop-6	ATTACH DICTIONARY a ON CLUSTER(a a)
+accept	accept	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)/CREATE_(OR_REPLACE)?	CREATE DICTIONARY a(a a)
+accept	accept	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_DICTIONARY_(IF_NO~085e2fb5+createStmt(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)/REPLACE	REPLACE DICTIONARY a(a a)
 accept	accept	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47	ATTACH MATERIALIZED VIEW a TO a AS SELECT *
 reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47!drop-1	MATERIALIZED VIEW a TO a AS SELECT *
 reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47!drop-2	ATTACH VIEW a TO a AS SELECT *
@@ -625,10 +763,17 @@ accept	accept	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS
 reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(IF_NOT_EXISTS)?!drop-4	ATTACH MATERIALIZED VIEW NOT EXISTS a TO a AS SELECT *
 reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(IF_NOT_EXISTS)?!drop-5	ATTACH MATERIALIZED VIEW IF EXISTS a TO a AS SELECT *
 reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(IF_NOT_EXISTS)?!drop-6	ATTACH MATERIALIZED VIEW IF NOT a TO a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(uuidClause)?	ATTACH MATERIALIZED VIEW a UUID X'00' TO a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(uuidClause)?!drop-5	ATTACH MATERIALIZED VIEW a X'00' TO a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(uuidClause)?!drop-6	ATTACH MATERIALIZED VIEW a UUID TO a AS SELECT *
 accept	accept	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(clusterClause)?	ATTACH MATERIALIZED VIEW a ON CLUSTER a TO a AS SELECT *
 reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(clusterClause)?!drop-5	ATTACH MATERIALIZED VIEW a CLUSTER a TO a AS SELECT *
 reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(clusterClause)?!drop-6	ATTACH MATERIALIZED VIEW a ON a TO a AS SELECT *
 reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(clusterClause)?!drop-7	ATTACH MATERIALIZED VIEW a ON CLUSTER TO a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(tableSchemaClause)?	ATTACH MATERIALIZED VIEW a AS a TO a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(tableSchemaClause)?!drop-5	ATTACH MATERIALIZED VIEW a a TO a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(tableSchemaClause)?!drop-6	ATTACH MATERIALIZED VIEW a AS TO a AS SELECT *
+accept	accept	engine	createStmt/(ATTACH|CREATE)_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?_tabl~8a7a6e47+createStmt(ATTACH|CREATE)/CREATE	CREATE MATERIALIZED VIEW a TO a AS SELECT *
 accept	accept	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_(TEMPORARY)?_TABL~b0a83a80	ATTACH TABLE a
 reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_(TEMPORARY)?_TABL~b0a83a80!drop-3	ATTACH TABLE
 reject	reject	engine	createStmt/(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)_(TEMPORARY)?_TABL~b0a83a80!insert	ATTACH TABLE a zzz
@@ -657,10 +802,17 @@ accept	accept	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXIST
 reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(IF_NOT_EXISTS)?!drop-3	ATTACH VIEW NOT EXISTS a AS SELECT *
 reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(IF_NOT_EXISTS)?!drop-4	ATTACH VIEW IF EXISTS a AS SELECT *
 reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(IF_NOT_EXISTS)?!drop-5	ATTACH VIEW IF NOT a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(uuidClause)?	ATTACH VIEW a UUID X'00' AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(uuidClause)?!drop-4	ATTACH VIEW a X'00' AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(uuidClause)?!drop-5	ATTACH VIEW a UUID AS SELECT *
 accept	accept	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(clusterClause)?	ATTACH VIEW a ON CLUSTER a AS SELECT *
 reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(clusterClause)?!drop-4	ATTACH VIEW a CLUSTER a AS SELECT *
 reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(clusterClause)?!drop-5	ATTACH VIEW a ON a AS SELECT *
 reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(clusterClause)?!drop-6	ATTACH VIEW a ON CLUSTER AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(tableSchemaClause)?	ATTACH VIEW a AS a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(tableSchemaClause)?!drop-4	ATTACH VIEW a a AS SELECT *
+reject	reject	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(tableSchemaClause)?!drop-5	ATTACH VIEW a AS AS SELECT *
+accept	accept	engine	createStmt/(ATTACH|CREATE)_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_tab~dcede31e+createStmt(ATTACH|CREATE)/CREATE	CREATE VIEW a AS SELECT *
 accept	accept	engine	createStmt(ATTACH|CREATE)/ATTACH	ATTACH DATABASE a
 reject	reject	engine	createStmt(ATTACH|CREATE)/ATTACH!insert	ATTACH zzz DATABASE a
 accept	accept	engine	createStmt(ATTACH|CREATE)/CREATE	CREATE DATABASE a
@@ -682,12 +834,23 @@ reject	reject	engine	createStmt(clusterClause)?/clusterClause!drop-2	ATTACH DATA
 reject	reject	engine	createStmt(clusterClause)?/clusterClause!drop-3	ATTACH DATABASE a ON CLUSTER
 reject	reject	engine	createStmt(clusterClause)?/clusterClause!insert	ATTACH DATABASE a ON CLUSTER a zzz
 reject	reject	engine	createStmt(clusterClause)?/clusterClause!swap	ATTACH DATABASE a OPTIMIZE CLUSTER a
+accept	accept	engine	createStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral	ATTACH DATABASE a ON CLUSTER X'00'
+reject	reject	engine	createStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-1	ATTACH DATABASE a CLUSTER X'00'
+reject	reject	engine	createStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-2	ATTACH DATABASE a ON X'00'
+accept	accept	engine	createStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL	ATTACH DATABASE a ON CLUSTER B'00'
+reject	reject	engine	createStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-1	ATTACH DATABASE a CLUSTER B'00'
+reject	reject	engine	createStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-2	ATTACH DATABASE a ON B'00'
+accept	accept	engine	createStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL	ATTACH DATABASE a ON CLUSTER 'a'
+reject	reject	engine	createStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-1	ATTACH DATABASE a CLUSTER 'a'
+reject	reject	engine	createStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-2	ATTACH DATABASE a ON 'a'
 accept	accept	engine	createStmt(engineExpr)?/%empty	ATTACH DATABASE a
 accept	accept	engine	createStmt(engineExpr)?/engineExpr	ATTACH DATABASE a ENGINE a
 reject	reject	engine	createStmt(engineExpr)?/engineExpr!drop-1	ATTACH DATABASE a a
 reject	reject	engine	createStmt(engineExpr)?/engineExpr!drop-2	ATTACH DATABASE a ENGINE
 reject	reject	engine	createStmt(engineExpr)?/engineExpr!insert	ATTACH DATABASE a ENGINE a zzz
 reject	reject	engine	createStmt(engineExpr)?/engineExpr!swap	ATTACH DATABASE a ENGINES a
+accept	accept	engine	createStmt(engineExpr)?/engineExpr+identifierOrNull/NULL_SQL	ATTACH DATABASE a ENGINE NULL
+reject	reject	engine	createStmt(engineExpr)?/engineExpr+identifierOrNull/NULL_SQL!drop-1	ATTACH DATABASE a NULL
 accept	accept	engine	createStmt(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)/ATTACH	ATTACH TABLE a
 reject	reject	engine	createStmt(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)/ATTACH!insert	ATTACH zzz TABLE a
 accept	accept	engine	createStmt(ATTACH|CREATE_(OR_REPLACE)?|REPLACE)/CREATE_(OR_REPLACE)?	CREATE TABLE a
@@ -925,11 +1088,11 @@ reject	reject	engine	clusterClause/ON_CLUSTER_(identifier|stringLiteral)!drop-2	
 reject	reject	engine	clusterClause/ON_CLUSTER_(identifier|stringLiteral)!drop-3	TRUNCATE a ON CLUSTER
 reject	reject	engine	clusterClause/ON_CLUSTER_(identifier|stringLiteral)!insert	TRUNCATE a ON CLUSTER a zzz
 reject	reject	engine	clusterClause/ON_CLUSTER_(identifier|stringLiteral)!swap	TRUNCATE a OPTIMIZE CLUSTER a
+accept	accept	engine	clusterClause/ON_CLUSTER_(identifier|stringLiteral)+stringLiteral/BINARY_STRING_LITERAL	TRUNCATE a ON CLUSTER B'00'
+accept	accept	engine	clusterClause/ON_CLUSTER_(identifier|stringLiteral)+stringLiteral/STRING_LITERAL	TRUNCATE a ON CLUSTER 'a'
 accept	accept	engine	clusterClause(identifier|stringLiteral)/identifier	TRUNCATE a ON CLUSTER a
 accept	accept	engine	clusterClause(identifier|stringLiteral)/stringLiteral	TRUNCATE a ON CLUSTER X'00'
 reject	reject	engine	clusterClause(identifier|stringLiteral)/stringLiteral!insert	TRUNCATE a ON CLUSTER X'00' zzz
-accept	accept	engine	clusterClause(identifier|stringLiteral)/stringLiteral+stringLiteral/BINARY_STRING_LITERAL	TRUNCATE a ON CLUSTER B'00'
-accept	accept	engine	clusterClause(identifier|stringLiteral)/stringLiteral+stringLiteral/STRING_LITERAL	TRUNCATE a ON CLUSTER 'a'
 reject	reject	engine	uuidClause/UUID_stringLiteral	ATTACH TABLE a UUID X'00'
 reject	reject	engine	uuidClause/UUID_stringLiteral+stringLiteral/BINARY_STRING_LITERAL	ATTACH TABLE a UUID B'00'
 reject	reject	engine	uuidClause/UUID_stringLiteral+stringLiteral/STRING_LITERAL	ATTACH TABLE a UUID 'a'
@@ -956,6 +1119,15 @@ reject	reject	engine	tableSchemaClause(COMMA_tableElementExpr)*/COMMA_tableEleme
 reject	reject	engine	tableSchemaClause(COMMA_tableElementExpr)*/COMMA_tableElementExpr_(COMMA_tableElementExpr)*!truncate	ATTACH TABLE a(a a, a
 reject	reject	engine	tableSchemaClause(COMMA_tableElementExpr)*/COMMA_tableElementExpr_(COMMA_tableElementExpr)*!insert	ATTACH TABLE a(a a, a a zzz)
 accept	accept	engine	engineClause/engineExpr_(orderByClause|partitionByClause|prim~fad8504d)*	ATTACH TABLE a ENGINE a
+accept	accept	engine	engineClause/engineExpr_(orderByClause|partitionByClause|prim~fad8504d)*+engineExpr(EQ_SINGLE)?/EQ_SINGLE	ATTACH TABLE a ENGINE = a
+reject	reject	engine	engineClause/engineExpr_(orderByClause|partitionByClause|prim~fad8504d)*+engineExpr(EQ_SINGLE)?/EQ_SINGLE!drop-1	ATTACH TABLE a = a
+reject	reject	engine	engineClause/engineExpr_(orderByClause|partitionByClause|prim~fad8504d)*+engineExpr(EQ_SINGLE)?/EQ_SINGLE!drop-3	ATTACH TABLE a ENGINE =
+accept	accept	engine	engineClause/engineExpr_(orderByClause|partitionByClause|prim~fad8504d)*+identifierOrNull/NULL_SQL	ATTACH TABLE a ENGINE NULL
+reject	reject	engine	engineClause/engineExpr_(orderByClause|partitionByClause|prim~fad8504d)*+identifierOrNull/NULL_SQL!drop-1	ATTACH TABLE a NULL
+accept	accept	engine	engineClause/engineExpr_(orderByClause|partitionByClause|prim~fad8504d)*+engineExpr(LPAREN_columnExprList?_RPAREN)?/LPAREN_(columnExprList)?_RPAREN	ATTACH TABLE a ENGINE a()
+reject	reject	engine	engineClause/engineExpr_(orderByClause|partitionByClause|prim~fad8504d)*+engineExpr(LPAREN_columnExprList?_RPAREN)?/LPAREN_(columnExprList)?_RPAREN!drop-2	ATTACH TABLE a ENGINE()
+reject	reject	engine	engineClause/engineExpr_(orderByClause|partitionByClause|prim~fad8504d)*+engineExpr(LPAREN_columnExprList?_RPAREN)?/LPAREN_(columnExprList)?_RPAREN!drop-3	ATTACH TABLE a ENGINE a)
+reject	reject	engine	engineClause/engineExpr_(orderByClause|partitionByClause|prim~fad8504d)*+engineExpr(LPAREN_columnExprList?_RPAREN)?/LPAREN_(columnExprList)?_RPAREN!drop-4	ATTACH TABLE a ENGINE a(
 accept	accept	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)*/%empty	ATTACH TABLE a ENGINE a
 accept	accept	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)*/(orderByClause|partitionByClause|prim~fad8504d)_(orderB~03e283e9	ATTACH TABLE a ENGINE a TTL 1e1
 reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)*/(orderByClause|partitionByClause|prim~fad8504d)_(orderB~03e283e9!drop-1	ATTACH TABLE a ENGINE a 1e1
@@ -985,6 +1157,96 @@ reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)
 reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/sampleByClause!insert	ATTACH TABLE a ENGINE a SAMPLE BY 1e1 zzz
 reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/sampleByClause!swap	ATTACH TABLE a ENGINE a SECOND BY 1e1
 accept	accept	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause	ATTACH TABLE a ENGINE a TTL 1e1
+accept	accept	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/DELETE_(whereClause)?	ATTACH TABLE a ENGINE a TTL 1e1 DELETE
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/DELETE_(whereClause)?!drop-1	ATTACH TABLE a ENGINE a 1e1 DELETE
+accept	accept	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/DELETE_(whereClause)?!drop-2	ATTACH TABLE a ENGINE a TTL DELETE
+accept	accept	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral	ATTACH TABLE a ENGINE a TTL 1e1 TO DISK X'00'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral!drop-1	ATTACH TABLE a ENGINE a 1e1 TO DISK X'00'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral!drop-2	ATTACH TABLE a ENGINE a TTL TO DISK X'00'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral!drop-3	ATTACH TABLE a ENGINE a TTL 1e1 DISK X'00'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral!drop-4	ATTACH TABLE a ENGINE a TTL 1e1 TO X'00'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral!drop-5	ATTACH TABLE a ENGINE a TTL 1e1 TO DISK
+accept	accept	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/BINARY_STRING_LITERAL	ATTACH TABLE a ENGINE a TTL 1e1 TO DISK B'00'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/BINARY_STRING_LITERAL!drop-1	ATTACH TABLE a ENGINE a 1e1 TO DISK B'00'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/BINARY_STRING_LITERAL!drop-2	ATTACH TABLE a ENGINE a TTL TO DISK B'00'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/BINARY_STRING_LITERAL!drop-3	ATTACH TABLE a ENGINE a TTL 1e1 DISK B'00'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/BINARY_STRING_LITERAL!drop-4	ATTACH TABLE a ENGINE a TTL 1e1 TO B'00'
+accept	accept	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/STRING_LITERAL	ATTACH TABLE a ENGINE a TTL 1e1 TO DISK 'a'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/STRING_LITERAL!drop-1	ATTACH TABLE a ENGINE a 1e1 TO DISK 'a'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/STRING_LITERAL!drop-2	ATTACH TABLE a ENGINE a TTL TO DISK 'a'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/STRING_LITERAL!drop-3	ATTACH TABLE a ENGINE a TTL 1e1 DISK 'a'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/STRING_LITERAL!drop-4	ATTACH TABLE a ENGINE a TTL 1e1 TO 'a'
+accept	accept	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_VOLUME_stringLiteral	ATTACH TABLE a ENGINE a TTL 1e1 TO VOLUME X'00'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_VOLUME_stringLiteral!drop-1	ATTACH TABLE a ENGINE a 1e1 TO VOLUME X'00'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_VOLUME_stringLiteral!drop-2	ATTACH TABLE a ENGINE a TTL TO VOLUME X'00'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_VOLUME_stringLiteral!drop-3	ATTACH TABLE a ENGINE a TTL 1e1 VOLUME X'00'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_VOLUME_stringLiteral!drop-5	ATTACH TABLE a ENGINE a TTL 1e1 TO VOLUME
+accept	accept	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/BINARY_STRING_LITERAL#2	ATTACH TABLE a ENGINE a TTL 1e1 TO VOLUME B'00'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/BINARY_STRING_LITERAL#2!drop-1	ATTACH TABLE a ENGINE a 1e1 TO VOLUME B'00'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/BINARY_STRING_LITERAL#2!drop-2	ATTACH TABLE a ENGINE a TTL TO VOLUME B'00'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/BINARY_STRING_LITERAL#2!drop-3	ATTACH TABLE a ENGINE a TTL 1e1 VOLUME B'00'
+accept	accept	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/STRING_LITERAL#2	ATTACH TABLE a ENGINE a TTL 1e1 TO VOLUME 'a'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/STRING_LITERAL#2!drop-1	ATTACH TABLE a ENGINE a 1e1 TO VOLUME 'a'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/STRING_LITERAL#2!drop-2	ATTACH TABLE a ENGINE a TTL TO VOLUME 'a'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+stringLiteral/STRING_LITERAL#2!drop-3	ATTACH TABLE a ENGINE a TTL 1e1 VOLUME 'a'
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY ALL SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-1	ATTACH TABLE a ENGINE a 1e1 GROUP BY ALL SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-2	ATTACH TABLE a ENGINE a TTL GROUP BY ALL SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-3	ATTACH TABLE a ENGINE a TTL 1e1 BY ALL SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-4	ATTACH TABLE a ENGINE a TTL 1e1 GROUP ALL SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-5	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-6	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY ALL 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-7	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY ALL SET = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-8	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY ALL SET 1e1 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-9	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY ALL SET 1e1 =
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY CUBE(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-1	ATTACH TABLE a ENGINE a 1e1 GROUP BY CUBE(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-2	ATTACH TABLE a ENGINE a TTL GROUP BY CUBE(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-3	ATTACH TABLE a ENGINE a TTL 1e1 BY CUBE(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-4	ATTACH TABLE a ENGINE a TTL 1e1 GROUP CUBE(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-5	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-6	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY CUBE *) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-7	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY CUBE() SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-8	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY CUBE(* SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-9	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY CUBE(*) 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-10	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY CUBE(*) SET = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-11	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY CUBE(*) SET 1e1 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-12	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY CUBE(*) SET 1e1 =
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY ROLLUP(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-1	ATTACH TABLE a ENGINE a 1e1 GROUP BY ROLLUP(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-2	ATTACH TABLE a ENGINE a TTL GROUP BY ROLLUP(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-3	ATTACH TABLE a ENGINE a TTL 1e1 BY ROLLUP(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-4	ATTACH TABLE a ENGINE a TTL 1e1 GROUP ROLLUP(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-6	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY ROLLUP *) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-7	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY ROLLUP() SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-8	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY ROLLUP(* SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-9	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY ROLLUP(*) 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-10	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY ROLLUP(*) SET = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-11	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY ROLLUP(*) SET 1e1 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-12	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY ROLLUP(*) SET 1e1 =
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY GROUPING SETS(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-1	ATTACH TABLE a ENGINE a 1e1 GROUP BY GROUPING SETS(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-2	ATTACH TABLE a ENGINE a TTL GROUP BY GROUPING SETS(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-3	ATTACH TABLE a ENGINE a TTL 1e1 BY GROUPING SETS(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-4	ATTACH TABLE a ENGINE a TTL 1e1 GROUP GROUPING SETS(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-5	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY SETS(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-6	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY GROUPING(*) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-7	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY GROUPING SETS *) SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-8	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY GROUPING SETS() SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-9	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY GROUPING SETS(* SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-10	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY GROUPING SETS(*) 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-11	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY GROUPING SETS(*) SET = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-12	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY GROUPING SETS(*) SET 1e1 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-13	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY GROUPING SETS(*) SET 1e1 =
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_columnExprList	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY * SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_columnExprList!drop-1	ATTACH TABLE a ENGINE a 1e1 GROUP BY * SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_columnExprList!drop-2	ATTACH TABLE a ENGINE a TTL GROUP BY * SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_columnExprList!drop-3	ATTACH TABLE a ENGINE a TTL 1e1 BY * SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_columnExprList!drop-4	ATTACH TABLE a ENGINE a TTL 1e1 GROUP * SET 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_columnExprList!drop-6	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY * 1e1 = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_columnExprList!drop-7	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY * SET = 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_columnExprList!drop-8	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY * SET 1e1 1e1
+reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/ttlClause+groupByClause/GROUP_BY_columnExprList!drop-9	ATTACH TABLE a ENGINE a TTL 1e1 GROUP BY * SET 1e1 =
 accept	accept	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/settingsClause	ATTACH TABLE a ENGINE a SETTINGS a = 1e1
 reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/settingsClause!drop-1	ATTACH TABLE a ENGINE a a = 1e1
 reject	reject	engine	engineClause(orderByClause|partitionByClause|prim~fad8504d)/settingsClause!drop-2	ATTACH TABLE a ENGINE a SETTINGS = 1e1
@@ -1002,8 +1264,85 @@ accept	accept	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*	AL
 reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*!drop-1	ALTER TABLE a MODIFY TTL 1e1 1e1
 reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*!drop-2	ALTER TABLE a MODIFY TTL 1e1,
 reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*!insert	ALTER TABLE a MODIFY TTL 1e1, 1e1 zzz
+accept	accept	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/DELETE_(whereClause)?	ALTER TABLE a MODIFY TTL 1e1, 1e1 DELETE
+accept	accept	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/DELETE_(whereClause)?!drop-2	ALTER TABLE a MODIFY TTL 1e1, DELETE
+accept	accept	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral	ALTER TABLE a MODIFY TTL 1e1, 1e1 TO DISK X'00'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral!drop-2	ALTER TABLE a MODIFY TTL 1e1, TO DISK X'00'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral!drop-3	ALTER TABLE a MODIFY TTL 1e1, 1e1 DISK X'00'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral!drop-4	ALTER TABLE a MODIFY TTL 1e1, 1e1 TO X'00'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral!drop-5	ALTER TABLE a MODIFY TTL 1e1, 1e1 TO DISK
+accept	accept	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+stringLiteral/BINARY_STRING_LITERAL	ALTER TABLE a MODIFY TTL 1e1, 1e1 TO DISK B'00'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+stringLiteral/BINARY_STRING_LITERAL!drop-2	ALTER TABLE a MODIFY TTL 1e1, TO DISK B'00'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+stringLiteral/BINARY_STRING_LITERAL!drop-3	ALTER TABLE a MODIFY TTL 1e1, 1e1 DISK B'00'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+stringLiteral/BINARY_STRING_LITERAL!drop-4	ALTER TABLE a MODIFY TTL 1e1, 1e1 TO B'00'
+accept	accept	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+stringLiteral/STRING_LITERAL	ALTER TABLE a MODIFY TTL 1e1, 1e1 TO DISK 'a'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+stringLiteral/STRING_LITERAL!drop-2	ALTER TABLE a MODIFY TTL 1e1, TO DISK 'a'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+stringLiteral/STRING_LITERAL!drop-3	ALTER TABLE a MODIFY TTL 1e1, 1e1 DISK 'a'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+stringLiteral/STRING_LITERAL!drop-4	ALTER TABLE a MODIFY TTL 1e1, 1e1 TO 'a'
+accept	accept	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_VOLUME_stringLiteral	ALTER TABLE a MODIFY TTL 1e1, 1e1 TO VOLUME X'00'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_VOLUME_stringLiteral!drop-2	ALTER TABLE a MODIFY TTL 1e1, TO VOLUME X'00'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_VOLUME_stringLiteral!drop-3	ALTER TABLE a MODIFY TTL 1e1, 1e1 VOLUME X'00'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_VOLUME_stringLiteral!drop-5	ALTER TABLE a MODIFY TTL 1e1, 1e1 TO VOLUME
+accept	accept	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+stringLiteral/BINARY_STRING_LITERAL#2	ALTER TABLE a MODIFY TTL 1e1, 1e1 TO VOLUME B'00'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+stringLiteral/BINARY_STRING_LITERAL#2!drop-2	ALTER TABLE a MODIFY TTL 1e1, TO VOLUME B'00'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+stringLiteral/BINARY_STRING_LITERAL#2!drop-3	ALTER TABLE a MODIFY TTL 1e1, 1e1 VOLUME B'00'
+accept	accept	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+stringLiteral/STRING_LITERAL#2	ALTER TABLE a MODIFY TTL 1e1, 1e1 TO VOLUME 'a'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+stringLiteral/STRING_LITERAL#2!drop-2	ALTER TABLE a MODIFY TTL 1e1, TO VOLUME 'a'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+stringLiteral/STRING_LITERAL#2!drop-3	ALTER TABLE a MODIFY TTL 1e1, 1e1 VOLUME 'a'
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY ALL SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-2	ALTER TABLE a MODIFY TTL 1e1, GROUP BY ALL SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-3	ALTER TABLE a MODIFY TTL 1e1, 1e1 BY ALL SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-4	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP ALL SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-5	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-6	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY ALL 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-7	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY ALL SET = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-8	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY ALL SET 1e1 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-9	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY ALL SET 1e1 =
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY CUBE(*) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-2	ALTER TABLE a MODIFY TTL 1e1, GROUP BY CUBE(*) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-3	ALTER TABLE a MODIFY TTL 1e1, 1e1 BY CUBE(*) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-4	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP CUBE(*) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-5	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY(*) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-6	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY CUBE *) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-7	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY CUBE() SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-8	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY CUBE(* SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-9	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY CUBE(*) 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-10	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY CUBE(*) SET = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-11	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY CUBE(*) SET 1e1 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-12	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY CUBE(*) SET 1e1 =
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause(CUBE|ROLLUP)/ROLLUP	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY ROLLUP(*) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-2	ALTER TABLE a MODIFY TTL 1e1, GROUP BY ROLLUP(*) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-3	ALTER TABLE a MODIFY TTL 1e1, 1e1 BY ROLLUP(*) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-4	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP ROLLUP(*) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-6	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY ROLLUP *) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-7	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY ROLLUP() SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-8	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY ROLLUP(* SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-9	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY ROLLUP(*) 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-10	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY ROLLUP(*) SET = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-11	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY ROLLUP(*) SET 1e1 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-12	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY ROLLUP(*) SET 1e1 =
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY GROUPING SETS(*) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-2	ALTER TABLE a MODIFY TTL 1e1, GROUP BY GROUPING SETS(*) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-3	ALTER TABLE a MODIFY TTL 1e1, 1e1 BY GROUPING SETS(*) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-4	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP GROUPING SETS(*) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-5	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY SETS(*) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-6	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY GROUPING(*) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-7	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY GROUPING SETS *) SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-8	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY GROUPING SETS() SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-9	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY GROUPING SETS(* SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-10	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY GROUPING SETS(*) 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-11	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY GROUPING SETS(*) SET = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-12	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY GROUPING SETS(*) SET 1e1 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-13	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY GROUPING SETS(*) SET 1e1 =
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_columnExprList	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY * SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_columnExprList!drop-2	ALTER TABLE a MODIFY TTL 1e1, GROUP BY * SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_columnExprList!drop-3	ALTER TABLE a MODIFY TTL 1e1, 1e1 BY * SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_columnExprList!drop-4	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP * SET 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_columnExprList!drop-6	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY * 1e1 = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_columnExprList!drop-7	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY * SET = 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_columnExprList!drop-8	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY * SET 1e1 1e1
+reject	reject	engine	ttlClause(COMMA_ttlExpr)*/COMMA_ttlExpr_(COMMA_ttlExpr)*+groupByClause/GROUP_BY_columnExprList!drop-9	ALTER TABLE a MODIFY TTL 1e1, 1e1 GROUP BY * SET 1e1 =
 accept	accept	engine	engineExpr/ENGINE_(EQ_SINGLE)?_identifierOrNull_(LPAREN_columnExpr~fb2a0c6c	ATTACH DATABASE a ENGINE a
-accept	accept	engine	engineExpr/ENGINE_(EQ_SINGLE)?_identifierOrNull_(LPAREN_columnExpr~fb2a0c6c+identifierOrNull/NULL_SQL	ATTACH DATABASE a ENGINE NULL
 accept	accept	engine	engineExpr(EQ_SINGLE)?/%empty	ATTACH DATABASE a ENGINE a
 reject	reject	engine	engineExpr(EQ_SINGLE)?/%empty!insert	ATTACH DATABASE a ENGINE zzz a
 accept	accept	engine	engineExpr(EQ_SINGLE)?/EQ_SINGLE	ATTACH DATABASE a ENGINE = a
@@ -1019,6 +1358,35 @@ accept	accept	engine	engineExpr(columnExprList)?/columnExprList	ATTACH DATABASE 
 reject	reject	engine	engineExpr(columnExprList)?/columnExprList!insert	ATTACH DATABASE a ENGINE a(* zzz)
 accept	accept	engine	tableElementExpr/tableColumnDfnt	ATTACH TABLE a(a a)
 reject	reject	engine	tableElementExpr/tableColumnDfnt!truncate	ATTACH TABLE a(a
+reject	reject	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_identifier_columnTypeExpr_(COMMA_iden~f42ab16a	ATTACH TABLE a(a a(a a))
+reject	reject	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_identifier_columnTypeExpr_(COMMA_iden~f42ab16a!drop-1	ATTACH TABLE a(a(a a))
+reject	reject	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_identifier_columnTypeExpr_(COMMA_iden~f42ab16a!drop-3	ATTACH TABLE a(a a a a))
+reject	reject	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_identifier_columnTypeExpr_(COMMA_iden~f42ab16a!drop-6	ATTACH TABLE a(a a(a a)
+accept	accept	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN	ATTACH TABLE a(a a(X'00' = 1e1))
+reject	reject	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-1	ATTACH TABLE a(a(X'00' = 1e1))
+reject	reject	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-3	ATTACH TABLE a(a a X'00' = 1e1))
+reject	reject	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-4	ATTACH TABLE a(a a(= 1e1))
+reject	reject	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-5	ATTACH TABLE a(a a(X'00' 1e1))
+reject	reject	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-6	ATTACH TABLE a(a a(X'00' =))
+reject	reject	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-7	ATTACH TABLE a(a a(X'00' = 1e1)
+accept	accept	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_columnTypeExpr_(COMMA_columnTypeExpr)*_RPAREN	ATTACH TABLE a(a a(a))
+reject	reject	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_columnTypeExpr_(COMMA_columnTypeExpr)*_RPAREN!drop-1	ATTACH TABLE a(a(a))
+reject	reject	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_columnTypeExpr_(COMMA_columnTypeExpr)*_RPAREN!drop-3	ATTACH TABLE a(a a a))
+reject	reject	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_columnTypeExpr_(COMMA_columnTypeExpr)*_RPAREN!drop-5	ATTACH TABLE a(a a(a)
+accept	accept	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_(columnExprList)?_RPAREN	ATTACH TABLE a(a a())
+reject	reject	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_(columnExprList)?_RPAREN!drop-1	ATTACH TABLE a(a())
+reject	reject	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_(columnExprList)?_RPAREN!drop-3	ATTACH TABLE a(a a))
+reject	reject	engine	tableElementExpr/tableColumnDfnt+columnTypeExpr/identifier_LPAREN_(columnExprList)?_RPAREN!drop-4	ATTACH TABLE a(a a()
+accept	accept	engine	tableElementExpr/tableColumnDfnt+tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3	ATTACH TABLE a(a DEFAULT 1e1)
+reject	reject	engine	tableElementExpr/tableColumnDfnt+tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3!drop-1	ATTACH TABLE a(DEFAULT 1e1)
+reject	reject	engine	tableElementExpr/tableColumnDfnt+tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3!drop-2	ATTACH TABLE a(a 1e1)
+reject	reject	engine	tableElementExpr/tableColumnDfnt+tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3!drop-3	ATTACH TABLE a(a DEFAULT)
+accept	accept	engine	tableElementExpr/tableColumnDfnt+tableColumnPropertyExpr(DEFAULT|MATERIALIZED|ALIAS)/MATERIALIZED	ATTACH TABLE a(a MATERIALIZED 1e1)
+reject	reject	engine	tableElementExpr/tableColumnDfnt+tableColumnPropertyExpr(DEFAULT|MATERIALIZED|ALIAS)/MATERIALIZED!drop-1	ATTACH TABLE a(MATERIALIZED 1e1)
+reject	reject	engine	tableElementExpr/tableColumnDfnt+tableColumnPropertyExpr(DEFAULT|MATERIALIZED|ALIAS)/MATERIALIZED!drop-3	ATTACH TABLE a(a MATERIALIZED)
+accept	accept	engine	tableElementExpr/tableColumnDfnt+tableColumnPropertyExpr(DEFAULT|MATERIALIZED|ALIAS)/ALIAS	ATTACH TABLE a(a ALIAS 1e1)
+reject	reject	engine	tableElementExpr/tableColumnDfnt+tableColumnPropertyExpr(DEFAULT|MATERIALIZED|ALIAS)/ALIAS!drop-1	ATTACH TABLE a(ALIAS 1e1)
+reject	reject	engine	tableElementExpr/tableColumnDfnt+tableColumnPropertyExpr(DEFAULT|MATERIALIZED|ALIAS)/ALIAS!drop-3	ATTACH TABLE a(a ALIAS)
 accept	accept	engine	tableElementExpr/CONSTRAINT_identifier_CHECK_columnExpr	ATTACH TABLE a(CONSTRAINT a CHECK 1e1)
 reject	reject	engine	tableElementExpr/CONSTRAINT_identifier_CHECK_columnExpr!drop-1	ATTACH TABLE a(a CHECK 1e1)
 reject	reject	engine	tableElementExpr/CONSTRAINT_identifier_CHECK_columnExpr!drop-2	ATTACH TABLE a(CONSTRAINT CHECK 1e1)
@@ -1049,37 +1417,33 @@ reject	reject	engine	tableElementExpr/PROJECTION_tableProjectionDfnt!truncate	AT
 reject	reject	engine	tableElementExpr/PROJECTION_tableProjectionDfnt!insert	ATTACH TABLE a(PROJECTION a(SELECT *) zzz)
 reject	reject	engine	tableElementExpr/PROJECTION_tableProjectionDfnt!swap	ATTACH TABLE a(QUARTER a(SELECT *))
 accept	accept	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9	ALTER TABLE a ADD COLUMN a a
-reject	reject	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_identifier_columnTypeExpr_(COMMA_iden~f42ab16a	ALTER TABLE a ADD COLUMN a a(a a)
-reject	reject	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_identifier_columnTypeExpr_(COMMA_iden~f42ab16a!drop-2	ALTER TABLE a ADD COLUMN a(a a)
-reject	reject	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_identifier_columnTypeExpr_(COMMA_iden~f42ab16a!drop-3	ALTER TABLE a ADD COLUMN a a a a)
-reject	reject	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_identifier_columnTypeExpr_(COMMA_iden~f42ab16a!drop-6	ALTER TABLE a ADD COLUMN a a(a a
-accept	accept	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN	ALTER TABLE a ADD COLUMN a a(X'00' = 1e1)
-reject	reject	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-2	ALTER TABLE a ADD COLUMN a(X'00' = 1e1)
-reject	reject	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-3	ALTER TABLE a ADD COLUMN a a X'00' = 1e1)
-reject	reject	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-4	ALTER TABLE a ADD COLUMN a a(= 1e1)
-reject	reject	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-5	ALTER TABLE a ADD COLUMN a a(X'00' 1e1)
-reject	reject	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-6	ALTER TABLE a ADD COLUMN a a(X'00' =)
-reject	reject	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_enumValue_(COMMA_enumValue)*_RPAREN!drop-7	ALTER TABLE a ADD COLUMN a a(X'00' = 1e1
-accept	accept	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_columnTypeExpr_(COMMA_columnTypeExpr)*_RPAREN	ALTER TABLE a ADD COLUMN a a(a)
-reject	reject	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_columnTypeExpr_(COMMA_columnTypeExpr)*_RPAREN!drop-2	ALTER TABLE a ADD COLUMN a(a)
-reject	reject	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_columnTypeExpr_(COMMA_columnTypeExpr)*_RPAREN!drop-3	ALTER TABLE a ADD COLUMN a a a)
-reject	reject	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_columnTypeExpr_(COMMA_columnTypeExpr)*_RPAREN!drop-5	ALTER TABLE a ADD COLUMN a a(a
-accept	accept	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_(columnExprList)?_RPAREN	ALTER TABLE a ADD COLUMN a a()
-reject	reject	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_(columnExprList)?_RPAREN!drop-2	ALTER TABLE a ADD COLUMN a()
-reject	reject	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_(columnExprList)?_RPAREN!drop-3	ALTER TABLE a ADD COLUMN a a)
-reject	reject	engine	tableColumnDfnt/nestedIdentifier_columnTypeExpr_(tableColumnPropertyExp~9278dff9+columnTypeExpr/identifier_LPAREN_(columnExprList)?_RPAREN!drop-4	ALTER TABLE a ADD COLUMN a a(
 accept	accept	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3	ALTER TABLE a ADD COLUMN a DEFAULT 1e1
 reject	reject	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3!drop-1	ALTER TABLE a ADD COLUMN DEFAULT 1e1
 reject	reject	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3!drop-2	ALTER TABLE a ADD COLUMN a 1e1
 reject	reject	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3!drop-3	ALTER TABLE a ADD COLUMN a DEFAULT
 reject	reject	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3!insert	ALTER TABLE a ADD COLUMN a DEFAULT 1e1 zzz
 reject	reject	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3!swap	ALTER TABLE a ADD COLUMN a DELAY 1e1
+accept	accept	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3+tableColumnDfnt(COMMENT_stringLiteral)?	ALTER TABLE a ADD COLUMN a DEFAULT 1e1 COMMENT X'00'
+reject	reject	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3+tableColumnDfnt(COMMENT_stringLiteral)?!drop-4	ALTER TABLE a ADD COLUMN a DEFAULT 1e1 X'00'
+reject	reject	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3+tableColumnDfnt(COMMENT_stringLiteral)?!drop-5	ALTER TABLE a ADD COLUMN a DEFAULT 1e1 COMMENT
+accept	accept	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3+tableColumnDfnt(codecExpr)?	ALTER TABLE a ADD COLUMN a DEFAULT 1e1 CODEC(a)
+reject	reject	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3+tableColumnDfnt(codecExpr)?!drop-4	ALTER TABLE a ADD COLUMN a DEFAULT 1e1(a)
+reject	reject	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3+tableColumnDfnt(codecExpr)?!drop-5	ALTER TABLE a ADD COLUMN a DEFAULT 1e1 CODEC a)
+reject	reject	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3+tableColumnDfnt(codecExpr)?!drop-6	ALTER TABLE a ADD COLUMN a DEFAULT 1e1 CODEC()
+reject	reject	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3+tableColumnDfnt(codecExpr)?!drop-7	ALTER TABLE a ADD COLUMN a DEFAULT 1e1 CODEC(a
+accept	accept	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3+tableColumnDfnt(TTL_columnExpr)?	ALTER TABLE a ADD COLUMN a DEFAULT 1e1 TTL 1e1
+reject	reject	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3+tableColumnDfnt(TTL_columnExpr)?!drop-4	ALTER TABLE a ADD COLUMN a DEFAULT 1e1 1e1
+reject	reject	engine	tableColumnDfnt/nestedIdentifier_(columnTypeExpr)?_tableColumnPropertyE~e331c2f3+tableColumnDfnt(TTL_columnExpr)?!drop-5	ALTER TABLE a ADD COLUMN a DEFAULT 1e1 TTL
 accept	accept	engine	tableColumnDfnt(tableColumnPropertyExpr)?/%empty	ALTER TABLE a ADD COLUMN a a
 accept	accept	engine	tableColumnDfnt(tableColumnPropertyExpr)?/tableColumnPropertyExpr	ALTER TABLE a ADD COLUMN a a DEFAULT 1e1
 reject	reject	engine	tableColumnDfnt(tableColumnPropertyExpr)?/tableColumnPropertyExpr!drop-1	ALTER TABLE a ADD COLUMN a a 1e1
 reject	reject	engine	tableColumnDfnt(tableColumnPropertyExpr)?/tableColumnPropertyExpr!drop-2	ALTER TABLE a ADD COLUMN a a DEFAULT
 reject	reject	engine	tableColumnDfnt(tableColumnPropertyExpr)?/tableColumnPropertyExpr!insert	ALTER TABLE a ADD COLUMN a a DEFAULT 1e1 zzz
 reject	reject	engine	tableColumnDfnt(tableColumnPropertyExpr)?/tableColumnPropertyExpr!swap	ALTER TABLE a ADD COLUMN a a DELAY 1e1
+accept	accept	engine	tableColumnDfnt(tableColumnPropertyExpr)?/tableColumnPropertyExpr+tableColumnPropertyExpr(DEFAULT|MATERIALIZED|ALIAS)/MATERIALIZED	ALTER TABLE a ADD COLUMN a a MATERIALIZED 1e1
+reject	reject	engine	tableColumnDfnt(tableColumnPropertyExpr)?/tableColumnPropertyExpr+tableColumnPropertyExpr(DEFAULT|MATERIALIZED|ALIAS)/MATERIALIZED!drop-2	ALTER TABLE a ADD COLUMN a a MATERIALIZED
+accept	accept	engine	tableColumnDfnt(tableColumnPropertyExpr)?/tableColumnPropertyExpr+tableColumnPropertyExpr(DEFAULT|MATERIALIZED|ALIAS)/ALIAS	ALTER TABLE a ADD COLUMN a a ALIAS 1e1
+reject	reject	engine	tableColumnDfnt(tableColumnPropertyExpr)?/tableColumnPropertyExpr+tableColumnPropertyExpr(DEFAULT|MATERIALIZED|ALIAS)/ALIAS!drop-2	ALTER TABLE a ADD COLUMN a a ALIAS
 accept	accept	engine	tableColumnDfnt(COMMENT_stringLiteral)?/%empty	ALTER TABLE a ADD COLUMN a a
 accept	accept	engine	tableColumnDfnt(COMMENT_stringLiteral)?/COMMENT_stringLiteral	ALTER TABLE a ADD COLUMN a a COMMENT X'00'
 reject	reject	engine	tableColumnDfnt(COMMENT_stringLiteral)?/COMMENT_stringLiteral!drop-1	ALTER TABLE a ADD COLUMN a a X'00'
@@ -1181,7 +1545,6 @@ reject	reject	engine	ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlS
 reject	reject	engine	ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-1	ALTER TABLE a MODIFY TTL GROUP BY ALL SET 1e1 = 1e1
 reject	reject	engine	ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-2	ALTER TABLE a MODIFY TTL 1e1 BY ALL SET 1e1 = 1e1
 reject	reject	engine	ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-3	ALTER TABLE a MODIFY TTL 1e1 GROUP ALL SET 1e1 = 1e1
-reject	reject	engine	ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-4	ALTER TABLE a MODIFY TTL 1e1 GROUP BY SET 1e1 = 1e1
 reject	reject	engine	ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-5	ALTER TABLE a MODIFY TTL 1e1 GROUP BY ALL 1e1 = 1e1
 reject	reject	engine	ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-6	ALTER TABLE a MODIFY TTL 1e1 GROUP BY ALL SET = 1e1
 reject	reject	engine	ttlExpr/columnExpr_groupByClause_SET_ttlSetExpr_(COMMA_ttlSetExpr)*!drop-7	ALTER TABLE a MODIFY TTL 1e1 GROUP BY ALL SET 1e1 1e1
@@ -1195,18 +1558,12 @@ reject	reject	engine	ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/DEL
 accept	accept	engine	ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral	ALTER TABLE a MODIFY TTL 1e1 TO DISK X'00'
 reject	reject	engine	ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral!drop-1	ALTER TABLE a MODIFY TTL 1e1 DISK X'00'
 reject	reject	engine	ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral!drop-2	ALTER TABLE a MODIFY TTL 1e1 TO X'00'
-reject	reject	engine	ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral!drop-3	ALTER TABLE a MODIFY TTL 1e1 TO DISK
 reject	reject	engine	ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral!insert	ALTER TABLE a MODIFY TTL 1e1 TO DISK X'00' zzz
 reject	reject	engine	ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral!swap	ALTER TABLE a MODIFY TTL 1e1 TOP DISK X'00'
-accept	accept	engine	ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral+stringLiteral/BINARY_STRING_LITERAL	ALTER TABLE a MODIFY TTL 1e1 TO DISK B'00'
-accept	accept	engine	ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_DISK_stringLiteral+stringLiteral/STRING_LITERAL	ALTER TABLE a MODIFY TTL 1e1 TO DISK 'a'
 accept	accept	engine	ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_VOLUME_stringLiteral	ALTER TABLE a MODIFY TTL 1e1 TO VOLUME X'00'
 reject	reject	engine	ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_VOLUME_stringLiteral!drop-1	ALTER TABLE a MODIFY TTL 1e1 VOLUME X'00'
-reject	reject	engine	ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_VOLUME_stringLiteral!drop-3	ALTER TABLE a MODIFY TTL 1e1 TO VOLUME
 reject	reject	engine	ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_VOLUME_stringLiteral!insert	ALTER TABLE a MODIFY TTL 1e1 TO VOLUME X'00' zzz
 reject	reject	engine	ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_VOLUME_stringLiteral!swap	ALTER TABLE a MODIFY TTL 1e1 TOP VOLUME X'00'
-accept	accept	engine	ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_VOLUME_stringLiteral+stringLiteral/BINARY_STRING_LITERAL	ALTER TABLE a MODIFY TTL 1e1 TO VOLUME B'00'
-accept	accept	engine	ttlExpr(DELETE_whereClause?|TO_DISK_stringLi~e2a678f7)?/TO_VOLUME_stringLiteral+stringLiteral/STRING_LITERAL	ALTER TABLE a MODIFY TTL 1e1 TO VOLUME 'a'
 accept	accept	engine	ttlExpr(whereClause)?/%empty	ALTER TABLE a MODIFY TTL 1e1 DELETE
 accept	accept	engine	ttlExpr(whereClause)?/whereClause	ALTER TABLE a MODIFY TTL 1e1 DELETE WHERE 1e1
 reject	reject	engine	ttlExpr(whereClause)?/whereClause!drop-1	ALTER TABLE a MODIFY TTL 1e1 DELETE 1e1
@@ -1243,6 +1600,7 @@ accept	accept	engine	dropStmt/(DETACH|DROP)_(DICTIONARY|TEMPORARY?_TABLE|VIEW)_(
 reject	reject	engine	dropStmt/(DETACH|DROP)_(DICTIONARY|TEMPORARY?_TABLE|VIEW)_(IF_EX~63aaa456+dropStmt(clusterClause)?!drop-4	DETACH DICTIONARY a CLUSTER a
 reject	reject	engine	dropStmt/(DETACH|DROP)_(DICTIONARY|TEMPORARY?_TABLE|VIEW)_(IF_EX~63aaa456+dropStmt(clusterClause)?!drop-5	DETACH DICTIONARY a ON a
 reject	reject	engine	dropStmt/(DETACH|DROP)_(DICTIONARY|TEMPORARY?_TABLE|VIEW)_(IF_EX~63aaa456+dropStmt(clusterClause)?!drop-6	DETACH DICTIONARY a ON CLUSTER
+accept	accept	engine	dropStmt/(DETACH|DROP)_(DICTIONARY|TEMPORARY?_TABLE|VIEW)_(IF_EX~63aaa456+dropStmt(DETACH|DROP)/DROP	DROP DICTIONARY a
 accept	accept	engine	dropStmt(DETACH|DROP)/DETACH	DETACH DATABASE a
 reject	reject	engine	dropStmt(DETACH|DROP)/DETACH!insert	DETACH zzz DATABASE a
 accept	accept	engine	dropStmt(DETACH|DROP)/DROP	DROP DATABASE a
@@ -1263,6 +1621,15 @@ reject	reject	engine	dropStmt(clusterClause)?/clusterClause!drop-2	DETACH DATABA
 reject	reject	engine	dropStmt(clusterClause)?/clusterClause!drop-3	DETACH DATABASE a ON CLUSTER
 reject	reject	engine	dropStmt(clusterClause)?/clusterClause!insert	DETACH DATABASE a ON CLUSTER a zzz
 reject	reject	engine	dropStmt(clusterClause)?/clusterClause!swap	DETACH DATABASE a OPTIMIZE CLUSTER a
+accept	accept	engine	dropStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral	DETACH DATABASE a ON CLUSTER X'00'
+reject	reject	engine	dropStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-1	DETACH DATABASE a CLUSTER X'00'
+reject	reject	engine	dropStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-2	DETACH DATABASE a ON X'00'
+accept	accept	engine	dropStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL	DETACH DATABASE a ON CLUSTER B'00'
+reject	reject	engine	dropStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-1	DETACH DATABASE a CLUSTER B'00'
+reject	reject	engine	dropStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-2	DETACH DATABASE a ON B'00'
+accept	accept	engine	dropStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL	DETACH DATABASE a ON CLUSTER 'a'
+reject	reject	engine	dropStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-1	DETACH DATABASE a CLUSTER 'a'
+reject	reject	engine	dropStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-2	DETACH DATABASE a ON 'a'
 accept	accept	engine	dropStmt(DICTIONARY|TEMPORARY?_TABLE|VIEW)/DICTIONARY	DETACH DICTIONARY a
 reject	reject	engine	dropStmt(DICTIONARY|TEMPORARY?_TABLE|VIEW)/DICTIONARY!truncate	DETACH
 reject	reject	engine	dropStmt(DICTIONARY|TEMPORARY?_TABLE|VIEW)/DICTIONARY!insert	DETACH DICTIONARY zzz a
@@ -1424,6 +1791,15 @@ reject	reject	engine	deleteStmt(clusterClause)?/clusterClause!drop-3	DELETE FROM
 reject	reject	engine	deleteStmt(clusterClause)?/clusterClause!truncate	DELETE FROM a ON CLUSTER
 reject	reject	engine	deleteStmt(clusterClause)?/clusterClause!insert	DELETE FROM a ON CLUSTER a zzz WHERE 1e1
 reject	reject	engine	deleteStmt(clusterClause)?/clusterClause!swap	DELETE FROM a OPTIMIZE CLUSTER a WHERE 1e1
+accept	accept	engine	deleteStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral	DELETE FROM a ON CLUSTER X'00' WHERE 1e1
+reject	reject	engine	deleteStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-1	DELETE FROM a CLUSTER X'00' WHERE 1e1
+reject	reject	engine	deleteStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-2	DELETE FROM a ON X'00' WHERE 1e1
+accept	accept	engine	deleteStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL	DELETE FROM a ON CLUSTER B'00' WHERE 1e1
+reject	reject	engine	deleteStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-1	DELETE FROM a CLUSTER B'00' WHERE 1e1
+reject	reject	engine	deleteStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-2	DELETE FROM a ON B'00' WHERE 1e1
+accept	accept	engine	deleteStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL	DELETE FROM a ON CLUSTER 'a' WHERE 1e1
+reject	reject	engine	deleteStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-1	DELETE FROM a CLUSTER 'a' WHERE 1e1
+reject	reject	engine	deleteStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-2	DELETE FROM a ON 'a' WHERE 1e1
 accept	accept	engine	deleteStmt(inPartitionClause)?/%empty	DELETE FROM a WHERE 1e1
 accept	accept	engine	deleteStmt(inPartitionClause)?/inPartitionClause	DELETE FROM a IN PARTITION 1e1 WHERE 1e1
 reject	reject	engine	deleteStmt(inPartitionClause)?/inPartitionClause!drop-1	DELETE FROM a PARTITION 1e1 WHERE 1e1
@@ -1442,6 +1818,15 @@ reject	reject	engine	updateStmt(clusterClause)?/clusterClause!drop-3	UPDATE a SE
 reject	reject	engine	updateStmt(clusterClause)?/clusterClause!truncate	UPDATE a SET a = 1e1 ON CLUSTER
 reject	reject	engine	updateStmt(clusterClause)?/clusterClause!insert	UPDATE a SET a = 1e1 ON CLUSTER a zzz WHERE 1e1
 reject	reject	engine	updateStmt(clusterClause)?/clusterClause!swap	UPDATE a SET a = 1e1 OPTIMIZE CLUSTER a WHERE 1e1
+reject	reject	engine	updateStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral	UPDATE a SET a = 1e1 ON CLUSTER X'00' WHERE 1e1
+reject	reject	engine	updateStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-1	UPDATE a SET a = 1e1 CLUSTER X'00' WHERE 1e1
+reject	reject	engine	updateStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-2	UPDATE a SET a = 1e1 ON X'00' WHERE 1e1
+reject	reject	engine	updateStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL	UPDATE a SET a = 1e1 ON CLUSTER B'00' WHERE 1e1
+reject	reject	engine	updateStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-1	UPDATE a SET a = 1e1 CLUSTER B'00' WHERE 1e1
+reject	reject	engine	updateStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-2	UPDATE a SET a = 1e1 ON B'00' WHERE 1e1
+reject	reject	engine	updateStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL	UPDATE a SET a = 1e1 ON CLUSTER 'a' WHERE 1e1
+reject	reject	engine	updateStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-1	UPDATE a SET a = 1e1 CLUSTER 'a' WHERE 1e1
+reject	reject	engine	updateStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-2	UPDATE a SET a = 1e1 ON 'a' WHERE 1e1
 accept	accept	engine	updateStmt(inPartitionClause)?/%empty	UPDATE a SET a = 1e1 WHERE 1e1
 accept	accept	engine	updateStmt(inPartitionClause)?/inPartitionClause	UPDATE a SET a = 1e1 IN PARTITION 1e1 WHERE 1e1
 reject	reject	engine	updateStmt(inPartitionClause)?/inPartitionClause!drop-1	UPDATE a SET a = 1e1 PARTITION 1e1 WHERE 1e1
@@ -1460,6 +1845,15 @@ reject	reject	engine	killStmt(clusterClause)?/clusterClause!drop-3	KILL MUTATION
 reject	reject	engine	killStmt(clusterClause)?/clusterClause!truncate	KILL MUTATION ON CLUSTER
 reject	reject	engine	killStmt(clusterClause)?/clusterClause!insert	KILL MUTATION ON CLUSTER a zzz WHERE 1e1
 reject	reject	engine	killStmt(clusterClause)?/clusterClause!swap	KILL MUTATION OPTIMIZE CLUSTER a WHERE 1e1
+accept	accept	engine	killStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral	KILL MUTATION ON CLUSTER X'00' WHERE 1e1
+reject	reject	engine	killStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-1	KILL MUTATION CLUSTER X'00' WHERE 1e1
+reject	reject	engine	killStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-2	KILL MUTATION ON X'00' WHERE 1e1
+accept	accept	engine	killStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL	KILL MUTATION ON CLUSTER B'00' WHERE 1e1
+reject	reject	engine	killStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-1	KILL MUTATION CLUSTER B'00' WHERE 1e1
+reject	reject	engine	killStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-2	KILL MUTATION ON B'00' WHERE 1e1
+accept	accept	engine	killStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL	KILL MUTATION ON CLUSTER 'a' WHERE 1e1
+reject	reject	engine	killStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-1	KILL MUTATION CLUSTER 'a' WHERE 1e1
+reject	reject	engine	killStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-2	KILL MUTATION ON 'a' WHERE 1e1
 accept	accept	engine	killStmt(SYNC|ASYNC|TEST)?/%empty	KILL MUTATION WHERE 1e1
 accept	accept	engine	killStmt(SYNC|ASYNC|TEST)?/SYNC	KILL MUTATION WHERE 1e1 SYNC
 reject	reject	engine	killStmt(SYNC|ASYNC|TEST)?/SYNC!insert	KILL MUTATION WHERE 1e1 SYNC zzz
@@ -1478,6 +1872,15 @@ reject	reject	engine	optimizeStmt(clusterClause)?/clusterClause!drop-2	OPTIMIZE 
 reject	reject	engine	optimizeStmt(clusterClause)?/clusterClause!drop-3	OPTIMIZE TABLE a ON CLUSTER
 reject	reject	engine	optimizeStmt(clusterClause)?/clusterClause!insert	OPTIMIZE TABLE a ON CLUSTER a zzz
 reject	reject	engine	optimizeStmt(clusterClause)?/clusterClause!swap	OPTIMIZE TABLE a OPTIMIZE CLUSTER a
+accept	accept	engine	optimizeStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral	OPTIMIZE TABLE a ON CLUSTER X'00'
+reject	reject	engine	optimizeStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-1	OPTIMIZE TABLE a CLUSTER X'00'
+reject	reject	engine	optimizeStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-2	OPTIMIZE TABLE a ON X'00'
+accept	accept	engine	optimizeStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL	OPTIMIZE TABLE a ON CLUSTER B'00'
+reject	reject	engine	optimizeStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-1	OPTIMIZE TABLE a CLUSTER B'00'
+reject	reject	engine	optimizeStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-2	OPTIMIZE TABLE a ON B'00'
+accept	accept	engine	optimizeStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL	OPTIMIZE TABLE a ON CLUSTER 'a'
+reject	reject	engine	optimizeStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-1	OPTIMIZE TABLE a CLUSTER 'a'
+reject	reject	engine	optimizeStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-2	OPTIMIZE TABLE a ON 'a'
 accept	accept	engine	optimizeStmt(partitionClause)?/%empty	OPTIMIZE TABLE a
 accept	accept	engine	optimizeStmt(partitionClause)?/partitionClause	OPTIMIZE TABLE a PARTITION 1e1
 reject	reject	engine	optimizeStmt(partitionClause)?/partitionClause!drop-1	OPTIMIZE TABLE a 1e1
@@ -1510,6 +1913,15 @@ reject	reject	engine	renameStmt(clusterClause)?/clusterClause!drop-2	RENAME a TO
 reject	reject	engine	renameStmt(clusterClause)?/clusterClause!drop-3	RENAME a TO a ON CLUSTER
 reject	reject	engine	renameStmt(clusterClause)?/clusterClause!insert	RENAME a TO a ON CLUSTER a zzz
 reject	reject	engine	renameStmt(clusterClause)?/clusterClause!swap	RENAME a TO a OPTIMIZE CLUSTER a
+accept	accept	engine	renameStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral	RENAME a TO a ON CLUSTER X'00'
+reject	reject	engine	renameStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-1	RENAME a TO a CLUSTER X'00'
+reject	reject	engine	renameStmt(clusterClause)?/clusterClause+clusterClause(identifier|stringLiteral)/stringLiteral!drop-2	RENAME a TO a ON X'00'
+accept	accept	engine	renameStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL	RENAME a TO a ON CLUSTER B'00'
+reject	reject	engine	renameStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-1	RENAME a TO a CLUSTER B'00'
+reject	reject	engine	renameStmt(clusterClause)?/clusterClause+stringLiteral/BINARY_STRING_LITERAL!drop-2	RENAME a TO a ON B'00'
+accept	accept	engine	renameStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL	RENAME a TO a ON CLUSTER 'a'
+reject	reject	engine	renameStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-1	RENAME a TO a CLUSTER 'a'
+reject	reject	engine	renameStmt(clusterClause)?/clusterClause+stringLiteral/STRING_LITERAL!drop-2	RENAME a TO a ON 'a'
 accept	accept	engine	renameEntityClause/(TABLE)?_tableIdentifier_TO_tableIdentifier_(COMMA_tabl~b8b3c94c	RENAME a TO a
 reject	reject	engine	renameEntityClause/(TABLE)?_tableIdentifier_TO_tableIdentifier_(COMMA_tabl~b8b3c94c!swap	RENAME a TOP a
 accept	accept	engine	renameEntityClause/DATABASE_databaseIdentifier_TO_databaseIdentifier_(COMM~14db174f	RENAME DATABASE a TO a
@@ -1574,9 +1986,32 @@ accept	accept	engine	projectionSelectStmt(groupByClause)?/groupByClause!drop-3	A
 reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause!truncate	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY
 reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause!insert	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY ALL zzz)
 reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause!swap	ALTER TABLE a ADD PROJECTION a(SELECT * GROUPING BY ALL)
+accept	accept	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY CUBE(*))
+reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-1	ALTER TABLE a ADD PROJECTION a(SELECT * BY CUBE(*))
+reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-2	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP CUBE(*))
+accept	accept	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-3	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY(*))
+reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-4	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY CUBE *))
+accept	accept	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-5	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY CUBE())
+reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_(CUBE|ROLLUP)_LPAREN_columnExprList_RPAREN!drop-6	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY CUBE(*)
+accept	accept	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause(CUBE|ROLLUP)/ROLLUP	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY ROLLUP(*))
+reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-1	ALTER TABLE a ADD PROJECTION a(SELECT * BY ROLLUP(*))
+reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-2	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP ROLLUP(*))
+reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-4	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY ROLLUP *))
+accept	accept	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-5	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY ROLLUP())
+reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause(CUBE|ROLLUP)/ROLLUP!drop-6	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY ROLLUP(*)
+reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY GROUPING SETS(*))
+reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-1	ALTER TABLE a ADD PROJECTION a(SELECT * BY GROUPING SETS(*))
+reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-2	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP GROUPING SETS(*))
+accept	accept	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-3	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY SETS(*))
+accept	accept	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-4	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY GROUPING(*))
+reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-5	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY GROUPING SETS *))
+reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-6	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY GROUPING SETS())
+reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_GROUPING_SETS_LPAREN_columnExprList_RPAREN!drop-7	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY GROUPING SETS(*)
+accept	accept	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_columnExprList	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY *)
+reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_columnExprList!drop-1	ALTER TABLE a ADD PROJECTION a(SELECT * BY *)
+reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause+groupByClause/GROUP_BY_columnExprList!drop-2	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP *)
 accept	accept	engine	projectionSelectStmt(projectionOrderByClause)?/%empty	ALTER TABLE a ADD PROJECTION a(SELECT *)
 accept	accept	engine	projectionSelectStmt(projectionOrderByClause)?/projectionOrderByClause	ALTER TABLE a ADD PROJECTION a(SELECT * ORDER BY *)
-reject	reject	engine	projectionSelectStmt(projectionOrderByClause)?/projectionOrderByClause!drop-1	ALTER TABLE a ADD PROJECTION a(SELECT * BY *)
 reject	reject	engine	projectionSelectStmt(projectionOrderByClause)?/projectionOrderByClause!drop-2	ALTER TABLE a ADD PROJECTION a(SELECT * ORDER *)
 reject	reject	engine	projectionSelectStmt(projectionOrderByClause)?/projectionOrderByClause!drop-3	ALTER TABLE a ADD PROJECTION a(SELECT * ORDER BY)
 reject	reject	engine	projectionSelectStmt(projectionOrderByClause)?/projectionOrderByClause!truncate	ALTER TABLE a ADD PROJECTION a(SELECT * ORDER BY
@@ -1813,6 +2248,13 @@ accept	accept	engine	orderByClause/ORDER_BY_orderExprList	SELECT * ORDER BY 1e1
 reject	reject	engine	interpolateClause/INTERPOLATE_LPAREN_columnExprList_RPAREN	SELECT * INTERPOLATE(*)
 accept	accept	engine	projectionOrderByClause/ORDER_BY_columnExprList	ALTER TABLE a ADD PROJECTION a(SELECT * ORDER BY *)
 accept	accept	engine	limitByClause/LIMIT_limitExpr_BY_columnExprList	SELECT * LIMIT 1e1 BY *
+accept	accept	engine	limitByClause/LIMIT_limitExpr_BY_columnExprList+limitExpr((COMMA|OFFSET)_columnExpr)?/(COMMA|OFFSET)_columnExpr	SELECT * LIMIT 1e1, 1e1 BY *
+reject	reject	engine	limitByClause/LIMIT_limitExpr_BY_columnExprList+limitExpr((COMMA|OFFSET)_columnExpr)?/(COMMA|OFFSET)_columnExpr!drop-2	SELECT * LIMIT, 1e1 BY *
+reject	reject	engine	limitByClause/LIMIT_limitExpr_BY_columnExprList+limitExpr((COMMA|OFFSET)_columnExpr)?/(COMMA|OFFSET)_columnExpr!drop-3	SELECT * LIMIT 1e1 1e1 BY *
+reject	reject	engine	limitByClause/LIMIT_limitExpr_BY_columnExprList+limitExpr((COMMA|OFFSET)_columnExpr)?/(COMMA|OFFSET)_columnExpr!drop-4	SELECT * LIMIT 1e1, BY *
+accept	accept	engine	limitByClause/LIMIT_limitExpr_BY_columnExprList+limitExpr(COMMA|OFFSET)/OFFSET	SELECT * LIMIT 1e1 OFFSET 1e1 BY *
+reject	reject	engine	limitByClause/LIMIT_limitExpr_BY_columnExprList+limitExpr(COMMA|OFFSET)/OFFSET!drop-2	SELECT * LIMIT OFFSET 1e1 BY *
+reject	reject	engine	limitByClause/LIMIT_limitExpr_BY_columnExprList+limitExpr(COMMA|OFFSET)/OFFSET!drop-4	SELECT * LIMIT 1e1 OFFSET BY *
 accept	accept	engine	limitClause/LIMIT_limitExpr_(WITH_TIES)?	SELECT * LIMIT 1e1
 accept	accept	engine	limitClause(WITH_TIES)?/%empty	SELECT * LIMIT 1e1
 reject	reject	engine	limitClause(WITH_TIES)?/WITH_TIES	SELECT * LIMIT 1e1 WITH TIES
@@ -1831,13 +2273,20 @@ reject	reject	engine	joinExpr/joinExpr_(GLOBAL|LOCAL)?_(joinOp)?_JOIN_joinExpr_j
 reject	reject	engine	joinExpr/joinExpr_(GLOBAL|LOCAL)?_(joinOp)?_JOIN_joinExpr_joinCo~87554443!swap	SELECT * FROM a KEY a ON *
 accept	accept	engine	joinExpr/joinExpr_joinOpCross_joinExpr	SELECT * FROM a, a
 reject	reject	engine	joinExpr/joinExpr_joinOpCross_joinExpr!drop-1	SELECT * FROM, a
-accept	accept	engine	joinExpr/joinExpr_joinOpCross_joinExpr!drop-2	SELECT * FROM a a
 reject	reject	engine	joinExpr/joinExpr_joinOpCross_joinExpr!drop-3	SELECT * FROM a,
 accept	accept	engine	joinExpr/joinExpr_joinOpCross_joinExpr!insert	SELECT * FROM a, a zzz
 accept	accept	engine	joinExpr/tableExpr_(FINAL)?_(sampleClause)?	SELECT * FROM a
+accept	accept	engine	joinExpr/tableExpr_(FINAL)?_(sampleClause)?+tableExpr/tableFunctionExpr	SELECT * FROM a()
+reject	reject	engine	joinExpr/tableExpr_(FINAL)?_(sampleClause)?+tableExpr/tableFunctionExpr!drop-1	SELECT * FROM()
+reject	reject	engine	joinExpr/tableExpr_(FINAL)?_(sampleClause)?+tableExpr/tableFunctionExpr!drop-2	SELECT * FROM a)
+reject	reject	engine	joinExpr/tableExpr_(FINAL)?_(sampleClause)?+tableExpr/tableFunctionExpr!drop-3	SELECT * FROM a(
+accept	accept	engine	joinExpr/tableExpr_(FINAL)?_(sampleClause)?+tableExpr/LPAREN_selectUnionStmt_RPAREN	SELECT * FROM(SELECT *)
+reject	reject	engine	joinExpr/tableExpr_(FINAL)?_(sampleClause)?+tableExpr/LPAREN_selectUnionStmt_RPAREN!drop-1	SELECT * FROM SELECT *)
+reject	reject	engine	joinExpr/tableExpr_(FINAL)?_(sampleClause)?+tableExpr/LPAREN_selectUnionStmt_RPAREN!drop-2	SELECT * FROM(*)
+reject	reject	engine	joinExpr/tableExpr_(FINAL)?_(sampleClause)?+tableExpr/LPAREN_selectUnionStmt_RPAREN!drop-3	SELECT * FROM(SELECT)
+reject	reject	engine	joinExpr/tableExpr_(FINAL)?_(sampleClause)?+tableExpr/LPAREN_selectUnionStmt_RPAREN!drop-4	SELECT * FROM(SELECT *
+accept	accept	engine	joinExpr/tableExpr_(FINAL)?_(sampleClause)?+tableExpr/tableExpr_(alias|AS_identifier)	SELECT * FROM a a
 reject	reject	engine	joinExpr/LPAREN_joinExpr_RPAREN	SELECT * FROM(a)
-reject	reject	engine	joinExpr/LPAREN_joinExpr_RPAREN!drop-1	SELECT * FROM a)
-reject	reject	engine	joinExpr/LPAREN_joinExpr_RPAREN!drop-2	SELECT * FROM()
 reject	reject	engine	joinExpr/LPAREN_joinExpr_RPAREN!drop-3	SELECT * FROM(a
 reject	reject	engine	joinExpr/LPAREN_joinExpr_RPAREN!insert	SELECT * FROM(a) zzz
 accept	accept	engine	joinExpr(GLOBAL|LOCAL)?/%empty	SELECT * FROM a JOIN a ON *
@@ -1871,6 +2320,9 @@ reject	reject	engine	joinOp/((ALL|ANY)?_FULL_OUTER?|FULL_OUTER?_(ALL|ANY)?)!inse
 accept	accept	engine	joinOp/((ALL|ANY)?_FULL_OUTER?|FULL_OUTER?_(ALL|ANY)?)!swap	SELECT * FROM a FUNCTION JOIN a ON *
 accept	accept	engine	joinOp((ALL|ANY|ASOF)?_INNER|INNER_(ALL|ANY~dd86ffd7)/(ALL|ANY|ASOF)?_INNER	SELECT * FROM a INNER JOIN a ON *
 accept	accept	engine	joinOp((ALL|ANY|ASOF)?_INNER|INNER_(ALL|ANY~dd86ffd7)/INNER_(ALL|ANY|ASOF)?	SELECT * FROM a INNER JOIN a ON *
+accept	accept	engine	joinOp((ALL|ANY|ASOF)?_INNER|INNER_(ALL|ANY~dd86ffd7)/INNER_(ALL|ANY|ASOF)?+joinOp(ALL|ANY|ASOF)?/ALL	SELECT * FROM a INNER ALL JOIN a ON *
+accept	accept	engine	joinOp((ALL|ANY|ASOF)?_INNER|INNER_(ALL|ANY~dd86ffd7)/INNER_(ALL|ANY|ASOF)?+joinOp(ALL|ANY|ASOF)?/ANY	SELECT * FROM a INNER ANY JOIN a ON *
+accept	accept	engine	joinOp((ALL|ANY|ASOF)?_INNER|INNER_(ALL|ANY~dd86ffd7)/INNER_(ALL|ANY|ASOF)?+joinOp(ALL|ANY|ASOF)?/ASOF	SELECT * FROM a INNER ASOF JOIN a ON *
 accept	accept	engine	joinOp((ALL|ANY|ASOF)?_INNER|INNER_(ALL|ANY~dd86ffd7)/(ALL|ANY|ASOF)	SELECT * FROM a ALL JOIN a ON *
 reject	reject	engine	joinOp((ALL|ANY|ASOF)?_INNER|INNER_(ALL|ANY~dd86ffd7)/(ALL|ANY|ASOF)!insert	SELECT * FROM a ALL zzz JOIN a ON *
 accept	accept	engine	joinOp((ALL|ANY|ASOF)?_INNER|INNER_(ALL|ANY~dd86ffd7)/(ALL|ANY|ASOF)!swap	SELECT * FROM a ALTER JOIN a ON *
@@ -1894,6 +2346,11 @@ reject	reject	engine	joinOp(ALL|ANY|ASOF)/ASOF!insert	SELECT * FROM a ASOF zzz J
 accept	accept	engine	joinOp(ALL|ANY|ASOF)/ASOF!swap	SELECT * FROM a AST JOIN a ON *
 accept	accept	engine	joinOp((SEMI|ALL|ANTI|ANY|ASOF)?_(LEFT|RIGH~ee09263f)/(SEMI|ALL|ANTI|ANY|ASOF)?_(LEFT|RIGHT)_(OUTER)?	SELECT * FROM a LEFT JOIN a ON *
 accept	accept	engine	joinOp((SEMI|ALL|ANTI|ANY|ASOF)?_(LEFT|RIGH~ee09263f)/(LEFT|RIGHT)_(OUTER)?_(SEMI|ALL|ANTI|ANY|ASOF)?	SELECT * FROM a LEFT JOIN a ON *
+accept	accept	engine	joinOp((SEMI|ALL|ANTI|ANY|ASOF)?_(LEFT|RIGH~ee09263f)/(LEFT|RIGHT)_(OUTER)?_(SEMI|ALL|ANTI|ANY|ASOF)?+joinOp(SEMI|ALL|ANTI|ANY|ASOF)?/SEMI	SELECT * FROM a LEFT SEMI JOIN a ON *
+accept	accept	engine	joinOp((SEMI|ALL|ANTI|ANY|ASOF)?_(LEFT|RIGH~ee09263f)/(LEFT|RIGHT)_(OUTER)?_(SEMI|ALL|ANTI|ANY|ASOF)?+joinOp(SEMI|ALL|ANTI|ANY|ASOF)?/ALL	SELECT * FROM a LEFT ALL JOIN a ON *
+accept	accept	engine	joinOp((SEMI|ALL|ANTI|ANY|ASOF)?_(LEFT|RIGH~ee09263f)/(LEFT|RIGHT)_(OUTER)?_(SEMI|ALL|ANTI|ANY|ASOF)?+joinOp(SEMI|ALL|ANTI|ANY|ASOF)?/ANTI	SELECT * FROM a LEFT ANTI JOIN a ON *
+accept	accept	engine	joinOp((SEMI|ALL|ANTI|ANY|ASOF)?_(LEFT|RIGH~ee09263f)/(LEFT|RIGHT)_(OUTER)?_(SEMI|ALL|ANTI|ANY|ASOF)?+joinOp(SEMI|ALL|ANTI|ANY|ASOF)?/ANY	SELECT * FROM a LEFT ANY JOIN a ON *
+accept	accept	engine	joinOp((SEMI|ALL|ANTI|ANY|ASOF)?_(LEFT|RIGH~ee09263f)/(LEFT|RIGHT)_(OUTER)?_(SEMI|ALL|ANTI|ANY|ASOF)?+joinOp(SEMI|ALL|ANTI|ANY|ASOF)?/ASOF	SELECT * FROM a LEFT ASOF JOIN a ON *
 accept	accept	engine	joinOp(SEMI|ALL|ANTI|ANY|ASOF)?/%empty	SELECT * FROM a LEFT JOIN a ON *
 accept	accept	engine	joinOp(SEMI|ALL|ANTI|ANY|ASOF)?/%empty!insert	SELECT * FROM a zzz LEFT JOIN a ON *
 accept	accept	engine	joinOp(SEMI|ALL|ANTI|ANY|ASOF)?/SEMI	SELECT * FROM a SEMI LEFT JOIN a ON *
@@ -1920,7 +2377,10 @@ reject	reject	engine	joinOp(OUTER)?/OUTER!truncate	SELECT * FROM a LEFT
 reject	reject	engine	joinOp(OUTER)?/OUTER!insert	SELECT * FROM a LEFT OUTER zzz JOIN a ON *
 reject	reject	engine	joinOp(OUTER)?/OUTER!swap	SELECT * FROM a LEFT OUTFILE JOIN a ON *
 accept	accept	engine	joinOp((ALL|ANY)?_FULL_OUTER?|FULL_OUTER?_(ALL|ANY)?)/(ALL|ANY)?_FULL_(OUTER)?	SELECT * FROM a FULL JOIN a ON *
+accept	accept	engine	joinOp((ALL|ANY)?_FULL_OUTER?|FULL_OUTER?_(ALL|ANY)?)/(ALL|ANY)?_FULL_(OUTER)?+joinOp(OUTER)?	SELECT * FROM a FULL OUTER JOIN a ON *
 accept	accept	engine	joinOp((ALL|ANY)?_FULL_OUTER?|FULL_OUTER?_(ALL|ANY)?)/FULL_(OUTER)?_(ALL|ANY)?	SELECT * FROM a FULL JOIN a ON *
+accept	accept	engine	joinOp((ALL|ANY)?_FULL_OUTER?|FULL_OUTER?_(ALL|ANY)?)/FULL_(OUTER)?_(ALL|ANY)?+joinOp(ALL|ANY)?/ALL	SELECT * FROM a FULL ALL JOIN a ON *
+accept	accept	engine	joinOp((ALL|ANY)?_FULL_OUTER?|FULL_OUTER?_(ALL|ANY)?)/FULL_(OUTER)?_(ALL|ANY)?+joinOp(ALL|ANY)?/ANY	SELECT * FROM a FULL ANY JOIN a ON *
 accept	accept	engine	joinOp(ALL|ANY)?/%empty	SELECT * FROM a FULL JOIN a ON *
 accept	accept	engine	joinOp(ALL|ANY)?/%empty!insert	SELECT * FROM a zzz FULL JOIN a ON *
 accept	accept	engine	joinOp(ALL|ANY)?/ALL	SELECT * FROM a ALL FULL JOIN a ON *
@@ -2100,6 +2560,22 @@ reject	reject	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound!drop
 reject	reject	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound!truncate	SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND CURRENT
 accept	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound!insert	SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND CURRENT ROW zzz)
 reject	reject	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound!swap	SELECT a() OVER(ROWS BOTH CURRENT ROW AND CURRENT ROW)
+accept	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_PRECEDING	SELECT a() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+accept	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_PRECEDING!drop-2	SELECT a() OVER(ROWS BETWEEN PRECEDING AND CURRENT ROW)
+reject	reject	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_PRECEDING!drop-3	SELECT a() OVER(ROWS BETWEEN UNBOUNDED AND CURRENT ROW)
+reject	reject	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_FOLLOWING	SELECT a() OVER(ROWS BETWEEN UNBOUNDED FOLLOWING AND CURRENT ROW)
+accept	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_FOLLOWING!drop-2	SELECT a() OVER(ROWS BETWEEN FOLLOWING AND CURRENT ROW)
+accept	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_PRECEDING	SELECT a() OVER(ROWS BETWEEN 1e1 PRECEDING AND CURRENT ROW)
+accept	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_PRECEDING!drop-3	SELECT a() OVER(ROWS BETWEEN 1e1 AND CURRENT ROW)
+accept	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_FOLLOWING	SELECT a() OVER(ROWS BETWEEN 1e1 FOLLOWING AND CURRENT ROW)
+reject	reject	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_PRECEDING#2	SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND UNBOUNDED PRECEDING)
+reject	reject	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_PRECEDING#2!drop-5	SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND PRECEDING)
+reject	reject	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_PRECEDING#2!drop-6	SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND UNBOUNDED)
+accept	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_FOLLOWING#2	SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+reject	reject	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_FOLLOWING#2!drop-5	SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND FOLLOWING)
+accept	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_PRECEDING#2	SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND 1e1 PRECEDING)
+reject	reject	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_PRECEDING#2!drop-6	SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND 1e1)
+accept	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound+winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_FOLLOWING#2	SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND 1e1 FOLLOWING)
 accept	accept	engine	winFrameBound/(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)	SELECT a() OVER(ROWS CURRENT ROW)
 accept	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/CURRENT_ROW	SELECT a() OVER(ROWS CURRENT ROW)
 accept	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_PRECEDING	SELECT a() OVER(ROWS UNBOUNDED PRECEDING)
@@ -2136,15 +2612,57 @@ reject	reject	engine	showStmt/SHOW_(CREATE)?_VIEW_tableIdentifier!drop-1	VIEW a
 reject	reject	engine	showStmt/SHOW_(CREATE)?_VIEW_tableIdentifier!drop-3	SHOW VIEW
 reject	reject	engine	showStmt/SHOW_(CREATE)?_VIEW_tableIdentifier!insert	SHOW VIEW a zzz
 reject	reject	engine	showStmt/SHOW_(CREATE)?_VIEW_tableIdentifier!swap	SOURCE VIEW a
+accept	accept	engine	showStmt/SHOW_(CREATE)?_VIEW_tableIdentifier+showStmt(CREATE)?	SHOW CREATE VIEW a
 accept	accept	engine	showStmt/SHOW_DATABASES_((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f~5b249e31	SHOW DATABASES
+accept	accept	engine	showStmt/SHOW_DATABASES_((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f~5b249e31+stringLiteral/BINARY_STRING_LITERAL	SHOW DATABASES LIKE B'00'
+reject	reject	engine	showStmt/SHOW_DATABASES_((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f~5b249e31+stringLiteral/BINARY_STRING_LITERAL!drop-3	SHOW DATABASES B'00'
+reject	reject	engine	showStmt/SHOW_DATABASES_((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f~5b249e31+stringLiteral/BINARY_STRING_LITERAL!drop-4	SHOW DATABASES LIKE
+accept	accept	engine	showStmt/SHOW_DATABASES_((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f~5b249e31+stringLiteral/STRING_LITERAL	SHOW DATABASES LIKE 'a'
+reject	reject	engine	showStmt/SHOW_DATABASES_((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f~5b249e31+stringLiteral/STRING_LITERAL!drop-3	SHOW DATABASES 'a'
 accept	accept	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568	SHOW DICTIONARIES
 reject	reject	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568!drop-1	DICTIONARIES
 reject	reject	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568!insert	SHOW DICTIONARIES zzz
 reject	reject	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568!swap	SOURCE DICTIONARIES
+accept	accept	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+showStmt(LIMIT_DECIMAL_LITERAL)?	SHOW DICTIONARIES LIMIT 1
+reject	reject	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+showStmt(LIMIT_DECIMAL_LITERAL)?!drop-3	SHOW DICTIONARIES 1
+reject	reject	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+showStmt(LIMIT_DECIMAL_LITERAL)?!drop-4	SHOW DICTIONARIES LIMIT
+accept	accept	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/(NOT)?_(LIKE|ILIKE)_stringLiteral	SHOW DICTIONARIES LIKE X'00'
+reject	reject	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/(NOT)?_(LIKE|ILIKE)_stringLiteral!drop-3	SHOW DICTIONARIES X'00'
+reject	reject	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/(NOT)?_(LIKE|ILIKE)_stringLiteral!drop-4	SHOW DICTIONARIES LIKE
+accept	accept	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+showStmt(NOT)?/NOT	SHOW DICTIONARIES NOT LIKE X'00'
+reject	reject	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+showStmt(NOT)?/NOT!drop-4	SHOW DICTIONARIES NOT X'00'
+reject	reject	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+showStmt(NOT)?/NOT!drop-5	SHOW DICTIONARIES NOT LIKE
+accept	accept	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+showStmt(LIKE|ILIKE)/ILIKE	SHOW DICTIONARIES ILIKE X'00'
+reject	reject	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+showStmt(LIKE|ILIKE)/ILIKE!drop-4	SHOW DICTIONARIES ILIKE
+accept	accept	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+stringLiteral/BINARY_STRING_LITERAL	SHOW DICTIONARIES LIKE B'00'
+reject	reject	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+stringLiteral/BINARY_STRING_LITERAL!drop-3	SHOW DICTIONARIES B'00'
+accept	accept	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+stringLiteral/STRING_LITERAL	SHOW DICTIONARIES LIKE 'a'
+reject	reject	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+stringLiteral/STRING_LITERAL!drop-3	SHOW DICTIONARIES 'a'
+accept	accept	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/WHERE_columnExpr	SHOW DICTIONARIES WHERE 1e1
+reject	reject	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/WHERE_columnExpr!drop-3	SHOW DICTIONARIES 1e1
+reject	reject	engine	showStmt/SHOW_DICTIONARIES_(FROM_databaseIdentifier)?_((NOT?_(LI~7d003568+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/WHERE_columnExpr!drop-4	SHOW DICTIONARIES WHERE
 accept	accept	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8	SHOW TABLES
 reject	reject	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8!drop-1	TABLES
 reject	reject	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8!insert	SHOW TABLES zzz
 reject	reject	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8!swap	SOURCE TABLES
+accept	accept	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+showStmt(LIMIT_DECIMAL_LITERAL)?	SHOW TABLES LIMIT 1
+reject	reject	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+showStmt(LIMIT_DECIMAL_LITERAL)?!drop-3	SHOW TABLES 1
+reject	reject	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+showStmt(LIMIT_DECIMAL_LITERAL)?!drop-4	SHOW TABLES LIMIT
+accept	accept	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/(NOT)?_(LIKE|ILIKE)_stringLiteral	SHOW TABLES LIKE X'00'
+reject	reject	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/(NOT)?_(LIKE|ILIKE)_stringLiteral!drop-3	SHOW TABLES X'00'
+reject	reject	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/(NOT)?_(LIKE|ILIKE)_stringLiteral!drop-4	SHOW TABLES LIKE
+accept	accept	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+showStmt(NOT)?/NOT	SHOW TABLES NOT LIKE X'00'
+reject	reject	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+showStmt(NOT)?/NOT!drop-4	SHOW TABLES NOT X'00'
+reject	reject	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+showStmt(NOT)?/NOT!drop-5	SHOW TABLES NOT LIKE
+accept	accept	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+showStmt(LIKE|ILIKE)/ILIKE	SHOW TABLES ILIKE X'00'
+reject	reject	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+showStmt(LIKE|ILIKE)/ILIKE!drop-4	SHOW TABLES ILIKE
+accept	accept	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+stringLiteral/BINARY_STRING_LITERAL	SHOW TABLES LIKE B'00'
+reject	reject	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+stringLiteral/BINARY_STRING_LITERAL!drop-3	SHOW TABLES B'00'
+accept	accept	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+stringLiteral/STRING_LITERAL	SHOW TABLES LIKE 'a'
+reject	reject	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+stringLiteral/STRING_LITERAL!drop-3	SHOW TABLES 'a'
+accept	accept	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/WHERE_columnExpr	SHOW TABLES WHERE 1e1
+reject	reject	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/WHERE_columnExpr!drop-3	SHOW TABLES 1e1
+reject	reject	engine	showStmt/SHOW_(FULL)?_(TEMPORARY)?_TABLES_((FROM|IN)_databaseIde~522ccdf8+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/WHERE_columnExpr!drop-4	SHOW TABLES WHERE
 accept	accept	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3	SHOW COLUMNS FROM a
 reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3!drop-1	COLUMNS FROM a
 reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3!drop-2	SHOW FROM a
@@ -2152,12 +2670,34 @@ reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN
 reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3!drop-4	SHOW COLUMNS FROM
 reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3!insert	SHOW COLUMNS FROM a zzz
 reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3!swap	SOURCE COLUMNS FROM a
+accept	accept	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+showStmt(FULL)?	SHOW FULL COLUMNS FROM a
+accept	accept	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+showStmt(LIMIT_DECIMAL_LITERAL)?	SHOW COLUMNS FROM a LIMIT 1
+reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+showStmt(LIMIT_DECIMAL_LITERAL)?!drop-5	SHOW COLUMNS FROM a 1
+reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+showStmt(LIMIT_DECIMAL_LITERAL)?!drop-6	SHOW COLUMNS FROM a LIMIT
+accept	accept	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+showStmt(FROM|IN)/IN	SHOW COLUMNS IN a
+accept	accept	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/(NOT)?_(LIKE|ILIKE)_stringLiteral	SHOW COLUMNS FROM a LIKE X'00'
+reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/(NOT)?_(LIKE|ILIKE)_stringLiteral!drop-5	SHOW COLUMNS FROM a X'00'
+reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/(NOT)?_(LIKE|ILIKE)_stringLiteral!drop-6	SHOW COLUMNS FROM a LIKE
+accept	accept	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+showStmt(NOT)?/NOT	SHOW COLUMNS FROM a NOT LIKE X'00'
+reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+showStmt(NOT)?/NOT!drop-6	SHOW COLUMNS FROM a NOT X'00'
+reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+showStmt(NOT)?/NOT!drop-7	SHOW COLUMNS FROM a NOT LIKE
+accept	accept	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+showStmt(LIKE|ILIKE)/ILIKE	SHOW COLUMNS FROM a ILIKE X'00'
+reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+showStmt(LIKE|ILIKE)/ILIKE!drop-6	SHOW COLUMNS FROM a ILIKE
+accept	accept	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+stringLiteral/BINARY_STRING_LITERAL	SHOW COLUMNS FROM a LIKE B'00'
+reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+stringLiteral/BINARY_STRING_LITERAL!drop-5	SHOW COLUMNS FROM a B'00'
+accept	accept	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+stringLiteral/STRING_LITERAL	SHOW COLUMNS FROM a LIKE 'a'
+reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+stringLiteral/STRING_LITERAL!drop-5	SHOW COLUMNS FROM a 'a'
+accept	accept	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/WHERE_columnExpr	SHOW COLUMNS FROM a WHERE 1e1
+reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/WHERE_columnExpr!drop-5	SHOW COLUMNS FROM a 1e1
+reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_(ta~8093b7d3+showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/WHERE_columnExpr!drop-6	SHOW COLUMNS FROM a WHERE
 accept	accept	engine	showStmt/SHOW_(EXTENDED)?_(INDEX|INDEXES|INDICES|KEYS)_(FROM|IN)~472705d5	SHOW INDEX FROM a
 reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(INDEX|INDEXES|INDICES|KEYS)_(FROM|IN)~472705d5!drop-1	INDEX FROM a
 reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(INDEX|INDEXES|INDICES|KEYS)_(FROM|IN)~472705d5!drop-3	SHOW INDEX a
 reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(INDEX|INDEXES|INDICES|KEYS)_(FROM|IN)~472705d5!drop-4	SHOW INDEX FROM
 reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(INDEX|INDEXES|INDICES|KEYS)_(FROM|IN)~472705d5!insert	SHOW INDEX FROM a zzz
 reject	reject	engine	showStmt/SHOW_(EXTENDED)?_(INDEX|INDEXES|INDICES|KEYS)_(FROM|IN)~472705d5!swap	SOURCE INDEX FROM a
+accept	accept	engine	showStmt/SHOW_(EXTENDED)?_(INDEX|INDEXES|INDICES|KEYS)_(FROM|IN)~472705d5+showStmt(EXTENDED)?	SHOW EXTENDED INDEX FROM a
+accept	accept	engine	showStmt/SHOW_(EXTENDED)?_(INDEX|INDEXES|INDICES|KEYS)_(FROM|IN)~472705d5+showStmt(FROM|IN)/IN	SHOW INDEX IN a
 accept	accept	engine	showStmt/SHOW_PROCESSLIST	SHOW PROCESSLIST
 reject	reject	engine	showStmt/SHOW_PROCESSLIST!drop-1	PROCESSLIST
 reject	reject	engine	showStmt/SHOW_PROCESSLIST!insert	SHOW PROCESSLIST zzz
@@ -2187,6 +2727,7 @@ reject	reject	engine	showStmt/SHOW_CREATE_(ROW)?_POLICY_identifier_ON_tableIdent
 reject	reject	engine	showStmt/SHOW_CREATE_(ROW)?_POLICY_identifier_ON_tableIdentifier~ad34100d!drop-6	SHOW CREATE POLICY a ON
 reject	reject	engine	showStmt/SHOW_CREATE_(ROW)?_POLICY_identifier_ON_tableIdentifier~ad34100d!insert	SHOW CREATE POLICY a ON a zzz
 reject	reject	engine	showStmt/SHOW_CREATE_(ROW)?_POLICY_identifier_ON_tableIdentifier~ad34100d!swap	SOURCE CREATE POLICY a ON a
+accept	accept	engine	showStmt/SHOW_CREATE_(ROW)?_POLICY_identifier_ON_tableIdentifier~ad34100d+showStmt(ROW)?	SHOW CREATE ROW POLICY a ON a
 accept	accept	engine	showStmt/SHOW_CREATE_QUOTA_((identifier_(COMMA_identifier)*)|CURRENT)	SHOW CREATE QUOTA a
 accept	accept	engine	showStmt/SHOW_CREATE_QUOTA_((identifier_(COMMA_identifier)*)|CURRENT)!drop-1	CREATE QUOTA a
 reject	reject	engine	showStmt/SHOW_CREATE_QUOTA_((identifier_(COMMA_identifier)*)|CURRENT)!drop-2	SHOW QUOTA a
@@ -2199,6 +2740,7 @@ reject	reject	engine	showStmt/SHOW_CREATE_(SETTINGS)?_PROFILE_identifier_(COMMA_
 accept	accept	engine	showStmt/SHOW_CREATE_(SETTINGS)?_PROFILE_identifier_(COMMA_identifier)*!drop-4	SHOW CREATE PROFILE
 reject	reject	engine	showStmt/SHOW_CREATE_(SETTINGS)?_PROFILE_identifier_(COMMA_identifier)*!insert	SHOW CREATE PROFILE a zzz
 reject	reject	engine	showStmt/SHOW_CREATE_(SETTINGS)?_PROFILE_identifier_(COMMA_identifier)*!swap	SOURCE CREATE PROFILE a
+accept	accept	engine	showStmt/SHOW_CREATE_(SETTINGS)?_PROFILE_identifier_(COMMA_identifier)*+showStmt(SETTINGS)?	SHOW CREATE SETTINGS PROFILE a
 accept	accept	engine	showStmt/SHOW_USERS	SHOW USERS
 reject	reject	engine	showStmt/SHOW_USERS!drop-1	USERS
 reject	reject	engine	showStmt/SHOW_USERS!insert	SHOW USERS zzz
@@ -2239,6 +2781,20 @@ accept	accept	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(
 reject	reject	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5!drop-1	CLUSTERS
 reject	reject	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5!insert	SHOW CLUSTERS zzz
 reject	reject	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5!swap	SOURCE CLUSTERS
+accept	accept	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5+showStmt(LIMIT_DECIMAL_LITERAL)?	SHOW CLUSTERS LIMIT 1
+reject	reject	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5+showStmt(LIMIT_DECIMAL_LITERAL)?!drop-3	SHOW CLUSTERS 1
+reject	reject	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5+showStmt(LIMIT_DECIMAL_LITERAL)?!drop-4	SHOW CLUSTERS LIMIT
+accept	accept	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5+showStmt(NOT)?/NOT	SHOW CLUSTERS NOT LIKE X'00'
+reject	reject	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5+showStmt(NOT)?/NOT!drop-4	SHOW CLUSTERS NOT X'00'
+reject	reject	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5+showStmt(NOT)?/NOT!drop-5	SHOW CLUSTERS NOT LIKE
+accept	accept	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5+showStmt(LIKE|ILIKE)/ILIKE	SHOW CLUSTERS ILIKE X'00'
+reject	reject	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5+showStmt(LIKE|ILIKE)/ILIKE!drop-3	SHOW CLUSTERS X'00'
+reject	reject	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5+showStmt(LIKE|ILIKE)/ILIKE!drop-4	SHOW CLUSTERS ILIKE
+accept	accept	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5+stringLiteral/BINARY_STRING_LITERAL	SHOW CLUSTERS LIKE B'00'
+reject	reject	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5+stringLiteral/BINARY_STRING_LITERAL!drop-3	SHOW CLUSTERS B'00'
+reject	reject	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5+stringLiteral/BINARY_STRING_LITERAL!drop-4	SHOW CLUSTERS LIKE
+accept	accept	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5+stringLiteral/STRING_LITERAL	SHOW CLUSTERS LIKE 'a'
+reject	reject	engine	showStmt/SHOW_CLUSTERS_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT~a4a1bad5+stringLiteral/STRING_LITERAL!drop-3	SHOW CLUSTERS 'a'
 accept	accept	engine	showStmt/SHOW_(CHANGED)?_SETTINGS_(LIKE|ILIKE)_stringLiteral	SHOW SETTINGS LIKE X'00'
 reject	reject	engine	showStmt/SHOW_(CHANGED)?_SETTINGS_(LIKE|ILIKE)_stringLiteral!drop-1	SETTINGS LIKE X'00'
 reject	reject	engine	showStmt/SHOW_(CHANGED)?_SETTINGS_(LIKE|ILIKE)_stringLiteral!drop-2	SHOW LIKE X'00'
@@ -2246,6 +2802,7 @@ reject	reject	engine	showStmt/SHOW_(CHANGED)?_SETTINGS_(LIKE|ILIKE)_stringLitera
 reject	reject	engine	showStmt/SHOW_(CHANGED)?_SETTINGS_(LIKE|ILIKE)_stringLiteral!drop-4	SHOW SETTINGS LIKE
 reject	reject	engine	showStmt/SHOW_(CHANGED)?_SETTINGS_(LIKE|ILIKE)_stringLiteral!insert	SHOW SETTINGS LIKE X'00' zzz
 reject	reject	engine	showStmt/SHOW_(CHANGED)?_SETTINGS_(LIKE|ILIKE)_stringLiteral!swap	SOURCE SETTINGS LIKE X'00'
+accept	accept	engine	showStmt/SHOW_(CHANGED)?_SETTINGS_(LIKE|ILIKE)_stringLiteral+showStmt(LIKE|ILIKE)/ILIKE	SHOW SETTINGS ILIKE X'00'
 accept	accept	engine	showStmt/SHOW_(CHANGED)?_SETTINGS_(LIKE|ILIKE)_stringLiteral+stringLiteral/BINARY_STRING_LITERAL	SHOW SETTINGS LIKE B'00'
 accept	accept	engine	showStmt/SHOW_(CHANGED)?_SETTINGS_(LIKE|ILIKE)_stringLiteral+stringLiteral/STRING_LITERAL	SHOW SETTINGS LIKE 'a'
 reject	reject	engine	showStmt/SHOW_SETTING_stringLiteral	SHOW SETTING X'00'
@@ -2273,6 +2830,21 @@ accept	accept	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LI
 reject	reject	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d!drop-1	MERGES
 reject	reject	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d!insert	SHOW MERGES zzz
 reject	reject	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d!swap	SOURCE MERGES
+accept	accept	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d+showStmt(LIMIT_DECIMAL_LITERAL)?	SHOW MERGES LIMIT 1
+reject	reject	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d+showStmt(LIMIT_DECIMAL_LITERAL)?!drop-3	SHOW MERGES 1
+reject	reject	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d+showStmt(LIMIT_DECIMAL_LITERAL)?!drop-4	SHOW MERGES LIMIT
+accept	accept	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d+showStmt(NOT?_(LIKE|ILIKE)_stringLiteral)?/(NOT)?_(LIKE|ILIKE)_stringLiteral	SHOW MERGES LIKE X'00'
+reject	reject	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d+showStmt(NOT?_(LIKE|ILIKE)_stringLiteral)?/(NOT)?_(LIKE|ILIKE)_stringLiteral!drop-3	SHOW MERGES X'00'
+reject	reject	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d+showStmt(NOT?_(LIKE|ILIKE)_stringLiteral)?/(NOT)?_(LIKE|ILIKE)_stringLiteral!drop-4	SHOW MERGES LIKE
+accept	accept	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d+showStmt(NOT)?/NOT	SHOW MERGES NOT LIKE X'00'
+reject	reject	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d+showStmt(NOT)?/NOT!drop-4	SHOW MERGES NOT X'00'
+reject	reject	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d+showStmt(NOT)?/NOT!drop-5	SHOW MERGES NOT LIKE
+accept	accept	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d+showStmt(LIKE|ILIKE)/ILIKE	SHOW MERGES ILIKE X'00'
+reject	reject	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d+showStmt(LIKE|ILIKE)/ILIKE!drop-4	SHOW MERGES ILIKE
+accept	accept	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d+stringLiteral/BINARY_STRING_LITERAL	SHOW MERGES LIKE B'00'
+reject	reject	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d+stringLiteral/BINARY_STRING_LITERAL!drop-3	SHOW MERGES B'00'
+accept	accept	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d+stringLiteral/STRING_LITERAL	SHOW MERGES LIKE 'a'
+reject	reject	engine	showStmt/SHOW_MERGES_(NOT?_(LIKE|ILIKE)_stringLiteral)?_(LIMIT_D~9891c47d+stringLiteral/STRING_LITERAL!drop-3	SHOW MERGES 'a'
 accept	accept	engine	showStmt/SHOW_PRIVILEGES	SHOW PRIVILEGES
 reject	reject	engine	showStmt/SHOW_PRIVILEGES!drop-1	PRIVILEGES
 reject	reject	engine	showStmt/SHOW_PRIVILEGES!insert	SHOW PRIVILEGES zzz
@@ -2288,11 +2860,8 @@ reject	reject	engine	showStmt(CREATE)?/CREATE!swap	SHOW CROSS DATABASE a
 accept	accept	engine	showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/%empty	SHOW DATABASES
 accept	accept	engine	showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/(NOT)?_(LIKE|ILIKE)_stringLiteral	SHOW DATABASES LIKE X'00'
 reject	reject	engine	showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/(NOT)?_(LIKE|ILIKE)_stringLiteral!drop-1	SHOW DATABASES X'00'
-reject	reject	engine	showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/(NOT)?_(LIKE|ILIKE)_stringLiteral!drop-2	SHOW DATABASES LIKE
 reject	reject	engine	showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/(NOT)?_(LIKE|ILIKE)_stringLiteral!insert	SHOW DATABASES LIKE X'00' zzz
 accept	accept	engine	showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/(NOT)?_(LIKE|ILIKE)_stringLiteral!swap	SHOW DATABASES LIMIT X'00'
-accept	accept	engine	showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/(NOT)?_(LIKE|ILIKE)_stringLiteral+stringLiteral/BINARY_STRING_LITERAL	SHOW DATABASES LIKE B'00'
-accept	accept	engine	showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/(NOT)?_(LIKE|ILIKE)_stringLiteral+stringLiteral/STRING_LITERAL	SHOW DATABASES LIKE 'a'
 reject	reject	engine	showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/WHERE_columnExpr	SHOW DATABASES WHERE 1e1
 reject	reject	engine	showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/WHERE_columnExpr!drop-1	SHOW DATABASES 1e1
 reject	reject	engine	showStmt((NOT?_(LIKE|ILIKE)_stringLiteral)|WH~3f9c4407)?/WHERE_columnExpr!drop-2	SHOW DATABASES WHERE
@@ -2358,6 +2927,7 @@ reject	reject	engine	showStmt(tableIdentifier|(identifier_(FROM|IN~b12f1845)/ide
 reject	reject	engine	showStmt(tableIdentifier|(identifier_(FROM|IN~b12f1845)/identifier_(FROM|IN)_identifier!drop-3	SHOW COLUMNS FROM a FROM
 reject	reject	engine	showStmt(tableIdentifier|(identifier_(FROM|IN~b12f1845)/identifier_(FROM|IN)_identifier!insert	SHOW COLUMNS FROM a FROM a zzz
 reject	reject	engine	showStmt(tableIdentifier|(identifier_(FROM|IN~b12f1845)/identifier_(FROM|IN)_identifier!swap	SHOW COLUMNS FROM a FULL a
+accept	accept	engine	showStmt(tableIdentifier|(identifier_(FROM|IN~b12f1845)/identifier_(FROM|IN)_identifier+showStmt(FROM|IN)/IN	SHOW COLUMNS FROM a IN a
 accept	accept	engine	showStmt(INDEX|INDEXES|INDICES|KEYS)/INDEX	SHOW INDEX FROM a
 reject	reject	engine	showStmt(INDEX|INDEXES|INDICES|KEYS)/INDEX!insert	SHOW INDEX zzz FROM a
 accept	accept	engine	showStmt(INDEX|INDEXES|INDICES|KEYS)/INDEXES	SHOW INDEXES FROM a
@@ -2441,12 +3011,8 @@ reject	reject	engine	showStmt(CURRENT)?/CURRENT!insert	SHOW CURRENT zzz QUOTA
 reject	reject	engine	showStmt(CURRENT)?/CURRENT!swap	SHOW CURRENT_USER QUOTA
 accept	accept	engine	showStmt(NOT?_(LIKE|ILIKE)_stringLiteral)?/%empty	SHOW CLUSTERS
 accept	accept	engine	showStmt(NOT?_(LIKE|ILIKE)_stringLiteral)?/(NOT)?_(LIKE|ILIKE)_stringLiteral	SHOW CLUSTERS LIKE X'00'
-reject	reject	engine	showStmt(NOT?_(LIKE|ILIKE)_stringLiteral)?/(NOT)?_(LIKE|ILIKE)_stringLiteral!drop-1	SHOW CLUSTERS X'00'
-reject	reject	engine	showStmt(NOT?_(LIKE|ILIKE)_stringLiteral)?/(NOT)?_(LIKE|ILIKE)_stringLiteral!drop-2	SHOW CLUSTERS LIKE
 reject	reject	engine	showStmt(NOT?_(LIKE|ILIKE)_stringLiteral)?/(NOT)?_(LIKE|ILIKE)_stringLiteral!insert	SHOW CLUSTERS LIKE X'00' zzz
 accept	accept	engine	showStmt(NOT?_(LIKE|ILIKE)_stringLiteral)?/(NOT)?_(LIKE|ILIKE)_stringLiteral!swap	SHOW CLUSTERS LIMIT X'00'
-accept	accept	engine	showStmt(NOT?_(LIKE|ILIKE)_stringLiteral)?/(NOT)?_(LIKE|ILIKE)_stringLiteral+stringLiteral/BINARY_STRING_LITERAL	SHOW CLUSTERS LIKE B'00'
-accept	accept	engine	showStmt(NOT?_(LIKE|ILIKE)_stringLiteral)?/(NOT)?_(LIKE|ILIKE)_stringLiteral+stringLiteral/STRING_LITERAL	SHOW CLUSTERS LIKE 'a'
 accept	accept	engine	showStmt(CHANGED)?/%empty	SHOW SETTINGS LIKE X'00'
 reject	reject	engine	showStmt(CHANGED)?/%empty!insert	SHOW zzz SETTINGS LIKE X'00'
 accept	accept	engine	showStmt(CHANGED)?/CHANGED	SHOW CHANGED SETTINGS LIKE X'00'
@@ -2458,6 +3024,7 @@ reject	reject	engine	showStmt((LIKE|ILIKE)_stringLiteral)?/(LIKE|ILIKE)_stringLi
 reject	reject	engine	showStmt((LIKE|ILIKE)_stringLiteral)?/(LIKE|ILIKE)_stringLiteral!drop-2	SHOW FUNCTIONS LIKE
 reject	reject	engine	showStmt((LIKE|ILIKE)_stringLiteral)?/(LIKE|ILIKE)_stringLiteral!insert	SHOW FUNCTIONS LIKE X'00' zzz
 reject	reject	engine	showStmt((LIKE|ILIKE)_stringLiteral)?/(LIKE|ILIKE)_stringLiteral!swap	SHOW FUNCTIONS LIMIT X'00'
+accept	accept	engine	showStmt((LIKE|ILIKE)_stringLiteral)?/(LIKE|ILIKE)_stringLiteral+showStmt(LIKE|ILIKE)/ILIKE	SHOW FUNCTIONS ILIKE X'00'
 accept	accept	engine	showStmt((LIKE|ILIKE)_stringLiteral)?/(LIKE|ILIKE)_stringLiteral+stringLiteral/BINARY_STRING_LITERAL	SHOW FUNCTIONS LIKE B'00'
 accept	accept	engine	showStmt((LIKE|ILIKE)_stringLiteral)?/(LIKE|ILIKE)_stringLiteral+stringLiteral/STRING_LITERAL	SHOW FUNCTIONS LIKE 'a'
 reject	reject	engine	showStmt(TABLE|CREATE_TEMPORARY?_TABLE?)?/%empty	SHOW a
@@ -2507,6 +3074,7 @@ accept	accept	engine	systemStmt/SYSTEM_(START|STOP)_REPLICATED_SENDS!drop-3	SYST
 accept	accept	engine	systemStmt/SYSTEM_(START|STOP)_REPLICATED_SENDS!drop-4	SYSTEM START REPLICATED
 accept	accept	engine	systemStmt/SYSTEM_(START|STOP)_REPLICATED_SENDS!insert	SYSTEM START REPLICATED SENDS zzz
 reject	reject	engine	systemStmt/SYSTEM_(START|STOP)_REPLICATED_SENDS!swap	TABLE START REPLICATED SENDS
+accept	accept	engine	systemStmt/SYSTEM_(START|STOP)_REPLICATED_SENDS+systemStmt(START|STOP)/STOP	SYSTEM STOP REPLICATED SENDS
 accept	accept	engine	systemStmt/SYSTEM_SYNC_REPLICA_tableIdentifier	SYSTEM SYNC REPLICA a
 reject	reject	engine	systemStmt/SYSTEM_SYNC_REPLICA_tableIdentifier!drop-1	SYNC REPLICA a
 reject	reject	engine	systemStmt/SYSTEM_SYNC_REPLICA_tableIdentifier!drop-2	SYSTEM REPLICA a
@@ -2833,6 +3401,7 @@ reject	reject	engine	columnExpr/columnExpr_(NOT)?_BETWEEN_columnExpr_AND_columnE
 reject	reject	engine	columnExpr/columnExpr_(NOT)?_BETWEEN_columnExpr_AND_columnExpr!drop-5	SELECT 1e1 BETWEEN 1e1 AND
 accept	accept	engine	columnExpr/columnExpr_(NOT)?_BETWEEN_columnExpr_AND_columnExpr!insert	SELECT 1e1 BETWEEN 1e1 AND 1e1 zzz
 reject	reject	engine	columnExpr/columnExpr_(NOT)?_BETWEEN_columnExpr_AND_columnExpr!swap	SELECT 1e1 BOTH 1e1 AND 1e1
+accept	accept	engine	columnExpr/columnExpr_(NOT)?_BETWEEN_columnExpr_AND_columnExpr+columnExpr(NOT)?	SELECT 1e1 NOT BETWEEN 1e1 AND 1e1
 accept	accept	engine	columnExpr/NOT_columnExpr	SELECT NOT 1e1
 reject	reject	engine	columnExpr/NOT_columnExpr!drop-2	SELECT NOT
 accept	accept	engine	columnExpr/NOT_columnExpr!insert	SELECT NOT 1e1 zzz
@@ -2887,6 +3456,7 @@ accept	accept	engine	columnExpr/columnExpr_IS_(NOT)?_NULL_SQL!drop-2	SELECT 1e1 
 accept	accept	engine	columnExpr/columnExpr_IS_(NOT)?_NULL_SQL!drop-3	SELECT 1e1 IS
 accept	accept	engine	columnExpr/columnExpr_IS_(NOT)?_NULL_SQL!insert	SELECT 1e1 IS NULL zzz
 reject	reject	engine	columnExpr/columnExpr_IS_(NOT)?_NULL_SQL!swap	SELECT 1e1 IS_OBJECT_ID NULL
+accept	accept	engine	columnExpr/columnExpr_IS_(NOT)?_NULL_SQL+columnExpr(NOT)?	SELECT 1e1 IS NOT NULL
 accept	accept	engine	columnExpr/columnExpr_AND_columnExpr	SELECT 1e1 AND 1e1
 reject	reject	engine	columnExpr/columnExpr_AND_columnExpr!drop-1	SELECT AND 1e1
 reject	reject	engine	columnExpr/columnExpr_AND_columnExpr!drop-3	SELECT 1e1 AND
@@ -3030,6 +3600,7 @@ reject	reject	engine	columnExpr(EQ_DOUBLE|EQ_SINGLE|NOT_EQ|LE|GE|LT|~b483873b)/(
 accept	accept	engine	columnExpr(EQ_DOUBLE|EQ_SINGLE|NOT_EQ|LE|GE|LT|~b483873b)/(NOT)?_(LIKE|ILIKE)	SELECT 1e1 LIKE 1e1
 reject	reject	engine	columnExpr(EQ_DOUBLE|EQ_SINGLE|NOT_EQ|LE|GE|LT|~b483873b)/(NOT)?_(LIKE|ILIKE)!insert	SELECT 1e1 LIKE zzz 1e1
 accept	accept	engine	columnExpr(EQ_DOUBLE|EQ_SINGLE|NOT_EQ|LE|GE|LT|~b483873b)/(NOT)?_(LIKE|ILIKE)!swap	SELECT 1e1 LIMIT 1e1
+accept	accept	engine	columnExpr(EQ_DOUBLE|EQ_SINGLE|NOT_EQ|LE|GE|LT|~b483873b)/(NOT)?_(LIKE|ILIKE)+columnExpr(NOT)?	SELECT 1e1 NOT LIKE 1e1
 accept	accept	engine	columnExpr(GLOBAL)?/%empty	SELECT 1e1 IN 1e1
 accept	accept	engine	columnExpr(GLOBAL)?/GLOBAL	SELECT 1e1 GLOBAL IN 1e1
 reject	reject	engine	columnExpr(GLOBAL)?/GLOBAL!insert	SELECT 1e1 GLOBAL zzz IN 1e1
@@ -3127,6 +3698,16 @@ accept	accept	engine	tableExpr/LPAREN_selectUnionStmt_RPAREN!insert	DESCRIBE(SEL
 reject	reject	engine	tableExpr/LPAREN_selectUnionStmt_RPAREN!swap	DESCRIBE(SEMI *)
 accept	accept	engine	tableExpr/tableExpr_(alias|AS_identifier)	DESCRIBE a a
 reject	reject	engine	tableExpr/tableExpr_(alias|AS_identifier)!insert	DESCRIBE a a zzz
+accept	accept	engine	tableExpr/tableExpr_(alias|AS_identifier)+tableExpr/tableFunctionExpr	DESCRIBE a() a
+reject	reject	engine	tableExpr/tableExpr_(alias|AS_identifier)+tableExpr/tableFunctionExpr!drop-1	DESCRIBE() a
+reject	reject	engine	tableExpr/tableExpr_(alias|AS_identifier)+tableExpr/tableFunctionExpr!drop-2	DESCRIBE a) a
+reject	reject	engine	tableExpr/tableExpr_(alias|AS_identifier)+tableExpr/tableFunctionExpr!drop-3	DESCRIBE a(a
+accept	accept	engine	tableExpr/tableExpr_(alias|AS_identifier)+tableExpr/LPAREN_selectUnionStmt_RPAREN	DESCRIBE(SELECT *) a
+reject	reject	engine	tableExpr/tableExpr_(alias|AS_identifier)+tableExpr/LPAREN_selectUnionStmt_RPAREN!drop-1	DESCRIBE SELECT *) a
+reject	reject	engine	tableExpr/tableExpr_(alias|AS_identifier)+tableExpr/LPAREN_selectUnionStmt_RPAREN!drop-2	DESCRIBE(*) a
+reject	reject	engine	tableExpr/tableExpr_(alias|AS_identifier)+tableExpr/LPAREN_selectUnionStmt_RPAREN!drop-3	DESCRIBE(SELECT) a
+reject	reject	engine	tableExpr/tableExpr_(alias|AS_identifier)+tableExpr/LPAREN_selectUnionStmt_RPAREN!drop-4	DESCRIBE(SELECT * a
+reject	reject	engine	tableExpr/tableExpr_(alias|AS_identifier)+tableExpr/tableExpr_(alias|AS_identifier)	DESCRIBE a a a
 accept	accept	engine	tableExpr(alias|AS_identifier)/alias	DESCRIBE a a
 accept	accept	engine	tableExpr(alias|AS_identifier)/AS_identifier	DESCRIBE a AS a
 reject	reject	engine	tableExpr(alias|AS_identifier)/AS_identifier!drop-2	DESCRIBE a AS

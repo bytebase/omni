@@ -2269,6 +2269,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP1' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -11223,6 +11227,10 @@
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
 < column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP1' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
@@ -54636,6 +54644,10 @@
 < column "COLUMN_NAME" "NCHAR" "string"
 < column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP1' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -72532,6 +72544,10 @@
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
 < column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP1' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result

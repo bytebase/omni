@@ -3755,6 +3755,15 @@ func (c *Catalog) execDrop(n *ast.DropStmt) error {
 		return nil
 	case ast.DropSchema:
 		return c.execDropSchema(n)
+	case ast.DropPartitionFunction:
+		if n.Names != nil {
+			for _, item := range n.Names.Items {
+				if ref, ok := item.(*ast.TableRef); ok {
+					delete(c.partitionFunctions, strings.ToLower(ref.Object))
+				}
+			}
+		}
+		return nil
 	case ast.DropIndex:
 		return c.execDropIndex(n)
 	case ast.DropTable:

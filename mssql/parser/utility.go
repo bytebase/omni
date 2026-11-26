@@ -1435,14 +1435,16 @@ func procIsGUID(s string) bool {
 }
 
 // parseProcTextColumn parses the column of READTEXT, WRITETEXT and
-// UPDATETEXT (column, TSql160.g:32779): a name of two to four parts, the
-// last of which may be IDENTITYCOL or ROWGUIDCOL. SQL Server needs the table
-// and the column (Msg 182).
+// UPDATETEXT (column, TSql160.g:32758): a name of two to four parts, the
+// last of which may be a specialColumn (TSql160.g:32740): IDENTITYCOL,
+// ROWGUIDCOL or a pseudo-column such as $IDENTITY. SQL Server needs the
+// table and the column (Msg 182).
 func (p *Parser) parseProcTextColumn() (*nodes.ColumnRef, error) {
 	loc := p.pos()
 	var parts []string
 	for {
-		if len(parts) > 0 && (p.cur.Type == kwIDENTITYCOL || p.cur.Type == kwROWGUIDCOL) {
+		if len(parts) > 0 && (p.cur.Type == kwIDENTITYCOL || p.cur.Type == kwROWGUIDCOL ||
+			p.cur.Type == tokPSEUDOCOL && knownPseudoColumns[strings.ToLower(p.cur.Str)]) {
 			parts = append(parts, p.cur.Str)
 			p.advance()
 			break

@@ -196,6 +196,11 @@ func (p *Parser) parseOptimizeTableStmt() (*nodes.OptimizeTableStmt, error) {
 	if err := refuseRepeatedTables(stmt.Tables); err != nil {
 		return nil, err
 	}
+	// optimize: ... table_list opt_lock_wait_timeout (sql_yacc.yy:8696).
+	var err error
+	if stmt.NoWait, stmt.HasWait, stmt.WaitSeconds, err = p.parseIndexLockWait(); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil

@@ -2661,7 +2661,7 @@ func (n *CreateDatabaseStmt) Tag() NodeTag { return T_CreateDatabaseStmt }
 // ---------------------------------------------------------------------------
 
 // AlterObjectKind discriminates the object an ALTER statement targets (the
-// subset this node owns: TABLE, VIEW, INDEX, SEARCH INDEX, SCHEMA, DATABASE).
+// subset this node owns: TABLE, VIEW, INDEX, SCHEMA, DATABASE).
 type AlterObjectKind int
 
 const (
@@ -2670,10 +2670,6 @@ const (
 	AlterIndex
 	AlterSchema
 	AlterDatabase
-	// AlterSearchIndex is the Spanner `ALTER SEARCH INDEX … {ADD|DROP} STORED
-	// COLUMN` form (DDL-049). It shares the core alter_action machinery with
-	// ALTER INDEX (the only valid actions are ADD/DROP STORED COLUMN).
-	AlterSearchIndex
 )
 
 // String returns the object keyword.
@@ -2689,8 +2685,6 @@ func (k AlterObjectKind) String() string {
 		return "SCHEMA"
 	case AlterDatabase:
 		return "DATABASE"
-	case AlterSearchIndex:
-		return "SEARCH INDEX"
 	default:
 		return "UNKNOWN"
 	}

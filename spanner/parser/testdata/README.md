@@ -18,14 +18,17 @@ server in offline replay.
 
 | Rows | Total | Agree | Only Spanner accepts | Only omni accepts | Agreement |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| One per alternative | 2,864 | 2,864 | 0 | 0 | 100.00% |
-| Near-misses | 6,573 | 6,573 | 0 | 0 | 100.00% |
-| Suites (`suite:*`) | 734 | 731 | 0 | 3 | 99.59% |
-| **All** | **10,171** | **10,168** | **0** | **3** | **99.97%** |
+| One per alternative | 2,927 | 2,927 | 0 | 0 | 100.00% |
+| Near-misses | 6,689 | 6,689 | 0 | 0 | 100.00% |
+| Suites (`suite:*`) | 734 | 734 | 0 | 0 | 100.00% |
+| **All** | **10,350** | **10,350** | **0** | **0** | **100.00%** |
 
-The three rows only omni accepts are documented Spanner forms the emulator's
-DDL parser lags: `ALTER SEARCH INDEX idx {ADD|DROP} STORED COLUMN c` (DDL-049)
-and `CREATE PLACEMENT`'s `read_lease_regions` option (DDL-044).
+`../../testdata/tokens.tsv` writes 32 optional clauses (`(every site)`) at
+each site that names them, and 28 keyword choices (`(every alternative)`) in
+each form at each site. The 25 clauses added last (WHERE, WITH, COLLATE,
+DEFAULT COLLATE, column lists, ON DELETE, ORDER BY and the other query
+clauses) found one gap, closed: Spanner's CREATE SCHEMA takes no DEFAULT
+COLLATE.
 
 Spanner's DDL parser checks option names and values while it parses, and the
 harness reads one such refusal ("Error parsing Spanner DDL statement: ...")
@@ -401,7 +404,7 @@ go test ./spanner/parser/ -run '^TestCompatibility$'
 ```
 
 Live recording against pinned `gcr.io/cloud-spanner-emulator/emulator:1.5.54`
-(about a minute for all 10,171 rows):
+(about a minute for all 10,350 rows):
 
 ```bash
 OMNI_RECORD=1 go test -v -timeout 60m ./spanner/parser/ -run '^TestCompatibility$'

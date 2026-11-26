@@ -14,8 +14,9 @@
 // An answer is narrowed to what the driver asks of it, because some carry
 // values the metadata and its golden must not: the root document's cluster
 // UUID, the cat API's per-index UUID, a search's `took`, and the timings inside
-// a profile. A search's numbers are read back as json.Number, so a long past
-// 2^53 keeps its digits.
+// a profile. A data stream's backing index is named for the day it was made,
+// so a tape holds a stand-in day (codec.StandIn). A search's numbers are read
+// back as json.Number, so a long past 2^53 keeps its digits.
 package testcontainer
 
 import (
@@ -27,6 +28,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -65,6 +67,22 @@ type codec struct{}
 func (codec) EncodeError(error) (string, bool) { return "", false }
 
 func (codec) DecodeError(text string) error { return errors.New(text) }
+
+// backingIndex matches a data stream's backing index, whose name holds the
+// day the endpoint made it: .ds-<stream>-<yyyy.MM.dd>-<generation>.
+var backingIndex = regexp.MustCompile(`\.ds-[^"\\/,\s]+?-\d{4}\.\d{2}\.\d{2}-\d{6}`)
+
+var backingDay = regexp.MustCompile(`-\d{4}\.\d{2}\.\d{2}-(\d{6})$`)
+
+// MadeUp matches a backing index's name, which changes with the day a
+// recording runs.
+func (codec) MadeUp() *regexp.Regexp { return backingIndex }
+
+// StandIn keeps the stream and the generation and names a day no endpoint
+// makes, so a recording on another day writes the same tape.
+func (codec) StandIn(name string, _ int) string {
+	return backingDay.ReplaceAllString(name, "-0000.00.00-$1")
+}
 
 // Client is the driver's HTTP client, answered by t's tape. It is what a test
 // hands the driver in place of the live endpoint; its methods are the calls the
@@ -141,10 +159,10 @@ func unmarshalJSON(b []byte, v any) error {
 	return decoder.Decode(v)
 }
 
-// Reset deletes every index the corpus of a previous test created, so a tape
-// holds one test's corpus whatever the test binary ran before. It does nothing
-// in a replay, whose tape already holds the answers the corpus produced when it
-// was recorded.
+// Reset deletes every index and data stream the corpus of a previous test
+// created, so a tape holds one test's corpus whatever the test binary ran
+// before. It does nothing in a replay, whose tape already holds the answers
+// the corpus produced when it was recorded.
 func Reset(t testing.TB) {
 	t.Helper()
 	if !enginetest.Recording(t) {
@@ -152,9 +170,34 @@ func Reset(t testing.TB) {
 	}
 	address, client := live(t)
 	ctx := context.Background()
-	// Every index, hidden ones and data streams included; the system indices
-	// the endpoint keeps for itself start with a dot and stay.
-	body, status, _, err := send(ctx, client, address, http.MethodGet, "/_cat/indices?format=json&expand_wildcards=all&h=index", nil)
+	// Every data stream, hidden ones included, with its backing indices,
+	// which start with a dot and so outlive the loop below; system streams
+	// stay.
+	body, status, _, err := send(ctx, client, address, http.MethodGet, "/_data_stream?expand_wildcards=all", nil)
+	if err != nil || status >= 400 {
+		t.Fatalf("list data streams: %v (%d %s)", err, status, body)
+	}
+	var streams struct {
+		DataStreams []struct {
+			Name   string `json:"name"`
+			System bool   `json:"system"`
+		} `json:"data_streams"`
+	}
+	if err := json.Unmarshal(body, &streams); err != nil {
+		t.Fatalf("list data streams: %v", err)
+	}
+	for _, stream := range streams.DataStreams {
+		if stream.System || strings.HasPrefix(stream.Name, ".") {
+			continue
+		}
+		body, status, _, err := send(ctx, client, address, http.MethodDelete, "/_data_stream/"+stream.Name+"?expand_wildcards=all", nil)
+		if err != nil || status >= 400 {
+			t.Fatalf("delete data stream %s: %v (%d %s)", stream.Name, err, status, body)
+		}
+	}
+	// Every index, hidden ones included; the system indices the endpoint
+	// keeps for itself start with a dot and stay.
+	body, status, _, err = send(ctx, client, address, http.MethodGet, "/_cat/indices?format=json&expand_wildcards=all&h=index", nil)
 	if err != nil || status >= 400 {
 		t.Fatalf("list indices: %v (%d %s)", err, status, body)
 	}
@@ -232,6 +275,12 @@ func start(ctx context.Context) (started testcontainers.Container, address strin
 			// refuses to allocate would leave the index at zero documents
 			// and no size.
 			"cluster.routing.allocation.disk.threshold_enabled": "false",
+			// A deprecation warning (the sync's settings request reaches
+			// the security index) and an ILM step each create a hidden data
+			// stream some seconds later, which a hidden index listing would
+			// name in one recording and not the next.
+			"cluster.deprecation_indexing.enabled":    "false",
+			"indices.lifecycle.history_index_enabled": "false",
 			"ES_JAVA_OPTS": "-Xms512m -Xmx512m",
 		}),
 		testcontainers.WithExposedPorts("9200/tcp"),
@@ -361,9 +410,10 @@ func liveDo(t testing.TB, text string) (string, error) {
 }
 
 // narrow returns the answer as a tape holds it. An answer that names the
-// endpoint itself, one index's settings, the cat API's index list or the
-// instance's users keeps only the fields the driver reads; anything else is
-// held as sent, with the measurements a search reports taken out.
+// endpoint itself, one index's settings, the cat API's index list, the data
+// streams or the instance's users keeps only the fields the driver reads;
+// anything else is held as sent, with the measurements a search reports taken
+// out.
 func narrow(route, contentType string, body []byte) ([]byte, bool) {
 	if !strings.Contains(contentType, "application/json") {
 		return nil, false
@@ -396,6 +446,23 @@ func narrow(route, contentType string, body []byte) ([]byte, bool) {
 		}
 		sort.SliceStable(entries, func(i, j int) bool { return entries[i].Index < entries[j].Index })
 		narrowed, err := json.Marshal(entries)
+		return narrowed, err == nil
+	case route == "/_data_stream":
+		// Each stream's name, whether it is hidden and its backing indices'
+		// names; their UUIDs change with every run.
+		var streams struct {
+			DataStreams []struct {
+				Name    string `json:"name"`
+				Hidden  bool   `json:"hidden"`
+				Indices []struct {
+					IndexName string `json:"index_name"`
+				} `json:"indices"`
+			} `json:"data_streams"`
+		}
+		if err := json.Unmarshal(body, &streams); err != nil {
+			return nil, false
+		}
+		narrowed, err := json.Marshal(streams)
 		return narrowed, err == nil
 	case route == "/_alias":
 		// Each index's alias names; an alias's filter and routing are not
@@ -519,9 +586,10 @@ var timedFields = map[string]bool{
 }
 
 // withoutTimings returns an answer with the measurements it reports taken out:
-// the top-level `took`, and the tree under a top-level `profile`. Nothing else
-// is walked, so a document a hit carries keeps every field it holds, even one
-// named `took`, `profile` or `time_in_nanos`.
+// the top-level `took`, the tree under a top-level `profile`, and both in each
+// search of a multi-search's `responses`. Nothing else is walked, so a
+// document a hit carries keeps every field it holds, even one named `took`,
+// `profile` or `time_in_nanos`.
 func withoutTimings(v any) any {
 	document, ok := v.(map[string]any)
 	if !ok {
@@ -532,6 +600,11 @@ func withoutTimings(v any) any {
 	}
 	if profile, ok := document["profile"]; ok {
 		document["profile"] = withoutProfileTimings(profile)
+	}
+	if responses, ok := document["responses"].([]any); ok {
+		for i, response := range responses {
+			responses[i] = withoutTimings(response)
+		}
 	}
 	return document
 }

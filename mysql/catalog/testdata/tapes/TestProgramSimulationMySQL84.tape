@@ -566,6 +566,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE FUNCTION utf8mb4(utf8mb4 INT COLLATE utf8mb4) RETURNS INT COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE PROCEDURE utf8mb4(utf8mb4 INT) COMMIT;
 < ok 0 0
 > query
@@ -637,6 +644,13 @@
 < result
 < column "EVENT" "VARCHAR" "string"
 < column "EVENT_NAME" "VARCHAR" "string"
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE PROCEDURE utf8mb4(utf8mb4 INT COLLATE utf8mb4) COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -883,6 +897,13 @@
 | ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 INT; END;
 < error
 | 1539 HY000 Unknown event 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 INT COLLATE utf8mb4; END;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -1822,6 +1843,20 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE FUNCTION utf8mb4() RETURNS INT COLLATE utf8mb4 COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE FUNCTION utf8mb4() RETURNS INT COLLATE COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'COMMIT'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE PROCEDURE IF NOT EXISTS utf8mb4() COMMIT;
 < ok 0 0
 > query
@@ -1876,6 +1911,81 @@
 | ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 : bytes
 | CREATE DEFINER=`root`@`%` PROCEDURE `utf8mb4`()
+| COMMIT
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| utf8mb4_0900_ai_ci
+> query
+| SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() ORDER BY TRIGGER_NAME
+< result
+< column "TRIGGER" "VARCHAR" "string"
+< column "TRIGGER_NAME" "VARCHAR" "string"
+> query
+| SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() ORDER BY EVENT_NAME
+< result
+< column "EVENT" "VARCHAR" "string"
+< column "EVENT_NAME" "VARCHAR" "string"
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE PROCEDURE p(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin) COMMIT;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+< result
+< column "ROUTINE_TYPE" "ENUM" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| PROCEDURE
+: bytes
+| p
+> query
+| SHOW CREATE PROCEDURE `p`
+< result
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| p
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+: bytes
+| CREATE DEFINER=`root`@`%` PROCEDURE `p`(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin)
 | COMMIT
 : bytes
 | utf8mb4
@@ -2458,6 +2568,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE FUNCTION utf8mb4(utf8mb4 INT COLLATE utf8mb4) RETURNS INT COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE PROCEDURE utf8mb4(utf8mb4 INT) COMMIT;
 < ok 0 0
 > query
@@ -2529,6 +2646,13 @@
 < result
 < column "EVENT" "VARCHAR" "string"
 < column "EVENT_NAME" "VARCHAR" "string"
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE PROCEDURE utf8mb4(utf8mb4 INT COLLATE utf8mb4) COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -2775,6 +2899,13 @@
 | ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 INT; END;
 < error
 | 1539 HY000 Unknown event 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 INT COLLATE utf8mb4; END;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -3714,6 +3845,20 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE FUNCTION utf8mb4() RETURNS INT COLLATE utf8mb4 COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE FUNCTION utf8mb4() RETURNS INT COLLATE COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'COMMIT'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE PROCEDURE IF NOT EXISTS utf8mb4() COMMIT;
 < ok 0 0
 > query
@@ -3768,6 +3913,81 @@
 | ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 : bytes
 | CREATE DEFINER=`root`@`%` PROCEDURE `utf8mb4`()
+| COMMIT
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| utf8mb4_0900_ai_ci
+> query
+| SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() ORDER BY TRIGGER_NAME
+< result
+< column "TRIGGER" "VARCHAR" "string"
+< column "TRIGGER_NAME" "VARCHAR" "string"
+> query
+| SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() ORDER BY EVENT_NAME
+< result
+< column "EVENT" "VARCHAR" "string"
+< column "EVENT_NAME" "VARCHAR" "string"
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE PROCEDURE p(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin) COMMIT;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+< result
+< column "ROUTINE_TYPE" "ENUM" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| PROCEDURE
+: bytes
+| p
+> query
+| SHOW CREATE PROCEDURE `p`
+< result
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| p
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+: bytes
+| CREATE DEFINER=`root`@`%` PROCEDURE `p`(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin)
 | COMMIT
 : bytes
 | utf8mb4
@@ -4978,9 +5198,25 @@
 | CREATE FUNCTION utf8mb4() RETURNS INT DETERMINISTIC RETURN 1
 < ok 0 0
 > exec
+| CREATE FUNCTION utf8mb4(utf8mb4 INT COLLATE utf8mb4) RETURNS INT COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE PROCEDURE utf8mb4() COMMIT;
+| CREATE FUNCTION utf8mb4() RETURNS INT DETERMINISTIC RETURN 1
+< ok 0 0
+> exec
 | CREATE PROCEDURE utf8mb4(utf8mb4 INT) COMMIT;
 < error
 | 1304 42000 PROCEDURE utf8mb4 already exists
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE PROCEDURE utf8mb4() COMMIT;
+| CREATE FUNCTION utf8mb4() RETURNS INT DETERMINISTIC RETURN 1
+< ok 0 0
+> exec
+| CREATE PROCEDURE utf8mb4(utf8mb4 INT COLLATE utf8mb4) COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE PROCEDURE utf8mb4() COMMIT;
 | CREATE FUNCTION utf8mb4() RETURNS INT DETERMINISTIC RETURN 1
@@ -5029,6 +5265,14 @@
 | ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 INT; END;
 < error
 | 1539 HY000 Unknown event 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE PROCEDURE utf8mb4() COMMIT;
+| CREATE FUNCTION utf8mb4() RETURNS INT DETERMINISTIC RETURN 1
+< ok 0 0
+> exec
+| ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 INT COLLATE utf8mb4; END;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE PROCEDURE utf8mb4() COMMIT;
 | CREATE FUNCTION utf8mb4() RETURNS INT DETERMINISTIC RETURN 1
@@ -5653,6 +5897,22 @@
 | CREATE FUNCTION utf8mb4() RETURNS INT DETERMINISTIC RETURN 1
 < ok 0 0
 > exec
+| CREATE FUNCTION utf8mb4() RETURNS INT COLLATE utf8mb4 COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE PROCEDURE utf8mb4() COMMIT;
+| CREATE FUNCTION utf8mb4() RETURNS INT DETERMINISTIC RETURN 1
+< ok 0 0
+> exec
+| CREATE FUNCTION utf8mb4() RETURNS INT COLLATE COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'COMMIT'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE PROCEDURE utf8mb4() COMMIT;
+| CREATE FUNCTION utf8mb4() RETURNS INT DETERMINISTIC RETURN 1
+< ok 0 0
+> exec
 | CREATE PROCEDURE IF NOT EXISTS utf8mb4() COMMIT;
 < ok 0 0
 > query
@@ -5693,6 +5953,118 @@
 | CREATE DEFINER=`root`@`%` FUNCTION `utf8mb4`() RETURNS int
 |     DETERMINISTIC
 | RETURN 1
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE PROCEDURE `utf8mb4`
+< result
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+: bytes
+| CREATE DEFINER=`root`@`%` PROCEDURE `utf8mb4`()
+| COMMIT;
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| utf8mb4_0900_ai_ci
+> query
+| SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() ORDER BY TRIGGER_NAME
+< result
+< column "TRIGGER" "VARCHAR" "string"
+< column "TRIGGER_NAME" "VARCHAR" "string"
+> query
+| SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() ORDER BY EVENT_NAME
+< result
+< column "EVENT" "VARCHAR" "string"
+< column "EVENT_NAME" "VARCHAR" "string"
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE PROCEDURE utf8mb4() COMMIT;
+| CREATE FUNCTION utf8mb4() RETURNS INT DETERMINISTIC RETURN 1
+< ok 0 0
+> exec
+| CREATE PROCEDURE p(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin) COMMIT;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+< result
+< column "ROUTINE_TYPE" "ENUM" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| FUNCTION
+: bytes
+| utf8mb4
+< row
+: bytes
+| PROCEDURE
+: bytes
+| p
+< row
+: bytes
+| PROCEDURE
+: bytes
+| utf8mb4
+> query
+| SHOW CREATE FUNCTION `utf8mb4`
+< result
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+: bytes
+| CREATE DEFINER=`root`@`%` FUNCTION `utf8mb4`() RETURNS int
+|     DETERMINISTIC
+| RETURN 1
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE PROCEDURE `p`
+< result
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| p
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+: bytes
+| CREATE DEFINER=`root`@`%` PROCEDURE `p`(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin)
+| COMMIT
 : bytes
 | utf8mb4
 : bytes
@@ -6489,6 +6861,14 @@
 | CREATE TRIGGER utf8mb4 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
 < ok 0 0
 > exec
+| CREATE FUNCTION utf8mb4(utf8mb4 INT COLLATE utf8mb4) RETURNS INT COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT);
+| CREATE TRIGGER utf8mb4 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+< ok 0 0
+> exec
 | CREATE PROCEDURE utf8mb4(utf8mb4 INT) COMMIT;
 < ok 0 0
 > query
@@ -6588,6 +6968,14 @@
 < result
 < column "EVENT" "VARCHAR" "string"
 < column "EVENT_NAME" "VARCHAR" "string"
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT);
+| CREATE TRIGGER utf8mb4 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+< ok 0 0
+> exec
+| CREATE PROCEDURE utf8mb4(utf8mb4 INT COLLATE utf8mb4) COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT);
 | CREATE TRIGGER utf8mb4 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
@@ -6924,6 +7312,14 @@
 | ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 INT; END;
 < error
 | 1539 HY000 Unknown event 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT);
+| CREATE TRIGGER utf8mb4 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+< ok 0 0
+> exec
+| ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 INT COLLATE utf8mb4; END;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT);
 | CREATE TRIGGER utf8mb4 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
@@ -8207,6 +8603,22 @@
 | CREATE TRIGGER utf8mb4 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
 < ok 0 0
 > exec
+| CREATE FUNCTION utf8mb4() RETURNS INT COLLATE utf8mb4 COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT);
+| CREATE TRIGGER utf8mb4 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+< ok 0 0
+> exec
+| CREATE FUNCTION utf8mb4() RETURNS INT COLLATE COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'COMMIT'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT);
+| CREATE TRIGGER utf8mb4 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+< ok 0 0
+> exec
 | CREATE PROCEDURE IF NOT EXISTS utf8mb4() COMMIT;
 < ok 0 0
 > query
@@ -8259,6 +8671,110 @@
 | ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 : bytes
 | CREATE DEFINER=`root`@`%` PROCEDURE `utf8mb4`()
+| COMMIT
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| utf8mb4_0900_ai_ci
+> query
+| SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() ORDER BY TRIGGER_NAME
+< result
+< column "TRIGGER" "VARCHAR" "string"
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< row
+: bytes
+| TRIGGER
+: bytes
+| utf8mb4
+> query
+| SHOW CREATE TRIGGER `utf8mb4`
+< result
+< column "Trigger" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "SQL Original Statement" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< column "Created" "TIMESTAMP" precision 0 scale 0
+< row
+: bytes
+| utf8mb4
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+: bytes
+| CREATE DEFINER=`root`@`%` TRIGGER `utf8mb4` BEFORE INSERT ON `t` FOR EACH ROW SET NEW.c = 1
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| utf8mb4_0900_ai_ci
+: bytes
+| 2026-01-01 00:00:00.00
+> query
+| SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() ORDER BY EVENT_NAME
+< result
+< column "EVENT" "VARCHAR" "string"
+< column "EVENT_NAME" "VARCHAR" "string"
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT);
+| CREATE TRIGGER utf8mb4 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+< ok 0 0
+> exec
+| CREATE PROCEDURE p(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin) COMMIT;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+< result
+< column "ROUTINE_TYPE" "ENUM" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| PROCEDURE
+: bytes
+| p
+> query
+| SHOW CREATE PROCEDURE `p`
+< result
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| p
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+: bytes
+| CREATE DEFINER=`root`@`%` PROCEDURE `p`(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin)
 | COMMIT
 : bytes
 | utf8mb4
@@ -9563,6 +10079,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
 < ok 0 0
 > exec
+| CREATE FUNCTION utf8mb4(utf8mb4 INT COLLATE utf8mb4) RETURNS INT COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+< ok 0 0
+> exec
 | CREATE PROCEDURE utf8mb4(utf8mb4 INT) COMMIT;
 < ok 0 0
 > query
@@ -9643,6 +10166,13 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+< ok 0 0
+> exec
+| CREATE PROCEDURE utf8mb4(utf8mb4 INT COLLATE utf8mb4) COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
 < ok 0 0
@@ -10063,6 +10593,13 @@
 | utf8mb4_general_ci
 : bytes
 | utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+< ok 0 0
+> exec
+| ALTER EVENT utf8mb4 DO BEGIN DECLARE utf8mb4 INT COLLATE utf8mb4; END;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
 < ok 0 0
@@ -12109,6 +12646,20 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
 < ok 0 0
 > exec
+| CREATE FUNCTION utf8mb4() RETURNS INT COLLATE utf8mb4 COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+< ok 0 0
+> exec
+| CREATE FUNCTION utf8mb4() RETURNS INT COLLATE COMMIT;
+< error
+| 1273 HY000 Unknown collation: 'COMMIT'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+< ok 0 0
+> exec
 | CREATE PROCEDURE IF NOT EXISTS utf8mb4() COMMIT;
 < ok 0 0
 > query
@@ -12142,6 +12693,90 @@
 | ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 : bytes
 | CREATE DEFINER=`root`@`%` PROCEDURE `utf8mb4`()
+| COMMIT
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| utf8mb4_0900_ai_ci
+> query
+| SELECT 'TRIGGER', TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() ORDER BY TRIGGER_NAME
+< result
+< column "TRIGGER" "VARCHAR" "string"
+< column "TRIGGER_NAME" "VARCHAR" "string"
+> query
+| SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() ORDER BY EVENT_NAME
+< result
+< column "EVENT" "VARCHAR" "string"
+< column "EVENT_NAME" "VARCHAR" "string"
+< row
+: bytes
+| EVENT
+: bytes
+| utf8mb4
+> query
+| SHOW CREATE EVENT `utf8mb4`
+< result
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `utf8mb4` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+< ok 0 0
+> exec
+| CREATE PROCEDURE p(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin) COMMIT;
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+< result
+< column "ROUTINE_TYPE" "ENUM" "string"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| PROCEDURE
+: bytes
+| p
+> query
+| SHOW CREATE PROCEDURE `p`
+< result
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| p
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+: bytes
+| CREATE DEFINER=`root`@`%` PROCEDURE `p`(a CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_bin)
 | COMMIT
 : bytes
 | utf8mb4

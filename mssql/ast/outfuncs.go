@@ -2864,6 +2864,10 @@ func writeRowsetColumnDef(sb *strings.Builder, n *RowsetColumnDef) {
 		sb.WriteString(" :path ")
 		writeNode(sb, n.Path)
 	}
+	if n.PathVar != nil {
+		sb.WriteString(" :pathVar ")
+		writeNode(sb, n.PathVar)
+	}
 	if n.AsJSON {
 		sb.WriteString(" :asJSON true")
 	}

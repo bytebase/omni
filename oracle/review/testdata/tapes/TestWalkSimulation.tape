@@ -2810,6 +2810,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SIMSHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -20653,6 +20657,10 @@
 | B
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SIMSHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -41079,6 +41087,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SIMSHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -60722,6 +60734,10 @@
 | B
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SIMSHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -80792,6 +80808,10 @@
 | B
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SIMSHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -101251,6 +101271,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SIMSHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -119405,6 +119429,10 @@
 | B
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SIMSHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -140554,6 +140582,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SIMSHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -158559,6 +158591,10 @@
 | B
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SIMSHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -177081,6 +177117,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SIMSHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -195009,6 +195049,10 @@
 | B
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SIMSHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -213042,6 +213086,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SIMSHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -215005,6 +215053,10 @@
 | ID
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SIMSHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
@@ -219246,6 +219298,10 @@
 | ID
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SIMSHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result

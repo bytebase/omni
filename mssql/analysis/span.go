@@ -134,7 +134,7 @@ func (e *LinkedServerError) Error() string {
 type NotFoundError = analysis.ResourceNotFoundError
 
 // TypeNotSupportedError reports a construct whose lineage is not modeled,
-// such as a PIVOT table source.
+// such as a table source the resolver does not model.
 type TypeNotSupportedError = analysis.TypeNotSupportedError
 
 // ErrMixUserSystemTables reports a statement that reads user and system

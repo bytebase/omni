@@ -103,20 +103,53 @@ func TestAddColumnDefaultTypeMismatchRollsBackColumn(t *testing.T) {
 	}
 }
 
+// An identity column takes another integer type, and its sequence with it;
+// programs/simulate.tsv's programs@identity rows hold this to PostgreSQL.
 func TestAlterColumnTypeOnIdentityColumn(t *testing.T) {
-	c := New()
-	c.DefineRelation(makeCreateTableStmt("", "t", []ColumnDef{
-		{Name: "id", Type: TypeName{Name: "int4", TypeMod: -1}},
-	}, nil, false), 'r')
-
-	// Manually mark column as identity (ALWAYS).
+	c, err := LoadSQL("CREATE TABLE t (id int GENERATED ALWAYS AS IDENTITY);\nCREATE SEQUENCE extra AS int OWNED BY t.id;")
+	if err != nil {
+		t.Fatal(err)
+	}
+	results, err := c.Exec("ALTER TABLE t ALTER COLUMN id TYPE bigint;\nALTER TABLE t ALTER COLUMN id TYPE numeric;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("results = %d, want 2", len(results))
+	}
+	if results[0].Error != nil {
+		t.Errorf("bigint: %v", results[0].Error)
+	}
 	rel := c.GetRelation("", "t")
-	rel.Columns[0].Identity = 'a'
+	seq, err := c.findIdentitySequence(rel, rel.Columns[0].AttNum)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if seq.Name != "t_id_seq" || seq.TypeOID != INT8OID {
+		t.Errorf("identity sequence %s type = %d, want t_id_seq bigint", seq.Name, seq.TypeOID)
+	}
+	if extra, err := c.findSequence("", "extra"); err != nil || extra.TypeOID != INT4OID {
+		t.Errorf("sequence OWNED BY the column: %v, %+v; want it left integer", err, extra)
+	}
+	assertErrorCode(t, results[1].Error, CodeInvalidParameterValue)
+	if rel.Columns[0].TypeOID != INT8OID {
+		t.Errorf("column type after the refused change = %d, want bigint", rel.Columns[0].TypeOID)
+	}
 
-	err := c.AlterTableStmt(makeAlterTableStmt("", "t",
-		makeATAlterColumnType("id", TypeName{Name: "int8", TypeMod: -1}),
-	))
-	assertErrorCode(t, err, CodeInvalidObjectDefinition)
+	// The sequence refuses a type its bounds do not fit, after the column
+	// has changed: the change is undone.
+	c, err = LoadSQL("CREATE TABLE t (id int GENERATED ALWAYS AS IDENTITY (MAXVALUE 100000));")
+	if err != nil {
+		t.Fatal(err)
+	}
+	results, err = c.Exec("ALTER TABLE t ALTER COLUMN id TYPE smallint;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertErrorCode(t, results[0].Error, CodeInvalidParameterValue)
+	if rel := c.GetRelation("", "t"); rel.Columns[0].TypeOID != INT4OID {
+		t.Errorf("column type after the refused narrowing = %d, want integer", rel.Columns[0].TypeOID)
+	}
 }
 
 func TestAlterColumnTypeWithDependentView(t *testing.T) {

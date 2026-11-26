@@ -339,19 +339,21 @@ func (p *parser) parseCreateTableStatement() error {
 //	| KW_LIKE KW_FILE format=identifier uri=StringLiteral
 //	| KW_LIKE likeName=tableName
 //
-// Note: in Hive 4.0.1's CreateDDLParser.g, the syntactic predicate
-// `(KW_LIKE KW_FILE) => KW_LIKE KW_FILE` is ordered BEFORE the 4-token form,
-// so ANTLR 3 matches bare `LIKE FILE` (and rejects `LIKE FILE fmt 'uri'`)!
-// Wait: let's match Hive's actual grammar order and verify against live Hive!
+// HiveParser.g decides with k=3 and no backtracking (HiveParser.g:24-25), so
+// the token after LIKE FILE picks the form: one that can be an identifier
+// commits to `format uri`, even where it would begin the next clause
+// (Hive 4.0.1 refuses LIKE FILE STORED BY 'x' and LIKE FILE TBLPROPERTIES
+// (...)); anything else, or the end, is bare LIKE FILE.
 func (p *parser) parseLikeTableOrFile() error {
 	if _, err := p.expect(KW_LIKE); err != nil {
 		return err
 	}
 	if p.peek().Type == KW_FILE && p.peekAt(1).Type != TokDot {
 		p.next()
-		// Note: if format + uri follow, we'll check whether live Hive accepts or rejects.
-		if isIdentifier(p.peek().Type) && p.peekAt(1).Type == TokStringLiteral {
-			p.pos += 2
+		if isIdentifier(p.peek().Type) {
+			p.next()
+			_, err := p.expect(TokStringLiteral)
+			return err
 		}
 		return nil
 	}

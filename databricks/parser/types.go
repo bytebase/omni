@@ -1514,7 +1514,7 @@ func (p *Parser) parsePartitionFieldList() (bool, error) {
 	if _, err := p.expect(tokLParen); err != nil {
 		return false, err
 	}
-	hasTypedCol := false
+	hasTypedCol, hasTransform := false, false
 	for {
 		typed, err := p.parsePartitionField()
 		if err != nil {
@@ -1522,13 +1522,23 @@ func (p *Parser) parsePartitionFieldList() (bool, error) {
 		}
 		if typed {
 			hasTypedCol = true
+		} else {
+			hasTransform = true
 		}
 		if !p.match(tokComma) {
 			break
 		}
 	}
-	_, err := p.expect(tokRParen)
-	return hasTypedCol, err
+	if _, err := p.expect(tokRParen); err != nil {
+		return false, err
+	}
+	// AstBuilder.partitionExpressions (Spark v4.0.5) refuses a list holding
+	// both a transform and a typed column: "PARTITION BY: Cannot mix
+	// partition expressions and partition columns".
+	if hasTypedCol && hasTransform {
+		return false, p.errorf("PARTITION BY: cannot mix partition expressions and partition columns")
+	}
+	return hasTypedCol, nil
 }
 
 func (p *Parser) parsePartitionField() (bool, error) {

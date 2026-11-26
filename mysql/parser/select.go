@@ -2032,6 +2032,9 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := p.parseTypeCollate(typeName); err != nil {
+		return nil, err
+	}
 	col.TypeName = typeName
 
 	// EXISTS PATH

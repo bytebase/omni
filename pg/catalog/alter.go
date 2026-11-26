@@ -359,7 +359,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	// catalog state (preserving pre-existing object pointer identities on
 	// restore) whenever multiple subcommands run or a command recurses to
 	// child relations.
-	needsRollback := len(pending) > 1 || (recurse && len(c.findChildRelations(rel.OID)) > 0)
+	needsRollback := len(pending) > 1 || (recurse && len(c.findChildRelations(rel.OID)) > 0) || retypesIdentity(rel, pending)
 	restore := func() {}
 	if needsRollback {
 		restore = c.snapshotForAlterRollback()
@@ -3218,6 +3218,21 @@ func (c *Catalog) prepAlterColumnUsing(rel *Relation, relName string, atc *nodes
 	return c.analyzeAlterColumnTransform(cd.RawDefault, rel)
 }
 
+// retypesIdentity reports whether one of pending changes the type of an
+// identity column, whose sequence then takes the type and may refuse it
+// after the column has changed.
+func retypesIdentity(rel *Relation, pending []pendingATCmd) bool {
+	for _, p := range pending {
+		if nodes.AlterTableType(p.cmd.Subtype) != nodes.AT_AlterColumnType {
+			continue
+		}
+		if ci, ok := rel.colByName[p.cmd.Name]; ok && rel.Columns[ci].Identity != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // atAlterColumnType changes the type of a column. using is the analyzed USING
 // expression, which must cast to the new type by assignment; without one the
 // column itself must.
@@ -3243,11 +3258,6 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 				}
 			}
 		}
-	}
-
-	// Block if column is an identity column.
-	if col.Identity != 0 {
-		return errInvalidObjectDefinition("cannot alter type of a column used as identity")
 	}
 
 	// Block if a view, a generated column or a trigger reads this column.
@@ -3355,6 +3365,15 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 		}
 	}
 
+	// An identity column's sequence takes the new type, so it must be an
+	// integer type.
+	// pg: src/backend/commands/sequence.c — init_params (for_identity)
+	if col.Identity != 0 {
+		if _, err := identitySequenceTypeOID(newOID); err != nil {
+			return err
+		}
+	}
+
 	oldTypeOID := col.TypeOID
 	oldUserCollOID := col.UserCollationOID
 	col.TypeOID = newOID
@@ -3410,6 +3429,16 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 	// pg: ATExecAlterColumnType rebuilds the attribute tuple without preserving attcompression.
 	col.Compression = 0
 
+	// An identity column's sequence takes the new type. A partition's
+	// column may run its parent's sequence.
+	// pg: src/backend/commands/tablecmds.c — ATExecAlterColumnType (attidentity)
+	if seq := c.identitySequenceOf(rel, col.AttNum); col.Identity != 0 && seq != nil {
+		return c.AlterSequenceStmt(&nodes.AlterSeqStmt{
+			Sequence:    &nodes.RangeVar{Schemaname: seq.Schema.Name, Relname: seq.Name},
+			Options:     &nodes.List{Items: []nodes.Node{&nodes.DefElem{Defname: "as", Arg: cd.TypeName}}},
+			ForIdentity: true,
+		})
+	}
 	return nil
 }
 

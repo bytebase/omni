@@ -32,29 +32,37 @@ func TestWalkSimulation(t *testing.T) {
 		// or shell type, an enum with no labels), a tablespace, a role, an
 		// aggregate (which ROUTINE and COMMENT ON FUNCTION also name), a
 		// policy, an operator class, operator, access method or collation,
-		// PostgreSQL 18's NOT NULL constraint names, and a typed table's
-		// type. parser/testdata/compat.tsv repeats each statement once per
+		// PostgreSQL 18's NOT NULL constraint names (which hide any other
+		// missing constraint's name on a table with a NOT NULL column), and
+		// a typed table's type. Left too are a coercion a cast could allow
+		// (42804) and what the catalog raises 0A000 for.
+		// parser/testdata/compat.tsv repeats each statement once per
 		// optional clause, so these are most of the misses.
-		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.9116},
-		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.9099},
+		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.9125},
+		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.9106},
 		// The view queries the walk misses are what pg/catalog refuses with a
 		// code catalogCodes leaves out: a missing type, function, tablesample
 		// method or schema, and a coercion a cast could allow.
 		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 0.988},
 		{"pg18_queries", filepath.Join("..", "catalog", "testdata", "pg18", "queries", "simulate.tsv"), 0.988},
 		// Functions, procedures, triggers, event triggers, CALL and DO on
-		// programs@objects, quoted type names on programs@quoted, and ALTER
-		// COLUMN TYPE ... USING on programs@retype and programs@generated.
-		// pg/catalog checks a routine's body; what is left is a missing name
-		// in one (42P01, 42703, 42704, 42883), a missing column type such as
-		// a quoted "integer" (42704), a retyped column, default or USING
-		// result that does not cast to the new type (42804, 42846, 22P02),
-		// what a USING expression may not hold (42703, 42704, 0A000, 42803,
-		// 42P20, 42P02, 42611 on a generated column), dependencies on a
-		// dropped table or column (2BP01), and what a catalog loaded from a
-		// snapshot does not hold: a procedure's identity, an event trigger.
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.427},
-		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.427},
+		// programs@objects, quoted type names on programs@quoted, ALTER
+		// COLUMN TYPE ... USING on programs@retype and programs@generated,
+		// and identity columns' types on programs@identity. What the walk
+		// misses is what the sync does not list: a type, such as a quoted
+		// "integer", which a domain may supply (42704); a role, language or
+		// event trigger (42704, 42710, 2BP01, 0A000); a relation, column or
+		// function a body names, which a catalog loaded from a snapshot
+		// takes as present (42P01, 42703, 42883); a cast a retype, a
+		// return or a call may use (42804, 42846, 42P13, and a CALL's 42809
+		// on an argument of a known type); a function called in attribute
+		// notation (NEW.f for f(NEW)) or a domain in a schema named as a
+		// table (a.b%TYPE), for a qualified column (42703). Left too are a
+		// built-in name a user routine may shadow (42803, 42P20), PL/pgSQL
+		// condition names, which share 42704, and what the catalog raises
+		// 0A000 or 22023 for.
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.543},
+		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.543},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{
@@ -235,7 +243,7 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog, definitions map[[2]string][]strin
 			if am == "" {
 				am = "btree"
 			}
-			var keyParts []string
+			var keyParts, keyExprs []string
 			exprIdx := 0
 			nkey := idx.NKeyColumns
 			if nkey <= 0 || nkey > len(idx.Columns) {
@@ -245,8 +253,10 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog, definitions map[[2]string][]strin
 				if attnum == 0 {
 					if exprIdx < len(idx.Exprs) && idx.Exprs[exprIdx] != "" {
 						keyParts = append(keyParts, "("+idx.Exprs[exprIdx]+")")
+						keyExprs = append(keyExprs, idx.Exprs[exprIdx])
 					} else {
 						keyParts = append(keyParts, "(1)")
+						keyExprs = append(keyExprs, "1")
 					}
 					exprIdx++
 					continue
@@ -254,6 +264,7 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog, definitions map[[2]string][]strin
 				for _, col := range rel.Columns {
 					if col.AttNum == attnum {
 						keyParts = append(keyParts, ident(col.Name))
+						keyExprs = append(keyExprs, ident(col.Name))
 						break
 					}
 				}
@@ -266,7 +277,9 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog, definitions map[[2]string][]strin
 				Unique:       idx.IsUnique,
 				Primary:      idx.IsPrimary,
 				IsConstraint: idx.ConstraintOID != 0,
-				Definition:   "CREATE " + unique + "INDEX " + ident(idx.Name) + " ON " + only + ident(schemaName) + "." + ident(rel.Name) + " USING " + ident(am) + " (" + strings.Join(keyParts, ", ") + ")",
+				// The sync's key columns, each as pg_get_indexdef states it.
+				Expressions: keyExprs,
+				Definition:  "CREATE " + unique + "INDEX " + ident(idx.Name) + " ON " + only + ident(schemaName) + "." + ident(rel.Name) + " USING " + ident(am) + " (" + strings.Join(keyParts, ", ") + ")",
 			})
 		}
 		return out
@@ -371,16 +384,23 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog, definitions map[[2]string][]strin
 				for _, con := range c.ConstraintsOf(rel.OID) {
 					switch con.Type {
 					case pgcatalog.ConstraintFK:
-						fk := &metadata.ForeignKeyMetadata{Name: con.Name}
+						fk := &metadata.ForeignKeyMetadata{
+							Name:      con.Name,
+							Columns:   attNames(rel, con.Columns),
+							OnDelete:  fkActions[con.FKDelAction],
+							OnUpdate:  fkActions[con.FKUpdAction],
+							MatchType: fkMatches[con.FKMatchType],
+						}
 						if ref := c.GetRelationByOID(con.FRelOID); ref != nil {
 							fk.ReferencedTable = ref.Name
+							fk.ReferencedColumns = attNames(ref, con.FColumns)
 							if ref.Schema != nil {
 								fk.ReferencedSchema = ref.Schema.Name
 							}
 						}
 						tbl.ForeignKeys = append(tbl.ForeignKeys, fk)
 					case pgcatalog.ConstraintCheck:
-						tbl.CheckConstraints = append(tbl.CheckConstraints, &metadata.CheckConstraintMetadata{Name: con.Name})
+						tbl.CheckConstraints = append(tbl.CheckConstraints, &metadata.CheckConstraintMetadata{Name: con.Name, Expression: "(" + con.CheckExpr + ")"})
 					case pgcatalog.ConstraintExclude:
 						tbl.ExcludeConstraints = append(tbl.ExcludeConstraints, &metadata.ExcludeConstraintMetadata{Name: con.Name})
 					}
@@ -531,4 +551,25 @@ func pgCatalogInventory(c *pgcatalog.Catalog) []walktest.Object {
 		}
 	}
 	return objects
+}
+
+// fkActions and fkMatches name a foreign key's actions and match type as
+// the sync states them.
+var (
+	fkActions = map[byte]string{'a': "NO ACTION", 'r': "RESTRICT", 'c': "CASCADE", 'n': "SET NULL", 'd': "SET DEFAULT"}
+	fkMatches = map[byte]string{'s': "SIMPLE", 'f': "FULL", 'p': "PARTIAL"}
+)
+
+// attNames names rel's columns by attnum.
+func attNames(rel *pgcatalog.Relation, attnums []int16) []string {
+	var names []string
+	for _, attnum := range attnums {
+		for _, col := range rel.Columns {
+			if col.AttNum == attnum {
+				names = append(names, col.Name)
+				break
+			}
+		}
+	}
+	return names
 }

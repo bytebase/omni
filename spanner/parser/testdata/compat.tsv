@@ -110,6 +110,7 @@ reject	reject	engine	unterminated_script_statement/label_COLON_unterminated_unla
 reject	reject	engine	unterminated_script_statement/label_COLON_unterminated_unlabeled_script_statement_opt~ae0196b9!drop-4	a : BEGIN
 reject	reject	engine	unterminated_script_statement/label_COLON_unterminated_unlabeled_script_statement_opt~ae0196b9!insert	a : BEGIN END zzz
 reject	reject	engine	unterminated_script_statement/label_COLON_unterminated_unlabeled_script_statement_opt~ae0196b9!swap	a : BETWEEN END
+reject	reject	engine	unterminated_script_statement/label_COLON_unterminated_unlabeled_script_statement_opt~ae0196b9+opt_identifier	a : BEGIN END a
 accept	accept	engine	sql_statement_body/sql_statement_body_no_pipe_suffix	BEGIN
 accept	accept	engine	sql_statement_body/sql_statement_body_maybe_pipe_suffix_(pipe_and_pipe_operator)*	DESCRIBE a
 reject	reject	engine	sql_statement_body/sql_statement_body_maybe_pipe_suffix_(pipe_and_pipe_operator)*!drop-1	a
@@ -1283,6 +1284,7 @@ accept	accept	engine	rollback_statement(TRANSACTION)?/TRANSACTION	ROLLBACK TRANS
 reject	reject	engine	rollback_statement(TRANSACTION)?/TRANSACTION!insert	ROLLBACK TRANSACTION zzz
 reject	reject	engine	rollback_statement(TRANSACTION)?/TRANSACTION!swap	ROLLBACK TRANSFORM
 accept	accept	engine	start_batch_statement/START_BATCH_opt_identifier	START BATCH
+accept	accept	engine	start_batch_statement/START_BATCH_opt_identifier+opt_identifier	START BATCH a
 accept	accept	engine	run_batch_statement/RUN_BATCH	RUN BATCH
 accept	accept	engine	abort_batch_statement/ABORT_BATCH	ABORT BATCH
 reject	reject	engine	create_constant_statement/CREATE_opt_or_replace_opt_create_scope_CONSTANT_opt_if_~58fe3a68	CREATE CONSTANT a = NULL
@@ -1620,6 +1622,7 @@ reject	reject	engine	create_row_access_policy_statement/CREATE_opt_or_replace_RO
 reject	reject	engine	create_row_access_policy_statement/CREATE_opt_or_replace_ROW_opt_access_POLICY_opt_if_not_~bbea9e15+opt_if_not_exists!drop-4	CREATE ROW POLICY NOT EXISTS ON a USING(NULL)
 reject	reject	engine	create_row_access_policy_statement/CREATE_opt_or_replace_ROW_opt_access_POLICY_opt_if_not_~bbea9e15+opt_if_not_exists!drop-5	CREATE ROW POLICY IF EXISTS ON a USING(NULL)
 reject	reject	engine	create_row_access_policy_statement/CREATE_opt_or_replace_ROW_opt_access_POLICY_opt_if_not_~bbea9e15+opt_if_not_exists!drop-6	CREATE ROW POLICY IF NOT ON a USING(NULL)
+reject	reject	engine	create_row_access_policy_statement/CREATE_opt_or_replace_ROW_opt_access_POLICY_opt_if_not_~bbea9e15+opt_identifier	CREATE ROW POLICY a ON a USING(NULL)
 reject	reject	engine	create_row_access_policy_statement(create_row_access_policy_grant_to_clause)?/%empty	CREATE ROW POLICY ON a USING(NULL)
 reject	reject	engine	create_row_access_policy_statement(create_row_access_policy_grant_to_clause)?/create_row_access_policy_grant_to_clause	CREATE ROW POLICY ON a TO 'a' USING(NULL)
 reject	reject	engine	with_partition_columns_clause/WITH_PARTITION_COLUMNS_opt_table_element_list	CREATE EXTERNAL TABLE a WITH PARTITION COLUMNS OPTIONS()
@@ -1629,6 +1632,9 @@ reject	reject	engine	with_partition_columns_clause/WITH_PARTITION_COLUMNS_opt_ta
 reject	reject	engine	with_partition_columns_clause/WITH_PARTITION_COLUMNS_opt_table_element_list!truncate	CREATE EXTERNAL TABLE a WITH PARTITION
 reject	reject	engine	with_partition_columns_clause/WITH_PARTITION_COLUMNS_opt_table_element_list!insert	CREATE EXTERNAL TABLE a WITH PARTITION COLUMNS zzz OPTIONS()
 reject	reject	engine	with_partition_columns_clause/WITH_PARTITION_COLUMNS_opt_table_element_list!swap	CREATE EXTERNAL TABLE a WRITE PARTITION COLUMNS OPTIONS()
+reject	reject	engine	with_partition_columns_clause/WITH_PARTITION_COLUMNS_opt_table_element_list+opt_table_element_list	CREATE EXTERNAL TABLE a WITH PARTITION COLUMNS() OPTIONS()
+reject	reject	engine	with_partition_columns_clause/WITH_PARTITION_COLUMNS_opt_table_element_list+opt_table_element_list!drop-4	CREATE EXTERNAL TABLE a WITH PARTITION COLUMNS) OPTIONS()
+reject	reject	engine	with_partition_columns_clause/WITH_PARTITION_COLUMNS_opt_table_element_list+opt_table_element_list!drop-5	CREATE EXTERNAL TABLE a WITH PARTITION COLUMNS(OPTIONS()
 accept	accept	engine	with_connection_clause/WITH_connection_clause	|> EXPORT DATA WITH CONNECTION a
 reject	reject	engine	with_connection_clause/WITH_connection_clause!drop-1	|> EXPORT DATA CONNECTION a
 reject	reject	engine	with_connection_clause/WITH_connection_clause!drop-2	|> EXPORT DATA WITH a
@@ -1888,7 +1894,15 @@ reject	reject	engine	element_table_definition(dynamic_label_and_properties)?/dyn
 reject	reject	engine	element_table_definition(dynamic_label_and_properties)?/dynamic_label_and_properties!swap	CREATE PROPERTY GRAPH a NODE TABLES(a EDGE LABEL(NULL))
 accept	accept	engine	key_clause/KEY_column_list	CREATE PROPERTY GRAPH a NODE TABLES(a KEY(a))
 accept	accept	engine	source_node_table_clause/SOURCE_KEY_column_list_REFERENCES_identifier_opt_column_list	CREATE PROPERTY GRAPH a NODE TABLES(a SOURCE KEY(a) REFERENCES a)
+accept	accept	engine	source_node_table_clause/SOURCE_KEY_column_list_REFERENCES_identifier_opt_column_list+opt_column_list	CREATE PROPERTY GRAPH a NODE TABLES(a SOURCE KEY(a) REFERENCES a(a))
+reject	reject	engine	source_node_table_clause/SOURCE_KEY_column_list_REFERENCES_identifier_opt_column_list+opt_column_list!drop-8	CREATE PROPERTY GRAPH a NODE TABLES(a SOURCE KEY(a) REFERENCES a a))
+reject	reject	engine	source_node_table_clause/SOURCE_KEY_column_list_REFERENCES_identifier_opt_column_list+opt_column_list!drop-9	CREATE PROPERTY GRAPH a NODE TABLES(a SOURCE KEY(a) REFERENCES a())
+reject	reject	engine	source_node_table_clause/SOURCE_KEY_column_list_REFERENCES_identifier_opt_column_list+opt_column_list!drop-10	CREATE PROPERTY GRAPH a NODE TABLES(a SOURCE KEY(a) REFERENCES a(a)
 accept	accept	engine	dest_node_table_clause/DESTINATION_KEY_column_list_REFERENCES_identifier_opt_c~0b00cf02	CREATE PROPERTY GRAPH a NODE TABLES(a DESTINATION KEY(a) REFERENCES a)
+accept	accept	engine	dest_node_table_clause/DESTINATION_KEY_column_list_REFERENCES_identifier_opt_c~0b00cf02+opt_column_list	CREATE PROPERTY GRAPH a NODE TABLES(a DESTINATION KEY(a) REFERENCES a(a))
+reject	reject	engine	dest_node_table_clause/DESTINATION_KEY_column_list_REFERENCES_identifier_opt_c~0b00cf02+opt_column_list!drop-8	CREATE PROPERTY GRAPH a NODE TABLES(a DESTINATION KEY(a) REFERENCES a a))
+reject	reject	engine	dest_node_table_clause/DESTINATION_KEY_column_list_REFERENCES_identifier_opt_c~0b00cf02+opt_column_list!drop-9	CREATE PROPERTY GRAPH a NODE TABLES(a DESTINATION KEY(a) REFERENCES a())
+reject	reject	engine	dest_node_table_clause/DESTINATION_KEY_column_list_REFERENCES_identifier_opt_c~0b00cf02+opt_column_list!drop-10	CREATE PROPERTY GRAPH a NODE TABLES(a DESTINATION KEY(a) REFERENCES a(a)
 accept	accept	engine	edge_table_clause/EDGE_TABLES_element_table_list	CREATE PROPERTY GRAPH a NODE TABLES(a) EDGE TABLES(a)
 accept	accept	engine	opt_label_and_properties_clause/%empty	CREATE PROPERTY GRAPH a NODE TABLES(a)
 accept	accept	engine	opt_label_and_properties_clause/properties_clause	CREATE PROPERTY GRAPH a NODE TABLES(a NO PROPERTIES)
@@ -2058,6 +2072,10 @@ accept	accept	engine	create_schema_statement/CREATE_opt_or_replace_SCHEMA_opt_if
 reject	reject	engine	create_schema_statement/CREATE_opt_or_replace_SCHEMA_opt_if_not_exists_path_exp~8a120e57+opt_if_not_exists!drop-3	CREATE SCHEMA NOT EXISTS a
 reject	reject	engine	create_schema_statement/CREATE_opt_or_replace_SCHEMA_opt_if_not_exists_path_exp~8a120e57+opt_if_not_exists!drop-4	CREATE SCHEMA IF EXISTS a
 reject	reject	engine	create_schema_statement/CREATE_opt_or_replace_SCHEMA_opt_if_not_exists_path_exp~8a120e57+opt_if_not_exists!drop-5	CREATE SCHEMA IF NOT a
+reject	reject	engine	create_schema_statement/CREATE_opt_or_replace_SCHEMA_opt_if_not_exists_path_exp~8a120e57+opt_default_collate_clause	CREATE SCHEMA a DEFAULT COLLATE 'a'
+reject	reject	engine	create_schema_statement/CREATE_opt_or_replace_SCHEMA_opt_if_not_exists_path_exp~8a120e57+opt_default_collate_clause!drop-4	CREATE SCHEMA a COLLATE 'a'
+reject	reject	engine	create_schema_statement/CREATE_opt_or_replace_SCHEMA_opt_if_not_exists_path_exp~8a120e57+opt_default_collate_clause!drop-5	CREATE SCHEMA a DEFAULT 'a'
+reject	reject	engine	create_schema_statement/CREATE_opt_or_replace_SCHEMA_opt_if_not_exists_path_exp~8a120e57+opt_default_collate_clause!drop-6	CREATE SCHEMA a DEFAULT COLLATE
 reject	reject	engine	create_schema_statement/CREATE_opt_or_replace_SCHEMA_opt_if_not_exists_path_exp~8a120e57+opt_options_list	CREATE SCHEMA a OPTIONS()
 reject	reject	engine	create_schema_statement/CREATE_opt_or_replace_SCHEMA_opt_if_not_exists_path_exp~8a120e57+opt_options_list!drop-4	CREATE SCHEMA a()
 reject	reject	engine	create_schema_statement/CREATE_opt_or_replace_SCHEMA_opt_if_not_exists_path_exp~8a120e57+opt_options_list!drop-5	CREATE SCHEMA a OPTIONS)
@@ -2076,6 +2094,10 @@ reject	reject	engine	create_external_schema_statement/CREATE_opt_or_replace_opt_
 reject	reject	engine	create_external_schema_statement/CREATE_opt_or_replace_opt_create_scope_EXTERNAL_SCHEMA_~969c467c+opt_if_not_exists!drop-4	CREATE EXTERNAL SCHEMA NOT EXISTS a OPTIONS()
 reject	reject	engine	create_external_schema_statement/CREATE_opt_or_replace_opt_create_scope_EXTERNAL_SCHEMA_~969c467c+opt_if_not_exists!drop-5	CREATE EXTERNAL SCHEMA IF EXISTS a OPTIONS()
 reject	reject	engine	create_external_schema_statement/CREATE_opt_or_replace_opt_create_scope_EXTERNAL_SCHEMA_~969c467c+opt_if_not_exists!drop-6	CREATE EXTERNAL SCHEMA IF NOT a OPTIONS()
+reject	reject	engine	create_external_schema_statement/CREATE_opt_or_replace_opt_create_scope_EXTERNAL_SCHEMA_~969c467c+opt_with_connection_clause	CREATE EXTERNAL SCHEMA a WITH CONNECTION a OPTIONS()
+reject	reject	engine	create_external_schema_statement/CREATE_opt_or_replace_opt_create_scope_EXTERNAL_SCHEMA_~969c467c+opt_with_connection_clause!drop-5	CREATE EXTERNAL SCHEMA a CONNECTION a OPTIONS()
+reject	reject	engine	create_external_schema_statement/CREATE_opt_or_replace_opt_create_scope_EXTERNAL_SCHEMA_~969c467c+opt_with_connection_clause!drop-6	CREATE EXTERNAL SCHEMA a WITH a OPTIONS()
+reject	reject	engine	create_external_schema_statement/CREATE_opt_or_replace_opt_create_scope_EXTERNAL_SCHEMA_~969c467c+opt_with_connection_clause!drop-7	CREATE EXTERNAL SCHEMA a WITH CONNECTION OPTIONS()
 reject	reject	engine	create_connection_statement/CREATE_opt_or_replace_CONNECTION_opt_if_not_exists_path~066be13d	CREATE CONNECTION a
 reject	reject	engine	create_connection_statement/CREATE_opt_or_replace_CONNECTION_opt_if_not_exists_path~066be13d+opt_or_replace	CREATE OR REPLACE CONNECTION a
 reject	reject	engine	create_connection_statement/CREATE_opt_or_replace_CONNECTION_opt_if_not_exists_path~066be13d+opt_or_replace!drop-2	CREATE REPLACE CONNECTION a
@@ -2229,6 +2251,10 @@ reject	reject	engine	create_table_statement_prefix/CREATE_opt_or_replace_opt_cre
 reject	reject	engine	create_table_statement_prefix/CREATE_opt_or_replace_opt_create_scope_TABLE_opt_if_not~f14d3875+opt_if_not_exists!drop-3	CREATE TABLE NOT EXISTS a
 reject	reject	engine	create_table_statement_prefix/CREATE_opt_or_replace_opt_create_scope_TABLE_opt_if_not~f14d3875+opt_if_not_exists!drop-4	CREATE TABLE IF EXISTS a
 reject	reject	engine	create_table_statement_prefix/CREATE_opt_or_replace_opt_create_scope_TABLE_opt_if_not~f14d3875+opt_if_not_exists!drop-5	CREATE TABLE IF NOT a
+reject	reject	engine	create_table_statement_prefix/CREATE_opt_or_replace_opt_create_scope_TABLE_opt_if_not~f14d3875+opt_with_connection_clause	CREATE TABLE a WITH CONNECTION a
+reject	reject	engine	create_table_statement_prefix/CREATE_opt_or_replace_opt_create_scope_TABLE_opt_if_not~f14d3875+opt_with_connection_clause!drop-4	CREATE TABLE a CONNECTION a
+reject	reject	engine	create_table_statement_prefix/CREATE_opt_or_replace_opt_create_scope_TABLE_opt_if_not~f14d3875+opt_with_connection_clause!drop-5	CREATE TABLE a WITH a
+reject	reject	engine	create_table_statement_prefix/CREATE_opt_or_replace_opt_create_scope_TABLE_opt_if_not~f14d3875+opt_with_connection_clause!drop-6	CREATE TABLE a WITH CONNECTION
 reject	reject	engine	create_table_statement_prefix/CREATE_opt_or_replace_opt_create_scope_TABLE_opt_if_not~f14d3875+opt_options_list	CREATE TABLE a OPTIONS()
 reject	reject	engine	create_table_statement_prefix/CREATE_opt_or_replace_opt_create_scope_TABLE_opt_if_not~f14d3875+opt_options_list!drop-5	CREATE TABLE a OPTIONS)
 reject	reject	engine	create_table_statement_prefix/CREATE_opt_or_replace_opt_create_scope_TABLE_opt_if_not~f14d3875+opt_options_list!drop-6	CREATE TABLE a OPTIONS(
@@ -2460,6 +2486,12 @@ reject	reject	engine	map_column_schema_inner/MAP_template_type_open_field_schema
 reject	reject	engine	struct_column_field/column_schema_inner_opt_collate_clause_opt_field_attributes	ALTER a ADD COLUMN a STRUCT < a >
 reject	reject	engine	struct_column_field/column_schema_inner_opt_collate_clause_opt_field_attributes!truncate	ALTER a ADD COLUMN a STRUCT <
 reject	reject	engine	struct_column_field/column_schema_inner_opt_collate_clause_opt_field_attributes!insert	ALTER a ADD COLUMN a STRUCT < a zzz >
+reject	reject	engine	struct_column_field/column_schema_inner_opt_collate_clause_opt_field_attributes+opt_collate_clause	ALTER a ADD COLUMN a STRUCT < a COLLATE 'a' >
+reject	reject	engine	struct_column_field/column_schema_inner_opt_collate_clause_opt_field_attributes+opt_collate_clause!drop-2	ALTER a ADD COLUMN a STRUCT < a 'a' >
+reject	reject	engine	struct_column_field/column_schema_inner_opt_collate_clause_opt_field_attributes+opt_collate_clause!drop-3	ALTER a ADD COLUMN a STRUCT < a COLLATE >
+reject	reject	engine	struct_column_field/column_schema_inner_opt_collate_clause_opt_field_attributes+opt_field_attributes	ALTER a ADD COLUMN a STRUCT < a NOT NULL >
+reject	reject	engine	struct_column_field/column_schema_inner_opt_collate_clause_opt_field_attributes+opt_field_attributes!drop-2	ALTER a ADD COLUMN a STRUCT < a NULL >
+reject	reject	engine	struct_column_field/column_schema_inner_opt_collate_clause_opt_field_attributes+opt_field_attributes!drop-3	ALTER a ADD COLUMN a STRUCT < a NOT >
 reject	reject	engine	struct_column_field/identifier_field_schema	ALTER a ADD COLUMN a STRUCT < a a >
 reject	reject	engine	struct_column_field/identifier_field_schema!truncate	ALTER a ADD COLUMN a STRUCT < a
 reject	reject	engine	struct_column_field/identifier_field_schema!insert	ALTER a ADD COLUMN a STRUCT < a a zzz >
@@ -2645,6 +2677,9 @@ reject	reject	engine	opt_column_info/%empty	ALTER a ADD COLUMN a a
 reject	reject	engine	field_schema/column_schema_inner_opt_collate_clause_opt_field_attrib~ec83ed3d	ALTER a ADD COLUMN a ARRAY < a >
 reject	reject	engine	field_schema/column_schema_inner_opt_collate_clause_opt_field_attrib~ec83ed3d!truncate	ALTER a ADD COLUMN a ARRAY <
 reject	reject	engine	field_schema/column_schema_inner_opt_collate_clause_opt_field_attrib~ec83ed3d!insert	ALTER a ADD COLUMN a ARRAY < a zzz >
+reject	reject	engine	field_schema/column_schema_inner_opt_collate_clause_opt_field_attrib~ec83ed3d+opt_collate_clause	ALTER a ADD COLUMN a ARRAY < a COLLATE 'a' >
+reject	reject	engine	field_schema/column_schema_inner_opt_collate_clause_opt_field_attrib~ec83ed3d+opt_collate_clause!drop-2	ALTER a ADD COLUMN a ARRAY < a 'a' >
+reject	reject	engine	field_schema/column_schema_inner_opt_collate_clause_opt_field_attrib~ec83ed3d+opt_collate_clause!drop-3	ALTER a ADD COLUMN a ARRAY < a COLLATE >
 reject	reject	engine	field_schema/column_schema_inner_opt_collate_clause_opt_field_attrib~ec83ed3d+opt_options_list	ALTER a ADD COLUMN a ARRAY < a OPTIONS() >
 reject	reject	engine	field_schema/column_schema_inner_opt_collate_clause_opt_field_attrib~ec83ed3d+opt_options_list!drop-2	ALTER a ADD COLUMN a ARRAY < a() >
 reject	reject	engine	field_schema/column_schema_inner_opt_collate_clause_opt_field_attrib~ec83ed3d+opt_options_list!drop-3	ALTER a ADD COLUMN a ARRAY < a OPTIONS) >
@@ -2726,6 +2761,7 @@ reject	reject	engine	table_constraint_spec/FOREIGN_KEY_column_list_foreign_key_r
 reject	reject	engine	table_constraint_spec/FOREIGN_KEY_column_list_foreign_key_reference_opt_const~76caff1f!drop-10	ALTER a ADD FOREIGN KEY(a) REFERENCES a(a
 reject	reject	engine	table_constraint_spec/FOREIGN_KEY_column_list_foreign_key_reference_opt_const~76caff1f!insert	ALTER a ADD FOREIGN KEY(a) REFERENCES a(a) zzz
 reject	reject	engine	table_constraint_spec/FOREIGN_KEY_column_list_foreign_key_reference_opt_const~76caff1f!swap	ALTER a ADD FORK KEY(a) REFERENCES a(a)
+reject	reject	engine	table_constraint_spec/FOREIGN_KEY_column_list_foreign_key_reference_opt_const~76caff1f+opt_constraint_enforcement	ALTER a ADD FOREIGN KEY(a) REFERENCES a(a) ENFORCED
 reject	reject	engine	table_constraint_spec/FOREIGN_KEY_column_list_foreign_key_reference_opt_const~76caff1f+opt_options_list	ALTER a ADD FOREIGN KEY(a) REFERENCES a(a) OPTIONS()
 reject	reject	engine	table_constraint_spec/FOREIGN_KEY_column_list_foreign_key_reference_opt_const~76caff1f+opt_options_list!drop-11	ALTER a ADD FOREIGN KEY(a) REFERENCES a(a)()
 reject	reject	engine	table_constraint_spec/FOREIGN_KEY_column_list_foreign_key_reference_opt_const~76caff1f+opt_options_list!drop-12	ALTER a ADD FOREIGN KEY(a) REFERENCES a(a) OPTIONS)
@@ -2733,6 +2769,10 @@ reject	reject	engine	table_constraint_spec/FOREIGN_KEY_column_list_foreign_key_r
 reject	reject	engine	primary_key_element/identifier_opt_asc_or_desc_opt_null_order	CREATE TABLE a PRIMARY KEY(a)
 reject	reject	engine	primary_key_element/identifier_opt_asc_or_desc_opt_null_order!truncate	CREATE TABLE a PRIMARY KEY(
 reject	reject	engine	primary_key_element/identifier_opt_asc_or_desc_opt_null_order!insert	CREATE TABLE a PRIMARY KEY(a zzz)
+reject	reject	engine	primary_key_element/identifier_opt_asc_or_desc_opt_null_order+opt_asc_or_desc	CREATE TABLE a PRIMARY KEY(a ASC)
+reject	reject	engine	primary_key_element/identifier_opt_asc_or_desc_opt_null_order+opt_null_order	CREATE TABLE a PRIMARY KEY(a NULLS FIRST)
+reject	reject	engine	primary_key_element/identifier_opt_asc_or_desc_opt_null_order+opt_null_order!drop-2	CREATE TABLE a PRIMARY KEY(a FIRST)
+reject	reject	engine	primary_key_element/identifier_opt_asc_or_desc_opt_null_order+opt_null_order!drop-3	CREATE TABLE a PRIMARY KEY(a NULLS)
 reject	reject	engine	primary_key_element_list_prefix/(_primary_key_element	CREATE TABLE a PRIMARY KEY(a)
 reject	reject	engine	primary_key_element_list_prefix/(_primary_key_element!drop-1	CREATE TABLE a PRIMARY KEY a)
 reject	reject	engine	primary_key_element_list_prefix/primary_key_element_list_prefix_,_primary_key_element	CREATE TABLE a PRIMARY KEY(a, a)
@@ -2750,6 +2790,7 @@ reject	reject	engine	primary_key_element_list/(_)!drop-1	CREATE TABLE a PRIMARY 
 reject	reject	engine	primary_key_element_list/(_)!insert	CREATE TABLE a PRIMARY KEY() zzz
 reject	reject	engine	primary_key_spec/PRIMARY_KEY_primary_key_element_list_opt_constraint_enf~f7dae57b	ALTER a ADD PRIMARY KEY()
 reject	reject	engine	primary_key_spec/PRIMARY_KEY_primary_key_element_list_opt_constraint_enf~f7dae57b!swap	ALTER a ADD PRIVATE KEY()
+reject	reject	engine	primary_key_spec/PRIMARY_KEY_primary_key_element_list_opt_constraint_enf~f7dae57b+opt_constraint_enforcement	ALTER a ADD PRIMARY KEY() ENFORCED
 reject	reject	engine	primary_key_spec/PRIMARY_KEY_primary_key_element_list_opt_constraint_enf~f7dae57b+opt_options_list	ALTER a ADD PRIMARY KEY() OPTIONS()
 reject	reject	engine	primary_key_spec/PRIMARY_KEY_primary_key_element_list_opt_constraint_enf~f7dae57b+opt_options_list!drop-5	ALTER a ADD PRIMARY KEY()()
 reject	reject	engine	primary_key_spec/PRIMARY_KEY_primary_key_element_list_opt_constraint_enf~f7dae57b+opt_options_list!drop-6	ALTER a ADD PRIMARY KEY() OPTIONS)
@@ -2804,6 +2845,10 @@ reject	reject	engine	opt_foreign_key_actions/foreign_key_on_update_opt_foreign_k
 reject	reject	engine	opt_foreign_key_actions/foreign_key_on_update_opt_foreign_key_on_delete!drop-3	ALTER a ADD COLUMN a a REFERENCES a(a) ON UPDATE
 reject	reject	engine	opt_foreign_key_actions/foreign_key_on_update_opt_foreign_key_on_delete!insert	ALTER a ADD COLUMN a a REFERENCES a(a) ON UPDATE RESTRICT zzz
 reject	reject	engine	opt_foreign_key_actions/foreign_key_on_update_opt_foreign_key_on_delete!swap	ALTER a ADD COLUMN a a REFERENCES a(a) ONLY UPDATE RESTRICT
+reject	reject	engine	opt_foreign_key_actions/foreign_key_on_update_opt_foreign_key_on_delete+opt_foreign_key_on_delete	ALTER a ADD COLUMN a a REFERENCES a(a) ON UPDATE RESTRICT ON DELETE RESTRICT
+reject	reject	engine	opt_foreign_key_actions/foreign_key_on_update_opt_foreign_key_on_delete+opt_foreign_key_on_delete!drop-4	ALTER a ADD COLUMN a a REFERENCES a(a) ON UPDATE RESTRICT DELETE RESTRICT
+reject	reject	engine	opt_foreign_key_actions/foreign_key_on_update_opt_foreign_key_on_delete+opt_foreign_key_on_delete!drop-5	ALTER a ADD COLUMN a a REFERENCES a(a) ON UPDATE RESTRICT ON RESTRICT
+reject	reject	engine	opt_foreign_key_actions/foreign_key_on_update_opt_foreign_key_on_delete+opt_foreign_key_on_delete!drop-6	ALTER a ADD COLUMN a a REFERENCES a(a) ON UPDATE RESTRICT ON DELETE
 reject	reject	engine	opt_foreign_key_actions/foreign_key_on_delete_opt_foreign_key_on_update	ALTER a ADD COLUMN a a REFERENCES a(a) ON DELETE RESTRICT
 reject	reject	engine	opt_foreign_key_actions/foreign_key_on_delete_opt_foreign_key_on_update!drop-1	ALTER a ADD COLUMN a a REFERENCES a(a) DELETE RESTRICT
 reject	reject	engine	opt_foreign_key_actions/foreign_key_on_delete_opt_foreign_key_on_update!drop-3	ALTER a ADD COLUMN a a REFERENCES a(a) ON DELETE
@@ -2928,6 +2973,10 @@ reject	reject	engine	create_view_statement/CREATE_opt_or_replace_MATERIALIZED_(R
 reject	reject	engine	create_view_statement/CREATE_opt_or_replace_MATERIALIZED_(RECURSIVE)?_VIEW_op~a8bf6aab+opt_if_not_exists!drop-4	CREATE MATERIALIZED VIEW NOT EXISTS a AS SELECT NULL
 reject	reject	engine	create_view_statement/CREATE_opt_or_replace_MATERIALIZED_(RECURSIVE)?_VIEW_op~a8bf6aab+opt_if_not_exists!drop-5	CREATE MATERIALIZED VIEW IF EXISTS a AS SELECT NULL
 reject	reject	engine	create_view_statement/CREATE_opt_or_replace_MATERIALIZED_(RECURSIVE)?_VIEW_op~a8bf6aab+opt_if_not_exists!drop-6	CREATE MATERIALIZED VIEW IF NOT a AS SELECT NULL
+reject	reject	engine	create_view_statement/CREATE_opt_or_replace_MATERIALIZED_(RECURSIVE)?_VIEW_op~a8bf6aab+opt_partition_by_clause_no_hint	CREATE MATERIALIZED VIEW a PARTITION BY NULL AS SELECT NULL
+reject	reject	engine	create_view_statement/CREATE_opt_or_replace_MATERIALIZED_(RECURSIVE)?_VIEW_op~a8bf6aab+opt_partition_by_clause_no_hint!drop-5	CREATE MATERIALIZED VIEW a BY NULL AS SELECT NULL
+reject	reject	engine	create_view_statement/CREATE_opt_or_replace_MATERIALIZED_(RECURSIVE)?_VIEW_op~a8bf6aab+opt_partition_by_clause_no_hint!drop-6	CREATE MATERIALIZED VIEW a PARTITION NULL AS SELECT NULL
+reject	reject	engine	create_view_statement/CREATE_opt_or_replace_MATERIALIZED_(RECURSIVE)?_VIEW_op~a8bf6aab+opt_partition_by_clause_no_hint!drop-7	CREATE MATERIALIZED VIEW a PARTITION BY AS SELECT NULL
 reject	reject	engine	create_view_statement/CREATE_opt_or_replace_APPROX_(RECURSIVE)?_VIEW_opt_if_n~0152ee5b	CREATE APPROX VIEW a AS SELECT NULL
 reject	reject	engine	create_view_statement/CREATE_opt_or_replace_APPROX_(RECURSIVE)?_VIEW_opt_if_n~0152ee5b!drop-1	APPROX VIEW a AS SELECT NULL
 reject	reject	engine	create_view_statement/CREATE_opt_or_replace_APPROX_(RECURSIVE)?_VIEW_opt_if_n~0152ee5b!drop-3	CREATE APPROX a AS SELECT NULL
@@ -2975,7 +3024,6 @@ reject	reject	engine	create_view_statement(options_)?/options_!swap	CREATE VIEW 
 reject	reject	engine	create_view_statement(cluster_by_clause_no_hint)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT NULL
 reject	reject	engine	create_view_statement(cluster_by_clause_no_hint)?/%empty!insert	CREATE MATERIALIZED VIEW a zzz AS SELECT NULL
 reject	reject	engine	create_view_statement(cluster_by_clause_no_hint)?/cluster_by_clause_no_hint	CREATE MATERIALIZED VIEW a CLUSTER BY NULL AS SELECT NULL
-reject	reject	engine	create_view_statement(cluster_by_clause_no_hint)?/cluster_by_clause_no_hint!drop-1	CREATE MATERIALIZED VIEW a BY NULL AS SELECT NULL
 reject	reject	engine	create_view_statement(cluster_by_clause_no_hint)?/cluster_by_clause_no_hint!drop-2	CREATE MATERIALIZED VIEW a CLUSTER NULL AS SELECT NULL
 reject	reject	engine	create_view_statement(cluster_by_clause_no_hint)?/cluster_by_clause_no_hint!drop-3	CREATE MATERIALIZED VIEW a CLUSTER BY AS SELECT NULL
 reject	reject	engine	create_view_statement(cluster_by_clause_no_hint)?/cluster_by_clause_no_hint!truncate	CREATE MATERIALIZED VIEW a CLUSTER BY
@@ -3060,11 +3108,19 @@ reject	reject	engine	export_data_no_query/EXPORT_DATA_opt_with_connection_clause
 reject	reject	engine	export_data_no_query/EXPORT_DATA_opt_with_connection_clause_opt_options_list+opt_options_list!drop-5	|> EXPORT DATA OPTIONS(
 accept	accept	engine	export_data_statement/export_data_no_query_as_query	EXPORT DATA AS SELECT NULL
 accept	accept	engine	export_model_statement/EXPORT_MODEL_path_expression_opt_with_connection_clause~a5df845a	EXPORT MODEL a
+accept	accept	engine	export_model_statement/EXPORT_MODEL_path_expression_opt_with_connection_clause~a5df845a+opt_with_connection_clause	EXPORT MODEL a WITH CONNECTION a
+reject	reject	engine	export_model_statement/EXPORT_MODEL_path_expression_opt_with_connection_clause~a5df845a+opt_with_connection_clause!drop-4	EXPORT MODEL a CONNECTION a
+reject	reject	engine	export_model_statement/EXPORT_MODEL_path_expression_opt_with_connection_clause~a5df845a+opt_with_connection_clause!drop-5	EXPORT MODEL a WITH a
+reject	reject	engine	export_model_statement/EXPORT_MODEL_path_expression_opt_with_connection_clause~a5df845a+opt_with_connection_clause!drop-6	EXPORT MODEL a WITH CONNECTION
 accept	accept	engine	export_model_statement/EXPORT_MODEL_path_expression_opt_with_connection_clause~a5df845a+opt_options_list	EXPORT MODEL a OPTIONS()
 reject	reject	engine	export_model_statement/EXPORT_MODEL_path_expression_opt_with_connection_clause~a5df845a+opt_options_list!drop-4	EXPORT MODEL a()
 reject	reject	engine	export_model_statement/EXPORT_MODEL_path_expression_opt_with_connection_clause~a5df845a+opt_options_list!drop-5	EXPORT MODEL a OPTIONS)
 reject	reject	engine	export_model_statement/EXPORT_MODEL_path_expression_opt_with_connection_clause~a5df845a+opt_options_list!drop-6	EXPORT MODEL a OPTIONS(
 accept	accept	engine	export_metadata_statement/EXPORT_table_or_table_function_METADATA_FROM_maybe_dash~e0255866	EXPORT TABLE METADATA FROM a
+accept	accept	engine	export_metadata_statement/EXPORT_table_or_table_function_METADATA_FROM_maybe_dash~e0255866+opt_with_connection_clause	EXPORT TABLE METADATA FROM a WITH CONNECTION a
+reject	reject	engine	export_metadata_statement/EXPORT_table_or_table_function_METADATA_FROM_maybe_dash~e0255866+opt_with_connection_clause!drop-6	EXPORT TABLE METADATA FROM a CONNECTION a
+reject	reject	engine	export_metadata_statement/EXPORT_table_or_table_function_METADATA_FROM_maybe_dash~e0255866+opt_with_connection_clause!drop-7	EXPORT TABLE METADATA FROM a WITH a
+reject	reject	engine	export_metadata_statement/EXPORT_table_or_table_function_METADATA_FROM_maybe_dash~e0255866+opt_with_connection_clause!drop-8	EXPORT TABLE METADATA FROM a WITH CONNECTION
 accept	accept	engine	export_metadata_statement/EXPORT_table_or_table_function_METADATA_FROM_maybe_dash~e0255866+opt_options_list	EXPORT TABLE METADATA FROM a OPTIONS()
 reject	reject	engine	export_metadata_statement/EXPORT_table_or_table_function_METADATA_FROM_maybe_dash~e0255866+opt_options_list!drop-6	EXPORT TABLE METADATA FROM a()
 reject	reject	engine	export_metadata_statement/EXPORT_table_or_table_function_METADATA_FROM_maybe_dash~e0255866+opt_options_list!drop-7	EXPORT TABLE METADATA FROM a OPTIONS)
@@ -3144,6 +3200,13 @@ reject	reject	engine	column_ordering_and_options_expr/expression_opt_collate_cla
 reject	reject	engine	column_ordering_and_options_expr/expression_opt_collate_clause_opt_asc_or_desc_opt_null_~e00fe61a!truncate	CREATE INDEX a ON a(
 reject	reject	engine	column_ordering_and_options_expr/expression_opt_collate_clause_opt_asc_or_desc_opt_null_~e00fe61a!insert	CREATE INDEX a ON a(NULL zzz)
 reject	reject	engine	column_ordering_and_options_expr/expression_opt_collate_clause_opt_asc_or_desc_opt_null_~e00fe61a!swap	CREATE INDEX a ON a(NULLS)
+reject	reject	engine	column_ordering_and_options_expr/expression_opt_collate_clause_opt_asc_or_desc_opt_null_~e00fe61a+opt_collate_clause	CREATE INDEX a ON a(NULL COLLATE 'a')
+reject	reject	engine	column_ordering_and_options_expr/expression_opt_collate_clause_opt_asc_or_desc_opt_null_~e00fe61a+opt_collate_clause!drop-2	CREATE INDEX a ON a(NULL 'a')
+reject	reject	engine	column_ordering_and_options_expr/expression_opt_collate_clause_opt_asc_or_desc_opt_null_~e00fe61a+opt_collate_clause!drop-3	CREATE INDEX a ON a(NULL COLLATE)
+reject	reject	engine	column_ordering_and_options_expr/expression_opt_collate_clause_opt_asc_or_desc_opt_null_~e00fe61a+opt_asc_or_desc	CREATE INDEX a ON a(NULL ASC)
+reject	reject	engine	column_ordering_and_options_expr/expression_opt_collate_clause_opt_asc_or_desc_opt_null_~e00fe61a+opt_null_order	CREATE INDEX a ON a(NULL NULLS FIRST)
+reject	reject	engine	column_ordering_and_options_expr/expression_opt_collate_clause_opt_asc_or_desc_opt_null_~e00fe61a+opt_null_order!drop-2	CREATE INDEX a ON a(NULL FIRST)
+reject	reject	engine	column_ordering_and_options_expr/expression_opt_collate_clause_opt_asc_or_desc_opt_null_~e00fe61a+opt_null_order!drop-3	CREATE INDEX a ON a(NULL NULLS)
 reject	reject	engine	column_ordering_and_options_expr/expression_opt_collate_clause_opt_asc_or_desc_opt_null_~e00fe61a+opt_options_list	CREATE INDEX a ON a(NULL OPTIONS())
 reject	reject	engine	column_ordering_and_options_expr/expression_opt_collate_clause_opt_asc_or_desc_opt_null_~e00fe61a+opt_options_list!drop-2	CREATE INDEX a ON a(NULL())
 reject	reject	engine	column_ordering_and_options_expr/expression_opt_collate_clause_opt_asc_or_desc_opt_null_~e00fe61a+opt_options_list!drop-3	CREATE INDEX a ON a(NULL OPTIONS))
@@ -3385,6 +3448,16 @@ reject	reject	engine	query_without_pipe_operators/with_clause_query_primary_or_s
 reject	reject	engine	query_without_pipe_operators/with_clause_query_primary_or_set_operation_opt_order_by~3de9b130!drop-9	WITH a AS(SELECT NULL) SELECT
 accept	accept	engine	query_without_pipe_operators/with_clause_query_primary_or_set_operation_opt_order_by~3de9b130!insert	WITH a AS(SELECT NULL) SELECT NULL zzz
 reject	reject	engine	query_without_pipe_operators/with_clause_query_primary_or_set_operation_opt_order_by~3de9b130!swap	WRITE a AS(SELECT NULL) SELECT NULL
+accept	accept	engine	query_without_pipe_operators/with_clause_query_primary_or_set_operation_opt_order_by~3de9b130+opt_order_by_clause	WITH a AS(SELECT NULL) SELECT NULL ORDER BY NULL
+reject	reject	engine	query_without_pipe_operators/with_clause_query_primary_or_set_operation_opt_order_by~3de9b130+opt_order_by_clause!drop-10	WITH a AS(SELECT NULL) SELECT NULL BY NULL
+reject	reject	engine	query_without_pipe_operators/with_clause_query_primary_or_set_operation_opt_order_by~3de9b130+opt_order_by_clause!drop-11	WITH a AS(SELECT NULL) SELECT NULL ORDER NULL
+reject	reject	engine	query_without_pipe_operators/with_clause_query_primary_or_set_operation_opt_order_by~3de9b130+opt_order_by_clause!drop-12	WITH a AS(SELECT NULL) SELECT NULL ORDER BY
+accept	accept	engine	query_without_pipe_operators/with_clause_query_primary_or_set_operation_opt_order_by~3de9b130+opt_limit_offset_clause	WITH a AS(SELECT NULL) SELECT NULL LIMIT NULL
+reject	reject	engine	query_without_pipe_operators/with_clause_query_primary_or_set_operation_opt_order_by~3de9b130+opt_limit_offset_clause!drop-10	WITH a AS(SELECT NULL) SELECT NULL NULL
+reject	reject	engine	query_without_pipe_operators/with_clause_query_primary_or_set_operation_opt_order_by~3de9b130+opt_limit_offset_clause!drop-11	WITH a AS(SELECT NULL) SELECT NULL LIMIT
+accept	accept	engine	query_without_pipe_operators/with_clause_query_primary_or_set_operation_opt_order_by~3de9b130+opt_lock_mode_clause	WITH a AS(SELECT NULL) SELECT NULL FOR UPDATE
+accept	accept	engine	query_without_pipe_operators/with_clause_query_primary_or_set_operation_opt_order_by~3de9b130+opt_lock_mode_clause!drop-10	WITH a AS(SELECT NULL) SELECT NULL UPDATE
+reject	reject	engine	query_without_pipe_operators/with_clause_query_primary_or_set_operation_opt_order_by~3de9b130+opt_lock_mode_clause!drop-11	WITH a AS(SELECT NULL) SELECT NULL FOR
 reject	reject	engine	query_without_pipe_operators/with_clause_with_trailing_comma_select_or_from_keyword	WITH a AS(SELECT NULL), SELECT
 reject	reject	engine	query_without_pipe_operators/with_clause_with_trailing_comma_select_or_from_keyword!drop-1	a AS(SELECT NULL), SELECT
 reject	reject	engine	query_without_pipe_operators/with_clause_with_trailing_comma_select_or_from_keyword!drop-2	WITH AS(SELECT NULL), SELECT
@@ -3410,14 +3483,33 @@ reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_op
 reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_opt_lock_mode_clause!drop-2	FROM
 reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_opt_lock_mode_clause!insert	FROM a zzz
 reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_opt_lock_mode_clause!swap	FULL a
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_opt_lock_mode_clause+opt_lock_mode_clause	FROM a FOR UPDATE
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_opt_lock_mode_clause+opt_lock_mode_clause!drop-3	FROM a UPDATE
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_opt_lock_mode_clause+opt_lock_mode_clause!drop-4	FROM a FOR
 reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_query	FROM a WHERE
 reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_query!drop-1	a WHERE
 reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_query!drop-2	FROM WHERE
 reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_query!swap	FULL a WHERE
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_query+opt_with_clause	WITH a AS(SELECT NULL) FROM a WHERE
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_query+opt_with_clause!drop-1	a AS(SELECT NULL) FROM a WHERE
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_query+opt_with_clause!drop-2	WITH AS(SELECT NULL) FROM a WHERE
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_query+opt_with_clause!drop-3	WITH a(SELECT NULL) FROM a WHERE
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_query+opt_with_clause!drop-4	WITH a AS SELECT NULL) FROM a WHERE
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_query+opt_with_clause!drop-5	WITH a AS(NULL) FROM a WHERE
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_query+opt_with_clause!drop-6	WITH a AS(SELECT) FROM a WHERE
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_query+opt_with_clause!drop-7	WITH a AS(SELECT NULL FROM a WHERE
 reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_quer~3a0d12d6	FROM a ORDER
 reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_quer~3a0d12d6!drop-1	a ORDER
 reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_quer~3a0d12d6!drop-2	FROM ORDER
 reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_quer~3a0d12d6!swap	FULL a ORDER
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_quer~3a0d12d6+opt_with_clause	WITH a AS(SELECT NULL) FROM a ORDER
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_quer~3a0d12d6+opt_with_clause!drop-1	a AS(SELECT NULL) FROM a ORDER
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_quer~3a0d12d6+opt_with_clause!drop-2	WITH AS(SELECT NULL) FROM a ORDER
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_quer~3a0d12d6+opt_with_clause!drop-3	WITH a(SELECT NULL) FROM a ORDER
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_quer~3a0d12d6+opt_with_clause!drop-4	WITH a AS SELECT NULL) FROM a ORDER
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_quer~3a0d12d6+opt_with_clause!drop-5	WITH a AS(NULL) FROM a ORDER
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_quer~3a0d12d6+opt_with_clause!drop-6	WITH a AS(SELECT) FROM a ORDER
+reject	reject	engine	query_without_pipe_operators/opt_with_clause_from_clause_bad_keyword_after_from_quer~3a0d12d6+opt_with_clause!drop-7	WITH a AS(SELECT NULL FROM a ORDER
 accept	accept	engine	query/query_without_pipe_operators	SELECT NULL
 accept	accept	engine	query/query_pipe_and_pipe_operator	SELECT NULL |> AGGREGATE
 reject	reject	engine	query/query_pipe_and_pipe_operator!drop-1	NULL |> AGGREGATE
@@ -4106,6 +4198,10 @@ accept	accept	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_d
 reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d	SELECT FROM
 reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d!insert	SELECT FROM zzz
 reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d!swap	SEQUENCE FROM
+reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d+opt_all_or_distinct	SELECT ALL FROM
+reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d+opt_select_as_clause	SELECT AS STRUCT FROM
+reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d+opt_select_as_clause!drop-2	SELECT STRUCT FROM
+reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d+opt_select_as_clause!drop-3	SELECT AS FROM
 accept	accept	engine	select_clause(hint)?/%empty	SELECT NULL
 reject	reject	engine	select_clause(hint)?/%empty!insert	SELECT zzz NULL
 accept	accept	engine	select_clause(hint)?/hint	SELECT@1 NULL
@@ -4398,6 +4494,10 @@ accept	accept	engine	sample_size_unit/PERCENT	|> TABLESAMPLE a(1 PERCENT)
 reject	reject	engine	sample_size_unit/PERCENT!insert	|> TABLESAMPLE a(1 PERCENT zzz)
 reject	reject	engine	sample_size_unit/PERCENT!swap	|> TABLESAMPLE a(1 PIVOT)
 accept	accept	engine	sample_size/sample_size_value_sample_size_unit_opt_partition_by_cla~6e9f8d13	|> TABLESAMPLE a(1 ROWS)
+accept	accept	engine	sample_size/sample_size_value_sample_size_unit_opt_partition_by_cla~6e9f8d13+opt_partition_by_clause_no_hint	|> TABLESAMPLE a(1 ROWS PARTITION BY NULL)
+reject	reject	engine	sample_size/sample_size_value_sample_size_unit_opt_partition_by_cla~6e9f8d13+opt_partition_by_clause_no_hint!drop-3	|> TABLESAMPLE a(1 ROWS BY NULL)
+reject	reject	engine	sample_size/sample_size_value_sample_size_unit_opt_partition_by_cla~6e9f8d13+opt_partition_by_clause_no_hint!drop-4	|> TABLESAMPLE a(1 ROWS PARTITION NULL)
+reject	reject	engine	sample_size/sample_size_value_sample_size_unit_opt_partition_by_cla~6e9f8d13+opt_partition_by_clause_no_hint!drop-5	|> TABLESAMPLE a(1 ROWS PARTITION BY)
 accept	accept	engine	opt_repeatable_clause/repeatable_clause	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT REPEATABLE(1)
 reject	reject	engine	opt_repeatable_clause/repeatable_clause!drop-1	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT(1)
 reject	reject	engine	opt_repeatable_clause/repeatable_clause!drop-2	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT REPEATABLE 1)
@@ -4417,12 +4517,22 @@ reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_identifier_opt_repeata
 reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_identifier_opt_repeatable_clause!drop-2	|> TABLESAMPLE a(1 ROWS) WITH a
 reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_identifier_opt_repeatable_clause!insert	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT a zzz
 reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_identifier_opt_repeatable_clause!swap	|> TABLESAMPLE a(1 ROWS) WRITE WEIGHT a
+accept	accept	engine	opt_sample_clause_suffix/WITH_WEIGHT_identifier_opt_repeatable_clause+opt_repeatable_clause	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT a REPEATABLE(1)
+reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_identifier_opt_repeatable_clause+opt_repeatable_clause!drop-4	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT a(1)
+reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_identifier_opt_repeatable_clause+opt_repeatable_clause!drop-5	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT a REPEATABLE 1)
+reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_identifier_opt_repeatable_clause+opt_repeatable_clause!drop-6	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT a REPEATABLE()
+reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_identifier_opt_repeatable_clause+opt_repeatable_clause!drop-7	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT a REPEATABLE(1
 accept	accept	engine	opt_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a
 reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!drop-1	|> TABLESAMPLE a(1 ROWS) WEIGHT AS a
 reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!drop-2	|> TABLESAMPLE a(1 ROWS) WITH AS a
 reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!drop-4	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT AS
 reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!insert	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a zzz
 reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!swap	|> TABLESAMPLE a(1 ROWS) WRITE WEIGHT AS a
+accept	accept	engine	opt_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause+opt_repeatable_clause	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a REPEATABLE(1)
+reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause+opt_repeatable_clause!drop-5	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a(1)
+reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause+opt_repeatable_clause!drop-6	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a REPEATABLE 1)
+reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause+opt_repeatable_clause!drop-7	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a REPEATABLE()
+reject	reject	engine	opt_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause+opt_repeatable_clause!drop-8	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a REPEATABLE(1
 accept	accept	engine	opt_sample_clause_suffix/%empty	|> TABLESAMPLE a(1 ROWS)
 accept	accept	engine	opt_graph_sample_clause_suffix/repeatable_clause	SELECT EXISTS { TABLESAMPLE a(1 ROWS) REPEATABLE(1) }
 reject	reject	engine	opt_graph_sample_clause_suffix/repeatable_clause!drop-1	SELECT EXISTS { TABLESAMPLE a(1 ROWS)(1) }
@@ -4438,6 +4548,11 @@ reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_opt_repeatable_c
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_opt_repeatable_clause!truncate	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_opt_repeatable_clause!insert	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT zzz }
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_opt_repeatable_clause!swap	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WRITE WEIGHT }
+accept	accept	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_opt_repeatable_clause+opt_repeatable_clause	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT REPEATABLE(1) }
+reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_opt_repeatable_clause+opt_repeatable_clause!drop-3	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT(1) }
+reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_opt_repeatable_clause+opt_repeatable_clause!drop-4	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT REPEATABLE 1) }
+reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_opt_repeatable_clause+opt_repeatable_clause!drop-5	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT REPEATABLE() }
+reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_opt_repeatable_clause+opt_repeatable_clause!drop-6	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT REPEATABLE(1 }
 accept	accept	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a }
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!drop-1	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WEIGHT AS a }
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!drop-2	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH AS a }
@@ -4446,6 +4561,11 @@ reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_op
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!truncate	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT AS
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!insert	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a zzz }
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!swap	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WRITE WEIGHT AS a }
+accept	accept	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause+opt_repeatable_clause	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a REPEATABLE(1) }
+reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause+opt_repeatable_clause!drop-5	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a(1) }
+reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause+opt_repeatable_clause!drop-6	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a REPEATABLE 1) }
+reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause+opt_repeatable_clause!drop-7	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a REPEATABLE() }
+reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause+opt_repeatable_clause!drop-8	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a REPEATABLE(1 }
 accept	accept	engine	opt_graph_sample_clause_suffix/%empty	SELECT EXISTS { TABLESAMPLE a(1 ROWS) }
 reject	reject	engine	opt_graph_sample_clause_suffix/%empty!insert	SELECT EXISTS { TABLESAMPLE a(1 ROWS) zzz }
 accept	accept	engine	sample_clause/TABLESAMPLE_identifier_(_sample_size_)_opt_sample_clause_suffix	|> TABLESAMPLE a(1 ROWS)
@@ -4598,6 +4718,10 @@ reject	reject	engine	pivot_or_unpivot_clause(as_alias)?/%empty	FROM a PIVOT(NULL
 reject	reject	engine	pivot_or_unpivot_clause(as_alias)?/as_alias	FROM a PIVOT(NULL FOR NULL IN(NULL)) a
 reject	reject	engine	pivot_or_unpivot_clause(as_alias)?/as_alias!insert	FROM a PIVOT(NULL FOR NULL IN(NULL)) a zzz
 reject	reject	engine	match_recognize_clause/KW_MATCH_RECOGNIZE_RESERVED_(_opt_partition_by_clause_o~8f44d724	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN() DEFINE a AS NULL)
+reject	reject	engine	match_recognize_clause/KW_MATCH_RECOGNIZE_RESERVED_(_opt_partition_by_clause_o~8f44d724+opt_partition_by_clause	|> MATCH_RECOGNIZE(PARTITION BY NULL ORDER BY NULL MEASURES NULL AS a PATTERN() DEFINE a AS NULL)
+reject	reject	engine	match_recognize_clause/KW_MATCH_RECOGNIZE_RESERVED_(_opt_partition_by_clause_o~8f44d724+opt_partition_by_clause!drop-3	|> MATCH_RECOGNIZE(BY NULL ORDER BY NULL MEASURES NULL AS a PATTERN() DEFINE a AS NULL)
+reject	reject	engine	match_recognize_clause/KW_MATCH_RECOGNIZE_RESERVED_(_opt_partition_by_clause_o~8f44d724+opt_partition_by_clause!drop-4	|> MATCH_RECOGNIZE(PARTITION NULL ORDER BY NULL MEASURES NULL AS a PATTERN() DEFINE a AS NULL)
+reject	reject	engine	match_recognize_clause/KW_MATCH_RECOGNIZE_RESERVED_(_opt_partition_by_clause_o~8f44d724+opt_partition_by_clause!drop-5	|> MATCH_RECOGNIZE(PARTITION BY ORDER BY NULL MEASURES NULL AS a PATTERN() DEFINE a AS NULL)
 reject	reject	engine	match_recognize_clause/KW_MATCH_RECOGNIZE_RESERVED_(_opt_partition_by_clause_o~8f44d724+opt_options_list	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN() DEFINE a AS NULL OPTIONS())
 reject	reject	engine	match_recognize_clause/KW_MATCH_RECOGNIZE_RESERVED_(_opt_partition_by_clause_o~8f44d724+opt_options_list!drop-17	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN() DEFINE a AS NULL())
 reject	reject	engine	match_recognize_clause/KW_MATCH_RECOGNIZE_RESERVED_(_opt_partition_by_clause_o~8f44d724+opt_options_list!drop-18	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN() DEFINE a AS NULL OPTIONS))
@@ -4680,6 +4804,8 @@ reject	reject	engine	potentially_reluctant_quantifier/{_opt_int_literal_or_param
 reject	reject	engine	potentially_reluctant_quantifier/{_opt_int_literal_or_parameter_,_opt_int_literal_or_parameter_}!drop-3	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a {,) DEFINE a AS NULL)
 reject	reject	engine	potentially_reluctant_quantifier/{_opt_int_literal_or_parameter_,_opt_int_literal_or_parameter_}!truncate	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a {,
 reject	reject	engine	potentially_reluctant_quantifier/{_opt_int_literal_or_parameter_,_opt_int_literal_or_parameter_}!insert	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a {, } zzz) DEFINE a AS NULL)
+reject	reject	engine	potentially_reluctant_quantifier/{_opt_int_literal_or_parameter_,_opt_int_literal_or_parameter_}+opt_int_literal_or_parameter	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a { 1, }) DEFINE a AS NULL)
+reject	reject	engine	potentially_reluctant_quantifier/{_opt_int_literal_or_parameter_,_opt_int_literal_or_parameter_}+opt_int_literal_or_parameter#2	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a {, 1 }) DEFINE a AS NULL)
 reject	reject	engine	table_subquery/parenthesized_query_(as_alias)?_(pivot_or_unpivot_clause)?	FROM(SELECT NULL)
 reject	reject	engine	table_subquery/parenthesized_query_(as_alias)?_(pivot_or_unpivot_clause)?!drop-1	FROM SELECT NULL)
 reject	reject	engine	table_subquery/parenthesized_query_(as_alias)?_(pivot_or_unpivot_clause)?!drop-2	FROM(NULL)
@@ -4702,12 +4828,14 @@ reject	reject	engine	table_clause_no_keyword/tvf_(as_alias)?_(pivot_or_unpivot_c
 reject	reject	engine	table_clause_no_keyword/tvf_(as_alias)?_(pivot_or_unpivot_clause)?_opt_where_clause!drop-2	TABLE a)
 reject	reject	engine	table_clause_no_keyword/tvf_(as_alias)?_(pivot_or_unpivot_clause)?_opt_where_clause!drop-3	TABLE a(
 accept	accept	engine	table_clause_no_keyword/tvf_(as_alias)?_(pivot_or_unpivot_clause)?_opt_where_clause!insert	TABLE a() zzz
+accept	accept	engine	table_clause_no_keyword/tvf_(as_alias)?_(pivot_or_unpivot_clause)?_opt_where_clause+opt_where_clause	TABLE a() WHERE NULL
+reject	reject	engine	table_clause_no_keyword/tvf_(as_alias)?_(pivot_or_unpivot_clause)?_opt_where_clause+opt_where_clause!drop-4	TABLE a() NULL
+reject	reject	engine	table_clause_no_keyword/tvf_(as_alias)?_(pivot_or_unpivot_clause)?_opt_where_clause+opt_where_clause!drop-5	TABLE a() WHERE
 accept	accept	engine	table_clause_no_keyword(as_alias)?/%empty	TABLE a()
 accept	accept	engine	table_clause_no_keyword(as_alias)?/as_alias	TABLE a() a
 reject	reject	engine	table_clause_no_keyword(as_alias)?/as_alias!insert	TABLE a() a zzz
 accept	accept	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/%empty	TABLE a()
 reject	reject	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause	TABLE a() QUALIFY NULL
-reject	reject	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!drop-1	TABLE a() NULL
 accept	accept	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!drop-2	TABLE a() QUALIFY
 reject	reject	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!insert	TABLE a() QUALIFY NULL zzz
 reject	reject	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!swap	TABLE a() RAISE NULL
@@ -5002,6 +5130,11 @@ reject	reject	engine	graph_return_item_list/graph_return_item_list_,_graph_retur
 reject	reject	engine	graph_return_item_list/graph_return_item_list_,_graph_return_item!swap	GRAPH a RETURN NULLS, NULL
 accept	accept	engine	graph_return_operator/RETURN_(hint)?_opt_all_or_distinct_graph_return_item_li~9ca339ca	GRAPH a RETURN NULL
 reject	reject	engine	graph_return_operator/RETURN_(hint)?_opt_all_or_distinct_graph_return_item_li~9ca339ca!swap	GRAPH a RETURNS NULL
+accept	accept	engine	graph_return_operator/RETURN_(hint)?_opt_all_or_distinct_graph_return_item_li~9ca339ca+opt_all_or_distinct	GRAPH a RETURN ALL NULL
+accept	accept	engine	graph_return_operator/RETURN_(hint)?_opt_all_or_distinct_graph_return_item_li~9ca339ca+opt_group_by_clause	GRAPH a RETURN NULL GROUP BY ALL
+reject	reject	engine	graph_return_operator/RETURN_(hint)?_opt_all_or_distinct_graph_return_item_li~9ca339ca+opt_group_by_clause!drop-3	GRAPH a RETURN NULL BY ALL
+reject	reject	engine	graph_return_operator/RETURN_(hint)?_opt_all_or_distinct_graph_return_item_li~9ca339ca+opt_group_by_clause!drop-4	GRAPH a RETURN NULL GROUP ALL
+reject	reject	engine	graph_return_operator/RETURN_(hint)?_opt_all_or_distinct_graph_return_item_li~9ca339ca+opt_group_by_clause!drop-5	GRAPH a RETURN NULL GROUP BY
 accept	accept	engine	graph_return_operator(hint)?/%empty	GRAPH a RETURN NULL
 reject	reject	engine	graph_return_operator(hint)?/%empty!insert	GRAPH a RETURN zzz NULL
 accept	accept	engine	graph_return_operator(hint)?/hint	GRAPH a RETURN@1 NULL
@@ -5022,6 +5155,7 @@ reject	reject	engine	graph_return_operator(graph_limit_clause)?/graph_limit_clau
 reject	reject	engine	graph_return_operator(graph_limit_clause)?/graph_limit_clause!swap	GRAPH a RETURN NULL LOAD 1
 accept	accept	engine	opt_graph_asc_or_desc/opt_asc_or_desc	SELECT EXISTS { ORDER BY NULL }
 reject	reject	engine	opt_graph_asc_or_desc/opt_asc_or_desc!insert	SELECT EXISTS { ORDER BY NULL zzz }
+accept	accept	engine	opt_graph_asc_or_desc/opt_asc_or_desc+opt_asc_or_desc	SELECT EXISTS { ORDER BY NULL ASC }
 accept	accept	engine	opt_graph_asc_or_desc/ASCENDING	SELECT EXISTS { ORDER BY NULL ASCENDING }
 reject	reject	engine	opt_graph_asc_or_desc/ASCENDING!truncate	SELECT EXISTS { ORDER BY NULL
 reject	reject	engine	opt_graph_asc_or_desc/ASCENDING!insert	SELECT EXISTS { ORDER BY NULL ASCENDING zzz }
@@ -5033,6 +5167,12 @@ accept	accept	engine	graph_ordering_expression/expression_opt_collate_clause_opt
 reject	reject	engine	graph_ordering_expression/expression_opt_collate_clause_opt_graph_asc_or_desc_opt~43dfe083!drop-1	SELECT EXISTS { ORDER BY }
 reject	reject	engine	graph_ordering_expression/expression_opt_collate_clause_opt_graph_asc_or_desc_opt~43dfe083!truncate	SELECT EXISTS { ORDER BY
 reject	reject	engine	graph_ordering_expression/expression_opt_collate_clause_opt_graph_asc_or_desc_opt~43dfe083!swap	SELECT EXISTS { ORDER BY NULLS }
+accept	accept	engine	graph_ordering_expression/expression_opt_collate_clause_opt_graph_asc_or_desc_opt~43dfe083+opt_collate_clause	SELECT EXISTS { ORDER BY NULL COLLATE 'a' }
+reject	reject	engine	graph_ordering_expression/expression_opt_collate_clause_opt_graph_asc_or_desc_opt~43dfe083+opt_collate_clause!drop-2	SELECT EXISTS { ORDER BY NULL 'a' }
+reject	reject	engine	graph_ordering_expression/expression_opt_collate_clause_opt_graph_asc_or_desc_opt~43dfe083+opt_collate_clause!drop-3	SELECT EXISTS { ORDER BY NULL COLLATE }
+accept	accept	engine	graph_ordering_expression/expression_opt_collate_clause_opt_graph_asc_or_desc_opt~43dfe083+opt_null_order	SELECT EXISTS { ORDER BY NULL NULLS FIRST }
+reject	reject	engine	graph_ordering_expression/expression_opt_collate_clause_opt_graph_asc_or_desc_opt~43dfe083+opt_null_order!drop-2	SELECT EXISTS { ORDER BY NULL FIRST }
+reject	reject	engine	graph_ordering_expression/expression_opt_collate_clause_opt_graph_asc_or_desc_opt~43dfe083+opt_null_order!drop-3	SELECT EXISTS { ORDER BY NULL NULLS }
 accept	accept	engine	graph_order_by_clause_prefix/ORDER_(hint)?_BY_graph_ordering_expression	SELECT EXISTS { ORDER BY NULL }
 reject	reject	engine	graph_order_by_clause_prefix/ORDER_(hint)?_BY_graph_ordering_expression!drop-1	SELECT EXISTS { BY NULL }
 reject	reject	engine	graph_order_by_clause_prefix/ORDER_(hint)?_BY_graph_ordering_expression!drop-2	SELECT EXISTS { ORDER NULL }
@@ -5141,6 +5281,11 @@ reject	reject	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_
 reject	reject	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91!truncate	SELECT EXISTS { WITH
 reject	reject	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91!insert	SELECT EXISTS { WITH NULL zzz }
 reject	reject	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91!swap	SELECT EXISTS { WRITE NULL }
+accept	accept	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91+opt_all_or_distinct	SELECT EXISTS { WITH ALL NULL }
+accept	accept	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91+opt_group_by_clause	SELECT EXISTS { WITH NULL GROUP BY ALL }
+reject	reject	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91+opt_group_by_clause!drop-3	SELECT EXISTS { WITH NULL BY ALL }
+reject	reject	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91+opt_group_by_clause!drop-4	SELECT EXISTS { WITH NULL GROUP ALL }
+reject	reject	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91+opt_group_by_clause!drop-5	SELECT EXISTS { WITH NULL GROUP BY }
 accept	accept	engine	graph_with_operator(hint)?/%empty	SELECT EXISTS { WITH NULL }
 reject	reject	engine	graph_with_operator(hint)?/%empty!insert	SELECT EXISTS { WITH zzz NULL }
 accept	accept	engine	graph_with_operator(hint)?/hint	SELECT EXISTS { WITH@1 NULL }
@@ -5315,6 +5460,9 @@ reject	reject	engine	graph_operation_block/graph_operation_block_NEXT_graph_comp
 reject	reject	engine	graph_operation_block/graph_operation_block_NEXT_graph_composite_query_block!swap	GRAPH a RETURNS NULL NEXT RETURN NULL
 accept	accept	engine	graph_pattern/graph_path_pattern_list_opt_where_clause	SELECT EXISTS { - }
 reject	reject	engine	graph_pattern/graph_path_pattern_list_opt_where_clause!insert	SELECT EXISTS { - zzz }
+accept	accept	engine	graph_pattern/graph_path_pattern_list_opt_where_clause+opt_where_clause	SELECT EXISTS { - WHERE NULL }
+reject	reject	engine	graph_pattern/graph_path_pattern_list_opt_where_clause+opt_where_clause!drop-2	SELECT EXISTS { - NULL }
+reject	reject	engine	graph_pattern/graph_path_pattern_list_opt_where_clause+opt_where_clause!drop-3	SELECT EXISTS { - WHERE }
 accept	accept	engine	graph_path_pattern_list/graph_path_pattern	SELECT EXISTS { - }
 accept	accept	engine	graph_path_pattern_list/graph_path_pattern_list_,_(hint)?_graph_path_pattern	SELECT EXISTS { -, - }
 reject	reject	engine	graph_path_pattern_list/graph_path_pattern_list_,_(hint)?_graph_path_pattern!drop-1	SELECT EXISTS {, - }
@@ -5411,6 +5559,9 @@ reject	reject	engine	graph_path_primary/graph_parenthesized_path_pattern!drop-3	
 reject	reject	engine	graph_path_primary/graph_parenthesized_path_pattern!truncate	SELECT EXISTS {(-
 reject	reject	engine	graph_path_primary/graph_parenthesized_path_pattern!insert	SELECT EXISTS {(-) zzz }
 accept	accept	engine	graph_parenthesized_path_pattern/(_(hint)?_graph_path_pattern_opt_where_clause_)	SELECT EXISTS {(-) }
+accept	accept	engine	graph_parenthesized_path_pattern/(_(hint)?_graph_path_pattern_opt_where_clause_)+opt_where_clause	SELECT EXISTS {(- WHERE NULL) }
+reject	reject	engine	graph_parenthesized_path_pattern/(_(hint)?_graph_path_pattern_opt_where_clause_)+opt_where_clause!drop-3	SELECT EXISTS {(- NULL) }
+reject	reject	engine	graph_parenthesized_path_pattern/(_(hint)?_graph_path_pattern_opt_where_clause_)+opt_where_clause!drop-4	SELECT EXISTS {(- WHERE) }
 accept	accept	engine	graph_parenthesized_path_pattern(hint)?/%empty	SELECT EXISTS {(-) }
 reject	reject	engine	graph_parenthesized_path_pattern(hint)?/%empty!insert	SELECT EXISTS {(zzz -) }
 reject	reject	engine	graph_parenthesized_path_pattern(hint)?/hint	SELECT EXISTS {(@1 -) }
@@ -5424,6 +5575,7 @@ reject	reject	engine	graph_quantifier/{_opt_int_literal_or_parameter_,_opt_int_l
 reject	reject	engine	graph_quantifier/{_opt_int_literal_or_parameter_,_opt_int_literal_or_parameter_}!drop-3	SELECT EXISTS { - {, }
 reject	reject	engine	graph_quantifier/{_opt_int_literal_or_parameter_,_opt_int_literal_or_parameter_}!truncate	SELECT EXISTS { - {,
 reject	reject	engine	graph_quantifier/{_opt_int_literal_or_parameter_,_opt_int_literal_or_parameter_}!insert	SELECT EXISTS { - {, } zzz }
+accept	accept	engine	graph_quantifier/{_opt_int_literal_or_parameter_,_opt_int_literal_or_parameter_}+opt_int_literal_or_parameter#2	SELECT EXISTS { - {, 1 } }
 accept	accept	engine	graph_quantifier/{_int_literal_or_parameter_}	SELECT EXISTS { - { 1 } }
 reject	reject	engine	graph_quantifier/{_int_literal_or_parameter_}!drop-1	SELECT EXISTS { - 1 } }
 reject	reject	engine	graph_quantifier/{_int_literal_or_parameter_}!drop-3	SELECT EXISTS { - { 1 }
@@ -5454,6 +5606,8 @@ reject	reject	engine	opt_graph_cost/COST_expression!insert	SELECT EXISTS {(COST 
 reject	reject	engine	opt_graph_cost/COST_expression!swap	SELECT EXISTS {(CREATE NULL) }
 accept	accept	engine	opt_graph_cost/%empty	SELECT EXISTS {() }
 accept	accept	engine	graph_element_pattern_filler/(hint)?_opt_graph_element_identifier_(is_label_expressi~50940022	SELECT EXISTS {() }
+accept	accept	engine	graph_element_pattern_filler/(hint)?_opt_graph_element_identifier_(is_label_expressi~50940022+opt_where_clause	SELECT EXISTS {(WHERE NULL) }
+reject	reject	engine	graph_element_pattern_filler/(hint)?_opt_graph_element_identifier_(is_label_expressi~50940022+opt_where_clause!drop-2	SELECT EXISTS {(WHERE) }
 accept	accept	engine	graph_element_pattern_filler(hint)?/%empty	SELECT EXISTS {() }
 accept	accept	engine	graph_element_pattern_filler(hint)?/hint	SELECT EXISTS {(@1) }
 reject	reject	engine	graph_element_pattern_filler(hint)?/hint!drop-1	SELECT EXISTS {(1) }
@@ -5628,7 +5782,6 @@ reject	reject	engine	at_system_time(SYSTEM_TIME|SYSTEM_TIME)/SYSTEM_TIME!truncat
 reject	reject	engine	at_system_time(SYSTEM_TIME|SYSTEM_TIME)/SYSTEM_TIME!insert	FROM a FOR SYSTEM TIME zzz AS OF NULL
 reject	reject	engine	at_system_time(SYSTEM_TIME|SYSTEM_TIME)/SYSTEM_TIME!swap	FROM a FOR SYSTEM_TIME TIME AS OF NULL
 reject	reject	engine	at_system_time(SYSTEM_TIME|SYSTEM_TIME)/SYSTEM_TIME#2	FROM a FOR SYSTEM_TIME AS OF NULL
-reject	reject	engine	at_system_time(SYSTEM_TIME|SYSTEM_TIME)/SYSTEM_TIME#2!truncate	FROM a FOR
 reject	reject	engine	at_system_time(SYSTEM_TIME|SYSTEM_TIME)/SYSTEM_TIME#2!insert	FROM a FOR SYSTEM_TIME zzz AS OF NULL
 reject	reject	engine	at_system_time(SYSTEM_TIME|SYSTEM_TIME)/SYSTEM_TIME#2!swap	FROM a FOR TABLE AS OF NULL
 accept	accept	engine	on_clause/ON_expression	|> JOIN a ON NULL
@@ -5798,10 +5951,12 @@ reject	reject	engine	opt_clauses_following_where/group_by_clause_opt_having_clau
 reject	reject	engine	opt_clauses_following_where/group_by_clause_opt_having_clause_(qualify_clause)?_(wi~cc806fe9!drop-3	SELECT NULL GROUP BY
 reject	reject	engine	opt_clauses_following_where/group_by_clause_opt_having_clause_(qualify_clause)?_(wi~cc806fe9!insert	SELECT NULL GROUP BY ALL zzz
 reject	reject	engine	opt_clauses_following_where/group_by_clause_opt_having_clause_(qualify_clause)?_(wi~cc806fe9!swap	SELECT NULL GROUPING BY ALL
+accept	accept	engine	opt_clauses_following_where/group_by_clause_opt_having_clause_(qualify_clause)?_(wi~cc806fe9+opt_having_clause	SELECT NULL GROUP BY ALL HAVING NULL
+reject	reject	engine	opt_clauses_following_where/group_by_clause_opt_having_clause_(qualify_clause)?_(wi~cc806fe9+opt_having_clause!drop-4	SELECT NULL GROUP BY ALL NULL
+reject	reject	engine	opt_clauses_following_where/group_by_clause_opt_having_clause_(qualify_clause)?_(wi~cc806fe9+opt_having_clause!drop-5	SELECT NULL GROUP BY ALL HAVING
 accept	accept	engine	opt_clauses_following_where/opt_clauses_following_group_by	SELECT NULL
 accept	accept	engine	opt_clauses_following_where(qualify_clause)?/%empty	SELECT NULL GROUP BY ALL
 reject	reject	engine	opt_clauses_following_where(qualify_clause)?/qualify_clause	SELECT NULL GROUP BY ALL QUALIFY NULL
-reject	reject	engine	opt_clauses_following_where(qualify_clause)?/qualify_clause!drop-1	SELECT NULL GROUP BY ALL NULL
 reject	reject	engine	opt_clauses_following_where(qualify_clause)?/qualify_clause!drop-2	SELECT NULL GROUP BY ALL QUALIFY
 reject	reject	engine	opt_clauses_following_where(qualify_clause)?/qualify_clause!insert	SELECT NULL GROUP BY ALL QUALIFY NULL zzz
 reject	reject	engine	opt_clauses_following_where(qualify_clause)?/qualify_clause!swap	SELECT NULL GROUP BY ALL RAISE NULL
@@ -7632,9 +7787,17 @@ reject	reject	engine	function_call_expression_with_args_prefix/function_call_exp
 reject	reject	engine	function_call_expression_with_args_prefix/function_call_expression_with_args_prefix_,_function_ca~bcef80a1!insert	SELECT NULL(NULL, NULL zzz)
 reject	reject	engine	function_call_expression_with_args_prefix/function_call_expression_with_args_prefix_,_function_ca~bcef80a1!swap	SELECT NULLS(NULL, NULL)
 reject	reject	engine	function_call_expression/function_call_expression_base_null_handling_modifier_op~2a5caeed	SELECT NULL()
+reject	reject	engine	function_call_expression/function_call_expression_base_null_handling_modifier_op~2a5caeed+opt_where_clause	SELECT NULL(WHERE NULL)
+reject	reject	engine	function_call_expression/function_call_expression_base_null_handling_modifier_op~2a5caeed+opt_where_clause!drop-4	SELECT NULL(WHERE)
+reject	reject	engine	function_call_expression/function_call_expression_base_null_handling_modifier_op~2a5caeed+opt_limit_offset_clause	SELECT NULL(LIMIT NULL)
+reject	reject	engine	function_call_expression/function_call_expression_base_null_handling_modifier_op~2a5caeed+opt_limit_offset_clause!drop-4	SELECT NULL(LIMIT)
 reject	reject	engine	function_call_expression/function_call_expression_with_args_prefix_null_handling~6995d1a7	SELECT NULL(NULL)
 reject	reject	engine	function_call_expression/function_call_expression_with_args_prefix_null_handling~6995d1a7!drop-4	SELECT NULL(NULL
 reject	reject	engine	function_call_expression/function_call_expression_with_args_prefix_null_handling~6995d1a7!insert	SELECT NULL(NULL) zzz
+reject	reject	engine	function_call_expression/function_call_expression_with_args_prefix_null_handling~6995d1a7+opt_where_clause	SELECT NULL(NULL WHERE NULL)
+reject	reject	engine	function_call_expression/function_call_expression_with_args_prefix_null_handling~6995d1a7+opt_where_clause!drop-5	SELECT NULL(NULL WHERE)
+reject	reject	engine	function_call_expression/function_call_expression_with_args_prefix_null_handling~6995d1a7+opt_limit_offset_clause	SELECT NULL(NULL LIMIT NULL)
+reject	reject	engine	function_call_expression/function_call_expression_with_args_prefix_null_handling~6995d1a7+opt_limit_offset_clause!drop-5	SELECT NULL(NULL LIMIT)
 reject	reject	engine	function_call_expression(having_modifier)?/%empty	SELECT NULL()
 reject	reject	engine	function_call_expression(having_modifier)?/having_modifier	SELECT NULL(HAVING MAX NULL)
 reject	reject	engine	function_call_expression(group_by_clause_prefix_having_clause?)?/%empty	SELECT NULL()
@@ -8768,6 +8931,9 @@ reject	reject	engine	insert_statement_in_pipe(returning_clause)?/returning_claus
 accept	accept	engine	insert_statement_in_pipe(returning_clause)?/returning_clause!insert	|> INSERT a THEN RETURN NULL zzz
 reject	reject	engine	insert_statement_in_pipe(returning_clause)?/returning_clause!swap	|> INSERT a TIME RETURN NULL
 reject	reject	engine	copy_data_source/maybe_dashed_path_expression_(at_system_time)?_opt_where_clause	CREATE TABLE a COPY a
+reject	reject	engine	copy_data_source/maybe_dashed_path_expression_(at_system_time)?_opt_where_clause+opt_where_clause	CREATE TABLE a COPY a WHERE NULL
+reject	reject	engine	copy_data_source/maybe_dashed_path_expression_(at_system_time)?_opt_where_clause+opt_where_clause!drop-2	CREATE TABLE a COPY a NULL
+reject	reject	engine	copy_data_source/maybe_dashed_path_expression_(at_system_time)?_opt_where_clause+opt_where_clause!drop-3	CREATE TABLE a COPY a WHERE
 reject	reject	engine	copy_data_source(at_system_time)?/%empty	CREATE TABLE a COPY a
 reject	reject	engine	copy_data_source(at_system_time)?/at_system_time	CREATE TABLE a COPY a FOR SYSTEM_TIME AS OF NULL
 reject	reject	engine	copy_data_source(at_system_time)?/at_system_time!drop-1	CREATE TABLE a COPY a SYSTEM_TIME AS OF NULL
@@ -8778,6 +8944,9 @@ reject	reject	engine	copy_data_source(at_system_time)?/at_system_time!drop-5	CRE
 reject	reject	engine	copy_data_source(at_system_time)?/at_system_time!insert	CREATE TABLE a COPY a FOR SYSTEM_TIME AS OF NULL zzz
 reject	reject	engine	copy_data_source(at_system_time)?/at_system_time!swap	CREATE TABLE a COPY a FOREIGN SYSTEM_TIME AS OF NULL
 reject	reject	engine	clone_data_source/maybe_dashed_path_expression_(at_system_time)?_opt_where_clause	CREATE TABLE a CLONE a
+reject	reject	engine	clone_data_source/maybe_dashed_path_expression_(at_system_time)?_opt_where_clause+opt_where_clause	CREATE TABLE a CLONE a WHERE NULL
+reject	reject	engine	clone_data_source/maybe_dashed_path_expression_(at_system_time)?_opt_where_clause+opt_where_clause!drop-2	CREATE TABLE a CLONE a NULL
+reject	reject	engine	clone_data_source/maybe_dashed_path_expression_(at_system_time)?_opt_where_clause+opt_where_clause!drop-3	CREATE TABLE a CLONE a WHERE
 reject	reject	engine	clone_data_source(at_system_time)?/%empty	CREATE TABLE a CLONE a
 reject	reject	engine	clone_data_source(at_system_time)?/at_system_time	CREATE TABLE a CLONE a FOR SYSTEM_TIME AS OF NULL
 reject	reject	engine	clone_data_source(at_system_time)?/at_system_time!drop-1	CREATE TABLE a CLONE a SYSTEM_TIME AS OF NULL
@@ -8842,6 +9011,9 @@ accept	accept	engine	with_offset_and_alias(as_alias)?/%empty	DELETE a WITH OFFSE
 accept	accept	engine	with_offset_and_alias(as_alias)?/as_alias	DELETE a WITH OFFSET a
 reject	reject	engine	with_offset_and_alias(as_alias)?/as_alias!insert	DELETE a WITH OFFSET a zzz
 accept	accept	engine	update_statement/UPDATE_maybe_dashed_generalized_path_expression_(hint)?~1e43117e	UPDATE a SET a = NULL
+accept	accept	engine	update_statement/UPDATE_maybe_dashed_generalized_path_expression_(hint)?~1e43117e+opt_from_clause	UPDATE a SET a = NULL FROM a
+reject	reject	engine	update_statement/UPDATE_maybe_dashed_generalized_path_expression_(hint)?~1e43117e+opt_from_clause!drop-7	UPDATE a SET a = NULL a
+reject	reject	engine	update_statement/UPDATE_maybe_dashed_generalized_path_expression_(hint)?~1e43117e+opt_from_clause!drop-8	UPDATE a SET a = NULL FROM
 accept	accept	engine	update_statement(hint)?/%empty	UPDATE a SET a = NULL
 accept	accept	engine	update_statement(hint)?/%empty!insert	UPDATE a zzz SET a = NULL
 accept	accept	engine	update_statement(hint)?/hint	UPDATE a@1 SET a = NULL
@@ -8961,6 +9133,10 @@ reject	reject	engine	merge_insert_value_list_or_source_row/ROW!swap	MERGE a USIN
 accept	accept	engine	merge_action/INSERT_opt_column_list_merge_insert_value_list_or_source_row	MERGE a USING a ON NULL WHEN MATCHED THEN INSERT ROW
 reject	reject	engine	merge_action/INSERT_opt_column_list_merge_insert_value_list_or_source_row!drop-1	MERGE a USING a ON NULL WHEN MATCHED THEN ROW
 reject	reject	engine	merge_action/INSERT_opt_column_list_merge_insert_value_list_or_source_row!swap	MERGE a USING a ON NULL WHEN MATCHED THEN INTERLEAVE ROW
+accept	accept	engine	merge_action/INSERT_opt_column_list_merge_insert_value_list_or_source_row+opt_column_list	MERGE a USING a ON NULL WHEN MATCHED THEN INSERT(a) ROW
+reject	reject	engine	merge_action/INSERT_opt_column_list_merge_insert_value_list_or_source_row+opt_column_list!drop-2	MERGE a USING a ON NULL WHEN MATCHED THEN INSERT a) ROW
+reject	reject	engine	merge_action/INSERT_opt_column_list_merge_insert_value_list_or_source_row+opt_column_list!drop-3	MERGE a USING a ON NULL WHEN MATCHED THEN INSERT() ROW
+reject	reject	engine	merge_action/INSERT_opt_column_list_merge_insert_value_list_or_source_row+opt_column_list!drop-4	MERGE a USING a ON NULL WHEN MATCHED THEN INSERT(a ROW
 accept	accept	engine	merge_action/UPDATE_SET_update_item_(,_(update_item))*	MERGE a USING a ON NULL WHEN MATCHED THEN UPDATE SET a = NULL
 reject	reject	engine	merge_action/UPDATE_SET_update_item_(,_(update_item))*!drop-1	MERGE a USING a ON NULL WHEN MATCHED THEN SET a = NULL
 reject	reject	engine	merge_action/UPDATE_SET_update_item_(,_(update_item))*!drop-2	MERGE a USING a ON NULL WHEN MATCHED THEN UPDATE a = NULL
@@ -9357,10 +9533,13 @@ reject	reject	engine	break_statement/BREAK_opt_identifier	BREAK
 reject	reject	engine	break_statement/LEAVE_opt_identifier	LEAVE
 reject	reject	engine	break_statement/LEAVE_opt_identifier!insert	LEAVE zzz
 reject	reject	engine	break_statement/LEAVE_opt_identifier!swap	LEFT
+reject	reject	engine	break_statement/LEAVE_opt_identifier+opt_identifier	LEAVE a
 reject	reject	engine	continue_statement/CONTINUE_opt_identifier	CONTINUE
+reject	reject	engine	continue_statement/CONTINUE_opt_identifier+opt_identifier	CONTINUE a
 reject	reject	engine	continue_statement/ITERATE_opt_identifier	ITERATE
 reject	reject	engine	continue_statement/ITERATE_opt_identifier!insert	ITERATE zzz
 reject	reject	engine	continue_statement/ITERATE_opt_identifier!swap	JOIN
+reject	reject	engine	continue_statement/ITERATE_opt_identifier+opt_identifier	ITERATE a
 reject	reject	engine	return_statement/RETURN	RETURN
 reject	reject	engine	raise_statement/RAISE	RAISE
 reject	reject	engine	raise_statement/RAISE_USING_MESSAGE_=_expression	RAISE USING MESSAGE = NULL
@@ -9864,7 +10043,7 @@ accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_part
 accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT IF NOT EXISTS p OPTIONS (instance_partition = 'x')
 accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT `p` OPTIONS (instance_partition = 'x')
 accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT s.p OPTIONS (instance_partition = 'x')
-accept	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = 'x', read_lease_regions = 'a')
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = 'x', read_lease_regions = 'a')
 reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p
 reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT IF NOT EXISTS p
 reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT s.p
@@ -10146,8 +10325,8 @@ reject	reject	engine	suite:bq-ddl	DROP TABLE FUNCTION ds.f
 reject	reject	engine	suite:bq-ddl	DROP VECTOR INDEX idx ON ds.t
 reject	reject	engine	suite:bq-ddl	DROP SEARCH INDEX idx ON ds.t
 reject	reject	engine	suite:bq-ddl	ALTER VECTOR INDEX idx ON ds.t REBUILD
-accept	reject	engine	suite:bq-ddl	ALTER SEARCH INDEX idx ADD STORED COLUMN c
-accept	reject	engine	suite:bq-ddl	ALTER SEARCH INDEX idx DROP STORED COLUMN c
+reject	reject	engine	suite:bq-ddl	ALTER SEARCH INDEX idx ADD STORED COLUMN c
+reject	reject	engine	suite:bq-ddl	ALTER SEARCH INDEX idx DROP STORED COLUMN c
 reject	reject	engine	suite:bq-ddl	CREATE FUNCTION ds.f(x INT64) AS (x + 1)
 accept	accept	engine	suite:bq-ddl	CREATE OR REPLACE FUNCTION ds.f(x INT64) RETURNS INT64 AS (x)
 accept	accept	engine	suite:bq-ddl	CREATE VECTOR INDEX my_index ON ds.t(embedding) OPTIONS(distance_type='COSINE')

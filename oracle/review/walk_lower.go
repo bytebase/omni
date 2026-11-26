@@ -1805,7 +1805,26 @@ func (b *builder) alterMaterializedView(v *ast.AlterMaterializedViewStmt) bool {
 	}
 	b.exists(k, []string{kindMView}, v.IfExists, r.rng, missingKind(kindMView, r.written), wrongKind(r.written, kindTable, kindWord(kindMView)))
 	b.Last = true
+	// MODIFY (col ...) and MODIFY LOB (col) act on the container's columns
+	// as ALTER TABLE's do (00904, 22858; verified).
+	if c := mviewColumnCmd(v); c != nil && !v.IfExists {
+		if f, kind := b.look(k); f == walk.Present && kind == kindMView {
+			return b.alterCmd(r, kind, c, nil, nil, false)
+		}
+	}
 	return true
+}
+
+// mviewColumnCmd returns the ALTER TABLE command an ALTER MATERIALIZED
+// VIEW MODIFY column clause is, or nil.
+func mviewColumnCmd(v *ast.AlterMaterializedViewStmt) *ast.AlterTableCmd {
+	switch {
+	case v.Action == "MODIFY" && v.Modify != nil && v.Modify.Action == ast.AT_MODIFY_COLUMN:
+		return v.Modify
+	case v.Action == "MODIFY_LOB" && v.Name != nil:
+		return &ast.AlterTableCmd{Action: ast.AT_MODIFY_LOB, Loc: ast.Loc{Start: v.Name.Loc.End, End: v.Loc.End}}
+	}
+	return nil
 }
 
 // alterMviewRequiresMView reports whether an ALTER MATERIALIZED VIEW

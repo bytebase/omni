@@ -602,11 +602,17 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		if p.funcWordIsName() {
 			return p.parseIdentExpr()
 		}
+		if !p.parenTouches() {
+			return nil, p.syntaxErrorAtTok(p.peekNext())
+		}
 		return p.parseCastExpr()
 
 	case kwEXTRACT:
 		if p.funcWordIsName() {
 			return p.parseIdentExpr()
+		}
+		if !p.parenTouches() {
+			return nil, p.syntaxErrorAtTok(p.peekNext())
 		}
 		return p.parseExtractExpr()
 
@@ -778,6 +784,16 @@ func (p *Parser) parseNextValueFor() (nodes.ExprNode, error) {
 		Name: "NEXTVAL",
 		Args: []nodes.ExprNode{seq},
 	}, nil
+}
+
+// parenTouches reports whether the `(` after the word at p.cur follows it directly.
+// CAST and EXTRACT are builtin tokens (builtinCast, builtinExtract) only then
+// (btFuncTokenMap and isTokenIdentifier in pkg/parser/misc.go); spaced, or with a
+// comment between, each is the NotKeywordToken word (parser.y:7220), which no
+// production calls, so TiDB v8.5.5 answers 1064 at the `(` for `CAST (1)`, `CAST (1
+// AS SIGNED)` and `EXTRACT (1)`.
+func (p *Parser) parenTouches() bool {
+	return p.peekNext().Loc == p.cur.End
 }
 
 // funcWordIsName reports whether the function word at p.cur is a name here, which is

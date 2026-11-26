@@ -391,7 +391,7 @@ func (p *Parser) parsePublicationTable() (*nodes.PublicationTable, bool, error) 
 	if err != nil {
 		return nil, false, err
 	}
-	where, err := p.parseOptWhereClausePub()
+	where, err := p.parseOptWhereClause()
 	if err != nil {
 		return nil, false, err
 	}
@@ -403,10 +403,11 @@ func (p *Parser) parsePublicationTable() (*nodes.PublicationTable, bool, error) 
 	}, extended, nil
 }
 
-// parseOptWhereClausePub parses the OptWhereClause for publication objects.
+// parseOptWhereClause parses OptWhereClause (gram.y:4371), which publication
+// objects and EXCLUDE constraints (gram.y:4212) name.
 //
 //	OptWhereClause: WHERE '(' a_expr ')' | /* EMPTY */
-func (p *Parser) parseOptWhereClausePub() (nodes.Node, error) {
+func (p *Parser) parseOptWhereClause() (nodes.Node, error) {
 	if p.cur.Type != WHERE {
 		return nil, nil
 	}

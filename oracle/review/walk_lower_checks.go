@@ -335,15 +335,16 @@ func (b *builder) checkPartitionTextContradictions(loc ast.Loc, tableRef objRef,
 
 		}
 	}
-	if b.checkUpdateIndexesText(loc, rng) {
+	if b.checkUpdateIndexesText(loc, tableRef, rng) {
 		return true
 	}
 	return false
 }
 
-// checkUpdateIndexesText checks UPDATE INDEXES (...) clauses for duplicate
-// index names (ORA-14293) and missing commas between partition specs.
-func (b *builder) checkUpdateIndexesText(loc ast.Loc, rng review.Range) bool {
+// checkUpdateIndexesText checks UPDATE INDEXES (...) clauses for missing
+// indexes (ORA-01418), duplicate index names (ORA-14293) and missing commas
+// between partition specs.
+func (b *builder) checkUpdateIndexesText(loc ast.Loc, r objRef, rng review.Range) bool {
 	toks := tokens(b.w.sql, loc)
 	for i := 0; i+2 < len(toks); i++ {
 		if !tokWord(toks, i, "UPDATE") || !tokWord(toks, i+1, "INDEXES") || toks[i+2].Type != tokenOpenParen {
@@ -372,6 +373,8 @@ func (b *builder) checkUpdateIndexesText(loc ast.Loc, rng review.Range) bool {
 					continue
 				}
 				if name, ok := tokenName(inner[j]); ok && j+1 < len(inner) && inner[j+1].Type == tokenOpenParen {
+					ix := refIn(r, name)
+					b.need(ix.key(spaceIndex), walk.Present, nil, rng, missingIndex(ix.written), "")
 					if seenIdx[name] {
 						b.fail(rng, review.DuplicateName, twice("names", "index", name))
 						return true

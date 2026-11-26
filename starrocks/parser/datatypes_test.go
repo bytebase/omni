@@ -537,3 +537,24 @@ func TestDataType_Lowercase_array(t *testing.T) {
 	assertTypeName(t, tn, "ARRAY")
 	assertTypeName(t, tn.ElementType, "INT")
 }
+
+// TestMapKeyBaseType holds a map's key to a base type, as the pinned
+// StarRocks's AST builder does, in a type and in an ALTER TABLE column type.
+func TestMapKeyBaseType(t *testing.T) {
+	for sql, ok := range map[string]bool{
+		"SELECT CAST(NULL AS MAP<INT, ARRAY<INT>>)":             true,
+		"SELECT CAST(NULL AS MAP<VARBINARY, INT>)":              true,
+		"SELECT CAST(NULL AS MAP<DECIMAL(10, 2), INT>)":         true,
+		"SELECT CAST(NULL AS MAP<ARRAY<INT>, INT>)":             false,
+		"SELECT CAST(NULL AS ARRAY<MAP<STRUCT<a INT>, INT>>)":   false,
+		"SELECT CAST(NULL AS MAP<json, INT>)":                   false,
+		"CREATE TABLE t (a MAP<HLL, INT>)":                      false,
+		"ALTER TABLE t MODIFY COLUMN a MAP<INT, INT>":           true,
+		"ALTER TABLE t MODIFY COLUMN a MAP<MAP<INT, INT>, INT>": false,
+		"ALTER TABLE t MODIFY COLUMN a MAP<BITMAP, INT>":        false,
+	} {
+		if _, err := Parse(sql); (err == nil) != ok {
+			t.Errorf("Parse(%q) error = %v, want accepted %v", sql, err, ok)
+		}
+	}
+}

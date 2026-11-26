@@ -253,9 +253,11 @@ func TestProjection_RecursiveCTEFixpoint(t *testing.T) {
 
 // TestProjection_StructFieldRootIsColumn: a `s.field` / `s.a.b` where `s` is not a
 // FROM relation resolves `s` as a (struct) column of the base table, dropping the
-// trailing field path — the legacy a-as-column field-path behaviour.
+// trailing field path from its lineage. The column is named after the last field,
+// as BigQuery names it (testdata/span.tsv).
 func TestProjection_StructFieldRootIsColumn(t *testing.T) {
-	for _, sql := range []string{"SELECT s.field FROM t", "SELECT s.a.b FROM t"} {
+	for _, tc := range []struct{ sql, name string }{{"SELECT s.field FROM t", "field"}, {"SELECT s.a.b FROM t", "b"}} {
+		sql := tc.sql
 		span, err := GetQuerySpan(sql)
 		if err != nil {
 			t.Fatalf("%q error: %v", sql, err)
@@ -263,8 +265,8 @@ func TestProjection_StructFieldRootIsColumn(t *testing.T) {
 		if len(span.Results) != 1 {
 			t.Fatalf("%q got %d results, want 1", sql, len(span.Results))
 		}
-		if !strings.EqualFold(span.Results[0].Name, "s") {
-			t.Errorf("%q name = %q, want s (the struct column root)", sql, span.Results[0].Name)
+		if span.Results[0].Name != tc.name {
+			t.Errorf("%q name = %q, want %s (the last field)", sql, span.Results[0].Name, tc.name)
 		}
 		if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"t.s"}) {
 			t.Errorf("%q sources = %v, want [t.s] (struct root attributed to its sole base relation)", sql, got)

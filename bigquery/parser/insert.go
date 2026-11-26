@@ -79,9 +79,8 @@ func (p *Parser) parseInsertPrefix(pipe bool) (*ast.InsertStmt, error) {
 	stmt := &ast.InsertStmt{Loc: ast.Loc{Start: start}}
 
 	// opt_or_ignore_replace_update: [OR] IGNORE | [OR] REPLACE | [OR] UPDATE.
-	// Bare REPLACE/UPDATE (without OR) is accepted in standalone DML in union
-	// mode (`INSERT REPLACE INTO t ...`), but rejected in pipe INSERT (`|> INSERT
-	// REPLACE a`), BigQuery, and Spanner.
+	// Bare REPLACE/UPDATE (without OR) is a mode only in the statement, not in
+	// pipe INSERT (see parseInsertOrAction).
 	stmt.OrAction = p.parseInsertOrAction(pipe)
 
 	// opt_into.
@@ -170,15 +169,26 @@ func (p *Parser) parseInsertOrAction(pipe bool) string {
 		// for the (failing) target parse to report.
 		return ""
 	}
-	// Bare IGNORE | REPLACE | UPDATE (no OR).
-	// Pipe INSERT, BigQuery, and Spanner do not accept bare INSERT REPLACE /
-	// INSERT UPDATE (require OR).
+	// Bare IGNORE | REPLACE | UPDATE (no OR). insert_mode (googlesql.tm:12026)
+	// takes KW_REPLACE_AFTER_INSERT and KW_UPDATE_AFTER_INSERT, the REPLACE and
+	// UPDATE the lookahead transformer makes after a statement's INSERT
+	// (googlesql.tm:461): BigQuery accepts `INSERT REPLACE a SELECT NULL`. After
+	// the pipe's INSERT it makes no such token, so `|> INSERT REPLACE` names the
+	// table REPLACE and `|> INSERT REPLACE a` is a syntax error.
 	switch p.cur.Type {
 	case kwIGNORE:
 		p.advance()
 		return "IGNORE"
 	case kwREPLACE:
+		if !pipe {
+			p.advance()
+			return "REPLACE"
+		}
 	case kwUPDATE:
+		if !pipe {
+			p.advance()
+			return "UPDATE"
+		}
 	}
 	return ""
 }
@@ -583,13 +593,22 @@ func (p *Parser) parseAssertRowsModified() (ast.Node, error) {
 //	| CAST ( int_literal_or_parameter AS type [FORMAT …] )
 //
 // It accepts the restricted operand set the grammar allows for
-// ASSERT_ROWS_MODIFIED / TABLESAMPLE counts, rejecting general expressions. The
-// CAST arm reuses parseCastExpr (whose inner is a full expression — a CAST of a
-// non-literal like `CAST(1+1 AS INT64)` is a rare over-accept relative to the
-// grammar's int_literal_or_parameter inner, but every documented/corpus form
-// casts a literal or parameter; the load-bearing fix is rejecting a bare
-// non-literal operand, which this does).
+// ASSERT_ROWS_MODIFIED, LIMIT/OFFSET in graph queries and TABLESAMPLE's
+// REPEATABLE, rejecting general expressions, inside a CAST too: the CAST's
+// operand is int_literal_or_parameter (googlesql.tm:6083), and BigQuery refuses
+// `ASSERT_ROWS_MODIFIED CAST(a AS INT64)` with `Expected "@" or "@@" or integer
+// literal`.
 func (p *Parser) parseIntLiteralOrParameterOrCast() (ast.Node, error) {
+	if p.cur.Type == kwCAST {
+		return p.parseCastWith(false, p.parseIntLiteralOrParameter)
+	}
+	return p.parseIntLiteralOrParameter()
+}
+
+// parseIntLiteralOrParameter parses int_literal_or_parameter
+// (googlesql.tm:6075): integer_literal | parameter_expression |
+// system_variable_expression.
+func (p *Parser) parseIntLiteralOrParameter() (ast.Node, error) {
 	switch p.cur.Type {
 	case tokInteger:
 		tok := p.advance()
@@ -601,8 +620,6 @@ func (p *Parser) parseIntLiteralOrParameterOrCast() (ast.Node, error) {
 	case int('?'):
 		tok := p.advance()
 		return &ast.Parameter{Positional: true, Loc: tok.Loc}, nil
-	case kwCAST:
-		return p.parseCastExpr(false)
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}

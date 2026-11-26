@@ -18,6 +18,6 @@ func TestAliasedColumnLineage(t *testing.T) {
 		&metadata.TableMetadata{Name: "galleries", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "x"}}},
 	))
 	require.Len(t, span.Results, 1)
-	require.Equal(t, "Y", span.Results[0].Name)
+	require.Equal(t, "y", span.Results[0].Name)
 	require.Equal(t, []string{"galleries.x"}, sourcesOf(span.Results[0]))
 }

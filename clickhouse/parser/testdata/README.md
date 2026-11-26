@@ -15,11 +15,11 @@ the SHA-256 of the vendored grammar files against the `grammar` row of
 
 | Rows | Total | Agree | Only ClickHouse accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 1,401 | 1,401 (100.0%) | 0 | 0 |
-| Near-misses | 2,604 | 2,604 (100.0%) | 0 | 0 |
+| One per alternative | 1,563 | 1,563 (100.0%) | 0 | 0 |
+| Near-misses | 3,023 | 3,023 (100.0%) | 0 | 0 |
 | Hand-added (`suite:access-or-replace`) | 35 | 35 (100.0%) | 0 | 0 |
 | Hand-added (`suite:type-args`) | 144 | 144 (100.0%) | 0 | 0 |
-| **All** | **4,184** | **4,184 (100.0%)** | **0** | **0** |
+| **All** | **4,765** | **4,765 (100.0%)** | **0** | **0** |
 
 An optional clause that several alternatives of one rule share, such as
 `createStmt`'s `(IF NOT EXISTS)?`, gets a row at each of them:
@@ -82,6 +82,6 @@ settings between `EXPLAIN AST` and the inner query (such as `graph = 1`),
 
 ## Remaining disagreements
 
-None — all 4,184 rows (1,401 grammar alternatives, 2,604 near-misses and 179
+None — all 4,765 rows (1,563 grammar alternatives, 3,023 near-misses and 179
 hand-added rows) agree
 with ClickHouse 26.8.38.9 (`0` ClickHouse-only, `0` omni-only).

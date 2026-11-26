@@ -767,6 +767,20 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT utf8mb4 EXCEPT DISTINCT SELECT utf8mb4
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 EXCEPT ALL SELECT utf8mb4
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT utf8mb4 INTERSECT SELECT utf8mb4
 < error
 | 1054 42S22 Unknown column 'utf8mb4' in 'field list'
@@ -775,6 +789,20 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT utf8mb4 INTERSECT SELECT utf8mb4 zzz
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 INTERSECT DISTINCT SELECT utf8mb4
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 INTERSECT ALL SELECT utf8mb4
 < error
 | 1054 42S22 Unknown column 'utf8mb4' in 'field list'
 > exec
@@ -17912,6 +17940,59 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT COUNT(ALL *) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select count(0) AS `COUNT(ALL *)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT COUNT(utf8mb4) FROM utf8mb4
 < ok 0 0
 > query
@@ -19388,6 +19469,20 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT LAG(utf8mb4) RESPECT NULLS OVER utf8mb4 FROM utf8mb4
+< error
+| 3579 HY000 Window name 'utf8mb4' is not defined.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT LAG(utf8mb4) IGNORE NULLS OVER utf8mb4 FROM utf8mb4
+< error
+| 3579 HY000 Window name 'utf8mb4' is not defined.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT FIRST_VALUE(utf8mb4) OVER utf8mb4 FROM utf8mb4
 < error
 | 3579 HY000 Window name 'utf8mb4' is not defined.
@@ -19396,6 +19491,20 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT FIRST_VALUE(utf8mb4) OVER utf8mb4 zzz FROM utf8mb4
+< error
+| 3579 HY000 Window name 'utf8mb4' is not defined.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT FIRST_VALUE(utf8mb4) RESPECT NULLS OVER utf8mb4 FROM utf8mb4
+< error
+| 3579 HY000 Window name 'utf8mb4' is not defined.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT FIRST_VALUE(utf8mb4) IGNORE NULLS OVER utf8mb4 FROM utf8mb4
 < error
 | 3579 HY000 Window name 'utf8mb4' is not defined.
 > exec
@@ -19416,6 +19525,20 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT LAST_VALUE(utf8mb4) RESPECT NULLS OVER utf8mb4 FROM utf8mb4
+< error
+| 3579 HY000 Window name 'utf8mb4' is not defined.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT LAST_VALUE(utf8mb4) IGNORE NULLS OVER utf8mb4 FROM utf8mb4
+< error
+| 3579 HY000 Window name 'utf8mb4' is not defined.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT NTH_VALUE(utf8mb4, utf8mb4) OVER utf8mb4 FROM utf8mb4
 < error
 | 3579 HY000 Window name 'utf8mb4' is not defined.
@@ -19424,6 +19547,20 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT NTH_VALUE(utf8mb4, utf8mb4) OVER utf8mb4 zzz FROM utf8mb4
+< error
+| 3579 HY000 Window name 'utf8mb4' is not defined.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT NTH_VALUE(utf8mb4, utf8mb4) RESPECT NULLS OVER utf8mb4 FROM utf8mb4
+< error
+| 3579 HY000 Window name 'utf8mb4' is not defined.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT NTH_VALUE(utf8mb4, utf8mb4) IGNORE NULLS OVER utf8mb4 FROM utf8mb4
 < error
 | 3579 HY000 Window name 'utf8mb4' is not defined.
 > exec
