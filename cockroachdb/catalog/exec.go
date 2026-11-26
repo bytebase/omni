@@ -205,6 +205,10 @@ func (c *Catalog) exec(stmt tree.Statement) error {
 			return refuse(codeUndefinedTable, "relation %q does not exist", n.Name.String())
 		}
 	case *tree.SetVar:
+		if strings.EqualFold(n.Name, "serial_normalization") && !strings.EqualFold(strings.Trim(tree.AsString(&n.Values), "'"), "rowid") {
+			// The catalog gives SERIAL the default, unique_rowid().
+			return &Error{Message: fmt.Sprintf("SET serial_normalization = %s is not supported", tree.AsString(&n.Values))}
+		}
 		if strings.EqualFold(n.Name, "search_path") || strings.EqualFold(n.Name, "schema") {
 			// The catalog resolves every name in public.
 			return &Error{Message: "SET search_path is not supported"}
@@ -1170,6 +1174,9 @@ func (c *Catalog) createView(n *tree.CreateView) error {
 	if err := c.viewColumnCount(s, name, n); err != nil {
 		return err
 	}
+	if err := c.unexpandedStar(s, name, n); err != nil {
+		return err
+	}
 	// A star is expanded once loaded: its names count too.
 	var names []string
 	if v := findView(s, name); v != nil && !n.Materialized {
@@ -1311,6 +1318,22 @@ func (c *Catalog) reaches(schema, name, targetSchema, target string) bool {
 		return false
 	}
 	return walk(schema, name)
+}
+
+// unexpandedStar refuses a view whose star the loader could not expand, as
+// over a join: CockroachDB fixes the star's columns at creation, which the
+// catalog would not hold.
+func (c *Catalog) unexpandedStar(s *metadatapb.SchemaMetadata, name string, n *tree.CreateView) error {
+	var columns []*metadatapb.ColumnMetadata
+	if v := findView(s, name); v != nil && !n.Materialized {
+		columns = v.Columns
+	} else if v := findMaterializedView(s, name); v != nil {
+		columns = v.Columns
+	}
+	if len(columns) == 0 && strings.Contains(tree.AsString(n.AsSource), "*") {
+		return &Error{Message: fmt.Sprintf("a star view %q reads cannot be expanded by the catalog", name)}
+	}
+	return nil
 }
 
 // viewColumnCount refuses a column list whose length is not the expanded
@@ -3841,8 +3864,8 @@ func (c *Catalog) renameIndex(n *tree.RenameIndex) error {
 		return err
 	}
 	to := string(n.NewName)
-	s := c.l.schemas[schemaOf(&n.Index.Table)]
-	if slices.ContainsFunc(*list, func(i *metadatapb.IndexMetadata) bool { return i.Name == to }) || relation(s, to) != relNone {
+	// Index names are unique per table.
+	if slices.ContainsFunc(*list, func(i *metadatapb.IndexMetadata) bool { return i.Name == to }) {
 		return refuse(codeDuplicateRelation, "relation %q already exists", to)
 	}
 	index.Name = to

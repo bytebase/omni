@@ -580,3 +580,14 @@ func TestExecRound39(t *testing.T) {
 	_, err := execLast(t, "CREATE TABLE t (a INT8); CREATE SEQUENCE sq OWNED BY t.a; CREATE VIEW v1 AS SELECT a FROM t; CREATE VIEW v2 AS SELECT a FROM v1; CREATE VIEW v3 AS SELECT a, nextval('sq') AS n FROM v2; DROP TABLE t CASCADE")
 	require.NoError(t, err)
 }
+
+func TestExecRound40(t *testing.T) {
+	_, err := execLast(t, "CREATE TABLE t (a INT8); CREATE TABLE u (b INT8); CREATE VIEW v AS SELECT * FROM t CROSS JOIN u")
+	require.Error(t, err)
+	_, err = execLast(t, "SET serial_normalization = 'sql_sequence'")
+	require.Error(t, err)
+	_, err = execLast(t, "SET serial_normalization = 'rowid'")
+	require.NoError(t, err)
+	_, err = execLast(t, "CREATE TABLE t (a INT8); CREATE INDEX ix ON t (a); ALTER INDEX t@ix RENAME TO t")
+	require.NoError(t, err)
+}
