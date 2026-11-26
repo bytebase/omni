@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/mariadb/ast"
+	mariadbcatalog "github.com/bytebase/omni/mariadb/catalog"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 )
@@ -26,6 +27,8 @@ import (
 //   - a missing relation it reads (1146), and NEXTVAL, LASTVAL, SETVAL,
 //     NEXT VALUE FOR, or PREVIOUS VALUE FOR of a missing relation (1146) or
 //     one that is no sequence (4089);
+//   - an unqualified call of a lexer word that is no builtin, which only a
+//     stored function of the current database answers (1630);
 //   - what it holds as MariaDB parses it (viewTextFault): a variable
 //     (1351), an INTO or PROCEDURE clause or a parameter marker (1064),
 //     VALUES rows of different lengths (4099) or of none (4141), and a
@@ -639,7 +642,9 @@ func (b *builder) blocksFail(root *ast.SelectStmt, ctes map[string]bool) bool {
 }
 
 // callFails checks a function call: its window (4009, 4017), a temporal
-// function's precision (1426), and the sequence a sequence function names.
+// function's precision (1426), the sequence a sequence function names, and
+// the stored function of the current database a call can only name
+// (1630).
 func (b *builder) callFails(x *ast.FuncCallExpr, windows, ctes map[string]bool) bool {
 	if x.Over != nil {
 		if name := x.Over.RefName; name != "" && !windows[strings.ToLower(name)] {
@@ -651,7 +656,22 @@ func (b *builder) callFails(x *ast.FuncCallExpr, windows, ctes map[string]bool) 
 			return true
 		}
 	}
-	if x.Schema != "" || x.NameQuoted || len(x.Args) == 0 {
+	if x.Schema != "" || x.NameQuoted {
+		return false
+	}
+	// A lexer word no builtin has names a stored function of the current
+	// database; any other name may be a loadable function's, which the sync
+	// does not list.
+	if !x.SpacedParen && !b.w.lost && !b.w.noDatabase && mariadbcatalog.StoredFunctionOnly(x.Name) {
+		name := x.RawName
+		if name == "" {
+			name = x.Name
+		}
+		if k, ok := b.key(spaceFunction, name); ok {
+			b.need(objKey(spaceFunction, b.w.current, k), walk.Present, nil, rangeOf(x.Loc), notFound("function", ident(name), ""), "") // 1630
+		}
+	}
+	if len(x.Args) == 0 {
 		return false
 	}
 	switch strings.ToUpper(x.Name) {

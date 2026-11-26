@@ -234,3 +234,14 @@ func isMariaDBSchemaBuiltinFunction(fc *nodes.FuncCallExpr, lowerName string) bo
 func isMariaDBFuncCollisionName(lowerName string) bool {
 	return mariadbFuncCollisionNames[lowerName]
 }
+
+// StoredFunctionOnly reports whether an unqualified call of name, unquoted
+// and with its parenthesis adjacent, can call a stored function only: no
+// builtin has the name, and it is a lexer word, which no loadable function
+// may take (CREATE FUNCTION ... SONAME answers 1585 for each, verified on
+// mariadb:11.8.8). MariaDB refuses a call of one the current database
+// lacks with 1630.
+func StoredFunctionOnly(name string) bool {
+	lower := toLower(name)
+	return !isMariaDBBuiltinFunction(lower, false) && isMariaDBFuncCollisionName(lower)
+}
