@@ -46,6 +46,10 @@ const (
 	CandidateDbMethod
 	CandidateRsMethod
 	CandidateShMethod
+
+	// CandidateUserVariable is a variable the user's session or code declares
+	// (an Oracle package variable), as opposed to a server's system variable.
+	CandidateUserVariable
 )
 
 // String returns the lower-case kind name of the candidate type.
@@ -127,6 +131,8 @@ func (t CandidateType) String() string {
 		return "rs_method"
 	case CandidateShMethod:
 		return "sh_method"
+	case CandidateUserVariable:
+		return "user_variable"
 	default:
 		return "unknown"
 	}
