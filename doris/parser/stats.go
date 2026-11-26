@@ -189,15 +189,6 @@ func (p *Parser) parseShowAnalyze(startLoc ast.Loc, all, queued bool) (ast.Node,
 		stmt.For = target
 		endLoc = target.Loc
 
-	case kwLIKE:
-		p.advance() // consume LIKE
-		if p.cur.Kind != tokString {
-			return nil, p.syntaxErrorAtCur()
-		}
-		stmt.Like = p.cur.Str
-		endLoc = p.cur.Loc
-		p.advance()
-
 	default:
 		// Bare identifier used as table target (e.g., SHOW ANALYZE test1 WHERE ...)
 		if isIdentifierToken(p.cur.Kind) {
@@ -210,15 +201,16 @@ func (p *Parser) parseShowAnalyze(startLoc ast.Loc, all, queued bool) (ast.Node,
 		}
 	}
 
-	// Optional WHERE clause
-	if p.cur.Kind == kwWHERE {
-		p.advance() // consume WHERE
-		where, err := p.parseExpr()
+	// Optional wildWhere after the table or the job id: LIKE 'pattern' or
+	// WHERE expression (DorisParser.g4:775-776 showAnalyze,
+	// showAnalyzeFromJobId).
+	if p.cur.Kind == kwLIKE || p.cur.Kind == kwWHERE {
+		like, where, err := p.parseJobWildWhere()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Where = where
-		endLoc = ast.NodeLoc(where)
+		stmt.Like, stmt.Where = like, where
+		endLoc = p.prev.Loc
 	}
 
 	stmt.Loc = startLoc.Merge(endLoc)
