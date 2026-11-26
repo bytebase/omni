@@ -187,13 +187,18 @@ func (p *Parser) parseJobSchedule() (*ast.JobSchedule, error) {
 		}
 		sched.Every = strings.Join(parts, " ")
 
-		// Optional STARTS timestamp
+		// Optional STARTS (STRING_LITERAL | CURRENT_TIMESTAMP)
+		// (DorisParser.g4:118).
 		if p.cur.Kind == kwSTARTS {
 			p.advance() // consume STARTS
-			if p.cur.Kind != tokString {
+			switch p.cur.Kind {
+			case tokString:
+				sched.Starts = p.cur.Str
+			case kwCURRENT_TIMESTAMP:
+				sched.Starts = "CURRENT_TIMESTAMP"
+			default:
 				return nil, p.syntaxErrorAtCur()
 			}
-			sched.Starts = p.cur.Str
 			sched.Loc.End = p.cur.Loc.End
 			p.advance()
 		}

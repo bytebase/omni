@@ -18,10 +18,10 @@ a fresh server wrote the same file.
 | `DorisLegacyParser.g4`, near-misses | 5,883 | 5,883 | 0 | 0 |
 | `DorisParser.g4`, an optional clause at every site, with near-misses | 157 | 157 | 0 | 0 |
 | `DorisLegacyParser.g4`, an optional clause at every site, with near-misses | 270 | 270 | 0 | 0 |
-| `DorisParser.g4`, every form of a keyword choice at every site, with near-misses | 146 | 146 | 0 | 0 |
-| `DorisLegacyParser.g4`, every form of a keyword choice at every site, with near-misses | 258 | 258 | 0 | 0 |
+| `DorisParser.g4`, every form of a keyword choice at every site, with near-misses | 592 | 592 | 0 | 0 |
+| `DorisLegacyParser.g4`, every form of a keyword choice at every site, with near-misses | 413 | 413 | 0 | 0 |
 
-Every row agrees: the 16,798 generated rows and the 366 `suite:` rows below.
+Every row agrees: the 17,399 generated rows and the 375 `suite:` rows below.
 #1461 closed the last 201 of them, the tails the grammar derives and omni read
 loosely: `INTERVAL 1 a` with a unit that is not one, `opt_partition`'s
 argument lists, the identifier set `nonReserved`, `EXPLAIN`'s table, function
@@ -39,7 +39,13 @@ The keyword and name choices it names with `(every alternative)` (`wildWhere`,
 `partition_names` and the rest) get a row for each of their forms at each
 site that names them. Their 404 rows found two false rejections, 2026-11-23:
 `SHOW ROUTINE LOAD WHERE ...`, and `BUILD INDEX ... PARTITION(*)` with the
-other `partitionSpec` forms.
+other `partitionSpec` forms. A second pass, 2026-11-26, named 38 more: the
+`FROM | IN` database and the `wildWhere` of each `SHOW`, `CANCEL`, job,
+stats and admin statement (inline groups, one rule per statement rule), the
+`GLOBAL | SESSION | LOCAL` scopes, `comparisonOperator`, `unitIdentifier`,
+`join_operator`, `opt_broker`, `grant_user` and the rest. Their 601 rows
+found three false rejections: `STARTS CURRENT_TIMESTAMP` in `CREATE JOB`,
+and `LIKE` in `SHOW ROUTINE LOAD TASK` and after `SHOW ANALYZE`'s job id.
 
 24 of `DorisParser.g4`'s alternatives get no row: its other entry points,
 `singleStatement` and `expressionWithEof`, and `selectHint`, which Doris reads
@@ -49,11 +55,13 @@ scanner never makes (`../../testdata/tokens.tsv`).
 ## Suites
 
 `suite:conformance` holds the 339 cases of the container test that compared
-`Parse` with a running Doris (`TestDorisSyntaxConformance`) and 20 added
-since (the `BUILD INDEX` partition forms, `SHOW ROUTINE LOAD WHERE`, and the
+`Parse` with a running Doris (`TestDorisSyntaxConformance`) and 29 added
+since (the `BUILD INDEX` partition forms, `SHOW ROUTINE LOAD WHERE`, the
 `* EXCEPT`, `QUALIFY` and `WITH RECURSIVE` forms `doris/analysis`'s span
-suite found), and `suite:comments` holds the 7 `//` and `#` lines Doris has
-no comment for, each judged by the same recording; all 366 agree. A statement
+suite found, and the `SHOW ANALYZE`, `SHOW ROUTINE LOAD TASK` and `CREATE JOB`
+forms around the second pass's gaps), and `suite:comments` holds the 7 `//`
+and `#` lines Doris has no comment for, each judged by the same recording;
+all 375 agree. A statement
 added to a suite is a row with `?` in both verdict cells, judged by a
 recording:
 

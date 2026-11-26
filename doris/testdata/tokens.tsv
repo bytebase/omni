@@ -65,8 +65,9 @@ opt_force	(every site)	DorisLegacyParser.g4:1361 (sql_parser.cup:4285) FORCE
 opt_full	(every site)	DorisLegacyParser.g4:1582 (sql_parser.cup:5008) FULL or EXTENDED
 # Keyword choices tried at every site that names them, and not only at the
 # one site the rule's own rows reach. Each is a named rule used at several
-# sites; an inline (...) group of DorisParser.g4 is already its own rule at
-# each site.
+# sites, or an inline (...) group of DorisParser.g4, which the reader lowers
+# to one rule for the rule that holds it, used at each of that rule's
+# alternatives that write it (the FROM | IN and wildWhere of each SHOW).
 wildWhere	(every alternative)	DorisParser.g4:521 LIKE string or WHERE expression
 privilege	(every alternative)	DorisParser.g4:547 a named privilege or ALL
 columnPosition	(every alternative)	DorisParser.g4:714 FIRST or AFTER a column
@@ -86,6 +87,31 @@ frameBoundary	(every alternative)	DorisParser.g4:1653 a window frame bound
 specifiedPartition	(every alternative)	DorisParser.g4:1663 [TEMPORARY] PARTITION or PARTITIONS
 tableSnapshot	(every alternative)	DorisParser.g4:1788 FOR VERSION or TIME AS OF
 number	(every alternative)	DorisParser.g4:1820 an integer or a decimal, signed or not
+comparisonOperator	(every alternative)	DorisParser.g4:1681 =, <>, <, <=, >, >= or <=>
+unitIdentifier	(every alternative)	DorisParser.g4:1697 YEAR, MONTH, WEEK, DAY, HOUR, MINUTE or SECOND
+refreshMethod	(every alternative)	DorisParser.g4:1023 COMPLETE or AUTO
+joinType(OUTER)?	(every alternative)	DorisParser.g4:1337 LEFT, RIGHT or FULL with or without OUTER
+frameBoundary(PRECEDING|FOLLOWING)	(every alternative)	DorisParser.g4:1654 PRECEDING or FOLLOWING
+statement(PROCEDURE|PROC)	(every alternative)	DorisParser.g4:43 PROCEDURE or PROC
+supportedJobStatement(STRING_LITERAL|CURRENT_TIMESTAMP)	(every alternative)	DorisParser.g4:118 a time or CURRENT_TIMESTAMP
+supportedCreateStatement(EXTERNAL|TEMPORARY)?	(every alternative)	DorisParser.g4:168 EXTERNAL, TEMPORARY or neither
+supportedShowStatement(FROM|IN)	(every alternative)	DorisParser.g4:225 FROM or IN
+unsupportedOtherStatement(CLUSTER|COMPUTE_GROUP)	(every alternative)	DorisParser.g4:243 CLUSTER or COMPUTE GROUP
+unsupportedShowStatement(GLOBAL|SESSION|LOCAL)?	(every alternative)	DorisParser.g4:273 GLOBAL, SESSION, LOCAL or none
+unsupportedShowStatement(FROM|IN)	(every alternative)	DorisParser.g4:300 FROM or IN
+unsupportedShowStatement((FROM|IN)_multipartIdentifier)?	(every alternative)	DorisParser.g4:274 FROM or IN a database, or neither
+unsupportedShowStatement(wildWhere)?	(every alternative)	DorisParser.g4:273 LIKE, WHERE or neither, at each SHOW
+unsupportedShowStatement(WARNINGS|ERRORS)	(every alternative)	DorisParser.g4:305 WARNINGS or ERRORS
+unsupportedLoadStatement(wildWhere)?	(every alternative)	DorisParser.g4:391 LIKE, WHERE or neither
+unsupportedCleanStatement(FROM|IN)	(every alternative)	DorisParser.g4:446 FROM or IN
+unsupportedJobStatement(wildWhere)?	(every alternative)	DorisParser.g4:455 LIKE, WHERE or neither
+unsupportedCancelStatement((FROM|IN)_identifier)?	(every alternative)	DorisParser.g4:462 FROM or IN a database, or neither
+unsupportedCancelStatement(wildWhere)?	(every alternative)	DorisParser.g4:462 LIKE, WHERE or neither
+unsupportedAdminStatement(wildWhere)?	(every alternative)	DorisParser.g4:486 LIKE, WHERE or neither
+unsupportedGrantRevokeStatement(userIdentify|ROLE_STRING_LITERAL)	(every alternative)	DorisParser.g4:534 a user or ROLE and a name
+passwordOption(DAY|HOUR|SECOND)	(every alternative)	DorisParser.g4:864 DAY, HOUR or SECOND
+unsupportedStatsStatement(wildWhere)?	(every alternative)	DorisParser.g4:775 LIKE, WHERE or neither
+unsupportedCreateStatement(GLOBAL|SESSION|LOCAL)?	(every alternative)	DorisParser.g4:799 GLOBAL, SESSION, LOCAL or none
 opt_to_rollup	(every alternative)	DorisLegacyParser.g4:278 (sql_parser.cup:1631) TO or IN a rollup
 opt_col_pos	(every alternative)	DorisLegacyParser.g4:291 (sql_parser.cup:1655) FIRST or AFTER a column
 time_value_with_unit	(every alternative)	DorisLegacyParser.g4:359 (sql_parser.cup:1855) DAYS, HOURS or MINUTES
@@ -113,3 +139,16 @@ window_type	(every alternative)	DorisLegacyParser.g4:2827 (sql_parser.cup:7615) 
 window_boundary	(every alternative)	DorisLegacyParser.g4:2833 (sql_parser.cup:7622) a window frame bound
 opt_chain	(every alternative)	DorisLegacyParser.g4:3091 (sql_parser.cup:8198) AND [NO] CHAIN
 opt_release	(every alternative)	DorisLegacyParser.g4:3098 (sql_parser.cup:8212) [NO] RELEASE
+opt_user	(every alternative)	DorisLegacyParser.g4:244 (sql_parser.cup:1571) FOR a user or nothing
+grant_user	(every alternative)	DorisLegacyParser.g4:478 (sql_parser.cup:2256) a user, IDENTIFIED BY a string or a PASSWORD
+opt_broker	(every alternative)	DorisLegacyParser.g4:751 (sql_parser.cup:2815) WITH S3, HDFS, LOCAL or a BROKER, or nothing
+policy_condition_op	(every alternative)	DorisLegacyParser.g4:1181 (sql_parser.cup:3898) =, >, <, >= or <=
+opt_external	(every alternative)	DorisLegacyParser.g4:1349 (sql_parser.cup:4263) EXTERNAL or nothing
+opt_id	(every alternative)	DorisLegacyParser.g4:1602 (sql_parser.cup:5043) an integer or nothing
+opt_alter_type	(every alternative)	DorisLegacyParser.g4:1608 (sql_parser.cup:5054) ROLLUP, MATERIALIZED VIEW or COLUMN
+opt_with_label	(every alternative)	DorisLegacyParser.g4:1788 (sql_parser.cup:5483) WITH LABEL a name or nothing
+text_or_password	(every alternative)	DorisLegacyParser.g4:1978 (sql_parser.cup:5883) a string or PASSWORD(a string)
+opt_alias	(every alternative)	DorisLegacyParser.g4:2280 (sql_parser.cup:6495) AS a name or nothing
+join_operator	(every alternative)	DorisLegacyParser.g4:2355 (sql_parser.cup:6655) each JOIN form
+opt_outer	(every alternative)	DorisLegacyParser.g4:2375 (sql_parser.cup:6687) OUTER or nothing
+time_unit	(every alternative)	DorisLegacyParser.g4:3406 (sql_parser.cup:8819) YEAR, MONTH, WEEK, DAY, HOUR, MINUTE or SECOND
