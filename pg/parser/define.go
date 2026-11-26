@@ -324,9 +324,9 @@ func (p *Parser) parseDefArg() (nodes.Node, error) {
 		p.advance()
 		return &nodes.List{Items: []nodes.Node{&nodes.String{Str: op}}}, nil
 	}
-	switch p.cur.Type {
-	case '*', '/', '%', '^', '<', '>', '=', LESS_EQUALS, GREATER_EQUALS, NOT_EQUALS:
-		opStr, _ := p.parseMathOp()
+	// qual_all_Op's MathOp (gram.y:16478) holds + and - too: a sign not
+	// followed by a number, which NumericOnly took above, is an operator.
+	if opStr, ok := p.parseMathOp(); ok {
 		return &nodes.List{Items: []nodes.Node{&nodes.String{Str: opStr}}}, nil
 	}
 	if p.isReservedKeyword() {

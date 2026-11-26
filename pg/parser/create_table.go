@@ -225,6 +225,12 @@ func (p *Parser) parseCreateStmtOf(stmt *nodes.CreateStmt) (*nodes.CreateStmt, e
 		}
 	}
 
+	// OptPartitionSpec: gram.y:3608 takes one after OF any_name, as it
+	// does after PARTITION OF.
+	if stmt.Partspec, err = p.parseOptPartitionSpec(); err != nil {
+		return nil, err
+	}
+
 	// OptAccessMethod
 	if stmt.AccessMethod, err = p.parseOptAccessMethod(); err != nil {
 		return nil, err

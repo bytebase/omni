@@ -61,6 +61,35 @@ opt_column_list	(every site)	gram.y:4312 (columns)
 returning_clause	(every site)	gram.y:12269 RETURNING
 where_clause	(every site)	gram.y:13909 WHERE
 opt_ordinality	(every site)	gram.y:13904 WITH ORDINALITY
+opt_asymmetric	(every site)	gram.y:16827 ASYMMETRIC
+opt_recheck	(every site)	gram.y:6646 RECHECK
+path_opt	(every site)	gram.y:14272 PATH
+opt_trusted	(every site)	gram.y:5018 TRUSTED
+opt_program	(every site)	gram.y:3404 PROGRAM
+json_returning_clause_opt	(every site)	gram.y:16955 RETURNING type
+OptPartitionSpec	(every site)	gram.y:4493 PARTITION BY
+opt_alias_clause	(every site)	gram.y:13670 an alias
+opt_merge_when_condition	(every site)	gram.y:12513 AND condition
+opt_type_modifiers	(every site)	gram.y:14400 (type modifiers)
+opt_qualified_name	(every site)	gram.y:1137 a qualified name
+json_passing_clause_opt	(every site)	gram.y:16832 PASSING
+json_format_clause_opt	(every site)	gram.y:16936 FORMAT JSON
+filter_clause	(every site)	gram.y:16201 FILTER (WHERE condition)
+TriggerWhen	(every site)	gram.y:6067 WHEN (condition)
+RowSecurityOptionalExpr	(every site)	gram.y:5819 USING (expression)
+RowSecurityOptionalWithCheck	(every site)	gram.y:5824 WITH CHECK (expression)
+cluster_index_specification	(every site)	gram.y:11786 USING index
+access_method_clause	(every site)	gram.y:8164 USING access method on an index
+opt_reindex_option_list	(every site)	gram.y:9238 (options) on REINDEX
+json_table_column_path_clause_opt	(every site)	gram.y:14277 PATH string
+execute_param_clause	(every site)	gram.y:12075 (parameters)
+opt_type	(every site)	gram.y:5496 TYPE string
+opt_foreign_server_version	(every site)	gram.y:5507 VERSION
+OptSeqOptList	(every site)	gram.y:4879 sequence options
+OptParenthesizedSeqOptList	(every site)	gram.y:4883 (sequence options)
+opt_single_name	(every site)	gram.y:1132 a name
+opt_name_list	(every site)	gram.y:11908 (names)
+into_clause	(every site)	gram.y:12979 INTO table
 
 # Keyword choices tried at every site that names them, and not only where
 # their own alternatives' rows reach (see grammar.EveryAlternative).
@@ -98,6 +127,35 @@ xml_passing_mech	(every alternative)	gram.y:16187 BY REF or BY VALUE
 defacl_privilege_target	(every alternative)	gram.y:8075 the object kinds of ALTER DEFAULT PRIVILEGES
 json_key_uniqueness_constraint_opt	(every alternative)	gram.y:16991 WITH or WITHOUT UNIQUE [KEYS]
 opt_window_exclusion_clause	(every alternative)	gram.y:16438 EXCLUDE CURRENT ROW, GROUP, TIES or NO OTHERS
+RoleSpec	(every alternative)	gram.y:17346 a role name, CURRENT_ROLE, CURRENT_USER or SESSION_USER
+auth_ident	(every alternative)	gram.y:5722 a role or USER
+comment_text	(every alternative)	gram.y:7219 a string or NULL
+security_label	(every alternative)	gram.y:7351 a string or NULL
+NonReservedWord_or_Sconst	(every alternative)	gram.y:1885 a word or a string
+opt_boolean_or_string	(every alternative)	gram.y:1820 TRUE, FALSE, ON, a word or a string
+NumericOnly	(every alternative)	gram.y:4961 a number, signed or not
+set_statistics_value	(every alternative)	gram.y:3093 an integer or DEFAULT
+foreign_server_version	(every alternative)	gram.y:5502 VERSION string or VERSION NULL
+relation_expr_opt_alias	(every alternative)	gram.y:13811 a table, aliased with AS or not
+frame_extent	(every alternative)	gram.y:16327 a frame bound or BETWEEN two
+json_wrapper_behavior	(every alternative)	gram.y:16854 WITH or WITHOUT [CONDITIONAL | UNCONDITIONAL] [ARRAY] WRAPPER
+json_quotes_clause_opt	(every alternative)	gram.y:16947 KEEP or OMIT QUOTES [ON SCALAR STRING]
+json_behavior	(every alternative)	gram.y:16866 DEFAULT expression or a behavior
+json_predicate_type_constraint	(every alternative)	gram.y:16978 JSON [VALUE | ARRAY | OBJECT | SCALAR]
+json_object_constructor_null_clause_opt	(every alternative)	gram.y:17020 NULL ON NULL or ABSENT ON NULL
+json_array_constructor_null_clause_opt	(every alternative)	gram.y:17026 NULL ON NULL or ABSENT ON NULL
+unicode_normal_form	(every alternative)	gram.y:16623 NFC, NFD, NFKC or NFKD
+merge_when_tgt_matched	(every alternative)	gram.y:12503 WHEN MATCHED or WHEN NOT MATCHED BY SOURCE
+merge_when_tgt_not_matched	(every alternative)	gram.y:12508 WHEN NOT MATCHED [BY TARGET]
+createdb_opt_name	(every alternative)	gram.y:11323 the CREATE DATABASE option names
+TableLikeOption	(every alternative)	gram.y:4099 what LIKE includes or excludes
+ConstraintAttributeSpec	(every alternative)	gram.y:6098 constraint attributes
+ConstraintAttributeElem	(every alternative)	gram.y:6127 [NOT] DEFERRABLE, INITIALLY IMMEDIATE or DEFERRED, NOT VALID, NO INHERIT
+opclass_purpose	(every alternative)	gram.y:6641 FOR SEARCH or FOR ORDER BY
+opt_conf_expr	(every alternative)	gram.y:12245 (columns) [WHERE] or ON CONSTRAINT
+where_or_current_clause	(every alternative)	gram.y:13915 WHERE condition or WHERE CURRENT OF cursor
+opt_routine_body	(every alternative)	gram.y:8731 RETURN or BEGIN ATOMIC
+over_clause	(every alternative)	gram.y:16231 OVER (window) or OVER name
 
 # Literals, operators and the tokens the filter forms from other text.
 IDENT	a	scan.l {identifier}: folded to lower case, so a is itself
