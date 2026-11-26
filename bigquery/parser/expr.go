@@ -1024,6 +1024,15 @@ func (p *Parser) parseFuncArg() (ast.Node, error) {
 			return nil, err
 		}
 		p.advance() // consume '=>'
+		// named_argument's `identifier => input_table_argument` (googlesql.tm:10907,
+		// input_table_argument `INPUT TABLE` at 6657), in a function call or
+		// UNNEST as in a TVF. Only the named form takes it.
+		if p.cur.Type == kwINPUT && p.peekNext().Type == kwTABLE {
+			start := p.advance().Loc.Start // INPUT
+			end := p.advance().Loc.End     // TABLE
+			val := &ast.CallArg{Kind: ast.CallArgInputTable, Loc: ast.Loc{Start: start, End: end}}
+			return &ast.NamedArg{Name: name, Value: val, Loc: ast.Loc{Start: nameTok.Loc.Start, End: end}}, nil
+		}
 		// The value may itself be a lambda.
 		val, err := p.parseArgValueMaybeLambda()
 		if err != nil {
@@ -1206,14 +1215,20 @@ func (p *Parser) parseEmptyArgModifiers(fc *ast.FuncCall) error {
 	return nil
 }
 
-// parseLimitOffset parses `LIMIT expr [OFFSET expr]` into fc.
+// parseLimitOffset parses `LIMIT { expr | ALL } [OFFSET expr]` into fc: the
+// call's opt_limit_offset_clause (googlesql.tm:8477, limit_all at 8504).
 func (p *Parser) parseLimitOffset(fc *ast.FuncCall) error {
 	p.advance() // LIMIT
-	lim, err := p.parseExpr()
-	if err != nil {
-		return err
+	if p.cur.Type == kwALL {
+		p.advance()
+		fc.LimitAll = true
+	} else {
+		lim, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		fc.Limit = lim
 	}
-	fc.Limit = lim
 	if p.cur.Type == kwOFFSET {
 		p.advance()
 		off, err := p.parseExpr()
@@ -1498,29 +1513,40 @@ func (p *Parser) parseWindowBound() (ast.WindowBound, error) {
 // a bytes token after a string simply stops the string and is left for the
 // caller, which is a syntax error in expression position if unexpected.
 func (p *Parser) parseStringLiteral() (ast.Node, error) {
-	first := p.advance()
-	value := first.Str
-	loc := first.Loc
-	for p.cur.Type == tokString {
-		comp := p.advance()
-		value += comp.Str
-		loc.End = comp.Loc.End
-	}
-	return &ast.Literal{Kind: ast.LitString, Value: value, Loc: loc}, nil
+	tok := p.literalRun(tokString)
+	return &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}, nil
 }
 
 // parseBytesLiteral parses one or more adjacent BYTES_LITERAL components
 // (bytes_literal: adjacent concatenation).
 func (p *Parser) parseBytesLiteral() (ast.Node, error) {
-	first := p.advance()
-	value := first.Str
-	loc := first.Loc
-	for p.cur.Type == tokBytes {
+	tok := p.literalRun(tokBytes)
+	return &ast.Literal{Kind: ast.LitBytes, Value: tok.Str, Loc: tok.Loc}, nil
+}
+
+// literalRun consumes the current token and every adjacent token of the same
+// type after it, and returns them as one token: its value concatenated, its
+// Loc spanning the run. GoogleSQL names string_literal and bytes_literal, not
+// a single component, wherever it takes a string or bytes literal
+// (googlesql.tm:11369 string_literal, 11431 bytes_literal), so every site
+// takes 'a' 'b'.
+func (p *Parser) literalRun(typ int) Token {
+	tok := p.advance()
+	for p.cur.Type == typ {
 		comp := p.advance()
-		value += comp.Str
-		loc.End = comp.Loc.End
+		tok.Str += comp.Str
+		tok.Loc.End = comp.Loc.End
 	}
-	return &ast.Literal{Kind: ast.LitBytes, Value: value, Loc: loc}, nil
+	return tok
+}
+
+// expectStringLiteral consumes a string_literal (googlesql.tm:11369): one or
+// more adjacent string components, as one token.
+func (p *Parser) expectStringLiteral() (Token, error) {
+	if p.cur.Type != tokString {
+		return Token{}, p.syntaxErrorAtCur()
+	}
+	return p.literalRun(tokString), nil
 }
 
 // parseTypedLiteral parses a type-prefixed literal `<kw> '…'` for
@@ -1528,7 +1554,7 @@ func (p *Parser) parseBytesLiteral() (ast.Node, error) {
 // keyword is the current token and is known to be followed by a string literal.
 func (p *Parser) parseTypedLiteral() (ast.Node, error) {
 	kw := p.advance()
-	strTok := p.advance() // the string literal (peekNext-confirmed by caller)
+	strTok := p.literalRun(tokString) // the string_literal (peekNext-confirmed by caller)
 	return &ast.TypedLiteral{
 		TypeKeyword: TokenName(kw.Type),
 		Value:       strTok.Str,
@@ -1547,7 +1573,7 @@ func (p *Parser) parseRangeLiteral() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	strTok, err := p.expect(tokString)
+	strTok, err := p.expectStringLiteral()
 	if err != nil {
 		return nil, err
 	}

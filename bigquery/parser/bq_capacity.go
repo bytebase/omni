@@ -101,13 +101,13 @@ func (p *Parser) parseGenericEntityBody() (string, error) {
 	switch {
 	case p.cur.Type == kwJSON:
 		p.advance() // JSON
-		strTok, err := p.expect(tokString)
+		strTok, err := p.expectStringLiteral()
 		if err != nil {
 			return "", err
 		}
 		return p.sourceSpan(start, strTok.Loc), nil
 	case p.cur.Type == tokString:
-		strTok := p.advance()
+		strTok := p.literalRun(tokString)
 		return strTok.Str, nil
 	default:
 		return "", p.syntaxErrorAtCur()

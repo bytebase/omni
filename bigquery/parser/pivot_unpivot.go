@@ -351,7 +351,7 @@ func (p *Parser) parseUnpivotInItem() (*ast.UnpivotInItem, error) {
 func (p *Parser) parseUnpivotInItemAlias(item *ast.UnpivotInItem) error {
 	switch p.cur.Type {
 	case tokString:
-		tok := p.advance()
+		tok := p.literalRun(tokString)
 		item.HasAlias = true
 		item.AliasIsInt = false
 		item.AliasString = tok.Str
