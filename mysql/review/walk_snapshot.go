@@ -338,7 +338,7 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 				}
 				if pinfo.single {
 					for _, p := range parts {
-						pinfo.bounds = append(pinfo.bounds, p.GetValue())
+						pinfo.bounds = append(pinfo.bounds, partBound{name: strings.ToLower(p.GetName()), value: p.GetValue()})
 					}
 				}
 				for _, p := range parts {

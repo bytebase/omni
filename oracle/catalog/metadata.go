@@ -3401,6 +3401,14 @@ func splitPackageUnits(definition string) (spec, body string) {
 	return spec, body
 }
 
+// PackageHasBody reports whether a package's definition, as Bytebase's
+// sync gives it, holds the package's body: the sync appends the body to
+// the specification it lists from ALL_SOURCE.
+func PackageHasBody(definition string) bool {
+	_, body := splitPackageUnits(definition)
+	return body != ""
+}
+
 func normalizePLSQLPackageDefinition(definition string) string {
 	trimmed := strings.TrimSpace(definition)
 	if trimmed == "" {

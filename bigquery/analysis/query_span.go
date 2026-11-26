@@ -380,12 +380,20 @@ type spanWalker struct {
 	// operator, and the FROM clause an unaliased subquery of it sits in, read
 	// them. A reader takes it right after visitBody.
 	outRanges []*relation
-	// pipeRowNames holds, folded, the range variables a pipe operator's
-	// expressions see that stand for a whole row (not an UNNEST element).
-	pipeRowNames map[string]bool
 	// pipeColumns holds, folded, the names of the columns a pipe operator's
 	// expressions read (see requirePipeColumn); nil outside a pipe operator.
 	pipeColumns map[string]bool
+	// opaqueSubqueries counts the subqueries met in lineage expressions (a
+	// select item, a REPLACE or pipe value) whose output gets no sources: an
+	// EXISTS or graph subquery.
+	opaqueSubqueries int
+	// lineageSubqueries holds the scalar and ARRAY subquery bodies whose
+	// output subquerySources resolved, so the table walk does not enter them
+	// again (twice per nesting level would be exponential).
+	lineageSubqueries map[ast.Node]bool
+	// enclosing holds the FROM scopes of the queries a scalar or ARRAY
+	// subquery being resolved sits in, innermost last.
+	enclosing []*leafSet
 	// fixpoints counts the recursive-CTE fixpoints started, so
 	// recursiveFixpoint can tell whether a recursive arm holds another one.
 	fixpoints int
@@ -923,7 +931,7 @@ func (w *spanWalker) visitQueryStmt(q *ast.QueryStmt) []projColumn {
 	if sel, ok := q.Body.(*ast.SelectStmt); ok && resolvePipe {
 		for _, src := range sel.From {
 			if sourceReshapes(src) {
-				w.failClosed(fmt.Errorf("a pipe operator over a PIVOT or UNPIVOT source, whose output columns this walker does not derive (fail closed)"))
+				w.failClosed(fmt.Errorf("a pipe operator over a PIVOT or UNPIVOT of an UNNEST, whose output columns this walker does not derive (fail closed)"))
 			}
 		}
 	}
@@ -1274,13 +1282,13 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 	w.leaves = &leafSet{}
 	prevUnresolved := w.fromUnresolved
 	w.fromUnresolved = false
-	prevRows, prevCols := w.pipeRowNames, w.pipeColumns
-	w.pipeRowNames, w.pipeColumns = nil, nil
+	prevCols := w.pipeColumns
+	w.pipeColumns = nil
 	defer func() {
 		w.fromAliases = prevFrom
 		w.leaves = prevLeaves
 		w.fromUnresolved = prevUnresolved
-		w.pipeRowNames, w.pipeColumns = prevRows, prevCols
+		w.pipeColumns = prevCols
 	}()
 
 	// Resolve the FROM clause into the comma-item relations (a join collapses into
@@ -1577,8 +1585,26 @@ func (b *joinBuilder) coalesceUsing(left, right joinPart, keys []string) (joinPa
 // projection), or a TVF / correlated array-path (no resolvable projection). It
 // performs the same AccessTable / predicate side-effects as before: a base path
 // is recorded, a subquery/TVF body is walked, a correlated array path contributes
-// its root as a predicate, and an alias is registered in the FROM scope.
+// its root as a predicate, and an alias is registered in the FROM scope. A
+// PIVOT or UNPIVOT replaces the source's columns with its own
+// (pivotRelation).
 func (w *spanWalker) buildTableExpr(n *ast.TableExpr) *relation {
+	if n == nil || (n.Pivot == nil && n.Unpivot == nil) {
+		return w.buildTableSource(n)
+	}
+	rel := w.pivotRelation(n)
+	if rel == nil {
+		w.fromUnresolved = true
+		return nil
+	}
+	w.addLeaf(rel)
+	w.registerFromAlias(rel.name)
+	return rel
+}
+
+// buildTableSource is buildTableExpr without the PIVOT or UNPIVOT that may
+// follow the source.
+func (w *spanWalker) buildTableSource(n *ast.TableExpr) *relation {
 	if n == nil {
 		return nil
 	}
@@ -2345,8 +2371,12 @@ type exprWalk struct {
 	onParts   func([]string) // raw dotted-name parts of a column reference (for relation-aware resolution); nil to ignore
 	followSub bool
 	// onSubquery, when set, is called for each subquery or graph subquery the
-	// expression holds, followed or not.
+	// expression holds, followed or not, except a value subquery that
+	// onValueSubquery takes.
 	onSubquery func()
+	// onValueSubquery, when set, takes the body of each scalar or ARRAY
+	// subquery in place of the walk, which does not enter it.
+	onValueSubquery func(query ast.Node)
 }
 
 // walk is the shared expression traversal over the googlesql expression AST. It
@@ -2384,11 +2414,11 @@ func (ew *exprWalk) walk(node ast.Node) {
 
 	// --- Subquery bodies (parsed into real QueryStmt by the parser) ---
 	case *ast.SubqueryExpr:
-		ew.followSubquery(e.Query)
+		ew.valueSubquery(e.Query)
 	case *ast.ExistsExpr:
 		ew.followSubquery(e.Query)
 	case *ast.ArraySubqueryExpr:
-		ew.followSubquery(e.Query)
+		ew.valueSubquery(e.Query)
 
 	// --- Composite expressions: recurse into children ---
 	case *ast.ParenExpr:
@@ -2536,6 +2566,16 @@ func (ew *exprWalk) emitParts(parts []string) {
 	ew.onParts(append([]string{}, parts...))
 }
 
+// valueSubquery hands the body of a scalar or ARRAY subquery, whose output is
+// the expression's value, to onValueSubquery, or else follows it.
+func (ew *exprWalk) valueSubquery(query ast.Node) {
+	if ew.onValueSubquery != nil {
+		ew.onValueSubquery(query)
+		return
+	}
+	ew.followSubquery(query)
+}
+
 // followSubquery recurses into a parsed subquery body when this pass follows
 // subqueries. The body is a *QueryStmt (or set-op / select) the parser already
 // filled, so the walk reaches it directly.
@@ -2543,12 +2583,12 @@ func (ew *exprWalk) followSubquery(query ast.Node) {
 	if ew.onSubquery != nil {
 		ew.onSubquery()
 	}
-	if !ew.followSub || query == nil {
+	if !ew.followSub || query == nil || ew.w.lineageSubqueries[query] {
 		return
 	}
-	// A subquery in an expression position is walked for its tables/predicates;
-	// its output columns are discarded (a SELECT-list scalar subquery is opaque
-	// to lineage — see makeColumnInfo).
+	// A subquery in an expression position is walked for its tables and
+	// predicates; its output columns are discarded. One whose output is a
+	// lineage expression's value was walked already (subquerySources).
 	ew.w.visitBody(query)
 }
 
@@ -2564,7 +2604,7 @@ func (ew *exprWalk) followSubquery(query ast.Node) {
 // (TestGetQuerySpan_GQLEmptySpan) — the patterns and the graph name contribute
 // no access table.
 func (ew *exprWalk) walkGraph(node ast.Node) {
-	inner := &exprWalk{w: ew.w, followSub: true}
+	inner := &exprWalk{w: ew.w, followSub: true, onSubquery: ew.onSubquery}
 	inner.walkGraphNode(node)
 }
 
@@ -2880,7 +2920,7 @@ func (ew *exprWalk) walkBoundBody(bound []string, body ast.Node) {
 			names[strings.ToLower(b)] = true
 		}
 	}
-	inner := &exprWalk{w: ew.w, followSub: ew.followSub}
+	inner := &exprWalk{w: ew.w, followSub: ew.followSub, onSubquery: ew.onSubquery, onValueSubquery: ew.onValueSubquery}
 	if ew.onColumn != nil {
 		outer := ew.onColumn
 		inner.onColumn = func(ref ColumnRef) {

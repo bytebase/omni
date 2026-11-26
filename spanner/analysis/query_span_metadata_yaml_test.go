@@ -16,7 +16,9 @@ import (
 // The corpora under testdata/query-span were recorded from the two legacy
 // ANTLR resolvers Bytebase shipped for BigQuery and Spanner. They are the
 // masking-parity bar for this package and must be reproduced, never re-recorded
-// against this implementation.
+// against this implementation. The one departure is where the legacy resolver
+// dropped a source column, which masking needs: a scalar subquery in the select
+// list reads its subquery's columns, so those cases list them.
 
 type spanCorpusCase struct {
 	Description     string `yaml:"description"`

@@ -63,6 +63,40 @@ func TestLeakPin_LowercaseUsingCoalesce(t *testing.T) {
 	require.Equal(t, []string{"b.y"}, sourcesOf(span.Results[2]))
 }
 
+// TestLeakPin_ExpressionSubqueryLineage: the legacy resolver gave a scalar or
+// ARRAY subquery in the select list no source, so a masked column read through
+// one came back unmasked. Its value is its subquery's projection; a star there
+// reads every column of its table. An EXISTS reads no column into its value.
+func TestLeakPin_ExpressionSubqueryLineage(t *testing.T) {
+	schemas := pinTables(
+		&metadata.TableMetadata{Name: "users", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "ssn"}}},
+		&metadata.TableMetadata{Name: "orders", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "user_id"}, {Name: "card"}}},
+	)
+	for _, tc := range []struct {
+		statement string
+		want      []string
+	}{
+		{"SELECT (SELECT u.ssn FROM users u WHERE u.id = o.user_id) AS s FROM orders o", []string{"users.ssn"}},
+		{"SELECT ARRAY(SELECT card FROM orders WHERE user_id = u.id) FROM users u", []string{"orders.card"}},
+		{"SELECT ARRAY(SELECT AS STRUCT * FROM orders o WHERE o.user_id = u.id) FROM users u", []string{"orders.card", "orders.id", "orders.user_id"}},
+		{"SELECT ARRAY(SELECT AS STRUCT * EXCEPT (id) FROM orders) FROM users", []string{"orders.card", "orders.id", "orders.user_id"}},
+		{"SELECT (SELECT (SELECT MAX(ssn) FROM users) FROM orders LIMIT 1) FROM users", []string{"users.ssn"}},
+		{"SELECT (SELECT ssn FROM users UNION ALL SELECT card FROM orders LIMIT 1)", []string{"orders.card", "users.ssn"}},
+		{"SELECT ARRAY(SELECT AS STRUCT * FROM users UNION ALL SELECT * FROM users)", []string{"users.id", "users.ssn"}},
+		{"SELECT t.x FROM (SELECT ARRAY(SELECT ssn FROM users) AS x) t", []string{"users.ssn"}},
+		{"SELECT e.card FROM users u, UNNEST(ARRAY(SELECT AS STRUCT card FROM orders WHERE user_id = u.id)) AS e", []string{"orders.card"}},
+		{"SELECT WITH(x AS 1, (SELECT ssn FROM users)) AS s", []string{"users.ssn"}},
+		{"SELECT WITH(x AS 1, y AS (SELECT ssn FROM users), y) AS s", []string{"users.ssn"}},
+		{"SELECT (SELECT AS STRUCT * FROM users).ssn AS s", []string{"users.id", "users.ssn"}},
+		{"SELECT EXISTS (SELECT ssn FROM users) FROM orders", []string{}},
+		{"SELECT (SELECT COUNT(*) FROM users)", []string{}},
+	} {
+		span := resolvePin(t, spannerResolveOptions(), tc.statement, "db", schemas)
+		require.Len(t, span.Results, 1, tc.statement)
+		require.Equal(t, tc.want, sourcesOf(span.Results[0]), tc.statement)
+	}
+}
+
 // TestLeakPin_SpannerLowercaseUsingCoalesce: legacy spanner only coalesced a
 // fully-upper-case-written USING token; the lowercase output kept BOTH key
 // columns — a positional masking leak. The key keeps the field's metadata case.

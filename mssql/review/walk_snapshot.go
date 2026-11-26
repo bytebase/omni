@@ -160,6 +160,10 @@ type snapTable struct {
 	// is of type uniqueidentifier: each is computed or of another
 	// built-in type.
 	noRowguid bool
+	// noFilestream is set when no column can be a FILESTREAM column,
+	// which is of type varbinary(max): each is computed or of another
+	// built-in type.
+	noFilestream bool
 	// fileTable is false when the table lacks path_locator, a column of
 	// FileTable's fixed schema.
 	fileTable bool
@@ -431,7 +435,7 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 			rels.add(t.GetName(), kindTable)
 			// A table on an ambiguous path keeps no children, but the
 			// names they hold in the schema count all the same.
-			st := &snapTable{ledger: ledgerTable(t), noPeriod: noColumnOf(t, "datetime2"), noRowguid: noColumnOf(t, "uniqueidentifier"), identity: make(map[string]bool), nonclustered: make(map[string]bool), fkColumns: make(map[string]string)}
+			st := &snapTable{ledger: ledgerTable(t), noPeriod: noColumnOf(t, "datetime2"), noRowguid: noColumnOf(t, "uniqueidentifier"), noFilestream: noColumnOf(t, "varbinary"), identity: make(map[string]bool), nonclustered: make(map[string]bool), fkColumns: make(map[string]string)}
 			if tn, ok := keyed(t.GetName()); ok {
 				path := walk.Path(sc, tn.class)
 				if _, seen := s.tables[path]; seen {

@@ -283,7 +283,7 @@ func (b *builder) partitionOpFails(r tableRef, pi *tablePartitionInfo, c *ast.Al
 		case ast.PartitionRange:
 			last := ""
 			if n := len(pi.bounds); n > 0 {
-				last = pi.bounds[n-1]
+				last = pi.bounds[n-1].value
 				if _, err := strconv.ParseInt(last, 10, 64); err != nil && last != "MAXVALUE" {
 					return false
 				}
@@ -293,8 +293,8 @@ func (b *builder) partitionOpFails(r tableRef, pi *tablePartitionInfo, c *ast.Al
 			}
 		case ast.PartitionList:
 			seen := make(map[string]bool)
-			for _, desc := range pi.bounds {
-				vals, ok := splitPartitionValues(desc)
+			for _, bd := range pi.bounds {
+				vals, ok := splitPartitionValues(bd.value)
 				if !ok {
 					return false
 				}
@@ -315,10 +315,14 @@ func (b *builder) partitionOpFails(r tableRef, pi *tablePartitionInfo, c *ast.Al
 		}
 	case ast.ATTruncatePartition, ast.ATExchangePartition, ast.ATRebuildPartition,
 		ast.ATDiscardPartitionTablespace, ast.ATImportPartitionTablespace:
+		names := c.PartitionNames
+		if c.Type == ast.ATExchangePartition {
+			names = []string{c.Name}
+		}
 		// A subpartition's name, which pi.names doesn't hold, works here
 		// too.
 		if !c.AllPartitions && !pi.subparts {
-			if n := unknown(c.PartitionNames); n != "" {
+			if n := unknown(names); n != "" {
 				return fail(notFound("partition", ident(n), r.written))
 			}
 		}
@@ -345,8 +349,63 @@ func (b *builder) partitionOpFails(r tableRef, pi *tablePartitionInfo, c *ast.Al
 		if hashOrKey && len(c.PartitionNames) > 0 && len(c.PartitionDefs) > 0 && len(c.PartitionNames) != len(c.PartitionDefs) && unknown(c.PartitionNames) == "" && pi.names != nil {
 			return fail(review.Code("REORGANIZE PARTITION") + " of " + review.Code("HASH") + " or " + review.Code("KEY") + " partitioning must keep the number of partitions.")
 		}
+		if len(c.PartitionNames) == 0 || pi.names == nil || unknown(c.PartitionNames) != "" {
+			return false
+		}
+		if msg := reorganizeFault(r, pi, c); msg != "" {
+			return fail(msg)
+		}
 	}
 	return false
+}
+
+// reorganizeFault returns the fault of REORGANIZE PARTITION of partitions
+// the table has, each verified on mysql:8.0.46: a new partition named after
+// one the statement keeps (1517); for RANGE of one value, reorganized
+// partitions that aren't consecutive (1519), or new bounds that don't rise
+// from the partition before them to the one after them (1493).
+func reorganizeFault(r tableRef, pi *tablePartitionInfo, c *ast.AlterTableCmd) string {
+	reorged := make(map[string]bool, len(c.PartitionNames))
+	for _, n := range c.PartitionNames {
+		reorged[strings.ToLower(n)] = true
+	}
+	for _, pd := range c.PartitionDefs {
+		if pd == nil {
+			return ""
+		}
+		if k := strings.ToLower(pd.Name); pi.names[k] && !reorged[k] {
+			return alreadyExists("partition", ident(pd.Name), r.written)
+		}
+	}
+	if pi.partType != ast.PartitionRange || !pi.single || len(pi.bounds) != len(pi.names) {
+		return ""
+	}
+	first, last := -1, -1
+	for i, bd := range pi.bounds {
+		if reorged[bd.name] {
+			if first < 0 {
+				first = i
+			}
+			last = i
+		}
+	}
+	if first < 0 || last-first+1 != len(reorged) {
+		return review.Code("REORGANIZE PARTITION") + " must name consecutive partitions."
+	}
+	prev := ""
+	if first > 0 {
+		prev = pi.bounds[first-1].value
+	}
+	if msg := rangeBoundsFault(prev, c.PartitionDefs); msg != "" || last+1 == len(pi.bounds) || len(c.PartitionDefs) == 0 {
+		return msg
+	}
+	end, ok := partitionIntBound(c.PartitionDefs[len(c.PartitionDefs)-1].Values)
+	next := pi.bounds[last+1]
+	nv, err := strconv.ParseInt(next.value, 10, 64)
+	if ok && err == nil && nv <= end {
+		return "Partition " + review.Code(ident(next.name)) + "'s bound must be greater than the partition's before it."
+	}
+	return ""
 }
 
 // uniqueKeyPartitionFails fails an ALTER TABLE that adds a primary or

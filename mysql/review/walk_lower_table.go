@@ -304,7 +304,7 @@ func (d *alterDelta) recordAddedConstraint(con *ast.Constraint) {
 		con.Type == ast.ConstrUnique || con.Type == ast.ConstrPrimaryKey,
 		con.Type == ast.ConstrPrimaryKey,
 		con.Type == ast.ConstrFulltextIndex,
-		con.Type == ast.ConstrSpatialIndex || isSpatialIndexType(con.IndexType),
+		isSpatialConstraint(con),
 		constraintKeyParts(con),
 	))
 }
@@ -580,7 +580,7 @@ func (b *builder) applyAddedConstraintMeta(rel walk.Key, con *ast.Constraint) {
 		con.Type == ast.ConstrUnique || con.Type == ast.ConstrPrimaryKey,
 		con.Type == ast.ConstrPrimaryKey,
 		con.Type == ast.ConstrFulltextIndex,
-		con.Type == ast.ConstrSpatialIndex || isSpatialIndexType(con.IndexType),
+		isSpatialConstraint(con),
 		constraintKeyParts(con),
 	)
 	if con.Type == ast.ConstrPrimaryKey {
@@ -1326,7 +1326,7 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint, d *alterDelta) {
 	if c.Type != ast.ConstrForeignKey && c.Type != ast.ConstrCheck {
 		parts := constraintKeyParts(c)
 		fulltext := c.Type == ast.ConstrFulltextIndex
-		spatial := c.Type == ast.ConstrSpatialIndex || isSpatialIndexType(c.IndexType)
+		spatial := isSpatialConstraint(c)
 		if b.checkIndexParts(r, parts, fulltext, spatial, false, d.finalPartitioned, rng, func(colName string) (walk.Fact, string, bool) {
 			return b.alterFinalCol(r, d, colName)
 		}) {

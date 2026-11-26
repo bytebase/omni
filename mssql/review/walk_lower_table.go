@@ -899,7 +899,14 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 		}
 	case ast.ATEnableTrigger:
 		b.Session(func() { b.w.triggers = true })
-	case ast.ATDisableTrigger, ast.ATRebuild, ast.ATEnableChangeTracking, ast.ATDisableChangeTracking:
+	case ast.ATRebuild:
+		// PARTITION = name binds the name as a column of the table (207).
+		if c, ok := a.Partition.(*ast.ColumnRef); ok && known && c.Server == "" && c.Database == "" && c.Schema == "" && c.Table == "" && !isPseudoCol(c.Column) {
+			if cn, ok := keyed(c.Column); ok {
+				b.needs(spaceColumn, path, cn, nil, note(rng, msgMissingIn("column", ident(c.Column), r.written), nil))
+			}
+		}
+	case ast.ATDisableTrigger, ast.ATEnableChangeTracking, ast.ATDisableChangeTracking:
 	case ast.ATSet:
 		if a.Options != nil {
 			for _, item := range a.Options.Items {
@@ -958,6 +965,9 @@ func (b *builder) addConstraintChecks(r objRef, path string, known bool, d *tabl
 				if s, ok := c.Columns.Items[0].(*ast.String); ok {
 					if cn, ok := keyed(s.Str); ok && !b.addsColumn(s.Str) {
 						b.needs(spaceColumn, path, cn, nil, note(rangeOf(c.Loc), msgMissingIn("column", ident(s.Str), r.written), nil))
+						if b.intClash(r, s.Str, c.Expr) {
+							return
+						}
 					}
 					// The synced default holds while its constraint does.
 					if st := b.syncedTable(r); st != nil && st.defaults[s.Str] != "" {
@@ -1232,6 +1242,23 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	}
 	path := r.tablePath()
 	rng := b.anchor()
+	if v.FilestreamOn != "" && b.noFilestream(r) {
+		return true
+	}
+	// A filtered index's predicate binds no pseudo column: IDENTITYCOL,
+	// unquoted, is an invalid column name there, of a table with an
+	// identity column too (207).
+	var pseudo *ast.ColumnRef
+	ast.Inspect(v.WhereClause, func(n ast.Node) bool {
+		if c, ok := n.(*ast.ColumnRef); ok && pseudo == nil && strings.EqualFold(c.Column, "IDENTITYCOL") && !b.isDelimitedAt(c.Loc) {
+			pseudo = c
+		}
+		return pseudo == nil
+	})
+	if pseudo != nil {
+		b.fail(rangeOf(pseudo.Loc), review.ObjectNotFound, "Column "+review.Code(pseudo.Column)+" doesn't exist.")
+		return true
+	}
 	b.checkIndexColList(r, path, v.Columns, true)
 	b.checkIndexColList(r, path, v.IncludeCols, false)
 	b.checkIndexColList(r, path, v.OrderCols, true)
@@ -1313,6 +1340,10 @@ func (b *builder) createSpecializedIndex(name string, table *ast.TableRef, colNa
 		if typ := b.knownColType(r, colName); typ != "" && isBuiltinSystemType(typ) {
 			if isSpatial && typ != "geometry" && typ != "geography" {
 				b.fail(rng, review.UnsupportedForm, "Column "+review.Code(ident(colName))+" of type "+review.Code(typ)+" cannot be used in a spatial index.")
+			} else if isSpatial && !ixFails {
+				if opt := badSpatialOption(opts, typ); opt != "" {
+					b.fail(rng, review.UnsupportedForm, "SQL Server doesn't accept option "+review.Code(opt)+" on a spatial index of a "+review.Code(typ)+" column.")
+				}
 			} else if isXML && !ixFails && typ != "xml" {
 				b.fail(rng, review.UnsupportedForm, "Column "+review.Code(ident(colName))+" of type "+review.Code(typ)+" cannot be used in an XML index.")
 			}
@@ -1325,6 +1356,34 @@ func (b *builder) createSpecializedIndex(name string, table *ast.TableRef, colNa
 	b.lacks(spaceIndex, path, in, note(rng, "", text(msgExistsIn("index", ident(name), r.written))))
 	b.arrive(spaceIndex, path, in, kind)
 	return true
+}
+
+// spatialOptions are the options CREATE SPATIAL INDEX takes.
+//
+// https://learn.microsoft.com/en-us/sql/t-sql/statements/create-spatial-index-transact-sql
+var spatialOptions = map[string]bool{
+	"BOUNDING_BOX": true, "GRIDS": true, "CELLS_PER_OBJECT": true, "PAD_INDEX": true, "FILLFACTOR": true,
+	"SORT_IN_TEMPDB": true, "IGNORE_DUP_KEY": true, "STATISTICS_NORECOMPUTE": true, "DROP_EXISTING": true,
+	"ONLINE": true, "ALLOW_ROW_LOCKS": true, "ALLOW_PAGE_LOCKS": true, "MAXDOP": true, "DATA_COMPRESSION": true,
+}
+
+// badSpatialOption returns the first option of a spatial index on a
+// column of type typ that SQL Server refuses (12005): one the statement
+// does not take, or BOUNDING_BOX, which only a geometry column's index
+// has.
+func badSpatialOption(opts *ast.List, typ string) string {
+	for _, item := range listNodes(opts) {
+		s, ok := item.(*ast.String)
+		if !ok {
+			return ""
+		}
+		k, _, _ := strings.Cut(s.Str, "=")
+		k = strings.ToUpper(strings.TrimSpace(k))
+		if !spatialOptions[k] || k == "BOUNDING_BOX" && typ == "geography" {
+			return k
+		}
+	}
+	return ""
 }
 
 // createStatistics follows CREATE STATISTICS: checks duplicate column names
@@ -1516,6 +1575,9 @@ func (b *builder) dropIndexes(v *ast.DropStmt) bool {
 				return true
 			}
 		}
+		if s.fact == walk.Present && hasDropOption(v.Options, "FILESTREAM_ON") && b.noFilestream(r) {
+			return true
+		}
 		// A key's index has the name of the constraint it enforces.
 		ixName := review.Code(ident(ix.Object))
 		b.ofKind(spaceIndex, path, in, []string{kindIndex, kindXMLIndex}, note(rng, "", text("Index "+ixName+" enforces constraint "+ixName+".")).as(review.IndexBacksConstraint))
@@ -1548,6 +1610,29 @@ func clusteredDropOption(opts *ast.List) string {
 		}
 	}
 	return ""
+}
+
+// hasDropOption reports whether DROP INDEX's options hold one of a name.
+func hasDropOption(opts *ast.List, name string) bool {
+	for _, item := range listNodes(opts) {
+		if s, ok := item.(*ast.String); ok {
+			if k, _, _ := strings.Cut(s.Str, "="); strings.EqualFold(strings.TrimSpace(k), name) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// noFilestream fails FILESTREAM_ON on a synced table no column of which
+// can be a FILESTREAM column (1716).
+func (b *builder) noFilestream(r objRef) bool {
+	st := b.syncedTable(r)
+	if st == nil || !st.noFilestream {
+		return false
+	}
+	b.fail(b.anchor(), review.UnsupportedForm, "Table "+review.Code(r.written)+" has no FILESTREAM column for `FILESTREAM_ON`.")
+	return true
 }
 
 // maskingFunctions are the functions dynamic data masking takes.

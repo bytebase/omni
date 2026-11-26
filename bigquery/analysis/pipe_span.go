@@ -23,8 +23,8 @@ import (
 // (spanWalker.columnsOf), a star's EXCEPT and REPLACE are applied, and an
 // input omni cannot list column by column (a deferred set-operation merge, a
 // table without metadata) fails closed. So do the operators whose output omni does not
-// derive: PIVOT, UNPIVOT, CALL, MATCH_RECOGNIZE, a recursive union, and the
-// control and write operators.
+// derive: CALL, MATCH_RECOGNIZE, a recursive union, and the control and write
+// operators.
 //
 // The answers below were checked against BigQuery's dry run on inline tables
 // (`FROM (SELECT 1 AS x, 2 AS y) AS t |> ...`); testdata/span.tsv holds the
@@ -104,9 +104,31 @@ func (w *spanWalker) pipeOperator(op ast.Node, in *pipeTable) *pipeTable {
 		return w.pipeRename(cur, n.Items)
 	case *ast.PipeJoin:
 		return w.pipeJoin(cur, n.Join)
+	case *ast.PipePivot:
+		w.visitPipeOp(op)
+		if n.Pivot == nil {
+			return w.pipeFailClosed("an empty pipe PIVOT")
+		}
+		return pivotTable(w.pivotColumns(cols, n.Pivot), n.Pivot.Alias)
+	case *ast.PipeUnpivot:
+		w.visitPipeOp(op)
+		if n.Unpivot == nil {
+			return w.pipeFailClosed("an empty pipe UNPIVOT")
+		}
+		return pivotTable(w.unpivotColumns(cols, n.Unpivot), n.Unpivot.Alias)
 	}
 	w.visitPipeOp(op)
 	return w.pipeFailClosed(fmt.Sprintf("the pipe operator %T", op))
+}
+
+// pivotTable is a pipe PIVOT's or UNPIVOT's output: a new table, whose one
+// range variable is the alias, if any.
+func pivotTable(cols []projColumn, alias string) *pipeTable {
+	t := &pipeTable{cols: cols}
+	if alias != "" {
+		t.ranges = []*relation{{name: strings.ToLower(alias), columns: cols}}
+	}
+	return t
 }
 
 // starOverValueElem reports whether a star item of items expands an UNNEST
@@ -147,11 +169,10 @@ func (w *spanWalker) pipeFailClosed(what string) *pipeTable {
 // returns the function that restores the previous scope.
 func (w *spanWalker) enterPipeScope(t *pipeTable) func() {
 	prevLeaves, prevFrom, prevUnresolved := w.leaves, w.fromAliases, w.fromUnresolved
-	prevRows, prevCols := w.pipeRowNames, w.pipeColumns
+	prevCols := w.pipeColumns
 	w.leaves = &leafSet{}
 	w.fromAliases = map[string]bool{}
 	w.fromUnresolved = false
-	w.pipeRowNames = map[string]bool{}
 	w.pipeColumns = map[string]bool{}
 	for _, c := range t.cols {
 		w.pipeColumns[foldKey(c.name)] = true
@@ -160,13 +181,10 @@ func (w *spanWalker) enterPipeScope(t *pipeTable) func() {
 	for _, rel := range t.ranges {
 		w.leaves.add(rel)
 		w.registerFromAlias(rel.name)
-		if !rel.valueTable {
-			w.pipeRowNames[foldKey(rel.name)] = true
-		}
 	}
 	return func() {
 		w.leaves, w.fromAliases, w.fromUnresolved = prevLeaves, prevFrom, prevUnresolved
-		w.pipeRowNames, w.pipeColumns = prevRows, prevCols
+		w.pipeColumns = prevCols
 	}
 }
 
@@ -282,6 +300,12 @@ func (w *spanWalker) pipeAggregate(sel *ast.SelectStmt) *pipeTable {
 				cols = append(cols, projColumn{name: name, sources: sources})
 			case ast.GroupingEmpty:
 			case ast.GroupingRollup, ast.GroupingCube, ast.GroupingSets:
+				// BigQuery takes ROLLUP, CUBE and GROUPING SETS only as the one
+				// grouping element ("only supports ROLLUP when there are no other
+				// grouping elements"), so their columns never repeat another's.
+				if len(sel.GroupBy.Items) > 1 {
+					return w.pipeFailClosed("a pipe AGGREGATE with ROLLUP, CUBE or GROUPING SETS beside other grouping elements")
+				}
 				seen := map[string]bool{}
 				for _, e := range gi.Items {
 					parts := exprToParts(e)
@@ -491,13 +515,11 @@ func containsColumnFold(cols []projColumn, name string) bool {
 	return false
 }
 
-// sourceReshapes reports whether a FROM source carries a PIVOT or UNPIVOT,
-// whose output columns buildFromItem does not derive: it returns the
-// source's columns before the operator.
+// sourceReshapes reports whether a FROM source carries a PIVOT or UNPIVOT
+// after an UNNEST, whose output columns buildFromItem does not derive: it
+// returns the source's columns before the operator.
 func sourceReshapes(node ast.Node) bool {
 	switch n := node.(type) {
-	case *ast.TableExpr:
-		return n != nil && (n.Pivot != nil || n.Unpivot != nil)
 	case *ast.UnnestExpr:
 		return n != nil && (n.Pivot != nil || n.Unpivot != nil)
 	case *ast.JoinExpr:

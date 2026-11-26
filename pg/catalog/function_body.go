@@ -179,11 +179,26 @@ func (c *Catalog) checkSQLFunctionBody(body string, fn *sqlFnParams, kind byte, 
 	if list != nil {
 		stmts = list.Items
 	}
-	b, err := c.bindSQLFunctionBody(stmts, fn)
-	if err != nil {
-		return err
+	return c.bindStrictly(func() error {
+		b, err := c.bindSQLFunctionBody(stmts, fn)
+		if err != nil {
+			return err
+		}
+		return c.checkSQLFunctionResult(b, stmts, kind, retType, outTypes)
+	})
+}
+
+// bindStrictly runs bind as a catalog built from SQL binds a body. A
+// snapshot's binder takes a name it does not hold as present, but a
+// session that turns check_function_bodies on asks that a body be checked
+// against what the catalog holds.
+func (c *Catalog) bindStrictly(bind func() error) error {
+	if !c.snapshot || !c.checkFunctionBodies() {
+		return bind()
 	}
-	return c.checkSQLFunctionResult(b, stmts, kind, retType, outTypes)
+	c.snapshot = false
+	defer func() { c.snapshot = true }()
+	return bind()
 }
 
 // checkFunctionBodies reports the session's check_function_bodies, which

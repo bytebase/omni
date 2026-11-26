@@ -583,6 +583,7 @@ UNION ALL SELECT 'constraint', owner, table_name, constraint_name, owner FROM db
 UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN (:1, :2)
 UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN (:1, :2)
 UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN (:1, :2)
+UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN (:1, :2) AND object_type = 'PACKAGE BODY'
 ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 ORDER BY s, o, tbl, n, k`
@@ -629,7 +630,7 @@ func (e *oracleEngine) Inventory(t testing.TB, change string) []walktest.Object 
 			t.Fatal(err)
 		}
 		switch space.String {
-		case spaceObject, spaceTable, spaceView, spaceSequence, spaceSynonym:
+		case spaceObject, spaceTable, spaceView, spaceSequence, spaceSynonym, spacePackageBody:
 			out = append(out, walktest.Object{Key: walk.Key{Space: space.String, Parent: walk.Path(owner.String), Name: name.String}, Kind: kind.String})
 			// The routine space repeats the object space's functions,
 			// procedures, and packages.
@@ -664,8 +665,8 @@ func (e *oracleEngine) Same(claimed, stored walk.Key) bool { return claimed == s
 // back no constraint of their name, are not named SYS_, and hold a column
 // the user made; the triggers of the schema on its own tables and views;
 // its views, materialized views, sequences but identity ones, and
-// functions, procedures, and packages; its synonyms and the public ones;
-// and each table's tablespace.
+// functions, procedures, and packages with their bodies; its synonyms
+// and the public ones; and each table's tablespace.
 //
 // Bytebase reads the ALL_ views; to SYSTEM they show the schema's rows as
 // the DBA_ views do, but their privilege checks cost seconds of hard parse
@@ -921,14 +922,25 @@ UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE own
 	query(`SELECT sequence_name FROM dba_sequences WHERE sequence_owner = :1 AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1`, func(v []sql.NullString) {
 		s.Sequences = append(s.Sequences, &metadata.SequenceMetadata{Name: v[0].String})
 	})
-	query(`SELECT DISTINCT name, type FROM dba_source WHERE owner = :1 AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2`, func(v []sql.NullString) {
+	// A package's definition is its specification with its body appended,
+	// as getRoutines gives it. The walk reads only whether it holds a body,
+	// so each unit's text is a stand-in; a body with no specification,
+	// which getRoutines lists as a package, is left out.
+	packages := make(map[string]*metadata.PackageMetadata)
+	query(`SELECT DISTINCT name, type FROM dba_source WHERE owner = :1 AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2`, func(v []sql.NullString) {
+		quoted := `"` + strings.ReplaceAll(v[0].String, `"`, `""`) + `"`
 		switch v[1].String {
 		case "FUNCTION":
 			s.Functions = append(s.Functions, &metadata.FunctionMetadata{Name: v[0].String})
 		case "PROCEDURE":
 			s.Procedures = append(s.Procedures, &metadata.ProcedureMetadata{Name: v[0].String})
 		case "PACKAGE":
-			s.Packages = append(s.Packages, &metadata.PackageMetadata{Name: v[0].String})
+			packages[v[0].String] = &metadata.PackageMetadata{Name: v[0].String, Definition: "CREATE OR REPLACE PACKAGE " + quoted + " AS END;"}
+			s.Packages = append(s.Packages, packages[v[0].String])
+		case "PACKAGE BODY":
+			if p := packages[v[0].String]; p != nil {
+				p.Definition += "\n\nCREATE OR REPLACE PACKAGE BODY " + quoted + " AS END;"
+			}
 		}
 	})
 	synonyms := func(owner string) []*metadata.SynonymMetadata {

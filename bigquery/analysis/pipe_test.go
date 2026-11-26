@@ -128,16 +128,14 @@ func TestGetQuerySpanPipe(t *testing.T) {
 			"SELECT x FROM t |> JOIN u ON true",
 			"SELECT * EXCEPT (x) FROM t |> SELECT y",
 			// Operators whose output omni does not derive.
-			"SELECT x FROM t |> PIVOT (SUM(x) FOR x IN (1, 2))",
 			"SELECT x FROM t |> CALL f()",
 			"SELECT x FROM t |> NATURAL JOIN (SELECT 1 AS x)",
 			"SELECT x, y FROM t |> SET x = 1, x = 2 |> SELECT x |> RENAME z AS w",
 			// Name matching that keeps only the shared columns.
 			"SELECT x, y FROM t |> INNER UNION ALL BY NAME (SELECT x FROM u)",
 			"SELECT x, y FROM t |> UNION ALL CORRESPONDING (SELECT x FROM u)",
-			// A PIVOT source's output is not its input's columns.
-			"SELECT 0 AS p |> CROSS JOIN (SELECT s, c FROM t) PIVOT(MAX(s) FOR c IN ('a', 'b'))",
-			"FROM (SELECT s, c FROM t) PIVOT(MAX(s) FOR c IN ('a', 'b')) |> SELECT *",
+			// A PIVOT of an UNNEST is not derived.
+			"FROM UNNEST([1]) AS c PIVOT(MAX(c) FOR c IN (1)) |> SELECT *",
 			// A star expands a struct element's fields.
 			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> SELECT *",
 			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> AS z |> SELECT z.*",
@@ -149,14 +147,15 @@ func TestGetQuerySpanPipe(t *testing.T) {
 			"(SELECT AS VALUE STRUCT(public, secret) FROM t) |> SELECT *",
 			"SELECT x FROM t |> JOIN (SELECT AS STRUCT public, secret FROM u) AS s ON true",
 			"SELECT x FROM t |> UNION ALL (SELECT AS STRUCT secret FROM u)",
-			// A subquery's lineage is not resolved.
-			"SELECT 0 AS p |> EXTEND (SELECT secret FROM t LIMIT 1) AS s",
-			"SELECT 0 AS p |> SELECT ARRAY(SELECT secret FROM t) AS s",
-			"SELECT x FROM t |> SET x = (SELECT MAX(secret) FROM t)",
-			"SELECT x FROM t |> AGGREGATE COUNT(*) GROUP BY (SELECT 1)",
-			// A range variable on its own is the whole row.
-			"SELECT public, secret FROM t |> AS a |> SELECT TO_JSON_STRING(a)",
-			"FROM (SELECT public, secret FROM t) AS a |> EXTEND TO_JSON_STRING(a) AS j",
+			// An EXISTS subquery's lineage is not resolved.
+			"SELECT 0 AS p |> EXTEND EXISTS(SELECT secret FROM t) AS s",
+			// BigQuery takes ROLLUP, CUBE and GROUPING SETS only alone.
+			"SELECT x, y, secret FROM t |> AGGREGATE COUNT(*) GROUP BY ROLLUP(x, y), ROLLUP(x, secret)",
+			"SELECT x, secret FROM t |> AGGREGATE COUNT(*) GROUP BY x, CUBE(x, secret)",
+			// A star over a table function adds no columns.
+			"SELECT * FROM tvf()",
+			"SELECT x, * FROM t, tvf()",
+			"FROM (SELECT * FROM tvf()) AS a |> SELECT TO_JSON_STRING(a) AS j",
 		} {
 			if _, err := GetQuerySpan(sql); err == nil {
 				t.Errorf("GetQuerySpan(%q) returned a span; want fail closed", sql)
@@ -236,5 +235,92 @@ func TestResolveQuerySpanPipeLineage(t *testing.T) {
 			got = append(got, append([]string{r.Name}, sourcesOf(r)...))
 		}
 		require.Equal(t, tc.want, got, "statement: %s", tc.sql)
+	}
+}
+
+// A range variable used as a value is its relation's whole row, and BigQuery
+// resolves a name to a range variable before a column of the same scope:
+// `SELECT word FROM shakespeare AS word` and `FROM t AS a |> EXTEND 1 AS a
+// |> SELECT a` each return a struct. An inner scope's column still wins over
+// an outer range variable.
+func TestResolveQuerySpanRangeVariableLineage(t *testing.T) {
+	schemas := pinTables(
+		&metadata.TableMetadata{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "x"}, {Name: "y"}, {Name: "secret"}}},
+		&metadata.TableMetadata{Name: "u", Columns: []*metadata.ColumnMetadata{{Name: "x"}, {Name: "a"}}},
+	)
+	all := []string{"t.secret", "t.x", "t.y"}
+	tests := []struct {
+		sql  string
+		want [][]string // each result's name, then its sources
+	}{
+		{"SELECT a FROM t AS a", [][]string{append([]string{"a"}, all...)}},
+		{"SELECT t FROM t", [][]string{append([]string{"t"}, all...)}},
+		{"SELECT a FROM u AS a", [][]string{{"a", "u.a", "u.x"}}},
+		{"SELECT a FROM t AS a JOIN u AS b USING (x)", [][]string{append([]string{"a"}, all...)}},
+		{"SELECT TO_JSON_STRING(a) AS j FROM t AS a", [][]string{append([]string{"j"}, all...)}},
+		{"SELECT a FROM (SELECT * EXCEPT (secret) FROM t) AS a", [][]string{{"a", "t.x", "t.y"}}},
+		{"SELECT s FROM (SELECT a AS s FROM t AS a)", [][]string{append([]string{"s"}, all...)}},
+		{"WITH c AS (SELECT secret FROM t) SELECT c FROM c", [][]string{{"c", "t.secret"}}},
+		{"SELECT e FROM t, UNNEST([1]) AS e", [][]string{{"e"}}},
+		{"FROM t AS a |> SELECT a", [][]string{append([]string{"a"}, all...)}},
+		{"FROM t AS a |> EXTEND 1 AS a |> SELECT a", [][]string{append([]string{"a"}, all...)}},
+		{"FROM t AS a |> SET x = y |> SELECT a", [][]string{append([]string{"a"}, all...)}},
+		{"FROM t |> SELECT x AS a |> SELECT a", [][]string{{"a", "t.x"}}},
+		{"FROM t |> AS a |> SELECT a", [][]string{append([]string{"a"}, all...)}},
+		{"FROM t |> AS a |> SELECT TO_JSON_STRING(a) AS j", [][]string{append([]string{"j"}, all...)}},
+		// A system table's columns add no lineage: system tables are not masked.
+		{"SELECT TO_JSON_STRING(a) AS j FROM ds1.INFORMATION_SCHEMA.TABLES AS a", [][]string{{"j"}}},
+		{"SELECT TO_JSON_STRING(a) AS j FROM (SELECT * EXCEPT (table_catalog) FROM ds1.INFORMATION_SCHEMA.TABLES) AS a", [][]string{{"j"}}},
+		{"FROM (SELECT x, secret FROM t) AS a |> EXTEND TO_JSON_STRING(a) AS j", [][]string{{"x", "t.x"}, {"secret", "t.secret"}, {"j", "t.secret", "t.x"}}},
+		// A scalar or ARRAY subquery's value reads its output's sources.
+		{"FROM (SELECT (SELECT secret FROM t LIMIT 1) AS s) AS a |> SELECT TO_JSON_STRING(a) AS j", [][]string{{"j", "t.secret"}}},
+		{"SELECT a FROM (SELECT s FROM (SELECT ARRAY(SELECT secret FROM t) AS s)) AS a", [][]string{{"a", "t.secret"}}},
+		{"WITH c AS (SELECT (SELECT MAX(secret) FROM t) AS s) SELECT c FROM c", [][]string{{"c", "t.secret"}}},
+		{"FROM (SELECT WITH(x AS 1, (SELECT secret FROM t LIMIT 1)) AS s) AS a |> SELECT TO_JSON_STRING(a) AS j", [][]string{{"j", "t.secret"}}},
+		{"SELECT a FROM (SELECT ARRAY_TRANSFORM([1], e -> (SELECT MAX(secret) FROM t)) AS s) AS a", [][]string{{"a", "t.secret"}}},
+		{"SELECT (SELECT AS STRUCT * FROM t) AS s", [][]string{append([]string{"s"}, all...)}},
+		{"SELECT 0 AS p |> EXTEND (SELECT secret FROM t LIMIT 1) AS s", [][]string{{"p"}, {"s", "t.secret"}}},
+		{"SELECT 0 AS p |> SELECT ARRAY(SELECT secret FROM t) AS s", [][]string{{"s", "t.secret"}}},
+		{"SELECT x FROM t |> SET x = (SELECT MAX(secret) FROM t)", [][]string{{"x", "t.secret"}}},
+		// A correlated reference reads the enclosing query's column.
+		{"FROM t |> SELECT secret AS renamed |> EXTEND (SELECT renamed) AS leaked |> SELECT leaked", [][]string{{"leaked", "t.secret"}}},
+		{"SELECT (SELECT renamed FROM u) AS v FROM (SELECT secret AS renamed FROM t)", [][]string{{"v", "t.secret"}}},
+		{"FROM (SELECT secret FROM t) AS a |> EXTEND (SELECT a) AS leaked |> SELECT leaked", [][]string{{"leaked", "t.secret"}}},
+		{"FROM ds1.t |> EXTEND (SELECT ds1.t.secret) AS leaked |> SELECT leaked", [][]string{{"leaked", "t.secret"}}},
+		// A PIVOT aggregate's fully qualified column is not a grouping column.
+		{"FROM ds1.t |> PIVOT (MAX(ds1.t.secret) FOR y IN ('v'))", [][]string{{"x", "t.x"}, {"v", "t.secret"}}},
+		{"FROM (SELECT 1 AS secret) AS a |> EXTEND (SELECT a.secret FROM (SELECT STRUCT(secret AS secret) AS a FROM t)) AS leaked |> SELECT leaked", [][]string{{"leaked", "t.secret"}}},
+		{"SELECT (SELECT secret FROM u) AS v FROM t", [][]string{{"v", "t.secret"}}},
+		{"SELECT (SELECT STRING_AGG(e) FROM UNNEST([p.secret]) AS e) AS v FROM t AS p", [][]string{{"v", "t.secret"}}},
+	}
+	for _, tc := range tests {
+		span := resolvePin(t, bigqueryResolveOptions(), tc.sql, "ds1", schemas)
+		var got [][]string
+		for _, r := range span.Results {
+			got = append(got, append([]string{r.Name}, sourcesOf(r)...))
+		}
+		require.Equal(t, tc.want, got, "statement: %s", tc.sql)
+	}
+
+	// Columns omni cannot list fail closed rather than give the row no
+	// lineage: a table without metadata, a FROM source with no known
+	// projection, and a set operation the consumer merges.
+	for _, sql := range []string{
+		"SELECT a FROM missing AS a",
+		"SELECT f FROM tvf() AS f",
+		"SELECT a FROM (SELECT x, y FROM t UNION ALL SELECT * FROM u) AS a",
+		// An EXISTS subquery's output has no lineage, so a row that may hold
+		// it does not resolve.
+		"FROM (SELECT EXISTS(SELECT secret FROM t) AS s) AS a |> SELECT TO_JSON_STRING(a) AS j",
+	} {
+		opts := bigqueryResolveOptions()
+		opts.DefaultDatabase = "ds1"
+		opts.GetDatabaseMetadata = corpusGetter(&metadata.DatabaseSchemaMetadata{Name: "ds1", Schemas: schemas})
+		if _, err := ResolveQuerySpan(sql, opts); err == nil {
+			t.Errorf("ResolveQuerySpan(%q) succeeded; want fail closed", sql)
+		}
+	}
+	if _, err := GetQuerySpan("SELECT a FROM t AS a"); err == nil {
+		t.Errorf("GetQuerySpan resolved a base table's range variable without metadata; want fail closed")
 	}
 }

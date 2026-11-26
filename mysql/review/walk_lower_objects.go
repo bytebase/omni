@@ -54,7 +54,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	rel := relKey(r.db, r.name)
 	parts := indexStmtKeyParts(v.Columns)
 	partitioned := b.w.partitionState[rel] != nil && b.w.partitionState[rel].partitioned
-	spatial := v.Spatial || isSpatialIndexType(v.IndexType)
+	spatial := v.Spatial || isSpatialIndexType(usingType(v.IndexType, v.Options))
 	if b.checkIndexParts(r, parts, v.Fulltext, spatial, false, partitioned, rng, func(colName string) (walk.Fact, string, bool) {
 		ck, ok := b.key(spaceColumn, colName)
 		if !ok {
@@ -533,6 +533,8 @@ func (b *builder) set(v *ast.SetStmt) bool {
 			})
 		case "sql_mode":
 			b.Session(func() { b.w.sqlModeSet = true })
+		case "sql_generate_invisible_primary_key":
+			b.Session(func() { b.w.gipkSet = true })
 		case "innodb_strict_mode":
 			strictOn := false
 			switch x := a.Value.(type) {

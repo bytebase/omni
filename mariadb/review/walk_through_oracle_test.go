@@ -519,7 +519,7 @@ var walkCodes = []struct {
 	}, []string{"1193"}},
 	// Triggers (walk_lower_objects.go).
 	{func(m, _ string) bool {
-		return (strings.HasPrefix(m, "`FOLLOWS` ") || strings.HasPrefix(m, "`PRECEDES` ")) && strings.HasSuffix(m, ", which doesn't exist.")
+		return (strings.HasPrefix(m, "`FOLLOWS` ") || strings.HasPrefix(m, "`PRECEDES` ")) && (strings.HasSuffix(m, ", which doesn't exist.") || strings.Contains(m, " trigger, not "))
 	}, []string{"4031"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Column ") && (strings.HasSuffix(m, " doesn't exist in `NEW`.") || strings.HasSuffix(m, " doesn't exist in `OLD`."))

@@ -50,6 +50,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -2321,7 +2322,7 @@
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP1' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP1' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -2433,6 +2434,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -6738,6 +6740,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -11272,7 +11275,7 @@
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP1' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP1' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -11402,6 +11405,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -13407,6 +13411,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -16227,6 +16232,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -19192,6 +19198,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -26351,6 +26358,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -32057,6 +32065,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -37175,6 +37184,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -40894,6 +40904,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -45541,6 +45552,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -51466,6 +51478,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -54083,6 +54096,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -54680,7 +54694,7 @@
 : string
 | C
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP1' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP1' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -54794,6 +54808,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -56268,6 +56283,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -57012,6 +57028,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -57574,6 +57591,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -59403,6 +59421,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -61873,6 +61892,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -63074,6 +63094,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -64149,6 +64170,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -66051,6 +66073,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -67469,6 +67492,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -72388,6 +72412,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -72578,7 +72603,7 @@
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP1' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP1' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -72696,6 +72721,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -73611,6 +73637,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -76615,6 +76642,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -78008,6 +78036,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -78437,6 +78466,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -79685,6 +79715,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -81357,6 +81388,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -85454,6 +85486,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -86360,6 +86393,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -87367,6 +87401,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -91681,6 +91716,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -94106,6 +94142,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -96723,6 +96760,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -101319,6 +101357,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -103972,6 +104011,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SHOP1', 'OTHER1')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SHOP1', 'OTHER1')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SHOP1', 'OTHER1') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k

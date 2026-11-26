@@ -43,7 +43,7 @@
         table: people
         column: ""
     predicatecolumns: []
-- description: 'Set operation (subset-projecting CTEs, then SELECT * UNION ALL): each CTE projects a subset of a wider base table, so a SELECT * over the CTE reproduces only the projected columns, then the set-op position-merges'
+- description: 'Set operation (subset-projecting CTEs, then SELECT * UNION ALL): each CTE projects a subset of a wider base table, so a SELECT * over the CTE reproduces only the projected columns, then the set-op position-merges. In CTE_2, ADDRESS is the address range variable, the whole row''s columns'
   statement: WITH CTE_1 AS (SELECT ID, NAME FROM people), CTE_2 AS (SELECT PEOPLE_ID, ADDRESS FROM address) SELECT * FROM CTE_1 UNION ALL SELECT * FROM CTE_2;
   defaultDatabase: ds1
   metadata: |-
@@ -113,6 +113,16 @@
           - server: ""
             database: ds1
             schema: ""
+            table: ADDRESS
+            column: PEOPLE_ID
+          - server: ""
+            database: ds1
+            schema: ""
+            table: ADDRESS
+            column: ZIP
+          - server: ""
+            database: ds1
+            schema: ""
             table: PEOPLE
             column: NAME
         isplainfield: false
@@ -130,7 +140,7 @@
         table: people
         column: ""
     predicatecolumns: []
-- description: Simple join
+- description: 'Simple join: ADDRESS names the unaliased address table''s range variable, which BigQuery reads before the column of that name, so it is the whole row'
   statement: SELECT ID, NAME, ADDRESS FROM people JOIN address ON people.ID = address.PEOPLE_ID;
   defaultDatabase: ds1
   metadata: |-
@@ -196,6 +206,11 @@
             schema: ""
             table: ADDRESS
             column: ADDRESS
+          - server: ""
+            database: ds1
+            schema: ""
+            table: ADDRESS
+            column: PEOPLE_ID
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
@@ -469,7 +484,12 @@
     type: 1
     results:
       - name: f0_
-        sourcecolumns: []
+        sourcecolumns:
+          - server: ""
+            database: ds1
+            schema: ""
+            table: people
+            column: NAME
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
@@ -1811,7 +1831,12 @@
     type: 1
     results:
       - name: c
-        sourcecolumns: []
+        sourcecolumns:
+          - server: ""
+            database: ds1
+            schema: ""
+            table: t2
+            column: x
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false

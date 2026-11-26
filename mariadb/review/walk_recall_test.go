@@ -626,3 +626,38 @@ func TestWalkThroughMariaDBPrograms(t *testing.T) {
 		{sql: "CREATE VIEW v2 AS SELECT mariadb_schema.TRIM(LEADING FROM s), oracle_schema.SUBSTRING(s FROM 1) FROM t;"},
 	})
 }
+
+// TestWalkThroughMariaDBTriggerOrder pins FOLLOWS and PRECEDES of a synced
+// trigger, which must have the new trigger's time and event (4031). Each
+// case was run on mariadb:11.8.8.
+func TestWalkThroughMariaDBTriggerOrder(t *testing.T) {
+	c, err := mariadbcatalog.LoadSQL("CREATE DATABASE shop;\nUSE shop;\nCREATE TABLE t (id int PRIMARY KEY, a int);\nCREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;")
+	if err != nil {
+		t.Fatalf("load schema: %v", err)
+	}
+	target := review.Target{Schema: c.DatabaseMetadata("shop")}
+	for _, tc := range []struct {
+		sql, want string
+		statement int
+	}{
+		{sql: "CREATE TRIGGER tr AFTER UPDATE ON t FOR EACH ROW FOLLOWS trg SET @x = 1;", want: "`FOLLOWS` names trigger `trg`, which is a `BEFORE INSERT` trigger, not `AFTER UPDATE`."},
+		{sql: "CREATE TRIGGER tr BEFORE UPDATE ON t FOR EACH ROW PRECEDES trg SET @x = 1;", want: "`PRECEDES` names trigger `trg`, which is a `BEFORE INSERT` trigger, not `BEFORE UPDATE`."},
+		{sql: "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW FOLLOWS trg SET @x = 1;"},
+		{sql: "DROP TRIGGER trg;\nCREATE TRIGGER trg AFTER UPDATE ON t FOR EACH ROW SET @y = 1;\nCREATE TRIGGER tr AFTER UPDATE ON t FOR EACH ROW FOLLOWS trg SET @x = 1;"},
+		{sql: "CREATE OR REPLACE TRIGGER trg AFTER UPDATE ON t FOR EACH ROW SET @y = 1;\nCREATE TRIGGER tr AFTER UPDATE ON t FOR EACH ROW FOLLOWS trg SET @x = 1;"},
+		{sql: "DROP TRIGGER trg;\nCREATE TRIGGER tr AFTER UPDATE ON t FOR EACH ROW FOLLOWS trg SET @x = 1;", statement: 1, want: "`FOLLOWS` names trigger `trg`, which doesn't exist."},
+	} {
+		t.Run(tc.sql, func(t *testing.T) {
+			if tc.want == "" {
+				noFinding(t, tc.sql, target)
+				return
+			}
+			oneFinding(t, tc.sql, tc.statement, tc.want, target)
+		})
+	}
+	// A sync that gives a trigger no time or event claims nothing of it.
+	for _, tr := range target.Schema.GetSchemas()[0].GetTables()[0].GetTriggers() {
+		tr.Timing, tr.Event = "", ""
+	}
+	noFinding(t, "CREATE TRIGGER tr AFTER UPDATE ON t FOR EACH ROW FOLLOWS trg SET @x = 1;", target)
+}
