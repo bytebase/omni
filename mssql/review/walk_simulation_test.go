@@ -117,13 +117,16 @@ func TestWalkSimulation(t *testing.T) {
 // full-text and change tracking, other databases, and objects the sync
 // skips, or is omni's syntax error. $ROWGUID of a table with no column
 // that can be the ROWGUIDCOL column, and a variable's method called in a
-// view, raised queries to 86.2%.
+// view, raised queries to 86.2%. FILESTREAM_ON on a table no column of
+// which can be FILESTREAM, IDENTITYCOL in a filtered index, PARTITION =
+// a name that is no column, and VALUES rows of the wrong width for a
+// synced table raised ddl to 95.5%.
 var walkSimSuites = []struct {
 	name, path, database string
 	minPct               float64
 	minFound             int
 }{
-	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 95.2, 2925},
+	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 95.5, 3169},
 	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 86.2, 394},
 	{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), "omni_TestProgramSimulation", 91.7, 67},
 }
@@ -232,7 +235,14 @@ func walkCompatSimulation(t *testing.T, db *sql.DB) {
 	// rows added server-scoped refusals the walk cannot see (DROP TRIGGER ON
 	// ALL SERVER, OPENQUERY on a missing linked server), which moved it to
 	// 87.9%. Facts of the synced schema beyond names raised it to 89.6%.
-	const minWalkSimRecall = 89.6
+	// A one-part name on OPENDATASOURCE, undeclared table variables of a
+	// statement's sources, spatial index options SQL Server does not take,
+	// an integer for an xml or geography column, and the ddl suite's forms
+	// raised it to 91.6%. What is left needs user types, assemblies,
+	// principals, filegroups, partitions, statistics, linked servers,
+	// database and server triggers, identity columns, and view definitions
+	// this test's sync does not read.
+	const minWalkSimRecall = 91.6
 	pct := 0.0
 	if refusedCount > 0 {
 		pct = 100 * float64(foundCount) / float64(refusedCount)
