@@ -376,6 +376,7 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"rebuild a partition a name gives", "ALTER TABLE dbo.t REBUILD PARTITION = nope;", 0, "Column `nope` doesn't exist in `dbo.t`."},
 		{"rebuild a numbered partition valid", "ALTER TABLE dbo.t REBUILD PARTITION = 1;", -1, ""},
 		{"filtered index on IDENTITYCOL", "CREATE INDEX ix9 ON dbo.t (a) WHERE IDENTITYCOL IS NULL;", 0, "Column `IDENTITYCOL` doesn't exist."},
+		{"filtered index on a column named IDENTITYCOL valid", "CREATE INDEX ix9 ON dbo.t (a) WHERE [IDENTITYCOL] IS NULL;", -1, ""},
 		{"FILESTREAM_ON a table without varbinary", "CREATE INDEX ix9 ON dbo.typed (i) FILESTREAM_ON fs;", 0, "Table `dbo.typed` has no FILESTREAM column for `FILESTREAM_ON`."},
 		{"integer to an xml column", "UPDATE dbo.typed SET x = 1;", 0, "SQL Server doesn't convert an integer to column `x` of type `xml`."},
 		{"integer default for a geography column", "ALTER TABLE dbo.typed ADD DEFAULT (1) FOR g;", 0, "SQL Server doesn't convert an integer to column `g` of type `geography`."},

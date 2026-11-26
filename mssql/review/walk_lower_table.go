@@ -1229,12 +1229,12 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	if v.FilestreamOn != "" && b.noFilestream(r) {
 		return true
 	}
-	// A filtered index's predicate binds no pseudo column: IDENTITYCOL is
-	// an invalid column name there, of a table with an identity column
-	// too (207).
+	// A filtered index's predicate binds no pseudo column: IDENTITYCOL,
+	// unquoted, is an invalid column name there, of a table with an
+	// identity column too (207).
 	var pseudo *ast.ColumnRef
 	ast.Inspect(v.WhereClause, func(n ast.Node) bool {
-		if c, ok := n.(*ast.ColumnRef); ok && pseudo == nil && strings.EqualFold(c.Column, "IDENTITYCOL") {
+		if c, ok := n.(*ast.ColumnRef); ok && pseudo == nil && strings.EqualFold(c.Column, "IDENTITYCOL") && !b.isDelimitedAt(c.Loc) {
 			pseudo = c
 		}
 		return pseudo == nil
