@@ -1048,7 +1048,7 @@ func (p *Parser) parseExclusionConstraint() (*nodes.Constraint, error) {
 	if err != nil {
 		return nil, err
 	}
-	where, err := p.parseWhereClauseOpt()
+	where, err := p.parseOptWhereClause()
 	if err != nil {
 		return nil, err
 	}
@@ -1186,22 +1186,6 @@ func (p *Parser) parseOptNullsOrder() int {
 		}
 	}
 	return int(nodes.SORTBY_NULLS_DEFAULT)
-}
-
-// parseWhereClauseOpt parses an optional WHERE clause.
-func (p *Parser) parseWhereClauseOpt() (nodes.Node, error) {
-	if p.cur.Type != WHERE {
-		return nil, nil
-	}
-	p.advance()
-	result, err := p.parseAExpr(0)
-	if err != nil {
-		return nil, err
-	}
-	if result == nil {
-		return nil, p.syntaxErrorAtCur()
-	}
-	return result, nil
 }
 
 // parseTableLikeClause parses a LIKE clause in CREATE TABLE.

@@ -164,7 +164,7 @@ OptTableSpaceOwner	pg/parser/schema.go	parseCreateTableSpaceStmt
 OptTemp	pg/parser/create_table.go	parseOptTemp
 OptTempTableName	pg/parser/select.go	parseOptTempTableName
 OptTypedTableElementList	pg/parser/create_table.go	parseCreateStmtOf
-OptWhereClause	pg/parser/publication.go	parsePublicationTable
+OptWhereClause	pg/parser/publication.go	parseOptWhereClause
 OptWith	pg/parser/create_table.go	parseOptWith
 PartitionBoundSpec	pg/parser/create_table.go	parsePartitionBoundSpec
 PartitionSpec	pg/parser/create_table.go	parsePartitionSpec
@@ -209,7 +209,7 @@ TableFuncElement	pg/parser/define.go	parseTableFuncElement
 TableFuncElementList	pg/parser/define.go	parseTableFuncElementList
 TableLikeClause	pg/parser/create_table.go	parseTableLikeClause
 TableLikeOption	pg/parser/create_table.go	parseTableLikeOption
-TableLikeOptionList	pg/parser/create_table.go	parseWhereClauseOpt
+TableLikeOptionList	pg/parser/create_table.go	parseTableLikeClause
 TransactionStmt	pg/parser/transaction.go	parseTransactionStmt
 TransactionStmtLegacy	pg/parser/transaction.go	parseTransactionStmt
 TransitionOldOrNew	pg/parser/trigger.go	parseTriggerTransition
