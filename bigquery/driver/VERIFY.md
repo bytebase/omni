@@ -20,7 +20,7 @@ deterministic tapes.
 | capability | state |
 | --- | --- |
 | `SyncInstance` (the project's datasets) | ported from `backend/plugin/db/bigquery`, recorded and replayed from `testdata/tapes/TestSyncInstance.tape` |
-| `SyncDatabase` (INFORMATION_SCHEMA.COLUMNS and each table's metadata) | ported, recorded and replayed from `testdata/tapes/TestSyncDatabase.tape`; `testdata/sync/omni_record.json` is what it built |
+| `SyncDatabase` (INFORMATION_SCHEMA.COLUMNS and VIEWS, and each table's metadata) | ported, recorded and replayed from `testdata/tapes/TestSyncDatabase.tape`; `testdata/sync/omni_record.json` is what it built |
 | `Session.Query` (decode, limit wrap, dry-run explain, `MaxResultBytes`, plan) | ported, recorded and replayed from `testdata/tapes/TestQuery.tape` and `testdata/tapes/TestQueryWrites.tape` |
 | `Execute` (one job for the whole script) | ported, recorded and replayed from `testdata/tapes/TestExecute.tape` |
 | `Dump` | ported as a **no-op**: `bigquery` has no catalog, and Bytebase's BigQuery `Dump` wrote nothing |
@@ -250,7 +250,9 @@ honestly instead of stopping at the first `CREATE TABLE`.
   everything it opened.
 - Step 4's seam and the tapes: **now built and committed** (recorded on
   2026-11-21 against `bytebase-dev:omni_record`, verified byte-identical across
-  two consecutive recordings from one compiled binary, and replayed offline in CI).
+  two consecutive recordings from one compiled binary, and replayed offline in CI;
+  recorded again on 2026-11-26 on a recreated `omni_record`, when the sync began
+  reading `INFORMATION_SCHEMA.VIEWS`).
 - Two of step 8's seven mutations: the service states no plan stage for the queries
   asked, and states the text `NULL` rather than an absent default, so neither is
   observable on this project.
@@ -359,7 +361,7 @@ Sync first: it is the read-only half. Then the reads, then the writes.
 
 | order | test | what it records |
 | --- | --- | --- |
-| 1 | `TestSyncDatabase` | the dataset's own metadata read, the `INFORMATION_SCHEMA.COLUMNS` query (the pseudo-columns of `partitioned` left out), the dataset's table listing, each table's metadata read, and the metadata it builds |
+| 1 | `TestSyncDatabase` | the dataset's own metadata read, the `INFORMATION_SCHEMA.COLUMNS` query (the pseudo-columns of `partitioned` left out), the `INFORMATION_SCHEMA.VIEWS` query, the dataset's table listing, each table's metadata read, and the metadata it builds |
 | 2 | `TestSyncInstance` | `datasets.list` and the order the sync reports |
 | 3 | `TestQuery` | statement classification, every cell kind, the CTE limit wrap, a pipe query's rows and its own `Limit` cap, the dry run, `MaxResultBytes` truncation, the plan of a finished read, a statement the service refuses |
 | 4 | `TestQueryWrites` | the command path against a table: a `CREATE TABLE`'s zero affected rows, the dry run of that table, and the error the service states for a table it does not have |
@@ -416,7 +418,7 @@ edit a tape.
 `TestLiveSyncDatabase` rather than byte for byte, because protojson spacing moves
 between builds. It holds the corpus's `customers` with its comment, three rows and
 five columns, `partitioned` without its `_PARTITIONTIME` pseudo-column, and the
-view `recent` — the dataset's whole contents, which is why the corpus is the only
+view `recent` with its columns and its definition — the dataset's whole contents, which is why the corpus is the only
 thing in the dataset.
 
 Unlike the plan's order, the golden is committed before the tapes: the dataset had
@@ -432,8 +434,8 @@ did. What a dump needs, in order:
 1. the sync must carry what a `CREATE TABLE` states and it does not read today:
    partitioning (`PARTITION BY` and its column), clustering, labels, the table's
    expiration, and the table type;
-2. the sync must read a view's query (`INFORMATION_SCHEMA.VIEWS.view_definition`)
-   and the routines, materialized views and snapshots the dataset holds;
+2. the sync reads a view's query (`INFORMATION_SCHEMA.VIEWS.view_definition`), but
+   not yet the routines, materialized views and snapshots the dataset holds;
 3. a `bigquery/catalog` that renders those back into DDL.
 
 Bytebase's BigQuery `Dump` wrote nothing either, so nothing is lost yet, and a

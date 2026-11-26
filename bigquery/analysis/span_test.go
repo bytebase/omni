@@ -103,17 +103,22 @@ func qualifySpan(c ColumnResource) string {
 	return c.Database + "." + c.Table
 }
 
-// spanMetadata is the stored dataset as Bytebase's sync records it
-// (bigquery/driver/sync.go): one unnamed schema holding every table and view
-// of the dataset as a table, with its columns in order.
+// spanMetadata is the stored dataset as bigquery/driver's sync records it
+// (bigquery/driver/sync.go): one unnamed schema holding every table of the
+// dataset with its columns in order, and every view with its columns in order
+// and its definition.
 func spanMetadata(dataset string, relations []testcontainer.SpanRelation) *metadata.DatabaseSchemaMetadata {
 	schema := &metadata.SchemaMetadata{}
 	for _, r := range relations {
-		table := &metadata.TableMetadata{Name: r.Name}
+		var columns []*metadata.ColumnMetadata
 		for i, c := range r.Columns {
-			table.Columns = append(table.Columns, &metadata.ColumnMetadata{Name: c, Position: int32(i + 1), Nullable: true})
+			columns = append(columns, &metadata.ColumnMetadata{Name: c, Position: int32(i + 1), Nullable: true})
 		}
-		schema.Tables = append(schema.Tables, table)
+		if r.View {
+			schema.Views = append(schema.Views, &metadata.ViewMetadata{Name: r.Name, Definition: r.Definition, Columns: columns})
+			continue
+		}
+		schema.Tables = append(schema.Tables, &metadata.TableMetadata{Name: r.Name, Columns: columns})
 	}
 	return &metadata.DatabaseSchemaMetadata{Name: dataset, Schemas: []*metadata.SchemaMetadata{schema}}
 }

@@ -1,4 +1,4 @@
--- pin: driver gcp:bigquery:bytebase-dev:US sha256:a38c0d3800b3dfd8d1c6e3f3644af8fd02fc0f8ed110efc924159d3415533cd7 2026-11-21
+-- pin: driver gcp:bigquery:bytebase-dev:US sha256:92a85df45321648c0feb59ee0c222e8156cb9332d322ddb9f15eaf37c8c12533 2026-11-26
 
 == TestQueryWrites driver#1
 > raw
