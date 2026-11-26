@@ -256,3 +256,21 @@ func (d tableDatabase) GetTable(name string) *metadata.TableMetadata {
 	return nil
 }
 func (tableDatabase) GetView(string) *metadata.ViewMetadata { return nil }
+
+// A self-named alias (email AS email reads the column) does not stop the
+// aliases built on it from being resolved once.
+func TestResolveQuerySpanSelfNamedAlias(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("WITH concat(email, email) AS email, email AS a0")
+	for i := 1; i <= 200; i++ {
+		fmt.Fprintf(&b, ", concat(a%d, a%d) AS a%d", i-1, i-1, i)
+	}
+	b.WriteString(" SELECT a200 FROM shop.customers")
+	got, err := ResolveQuerySpan(b.String(), ResolveOptions{DefaultDatabase: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"shop.customers.email"}; !slices.Equal(names(got.Results[0].SourceColumns), want) {
+		t.Errorf("reads %v, want %v", names(got.Results[0].SourceColumns), want)
+	}
+}

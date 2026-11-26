@@ -276,7 +276,12 @@ func (l *spanLive) span(ctx context.Context, database, statement string) (SpanAn
 	if err := db.QueryRowContext(ctx, "SELECT tables FROM system.query_log WHERE query_id = ? AND type = 'QueryFinish'", id).Scan(&tables); err != nil {
 		return a, fmt.Errorf("query_log of %s: %w", id, err)
 	}
-	function := false
+	// query_log does not list the Join table or dictionary that joinGet
+	// or dictGet reads, so a query calling one leaves its tables unstated.
+	function := tree.lookups()
+	if function {
+		a.Tables = append(a.Tables, "~")
+	}
 	for _, t := range tables {
 		// A query without FROM reads system.one, and a recursive CTE's
 		// working table is a temporary table with a name made up for the
@@ -307,6 +312,21 @@ func (l *spanLive) tree(ctx context.Context, db *sql.DB, statement string) (*que
 		text[i] = r[0]
 	}
 	return parseTree(text)
+}
+
+// lookups reports whether the tree calls joinGet or dictGet anywhere.
+func (t *queryTree) lookups() bool {
+	for _, n := range t.byID {
+		if n.kind == "FUNCTION" && lookupFunction(n.field("function_name")) {
+			return true
+		}
+	}
+	return false
+}
+
+func lookupFunction(name string) bool {
+	n := strings.ToLower(name)
+	return n == "joinget" || n == "joingetornull" || strings.HasPrefix(n, "dictget")
 }
 
 // lineage is the sources of the root's i-th projection column.
@@ -513,6 +533,12 @@ func (w *treeWalker) named(n *treeNode, name string) error {
 
 func (w *treeWalker) expr(n *treeNode) error {
 	switch n.kind {
+	case "FUNCTION":
+		if lookupFunction(n.field("function_name")) {
+			// A lookup into a Join table or a dictionary: the tree names
+			// the function, not the column it reads.
+			w.out = append(w.out, "~")
+		}
 	case "COLUMN":
 		return w.column(n)
 	case "QUERY", "UNION":

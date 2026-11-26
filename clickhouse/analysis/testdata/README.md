@@ -40,6 +40,9 @@ possibly more.
   and a recursive CTE's temporary table are dropped: neither is a table the
   query names. A table function is listed as `_table_function.<name>`,
   which does not say what it reads (`merge` reads tables), so it is `~`.
+  query_log does not list the Join table or dictionary `joinGet` or
+  `dictGet` reads either, so a query calling one has `~` among its tables,
+  and the call's lineage is `~`.
 
 The conversation with ClickHouse is on `tapes/TestQuerySpanFidelity.tape`
 (see `clickhouse/internal/testcontainer/span.go`), so the test starts no

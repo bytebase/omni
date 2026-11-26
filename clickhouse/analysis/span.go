@@ -111,7 +111,9 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedSpan, err
 		return out, nil
 	}
 	r := newSpanResolver(opts, seg.Text)
-	r.preferColumns = preferColumns(query)
+	r.preferColumns = setting(query, "prefer_column_name_to_alias")
+	r.starAlias = setting(query, "asterisk_include_alias_columns")
+	r.starMaterialized = setting(query, "asterisk_include_materialized_columns")
 	cols := r.query(query, nil, nil)
 	if r.err != nil {
 		return nil, r.err
@@ -135,9 +137,8 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedSpan, err
 	return out, nil
 }
 
-// preferColumns reports whether a query's SETTINGS turn on
-// prefer_column_name_to_alias.
-func preferColumns(q *parser.SelectUnionStmt) bool {
+// setting reports whether a query's SETTINGS turn a boolean setting on.
+func setting(q *parser.SelectUnionStmt, name string) bool {
 	settings := []*parser.SettingExpr{}
 	if q.Output != nil {
 		settings = append(settings, q.Output.Settings...)
@@ -146,7 +147,7 @@ func preferColumns(q *parser.SelectUnionStmt) bool {
 		settings = append(settings, s.Settings...)
 	}
 	for _, st := range settings {
-		if !strings.EqualFold(st.Name, "prefer_column_name_to_alias") {
+		if !strings.EqualFold(st.Name, name) {
 			continue
 		}
 		if lit, ok := st.Value.(*parser.LiteralExpr); ok {
@@ -277,10 +278,15 @@ type spanResolver struct {
 	// preferColumns is the query's prefer_column_name_to_alias: a column
 	// name resolves to the column before an alias of that name.
 	preferColumns bool
-	// aliasMemo holds what an alias read where it was used; skipped counts
-	// the aliases passed over because they were being resolved.
+	// starAlias and starMaterialized are the query's
+	// asterisk_include_alias_columns and
+	// asterisk_include_materialized_columns: * expands to those columns too.
+	starAlias, starMaterialized bool
+	// aliasMemo holds what an alias read where it was used; skips are the
+	// aliases and ALIAS columns passed over because they were being
+	// resolved.
 	aliasMemo map[aliasUse]SourceColumnSet
-	skipped   int
+	skips     []any
 	// aliasCols holds what each ALIAS column of a table reads.
 	aliasCols map[ColumnResource]SourceColumnSet
 	// err is why a view's definition could not be read: the span fails
@@ -491,6 +497,10 @@ func (r *spanResolver) exprs(list []parser.Expr, sc *spanScope, ctes *cteBinding
 
 func (r *spanResolver) orderBy(items []*parser.OrderByItem, sc *spanScope, ctes *cteBinding) SourceColumnSet {
 	out := SourceColumnSet{}
+	if len(items) == 1 && r.isKeyword(items[0].Expr, "ALL") {
+		// ORDER BY ALL sorts by the select list, which reads nothing more.
+		return out
+	}
 	for _, o := range items {
 		out = union(out, r.exprs([]parser.Expr{o.Expr, o.FillFrom, o.FillTo, o.FillStep}, sc, ctes))
 	}
@@ -855,10 +865,10 @@ func (r *spanResolver) aliasColumn(database, table, column, expression string) S
 		return out
 	}
 	if r.resolving[key] {
-		r.skipped++
+		r.skips = append(r.skips, key)
 		return nil
 	}
-	skipped := r.skipped
+	mark := len(r.skips)
 	quote := func(name string) string { return "`" + strings.ReplaceAll(name, "`", "``") + "`" }
 	text := "SELECT (" + expression + ") FROM " + quote(database) + "." + quote(table)
 	stmts, err := parser.Parse(text)
@@ -881,12 +891,23 @@ func (r *spanResolver) aliasColumn(database, table, column, expression string) S
 	for _, c := range cols {
 		out = union(out, c.sources)
 	}
-	if r.skipped == skipped {
-		// One resolved while another column was being resolved may lack
-		// what that column reads, so only a whole answer is kept.
+	if r.whole(mark) {
 		r.aliasCols[key] = out
 	}
 	return out
+}
+
+// whole reports whether what was resolved since mark is complete: no name
+// it passed over, to break a cycle, is still being resolved by an
+// enclosing name, whose answer it would lack. Only a whole answer is kept
+// for reuse.
+func (r *spanResolver) whole(mark int) bool {
+	for _, k := range r.skips[mark:] {
+		if r.resolving[k] {
+			return false
+		}
+	}
+	return true
 }
 
 // view resolves a view's stored definition in the view's database, once: its
@@ -958,7 +979,12 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 			switch {
 			case c.star:
 				out = append(out, c)
-			case !c.hidden && !c.omitted:
+			case !c.hidden && (!c.omitted || c.alias != "" && r.starAlias || c.alias == "" && r.starMaterialized):
+				if c.omitted {
+					// An ALIAS or MATERIALIZED column a setting includes,
+					// read as a name reads it.
+					c, _ = rel.column(c.name)
+				}
 				c.rel = rel
 				c.name = starName(c, sc)
 				out = append(out, c)
@@ -1231,14 +1257,19 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 			if memo, ok := r.aliasMemo[key]; ok {
 				out = memo
 			} else {
-				skipped := r.skipped
+				mark := len(r.skips)
 				r.resolving[lambda] = true
 				out = r.expr(lambda, sc, ctes)
 				delete(r.resolving, lambda)
-				if r.skipped == skipped {
+				if r.whole(mark) {
 					r.aliasMemo[key] = out
 				}
 			}
+		}
+		if lookupFunction(n.Name) {
+			// joinGet('db.t', 'c', key) and dictGet('db.d', 'c', key) read
+			// column c of table or dictionary t.
+			out = union(out, r.lookupSources(n))
 		}
 		if re, ok := columnsMatcher(n); ok {
 			// COLUMNS('re') in an expression is the columns it matches.
@@ -1287,6 +1318,59 @@ func (sc *spanScope) window(name string) *parser.WindowSpec {
 	return nil
 }
 
+// isKeyword reports whether e is the bare keyword kw, as written, not a
+// quoted name.
+func (r *spanResolver) isKeyword(e parser.Expr, kw string) bool {
+	id, ok := e.(*parser.IdentExpr)
+	return ok && len(id.Parts) == 1 && e.EndPos() <= len(r.text) && strings.EqualFold(r.text[e.StartPos():e.EndPos()], kw)
+}
+
+// lookupFunction reports whether a function reads a column of a table or
+// dictionary its first argument names: joinGet, joinGetOrNull, and the
+// dictGet family.
+func lookupFunction(name string) bool {
+	n := strings.ToLower(name)
+	return n == "joinget" || n == "joingetornull" || strings.HasPrefix(n, "dictget")
+}
+
+// lookupSources is what a joinGet or dictGet call reads from the table or
+// dictionary it names, and records that table as read.
+func (r *spanResolver) lookupSources(f *parser.FuncCallExpr) SourceColumnSet {
+	out := SourceColumnSet{}
+	if len(f.Args) < 2 {
+		return out
+	}
+	table, ok1 := f.Args[0].(*parser.LiteralExpr)
+	if !ok1 || table.Kind != "STRING" {
+		r.err = errors.Join(r.err, fmt.Errorf("%s() with a table that is not a string literal", f.Name))
+		return out
+	}
+	database, name := r.database, table.Val
+	if db, t, ok := strings.Cut(table.Val, "."); ok {
+		database, name = db, t
+	}
+	r.tables[ColumnResource{Database: database, Table: name}] = true
+	var columns []string
+	switch c := f.Args[1].(type) {
+	case *parser.LiteralExpr:
+		columns = []string{c.Val}
+	case *parser.TupleExpr:
+		// dictGet('d', ('a', 'b'), key) reads several attributes.
+		for _, item := range c.Items {
+			if lit, ok := item.(*parser.LiteralExpr); ok {
+				columns = append(columns, lit.Val)
+			}
+		}
+	}
+	if len(columns) == 0 {
+		out[ColumnResource{Database: database, Table: name}] = true
+	}
+	for _, c := range columns {
+		out[ColumnResource{Database: database, Table: name, Column: c}] = true
+	}
+	return out
+}
+
 // countStar reports whether f is count(*), which reads no column;
 // count(DISTINCT *) reads them all.
 func countStar(f *parser.FuncCallExpr) bool {
@@ -1301,10 +1385,12 @@ func countStar(f *parser.FuncCallExpr) bool {
 func (r *spanResolver) lambdaAlias(name string, sc *spanScope) *parser.LambdaExpr {
 	for s := sc; s != nil; s = s.parent {
 		if e, ok := s.aliases[name]; ok {
-			if l, ok := e.(*parser.LambdaExpr); ok && !r.resolving[l] {
-				return l
+			l, ok := e.(*parser.LambdaExpr)
+			if ok && r.resolving[l] {
+				r.skips = append(r.skips, l)
+				return nil
 			}
-			return nil
+			return l
 		}
 	}
 	return nil
@@ -1421,19 +1507,18 @@ func (r *spanResolver) alias(name string, scopes []*spanScope, sc *spanScope, ct
 				if out, ok := r.aliasMemo[key]; ok {
 					return out, true
 				}
-				skipped := r.skipped
+				mark := len(r.skips)
 				r.resolving[e] = true
 				out := r.expr(e, sc, ctes)
 				delete(r.resolving, e)
-				if r.skipped == skipped {
-					// A result that broke a cycle depends on what was being
-					// resolved, so only one that did not is kept.
+				if r.whole(mark) {
 					r.aliasMemo[key] = out
 				}
 				return out, true
 			}
-			if _, ok := s.aliases[name]; ok {
-				r.skipped++
+			if e, ok := s.aliases[name]; ok {
+				// Being resolved: the name reads a column instead.
+				r.skips = append(r.skips, e)
 			}
 		}
 	}

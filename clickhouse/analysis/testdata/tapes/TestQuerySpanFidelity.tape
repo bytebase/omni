@@ -1456,8 +1456,9 @@
 | CREATE DATABASE lab
 | CREATE TABLE lab.events (id UInt32, attrs Nested(k String, v UInt32)) ENGINE = MergeTree ORDER BY id
 | CREATE TABLE lab.calc (id UInt32, secret String, a String ALIAS concat(secret, '!'), b String ALIAS upper(a), m UInt32 MATERIALIZED id * 2) ENGINE = MergeTree ORDER BY id
+| CREATE TABLE lab.lookup (id UInt32, email String) ENGINE = Join(ANY, LEFT, id)
 < raw
-| {"databases":[{"name":"lab","tables":[{"name":"calc","columns":["id","secret","a","b","m"],"computed":{"a":{"kind":"ALIAS","expression":"concat(secret, '!')"},"b":{"kind":"ALIAS","expression":"upper(a)"},"m":{"kind":"MATERIALIZED","expression":"id * 2"}}},{"name":"events","columns":["id","attrs.k","attrs.v"]}],"views":null}]}
+| {"databases":[{"name":"lab","tables":[{"name":"calc","columns":["id","secret","a","b","m"],"computed":{"a":{"kind":"ALIAS","expression":"concat(secret, '!')"},"b":{"kind":"ALIAS","expression":"upper(a)"},"m":{"kind":"MATERIALIZED","expression":"id * 2"}}},{"name":"events","columns":["id","attrs.k","attrs.v"]},{"name":"lookup","columns":["id","email"]}],"views":null}]}
 > raw
 | span lab
 | SELECT attrs.k FROM events
@@ -1508,3 +1509,33 @@
 | SELECT b FROM calc
 < raw
 | {"columns":["b"],"lineage":[["lab.calc.a","lab.calc.b","lab.calc.secret"]],"tables":["lab.calc"]}
+> raw
+| span lab
+| SELECT * FROM calc SETTINGS asterisk_include_alias_columns = 1
+< raw
+| {"columns":["id","secret","a","b"],"lineage":[["lab.calc.id"],["lab.calc.secret"],["lab.calc.a","lab.calc.secret"],["lab.calc.a","lab.calc.b","lab.calc.secret"]],"tables":["lab.calc"]}
+> raw
+| span lab
+| SELECT * FROM calc SETTINGS asterisk_include_materialized_columns = 1
+< raw
+| {"columns":["id","secret","m"],"lineage":[["lab.calc.id"],["lab.calc.secret"],["lab.calc.m"]],"tables":["lab.calc"]}
+> raw
+| span lab
+| SELECT joinGet('lab.lookup', 'email', toUInt32(1))
+< raw
+| {"columns":["joinGet('lab.lookup', 'email', toUInt32(1))"],"lineage":[["~"]],"tables":["~"]}
+> raw
+| span lab
+| SELECT id, joinGet('lookup', 'email', id) AS e FROM calc
+< raw
+| {"columns":["id","e"],"lineage":[["lab.calc.id"],["lab.calc.id","~"]],"tables":["~","lab.calc"]}
+> raw
+| span lab
+| SELECT secret FROM calc ORDER BY ALL
+< raw
+| {"columns":["secret"],"lineage":[["lab.calc.secret"]],"tables":["lab.calc"]}
+> raw
+| span lab
+| SELECT id, secret FROM calc ORDER BY ALL DESC
+< raw
+| {"columns":["id","secret"],"lineage":[["lab.calc.id"],["lab.calc.secret"]],"tables":["lab.calc"]}

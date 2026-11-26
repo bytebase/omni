@@ -339,3 +339,9 @@ SELECT a, m FROM calc
 SELECT id, upper(a) FROM calc
 SELECT calc.* FROM calc
 SELECT b FROM calc
+SELECT * FROM calc SETTINGS asterisk_include_alias_columns = 1
+SELECT * FROM calc SETTINGS asterisk_include_materialized_columns = 1
+SELECT joinGet('lab.lookup', 'email', toUInt32(1))
+SELECT id, joinGet('lookup', 'email', id) AS e FROM calc
+SELECT secret FROM calc ORDER BY ALL
+SELECT id, secret FROM calc ORDER BY ALL DESC
