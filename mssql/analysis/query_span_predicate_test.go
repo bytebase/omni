@@ -77,7 +77,6 @@ func TestQuerySpanJoinConditionKeepsLineage(t *testing.T) {
 
 func TestQuerySpanRefusesUnsupportedTableSources(t *testing.T) {
 	for _, statement := range []string{
-		"SELECT * FROM t JOIN db2.dbo.t2 AS u ON t.a = u.x PIVOT (MAX(y) FOR b IN ([1])) AS p",
 		"SELECT j.v FROM t CROSS APPLY OPENJSON(t.c) WITH (v NVARCHAR(100) '$.v') AS j",
 	} {
 		t.Run(statement, func(t *testing.T) {

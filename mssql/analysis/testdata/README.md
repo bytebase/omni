@@ -59,8 +59,6 @@ is how its references are read.
   names both arms'. The right arm decides which rows come back, and a
   value `INTERSECT` returns is in both, so a masking policy on either side
   applies.
-- PIVOT: omni refuses to trace it (`TypeNotSupportedError`), and Bytebase
-  refuses the query rather than return its columns unmasked.
 
 ## query-span/*.yaml
 

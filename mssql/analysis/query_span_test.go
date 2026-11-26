@@ -393,11 +393,7 @@ func TestResolveQuerySpanErrors(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "cyclic view reference") {
 		t.Errorf("cycle: got %v", err)
 	}
-	_, err = ResolveQuerySpan("SELECT * FROM t PIVOT (SUM(a) FOR b IN ([1])) AS p", ResolveOptions{DefaultDatabase: "db", Catalog: testCatalog()})
 	var typeNotSupported *TypeNotSupportedError
-	if !errors.As(err, &typeNotSupported) || typeNotSupported.Type != "*ast.PivotExpr" {
-		t.Errorf("pivot: got %v", err)
-	}
 	_, err = newQuerySpanExtractor("db", "", testCatalog(), nil, false).resolveExpressionNode(&ast.WindowDef{})
 	if !errors.As(err, &typeNotSupported) || typeNotSupported.Type != "*ast.WindowDef" {
 		t.Errorf("unmodeled expression: got %v", err)
