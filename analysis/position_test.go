@@ -59,3 +59,32 @@ func TestTrimStatement(t *testing.T) {
 		t.Errorf("TrimStatement = %q", got)
 	}
 }
+
+func TestPositionsMatchPositionAt(t *testing.T) {
+	for _, script := range []string{"", "a", "ab\r\nc\rdé😀x\nz", "\r\r\n\n\r", "x\n", "\xff\xfe\r\n\xe2\x82", "a\r\n\r\nb😀\rc"} {
+		positions := NewPositions(script)
+		for _, order := range [][]int{ascending(len(script)), descending(len(script))} {
+			for _, offset := range order {
+				if got, want := positions.At(offset), PositionAt(script, offset); got != want {
+					t.Errorf("%q: At(%d) = %+v, PositionAt = %+v", script, offset, got, want)
+				}
+			}
+		}
+	}
+}
+
+func ascending(n int) []int {
+	offsets := make([]int, 0, n+3)
+	for offset := -1; offset <= n+1; offset++ {
+		offsets = append(offsets, offset)
+	}
+	return offsets
+}
+
+func descending(n int) []int {
+	offsets := ascending(n)
+	for i, j := 0, len(offsets)-1; i < j; i, j = i+1, j-1 {
+		offsets[i], offsets[j] = offsets[j], offsets[i]
+	}
+	return offsets
+}

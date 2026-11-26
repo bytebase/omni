@@ -71,13 +71,14 @@ func (e engine) Parse(script string) ([]analysis.ParsedStatement, error) {
 // Diagnose reports every syntax error except the parser's "statement parsing is
 // not yet supported" stubs, which mark valid statements it does not model.
 func (engine) Diagnose(script string) []analysis.Diagnostic {
+	positions := analysis.NewPositions(script)
 	result := []analysis.Diagnostic{}
 	for _, d := range diagnostics.Analyze(script) {
 		if strings.HasSuffix(d.Message, "statement parsing is not yet supported") {
 			continue
 		}
 		result = append(result, analysis.Diagnostic{
-			Start:    analysis.PositionAt(script, d.Range.Start.Offset),
+			Start:    positions.At(d.Range.Start.Offset),
 			Severity: analysis.SeverityError,
 			Message:  d.Message,
 		})

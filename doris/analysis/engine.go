@@ -34,11 +34,12 @@ func (engine) StatementRanges(script string) []analysis.LSPRange {
 }
 
 func (engine) Diagnose(script string) []analysis.Diagnostic {
+	positions := analysis.NewPositions(script)
 	syntaxErrors := Diagnose(script)
 	diagnostics := make([]analysis.Diagnostic, 0, len(syntaxErrors))
 	for _, e := range syntaxErrors {
 		diagnostics = append(diagnostics, analysis.Diagnostic{
-			Start:    analysis.PositionAt(script, e.Offset),
+			Start:    positions.At(e.Offset),
 			Severity: analysis.SeverityError,
 			Message:  e.Message,
 		})

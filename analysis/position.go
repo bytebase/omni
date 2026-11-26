@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -32,6 +33,57 @@ func PositionAt(script string, offset int) Position {
 		i += size
 	}
 	return Position{Line: line, Column: column + 1}
+}
+
+// Positions maps byte offsets in one script to positions, by the rules of
+// PositionAt, without rescanning the script for each offset.
+type Positions struct {
+	script string
+	// lines holds the byte offset each line starts at.
+	lines []int
+	// The last offset At counted to, so increasing offsets on one line are
+	// counted once.
+	lastOffset, lastLine, lastColumn int
+}
+
+// NewPositions indexes script's line starts.
+func NewPositions(script string) *Positions {
+	lines := []int{0}
+	for i := 0; i < len(script); i++ {
+		switch script[i] {
+		case '\r':
+			lines = append(lines, i+1)
+		case '\n':
+			if i == 0 || script[i-1] != '\r' {
+				lines = append(lines, i+1)
+			}
+		default:
+		}
+	}
+	return &Positions{script: script, lines: lines}
+}
+
+// At returns the position of offset, as PositionAt(script, offset) does.
+func (p *Positions) At(offset int) Position {
+	offset = max(0, min(offset, len(p.script)))
+	line := sort.Search(len(p.lines), func(i int) bool { return p.lines[i] > offset }) - 1
+	start, column := p.lines[line], 0
+	if line == p.lastLine && offset >= p.lastOffset && p.lastOffset > start {
+		start, column = p.lastOffset, p.lastColumn
+	}
+	i := start
+	for i < offset {
+		r, size := utf8.DecodeRuneInString(p.script[i:])
+		if i+size > offset {
+			break
+		}
+		if r != '\r' && r != '\n' {
+			column++
+		}
+		i += size
+	}
+	p.lastOffset, p.lastLine, p.lastColumn = i, line, column
+	return Position{Line: line + 1, Column: column + 1}
 }
 
 // Shift moves p, a position in a segment, to the script that holds the segment

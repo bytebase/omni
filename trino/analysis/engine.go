@@ -78,11 +78,12 @@ func syntaxError(text string, err error, base analysis.Position) error {
 }
 
 func (engine) Diagnose(script string) []analysis.Diagnostic {
+	positions := analysis.NewPositions(script)
 	found := Diagnose(script)
 	result := make([]analysis.Diagnostic, 0, len(found))
 	for _, d := range found {
 		result = append(result, analysis.Diagnostic{
-			Start:    analysis.PositionAt(script, d.Loc.Start),
+			Start:    positions.At(d.Loc.Start),
 			Severity: analysis.SeverityError,
 			Message:  d.Msg,
 		})

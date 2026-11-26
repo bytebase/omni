@@ -72,11 +72,12 @@ func (engine) StatementRanges(script string) []analysis.LSPRange {
 }
 
 func (engine) Diagnose(script string) []analysis.Diagnostic {
+	positions := analysis.NewPositions(script)
 	found := diagnostics.Analyze(script)
 	result := make([]analysis.Diagnostic, 0, len(found))
 	for _, d := range found {
 		result = append(result, analysis.Diagnostic{
-			Start:    analysis.PositionAt(script, d.Range.Start.Offset),
+			Start:    positions.At(d.Range.Start.Offset),
 			Severity: analysis.SeverityError,
 			Message:  d.Message,
 		})
