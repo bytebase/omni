@@ -45,6 +45,8 @@ func TestWalkImplicitPrimaryKeyVisible(t *testing.T) {
 		{"stored_generated", "CREATE TABLE t (a INT NOT NULL, g INT AS (a + 1) STORED NOT NULL, UNIQUE KEY u (g) INVISIBLE)", true},
 		{"expression_first_visible", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, UNIQUE KEY f ((a + 1)), UNIQUE KEY v (b) INVISIBLE)", false},
 		{"expression_not_null", "CREATE TABLE t (a INT NOT NULL, UNIQUE KEY u ((a + 1)) INVISIBLE)", false},
+		// mysql/catalog's TestCreateTableGeneratedPrimaryKeyTakesInvisibleUnique.
+		{"generated_primary_key", "SET SESSION sql_generate_invisible_primary_key = ON; CREATE TABLE t (a INT NOT NULL, UNIQUE KEY u (a) INVISIBLE)", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sql := strings.Replace(tc.sql, "CREATE TABLE t ", "CREATE TABLE ipk ", 1)

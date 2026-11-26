@@ -315,7 +315,7 @@ func (b *builder) createColumnsFail(v *ast.CreateTableStmt, r tableRef) bool {
 	if !visible {
 		return fail(r.rng, "Table "+review.Code(r.written)+" must have at least one visible column.")
 	}
-	if c := implicitPrimaryKey(v); c != nil && isInvisibleKey(c.IndexOptions) {
+	if c := implicitPrimaryKey(v); c != nil && isInvisibleKey(c.IndexOptions) && !b.w.gipkSet {
 		return fail(rangeOf(c.Loc), "A primary key can't be invisible.") // 3522
 	}
 	if !v.Temporary {

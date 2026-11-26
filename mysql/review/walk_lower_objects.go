@@ -533,6 +533,8 @@ func (b *builder) set(v *ast.SetStmt) bool {
 			})
 		case "sql_mode":
 			b.Session(func() { b.w.sqlModeSet = true })
+		case "sql_generate_invisible_primary_key":
+			b.Session(func() { b.w.gipkSet = true })
 		case "innodb_strict_mode":
 			strictOn := false
 			switch x := a.Value.(type) {
