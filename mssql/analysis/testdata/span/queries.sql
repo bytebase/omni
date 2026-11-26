@@ -138,6 +138,9 @@ SELECT region, SUM(LEN(name)) AS l FROM customers GROUP BY ROLLUP (region)
 
 -- Table-valued sources and other forms.
 SELECT * FROM (SELECT customer_id, status, amount FROM orders) s PIVOT (SUM(amount) FOR status IN ([new], [paid])) p
+SELECT * FROM orders PIVOT (MAX(amount) FOR status IN ([new], [paid])) AS p
+SELECT c.name, p.[new] FROM customers c JOIN (SELECT customer_id, status, amount FROM orders) s PIVOT (SUM(amount) FOR status IN ([new])) p ON p.customer_id = c.id
+SELECT * FROM (SELECT order_id, qty, line FROM order_items) s UNPIVOT (val FOR col IN (qty, line)) u
 SELECT value FROM STRING_SPLIT('a,b', ',')
 SELECT id FROM orders FOR JSON PATH
 SELECT id, amount FROM orders UNION ALL SELECT order_id, price FROM order_items FOR JSON PATH

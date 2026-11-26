@@ -173,6 +173,37 @@ func TestQuerySpanExtractorSupportedShapes(t *testing.T) {
 			},
 			wantAccessTables: []ColumnResource{access("db", "dbo", "t2")},
 		},
+		{
+			name: "pivot",
+			sql:  "SELECT * FROM t PIVOT (SUM(a) FOR b IN ([1], [2])) AS p",
+			wantResults: []expectedColumn{
+				{"c", []ColumnResource{src("db", "dbo", "t", "c")}},
+				{"1", []ColumnResource{src("db", "dbo", "t", "a"), src("db", "dbo", "t", "b")}},
+				{"2", []ColumnResource{src("db", "dbo", "t", "a"), src("db", "dbo", "t", "b")}},
+			},
+			wantAccessTables: []ColumnResource{access("db", "dbo", "t")},
+		},
+		{
+			name: "pivot_over_join",
+			sql:  "SELECT p.a, p.[1] FROM t JOIN db2.dbo.t2 AS u ON t.a = u.x PIVOT (MAX(y) FOR b IN ([1])) AS p",
+			wantResults: []expectedColumn{
+				{"a", []ColumnResource{src("db", "dbo", "t", "a")}},
+				{"1", []ColumnResource{src("db", "dbo", "t", "b"), src("db2", "dbo", "t2", "y")}},
+			},
+			wantPredicate:    []ColumnResource{src("db", "dbo", "t", "a"), src("db2", "dbo", "t2", "x")},
+			wantAccessTables: []ColumnResource{access("db", "dbo", "t"), access("db2", "dbo", "t2")},
+		},
+		{
+			name: "unpivot",
+			sql:  "SELECT * FROM t UNPIVOT (v FOR k IN (a, b)) AS u",
+			wantResults: []expectedColumn{
+				{"c", []ColumnResource{src("db", "dbo", "t", "c")}},
+				{"v", []ColumnResource{src("db", "dbo", "t", "a"), src("db", "dbo", "t", "b")}},
+				{"k", nil},
+			},
+			wantPredicate:    []ColumnResource{src("db", "dbo", "t", "a"), src("db", "dbo", "t", "b")},
+			wantAccessTables: []ColumnResource{access("db", "dbo", "t")},
+		},
 	}
 
 	for _, tc := range cases {
@@ -196,8 +227,6 @@ func TestQuerySpanExtractorUnsupportedTableSources(t *testing.T) {
 		name string
 		sql  string
 	}{
-		{"pivot", "SELECT * FROM t PIVOT (SUM(a) FOR b IN ([1],[2])) AS p"},
-		{"unpivot", "SELECT * FROM t UNPIVOT (v FOR c IN ([1],[2])) AS u"},
 		{"cross_apply_tvf", "SELECT * FROM t1 CROSS APPLY fn(t1.a) AS x(v)"},
 		{"aliased_tvf", "SELECT * FROM fn(t1.a) AS x(v)"},
 	} {

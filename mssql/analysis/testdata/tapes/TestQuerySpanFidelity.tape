@@ -9785,6 +9785,278 @@
 < ok 0 -
 > query
 | SELECT name, source_database, source_schema, source_table, source_column, error_number
+| FROM sys.dm_exec_describe_first_result_set(N'SELECT * FROM orders PIVOT (MAX(amount) FOR status IN ([new], [paid])) AS p', NULL, 1)
+| WHERE ISNULL(is_hidden, 0) = 0
+| ORDER BY column_ordinal
+< result
+< column "name" "NVARCHAR"
+< column "source_database" "NVARCHAR"
+< column "source_schema" "NVARCHAR"
+< column "source_table" "NVARCHAR"
+< column "source_column" "NVARCHAR"
+< column "error_number" "INT"
+< row
+: string
+| id
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+: string
+| id
+: null
+< row
+: string
+| customer_id
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+: string
+| customer_id
+: null
+< row
+: string
+| created
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+: string
+| created
+: null
+< row
+: string
+| new
+: null
+: null
+: null
+: null
+: null
+< row
+: string
+| paid
+: null
+: null
+: null
+: null
+: null
+> exec
+| SET SHOWPLAN_XML ON
+< ok 0 -
+> query
+| SELECT * FROM orders PIVOT (MAX(amount) FOR status IN ([new], [paid])) AS p
+< result
+< column "Microsoft SQL Server 2005 XML Showplan" "NVARCHAR"
+< row
+: string
+| <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan" Version="1.564" Build="16.0.4305.5"><BatchSequence><Batch><Statements><StmtSimple StatementText="SELECT * FROM orders PIVOT (MAX(amount) FOR status IN ([new], [paid])) AS p" StatementId="1" StatementCompId="1" StatementType="SELECT" RetrievedFromCache="false" StatementSubTreeCost="0.0146455" StatementEstRows="1" SecurityPolicyApplied="false" StatementOptmLevel="FULL" QueryHash="0xDE9CED79B7D9F05F" QueryPlanHash="0x7AC77A80332257CA" StatementOptmEarlyAbortReason="GoodEnoughPlanFound" CardinalityEstimationModelVersion="160"><StatementSetOptions QUOTED_IDENTIFIER="true" ARITHABORT="false" CONCAT_NULL_YIELDS_NULL="true" ANSI_NULLS="true" ANSI_PADDING="true" ANSI_WARNINGS="true" NUMERIC_ROUNDABORT="false"></StatementSetOptions><QueryPlan CachedPlanSize="32" CompileTime="0" CompileCPU="0" CompileMemory="0"><MemoryGrantInfo SerialRequiredMemory="512" SerialDesiredMemory="544" GrantedMemory="0" MaxUsedMemory="0"></MemoryGrantInfo><OptimizerHardwareDependentProperties EstimatedAvailableMemoryGrant="0" EstimatedPagesCached="0" EstimatedAvailableDegreeOfParallelism="0" MaxCompileMemory="0"></OptimizerHardwareDependentProperties><RelOp NodeId="0" PhysicalOp="Stream Aggregate" LogicalOp="Aggregate" EstimateRows="1" EstimateIO="0" EstimateCPU="1.1e-06" AvgRowSize="41" EstimatedTotalSubtreeCost="0.0146455" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="customer_id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="created"></ColumnReference><ColumnReference Column="Expr1003"></ColumnReference><ColumnReference Column="Expr1004"></ColumnReference></OutputList><StreamAggregate><DefinedValues><DefinedValue><ColumnReference Column="Expr1003"></ColumnReference><ScalarOperator ScalarString="MAX(CASE WHEN [shop].[dbo].[orders].[status]=&apos;new&apos; THEN [shop].[dbo].[orders].[amount] ELSE NULL END)"><Aggregate Distinct="0" AggType="MAX"><ScalarOperator><IF><Condition><ScalarOperator><Compare CompareOp="EQ"><ScalarOperator><Identifier><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="status"></ColumnReference></Identifier></ScalarOperator><ScalarOperator><Const ConstValue="&apos;new&apos;"></Const></ScalarOperator></Compare></ScalarOperator></Condition><Then><ScalarOperator><Identifier><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference></Identifier></ScalarOperator></Then><Else><ScalarOperator><Const ConstValue="NULL"></Const></ScalarOperator></Else></IF></ScalarOperator></Aggregate></ScalarOperator></DefinedValue><DefinedValue><ColumnReference Column="Expr1004"></ColumnReference><ScalarOperator ScalarString="MAX(CASE WHEN [shop].[dbo].[orders].[status]=&apos;paid&apos; THEN [shop].[dbo].[orders].[amount] ELSE NULL END)"><Aggregate Distinct="0" AggType="MAX"><ScalarOperator><IF><Condition><ScalarOperator><Compare CompareOp="EQ"><ScalarOperator><Identifier><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="status"></ColumnReference></Identifier></ScalarOperator><ScalarOperator><Const ConstValue="&apos;paid&apos;"></Const></ScalarOperator></Compare></ScalarOperator></Condition><Then><ScalarOperator><Identifier><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference></Identifier></ScalarOperator></Then><Else><ScalarOperator><Const ConstValue="NULL"></Const></ScalarOperator></Else></IF></ScalarOperator></Aggregate></ScalarOperator></DefinedValue></DefinedValues><GroupBy><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="customer_id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="created"></ColumnReference></GroupBy><RelOp NodeId="1" PhysicalOp="Sort" LogicalOp="Sort" EstimateRows="1" EstimateIO="0.0112613" EstimateCPU="0.000100041" AvgRowSize="41" EstimatedTotalSubtreeCost="0.0146444" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="customer_id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="status"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="created"></ColumnReference></OutputList><MemoryFractions Input="1" Output="1"></MemoryFractions><Sort Distinct="0"><OrderBy><OrderByColumn Ascending="1"><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference></OrderByColumn><OrderByColumn Ascending="1"><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="customer_id"></ColumnReference></OrderByColumn><OrderByColumn Ascending="1"><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="created"></ColumnReference></OrderByColumn></OrderBy><RelOp NodeId="2" PhysicalOp="Table Scan" LogicalOp="Table Scan" EstimateRows="1" EstimatedRowsRead="1" EstimateIO="0.003125" EstimateCPU="0.0001581" AvgRowSize="41" EstimatedTotalSubtreeCost="0.0032831" TableCardinality="0" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="customer_id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="status"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="created"></ColumnReference></OutputList><TableScan Ordered="0" ForcedIndex="0" ForceScan="0" NoExpandHint="0" Storage="RowStore"><DefinedValues><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="id"></ColumnReference></DefinedValue><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="customer_id"></ColumnReference></DefinedValue><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference></DefinedValue><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="status"></ColumnReference></DefinedValue><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="created"></ColumnReference></DefinedValue></DefinedValues><Object Database="[shop]" Schema="[dbo]" Table="[orders]" IndexKind="Heap" Storage="RowStore"></Object></TableScan></RelOp></Sort></RelOp></StreamAggregate></RelOp></QueryPlan></StmtSimple></Statements></Batch></BatchSequence></ShowPlanXML>
+> exec
+| SET SHOWPLAN_XML OFF
+< ok 0 -
+> exec
+| CREATE PROCEDURE dbo.omni_span_probe AS
+| SELECT * FROM orders PIVOT (MAX(amount) FOR status IN ([new], [paid])) AS p
+< ok 0 -
+> query
+| SELECT DISTINCT ISNULL(referenced_database_name, DB_NAME()),
+| 	OBJECT_SCHEMA_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME()))),
+| 	OBJECT_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME())))
+| FROM sys.dm_sql_referenced_entities(N'dbo.omni_span_probe', N'OBJECT')
+| WHERE referenced_minor_name IS NULL AND referenced_id IS NOT NULL
+< result
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< row
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+> exec
+| DROP PROCEDURE dbo.omni_span_probe
+< ok 0 -
+> exec
+| USE [omni_TestQuerySpanFidelity]
+< ok 0 -
+> exec
+| USE [shop]
+< ok 0 -
+> query
+| SELECT name, source_database, source_schema, source_table, source_column, error_number
+| FROM sys.dm_exec_describe_first_result_set(N'SELECT c.name, p.[new] FROM customers c JOIN (SELECT customer_id, status, amount FROM orders) s PIVOT (SUM(amount) FOR status IN ([new])) p ON p.customer_id = c.id', NULL, 1)
+| WHERE ISNULL(is_hidden, 0) = 0
+| ORDER BY column_ordinal
+< result
+< column "name" "NVARCHAR"
+< column "source_database" "NVARCHAR"
+< column "source_schema" "NVARCHAR"
+< column "source_table" "NVARCHAR"
+< column "source_column" "NVARCHAR"
+< column "error_number" "INT"
+< row
+: string
+| name
+: string
+| shop
+: string
+| dbo
+: string
+| customers
+: string
+| name
+: null
+< row
+: string
+| new
+: null
+: null
+: null
+: null
+: null
+> exec
+| SET SHOWPLAN_XML ON
+< ok 0 -
+> query
+| SELECT c.name, p.[new] FROM customers c JOIN (SELECT customer_id, status, amount FROM orders) s PIVOT (SUM(amount) FOR status IN ([new])) p ON p.customer_id = c.id
+< result
+< column "Microsoft SQL Server 2005 XML Showplan" "NVARCHAR"
+< row
+: string
+| <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan" Version="1.564" Build="16.0.4305.5"><BatchSequence><Batch><Statements><StmtSimple StatementText="SELECT c.name, p.[new] FROM customers c JOIN (SELECT customer_id, status, amount FROM orders) s PIVOT (SUM(amount) FOR status IN ([new])) p ON p.customer_id = c.id" StatementId="1" StatementCompId="1" StatementType="SELECT" RetrievedFromCache="false" StatementSubTreeCost="0.0352533" StatementEstRows="1" SecurityPolicyApplied="false" StatementOptmLevel="FULL" QueryHash="0xF89B767EC724925C" QueryPlanHash="0x256FA0C10A1D1458" StatementOptmEarlyAbortReason="GoodEnoughPlanFound" CardinalityEstimationModelVersion="160"><StatementSetOptions QUOTED_IDENTIFIER="true" ARITHABORT="false" CONCAT_NULL_YIELDS_NULL="true" ANSI_NULLS="true" ANSI_PADDING="true" ANSI_WARNINGS="true" NUMERIC_ROUNDABORT="false"></StatementSetOptions><QueryPlan CachedPlanSize="40" CompileTime="0" CompileCPU="0" CompileMemory="0"><MemoryGrantInfo SerialRequiredMemory="640" SerialDesiredMemory="704" GrantedMemory="0" MaxUsedMemory="0"></MemoryGrantInfo><OptimizerHardwareDependentProperties EstimatedAvailableMemoryGrant="0" EstimatedPagesCached="0" EstimatedAvailableDegreeOfParallelism="0" MaxCompileMemory="0"></OptimizerHardwareDependentProperties><RelOp NodeId="0" PhysicalOp="Merge Join" LogicalOp="Inner Join" EstimateRows="1" EstimateIO="0.000313" EstimateCPU="0.00564738" AvgRowSize="78" EstimatedTotalSubtreeCost="0.0352533" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[customers]" Alias="[c]" Column="name"></ColumnReference><ColumnReference Column="Expr1005"></ColumnReference></OutputList><Merge ManyToMany="1"><InnerSideJoinColumns><ColumnReference Database="[shop]" Schema="[dbo]" Table="[customers]" Alias="[c]" Column="id"></ColumnReference></InnerSideJoinColumns><OuterSideJoinColumns><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="customer_id"></ColumnReference></OuterSideJoinColumns><Residual><ScalarOperator ScalarString="[shop].[dbo].[customers].[id] as [c].[id]=[shop].[dbo].[orders].[customer_id]"><Compare CompareOp="EQ"><ScalarOperator><Identifier><ColumnReference Database="[shop]" Schema="[dbo]" Table="[customers]" Alias="[c]" Column="id"></ColumnReference></Identifier></ScalarOperator><ScalarOperator><Identifier><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="customer_id"></ColumnReference></Identifier></ScalarOperator></Compare></ScalarOperator></Residual><RelOp NodeId="1" PhysicalOp="Compute Scalar" LogicalOp="Compute Scalar" EstimateRows="1" EstimateIO="0" EstimateCPU="0" AvgRowSize="28" EstimatedTotalSubtreeCost="0.0146455" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="customer_id"></ColumnReference><ColumnReference Column="Expr1005"></ColumnReference></OutputList><ComputeScalar><DefinedValues><DefinedValue><ColumnReference Column="Expr1005"></ColumnReference><ScalarOperator ScalarString="CASE WHEN [Expr1010]=(0) THEN NULL ELSE [Expr1011] END"><IF><Condition><ScalarOperator><Compare CompareOp="EQ"><ScalarOperator><Identifier><ColumnReference Column="Expr1010"></ColumnReference></Identifier></ScalarOperator><ScalarOperator><Const ConstValue="(0)"></Const></ScalarOperator></Compare></ScalarOperator></Condition><Then><ScalarOperator><Const ConstValue="NULL"></Const></ScalarOperator></Then><Else><ScalarOperator><Identifier><ColumnReference Column="Expr1011"></ColumnReference></Identifier></ScalarOperator></Else></IF></ScalarOperator></DefinedValue></DefinedValues><RelOp NodeId="2" PhysicalOp="Stream Aggregate" LogicalOp="Aggregate" EstimateRows="1" EstimateIO="0" EstimateCPU="1.1e-06" AvgRowSize="28" EstimatedTotalSubtreeCost="0.0146455" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="customer_id"></ColumnReference><ColumnReference Column="Expr1010"></ColumnReference><ColumnReference Column="Expr1011"></ColumnReference></OutputList><StreamAggregate><DefinedValues><DefinedValue><ColumnReference Column="Expr1010"></ColumnReference><ScalarOperator ScalarString="COUNT_BIG(CASE WHEN [shop].[dbo].[orders].[status]=&apos;new&apos; THEN [shop].[dbo].[orders].[amount] ELSE NULL END)"><Aggregate Distinct="0" AggType="COUNT_BIG"><ScalarOperator><IF><Condition><ScalarOperator><Compare CompareOp="EQ"><ScalarOperator><Identifier><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="status"></ColumnReference></Identifier></ScalarOperator><ScalarOperator><Const ConstValue="&apos;new&apos;"></Const></ScalarOperator></Compare></ScalarOperator></Condition><Then><ScalarOperator><Identifier><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference></Identifier></ScalarOperator></Then><Else><ScalarOperator><Const ConstValue="NULL"></Const></ScalarOperator></Else></IF></ScalarOperator></Aggregate></ScalarOperator></DefinedValue><DefinedValue><ColumnReference Column="Expr1011"></ColumnReference><ScalarOperator ScalarString="SUM(CASE WHEN [shop].[dbo].[orders].[status]=&apos;new&apos; THEN [shop].[dbo].[orders].[amount] ELSE NULL END)"><Aggregate Distinct="0" AggType="SUM"><ScalarOperator><IF><Condition><ScalarOperator><Compare CompareOp="EQ"><ScalarOperator><Identifier><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="status"></ColumnReference></Identifier></ScalarOperator><ScalarOperator><Const ConstValue="&apos;new&apos;"></Const></ScalarOperator></Compare></ScalarOperator></Condition><Then><ScalarOperator><Identifier><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference></Identifier></ScalarOperator></Then><Else><ScalarOperator><Const ConstValue="NULL"></Const></ScalarOperator></Else></IF></ScalarOperator></Aggregate></ScalarOperator></DefinedValue></DefinedValues><GroupBy><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="customer_id"></ColumnReference></GroupBy><RelOp NodeId="3" PhysicalOp="Sort" LogicalOp="Sort" EstimateRows="1" EstimateIO="0.0112613" EstimateCPU="0.000100029" AvgRowSize="29" EstimatedTotalSubtreeCost="0.0146444" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="customer_id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="status"></ColumnReference></OutputList><MemoryFractions Input="1" Output="0.5"></MemoryFractions><Sort Distinct="0"><OrderBy><OrderByColumn Ascending="1"><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="customer_id"></ColumnReference></OrderByColumn></OrderBy><RelOp NodeId="4" PhysicalOp="Table Scan" LogicalOp="Table Scan" EstimateRows="1" EstimatedRowsRead="1" EstimateIO="0.003125" EstimateCPU="0.0001581" AvgRowSize="29" EstimatedTotalSubtreeCost="0.0032831" TableCardinality="0" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="customer_id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="status"></ColumnReference></OutputList><TableScan Ordered="0" ForcedIndex="0" ForceScan="0" NoExpandHint="0" Storage="RowStore"><DefinedValues><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="customer_id"></ColumnReference></DefinedValue><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="amount"></ColumnReference></DefinedValue><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[orders]" Column="status"></ColumnReference></DefinedValue></DefinedValues><Object Database="[shop]" Schema="[dbo]" Table="[orders]" IndexKind="Heap" Storage="RowStore"></Object></TableScan></RelOp></Sort></RelOp></StreamAggregate></RelOp></ComputeScalar></RelOp><RelOp NodeId="5" PhysicalOp="Sort" LogicalOp="Sort" EstimateRows="1" EstimateIO="0.0112613" EstimateCPU="0.000100065" AvgRowSize="65" EstimatedTotalSubtreeCost="0.0146444" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[customers]" Alias="[c]" Column="id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[customers]" Alias="[c]" Column="name"></ColumnReference></OutputList><MemoryFractions Input="0.5" Output="0.5"></MemoryFractions><Sort Distinct="0"><OrderBy><OrderByColumn Ascending="1"><ColumnReference Database="[shop]" Schema="[dbo]" Table="[customers]" Alias="[c]" Column="id"></ColumnReference></OrderByColumn></OrderBy><RelOp NodeId="6" PhysicalOp="Table Scan" LogicalOp="Table Scan" EstimateRows="1" EstimatedRowsRead="1" EstimateIO="0.003125" EstimateCPU="0.0001581" AvgRowSize="65" EstimatedTotalSubtreeCost="0.0032831" TableCardinality="0" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[customers]" Alias="[c]" Column="id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[customers]" Alias="[c]" Column="name"></ColumnReference></OutputList><TableScan Ordered="0" ForcedIndex="0" ForceScan="0" NoExpandHint="0" Storage="RowStore"><DefinedValues><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[customers]" Alias="[c]" Column="id"></ColumnReference></DefinedValue><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[customers]" Alias="[c]" Column="name"></ColumnReference></DefinedValue></DefinedValues><Object Database="[shop]" Schema="[dbo]" Table="[customers]" Alias="[c]" IndexKind="Heap" Storage="RowStore"></Object></TableScan></RelOp></Sort></RelOp></Merge></RelOp></QueryPlan></StmtSimple></Statements></Batch></BatchSequence></ShowPlanXML>
+> exec
+| SET SHOWPLAN_XML OFF
+< ok 0 -
+> exec
+| CREATE PROCEDURE dbo.omni_span_probe AS
+| SELECT c.name, p.[new] FROM customers c JOIN (SELECT customer_id, status, amount FROM orders) s PIVOT (SUM(amount) FOR status IN ([new])) p ON p.customer_id = c.id
+< ok 0 -
+> query
+| SELECT DISTINCT ISNULL(referenced_database_name, DB_NAME()),
+| 	OBJECT_SCHEMA_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME()))),
+| 	OBJECT_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME())))
+| FROM sys.dm_sql_referenced_entities(N'dbo.omni_span_probe', N'OBJECT')
+| WHERE referenced_minor_name IS NULL AND referenced_id IS NOT NULL
+< result
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< row
+: string
+| shop
+: string
+| dbo
+: string
+| customers
+< row
+: string
+| shop
+: string
+| dbo
+: string
+| orders
+> exec
+| DROP PROCEDURE dbo.omni_span_probe
+< ok 0 -
+> exec
+| USE [omni_TestQuerySpanFidelity]
+< ok 0 -
+> exec
+| USE [shop]
+< ok 0 -
+> query
+| SELECT name, source_database, source_schema, source_table, source_column, error_number
+| FROM sys.dm_exec_describe_first_result_set(N'SELECT * FROM (SELECT order_id, qty, line FROM order_items) s UNPIVOT (val FOR col IN (qty, line)) u', NULL, 1)
+| WHERE ISNULL(is_hidden, 0) = 0
+| ORDER BY column_ordinal
+< result
+< column "name" "NVARCHAR"
+< column "source_database" "NVARCHAR"
+< column "source_schema" "NVARCHAR"
+< column "source_table" "NVARCHAR"
+< column "source_column" "NVARCHAR"
+< column "error_number" "INT"
+< row
+: string
+| order_id
+: string
+| shop
+: string
+| dbo
+: string
+| order_items
+: string
+| order_id
+: null
+< row
+: string
+| val
+: null
+: null
+: null
+: null
+: null
+< row
+: string
+| col
+: null
+: null
+: null
+: null
+: null
+> exec
+| SET SHOWPLAN_XML ON
+< ok 0 -
+> query
+| SELECT * FROM (SELECT order_id, qty, line FROM order_items) s UNPIVOT (val FOR col IN (qty, line)) u
+< result
+< column "Microsoft SQL Server 2005 XML Showplan" "NVARCHAR"
+< row
+: string
+| <ShowPlanXML xmlns="http://schemas.microsoft.com/sqlserver/2004/07/showplan" Version="1.564" Build="16.0.4305.5"><BatchSequence><Batch><Statements><StmtSimple StatementText="SELECT * FROM (SELECT order_id, qty, line FROM order_items) s UNPIVOT (val FOR col IN (qty, line)) u" StatementId="1" StatementCompId="1" StatementType="SELECT" RetrievedFromCache="false" StatementSubTreeCost="0.00329448" StatementEstRows="1.8" SecurityPolicyApplied="false" StatementOptmLevel="FULL" QueryHash="0x395DFECC77FF3C06" QueryPlanHash="0x67C9A6A158C90DB8" StatementOptmEarlyAbortReason="GoodEnoughPlanFound" CardinalityEstimationModelVersion="160"><StatementSetOptions QUOTED_IDENTIFIER="true" ARITHABORT="false" CONCAT_NULL_YIELDS_NULL="true" ANSI_NULLS="true" ANSI_PADDING="true" ANSI_WARNINGS="true" NUMERIC_ROUNDABORT="false"></StatementSetOptions><QueryPlan CachedPlanSize="24" CompileTime="0" CompileCPU="0" CompileMemory="0"><MemoryGrantInfo SerialRequiredMemory="0" SerialDesiredMemory="0" GrantedMemory="0" MaxUsedMemory="0"></MemoryGrantInfo><OptimizerHardwareDependentProperties EstimatedAvailableMemoryGrant="0" EstimatedPagesCached="0" EstimatedAvailableDegreeOfParallelism="0" MaxCompileMemory="0"></OptimizerHardwareDependentProperties><RelOp NodeId="0" PhysicalOp="Filter" LogicalOp="Filter" EstimateRows="1.8" EstimateIO="0" EstimateCPU="7.6e-07" AvgRowSize="147" EstimatedTotalSubtreeCost="0.00329448" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Column="Expr1003"></ColumnReference><ColumnReference Column="Expr1006"></ColumnReference><ColumnReference Column="Expr1007"></ColumnReference></OutputList><Filter StartupExpression="0"><RelOp NodeId="1" PhysicalOp="Nested Loops" LogicalOp="Left Outer Join" EstimateRows="2" EstimateIO="0" EstimateCPU="8.36e-06" AvgRowSize="147" EstimatedTotalSubtreeCost="0.00329372" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Column="Expr1003"></ColumnReference><ColumnReference Column="Expr1006"></ColumnReference><ColumnReference Column="Expr1007"></ColumnReference></OutputList><NestedLoops Optimized="0"><OuterReferences><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="line"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="qty"></ColumnReference></OuterReferences><RelOp NodeId="2" PhysicalOp="Compute Scalar" LogicalOp="Compute Scalar" EstimateRows="1" EstimateIO="0" EstimateCPU="1e-07" AvgRowSize="19" EstimatedTotalSubtreeCost="0.0032832" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="line"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="qty"></ColumnReference><ColumnReference Column="Expr1003"></ColumnReference></OutputList><ComputeScalar><DefinedValues><DefinedValue><ColumnReference Column="Expr1003"></ColumnReference><ScalarOperator ScalarString="[shop].[dbo].[order_items].[order_id]"><Identifier><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="order_id"></ColumnReference></Identifier></ScalarOperator></DefinedValue></DefinedValues><RelOp NodeId="3" PhysicalOp="Table Scan" LogicalOp="Table Scan" EstimateRows="1" EstimatedRowsRead="1" EstimateIO="0.003125" EstimateCPU="0.0001581" AvgRowSize="19" EstimatedTotalSubtreeCost="0.0032831" TableCardinality="0" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="order_id"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="line"></ColumnReference><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="qty"></ColumnReference></OutputList><TableScan Ordered="0" ForcedIndex="0" ForceScan="0" NoExpandHint="0" Storage="RowStore"><DefinedValues><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="order_id"></ColumnReference></DefinedValue><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="line"></ColumnReference></DefinedValue><DefinedValue><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="qty"></ColumnReference></DefinedValue></DefinedValues><Object Database="[shop]" Schema="[dbo]" Table="[order_items]" IndexKind="Heap" Storage="RowStore"></Object></TableScan></RelOp></ComputeScalar></RelOp><RelOp NodeId="4" PhysicalOp="Constant Scan" LogicalOp="Constant Scan" EstimateRows="2" EstimateIO="0" EstimateCPU="2.157e-06" AvgRowSize="143" EstimatedTotalSubtreeCost="2.157e-06" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row"><OutputList><ColumnReference Column="Expr1006"></ColumnReference><ColumnReference Column="Expr1007"></ColumnReference></OutputList><ConstantScan><Values><Row><ScalarOperator ScalarString="N&apos;qty&apos;"><Const ConstValue="N&apos;qty&apos;"></Const></ScalarOperator><ScalarOperator ScalarString="[shop].[dbo].[order_items].[qty]"><Identifier><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="qty"></ColumnReference></Identifier></ScalarOperator></Row><Row><ScalarOperator ScalarString="N&apos;line&apos;"><Const ConstValue="N&apos;line&apos;"></Const></ScalarOperator><ScalarOperator ScalarString="[shop].[dbo].[order_items].[line]"><Identifier><ColumnReference Database="[shop]" Schema="[dbo]" Table="[order_items]" Column="line"></ColumnReference></Identifier></ScalarOperator></Row></Values></ConstantScan></RelOp></NestedLoops></RelOp><Predicate><ScalarOperator ScalarString="[Expr1006] IS NOT NULL"><Logical Operation="IS NOT NULL"><ScalarOperator><Identifier><ColumnReference Column="Expr1006"></ColumnReference></Identifier></ScalarOperator></Logical></ScalarOperator></Predicate></Filter></RelOp></QueryPlan></StmtSimple></Statements></Batch></BatchSequence></ShowPlanXML>
+> exec
+| SET SHOWPLAN_XML OFF
+< ok 0 -
+> exec
+| CREATE PROCEDURE dbo.omni_span_probe AS
+| SELECT * FROM (SELECT order_id, qty, line FROM order_items) s UNPIVOT (val FOR col IN (qty, line)) u
+< ok 0 -
+> query
+| SELECT DISTINCT ISNULL(referenced_database_name, DB_NAME()),
+| 	OBJECT_SCHEMA_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME()))),
+| 	OBJECT_NAME(referenced_id, DB_ID(ISNULL(referenced_database_name, DB_NAME())))
+| FROM sys.dm_sql_referenced_entities(N'dbo.omni_span_probe', N'OBJECT')
+| WHERE referenced_minor_name IS NULL AND referenced_id IS NOT NULL
+< result
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< row
+: string
+| shop
+: string
+| dbo
+: string
+| order_items
+> exec
+| DROP PROCEDURE dbo.omni_span_probe
+< ok 0 -
+> exec
+| USE [omni_TestQuerySpanFidelity]
+< ok 0 -
+> exec
+| USE [shop]
+< ok 0 -
+> query
+| SELECT name, source_database, source_schema, source_table, source_column, error_number
 | FROM sys.dm_exec_describe_first_result_set(N'SELECT value FROM STRING_SPLIT(''a,b'', '','')', NULL, 1)
 | WHERE ISNULL(is_hidden, 0) = 0
 | ORDER BY column_ordinal
