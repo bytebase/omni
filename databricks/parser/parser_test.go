@@ -1335,6 +1335,8 @@ func TestParseErrors(t *testing.T) {
 		{"create temp view with schema binding", "CREATE TEMP VIEW v WITH SCHEMA BINDING AS SELECT 1"},
 		{"partition transform days literal arg", "CREATE TABLE t (ts TIMESTAMP) USING parquet PARTITIONED BY (days(1))"},
 		{"partition transform years multiple args", "CREATE TABLE t (ts TIMESTAMP) USING parquet PARTITIONED BY (years(a, b))"},
+		{"partition transform mixed with typed column", "CREATE TABLE t (ts TIMESTAMP) USING parquet PARTITIONED BY (years(ts), p INT)"},
+		{"partition column mixed with typed column", "CREATE TABLE t PARTITIONED BY (a, b BOOLEAN)"},
 		{"partition transform bucket non-integer count", "CREATE TABLE t (ts TIMESTAMP) USING parquet PARTITIONED BY (bucket(a, 4))"},
 		{"reserved table property provider", "CREATE TABLE t (a INT) USING parquet TBLPROPERTIES ('provider'='csv')"},
 		{"reserved table property location in alter", "ALTER TABLE t SET TBLPROPERTIES ('location'='/tmp/x')"},
