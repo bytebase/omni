@@ -768,10 +768,11 @@ func (p *parser) parseFunctionCloseAndSuffix() error {
 	if _, err := p.expect(TokRParen); err != nil {
 		return err
 	}
-	if p.match(KW_WITHIN) {
-		if _, err := p.expect(KW_GROUP); err != nil {
-			return err
-		}
+	// IdentifiersParser.g:292 takes WITHIN GROUP after the call when its
+	// k=3 lookahead reads ) WITHIN GROUP; a WITHIN without GROUP is the next
+	// name, as in LATERAL VIEW f() WITHIN.
+	if p.peek().Type == KW_WITHIN && p.peekAt(1).Type == KW_GROUP {
+		p.pos += 2
 		if _, err := p.expect(TokLParen); err != nil {
 			return err
 		}

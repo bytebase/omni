@@ -198,6 +198,9 @@ func (l *Lexer) NextToken() Token {
 		// Digits: CharSetLiteral (0X...), IntegralLiteral, NumberLiteral, ByteLengthLiteral, Number, or Identifier starting with Digit.
 		if isDigit(c) {
 			tok, next := scanDigitStart(input, i)
+			if tok.Type == TokInvalid {
+				return l.fail(i, fmt.Sprintf("exponent without digits in number %q", tok.Str), next)
+			}
 			l.pos = next
 			return tok
 		}
@@ -413,6 +416,12 @@ func scanDigitStart(input string, start int) (Token, int) {
 		}
 		if e, ok := scanExponent(input, numEnd); ok {
 			numEnd = e
+		} else if numEnd < n && (input[numEnd] == 'e' || input[numEnd] == 'E') {
+			// HiveLexerParent.g:504: after the fraction, Hive's ANTLR 3
+			// lexer enters (Exponent)? on the e alone, so an e with no digits
+			// after it (1.e, 1.5Ea, 1.EXPLAIN) is a lexical error. Without a
+			// dot, `1e` is a number and the name e, as Hive also reads it.
+			return Token{Type: TokInvalid, Str: input[start : numEnd+1], Loc: Loc{Start: start, End: numEnd + 1}}, numEnd + 1
 		}
 	} else if e, ok := scanExponent(input, numEnd); ok {
 		hasDotOrExp = true

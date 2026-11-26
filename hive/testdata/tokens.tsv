@@ -182,3 +182,15 @@ body(clusterByClause)?	(every site)	HiveParser.g:2749 body: CLUSTER BY
 body(distributeByClause)?	(every site)	HiveParser.g:2749 body: DISTRIBUTE BY
 body(sortByClause)?	(every site)	HiveParser.g:2749 body: SORT BY
 body(limitClause)?	(every site)	HiveParser.g:2749 body: LIMIT
+# Wave 21, second pass: names, constraints, transforms and clause choices named at
+# several sites.
+identifier	(every alternative)	IdentifiersParser.g:900 identifier: a name or a non-reserved keyword
+columnConstraintType	(every alternative)	HiveParser.g:2436 NOT NULL, DEFAULT, CHECK or a key
+columnNameTypeOrConstraint	(every alternative)	HiveParser.g:2364 a table constraint or a column
+tableLevelConstraint	(every alternative)	HiveParser.g:2199 a key or CHECK constraint
+tableConstraintType	(every alternative)	HiveParser.g:2449 PRIMARY KEY or UNIQUE
+enableValidateSpecification	(every alternative)	HiveParser.g:2148 ENABLE/DISABLE [VALIDATE] or ENFORCED
+trfmClause(aliasList|columnNameTypeList)	(every alternative)	SelectClauseParser.g:91 TRANSFORM's output names, with or without types
+selectTrfmClause(aliasList|columnNameTypeList)	(every alternative)	SelectClauseParser.g:68 SELECT TRANSFORM's output names, with or without types
+tableFileFormat(KW_WITH_KW_SERDEPROPERTIES_tableProperties)?	(every site)	HiveParser.g:2073 STORED BY ... WITH SERDEPROPERTIES
+tableFileFormat(KW_STORED_KW_AS_identifier)?	(every site)	HiveParser.g:2073 STORED BY ... STORED AS

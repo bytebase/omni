@@ -63,7 +63,11 @@ func (p *Parser) parseSingleInsertQuery() (Statement, error) {
 
 func (p *Parser) parseMultiInsertQuery() (Statement, error) {
 	start := p.cur().Start
-	if err := p.parseFromClause(); err != nil {
+	prev := p.inMultiInsertFrom
+	p.inMultiInsertFrom = true
+	err := p.parseFromClause()
+	p.inMultiInsertFrom = prev
+	if err != nil {
 		return nil, err
 	}
 	count := 0

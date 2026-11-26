@@ -2610,15 +2610,16 @@ type CreateIndexStmt struct {
 	NullFiltered bool   // NULL_FILTERED (Spanner)
 	IndexType    string // "SEARCH" | "VECTOR" | "" (plain) — index_type
 	IfNotExists  bool
-	Name         *PathExpr  // index name
-	Table        *PathExpr  // ON <table> (a Node; walked)
-	TableAlias   string     // optional table alias after ON <table>
-	Keys         []*KeyPart // index key list (index_order_by_and_options)
-	AllColumns   bool       // ( ALL COLUMNS ) form (BigQuery SEARCH index)
-	Storing      []Node     // STORING ( expr, … ); nil if absent
-	PartitionBy  []Node     // PARTITION BY ( … ) suffix (BigQuery); nil if absent
-	Interleave   *PathExpr  // , INTERLEAVE IN <table> (Spanner); nil if absent
-	Where        Node       // WHERE filter (Spanner partial index); nil if absent
+	Name         *PathExpr     // index name
+	Table        *PathExpr     // ON <table> (a Node; walked)
+	TableAlias   string        // optional table alias after ON <table>
+	Unnest       []*UnnestExpr // index_unnest_expression_list: UNNEST(...) [alias] [WITH OFFSET [alias]], …; nil if absent
+	Keys         []*KeyPart    // index key list (index_order_by_and_options)
+	AllColumns   bool          // ( ALL COLUMNS ) form (BigQuery SEARCH index)
+	Storing      []Node        // STORING ( expr, … ); nil if absent
+	PartitionBy  []Node        // PARTITION BY ( … ) suffix (BigQuery); nil if absent
+	Interleave   *PathExpr     // , INTERLEAVE IN <table> (Spanner); nil if absent
+	Where        Node          // WHERE filter (Spanner partial index); nil if absent
 	Options      []*OptionsEntry
 	Loc          Loc
 }
@@ -3084,12 +3085,14 @@ type SearchVectorIndexStmt struct {
 	IsVector    bool // VECTOR (vs SEARCH)
 	OrReplace   bool // OR REPLACE (vector)
 	IfNotExists bool
-	Name        *PathExpr  // index name
-	Table       *PathExpr  // ON <table>
-	Keys        []*KeyPart // column list (index_order_by_and_options); nil for ALL COLUMNS
-	AllColumns  bool       // ( ALL COLUMNS [WITH COLUMN OPTIONS(…)] ) — SEARCH index
-	Storing     []Node     // STORING ( col, … ) — vector index; nil if absent
-	PartitionBy []Node     // PARTITION BY expr — vector index; nil if absent
+	Name        *PathExpr     // index name
+	Table       *PathExpr     // ON <table>
+	TableAlias  string        // optional table alias after ON <table>
+	Unnest      []*UnnestExpr // index_unnest_expression_list; nil if absent
+	Keys        []*KeyPart    // column list (index_order_by_and_options); nil for ALL COLUMNS
+	AllColumns  bool          // ( ALL COLUMNS [WITH COLUMN OPTIONS(…)] ) — SEARCH index
+	Storing     []Node        // STORING ( col, … ) — vector index; nil if absent
+	PartitionBy []Node        // PARTITION BY expr — vector index; nil if absent
 	Options     []*OptionsEntry
 	Loc         Loc
 }
