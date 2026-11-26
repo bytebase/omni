@@ -1359,3 +1359,18 @@ func TestGetQuerySpanPreparedStringLocationsAndScopes(t *testing.T) {
 		}
 	}
 }
+
+// A PIVOT reads its FROM's tables, and the tables a subquery in one of its
+// aggregates reads.
+func TestGetQuerySpan_Pivot(t *testing.T) {
+	span, err := GetQuerySpan("SELECT * FROM t PIVOT (SUM((SELECT MAX(x) FROM u)) FOR b IN (1))")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sigs := toSigs(span.AccessTables)
+	for _, want := range []tableSig{{Table: "t"}, {Table: "u"}} {
+		if !containsSig(sigs, want) {
+			t.Errorf("AccessTables %v, want %v", sigs, want)
+		}
+	}
+}

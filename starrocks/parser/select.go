@@ -46,14 +46,20 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	}
 	stmt.Items = items
 
-	// FROM clause
+	// FROM clause: FROM relations pivotClause? | FROM DUAL (StarRocks.g4:2147).
 	if p.cur.Kind == kwFROM {
 		p.advance() // consume FROM
+		dual := p.cur.Kind == kwDUAL
 		from, err := p.parseFromClause()
 		if err != nil {
 			return nil, err
 		}
 		stmt.From = from
+		if !dual && p.atPivotClause() {
+			if stmt.Pivot, err = p.parsePivotClause(); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// WHERE clause
@@ -623,6 +629,9 @@ func (p *Parser) parseOptionalAlias(stringOK bool) (string, bool, error) {
 // isAliasIdentToken reports whether the current token can be used as an
 // implicit alias. Must be an identifier-like token that is NOT a clause keyword.
 func (p *Parser) isAliasIdentToken() bool {
+	if p.atPivotClause() {
+		return false
+	}
 	switch p.cur.Kind {
 	case tokIdent, tokQuotedIdent:
 		return true

@@ -9371,19 +9371,19 @@ accept	accept	engine	fromClause(FROM_relations_pivotClause?)?/FROM_relations_(pi
 accept	accept	engine	fromClause(FROM_relations_pivotClause?)?/FROM_relations_(pivotClause)?!insert	SELECT CURRENT_USER FROM a zzz;
 reject	reject	engine	fromClause(FROM_relations_pivotClause?)?/FROM_relations_(pivotClause)?!swap	SELECT CURRENT_USER FRONTEND a;
 accept	accept	engine	fromClause(pivotClause)?/%empty	SELECT CURRENT_USER FROM a;
-reject	reject	engine	fromClause(pivotClause)?/pivotClause	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL));
-reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-1	SELECT CURRENT_USER FROM a(CURRENT_USER FOR a IN(NULL));
-reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-2	SELECT CURRENT_USER FROM a PIVOT CURRENT_USER FOR a IN(NULL));
+accept	accept	engine	fromClause(pivotClause)?/pivotClause	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL));
+reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-1	SELECT CURRENT_USER FROM a(SUM(a) FOR a IN(NULL));
+reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-2	SELECT CURRENT_USER FROM a PIVOT SUM(a) FOR a IN(NULL));
 reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-3	SELECT CURRENT_USER FROM a PIVOT(FOR a IN(NULL));
-reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-4	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER a IN(NULL));
-reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-5	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR IN(NULL));
-reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-6	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a(NULL));
-reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-7	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN NULL));
-reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-8	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN());
-reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-9	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL);
-reject	reject	engine	fromClause(pivotClause)?/pivotClause!truncate	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL)
-reject	reject	engine	fromClause(pivotClause)?/pivotClause!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL)) zzz;
-reject	reject	engine	fromClause(pivotClause)?/pivotClause!swap	SELECT CURRENT_USER FROM a PLAN(CURRENT_USER FOR a IN(NULL));
+reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-4	SELECT CURRENT_USER FROM a PIVOT(SUM(a) a IN(NULL));
+reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-5	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR IN(NULL));
+reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-6	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a(NULL));
+reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-7	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN NULL));
+reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-8	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN());
+reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-9	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL);
+reject	reject	engine	fromClause(pivotClause)?/pivotClause!truncate	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL)
+reject	reject	engine	fromClause(pivotClause)?/pivotClause!insert	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL)) zzz;
+reject	reject	engine	fromClause(pivotClause)?/pivotClause!swap	SELECT CURRENT_USER FROM a PLAN(SUM(a) FOR a IN(NULL));
 reject	reject	engine	groupingElement/ROLLUP_(_(expressionList)?_)	SELECT CURRENT_USER GROUP BY ROLLUP();
 reject	reject	engine	groupingElement/ROLLUP_(_(expressionList)?_)!drop-1	SELECT CURRENT_USER GROUP BY();
 reject	reject	engine	groupingElement/ROLLUP_(_(expressionList)?_)!drop-2	SELECT CURRENT_USER GROUP BY ROLLUP);
@@ -9632,34 +9632,34 @@ reject	reject	engine	relationPrimary(columnAliases)?/columnAliases!drop-2	SELECT
 reject	reject	engine	relationPrimary(columnAliases)?/columnAliases!drop-3	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a(a;
 reject	reject	engine	relationPrimary(columnAliases)?/columnAliases!truncate	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a(a
 reject	reject	engine	relationPrimary(columnAliases)?/columnAliases!insert	SELECT CURRENT_USER FROM(SELECT CURRENT_USER) a(a) zzz;
-reject	reject	engine	pivotClause/PIVOT_(_pivotAggregationExpression_(,_pivotAggregationE~30085085	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL));
-reject	reject	engine	pivotClause(,_pivotAggregationExpression)*/%empty	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL));
-reject	reject	engine	pivotClause(,_pivotAggregationExpression)*/%empty!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER zzz FOR a IN(NULL));
-reject	reject	engine	pivotClause(,_pivotAggregationExpression)*/,_pivotAggregationExpression_(,_pivotAggregationExpression)*	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER, CURRENT_USER FOR a IN(NULL));
-reject	reject	engine	pivotClause(,_pivotAggregationExpression)*/,_pivotAggregationExpression_(,_pivotAggregationExpression)*!drop-1	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER CURRENT_USER FOR a IN(NULL));
-reject	reject	engine	pivotClause(,_pivotAggregationExpression)*/,_pivotAggregationExpression_(,_pivotAggregationExpression)*!drop-2	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER, FOR a IN(NULL));
-reject	reject	engine	pivotClause(,_pivotAggregationExpression)*/,_pivotAggregationExpression_(,_pivotAggregationExpression)*!truncate	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER,
-reject	reject	engine	pivotClause(,_pivotAggregationExpression)*/,_pivotAggregationExpression_(,_pivotAggregationExpression)*!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER, CURRENT_USER zzz FOR a IN(NULL));
-reject	reject	engine	pivotClause(,_pivotAggregationExpression)*/,_pivotAggregationExpression_(,_pivotAggregationExpression)*!swap	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER, DATA FOR a IN(NULL));
-reject	reject	engine	pivotClause(identifier|identifierList)/identifier	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL));
-reject	reject	engine	pivotClause(identifier|identifierList)/identifier!truncate	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR
-reject	reject	engine	pivotClause(identifier|identifierList)/identifier!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a zzz IN(NULL));
-reject	reject	engine	pivotClause(identifier|identifierList)/identifierList	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR(a) IN(NULL));
-reject	reject	engine	pivotClause(identifier|identifierList)/identifierList!drop-1	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a) IN(NULL));
-reject	reject	engine	pivotClause(identifier|identifierList)/identifierList!drop-2	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR() IN(NULL));
-reject	reject	engine	pivotClause(identifier|identifierList)/identifierList!drop-3	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR(a IN(NULL));
-reject	reject	engine	pivotClause(identifier|identifierList)/identifierList!truncate	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR(a
-reject	reject	engine	pivotClause(identifier|identifierList)/identifierList!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR(a) zzz IN(NULL));
-reject	reject	engine	pivotClause(,_pivotValue)*/%empty	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL));
-reject	reject	engine	pivotClause(,_pivotValue)*/%empty!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL zzz));
-reject	reject	engine	pivotClause(,_pivotValue)*/,_pivotValue_(,_pivotValue)*	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL, NULL));
-reject	reject	engine	pivotClause(,_pivotValue)*/,_pivotValue_(,_pivotValue)*!drop-1	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL NULL));
-reject	reject	engine	pivotClause(,_pivotValue)*/,_pivotValue_(,_pivotValue)*!drop-2	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL,));
-reject	reject	engine	pivotClause(,_pivotValue)*/,_pivotValue_(,_pivotValue)*!truncate	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL,
-reject	reject	engine	pivotClause(,_pivotValue)*/,_pivotValue_(,_pivotValue)*!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL, NULL zzz));
-reject	reject	engine	pivotClause(,_pivotValue)*/,_pivotValue_(,_pivotValue)*!swap	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL, NULLS));
+accept	accept	engine	pivotClause/PIVOT_(_pivotAggregationExpression_(,_pivotAggregationE~30085085	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL));
+accept	accept	engine	pivotClause(,_pivotAggregationExpression)*/%empty	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL));
+accept	accept	engine	pivotClause(,_pivotAggregationExpression)*/%empty!insert	SELECT CURRENT_USER FROM a PIVOT(SUM(a) zzz FOR a IN(NULL));
+accept	accept	engine	pivotClause(,_pivotAggregationExpression)*/,_pivotAggregationExpression_(,_pivotAggregationExpression)*	SELECT CURRENT_USER FROM a PIVOT(SUM(a), SUM(a) FOR a IN(NULL));
+reject	reject	engine	pivotClause(,_pivotAggregationExpression)*/,_pivotAggregationExpression_(,_pivotAggregationExpression)*!drop-1	SELECT CURRENT_USER FROM a PIVOT(SUM(a) SUM(a) FOR a IN(NULL));
+reject	reject	engine	pivotClause(,_pivotAggregationExpression)*/,_pivotAggregationExpression_(,_pivotAggregationExpression)*!drop-2	SELECT CURRENT_USER FROM a PIVOT(SUM(a), FOR a IN(NULL));
+reject	reject	engine	pivotClause(,_pivotAggregationExpression)*/,_pivotAggregationExpression_(,_pivotAggregationExpression)*!truncate	SELECT CURRENT_USER FROM a PIVOT(SUM(a),
+accept	accept	engine	pivotClause(,_pivotAggregationExpression)*/,_pivotAggregationExpression_(,_pivotAggregationExpression)*!insert	SELECT CURRENT_USER FROM a PIVOT(SUM(a), SUM(a) zzz FOR a IN(NULL));
+accept	accept	engine	pivotClause(identifier|identifierList)/identifier	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL));
+reject	reject	engine	pivotClause(identifier|identifierList)/identifier!truncate	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR
+reject	reject	engine	pivotClause(identifier|identifierList)/identifier!insert	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a zzz IN(NULL));
+accept	accept	engine	pivotClause(identifier|identifierList)/identifierList	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR(a) IN(NULL));
+reject	reject	engine	pivotClause(identifier|identifierList)/identifierList!drop-1	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a) IN(NULL));
+reject	reject	engine	pivotClause(identifier|identifierList)/identifierList!drop-2	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR() IN(NULL));
+reject	reject	engine	pivotClause(identifier|identifierList)/identifierList!drop-3	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR(a IN(NULL));
+reject	reject	engine	pivotClause(identifier|identifierList)/identifierList!truncate	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR(a
+reject	reject	engine	pivotClause(identifier|identifierList)/identifierList!insert	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR(a) zzz IN(NULL));
+accept	accept	engine	pivotClause(,_pivotValue)*/%empty	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL));
+accept	accept	engine	pivotClause(,_pivotValue)*/%empty!insert	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL zzz));
+accept	accept	engine	pivotClause(,_pivotValue)*/,_pivotValue_(,_pivotValue)*	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL, NULL));
+reject	reject	engine	pivotClause(,_pivotValue)*/,_pivotValue_(,_pivotValue)*!drop-1	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL NULL));
+reject	reject	engine	pivotClause(,_pivotValue)*/,_pivotValue_(,_pivotValue)*!drop-2	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL,));
+reject	reject	engine	pivotClause(,_pivotValue)*/,_pivotValue_(,_pivotValue)*!truncate	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL,
+accept	accept	engine	pivotClause(,_pivotValue)*/,_pivotValue_(,_pivotValue)*!insert	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL, NULL zzz));
+reject	reject	engine	pivotClause(,_pivotValue)*/,_pivotValue_(,_pivotValue)*!swap	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL, NULLS));
 reject	reject	engine	pivotAggregationExpression/functionCall_(AS?_(identifier|string))?	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL));
 reject	reject	engine	pivotAggregationExpression/functionCall_(AS?_(identifier|string))?!truncate	SELECT CURRENT_USER FROM a PIVOT(
+reject	reject	engine	pivotAggregationExpression/functionCall_(AS?_(identifier|string))?!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER zzz FOR a IN(NULL));
 reject	reject	engine	pivotAggregationExpression/functionCall_(AS?_(identifier|string))?!swap	SELECT CURRENT_USER FROM a PIVOT(DATA FOR a IN(NULL));
 reject	reject	engine	pivotAggregationExpression(AS?_(identifier|string))?/%empty	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL));
 reject	reject	engine	pivotAggregationExpression(AS?_(identifier|string))?/(AS)?_(identifier|string)	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER a FOR a IN(NULL));
@@ -9674,47 +9674,47 @@ reject	reject	engine	pivotAggregationExpression(identifier|string)/identifier	SE
 reject	reject	engine	pivotAggregationExpression(identifier|string)/string	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER 'a' FOR a IN(NULL));
 reject	reject	engine	pivotAggregationExpression(identifier|string)/string!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER 'a' zzz FOR a IN(NULL));
 reject	reject	engine	pivotAggregationExpression(identifier|string)/string+string/DOUBLE_QUOTED_TEXT	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER "a" FOR a IN(NULL));
-reject	reject	engine	pivotValue/(literalExpression|literalExpressionList)_(AS?_(identif~57029611	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL));
-reject	reject	engine	pivotValue/(literalExpression|literalExpressionList)_(AS?_(identif~57029611!truncate	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(
-reject	reject	engine	pivotValue/(literalExpression|literalExpressionList)_(AS?_(identif~57029611!swap	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULLS));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/booleanValue	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(TRUE));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+booleanValue/FALSE	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(FALSE));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/number	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(1.5));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+number/DOUBLE_VALUE	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(1E1));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+number/INTEGER_VALUE	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(1));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/(DATE|DATETIME)_string	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(DATE 'a'));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/(DATE|DATETIME)_string!drop-2	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(DATE));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+string/DOUBLE_QUOTED_TEXT	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(DATE "a"));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/string	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN('a'));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+string/DOUBLE_QUOTED_TEXT#2	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN("a"));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/interval	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(INTERVAL CURRENT_USER YEAR));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/interval!drop-1	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(CURRENT_USER YEAR));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/interval!drop-2	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(INTERVAL YEAR));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/interval!drop-3	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(INTERVAL CURRENT_USER));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/unitBoundary	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(FLOOR));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/binary	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(X'00'));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/PARAMETER	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(?));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpressionList	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN((NULL)));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpressionList!drop-1	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL)));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpressionList!drop-2	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(()));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpressionList!drop-3	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN((NULL));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpressionList!truncate	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN((NULL
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpressionList!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN((NULL) zzz));
-reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpressionList!swap	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN((NULLS)));
-reject	reject	engine	pivotValue(AS?_(identifier|string))?/%empty	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL));
-reject	reject	engine	pivotValue(AS?_(identifier|string))?/(AS)?_(identifier|string)	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL a));
-reject	reject	engine	pivotValue(AS?_(identifier|string))?/(AS)?_(identifier|string)!truncate	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL
-reject	reject	engine	pivotValue(AS?_(identifier|string))?/(AS)?_(identifier|string)!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL a zzz));
-reject	reject	engine	pivotValue(AS)?/%empty	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL a));
-reject	reject	engine	pivotValue(AS)?/%empty!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL zzz a));
-reject	reject	engine	pivotValue(AS)?/AS	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL AS a));
-reject	reject	engine	pivotValue(AS)?/AS!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL AS zzz a));
-reject	reject	engine	pivotValue(AS)?/AS!swap	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL ASC a));
-reject	reject	engine	pivotValue(identifier|string)/identifier	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL a));
-reject	reject	engine	pivotValue(identifier|string)/string	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL 'a'));
-reject	reject	engine	pivotValue(identifier|string)/string!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL 'a' zzz));
-reject	reject	engine	pivotValue(identifier|string)/string+string/DOUBLE_QUOTED_TEXT	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL "a"));
+accept	accept	engine	pivotValue/(literalExpression|literalExpressionList)_(AS?_(identif~57029611	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL));
+reject	reject	engine	pivotValue/(literalExpression|literalExpressionList)_(AS?_(identif~57029611!truncate	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(
+reject	reject	engine	pivotValue/(literalExpression|literalExpressionList)_(AS?_(identif~57029611!swap	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULLS));
+accept	accept	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL));
+accept	accept	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/booleanValue	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(TRUE));
+accept	accept	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+booleanValue/FALSE	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(FALSE));
+accept	accept	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/number	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(1.5));
+accept	accept	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+number/DOUBLE_VALUE	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(1E1));
+accept	accept	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+number/INTEGER_VALUE	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(1));
+reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/(DATE|DATETIME)_string	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(DATE 'a'));
+reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/(DATE|DATETIME)_string!drop-2	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(DATE));
+reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+string/DOUBLE_QUOTED_TEXT	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(DATE "a"));
+accept	accept	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/string	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN('a'));
+accept	accept	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+string/DOUBLE_QUOTED_TEXT#2	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN("a"));
+accept	accept	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/interval	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(INTERVAL CURRENT_USER YEAR));
+reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/interval!drop-1	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(CURRENT_USER YEAR));
+reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/interval!drop-2	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(INTERVAL YEAR));
+reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/interval!drop-3	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(INTERVAL CURRENT_USER));
+reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/unitBoundary	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(FLOOR));
+accept	accept	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/binary	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(X'00'));
+reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpression+literalExpression/PARAMETER	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(?));
+accept	accept	engine	pivotValue(literalExpression|literalExpressionList)/literalExpressionList	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN((NULL)));
+reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpressionList!drop-1	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL)));
+reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpressionList!drop-2	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(()));
+reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpressionList!drop-3	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN((NULL));
+reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpressionList!truncate	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN((NULL
+accept	accept	engine	pivotValue(literalExpression|literalExpressionList)/literalExpressionList!insert	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN((NULL) zzz));
+reject	reject	engine	pivotValue(literalExpression|literalExpressionList)/literalExpressionList!swap	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN((NULLS)));
+accept	accept	engine	pivotValue(AS?_(identifier|string))?/%empty	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL));
+accept	accept	engine	pivotValue(AS?_(identifier|string))?/(AS)?_(identifier|string)	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL a));
+reject	reject	engine	pivotValue(AS?_(identifier|string))?/(AS)?_(identifier|string)!truncate	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL
+reject	reject	engine	pivotValue(AS?_(identifier|string))?/(AS)?_(identifier|string)!insert	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL a zzz));
+accept	accept	engine	pivotValue(AS)?/%empty	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL a));
+reject	reject	engine	pivotValue(AS)?/%empty!insert	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL zzz a));
+accept	accept	engine	pivotValue(AS)?/AS	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL AS a));
+reject	reject	engine	pivotValue(AS)?/AS!insert	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL AS zzz a));
+reject	reject	engine	pivotValue(AS)?/AS!swap	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL ASC a));
+accept	accept	engine	pivotValue(identifier|string)/identifier	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL a));
+accept	accept	engine	pivotValue(identifier|string)/string	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL 'a'));
+reject	reject	engine	pivotValue(identifier|string)/string!insert	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL 'a' zzz));
+accept	accept	engine	pivotValue(identifier|string)/string+string/DOUBLE_QUOTED_TEXT	SELECT CURRENT_USER FROM a PIVOT(SUM(a) FOR a IN(NULL "a"));
 accept	accept	engine	argumentList/expressionList	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER));
 reject	reject	engine	argumentList/expressionList!truncate	SELECT CURRENT_USER FROM TABLE(a(
 reject	reject	engine	argumentList/expressionList!insert	SELECT CURRENT_USER FROM TABLE(a(CURRENT_USER zzz));
@@ -14423,3 +14423,107 @@ accept	accept	engine	suite:date-literals	SELECT DATE '+999999999-12-31T23:59:59+
 reject	reject	engine	suite:date-literals	SELECT DATE '+999999999-12-30T23:00:00-18:00[+18:00]'
 accept	accept	engine	suite:date-literals	SELECT DATE '+999999999-12-31T23:59:59Z[GMT0]'
 reject	reject	engine	suite:date-literals	SELECT DATE '-999999999-01-02T00:00:00+18:00[-18:00]'
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (1, 2))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (1 AS x, 2 y, 3 'z', 4 AS "w", 5 AS 'v'))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) AS s, COUNT(*) c, AVG(DISTINCT a) 'g', MAX(a) "m" FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a), MIN(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (COUNT(DISTINCT a, c) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (f(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (db.f(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (f() FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (f(a) OVER () FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) OVER () FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (ROW_NUMBER() OVER () FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (ARRAY_AGG(a ORDER BY c) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (GROUP_CONCAT(a SEPARATOR ',') FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (ARRAY_AGG_DISTINCT(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (EXTRACT(YEAR FROM a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (GROUPING(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (GROUPING_ID(a) FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (CURRENT_USER FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (CURRENT_USER() FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (CURRENT_ROLE FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (DATABASE() FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (CATALOG() FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (USER() FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (CURRENT_DATE FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (CURRENT_TIMESTAMP() FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (CURRENT_TIMESTAMP(3) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (LOCALTIME FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (CHAR(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (DAY(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (IF(a, 1, 2) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (LEFT(a, 1) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (LIKE(a, 'x') FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (TRANSLATE(a, 'x', 'y') FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (DATE_ADD(a, INTERVAL 1 DAY) FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (DATE_ADD(a, 1) FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (TIMESTAMPADD(DAY, 1, a) FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (TIMESTAMPDIFF(DAY, a, c) FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (CAST(a AS INT) FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (a FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) + 1 FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a)[1] FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT ((SUM(a)) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR `b` IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR t.b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR (b) IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR (b) IN ((1)))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN ((1)))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN ((1, 2)))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR (b, c) IN ((1, 2), (3, 4) AS x))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR (b, c) IN ((1, 2), 3))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR (b, c) IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR (b, c) IN ((1, 2), (3)))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR () IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN ())
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (NULL, TRUE, FALSE, 1.5, 1E1, 'x', "y", X'00', DATE '2020-01-01', DATETIME '2020-01-01 00:00:00'))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (DATE 'x'))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (INTERVAL 1 DAY))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (FLOOR))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (?))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (-1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (c))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (1 + 1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (1, 2,))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (1)) WHERE c = 1 GROUP BY c HAVING c > 0 ORDER BY c LIMIT 1
+accept	accept	engine	suite:pivot	SELECT * FROM t AS x PIVOT (SUM(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t pivot
+accept	accept	engine	suite:pivot	SELECT * FROM t pivot PIVOT (SUM(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t pivot WHERE a = 1
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (1)) x
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (1)) AS x
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (1)) JOIN u ON true
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (1)), u
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (1)) PIVOT (SUM(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t, u PIVOT (SUM(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t JOIN u ON t.a = u.a PIVOT (SUM(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t JOIN u USING (a) PIVOT (SUM(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t CROSS JOIN u PIVOT (SUM(a) FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM (t PIVOT (SUM(a) FOR b IN (1)))
+accept	accept	engine	suite:pivot	SELECT * FROM (t JOIN u ON true) PIVOT (SUM(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM (SELECT * FROM t) PIVOT (SUM(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM (SELECT * FROM t) s PIVOT (SUM(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM (SELECT * FROM t) pivot (a)
+accept	accept	engine	suite:pivot	SELECT * FROM (SELECT * FROM t) pivot (a, b)
+accept	accept	engine	suite:pivot	SELECT * FROM (SELECT * FROM t) pivot (a) PIVOT (SUM(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM (VALUES (1, 2)) v(a, b) PIVOT (SUM(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM unnest([1]) u(a) PIVOT (SUM(a) FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM DUAL PIVOT (SUM(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (1)) UNION ALL SELECT * FROM u
+accept	accept	engine	suite:pivot	SELECT * FROM (SELECT * FROM t PIVOT (SUM(a) FOR b IN (1))) s
+accept	accept	engine	suite:pivot	WITH w AS (SELECT * FROM t PIVOT (SUM(a) FOR b IN (1))) SELECT * FROM w
+accept	accept	engine	suite:pivot	CREATE VIEW v AS SELECT * FROM t PIVOT (SUM(a) FOR b IN (1))
+accept	accept	engine	suite:pivot	INSERT INTO u SELECT * FROM t PIVOT (SUM(a) FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (1)
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT SUM(a) FOR b IN (1)
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) AS FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (1 AS))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) AS 1 FOR b IN (1))
+reject	reject	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR b IN (1 AS 2))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR pivot IN (1))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) AS pivot FOR b IN (1 AS pivot))
+accept	accept	engine	suite:pivot	SELECT * FROM t PIVOT (SUM(a) FOR 1a IN (1))

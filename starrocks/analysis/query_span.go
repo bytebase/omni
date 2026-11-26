@@ -528,6 +528,14 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt, outermost bool) {
 	for _, src := range stmt.From {
 		w.visitFromItem(src)
 	}
+	// A PIVOT's aggregates may hold subqueries, which read tables too.
+	if stmt.Pivot != nil {
+		for _, agg := range stmt.Pivot.Aggregations {
+			if agg != nil && agg.Func != nil {
+				w.walkExpr(agg.Func)
+			}
+		}
+	}
 
 	// Predicate clauses — we walk them to pick up ColumnRef/subquery tables.
 	if stmt.Where != nil {
