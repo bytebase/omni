@@ -19,6 +19,35 @@ lvalue_variable	autocommit	a system variable SET assigns: an unknown name answer
 opt_if_not_exists	(every site)	IF NOT EXISTS
 if_exists	(every site)	IF EXISTS
 opt_temporary	(every site)	sql_yacc.yy:13071 TEMPORARY
+opt_ignore	(every site)	sql_yacc.yy:9184 IGNORE
+opt_low_priority	(every site)	sql_yacc.yy:13473 LOW_PRIORITY
+definer_opt	(every site)	sql_yacc.yy:17393 DEFINER = user
+opt_column	(every site)	sql_yacc.yy:9179 COLUMN
+opt_equal	(every site)	sql_yacc.yy:13346 = before an option's value
+opt_comma	(every site)	sql_yacc.yy:6699 a comma between options
+opt_retain_current_password	(every site)	sql_yacc.yy:16742 RETAIN CURRENT PASSWORD
+opt_replace_password	(every site)	sql_yacc.yy:8477 REPLACE 'password'
+opt_channel	(every site)	sql_yacc.yy:3389 FOR CHANNEL
+opt_db	(every site)	sql_yacc.yy:13944 FROM or IN a database
+opt_collate	(every site)	sql_yacc.yy:7646 COLLATE
+opt_work	(every site)	sql_yacc.yy:17232 WORK
+opt_linear	(every site)	sql_yacc.yy:6331 LINEAR
+opt_INTO	(every site)	sql_yacc.yy:13236 INTO
+opt_outer	(every site)	sql_yacc.yy:11991 OUTER
+opt_constraint_name	(every site)	sql_yacc.yy:7015 CONSTRAINT [name]
+opt_ignore_unknown_user	(every site)	sql_yacc.yy:13066 IGNORE UNKNOWN USER
+opt_default	(every site)	sql_yacc.yy:7651 DEFAULT
+opt_storage	(every site)	sql_yacc.yy:13939 STORAGE
+opt_privileges	(every site)	sql_yacc.yy:16486 PRIVILEGES
+opt_full	(every site)	sql_yacc.yy:13949 FULL
+opt_force	(every site)	sql_yacc.yy:18273 FORCE
+opt_all	(every site)	sql_yacc.yy:12383 ALL
+opt_bin_mod	(every site)	sql_yacc.yy:7744 BINARY
+opt_key_or_index	(every site)	sql_yacc.yy:7862 KEY or INDEX
+opt_place	(every site)	sql_yacc.yy:9195 AFTER or FIRST
+opt_ignore_leaves	(every site)	sql_yacc.yy:9813 IGNORE LEAVES
+opt_extended	(every site)	sql_yacc.yy:13954 EXTENDED
+opt_local	(every site)	sql_yacc.yy:14412 LOCAL
 
 # Keyword choices tried at every site that names them, and not only where
 # their own alternatives' rows reach (see grammar.EveryAlternative).
@@ -51,6 +80,10 @@ opt_ev_status	(every alternative)	sql_yacc.yy:3751 ENABLE, DISABLE or DISABLE ON
 insert_lock_option	(every alternative)	sql_yacc.yy:13208 LOW_PRIORITY, DELAYED or HIGH_PRIORITY
 opt_resource_group_enable_disable	(every alternative)	sql_yacc.yy:18259 ENABLE or DISABLE
 interval_time_stamp	(every alternative)	sql_yacc.yy:12354 an interval unit TIMESTAMPADD takes
+opt_index_lock_and_algorithm	(every alternative)	sql_yacc.yy:9103 LOCK =, ALGORITHM = or both
+opt_null_treatment	(every alternative)	sql_yacc.yy:11296 RESPECT or IGNORE NULLS
+opt_wild_or_where	(every alternative)	sql_yacc.yy:13981 LIKE or WHERE
+union_option	(every alternative)	sql_yacc.yy:17308 DISTINCT or ALL
 
 # Literals, operators and the tokens the lexer forms from other text.
 ABORT_SYM	(unreachable)	the lexer's error token
