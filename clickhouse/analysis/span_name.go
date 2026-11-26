@@ -17,13 +17,35 @@ func (r *spanResolver) projectionName(e parser.Expr, sc *spanScope, ctes *cteBin
 	if parts, ok := identParts(e); ok {
 		return parts[len(parts)-1]
 	}
-	return (&namer{r: r, sc: sc, ctes: ctes}).name(e)
+	return newNamer(r, sc, ctes).top(e)
+}
+
+func newNamer(r *spanResolver, sc *spanScope, ctes *cteBinding) *namer {
+	return &namer{r: r, sc: sc, ctes: ctes, spent: new(int)}
+}
+
+// maxNameBytes bounds the text a name may be built from. An expression
+// that repeats a subexpression in its name (x BETWEEN a AND b names x
+// twice) can double its name per level; past the bound it keeps its text.
+const maxNameBytes = 1 << 20
+
+// top names an expression, or keeps its text when its name would pass
+// maxNameBytes.
+func (n *namer) top(e parser.Expr) string {
+	s := n.name(e)
+	if *n.spent > maxNameBytes && e != nil && e.EndPos() <= len(n.r.text) {
+		return n.r.text[e.StartPos():e.EndPos()]
+	}
+	return s
 }
 
 type namer struct {
 	r    *spanResolver
 	sc   *spanScope
 	ctes *cteBinding
+	// spent counts the bytes of every name built so far, against
+	// maxNameBytes.
+	spent *int
 	// subst names a lambda's parameter by the column APPLY applies it to.
 	subst map[string]string
 }
@@ -36,7 +58,7 @@ func (n *namer) apply(t *parser.StarTransformer, column string) string {
 	switch f := t.ApplyExpr.(type) {
 	case *parser.LambdaExpr:
 		if len(f.Params) == 1 {
-			sub := &namer{r: n.r, sc: n.sc, ctes: n.ctes, subst: map[string]string{f.Params[0]: column}}
+			sub := &namer{r: n.r, sc: n.sc, ctes: n.ctes, spent: n.spent, subst: map[string]string{f.Params[0]: column}}
 			return sub.name(f.Body)
 		}
 	case *parser.FuncCallExpr:
@@ -107,6 +129,16 @@ func (n *namer) args(args []parser.Expr) []string {
 const maxNamed = 1024
 
 func (n *namer) name(e parser.Expr) string {
+	if *n.spent > maxNameBytes {
+		// Over budget: top keeps the text instead.
+		return ""
+	}
+	s := n.nameOf(e)
+	*n.spent += len(s)
+	return s
+}
+
+func (n *namer) nameOf(e parser.Expr) string {
 	if e != nil && e.EndPos()-e.StartPos() > maxNamed && e.EndPos() <= len(n.r.text) {
 		return n.r.text[e.StartPos():e.EndPos()]
 	}

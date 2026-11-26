@@ -672,6 +672,9 @@ shop.customers	shop.customers	engine	shop	shop	tables	SELECT untuple((id, email)
 tupleElement((email, id), '1'), tupleElement((email, id), '2')	tupleElement((email, id), '1'), tupleElement((email, id), '2')	engine	shop	shop	results	SELECT untuple(tuple(*)) FROM (SELECT email, id FROM customers)
 shop.customers.email shop.customers.id | shop.customers.email shop.customers.id	shop.customers.email shop.customers.id | shop.customers.email shop.customers.id	engine	shop	shop	lineage	SELECT untuple(tuple(*)) FROM (SELECT email, id FROM customers)
 shop.customers	shop.customers	engine	shop	shop	tables	SELECT untuple(tuple(*)) FROM (SELECT email, id FROM customers)
+tupleElement(t, '1'), tupleElement(t, '2'), 42	tupleElement(t, '1'), tupleElement(t, '2'), 42	engine	shop	shop	results	WITH tuple(email, id) AS t SELECT untuple(t), 42 FROM customers
+shop.customers.email shop.customers.id | shop.customers.email shop.customers.id | -	shop.customers.email shop.customers.id | shop.customers.email shop.customers.id | -	engine	shop	shop	lineage	WITH tuple(email, id) AS t SELECT untuple(t), 42 FROM customers
+shop.customers	shop.customers	engine	shop	shop	tables	WITH tuple(email, id) AS t SELECT untuple(t), 42 FROM customers
 (((email)))	(((email)))	engine	shop	shop	results	SELECT tuple(tuple(tuple(email))) FROM customers
 shop.customers.email	shop.customers.email	engine	shop	shop	lineage	SELECT tuple(tuple(tuple(email))) FROM customers
 shop.customers	shop.customers	engine	shop	shop	tables	SELECT tuple(tuple(tuple(email))) FROM customers

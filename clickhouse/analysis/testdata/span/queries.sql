@@ -251,6 +251,7 @@ SELECT * EXCEPT (sku) APPLY (max) FROM items
 SELECT * EXCEPT ('mail') FROM customers
 SELECT untuple((id, email)) FROM customers
 SELECT untuple(tuple(*)) FROM (SELECT email, id FROM customers)
+WITH tuple(email, id) AS t SELECT untuple(t), 42 FROM customers
 SELECT tuple(tuple(tuple(email))) FROM customers
 SELECT COLUMNS('^c') FROM customers
 SELECT concat(COLUMNS('^(name|email)$')) FROM customers

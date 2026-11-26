@@ -298,3 +298,42 @@ func TestResolveQuerySpanTableFunctionArgument(t *testing.T) {
 		t.Errorf("tables %v, want %v", names(got.SourceColumns), want)
 	}
 }
+
+// An expression whose name repeats a subexpression (BETWEEN names its
+// operand twice) is named within a bound, keeping its text past it.
+func TestResolveQuerySpanNameBudget(t *testing.T) {
+	e := "email"
+	for i := 0; i < 30; i++ {
+		e = "(" + e + " BETWEEN 0 AND 1)"
+	}
+	q := "SELECT " + e + " FROM shop.customers"
+	got, err := ResolveQuerySpan(q, ResolveOptions{DefaultDatabase: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if name := got.Results[0].Name; len(name) > len(q) {
+		t.Errorf("a name of %d bytes for a query of %d", len(name), len(q))
+	}
+}
+
+// Without a catalog, a REPLACE on a * that cannot be expanded still reads
+// what its expression reads.
+func TestResolveQuerySpanReplaceWithoutCatalog(t *testing.T) {
+	got, err := ResolveQuerySpan("SELECT * REPLACE ((SELECT email FROM shop.secrets LIMIT 1) AS email) FROM shop.customers", ResolveOptions{DefaultDatabase: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"shop.customers", "shop.secrets"}; !slices.Equal(names(got.SourceColumns), want) {
+		t.Errorf("tables %v, want %v", names(got.SourceColumns), want)
+	}
+	if !got.Results[0].SourceColumns[ColumnResource{Database: "shop", Table: "secrets", Column: "email"}] {
+		t.Errorf("* reads %v, want shop.secrets.email among them", names(got.Results[0].SourceColumns))
+	}
+}
+
+// untuple of a column, whose elements the catalog does not say, fails.
+func TestResolveQuerySpanUntupleUnknown(t *testing.T) {
+	if _, err := ResolveQuerySpan("SELECT untuple(point) FROM shop.events", ResolveOptions{DefaultDatabase: "shop"}); err == nil {
+		t.Fatal("no error for an untuple of unknown arity")
+	}
+}

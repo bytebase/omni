@@ -446,12 +446,12 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 			out = append(out, r.matching(re, sc)...)
 			continue
 		}
-		if items, ok := untupled(item); ok {
+		if items, ok := r.untupled(item, sc); ok {
 			// untuple(t) is one result column per element of t, each
 			// taken from the whole tuple.
 			arg := item.(*parser.FuncCallExpr).Args[0]
-			n := &namer{r: r, sc: sc, ctes: ctes}
-			name, sources := n.name(arg), r.expr(arg, sc, ctes)
+			n := newNamer(r, sc, ctes)
+			name, sources := n.top(arg), r.expr(arg, sc, ctes)
 			// A star or COLUMNS('re') among the elements is one per column.
 			for i := range n.args(items) {
 				out = append(out, spanColumn{name: fmt.Sprintf("tupleElement(%s, '%d')", name, i+1), sources: sources})
@@ -1059,10 +1059,19 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 		switch t.Kind {
 		case "REPLACE":
 			for _, rep := range t.Replaces {
+				sources, replaced := r.expr(rep.Expr, sc, ctes), false
 				for i := range kept {
 					if kept[i].name == rep.Alias {
-						kept[i].sources = r.expr(rep.Expr, sc, ctes)
-						kept[i].plain = false
+						kept[i].sources, kept[i].plain, replaced = sources, false, true
+					}
+				}
+				if !replaced {
+					// A * no metadata expanded may hold the column: it
+					// reads what the replacement reads.
+					for i := range kept {
+						if kept[i].star {
+							kept[i].sources = union(kept[i].sources, sources)
+						}
 					}
 				}
 			}
@@ -1070,7 +1079,7 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 			// Each column is the function, or the lambda, applied to it.
 			applied := r.expr(t.ApplyExpr, sc, ctes)
 			for i := range kept {
-				kept[i].name = (&namer{r: r, sc: sc, ctes: ctes}).apply(t, kept[i].name)
+				kept[i].name = newNamer(r, sc, ctes).apply(t, kept[i].name)
 				kept[i].sources = union(kept[i].sources, applied)
 				kept[i].plain = false
 			}
@@ -1193,20 +1202,32 @@ func (r *spanResolver) aliasExpr(name string, sc *spanScope) parser.Expr {
 	return nil
 }
 
-// untupled is the elements of an untuple((a, b)) item.
-func untupled(e parser.Expr) ([]parser.Expr, bool) {
+// untupled is the elements of an untuple(t) item, t a tuple written out or
+// an alias for one. An untuple whose elements it cannot tell (of a column
+// or a function's tuple) fails the span: its result columns are unknown.
+func (r *spanResolver) untupled(e parser.Expr, sc *spanScope) ([]parser.Expr, bool) {
 	f, ok := e.(*parser.FuncCallExpr)
 	if !ok || !strings.EqualFold(f.Name, "untuple") || len(f.Args) != 1 {
 		return nil, false
 	}
-	switch t := f.Args[0].(type) {
-	case *parser.TupleExpr:
-		return t.Items, len(t.Items) > 0
-	case *parser.FuncCallExpr:
-		if strings.EqualFold(t.Name, "tuple") {
-			return t.Args, len(t.Args) > 0
+	arg := f.Args[0]
+	for seen := map[parser.Expr]bool{}; !seen[arg]; {
+		seen[arg] = true
+		if parts, ok := identParts(arg); ok && r.isAlias(parts, sc) {
+			arg = r.aliasExpr(parts[0], sc)
 		}
 	}
+	switch t := arg.(type) {
+	case *parser.TupleExpr:
+		if len(t.Items) > 0 {
+			return t.Items, true
+		}
+	case *parser.FuncCallExpr:
+		if strings.EqualFold(t.Name, "tuple") && len(t.Args) > 0 {
+			return t.Args, true
+		}
+	}
+	r.err = errors.Join(r.err, fmt.Errorf("untuple of %s: its elements, and so the result's columns, are not known", r.text[f.Args[0].StartPos():f.Args[0].EndPos()]))
 	return nil, false
 }
 

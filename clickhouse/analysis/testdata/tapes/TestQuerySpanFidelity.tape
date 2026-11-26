@@ -1138,6 +1138,11 @@
 | {"columns":["tupleElement((email, id), '1')","tupleElement((email, id), '2')"],"lineage":[["shop.customers.email","shop.customers.id"],["shop.customers.email","shop.customers.id"]],"tables":["shop.customers"]}
 > raw
 | span shop
+| WITH tuple(email, id) AS t SELECT untuple(t), 42 FROM customers
+< raw
+| {"columns":["tupleElement(t, '1')","tupleElement(t, '2')","42"],"lineage":[["shop.customers.email","shop.customers.id"],["shop.customers.email","shop.customers.id"],null],"tables":["shop.customers"]}
+> raw
+| span shop
 | SELECT tuple(tuple(tuple(email))) FROM customers
 < raw
 | {"columns":["(((email)))"],"lineage":[["shop.customers.email"]],"tables":["shop.customers"]}
