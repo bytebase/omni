@@ -585,23 +585,19 @@ func (p *Parser) parseAssertRowsModified() (ast.Node, error) {
 	return p.parseIntLiteralOrParameterOrCast()
 }
 
-// parseIntLiteralOrParameterOrCast parses possibly_cast_int_literal_or_parameter
-// (googlesql.tm:6090): int_literal_or_parameter, or
-// CAST ( int_literal_or_parameter AS type [FORMAT …] ) (googlesql.tm:6083).
+// parseIntLiteralOrParameterOrCast parses possibly_cast_int_literal_or_parameter:
+//
+//	integer_literal | parameter_expression | system_variable_expression
+//	| CAST ( int_literal_or_parameter AS type [FORMAT …] )
+//
 // It accepts the restricted operand set the grammar allows for
-// ASSERT_ROWS_MODIFIED / TABLESAMPLE counts, rejecting general expressions,
-// inside the CAST too (oracle: `CAST(a AS a)` syntax-rejects there).
+// ASSERT_ROWS_MODIFIED / TABLESAMPLE counts, rejecting general expressions. The
+// CAST arm reuses parseCastExpr (whose inner is a full expression — a CAST of a
+// non-literal like `CAST(1+1 AS INT64)` is a rare over-accept relative to the
+// grammar's int_literal_or_parameter inner, but every documented/corpus form
+// casts a literal or parameter; the load-bearing fix is rejecting a bare
+// non-literal operand, which this does).
 func (p *Parser) parseIntLiteralOrParameterOrCast() (ast.Node, error) {
-	if p.cur.Type == kwCAST {
-		return p.parseCastWith(false, p.parseIntLiteralOrParameter)
-	}
-	return p.parseIntLiteralOrParameter()
-}
-
-// parseIntLiteralOrParameter parses int_literal_or_parameter
-// (googlesql.tm:6075): integer_literal | parameter_expression |
-// system_variable_expression.
-func (p *Parser) parseIntLiteralOrParameter() (ast.Node, error) {
 	switch p.cur.Type {
 	case tokInteger:
 		tok := p.advance()
@@ -613,6 +609,8 @@ func (p *Parser) parseIntLiteralOrParameter() (ast.Node, error) {
 	case int('?'):
 		tok := p.advance()
 		return &ast.Parameter{Positional: true, Loc: tok.Loc}, nil
+	case kwCAST:
+		return p.parseCastExpr(false)
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}

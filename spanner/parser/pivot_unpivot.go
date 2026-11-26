@@ -351,12 +351,7 @@ func (p *Parser) parseUnpivotInItem() (*ast.UnpivotInItem, error) {
 func (p *Parser) parseUnpivotInItemAlias(item *ast.UnpivotInItem) error {
 	switch p.cur.Type {
 	case tokString:
-		// opt_as_string_or_integer's string_literal (googlesql.tm:11369): one
-		// or more adjacent components.
-		tok, err := p.literalRun(tokString)
-		if err != nil {
-			return err
-		}
+		tok := p.advance()
 		item.HasAlias = true
 		item.AliasIsInt = false
 		item.AliasString = tok.Str

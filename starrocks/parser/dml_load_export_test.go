@@ -76,9 +76,6 @@ func TestTruncateTableBasic(t *testing.T) {
 	if len(stmt.Partition) != 0 {
 		t.Errorf("partition = %v, want empty", stmt.Partition)
 	}
-	if stmt.Force {
-		t.Errorf("force = true, want false")
-	}
 }
 
 func TestTruncateTableSimple(t *testing.T) {
@@ -101,20 +98,13 @@ func TestTruncateTableWithPartition(t *testing.T) {
 	}
 }
 
-func TestTruncateTableWithForce(t *testing.T) {
-	stmt := mustParseTruncateTable(t, "TRUNCATE TABLE tbl FORCE")
-	if !stmt.Force {
-		t.Errorf("force = false, want true")
-	}
-}
-
-func TestTruncateTableWithPartitionAndForce(t *testing.T) {
-	stmt := mustParseTruncateTable(t, "TRUNCATE TABLE tbl PARTITION(p1) FORCE")
-	if len(stmt.Partition) != 1 || stmt.Partition[0] != "p1" {
-		t.Fatalf("partition = %v, want [p1]", stmt.Partition)
-	}
-	if !stmt.Force {
-		t.Errorf("force = false, want true")
+// TestTruncateTableRefusesForce holds truncateTableStatement
+// (StarRocks.g4:582) to its partitionNames: FORCE is Doris's.
+func TestTruncateTableRefusesForce(t *testing.T) {
+	for _, sql := range []string{"TRUNCATE TABLE tbl FORCE", "TRUNCATE TABLE tbl PARTITION(p1) FORCE"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want a syntax error", sql)
+		}
 	}
 }
 

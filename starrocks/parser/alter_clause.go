@@ -1188,7 +1188,9 @@ func (p *Parser) parseAlterPartitionNames(action *ast.AlterTableAction) error {
 			if _, err := p.expect(int('=')); err != nil {
 				return err
 			}
-			if err := p.parseAlterLiteralExpression(); err != nil {
+			// The value is visited as an Expr: a unitBoundary is refused and
+			// a dateLiteral's text must be a date (parseKeyPartitionValue).
+			if _, err := p.parseKeyPartitionValue(); err != nil {
 				return err
 			}
 			action.PartitionList = append(action.PartitionList, p.input[start-p.baseOffset:p.prev.Loc.End-p.baseOffset])

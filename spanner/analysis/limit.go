@@ -59,12 +59,6 @@ func RewriteResultLimit(statement string, limitCount int) string {
 		if n.Pipe != nil {
 			return rewritePipeResultLimit(statement, n.Pipe, limitCount, false)
 		}
-		if n.LimitAll {
-			// LIMIT ALL [OFFSET m] (googlesql.tm:8504) has no count to lower,
-			// and a second LIMIT after it is a syntax error, so it is left
-			// unchanged, as a non-literal LIMIT is.
-			return statement
-		}
 		if n.Limit == nil {
 			end := n.Loc.End
 			return statement[:end] + " LIMIT " + strconv.Itoa(limitCount) + statement[end:]

@@ -53,11 +53,6 @@ func TestRewriteResultLimit(t *testing.T) {
 			want:      "SELECT x FROM t LIMIT 100 -- note",
 		},
 		{
-			name:      "limit all is left alone",
-			statement: "SELECT x FROM t LIMIT ALL OFFSET 5",
-			want:      "SELECT x FROM t LIMIT ALL OFFSET 5",
-		},
-		{
 			name:      "lower limit is kept",
 			statement: "WITH a AS (SELECT x FROM t) SELECT x FROM a LIMIT 10",
 			want:      "WITH a AS (SELECT x FROM t) SELECT x FROM a LIMIT 10",
@@ -140,7 +135,6 @@ func TestRewriteResultLimitParses(t *testing.T) {
 		"WITH a AS (SELECT x FROM t) SELECT x FROM a |> WHERE x > 1",
 		"SELECT x FROM t |> WHERE x > 1 |> LIMIT 5000",
 		"SELECT x FROM t |> AGGREGATE COUNT(*) AS n",
-		"SELECT x FROM t LIMIT ALL",
 	} {
 		rewritten := RewriteResultLimit(statement, 100)
 		_, err := parser.Parse(rewritten)

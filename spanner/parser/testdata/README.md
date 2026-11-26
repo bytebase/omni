@@ -6,7 +6,7 @@ judged by BigQuery itself (`../../../bigquery/parser/testdata/README.md`).
 ## `compat.tsv`: pinned Spanner emulator verdicts
 
 `compat.tsv` holds a statement for each alternative of each rule in
-`../../testdata/GoogleSQL.g4`, then its near-misses, plus 753 hand-written
+`../../testdata/GoogleSQL.g4`, then its near-misses, plus 734 hand-written
 `suite:` rows, with omni's verdict (`spanner/parser.Parse`) and the pinned
 Cloud Spanner emulator's (`../../testdata/pins.tsv`, `parser` role, judge
 revision 5: `gcr.io/cloud-spanner-emulator/emulator:1.5.54`, through
@@ -18,22 +18,17 @@ server in offline replay.
 
 | Rows | Total | Agree | Only Spanner accepts | Only omni accepts | Agreement |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| One per alternative | 3,199 | 3,199 | 0 | 0 | 100.00% |
-| Near-misses | 7,206 | 7,206 | 0 | 0 | 100.00% |
-| Suites (`suite:*`) | 753 | 753 | 0 | 0 | 100.00% |
-| **All** | **11,158** | **11,158** | **0** | **0** | **100.00%** |
+| One per alternative | 2,927 | 2,927 | 0 | 0 | 100.00% |
+| Near-misses | 6,689 | 6,689 | 0 | 0 | 100.00% |
+| Suites (`suite:*`) | 734 | 734 | 0 | 0 | 100.00% |
+| **All** | **10,350** | **10,350** | **0** | **0** | **100.00%** |
 
 `../../testdata/tokens.tsv` writes 32 optional clauses (`(every site)`) at
-each site that names them, and 73 choices (`(every alternative)`) in each
-form at each site. The 25 clauses added in the first pass (WHERE, WITH,
-COLLATE, DEFAULT COLLATE, column lists, ON DELETE, ORDER BY and the other query
+each site that names them, and 28 keyword choices (`(every alternative)`) in
+each form at each site. The 25 clauses added last (WHERE, WITH, COLLATE,
+DEFAULT COLLATE, column lists, ON DELETE, ORDER BY and the other query
 clauses) found one gap, closed: Spanner's CREATE SCHEMA takes no DEFAULT
-COLLATE. The 45 choices added in the second pass (paths, string and bytes
-literals, counts and parameters, LIMIT forms, joins, table elements, grouping
-items and others) found ten, closed: adjacent string literals after a typed
-literal, RANGE and an UNPIVOT label, `LIMIT ALL` in a query and a call, and a
-CAST in ASSERT_ROWS_MODIFIED or REPEATABLE that casts only a count or a
-parameter.
+COLLATE.
 
 Spanner's DDL parser checks option names and values while it parses, and the
 harness reads one such refusal ("Error parsing Spanner DDL statement: ...")
@@ -409,7 +404,7 @@ go test ./spanner/parser/ -run '^TestCompatibility$'
 ```
 
 Live recording against pinned `gcr.io/cloud-spanner-emulator/emulator:1.5.54`
-(about a minute for all 11,158 rows):
+(about a minute for all 10,350 rows):
 
 ```bash
 OMNI_RECORD=1 go test -v -timeout 60m ./spanner/parser/ -run '^TestCompatibility$'

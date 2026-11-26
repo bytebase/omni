@@ -750,13 +750,6 @@ opt_owner_clause	(every site)	sql.y:13457 OWNER
 opt_in_database	(every site)	sql.y:11814 IN DATABASE
 opt_alias_clause	(every site)	sql.y:14833 [AS] alias
 opt_collate	(every site)	sql.y:12434 COLLATE
-opt_show_ranges_options	(every site)	sql.y:9955 WITH TABLES, INDEXES, DETAILS, KEYS or EXPLAIN
-opt_from_or_in	(every site)	sql.y:8570 FROM or IN
-opt_in_schemas	(every site)	sql.y:12916 IN SCHEMA
-opt_role_options	(every site)	sql.y:12075 [WITH] role options
-opt_with_clause	(every site)	sql.y:14083 WITH common table expressions
-opt_sort_clause	(every site)	sql.y:14131 ORDER BY
-opt_column_list	(every site)	sql.y:11537 (column list)
 
 # Keyword choices written out in each form at every site that names them
 # (enginetest/grammar EveryAlternative), cited to sql.y at v25.2.3.
@@ -810,13 +803,3 @@ opt_partition_by	(every alternative)	sql.y:10917 a PARTITION BY clause
 survival_goal_clause	(every alternative)	sql.y:13380 SURVIVE ZONE, REGION or AVAILABILITY ZONE FAILURE
 opt_survival_goal_clause	(every alternative)	sql.y:13396 a SURVIVE clause
 region_or_regions	(every alternative)	sql.y:13373 REGION or REGIONS
-target_object_type	(every alternative)	sql.y:12870 TABLES, SEQUENCES, TYPES, SCHEMAS, FUNCTIONS or ROUTINES
-like_table_option	(every alternative)	sql.y:10892 COMMENTS, CONSTRAINTS, DEFAULTS, IDENTITY, GENERATED, INDEXES, STATISTICS, STORAGE or ALL
-opt_create_as_data	(every alternative)	sql.y:10798 WITH DATA or WITH NO DATA
-opt_with_data	(every alternative)	sql.y:11934 WITH DATA or WITH NO DATA
-with_clause	(every alternative)	sql.y:14031 WITH or WITH RECURSIVE
-returning_clause	(every alternative)	sql.y:13627 RETURNING a target list or RETURNING NOTHING
-opt_index_flags	(every alternative)	sql.y:14537 @index, @[id] or @{flags}
-signed_iconst	(every alternative)	sql.y:17616 an integer, +integer or -integer
-sconst_or_placeholder	(every alternative)	sql.y:3739 a string or a placeholder
-interval_second	(every alternative)	sql.y:15678 SECOND or SECOND(n)

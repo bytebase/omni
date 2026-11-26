@@ -700,15 +700,14 @@ func (p *Parser) parseGraphSampleSuffix(op *ast.GraphSampleOp) error {
 	return nil
 }
 
-// parseRepeatableInto parses a repeatable_clause `REPEATABLE ( <n> )`
-// (googlesql.tm:6095), whose seed is possibly_cast_int_literal_or_parameter,
-// into op.Repeatable. The cursor is at REPEATABLE.
+// parseRepeatableInto parses a repeatable_clause `REPEATABLE ( <n> )` into
+// op.Repeatable. The cursor is at REPEATABLE.
 func (p *Parser) parseRepeatableInto(op *ast.GraphSampleOp) error {
 	p.advance() // REPEATABLE
 	if _, err := p.expect(int('(')); err != nil {
 		return err
 	}
-	n, err := p.parseIntLiteralOrParameterOrCast()
+	n, err := p.parseExpr()
 	if err != nil {
 		return err
 	}

@@ -35,25 +35,21 @@ func (p *Parser) parseTruncateTable() (ast.Node, error) {
 	stmt.Target = target
 	endLoc := ast.NodeLoc(target)
 
-	// Optional PARTITION(p1, p2, ...) or PARTITIONS(...)
-	if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
-		p.advance() // consume PARTITION / PARTITIONS
-		partitions, err := p.parsePartitionNameList()
+	// partitionNames? (StarRocks.g4:582)
+	if p.atPartitionNames() {
+		partitions, temporary, err := p.parsePartitionNames()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Partition = partitions
+		stmt.TemporaryPartition = temporary
 		if p.prev.Loc.End > endLoc.End {
 			endLoc = p.prev.Loc
 		}
 	}
 
-	// Optional FORCE
-	if p.cur.Kind == kwFORCE {
-		endLoc = p.cur.Loc
-		p.advance()
-		stmt.Force = true
-	}
+	// truncateTableStatement (StarRocks.g4:582) ends at partitionNames:
+	// the pinned server refuses Doris's FORCE after it.
 
 	stmt.Loc.End = endLoc.End
 	return stmt, nil

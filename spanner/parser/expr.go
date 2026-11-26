@@ -1201,20 +1201,14 @@ func (p *Parser) parseEmptyArgModifiers(fc *ast.FuncCall) error {
 	return nil
 }
 
-// parseLimitOffset parses `LIMIT { expr | ALL } [OFFSET expr]` into fc: the
-// call's opt_limit_offset_clause (googlesql.tm:8477, limit_all at 8504).
+// parseLimitOffset parses `LIMIT expr [OFFSET expr]` into fc.
 func (p *Parser) parseLimitOffset(fc *ast.FuncCall) error {
 	p.advance() // LIMIT
-	if p.cur.Type == kwALL {
-		p.advance()
-		fc.LimitAll = true
-	} else {
-		lim, err := p.parseExpr()
-		if err != nil {
-			return err
-		}
-		fc.Limit = lim
+	lim, err := p.parseExpr()
+	if err != nil {
+		return err
 	}
+	fc.Limit = lim
 	if p.cur.Type == kwOFFSET {
 		p.advance()
 		off, err := p.parseExpr()
@@ -1499,58 +1493,29 @@ func (p *Parser) parseWindowBound() (ast.WindowBound, error) {
 // a bytes token after a string simply stops the string and is left for the
 // caller, which is a syntax error in expression position if unexpected.
 func (p *Parser) parseStringLiteral() (ast.Node, error) {
-	tok, err := p.literalRun(tokString)
-	if err != nil {
-		return nil, err
+	first := p.advance()
+	value := first.Str
+	loc := first.Loc
+	for p.cur.Type == tokString {
+		comp := p.advance()
+		value += comp.Str
+		loc.End = comp.Loc.End
 	}
-	return &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}, nil
+	return &ast.Literal{Kind: ast.LitString, Value: value, Loc: loc}, nil
 }
 
 // parseBytesLiteral parses one or more adjacent BYTES_LITERAL components
 // (bytes_literal: adjacent concatenation).
 func (p *Parser) parseBytesLiteral() (ast.Node, error) {
-	tok, err := p.literalRun(tokBytes)
-	if err != nil {
-		return nil, err
-	}
-	return &ast.Literal{Kind: ast.LitBytes, Value: tok.Str, Loc: tok.Loc}, nil
-}
-
-// literalRun consumes the current token and every adjacent token of the same
-// type after it, and returns them as one token: its value concatenated, its
-// Loc spanning the run. GoogleSQL names string_literal and bytes_literal, not
-// a single component, wherever it takes a string or bytes literal
-// (googlesql.tm:11369 string_literal, 11431 bytes_literal), so a typed
-// literal, RANGE and an UNPIVOT label take 'a' 'b'. Components that touch, as
-// in 'a'r'b', are the actions' syntax error: they must be separated by
-// whitespace or comments (11375, 11437).
-func (p *Parser) literalRun(typ int) (Token, error) {
-	tok := p.advance()
-	for p.cur.Type == typ {
-		if p.cur.Loc.Start == tok.Loc.End {
-			kind := "string"
-			if typ == tokBytes {
-				kind = "bytes"
-			}
-			return Token{}, &ParseError{
-				Message:  "Syntax error: concatenated " + kind + " literals must be separated by whitespace or comments",
-				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-			}
-		}
+	first := p.advance()
+	value := first.Str
+	loc := first.Loc
+	for p.cur.Type == tokBytes {
 		comp := p.advance()
-		tok.Str += comp.Str
-		tok.Loc.End = comp.Loc.End
+		value += comp.Str
+		loc.End = comp.Loc.End
 	}
-	return tok, nil
-}
-
-// expectStringLiteral consumes a string_literal (googlesql.tm:11369): one or
-// more adjacent string components, as one token.
-func (p *Parser) expectStringLiteral() (Token, error) {
-	if p.cur.Type != tokString {
-		return Token{}, p.syntaxErrorAtCur()
-	}
-	return p.literalRun(tokString)
+	return &ast.Literal{Kind: ast.LitBytes, Value: value, Loc: loc}, nil
 }
 
 // parseTypedLiteral parses a type-prefixed literal `<kw> '…'` for
@@ -1558,10 +1523,7 @@ func (p *Parser) expectStringLiteral() (Token, error) {
 // keyword is the current token and is known to be followed by a string literal.
 func (p *Parser) parseTypedLiteral() (ast.Node, error) {
 	kw := p.advance()
-	strTok, err := p.literalRun(tokString) // the string_literal (peekNext-confirmed by caller)
-	if err != nil {
-		return nil, err
-	}
+	strTok := p.advance() // the string literal (peekNext-confirmed by caller)
 	return &ast.TypedLiteral{
 		TypeKeyword: TokenName(kw.Type),
 		Value:       strTok.Str,
@@ -1580,7 +1542,7 @@ func (p *Parser) parseRangeLiteral() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	strTok, err := p.expectStringLiteral()
+	strTok, err := p.expect(tokString)
 	if err != nil {
 		return nil, err
 	}
@@ -1714,18 +1676,11 @@ func (p *Parser) parseCaseExpr() (ast.Node, error) {
 // argument is not a valid expression, so it falls out as a syntax error
 // (oracle: `CAST(CAST AS INT64)` rejects).
 func (p *Parser) parseCastExpr(safe bool) (ast.Node, error) {
-	return p.parseCastWith(safe, p.parseExpr)
-}
-
-// parseCastWith parses a CAST whose operand operand parses: a full expression
-// for cast_expression, or int_literal_or_parameter for
-// cast_int_literal_or_parameter (googlesql.tm:6083).
-func (p *Parser) parseCastWith(safe bool, operand func() (ast.Node, error)) (ast.Node, error) {
 	castTok := p.advance() // CAST / SAFE_CAST
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
 	}
-	expr, err := operand()
+	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
 	}

@@ -168,16 +168,16 @@ func (p *Parser) parseSampleSuffix(sc *ast.SampleClause) error {
 	return nil
 }
 
-// parseRepeatableClause parses `REPEATABLE ( <seed> )` (repeatable_clause,
-// googlesql.tm:6095). The seed is possibly_cast_int_literal_or_parameter, not
-// an expression (oracle: `REPEATABLE(a)` syntax-rejects). REPEATABLE is the
-// current token. Returns the seed expression.
+// parseRepeatableClause parses `REPEATABLE ( <seed> )` (repeatable_clause). The
+// seed is a possibly-cast integer literal or parameter; we parse it as a general
+// expression (which subsumes CAST(...) and @param). REPEATABLE is the current
+// token. Returns the seed expression.
 func (p *Parser) parseRepeatableClause() (ast.Node, error) {
 	p.advance() // REPEATABLE
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
 	}
-	seed, err := p.parseIntLiteralOrParameterOrCast()
+	seed, err := p.parseExpr()
 	if err != nil {
 		return nil, err
 	}

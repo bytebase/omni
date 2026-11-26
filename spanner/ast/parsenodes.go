@@ -783,9 +783,8 @@ type FuncCall struct {
 	Clamped       *ClampedModifier // CLAMPED BETWEEN low AND high; nil if absent
 	WithReport    bool             // WITH REPORT (...) present
 	OrderBy       []*OrderItem     // trailing ORDER BY inside the call (aggregate ordering)
-	Limit         Node             // trailing LIMIT expr; nil if absent or LIMIT ALL
-	LimitAll      bool             // trailing LIMIT ALL (Limit nil)
-	LimitOffset   Node             // trailing OFFSET expr (only with LIMIT); nil if absent
+	Limit         Node             // trailing LIMIT expr; nil if absent
+	LimitOffset   Node             // trailing OFFSET expr (only with Limit); nil if absent
 	WithGroupRows bool             // WITH GROUP ROWS present
 	Over          *WindowSpec      // OVER window; nil if not a window call
 	Loc           Loc
@@ -1190,9 +1189,8 @@ type QueryStmt struct {
 	With      *WithClause  // leading WITH clause; nil if absent
 	Body      Node         // *SelectStmt | *SetOperation | *QueryStmt
 	OrderBy   []*OrderItem // trailing query-level ORDER BY; nil if absent
-	Limit     Node         // trailing LIMIT count; nil if absent or LIMIT ALL
-	LimitAll  bool         // trailing LIMIT ALL (Limit nil)
-	Offset    Node         // trailing OFFSET (only with LIMIT); nil if absent
+	Limit     Node         // trailing LIMIT count; nil if absent
+	Offset    Node         // trailing OFFSET (only with Limit); nil if absent
 	ForUpdate bool         // trailing FOR UPDATE (Spanner)
 	Parens    bool         // true if this query was wrapped in `( … )` as a query_primary
 	// Pipe is the query's trailing pipe suffix (`query pipe_and_pipe_operator`,

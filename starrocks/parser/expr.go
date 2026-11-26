@@ -636,6 +636,16 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 	case kwCASE:
 		return p.parseCaseExpr()
 
+	case kwDATE, kwDATETIME:
+		// dateLiteral (StarRocks.g4:2432) is (DATE | DATETIME) string. Both
+		// words are nonReserved, but before a string they are this literal,
+		// which the pinned server refuses when the text is no date
+		// ("Invalid date literal"). It is kept as a cast of the string.
+		if p.peekNext().Kind == tokString {
+			return p.parseDateLiteral()
+		}
+		return p.parseIdentExpr()
+
 	case kwCAST:
 		// cast (StarRocks.g4:2413) is CAST '(' expression AS type ')'. CAST is
 		// also nonReserved, so unapplied it names a column: the pinned server
