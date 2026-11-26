@@ -1296,6 +1296,10 @@ func (q *binder) statement(n ast.Node) {
 				if se.Column != nil && !se.WriteMethod && !se.Mutator {
 					q.column(se.Column, sc)
 				}
+				// SET @v = column = ...: the column is bound as a target.
+				if se.VarColumn != nil {
+					q.column(se.VarColumn, sc)
+				}
 				q.expr(se.Value, sc)
 			}
 		}

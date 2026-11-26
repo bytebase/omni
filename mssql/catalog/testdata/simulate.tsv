@@ -307,7 +307,7 @@ ok	1767	engine	one_table@missing	issue:BYT-10538	CREATE TABLE dbo.child (id INT 
 ok	1767	engine	one_table@missing	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
 4902	4902	engine	one_table@missing	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
 4902	4902	engine	one_table@missing	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
-ok	ok:39f2fd25f037	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok:39f2fd25f037	ok:39f2fd25f037	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
 ok:a58663a1870f	ok:a58663a1870f	engine	one_table@missing	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
 ok	1767	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
 ok	1767	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
@@ -317,7 +317,7 @@ ok	1767	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN 
 ok:c81bc4e4b08b	ok:c81bc4e4b08b	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
 4902	4902	engine	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
 4902	4902	engine	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
-ok	ok:fa7dd8bc8968	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+ok:fa7dd8bc8968	ok:fa7dd8bc8968	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
 ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
 ok	1727	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
 4902	4902	engine	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
@@ -332,7 +332,7 @@ ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX i
 ok	1911	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
 ok	ok:196f2a8a502d	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
 ok	10793	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
-ok	ok:2ee9f9c53186	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+ok:2ee9f9c53186	ok:2ee9f9c53186	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
 4902	4902	engine	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
 ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
 ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));

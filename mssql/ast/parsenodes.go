@@ -360,7 +360,7 @@ type ColumnDef struct {
 	Collation   string
 	Constraints *List // column-level constraints
 	Nullable    *NullableSpec
-	Index       *InlineIndexDef // INDEX index_name ... on the column
+	Indexes     *List // INDEX index_name ... on the column, each an *InlineIndexDef
 
 	// Advanced column options
 	Sparse      bool // SPARSE

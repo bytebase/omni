@@ -890,14 +890,18 @@ func (b *builder) updateStmt(v *ast.UpdateStmt) bool {
 				b.fail(rangeOf(se.Loc), review.ObjectNotFound, "Variable "+review.Code(se.Variable)+" is not declared.")
 				return true
 			}
-			if se.Column != nil && se.Column.Table == "" && se.Column.Schema == "" {
-				if strings.EqualFold(se.Column.Column, "$IDENTITY") && !b.isDelimitedAt(se.Column.Loc) && (!hasRef || !b.dmlTargetFails(r)) {
-					b.fail(rangeOf(se.Column.Loc), review.UnsupportedForm, "Cannot update `$IDENTITY` column.")
+			// The column of SET @v = column = ... is a target too.
+			for _, col := range []*ast.ColumnRef{se.Column, se.VarColumn} {
+				if col == nil || col.Table != "" || col.Schema != "" {
+					continue
+				}
+				if strings.EqualFold(col.Column, "$IDENTITY") && !b.isDelimitedAt(col.Loc) && (!hasRef || !b.dmlTargetFails(r)) {
+					b.fail(rangeOf(col.Loc), review.UnsupportedForm, "Cannot update `$IDENTITY` column.")
 					return true
 				}
-				if known && !isPseudoCol(se.Column.Column) {
-					if cn, ok := keyed(se.Column.Column); ok {
-						b.needs(spaceColumn, r.tablePath(), cn, nil, note(rangeOf(se.Column.Loc), msgMissingIn("column", ident(se.Column.Column), r.written), nil))
+				if known && !isPseudoCol(col.Column) {
+					if cn, ok := keyed(col.Column); ok {
+						b.needs(spaceColumn, r.tablePath(), cn, nil, note(rangeOf(col.Loc), msgMissingIn("column", ident(col.Column), r.written), nil))
 					}
 				}
 			}

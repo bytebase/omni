@@ -648,8 +648,30 @@ func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata,
 			case ast.ConstraintCheck:
 				c.appendCheckConstraint(table, constraint, source)
 			case ast.ConstraintForeignKey:
-				c.appendForeignKey(table, constraint, []string{column.Name}, c.defaultSchema)
+				// A column's FOREIGN KEY may name its own columns, as its
+				// PRIMARY KEY may: a INT FOREIGN KEY (a, b) REFERENCES p.
+				cols := []string{column.Name}
+				if constraint.Columns != nil {
+					cols = stringNodeList(constraint.Columns)
+				}
+				c.appendForeignKey(table, constraint, cols, c.defaultSchema)
 			}
+		}
+	}
+	// A column's INDEX keys the column unless it names a key list:
+	// a INT INDEX ix_a indexes a (inlineIndexColumnDefinition).
+	if n.Indexes != nil {
+		for _, item := range n.Indexes.Items {
+			idx, ok := item.(*ast.InlineIndexDef)
+			if !ok {
+				continue
+			}
+			index := inlineIndexMetadata(idx, source)
+			if len(index.Expressions) == 0 {
+				index.Expressions = []string{column.Name}
+				index.Descending = []bool{false}
+			}
+			table.Indexes = append(table.Indexes, index)
 		}
 	}
 
@@ -850,6 +872,9 @@ func inlineIndexMetadata(n *ast.InlineIndexDef, source string) *metadata.IndexMe
 		Expressions:  []string{},
 		Descending:   []bool{},
 		IsConstraint: false,
+	}
+	if n.Hash {
+		index.Type = "NONCLUSTERED HASH" // sys.indexes.type_desc
 	}
 	appendIndexColumns(index, n.Columns)
 	index.Definition = indexDefinition(n.IncludeCols, n.WhereClause, source)

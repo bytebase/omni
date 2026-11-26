@@ -717,7 +717,12 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 			if err != nil {
 				return nil, err
 			}
-			col.Index = idx
+			// A column may declare several: INDEX ix_a INDEX ix_b parses
+			// (measured, compat.tsv).
+			if col.Indexes == nil {
+				col.Indexes = &nodes.List{}
+			}
+			col.Indexes.Items = append(col.Indexes.Items, idx)
 			continue
 		case kwCONSTRAINT, kwPRIMARY, kwUNIQUE, kwCHECK, kwFOREIGN, kwREFERENCES:
 			// CONSTRAINT name, then the constraint, or a constraint without

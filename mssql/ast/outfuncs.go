@@ -2914,9 +2914,9 @@ func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 		sb.WriteString(" :nullable ")
 		writeNode(sb, n.Nullable)
 	}
-	if n.Index != nil {
-		sb.WriteString(" :index ")
-		writeNode(sb, n.Index)
+	if n.Indexes != nil {
+		sb.WriteString(" :indexes ")
+		writeNode(sb, n.Indexes)
 	}
 	if n.Sparse {
 		sb.WriteString(" :sparse true")

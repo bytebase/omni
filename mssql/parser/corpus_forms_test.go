@@ -111,20 +111,33 @@ func TestCorpusFormsTree(t *testing.T) {
 	t.Run("a column's INDEX", func(t *testing.T) {
 		sql := "DECLARE @t TABLE (a INT INDEX ix_a CLUSTERED, b INT)"
 		col := first(t, sql, is(&ast.ColumnDef{})).(*ast.ColumnDef)
-		if col.Name != "a" || col.Index == nil || col.Index.Name != "ix_a" || col.Index.Clustered == nil || !*col.Index.Clustered {
+		if col.Name != "a" || col.Indexes == nil || len(col.Indexes.Items) != 1 {
+			t.Fatalf("got %s", ast.NodeToString(col))
+		}
+		idx := col.Indexes.Items[0].(*ast.InlineIndexDef)
+		if idx.Name != "ix_a" || idx.Clustered == nil || !*idx.Clustered {
 			t.Fatalf("got %s", ast.NodeToString(col))
 		}
 		covers(t, sql, col, "a INT INDEX ix_a CLUSTERED")
-		covers(t, sql, col.Index, "INDEX ix_a CLUSTERED")
+		covers(t, sql, idx, "INDEX ix_a CLUSTERED")
+		two := "DECLARE @t TABLE (a INT INDEX ix_a INDEX ix_b)"
+		col = first(t, two, is(&ast.ColumnDef{})).(*ast.ColumnDef)
+		if col.Indexes == nil || len(col.Indexes.Items) != 2 || col.Indexes.Items[1].(*ast.InlineIndexDef).Name != "ix_b" {
+			t.Fatalf("got %s", ast.NodeToString(col))
+		}
 	})
 	t.Run("a HASH index", func(t *testing.T) {
 		sql := "CREATE TABLE a (a INT INDEX ix NONCLUSTERED HASH WITH (BUCKET_COUNT = 8))"
 		col := first(t, sql, is(&ast.ColumnDef{})).(*ast.ColumnDef)
-		if col.Index == nil || !col.Index.Hash || col.Index.Options == nil {
+		if col.Indexes == nil || len(col.Indexes.Items) != 1 {
 			t.Fatalf("got %s", ast.NodeToString(col))
 		}
-		if s, ok := col.Index.Options.Items[0].(*ast.String); !ok || s.Str != "BUCKET_COUNT=8" {
-			t.Fatalf("options: %s", ast.NodeToString(col.Index.Options))
+		idx := col.Indexes.Items[0].(*ast.InlineIndexDef)
+		if !idx.Hash || idx.Options == nil {
+			t.Fatalf("got %s", ast.NodeToString(col))
+		}
+		if s, ok := idx.Options.Items[0].(*ast.String); !ok || s.Str != "BUCKET_COUNT=8" {
+			t.Fatalf("options: %s", ast.NodeToString(idx.Options))
 		}
 	})
 	t.Run("a column's FOREIGN KEY", func(t *testing.T) {
