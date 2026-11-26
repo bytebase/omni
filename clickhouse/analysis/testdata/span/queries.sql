@@ -152,6 +152,8 @@ WITH c AS (SELECT id, name FROM customers) SELECT count() FROM c WHERE name != '
 WITH 1 AS x, c AS (SELECT x) SELECT * FROM c
 WITH 2 AS k, c AS (SELECT id * k AS n FROM customers) SELECT n FROM c
 WITH 1 AS x SELECT * FROM (SELECT x)
+WITH '' AS email SELECT (SELECT email FROM customers LIMIT 1)
+WITH 'x' AS name SELECT name, (SELECT max(name) FROM customers) AS top
 WITH 3 AS k SELECT n FROM (SELECT id * k AS n FROM customers)
 WITH RECURSIVE r AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
 WITH RECURSIVE r AS (SELECT toString(id) AS a, email AS b, toUInt64(0) AS n FROM customers UNION ALL SELECT a, a AS b, n + 1 FROM r WHERE n < 1) SELECT b FROM r
@@ -169,6 +171,8 @@ SELECT * FROM (SELECT name FROM customers UNION ALL SELECT status FROM orders) A
 (SELECT id FROM customers) UNION ALL (SELECT id FROM orders)
 SELECT 1 AS n UNION ALL SELECT id FROM customers
 SELECT name FROM customers UNION ALL SELECT name FROM hr.employees
+WITH c AS (SELECT email FROM customers) SELECT email FROM c UNION ALL SELECT email FROM c
+WITH 1 AS x SELECT x UNION ALL SELECT x
 
 -- Subqueries in expressions.
 SELECT (SELECT max(amount) FROM orders)
@@ -235,6 +239,7 @@ SELECT * EXCEPT (email) FROM customers
 SELECT * EXCEPT email FROM customers
 SELECT * EXCEPT (email, country) FROM customers
 SELECT * REPLACE (upper(name) AS name) FROM customers
+WITH c AS (SELECT email FROM customers) SELECT tuple(* REPLACE ((SELECT email FROM c LIMIT 1) AS email)) FROM customers
 SELECT c.* EXCEPT (id) FROM customers AS c
 SELECT * APPLY (toString) FROM items
 SELECT * APPLY (x -> concat(toString(x), status)) FROM orders

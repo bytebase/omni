@@ -223,6 +223,9 @@ type spanScope struct {
 	aliases map[string]parser.Expr
 	// lambda holds a lambda's parameters, which shadow every other name.
 	lambda map[string]bool
+	// query marks a SELECT's scope, and with the WITH scope above it: the
+	// two are one level of name resolution.
+	query, with bool
 	// windows are the SELECT's named windows (WINDOW w AS (...)).
 	windows map[string]*parser.WindowSpec
 	// joins counts the FROM clause's joins.
@@ -304,11 +307,16 @@ func (r *spanResolver) missing(nf NotFoundError) {
 // query resolves a query's columns: a set operation's columns are named by
 // its first query and read what every query reads in that position.
 func (r *spanResolver) query(q *parser.SelectUnionStmt, outer *spanScope, ctes *cteBinding) []spanColumn {
-	var out []spanColumn
+	var (
+		out []spanColumn
+		// The first query's WITH clause is every query's
+		// (enable_global_with_statement, on by default).
+		with *spanScope
+	)
 	for i, item := range q.Items {
-		cols := r.selectStmt(item, outer, ctes)
+		cols, w, c := r.selectStmt(item, outer, ctes, with)
 		if i == 0 {
-			out = cols
+			out, with, ctes = cols, w, c
 			continue
 		}
 		for j := range out {
@@ -321,15 +329,23 @@ func (r *spanResolver) query(q *parser.SelectUnionStmt, outer *spanScope, ctes *
 	return out
 }
 
-func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *cteBinding) []spanColumn {
+// selectStmt resolves one SELECT and returns, with its columns, its WITH
+// clause's aliases and CTEs, which a set operation's later queries inherit
+// (inherited holds the first query's aliases).
+func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *cteBinding, inherited *spanScope) ([]spanColumn, *spanScope, *cteBinding) {
 	if s.Nested != nil {
-		return r.query(s.Nested, outer, ctes)
+		return r.query(s.Nested, outer, ctes), nil, ctes
 	}
 	// The WITH clause's expression aliases are visible to its CTEs too, so
 	// they are a scope of their own, between the SELECT's and the outer
-	// query's.
-	with := &spanScope{aliases: map[string]parser.Expr{}, parent: outer}
-	sc := &spanScope{aliases: map[string]parser.Expr{}, windows: map[string]*parser.WindowSpec{}, parent: with}
+	// query's, and part of the SELECT's level.
+	with := &spanScope{aliases: map[string]parser.Expr{}, with: true, parent: outer}
+	if inherited != nil {
+		for k, v := range inherited.aliases {
+			with.aliases[k] = v
+		}
+	}
+	sc := &spanScope{aliases: map[string]parser.Expr{}, windows: map[string]*parser.WindowSpec{}, query: true, parent: with}
 	for _, w := range s.Windows {
 		sc.windows[w.Name] = w.Spec
 	}
@@ -399,14 +415,14 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 			// untuple(t) is one result column per element of t, each
 			// taken from the whole tuple.
 			arg := item.(*parser.FuncCallExpr).Args[0]
-			name, sources := (&namer{r: r, sc: sc}).name(arg), r.expr(arg, sc, ctes)
+			name, sources := (&namer{r: r, sc: sc, ctes: ctes}).name(arg), r.expr(arg, sc, ctes)
 			for i := range items {
 				out = append(out, spanColumn{name: fmt.Sprintf("tupleElement(%s, '%d')", name, i+1), sources: sources})
 			}
 			continue
 		}
 		c := spanColumn{
-			name:    r.projectionName(item, sc),
+			name:    r.projectionName(item, sc, ctes),
 			sources: r.expr(item, sc, ctes),
 			plain:   isPlainColumn(item),
 		}
@@ -445,7 +461,7 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 	if s.Limit != nil {
 		r.exprs([]parser.Expr{s.Limit.Limit, s.Limit.Offset}, sc, ctes)
 	}
-	return out
+	return out, with, ctes
 }
 
 func (r *spanResolver) exprs(list []parser.Expr, sc *spanScope, ctes *cteBinding) SourceColumnSet {
@@ -919,7 +935,7 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 			// Each column is the function, or the lambda, applied to it.
 			applied := r.expr(t.ApplyExpr, sc, ctes)
 			for i := range kept {
-				kept[i].name = (&namer{r: r, sc: sc}).apply(t, kept[i].name)
+				kept[i].name = (&namer{r: r, sc: sc, ctes: ctes}).apply(t, kept[i].name)
 				kept[i].sources = union(kept[i].sources, applied)
 				kept[i].plain = false
 			}
@@ -1201,22 +1217,67 @@ func (r *spanResolver) ident(parts []string, sc *spanScope, ctes *cteBinding) So
 			return SourceColumnSet{}
 		}
 	}
-	if len(parts) == 1 && r.preferColumns {
-		for s := sc; s != nil; s = s.parent {
-			if c, found := lookup(parts, s); found == found1 {
+	name := strings.Join(parts, ".")
+	// A name resolves in the closest query that has it: there, an alias
+	// before a column (unless prefer_column_name_to_alias), then the
+	// enclosing query.
+	for lv := sc; lv != nil; {
+		scopes, next := level(lv)
+		if len(parts) == 1 && r.preferColumns {
+			for _, s := range scopes {
+				if c, found := lookup(parts, s); found == found1 {
+					return c.sources
+				}
+			}
+		}
+		if len(parts) == 1 {
+			if out, ok := r.alias(parts[0], scopes, sc, ctes); ok {
+				return out
+			}
+		}
+		for _, s := range scopes {
+			switch c, found := lookup(parts, s); found {
+			case found1:
+				return c.sources
+			case foundMany:
+				if r.ambiguous == "" {
+					r.ambiguous = name
+				}
 				return c.sources
 			}
 		}
+		lv = next
 	}
-	if len(parts) == 1 {
-		for s := sc; s != nil; s = s.parent {
-			if e, ok := s.aliases[parts[0]]; ok && !r.resolving[e] {
+	r.missing(NotFoundError{Column: &name})
+	return SourceColumnSet{}
+}
+
+// level is the scopes of one query level from s: lambda scopes, the
+// SELECT's, and its WITH scope; next is the enclosing query's.
+func level(s *spanScope) (scopes []*spanScope, next *spanScope) {
+	for ; s != nil; s = s.parent {
+		scopes = append(scopes, s)
+		if s.query {
+			if p := s.parent; p != nil && p.with {
+				return append(scopes, p), p.parent
+			}
+			return scopes, s.parent
+		}
+	}
+	return scopes, nil
+}
+
+// alias resolves name as an alias of one level's scopes, used in sc.
+func (r *spanResolver) alias(name string, scopes []*spanScope, sc *spanScope, ctes *cteBinding) (SourceColumnSet, bool) {
+	{
+		for _, s := range scopes {
+			if e, ok := s.aliases[name]; ok && !r.resolving[e] {
 				// An alias stands for its expression where it is used. It is
 				// resolved once per scope, so aliases built on aliases stay
 				// linear.
 				key := aliasUse{e, sc}
 				if out, ok := r.aliasMemo[key]; ok {
-					return out
+					return out, true
 				}
 				skipped := r.skipped
 				r.resolving[e] = true
@@ -1227,27 +1288,14 @@ func (r *spanResolver) ident(parts []string, sc *spanScope, ctes *cteBinding) So
 					// resolved, so only one that did not is kept.
 					r.aliasMemo[key] = out
 				}
-				return out
+				return out, true
 			}
-			if _, ok := s.aliases[parts[0]]; ok {
+			if _, ok := s.aliases[name]; ok {
 				r.skipped++
 			}
 		}
 	}
-	name := strings.Join(parts, ".")
-	for s := sc; s != nil; s = s.parent {
-		switch c, found := lookup(parts, s); found {
-		case found1:
-			return c.sources
-		case foundMany:
-			if r.ambiguous == "" {
-				r.ambiguous = name
-			}
-			return c.sources
-		}
-	}
-	r.missing(NotFoundError{Column: &name})
-	return SourceColumnSet{}
+	return nil, false
 }
 
 // resolvesAsName reports whether parts name a lambda parameter, an alias or

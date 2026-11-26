@@ -10,19 +10,20 @@ import (
 // projectionName is the name ClickHouse gives a select-list item: its alias,
 // a column's own name, or the expression written as the functions it calls
 // (a + 1 is plus(a, 1)), which is how the analyzer names a projection.
-func (r *spanResolver) projectionName(e parser.Expr, sc *spanScope) string {
+func (r *spanResolver) projectionName(e parser.Expr, sc *spanScope, ctes *cteBinding) string {
 	if a, ok := e.(*parser.AliasExpr); ok {
 		return a.Alias
 	}
 	if parts, ok := identParts(e); ok {
 		return parts[len(parts)-1]
 	}
-	return (&namer{r: r, sc: sc}).name(e)
+	return (&namer{r: r, sc: sc, ctes: ctes}).name(e)
 }
 
 type namer struct {
-	r  *spanResolver
-	sc *spanScope
+	r    *spanResolver
+	sc   *spanScope
+	ctes *cteBinding
 	// subst names a lambda's parameter by the column APPLY applies it to.
 	subst map[string]string
 }
@@ -35,7 +36,7 @@ func (n *namer) apply(t *parser.StarTransformer, column string) string {
 	switch f := t.ApplyExpr.(type) {
 	case *parser.LambdaExpr:
 		if len(f.Params) == 1 {
-			sub := &namer{r: n.r, sc: n.sc, subst: map[string]string{f.Params[0]: column}}
+			sub := &namer{r: n.r, sc: n.sc, ctes: n.ctes, subst: map[string]string{f.Params[0]: column}}
 			return sub.name(f.Body)
 		}
 	case *parser.FuncCallExpr:
@@ -90,7 +91,7 @@ func (n *namer) args(args []parser.Expr) []string {
 		}
 		if s, ok := a.(*parser.StarExpr); ok && n.sc != nil {
 			// So is a star.
-			for _, c := range n.r.star(s, n.sc, nil) {
+			for _, c := range n.r.star(s, n.sc, n.ctes) {
 				parts = append(parts, c.name)
 			}
 			continue
@@ -100,7 +101,15 @@ func (n *namer) args(args []parser.Expr) []string {
 	return parts
 }
 
+// maxNamed bounds the text of an expression named by the rules below: a
+// longer one keeps its text, so a deep expression is not written out once
+// per level.
+const maxNamed = 1024
+
 func (n *namer) name(e parser.Expr) string {
+	if e != nil && e.EndPos()-e.StartPos() > maxNamed && e.EndPos() <= len(n.r.text) {
+		return n.r.text[e.StartPos():e.EndPos()]
+	}
 	switch x := e.(type) {
 	case nil:
 		return "NULL"

@@ -123,3 +123,15 @@ func TestResolveQuerySpanNestedAliases(t *testing.T) {
 		t.Errorf("reads %v, want %v", names(got.Results[0].SourceColumns), want)
 	}
 }
+
+// A deep expression is named without writing it out once per level.
+func TestResolveQuerySpanDeepExpression(t *testing.T) {
+	q := "SELECT 1" + strings.Repeat("+1", 20000)
+	got, err := ResolveQuerySpan(q, ResolveOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Results) != 1 || got.Results[0].Name != q[len("SELECT "):] {
+		t.Fatalf("results %d, name of %d bytes", len(got.Results), len(got.Results[0].Name))
+	}
+}

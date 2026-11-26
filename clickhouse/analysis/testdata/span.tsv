@@ -411,6 +411,12 @@ shop.customers	shop.customers	engine	shop	shop	tables	WITH 2 AS k, c AS (SELECT 
 x	x	engine	shop	shop	results	WITH 1 AS x SELECT * FROM (SELECT x)
 -	-	engine	shop	shop	lineage	WITH 1 AS x SELECT * FROM (SELECT x)
 -	-	engine	shop	shop	tables	WITH 1 AS x SELECT * FROM (SELECT x)
+_subquery_1	_subquery_1	engine	shop	shop	results	WITH '' AS email SELECT (SELECT email FROM customers LIMIT 1)
+shop.customers.email	shop.customers.email	engine	shop	shop	lineage	WITH '' AS email SELECT (SELECT email FROM customers LIMIT 1)
+shop.customers	shop.customers	engine	shop	shop	tables	WITH '' AS email SELECT (SELECT email FROM customers LIMIT 1)
+name, top	name, top	engine	shop	shop	results	WITH 'x' AS name SELECT name, (SELECT max(name) FROM customers) AS top
+- | shop.customers.name	- | shop.customers.name	engine	shop	shop	lineage	WITH 'x' AS name SELECT name, (SELECT max(name) FROM customers) AS top
+shop.customers	shop.customers	engine	shop	shop	tables	WITH 'x' AS name SELECT name, (SELECT max(name) FROM customers) AS top
 n	n	engine	shop	shop	results	WITH 3 AS k SELECT n FROM (SELECT id * k AS n FROM customers)
 shop.customers.id	shop.customers.id	engine	shop	shop	lineage	WITH 3 AS k SELECT n FROM (SELECT id * k AS n FROM customers)
 shop.customers	shop.customers	engine	shop	shop	tables	WITH 3 AS k SELECT n FROM (SELECT id * k AS n FROM customers)
@@ -456,6 +462,12 @@ shop.customers	shop.customers	engine	shop	shop	tables	SELECT 1 AS n UNION ALL SE
 name	name	engine	shop	shop	results	SELECT name FROM customers UNION ALL SELECT name FROM hr.employees
 hr.employees.name shop.customers.name	hr.employees.name shop.customers.name	engine	shop	shop	lineage	SELECT name FROM customers UNION ALL SELECT name FROM hr.employees
 hr.employees, shop.customers	hr.employees, shop.customers	engine	shop	shop	tables	SELECT name FROM customers UNION ALL SELECT name FROM hr.employees
+email	email	engine	shop	shop	results	WITH c AS (SELECT email FROM customers) SELECT email FROM c UNION ALL SELECT email FROM c
+shop.customers.email	shop.customers.email	engine	shop	shop	lineage	WITH c AS (SELECT email FROM customers) SELECT email FROM c UNION ALL SELECT email FROM c
+shop.customers	shop.customers	engine	shop	shop	tables	WITH c AS (SELECT email FROM customers) SELECT email FROM c UNION ALL SELECT email FROM c
+x	x	engine	shop	shop	results	WITH 1 AS x SELECT x UNION ALL SELECT x
+-	-	engine	shop	shop	lineage	WITH 1 AS x SELECT x UNION ALL SELECT x
+-	-	engine	shop	shop	tables	WITH 1 AS x SELECT x UNION ALL SELECT x
 _subquery_1	_subquery_1	engine	shop	shop	results	SELECT (SELECT max(amount) FROM orders)
 shop.orders.amount	shop.orders.amount	engine	shop	shop	lineage	SELECT (SELECT max(amount) FROM orders)
 shop.orders	shop.orders	engine	shop	shop	tables	SELECT (SELECT max(amount) FROM orders)
@@ -624,6 +636,9 @@ shop.customers	shop.customers	engine	shop	shop	tables	SELECT * EXCEPT (email, co
 id, name, email, country, created	id, name, email, country, created	engine	shop	shop	results	SELECT * REPLACE (upper(name) AS name) FROM customers
 shop.customers.id | shop.customers.name | shop.customers.email | shop.customers.country | shop.customers.created	shop.customers.id | shop.customers.name | shop.customers.email | shop.customers.country | shop.customers.created	engine	shop	shop	lineage	SELECT * REPLACE (upper(name) AS name) FROM customers
 shop.customers	shop.customers	engine	shop	shop	tables	SELECT * REPLACE (upper(name) AS name) FROM customers
+(id, name, email, country, created)	(id, name, email, country, created)	engine	shop	shop	results	WITH c AS (SELECT email FROM customers) SELECT tuple(* REPLACE ((SELECT email FROM c LIMIT 1) AS email)) FROM customers
+shop.customers.country shop.customers.created shop.customers.email shop.customers.id shop.customers.name	shop.customers.country shop.customers.created shop.customers.email shop.customers.id shop.customers.name	engine	shop	shop	lineage	WITH c AS (SELECT email FROM customers) SELECT tuple(* REPLACE ((SELECT email FROM c LIMIT 1) AS email)) FROM customers
+shop.customers	shop.customers	engine	shop	shop	tables	WITH c AS (SELECT email FROM customers) SELECT tuple(* REPLACE ((SELECT email FROM c LIMIT 1) AS email)) FROM customers
 name, email, country, created	name, email, country, created	engine	shop	shop	results	SELECT c.* EXCEPT (id) FROM customers AS c
 shop.customers.name | shop.customers.email | shop.customers.country | shop.customers.created	shop.customers.name | shop.customers.email | shop.customers.country | shop.customers.created	engine	shop	shop	lineage	SELECT c.* EXCEPT (id) FROM customers AS c
 shop.customers	shop.customers	engine	shop	shop	tables	SELECT c.* EXCEPT (id) FROM customers AS c

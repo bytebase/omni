@@ -703,6 +703,16 @@
 | {"columns":["x"],"lineage":[null]}
 > raw
 | span shop
+| WITH '' AS email SELECT (SELECT email FROM customers LIMIT 1)
+< raw
+| {"columns":["_subquery_1"],"lineage":[["shop.customers.email"]],"tables":["shop.customers"]}
+> raw
+| span shop
+| WITH 'x' AS name SELECT name, (SELECT max(name) FROM customers) AS top
+< raw
+| {"columns":["name","top"],"lineage":[null,["shop.customers.name"]],"tables":["shop.customers"]}
+> raw
+| span shop
 | WITH 3 AS k SELECT n FROM (SELECT id * k AS n FROM customers)
 < raw
 | {"columns":["n"],"lineage":[["shop.customers.id"]],"tables":["shop.customers"]}
@@ -776,6 +786,16 @@
 | SELECT name FROM customers UNION ALL SELECT name FROM hr.employees
 < raw
 | {"columns":["name"],"lineage":[["hr.employees.name","shop.customers.name"]],"tables":["hr.employees","shop.customers"]}
+> raw
+| span shop
+| WITH c AS (SELECT email FROM customers) SELECT email FROM c UNION ALL SELECT email FROM c
+< raw
+| {"columns":["email"],"lineage":[["shop.customers.email"]],"tables":["shop.customers"]}
+> raw
+| span shop
+| WITH 1 AS x SELECT x UNION ALL SELECT x
+< raw
+| {"columns":["x"],"lineage":[null]}
 > raw
 | span shop
 | SELECT (SELECT max(amount) FROM orders)
@@ -1056,6 +1076,11 @@
 | SELECT * REPLACE (upper(name) AS name) FROM customers
 < raw
 | {"columns":["id","name","email","country","created"],"lineage":[["shop.customers.id"],["shop.customers.name"],["shop.customers.email"],["shop.customers.country"],["shop.customers.created"]],"tables":["shop.customers"]}
+> raw
+| span shop
+| WITH c AS (SELECT email FROM customers) SELECT tuple(* REPLACE ((SELECT email FROM c LIMIT 1) AS email)) FROM customers
+< raw
+| {"columns":["(id, name, email, country, created)"],"lineage":[["shop.customers.country","shop.customers.created","shop.customers.email","shop.customers.id","shop.customers.name"]],"tables":["shop.customers"]}
 > raw
 | span shop
 | SELECT c.* EXCEPT (id) FROM customers AS c
