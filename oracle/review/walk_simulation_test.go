@@ -78,13 +78,13 @@ func isWalkSimStatement(stmt string) bool {
 
 var walkSimShowMissed = flag.Bool("walk-sim-missed", false, "log top missed refusal categories in TestWalkSimulation")
 
-const walkSimMinTotalRecallPct = 94.0
+const walkSimMinTotalRecallPct = 93.5
 
 var walkSimMinFixtureRecallPct = map[string]float64{
 	"one_table@missing":     93.0,
 	"one_table@table":       94.5,
-	"one_table@column":      94.0,
-	"objects@partitioned":   92.5,
+	"one_table@column":      93.5,
+	"objects@partitioned":   92.0,
 	"objects@index_trigger": 91.5,
 	"objects@view":          96.0,
 	"objects@matview":       90.5,

@@ -1652,6 +1652,10 @@ func (p *Parser) isIdentityOptionStart() bool {
 //	[ { CYCLE | NOCYCLE } ]
 //	[ { CACHE integer | NOCACHE } ]
 //	[ { ORDER | NOORDER } ]
+//
+// Each option stands once, an option and its NO form included: Oracle 23ai
+// answers a second with ORA-02278 to ORA-02285 at it, as a sequence's
+// options (identity_options, OracleDocs.g4:2249).
 func (p *Parser) parseIdentityOptions(identity *nodes.IdentityClause) error {
 	seen := map[string]bool{}
 	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
@@ -1662,6 +1666,12 @@ func (p *Parser) parseIdentityOptions(identity *nodes.IdentityClause) error {
 		progress = p.pos()
 		if !p.isIdentLike() {
 			return nil
+		}
+		if group := identityOptionGroup[p.cur.Str]; group != "" {
+			if seen[group] {
+				return p.syntaxErrorAtCur()
+			}
+			seen[group] = true
 		}
 		switch p.cur.Str {
 		case "START":
@@ -1693,16 +1703,22 @@ func (p *Parser) parseIdentityOptions(identity *nodes.IdentityClause) error {
 				return err
 			}
 		case "NOMAXVALUE", "NOMINVALUE", "CYCLE", "NOCYCLE", "NOCACHE", "ORDER", "NOORDER":
-			if seen[p.cur.Str] {
-				return p.syntaxErrorAtCur()
-			}
-			seen[p.cur.Str] = true
 			p.advance()
 		default:
 			return nil
 		}
 	}
 	return nil
+}
+
+// identityOptionGroup gives the option each identity option word sets.
+var identityOptionGroup = map[string]string{
+	"START": "START", "INCREMENT": "INCREMENT",
+	"MAXVALUE": "MAXVALUE", "NOMAXVALUE": "MAXVALUE",
+	"MINVALUE": "MINVALUE", "NOMINVALUE": "MINVALUE",
+	"CYCLE": "CYCLE", "NOCYCLE": "CYCLE",
+	"CACHE": "CACHE", "NOCACHE": "CACHE",
+	"ORDER": "ORDER", "NOORDER": "ORDER",
 }
 
 // parseIdentitySignedInteger reads the integer of an identity option,

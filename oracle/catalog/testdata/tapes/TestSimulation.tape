@@ -1687,6 +1687,96 @@
 | CREATE INDEX t_d_idx ON t (d);]'); END;
 < ok 1 0
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX t_d_idx ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX t_d_idx ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX t_d_idx ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX t_d_idx ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX t_d_idx ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX t_d_idx ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX t_d_idx ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX t_d_idx ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX t_d_idx ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX t_d_idx ON t (d);]'); END;
+< ok 1 0
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 < error
 | 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
@@ -1903,9 +1993,27 @@
 | CREATE INDEX t_d_idx ON t (d);]'); END;
 < ok 1 0
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX t_d_idx ON t (d);]'); END;
+< ok 1 0
+> exec
 | COMMENT ON TABLE a IS 's'
 < error
 | 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX t_d_idx ON t (d);]'); END;
+< ok 1 0
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
 |
 > exec
 | BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
@@ -1958,6 +2066,15 @@
 < ok 1 0
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX t_d_idx ON t (d);]'); END;
+< ok 1 0
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -3195,6 +3312,15 @@
 < ok 1 0
 > exec
 | CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX t_d_idx ON t (d);]'); END;
+< ok 1 0
+> exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -5148,6 +5274,96 @@
 | CREATE INDEX a_d_idx ON a (d);]'); END;
 < ok 1 0
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -5364,6 +5580,15 @@
 | CREATE INDEX a_d_idx ON a (d);]'); END;
 < ok 1 0
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
 | COMMENT ON TABLE a IS 's'
 < ok 0 0
 > query
@@ -5377,6 +5602,15 @@
 | ALTER TABLE "A" ADD CONSTRAINT "A_PK" PRIMARY KEY ("B");
 | CREATE INDEX "A_D_IDX" ON "A" ("D");
 | COMMENT ON TABLE "A" IS 's';
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
 |
 > exec
 | BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, c NUMBER, d NUMBER);
@@ -5429,6 +5663,15 @@
 < ok 1 0
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -6422,6 +6665,15 @@
 < ok 1 0
 > exec
 | CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -8387,6 +8639,96 @@
 | CREATE INDEX a_d_idx ON a (d);]'); END;
 < ok 1 0
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 < error
 | 30673 ORA-30673: column to be modified is not an identity column
@@ -8613,6 +8955,15 @@
 | CREATE INDEX a_d_idx ON a (d);]'); END;
 < ok 1 0
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
 | COMMENT ON TABLE a IS 's'
 < ok 0 0
 > query
@@ -8626,6 +8977,15 @@
 | ALTER TABLE "A" ADD CONSTRAINT "A_PK" PRIMARY KEY ("B");
 | CREATE INDEX "A_D_IDX" ON "A" ("D");
 | COMMENT ON TABLE "A" IS 's';
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
 |
 > exec
 | BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
@@ -8718,6 +9078,15 @@
 < ok 1 0
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -9711,6 +10080,15 @@
 < ok 1 0
 > exec
 | CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -11415,6 +11793,96 @@
 | CREATE INDEX a ON t (d);]'); END;
 < ok 1 0
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a ON t (d);]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a ON t (d);]'); END;
+< ok 1 0
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 < error
 | 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
@@ -11631,9 +12099,27 @@
 | CREATE INDEX a ON t (d);]'); END;
 < ok 1 0
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a ON t (d);]'); END;
+< ok 1 0
+> exec
 | COMMENT ON TABLE a IS 's'
 < error
 | 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a ON t (d);]'); END;
+< ok 1 0
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
 |
 > exec
 | BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
@@ -11686,6 +12172,15 @@
 < ok 1 0
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a ON t (d);]'); END;
+< ok 1 0
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -12923,6 +13418,15 @@
 < ok 1 0
 > exec
 | CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a ON t (d);]'); END;
+< ok 1 0
+> exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -14614,6 +15118,96 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t;]'); END;
 < ok 1 0
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE VIEW a AS SELECT b, a, d FROM t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE VIEW a AS SELECT b, a, d FROM t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE VIEW a AS SELECT b, a, d FROM t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE VIEW a AS SELECT b, a, d FROM t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE VIEW a AS SELECT b, a, d FROM t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE VIEW a AS SELECT b, a, d FROM t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE VIEW a AS SELECT b, a, d FROM t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE VIEW a AS SELECT b, a, d FROM t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE VIEW a AS SELECT b, a, d FROM t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE VIEW a AS SELECT b, a, d FROM t;]'); END;
+< ok 1 0
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 < error
 | 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
@@ -14871,6 +15465,15 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t;]'); END;
 < ok 1 0
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE VIEW a AS SELECT b, a, d FROM t;]'); END;
+< ok 1 0
+> exec
 | COMMENT ON TABLE a IS 's'
 < ok 0 0
 > query
@@ -14885,6 +15488,15 @@
 | ===VIEW	A
 | CREATE VIEW "A" ("B", "A", "D") AS SELECT b, a, d FROM t;
 | COMMENT ON TABLE "A" IS 's';
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE VIEW a AS SELECT b, a, d FROM t;]'); END;
+< ok 1 0
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
 |
 > exec
 | BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
@@ -14937,6 +15549,15 @@
 < ok 1 0
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE VIEW a AS SELECT b, a, d FROM t;]'); END;
+< ok 1 0
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -15922,6 +16543,15 @@
 < ok 1 0
 > exec
 | CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE VIEW a AS SELECT b, a, d FROM t;]'); END;
+< ok 1 0
+> exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -17709,6 +18339,96 @@
 | CREATE SEQUENCE a START WITH 1 INCREMENT BY 1;]'); END;
 < ok 1 0
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SEQUENCE a START WITH 1 INCREMENT BY 1;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SEQUENCE a START WITH 1 INCREMENT BY 1;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SEQUENCE a START WITH 1 INCREMENT BY 1;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SEQUENCE a START WITH 1 INCREMENT BY 1;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SEQUENCE a START WITH 1 INCREMENT BY 1;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SEQUENCE a START WITH 1 INCREMENT BY 1;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SEQUENCE a START WITH 1 INCREMENT BY 1;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SEQUENCE a START WITH 1 INCREMENT BY 1;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SEQUENCE a START WITH 1 INCREMENT BY 1;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SEQUENCE a START WITH 1 INCREMENT BY 1;]'); END;
+< ok 1 0
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 < error
 | 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
@@ -17926,9 +18646,27 @@
 | CREATE SEQUENCE a START WITH 1 INCREMENT BY 1;]'); END;
 < ok 1 0
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SEQUENCE a START WITH 1 INCREMENT BY 1;]'); END;
+< ok 1 0
+> exec
 | COMMENT ON TABLE a IS 's'
 < error
 | 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SEQUENCE a START WITH 1 INCREMENT BY 1;]'); END;
+< ok 1 0
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
 |
 > exec
 | BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
@@ -17981,6 +18719,15 @@
 < ok 1 0
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SEQUENCE a START WITH 1 INCREMENT BY 1;]'); END;
+< ok 1 0
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -18965,6 +19712,15 @@
 < ok 1 0
 > exec
 | CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SEQUENCE a START WITH 1 INCREMENT BY 1;]'); END;
+< ok 1 0
+> exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -20604,6 +21360,96 @@
 | CREATE SYNONYM a FOR t;]'); END;
 < ok 1 0
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SYNONYM a FOR t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SYNONYM a FOR t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SYNONYM a FOR t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SYNONYM a FOR t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SYNONYM a FOR t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SYNONYM a FOR t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SYNONYM a FOR t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SYNONYM a FOR t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SYNONYM a FOR t;]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SYNONYM a FOR t;]'); END;
+< ok 1 0
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 < error
 | 942 ORA-00942: table or view "OMNI_SIM"."A" does not exist
@@ -20821,6 +21667,15 @@
 | CREATE SYNONYM a FOR t;]'); END;
 < ok 1 0
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SYNONYM a FOR t;]'); END;
+< ok 1 0
+> exec
 | COMMENT ON TABLE a IS 's'
 < ok 0 0
 > query
@@ -20835,6 +21690,15 @@
 | COMMENT ON TABLE "T" IS 's';
 | ===SYNONYM	A
 | CREATE SYNONYM "A" FOR "T";
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SYNONYM a FOR t;]'); END;
+< ok 1 0
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
 |
 > exec
 | BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
@@ -20887,6 +21751,15 @@
 < ok 1 0
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SYNONYM a FOR t;]'); END;
+< ok 1 0
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -21882,6 +22755,15 @@
 < ok 1 0
 > exec
 | CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, c NUMBER, d NUMBER);
+| CREATE SYNONYM a FOR t;]'); END;
+< ok 1 0
+> exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -24115,6 +24997,106 @@
 | CREATE TABLE ch (b NUMBER CONSTRAINT ch_pk PRIMARY KEY, a_b NUMBER CONSTRAINT ch_fk REFERENCES a (b));]'); END;
 < ok 1 0
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE p (b NUMBER CONSTRAINT p_pk PRIMARY KEY, d NUMBER);
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b NUMBER CONSTRAINT ch_pk PRIMARY KEY, a_b NUMBER CONSTRAINT ch_fk REFERENCES a (b));]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE p (b NUMBER CONSTRAINT p_pk PRIMARY KEY, d NUMBER);
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b NUMBER CONSTRAINT ch_pk PRIMARY KEY, a_b NUMBER CONSTRAINT ch_fk REFERENCES a (b));]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE p (b NUMBER CONSTRAINT p_pk PRIMARY KEY, d NUMBER);
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b NUMBER CONSTRAINT ch_pk PRIMARY KEY, a_b NUMBER CONSTRAINT ch_fk REFERENCES a (b));]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE p (b NUMBER CONSTRAINT p_pk PRIMARY KEY, d NUMBER);
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b NUMBER CONSTRAINT ch_pk PRIMARY KEY, a_b NUMBER CONSTRAINT ch_fk REFERENCES a (b));]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE p (b NUMBER CONSTRAINT p_pk PRIMARY KEY, d NUMBER);
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b NUMBER CONSTRAINT ch_pk PRIMARY KEY, a_b NUMBER CONSTRAINT ch_fk REFERENCES a (b));]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE p (b NUMBER CONSTRAINT p_pk PRIMARY KEY, d NUMBER);
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b NUMBER CONSTRAINT ch_pk PRIMARY KEY, a_b NUMBER CONSTRAINT ch_fk REFERENCES a (b));]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE p (b NUMBER CONSTRAINT p_pk PRIMARY KEY, d NUMBER);
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b NUMBER CONSTRAINT ch_pk PRIMARY KEY, a_b NUMBER CONSTRAINT ch_fk REFERENCES a (b));]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE p (b NUMBER CONSTRAINT p_pk PRIMARY KEY, d NUMBER);
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b NUMBER CONSTRAINT ch_pk PRIMARY KEY, a_b NUMBER CONSTRAINT ch_fk REFERENCES a (b));]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE p (b NUMBER CONSTRAINT p_pk PRIMARY KEY, d NUMBER);
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b NUMBER CONSTRAINT ch_pk PRIMARY KEY, a_b NUMBER CONSTRAINT ch_fk REFERENCES a (b));]'); END;
+< ok 1 0
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE p (b NUMBER CONSTRAINT p_pk PRIMARY KEY, d NUMBER);
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b NUMBER CONSTRAINT ch_pk PRIMARY KEY, a_b NUMBER CONSTRAINT ch_fk REFERENCES a (b));]'); END;
+< ok 1 0
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 < error
 | 30673 ORA-30673: column to be modified is not an identity column
@@ -24380,6 +25362,16 @@
 | CREATE TABLE ch (b NUMBER CONSTRAINT ch_pk PRIMARY KEY, a_b NUMBER CONSTRAINT ch_fk REFERENCES a (b));]'); END;
 < ok 1 0
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE p (b NUMBER CONSTRAINT p_pk PRIMARY KEY, d NUMBER);
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b NUMBER CONSTRAINT ch_pk PRIMARY KEY, a_b NUMBER CONSTRAINT ch_fk REFERENCES a (b));]'); END;
+< ok 1 0
+> exec
 | COMMENT ON TABLE a IS 's'
 < ok 0 0
 > query
@@ -24401,6 +25393,16 @@
 | ===TABLE	P
 | CREATE TABLE "P" ("B" NUMBER NOT NULL, "D" NUMBER);
 | ALTER TABLE "P" ADD CONSTRAINT "P_PK" PRIMARY KEY ("B");
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE p (b NUMBER CONSTRAINT p_pk PRIMARY KEY, d NUMBER);
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b NUMBER CONSTRAINT ch_pk PRIMARY KEY, a_b NUMBER CONSTRAINT ch_fk REFERENCES a (b));]'); END;
+< ok 1 0
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
 |
 > exec
 | BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE p (b NUMBER CONSTRAINT p_pk PRIMARY KEY, d NUMBER);
@@ -24531,6 +25533,16 @@
 < ok 1 0
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE p (b NUMBER CONSTRAINT p_pk PRIMARY KEY, d NUMBER);
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b NUMBER CONSTRAINT ch_pk PRIMARY KEY, a_b NUMBER CONSTRAINT ch_fk REFERENCES a (b));]'); END;
+< ok 1 0
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -25648,6 +26660,16 @@
 < ok 1 0
 > exec
 | CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE p (b NUMBER CONSTRAINT p_pk PRIMARY KEY, d NUMBER);
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER, CONSTRAINT a FOREIGN KEY (a) REFERENCES p (b), CONSTRAINT a_chk CHECK (d > 0));
+| CREATE TABLE ch (b NUMBER CONSTRAINT ch_pk PRIMARY KEY, a_b NUMBER CONSTRAINT ch_fk REFERENCES a (b));]'); END;
+< ok 1 0
+> exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
 < error
 | 957 ORA-00957: duplicate column name
 |
