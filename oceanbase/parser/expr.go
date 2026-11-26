@@ -1229,7 +1229,9 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 				}
 				fc.Quantifier = q
 			}
-			if upperName == "GROUP_CONCAT" {
+			// LISTAGG's arm takes GROUP_CONCAT's argument list, ORDER BY and
+			// SEPARATOR included (sql_parser_mysql_mode.y:2302).
+			if upperName == "GROUP_CONCAT" || upperName == "LISTAGG" {
 				return p.parseGroupConcatFunc(fc)
 			}
 			if err := p.parseAggArgs(fc, spec); err != nil {
@@ -2362,17 +2364,19 @@ func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, e
 		fc.OrderBy = orderBy
 	}
 
-	// SEPARATOR
+	// SEPARATOR STRING_VALUE (opt_separator, sql_parser_mysql_mode.y:3975),
+	// which the lexer folds adjacent quoted strings into. No other expression
+	// stands for it: OceanBase 4.3.5 answers 1064 for SEPARATOR 1, N's',
+	// _utf8mb4's', 0x41, ? and @v.
 	if p.cur.Type == kwSEPARATOR {
 		p.advance()
-		sep, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		if sep == nil {
+		if p.cur.Type != tokSCONST {
 			return nil, p.syntaxErrorAtCur()
 		}
-		fc.Separator = sep
+		strTok := p.advance()
+		lit := &nodes.StringLit{Loc: nodes.Loc{Start: strTok.Loc, End: strTok.End}, Value: strTok.Str}
+		p.foldAdjacentStringLits(lit)
+		fc.Separator = lit
 	}
 
 	if _, err := p.expect(')'); err != nil {

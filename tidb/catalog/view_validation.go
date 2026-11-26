@@ -273,6 +273,7 @@ var tidbBuiltinArity = map[string]builtinArity{
 	"right":       {2, 2},
 	"second":      {1, 1},
 	"time":        {1, 1},
+	"user":        {0, 0},
 	"timestamp":   {1, 2},
 	"truncate":    {2, 2},
 	"week":        {1, 2},
@@ -440,6 +441,17 @@ func checkSelectBlockWindows(block *nodes.SelectStmt, source string) error {
 						}
 						return false
 					}
+				case "LEAD", "LAG":
+					// The offset is a NumLiteral (parser.y OptLeadLagInfo), and
+					// a float or decimal one is refused as NTILE's is.
+					if len(fc.Args) >= 2 && isFloatLiteral(fc.Args[1]) {
+						err = &Error{
+							Code:     ErrWrongArguments,
+							SQLState: sqlState(ErrWrongArguments),
+							Message:  "Incorrect arguments to " + strings.ToLower(fc.Name),
+						}
+						return false
+					}
 				}
 			}
 			if werr := checkWindowDef(fc.Over, defined); werr != nil {
@@ -564,7 +576,28 @@ func checkWindowDef(wd *nodes.WindowDef, defined map[string]bool) error {
 			Message:  fmt.Sprintf("Window '%s': INTERVAL can only be used with RANGE frames.", winName),
 		}
 	}
+	// A ROWS frame counts rows, so a float or decimal bound is 3586.
+	if f.Type == nodes.FrameRows && (isFloatBound(f.Start) || isFloatBound(f.End)) {
+		return &Error{
+			Code:     ErrWindowFrameIllegal,
+			SQLState: sqlState(ErrWindowFrameIllegal),
+			Message:  fmt.Sprintf("Window '%s': frame start or end is negative, NULL or of non-integral type", winName),
+		}
+	}
 	return nil
+}
+
+// isFloatBound reports whether a frame bound's offset is a float or decimal
+// literal.
+func isFloatBound(b *nodes.WindowFrameBound) bool {
+	return b != nil && isFloatLiteral(b.Offset)
+}
+
+// isFloatLiteral reports whether expr is a float or decimal literal, which a
+// parser.y NumLiteral writes as floatLit or decLit.
+func isFloatLiteral(expr nodes.ExprNode) bool {
+	_, ok := expr.(*nodes.FloatLit)
+	return ok
 }
 
 func isIntervalBound(b *nodes.WindowFrameBound) bool {

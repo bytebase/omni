@@ -86,23 +86,12 @@ func (p *Parser) parseCreateIndex(create Token, orReplace bool, scope string) (a
 	}
 	stmt.Table = table
 
-	// as_alias? index_unnest_expression_list? — the table alias + UNNEST list are
-	// rare BigQuery index forms over array columns. They are not in the
-	// Spanner-authoritative set and add no query-span value here; recognized only
-	// to the extent the key list below disambiguates. We do NOT consume an alias /
-	// UNNEST list (the common case has neither and the key list '(' follows the
-	// table directly); if present they would surface as a syntax error at the key
-	// list, which is acceptable for this core node (the dialect index nodes own
-	// the exotic array-index forms).
-
-	// as_alias? (BigQuery index table alias before key list).
-	if p.cur.Type != int('(') {
-		if alias, ok, err := p.tryParseTableAlias(); err != nil {
-			return nil, err
-		} else if ok {
-			stmt.TableAlias = alias
-		}
+	// as_alias? opt_index_unnest_expression_list (googlesql.tm:2577).
+	alias, unnest, err := p.parseIndexAliasAndUnnest()
+	if err != nil {
+		return nil, err
 	}
+	stmt.TableAlias, stmt.Unnest = alias, unnest
 
 	// index_order_by_and_options: `( column_ordering_and_options_expr, … )` or
 	// `( ALL COLUMNS … )`.
@@ -306,4 +295,59 @@ func (p *Parser) parseIndexInterleave(stmt *ast.CreateIndexStmt) error {
 		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		Message: "syntax error: INTERLEAVE IN is not supported",
 	}
+}
+
+// parseIndexAliasAndUnnest parses what create_index_statement takes between ON
+// <table> and the key list (googlesql.tm:2577): as_alias? and then
+// index_unnest_expression_list, one or more
+// unnest_expression_with_opt_alias_and_offset (googlesql.tm:4476, 8949):
+// `UNNEST(...) [[AS] alias] [WITH OFFSET [[AS] alias]]`. BigQuery's parser
+// takes both on every index type; its analyzer refuses them later.
+func (p *Parser) parseIndexAliasAndUnnest() (string, []*ast.UnnestExpr, error) {
+	alias, err := p.parseIndexAsAlias()
+	if err != nil {
+		return "", nil, err
+	}
+	var list []*ast.UnnestExpr
+	for p.cur.Type == kwUNNEST {
+		start := p.cur.Loc.Start
+		arr, err := p.parseUnnestExpression()
+		if err != nil {
+			return "", nil, err
+		}
+		ue := &ast.UnnestExpr{Array: arr, Loc: ast.Loc{Start: start}}
+		if ue.Alias, err = p.parseIndexAsAlias(); err != nil {
+			return "", nil, err
+		}
+		if p.cur.Type == kwWITH && p.peekNext().Type == kwOFFSET {
+			p.advance() // WITH
+			p.advance() // OFFSET
+			ue.WithOffset = true
+			if ue.WithOffsetAlias, err = p.parseIndexAsAlias(); err != nil {
+				return "", nil, err
+			}
+		}
+		ue.Loc.End = p.prev.Loc.End
+		list = append(list, ue)
+	}
+	return alias, list, nil
+}
+
+// parseIndexAsAlias parses an optional as_alias, `[AS] identifier`
+// (googlesql.tm:6026), where nothing but the index's key list, an UNNEST or
+// WITH OFFSET can follow: unlike a table source's alias, PIVOT and UNPIVOT are
+// names here (BigQuery parses `CREATE INDEX a ON a PIVOT (a)`).
+func (p *Parser) parseIndexAsAlias() (string, error) {
+	if p.cur.Type == kwAS {
+		p.advance() // AS
+		tok, err := p.expectIdentifier()
+		if err != nil {
+			return "", err
+		}
+		return p.identifierText(tok)
+	}
+	if !isIdentifierStart(p.cur.Type) || isExtraReservedIdent(p.cur) {
+		return "", nil
+	}
+	return p.identifierText(p.advance())
 }

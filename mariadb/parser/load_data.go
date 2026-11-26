@@ -133,7 +133,10 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	}
 
 	// [ROWS IDENTIFIED BY '<tagname>'], whole: opt_xml_rows_identified_by,
-	// which the grammar gives LOAD DATA as well as LOAD XML.
+	// which the grammar gives LOAD DATA as well as LOAD XML. The tag is a
+	// text_string, so a hex or bit literal spells it too.
+	//
+	// Ref: opt_xml_rows_identified_by in MariaDB 11.8 sql/sql_yacc.yy:15412.
 	if p.cur.Type == kwROWS {
 		p.advance()
 		for _, kw := range []int{kwIDENTIFIED, kwBY} {
@@ -141,10 +144,11 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 				return nil, err
 			}
 		}
-		if p.cur.Type != tokSCONST {
-			return nil, p.syntaxErrorAtCur()
+		tag, err := p.parseFieldTerminator()
+		if err != nil {
+			return nil, err
 		}
-		stmt.RowsIdentifiedBy = p.advance().Str
+		stmt.RowsIdentifiedBy = tag
 	}
 
 	// [{FIELDS | COLUMNS} ...]

@@ -112,3 +112,19 @@ querySpecification(windowClause)?	(every site)	SqlBaseParser.g4:708 WINDOW
 fromStatementBody(whereClause)?	(every site)	SqlBaseParser.g4:690 a FROM statement's WHERE
 functionTableSubqueryArgument(tableArgumentPartitioning)?	(every site)	SqlBaseParser.g4:987 a table argument's PARTITION BY
 operatorPipeRightSide(windowClause)?	(every site)	SqlBaseParser.g4:1556 a pipe SELECT's WINDOW
+# Wave 21, second pass: names, arguments and clause choices named at several
+# sites.
+identifierReference	(every alternative)	SqlBaseParser.g4:636 a name or IDENTIFIER(expression)
+identifier	(every alternative)	SqlBaseParser.g4:1489 a strict identifier or a strict non-reserved keyword
+functionArgument	(every alternative)	SqlBaseParser.g4:1098 an expression or a named argument
+groupingSet	(every alternative)	SqlBaseParser.g4:828 a parenthesized list or an expression
+unitInUnitToUnit	(every alternative)	SqlBaseParser.g4:1261 an interval's from and to unit
+joinType	(every alternative)	SqlBaseParser.g4:918 INNER, CROSS, LEFT, RIGHT, FULL, SEMI or ANTI, after NATURAL too
+windowSpec	(every alternative)	SqlBaseParser.g4:1435 a window name or a window definition
+relationPrimary	(every alternative)	SqlBaseParser.g4:969 a table, a subquery, VALUES, a table function or a parenthesized relation
+functionTableSubqueryArgument	(every alternative)	SqlBaseParser.g4:986 TABLE name, TABLE(name) or TABLE(query)
+aggregationClause	(every alternative)	SqlBaseParser.g4:804 GROUP BY a grouping list or with ROLLUP, CUBE or GROUPING SETS
+unsupportedHiveNativeCommands(partitionSpec)?	(every site)	SqlBaseParser.g4:375 PARTITION (...) in an unsupported Hive command
+statement((FROM|IN)_multipartIdentifier)?	(every site)	SqlBaseParser.g4:222 FROM or IN a namespace
+querySpecification(fromClause)?	(every site)	SqlBaseParser.g4:703 FROM
+transformClause(rowFormat)?	(every site)	SqlBaseParser.g4:720 TRANSFORM's ROW FORMAT

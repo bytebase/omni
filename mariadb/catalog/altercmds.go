@@ -33,6 +33,18 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		return err
 	}
 	tbl := db.Tables[key]
+	// A column too long for a VARCHAR (1074) is refused once the table is
+	// found, before any command runs: mariadb:11.8.8 answers it ahead of a
+	// duplicate column (1060) and of a sequence's fixed structure (4086).
+	if seq := db.Sequences[key]; tbl != nil || seq != nil {
+		charset := db.Charset
+		if tbl != nil {
+			charset = tbl.Charset
+		}
+		if err := c.checkOversizeVarchars(alteredColumnDefs(stmt.Commands), charset); err != nil {
+			return err
+		}
+	}
 	if tbl == nil {
 		if seq := db.Sequences[key]; seq != nil {
 			return c.alterSequenceTable(db, seq, key, stmt)
@@ -2258,15 +2270,15 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 	case nodes.ConstrFulltextIndex:
+		// The key's columns are checked before its name: mariadb:11.8.8
+		// answers 1283 for a FULLTEXT key on an INT column ahead of 1061 for a
+		// name another key has.
 		idxName := con.Name
 		if idxName == "" && len(cols) > 0 {
 			idxName = allocIndexName(tbl, cols[0])
 		} else if idxName != "" {
 			if err := validateNonPrimaryIndexName(idxName); err != nil {
 				return err
-			}
-			if indexNameExists(tbl, idxName) {
-				return errDupKeyName(idxName)
 			}
 		}
 		idxCols := buildIndexColumns(con)
@@ -2275,6 +2287,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		}
 		if err := validateFulltextColumns(tbl, idxCols); err != nil {
 			return err
+		}
+		if con.Name != "" && indexNameExists(tbl, idxName) {
+			return errDupKeyName(idxName)
 		}
 		if err := validateNoRepeatedKeyColumns(idxCols); err != nil {
 			return err
@@ -2321,6 +2336,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		tbl.Indexes = append(tbl.Indexes, vecIdx)
 
 	case nodes.ConstrSpatialIndex:
+		// The key's columns are checked before its name, as for FULLTEXT:
+		// mariadb:11.8.8 answers 1210 for a SPATIAL key on an INT column ahead
+		// of 1061.
 		idxName := con.Name
 		if idxName == "" && len(cols) > 0 {
 			idxName = allocIndexName(tbl, cols[0])
@@ -2328,13 +2346,13 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			if err := validateNonPrimaryIndexName(idxName); err != nil {
 				return err
 			}
-			if indexNameExists(tbl, idxName) {
-				return errDupKeyName(idxName)
-			}
 		}
 		idxCols := buildIndexColumns(con)
 		if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
 			return err
+		}
+		if con.Name != "" && indexNameExists(tbl, idxName) {
+			return errDupKeyName(idxName)
 		}
 		if err := validateNoRepeatedKeyColumns(idxCols); err != nil {
 			return err
@@ -4329,4 +4347,20 @@ func addNeedsRollback(cmd *nodes.AlterTableCmd) bool {
 func columnNeedsRollback(col *nodes.ColumnDef) bool {
 	return len(col.Constraints) > 0 || col.DefaultValue != nil ||
 		(col.Generated != nil && col.Generated.RowBound == nodes.RowBoundNone)
+}
+
+// alteredColumnDefs returns the column definitions an ALTER TABLE's commands
+// add, modify or change, in order.
+func alteredColumnDefs(cmds []*nodes.AlterTableCmd) []*nodes.ColumnDef {
+	var defs []*nodes.ColumnDef
+	for _, cmd := range cmds {
+		if cmd == nil {
+			continue
+		}
+		if cmd.Column != nil {
+			defs = append(defs, cmd.Column)
+		}
+		defs = append(defs, cmd.Columns...)
+	}
+	return defs
 }

@@ -1274,6 +1274,9 @@ var funcNames = map[string]string{
 	"STDDEV":   "STDDEV_POP",
 	"VARIANCE": "VAR_POP",
 	"CHAR":     "CHAR_FUNC",
+	// PASSWORD(s) is ast.PasswordFunc, "password_func": a view stores
+	// PASSWORD_FUNC(s) (v8.5.5).
+	"PASSWORD": "PASSWORD_FUNC",
 }
 
 func restoreFuncCall(b *restorer, n *ast.FuncCallExpr) {

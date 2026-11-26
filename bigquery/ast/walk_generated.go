@@ -255,6 +255,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Table != nil {
 			Walk(v, n.Table)
 		}
+		for _, c := range n.Unnest {
+			Walk(v, c)
+		}
 		for _, c := range n.Keys {
 			Walk(v, c)
 		}
@@ -1138,6 +1141,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.Table != nil {
 			Walk(v, n.Table)
+		}
+		for _, c := range n.Unnest {
+			Walk(v, c)
 		}
 		for _, c := range n.Keys {
 			Walk(v, c)

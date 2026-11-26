@@ -15,12 +15,13 @@ run with no container, credentials, or network.
 
 | Rows | Total | Agree | Only Spark accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 2,610 | 2,610 | 0 | 0 |
-| Near-misses | 4,652 | 4,652 | 0 | 0 |
+| One per alternative | 2,772 | 2,772 | 0 | 0 |
+| Near-misses | 5,047 | 5,046 | 1 | 0 |
+| `suite:keyword-choices` | 25 | 25 | 0 | 0 |
 | `suite:keywords` | 45 | 45 | 0 | 0 |
 | `suite:overcorrections` | 11 | 11 | 0 | 0 |
 | `suite:spark-astbuilder` | 262 | 262 | 0 | 0 |
-| **All** | **7,580** | **7,580** | **0** | **0** |
+| **All** | **8,162** | **8,161** | **1** | **0** |
 
 - **The judge** is the pinned official `apache/spark:4.0.5` container image
   (`../../testdata/pins.tsv`, role `default`, digest
@@ -31,7 +32,7 @@ run with no container, credentials, or network.
   `SqlBaseLexer`/`SqlBaseParser` and Spark's full `AstBuilder` /
   `DataTypeAstBuilder` parse-time validation without executing queries or
   requiring a catalog.
-- **The grammar** used to generate the 7,262 baseline rows is
+- **The grammar** used to generate the 7,819 baseline rows is
   `../../testdata/SqlBaseParser.g4` with `../../testdata/SqlBaseLexer.g4`
   (`sql/api/src/main/antlr4/org/apache/spark/sql/catalyst/parser/` in
   [`apache/spark`](https://github.com/apache/spark), `v4.0.5`, Apache-2.0 in
@@ -80,13 +81,20 @@ go test ./databricks/parser/ -run '^TestCompatibility$' -update-compat
 
 ## Who judges what
 
-- **Live Spark 4.0.5 engine judge (`SourceEngine`), 7,580 rows.** All 7,262
-  grammar-generated rows plus 318 hand-curated `suite:` rows
-  (`suite:keywords`, `suite:overcorrections`, `suite:spark-astbuilder`) are
+- **Live Spark 4.0.5 engine judge (`SourceEngine`), 8,162 rows.** All 7,819
+  grammar-generated rows plus 343 hand-curated `suite:` rows
+  (`suite:keyword-choices`, `suite:keywords`, `suite:overcorrections`,
+  `suite:spark-astbuilder`) are
   judged by `apache/spark:4.0.5`'s `SparkSession.sessionState.sqlParser.parsePlan`
   with `spark.sql.scripting.enabled=true` and replayed offline in CI.
-- **Agreement: 7,580 / 7,580 (100.00%)** — 0 `judge-only` rows and 0 `omni-only`
-  rows.
+- **Agreement: 8,161 / 8,162 (99.99%)** — 0 `omni-only` rows and 1 `judge-only`
+  row, `FROM IDENTIFIER(a => TABLE(IDENTIFIER()))`. `IDENTIFIER()` with no
+  argument is a call to a function named IDENTIFIER by `functionName`'s
+  `identFunc` alternative (SqlBaseParser.g4:1465), yet Spark refuses it
+  (`SELECT IDENTIFIER()`, `SELECT f(1, IDENTIFIER())`) except after an earlier
+  `IDENTIFIER(` in the same statement (`SELECT IDENTIFIER(1) + IDENTIFIER()`
+  parses). That is ANTLR's prediction state within one parse, not a grammar
+  rule, so omni refuses `IDENTIFIER()` everywhere.
 
 ## Databricks SQL dialect deltas beyond Apache Spark 4.0.5
 

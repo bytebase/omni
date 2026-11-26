@@ -420,10 +420,14 @@ ok:05dfa2a7669b	ok:05dfa2a7669b	engine	one_table@column	window_function/COUNT_(_
 5929	5929	engine	one_table@column	window_function/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT GROUP_CONCAT(a) OVER a
 1054	1054	engine	one_table@column	window_function/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT GROUP_CONCAT(a) a
 5929	5929	engine	one_table@column	window_function/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT GROUP_CONCAT(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause+opt_order_by	CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a) OVER a
+5929	5929	engine	one_table@column	window_function/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause+opt_separator	CREATE VIEW _v AS SELECT GROUP_CONCAT(a SEPARATOR 's') OVER a
 5929	5929	engine	one_table@column	window_function/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause+opt_distinct/DISTINCT	CREATE VIEW _v AS SELECT GROUP_CONCAT(DISTINCT a) OVER a
 5929	5929	engine	one_table@column	window_function/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause+opt_distinct/UNIQUE	CREATE VIEW _v AS SELECT GROUP_CONCAT(UNIQUE a) OVER a
 5929	5929	engine	one_table@column	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT LISTAGG(a) OVER a
 5929	5929	engine	one_table@column	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT LISTAGG(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause+opt_order_by	CREATE VIEW _v AS SELECT LISTAGG(a ORDER BY a) OVER a
+5929	5929	engine	one_table@column	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause+opt_separator	CREATE VIEW _v AS SELECT LISTAGG(a SEPARATOR 's') OVER a
 5929	5929	engine	one_table@column	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause+opt_distinct/DISTINCT	CREATE VIEW _v AS SELECT LISTAGG(DISTINCT a) OVER a
 5929	5929	engine	one_table@column	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause+opt_distinct/UNIQUE	CREATE VIEW _v AS SELECT LISTAGG(UNIQUE a) OVER a
 5929	5929	engine	one_table@column	window_function/DENSE_RANK_(_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT DENSE_RANK() OVER a
@@ -481,6 +485,7 @@ ok:ad2624615090	ok:ad2624615090	engine	one_table@column	new_generalized_window_c
 1054	1054	engine	one_table@column	opt_named_windows/WINDOW_named_windows	CREATE VIEW _v AS SELECT a WINDOW a AS()
 1235	1235	engine	one_table@column	named_windows/named_windows_,_named_window	CREATE VIEW _v AS SELECT a WINDOW a AS(), a AS()
 5929	5929	engine	one_table@column	generalized_window_clause/opt_partition_by_opt_order_by_opt_win_window!insert	CREATE VIEW _v AS SELECT RANK() OVER(zzz)
+1054	1054	engine	one_table@column	generalized_window_clause/opt_partition_by_opt_order_by_opt_win_window+opt_order_by	CREATE VIEW _v AS SELECT RANK() OVER(ORDER BY a)
 1054	1054	engine	one_table@column	opt_partition_by/PARTITION_BY_expr_list	CREATE VIEW _v AS SELECT RANK() OVER(PARTITION BY a)
 ok:88a578707f3f	ok:88a578707f3f	engine	one_table@column	win_rows_or_range/ROWS	CREATE VIEW _v AS SELECT RANK() OVER(ROWS CURRENT ROW)
 ok:f85ca87933a8	ok:f85ca87933a8	engine	one_table@column	win_rows_or_range/RANGE	CREATE VIEW _v AS SELECT RANK() OVER(RANGE CURRENT ROW)
@@ -606,6 +611,7 @@ ok:8b3ee4b75227	ok:8b3ee4b75227	engine	one_table@column	func_expr/COUNT_(_opt_al
 1054	1054	engine	one_table@column	func_expr/GROUPING_ID_(_expr_list_)!insert	CREATE VIEW _v AS SELECT GROUPING_ID(a) zzz
 1054	1054	engine	one_table@column	func_expr/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)	CREATE VIEW _v AS SELECT GROUP_CONCAT(a)
 1054	1054	engine	one_table@column	func_expr/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)!insert	CREATE VIEW _v AS SELECT GROUP_CONCAT(a) zzz
+1054	1054	engine	one_table@column	func_expr/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)+opt_order_by	CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a)
 1054	1054	engine	one_table@column	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, 's')
 1054	1054	engine	one_table@column	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)!insert	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, 's') zzz
 1054	1054	engine	one_table@column	func_expr/HYBRID_HIST_(_bit_expr_,_INTNUM_)	CREATE VIEW _v AS SELECT HYBRID_HIST(a, 1)
@@ -884,6 +890,8 @@ ok:718c364d30e2	ok:718c364d30e2	engine	one_table@column	cur_time_func/CURTIME_(_
 ok:98cb46ee5eec	ok:98cb46ee5eec	engine	one_table@column	cur_time_func/CURTIME_(_)!insert	CREATE VIEW _v AS SELECT CURTIME() zzz
 ok:585e8629b2d1	ok:585e8629b2d1	engine	one_table@column	cur_time_func/CURTIME_(_INTNUM_)	CREATE VIEW _v AS SELECT CURTIME(1)
 ok:98cb46ee5eec	ok:98cb46ee5eec	engine	one_table@column	cur_time_func/CURTIME_(_INTNUM_)!insert	CREATE VIEW _v AS SELECT CURTIME(1) zzz
+ok:5fe9fc794e0f	ok:5fe9fc794e0f	engine	one_table@column	cur_time_func/CURRENT_TIME_opt_time_func_fsp_i+opt_time_func_fsp_i/(_INTNUM_)	CREATE VIEW _v AS SELECT CURRENT_TIME(1)
+ok:a4a04a4eacf9	ok:a4a04a4eacf9	engine	one_table@column	cur_time_func/CURRENT_TIME_opt_time_func_fsp_i+opt_time_func_fsp_i/(_)	CREATE VIEW _v AS SELECT CURRENT_TIME()
 ok:3f78d384a5de	ok:3f78d384a5de	engine	one_table@column	cur_user_func/CURRENT_USER_(_)	CREATE VIEW _v AS SELECT CURRENT_USER()
 ok:456538aa2bcf	ok:456538aa2bcf	engine	one_table@column	cur_user_func/CURRENT_USER_(_)!insert	CREATE VIEW _v AS SELECT CURRENT_USER() zzz
 1305	1305	engine	one_table@column	cur_user_func/relation_name_._CURRENT_USER_(_)	CREATE VIEW _v AS SELECT a . CURRENT_USER()
@@ -892,7 +900,6 @@ ok:4e748adb8093	ok:4e748adb8093	engine	one_table@column	cur_date_func/CURDATE_(_
 ok:a2db94d1592e	ok:a2db94d1592e	engine	one_table@column	cur_date_func/CURDATE_(_)!insert	CREATE VIEW _v AS SELECT CURDATE() zzz
 ok:ca830a5b34da	ok:ca830a5b34da	engine	one_table@column	cur_date_func/CURRENT_DATE_(_)	CREATE VIEW _v AS SELECT CURRENT_DATE()
 ok:a2db94d1592e	ok:a2db94d1592e	engine	one_table@column	cur_date_func/CURRENT_DATE_(_)!insert	CREATE VIEW _v AS SELECT CURRENT_DATE() zzz
-ok:a4a04a4eacf9	ok:a4a04a4eacf9	engine	one_table@column	cur_date_func/CURRENT_DATE_(_)!swap	CREATE VIEW _v AS SELECT CURRENT_TIME()
 ok:2d885c5612f7	ok:2d885c5612f7	engine	one_table@column	opt_time_func_fsp_i/(_INTNUM_)	CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP(1)
 ok:333f4f7d3d38	ok:333f4f7d3d38	engine	one_table@column	opt_time_func_fsp_i/(_INTNUM_)!insert	CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP(1) zzz
 ok:6a26aecc8178	ok:6a26aecc8178	engine	one_table@column	opt_time_func_fsp_i/(_)	CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP()
@@ -962,20 +969,31 @@ ok:333f4f7d3d38	ok:333f4f7d3d38	engine	one_table@column	opt_time_func_fsp_i/(_)!
 1109	1109	engine	one_table@column	column_definition_ref/relation_name_._relation_name_._column_name	CREATE VIEW _v AS SELECT a . a . a ->> 's'
 1109	1109	engine	one_table@column	column_definition_ref/id_dot_id	CREATE VIEW _v AS SELECT a.a ->> 's'
 1109	1109	engine	one_table@column	column_definition_ref/id_dot_id_dot_id	CREATE VIEW _v AS SELECT a.a.a ->> 's'
+1054	1054	engine	one_table@column	cast_data_type/BINARY_opt_string_length_i_v2+opt_string_length_i_v2	CREATE VIEW _v AS SELECT CAST(a AS BINARY(1))
 1054	1054	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_opt_binary	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER)
+1054	1054	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_opt_binary+opt_string_length_i_v2	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER(1))
 1054	1054	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_opt_binary+opt_binary	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER BINARY)
 1115	1115	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_charset_key_charset_name	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER CHARSET a)
+1115	1115	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_charset_key_charset_name+opt_string_length_i_v2	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER(1) CHARSET a)
 1115	1115	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_charset_key_charset_name+charset_key/CHARACTER_SET	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER CHARACTER SET a)
 1115	1115	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_charset_key_charset_name+charset_name/STRING_VALUE	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER CHARSET 's')
 1054	1054	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_charset_key_charset_name+charset_name/BINARY	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER CHARSET BINARY)
 1054	1054	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_charset_key_charset_name+charset_name/ASCII	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER CHARSET ASCII)
 1054	1054	engine	one_table@column	cast_data_type/cast_datetime_type_i_opt_datetime_fsp_i	CREATE VIEW _v AS SELECT CAST(a AS DATETIME)
+1054	1054	engine	one_table@column	cast_data_type/cast_datetime_type_i_opt_datetime_fsp_i+opt_datetime_fsp_i	CREATE VIEW _v AS SELECT CAST(a AS DATETIME(1))
 1054	1054	engine	one_table@column	cast_data_type/NUMBER_opt_number_precision	CREATE VIEW _v AS SELECT CAST(a AS NUMBER)
+1054	1054	engine	one_table@column	cast_data_type/NUMBER_opt_number_precision+opt_number_precision/(_INTNUM_,_INTNUM_)	CREATE VIEW _v AS SELECT CAST(a AS NUMBER(1, 1))
+1054	1054	engine	one_table@column	cast_data_type/NUMBER_opt_number_precision+opt_number_precision/(_INTNUM_)	CREATE VIEW _v AS SELECT CAST(a AS NUMBER(1))
 1054	1054	engine	one_table@column	cast_data_type/DECIMAL_opt_number_precision	CREATE VIEW _v AS SELECT CAST(a AS DECIMAL)
+1054	1054	engine	one_table@column	cast_data_type/DECIMAL_opt_number_precision+opt_number_precision/(_INTNUM_,_INTNUM_)	CREATE VIEW _v AS SELECT CAST(a AS DECIMAL(1, 1))
+1054	1054	engine	one_table@column	cast_data_type/DECIMAL_opt_number_precision+opt_number_precision/(_INTNUM_)	CREATE VIEW _v AS SELECT CAST(a AS DECIMAL(1))
 1054	1054	engine	one_table@column	cast_data_type/FIXED_opt_number_precision	CREATE VIEW _v AS SELECT CAST(a AS FIXED)
+1054	1054	engine	one_table@column	cast_data_type/FIXED_opt_number_precision+opt_number_precision/(_INTNUM_,_INTNUM_)	CREATE VIEW _v AS SELECT CAST(a AS FIXED(1, 1))
+1054	1054	engine	one_table@column	cast_data_type/FIXED_opt_number_precision+opt_number_precision/(_INTNUM_)	CREATE VIEW _v AS SELECT CAST(a AS FIXED(1))
 1054	1054	engine	one_table@column	cast_data_type/SIGNED_opt_integer	CREATE VIEW _v AS SELECT CAST(a AS SIGNED)
 1054	1054	engine	one_table@column	cast_data_type/INTEGER	CREATE VIEW _v AS SELECT CAST(a AS INTEGER)
 1054	1054	engine	one_table@column	cast_data_type/UNSIGNED_opt_integer	CREATE VIEW _v AS SELECT CAST(a AS UNSIGNED)
+1054	1054	engine	one_table@column	cast_data_type/UNSIGNED_opt_integer+opt_integer	CREATE VIEW _v AS SELECT CAST(a AS UNSIGNED INTEGER)
 1054	1054	engine	one_table@column	cast_data_type/BIGINT	CREATE VIEW _v AS SELECT CAST(a AS BIGINT)
 1054	1054	engine	one_table@column	cast_data_type/DOUBLE	CREATE VIEW _v AS SELECT CAST(a AS DOUBLE)
 1054	1054	engine	one_table@column	cast_data_type/FLOAT_opt_cast_float_precision	CREATE VIEW _v AS SELECT CAST(a AS FLOAT)
@@ -990,7 +1008,9 @@ ok:333f4f7d3d38	ok:333f4f7d3d38	engine	one_table@column	opt_time_func_fsp_i/(_)!
 1054	1054	engine	one_table@column	cast_data_type/geometry_collection+geometry_collection/GEOMCOLLECTION	CREATE VIEW _v AS SELECT CAST(a AS GEOMCOLLECTION)
 1054	1054	engine	one_table@column	cast_data_type/ROARINGBITMAP	CREATE VIEW _v AS SELECT CAST(a AS ROARINGBITMAP)
 1054	1054	engine	one_table@column	cast_data_type/NCHAR_opt_string_length_i_v2	CREATE VIEW _v AS SELECT CAST(a AS NCHAR)
+1054	1054	engine	one_table@column	cast_data_type/NCHAR_opt_string_length_i_v2+opt_string_length_i_v2	CREATE VIEW _v AS SELECT CAST(a AS NCHAR(1))
 1054	1054	engine	one_table@column	cast_data_type/NATIONAL_CHARACTER_opt_string_length_i_v2	CREATE VIEW _v AS SELECT CAST(a AS NATIONAL CHARACTER)
+1054	1054	engine	one_table@column	cast_data_type/NATIONAL_CHARACTER_opt_string_length_i_v2+opt_string_length_i_v2	CREATE VIEW _v AS SELECT CAST(a AS NATIONAL CHARACTER(1))
 1054	1054	engine	one_table@column	cast_data_type/ARRAY_(_data_type_)	CREATE VIEW _v AS SELECT CAST(a AS ARRAY(TINYINT))
 1054	1054	engine	one_table@column	cast_data_type/ARRAY_COMP_LT_data_type_COMP_GT	CREATE VIEW _v AS SELECT CAST(a AS ARRAY < TINYINT >)
 1054	1054	engine	one_table@column	cast_data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	CREATE VIEW _v AS SELECT CAST(a AS ARRAY < ARRAY < TINYINT >>)
@@ -1038,6 +1058,7 @@ ok:333f4f7d3d38	ok:333f4f7d3d38	engine	one_table@column	opt_time_func_fsp_i/(_)!
 1054	1054	engine	one_table@column	opt_lock_type/opt_for_update	CREATE VIEW _v AS SELECT a FOR UPDATE
 1054	1054	engine	one_table@column	opt_lock_type/opt_lock_in_share_mode	CREATE VIEW _v AS SELECT a LOCK IN SHARE MODE
 1054	1054	engine	one_table@column	no_table_select/select_with_opt_hint_opt_query_expression_option_list_select_expr_list_into_opt_FROM_DUAL_opt_where_opt_groupby_opt_having_opt_named_windows	CREATE VIEW _v AS SELECT a FROM DUAL
+1054	1054	engine	one_table@column	no_table_select/select_with_opt_hint_opt_query_expression_option_list_select_expr_list_into_opt_FROM_DUAL_opt_where_opt_groupby_opt_having_opt_named_windows+opt_where	CREATE VIEW _v AS SELECT a FROM DUAL WHERE a
 1054	1054	engine	one_table@column	select_clause/no_table_select_with_order_and_limit	CREATE VIEW _v AS SELECT a LIMIT 1
 ok:9a10873b7d74	ok:9a10873b7d74	engine	one_table@column	select_clause/simple_select	CREATE VIEW _v AS SELECT a FROM a
 ok:eaba38ee5c30	ok:eaba38ee5c30	engine	one_table@column	select_clause/simple_select!insert	CREATE VIEW _v AS SELECT a FROM a zzz
@@ -1045,6 +1066,7 @@ ok:f08bee1b8861	ok:f08bee1b8861	engine	one_table@column	select_clause/simple_sel
 1054	1054	engine	one_table@column	select_clause/simple_select_with_order_and_limit!drop-3	CREATE VIEW _v AS SELECT a a LIMIT 1
 3942	3942	engine	one_table@column	select_clause/table_values_clause_with_order_by_and_limit	CREATE VIEW _v AS VALUES ROW() LIMIT 1
 1054	1054	engine	one_table@column	select_clause_set_with_order_and_limit/select_clause_set_order_by	CREATE VIEW _v AS SELECT a UNION SELECT a ORDER BY a
+1054	1054	engine	one_table@column	select_clause_set_with_order_and_limit/select_clause_set_opt_order_by_limit_clause+opt_order_by	CREATE VIEW _v AS SELECT a UNION SELECT a ORDER BY a LIMIT 1
 1054	1054	engine	one_table@column	select_clause_set/select_clause_set_set_type_select_clause_set_body	CREATE VIEW _v AS SELECT a UNION SELECT a UNION SELECT a
 1054	1054	engine	one_table@column	select_clause_set/select_clause_set_set_type_select_clause_set_body!insert	CREATE VIEW _v AS SELECT a UNION SELECT a UNION SELECT a zzz
 1054	1054	engine	one_table@column	select_clause_set/select_clause_set_set_type_select_clause_set_body+set_type/UNION_ALL	CREATE VIEW _v AS SELECT a UNION SELECT a UNION ALL SELECT a
@@ -1065,16 +1087,19 @@ ok:f08bee1b8861	ok:f08bee1b8861	engine	one_table@column	select_clause/simple_sel
 1054	1054	engine	one_table@column	set_type/EXCEPT	CREATE VIEW _v AS SELECT a EXCEPT SELECT a
 1054	1054	engine	one_table@column	set_type/MINUS	CREATE VIEW _v AS SELECT a MINUS SELECT a
 1054	1054	engine	one_table@column	no_table_select_with_order_and_limit/no_table_select_order_by	CREATE VIEW _v AS SELECT a ORDER BY a
+1054	1054	engine	one_table@column	no_table_select_with_order_and_limit/no_table_select_opt_order_by_limit_clause+opt_order_by	CREATE VIEW _v AS SELECT a ORDER BY a LIMIT 1
 1235	1235	engine	one_table@column	opt_approx/APPROX	CREATE VIEW _v AS SELECT a FROM a ORDER BY a APPROX LIMIT 1
-ok:3e1787ab4bb4	ok:3e1787ab4bb4	engine	one_table@column	opt_approx/APPROX!drop-1	CREATE VIEW _v AS SELECT a FROM a ORDER BY a LIMIT 1
 1235	1235	engine	one_table@column	opt_approx/APPROXIMATE	CREATE VIEW _v AS SELECT a FROM a ORDER BY a APPROXIMATE LIMIT 1
 1235	1235	engine	one_table@column	opt_with_vector_index_parameters/PARAMETERS_(_vec_index_params_)	CREATE VIEW _v AS SELECT a FROM a ORDER BY a APPROX LIMIT 1 PARAMETERS(a = 1)
 ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order_and_limit/simple_select_order_by	CREATE VIEW _v AS SELECT a FROM a ORDER BY a
 1054	1054	engine	one_table@column	simple_select_with_order_and_limit/simple_select_order_by!drop-3	CREATE VIEW _v AS SELECT a a ORDER BY a
+ok:3e1787ab4bb4	ok:3e1787ab4bb4	engine	one_table@column	simple_select_with_order_and_limit/simple_select_opt_order_by_limit_clause+opt_order_by	CREATE VIEW _v AS SELECT a FROM a ORDER BY a LIMIT 1
 1054	1054	engine	one_table@column	simple_select_with_order_and_limit/simple_select_order_by_opt_approx_limit_clause_opt_with_vector_index_parameters!drop-7	CREATE VIEW _v AS SELECT a FROM a ORDER BY APPROX LIMIT 1
 1054	1054	engine	one_table@column	select_with_opt_hint/SELECT!insert	CREATE VIEW _v AS SELECT zzz a
 1054	1054	engine	one_table@column	select_with_opt_hint/SELECT_HINT_BEGIN_hint_list_with_end	CREATE VIEW _v AS SELECT /*+ */ a
 1054	1054	engine	one_table@column	select_with_opt_hint/SELECT_HINT_BEGIN_hint_list_with_end!insert	CREATE VIEW _v AS SELECT /*+ */ zzz a
+ok:6e4a0efc882d	ok:6e4a0efc882d	engine	one_table@column	simple_select/select_with_opt_hint_opt_query_expression_option_list_select_expr_list_into_opt_FROM_from_list_opt_where_opt_groupby_opt_having_opt_named_windows+opt_where	CREATE VIEW _v AS SELECT a FROM a WHERE a
+ok:99a4b2110be5	ok:99a4b2110be5	engine	one_table@column	simple_select/select_with_opt_hint_opt_query_expression_option_list_select_expr_list_into_opt_FROM_from_list_opt_where_opt_groupby_opt_having_opt_named_windows+opt_where!drop-5	CREATE VIEW _v AS SELECT a FROM a a
 1054	1054	engine	one_table@column	opt_where/WHERE_opt_hint_value_expr	CREATE VIEW _v AS SELECT a WHERE a
 1054	1054	engine	one_table@column	limit_clause/LIMIT_limit_expr_OFFSET_limit_expr	CREATE VIEW _v AS SELECT a LIMIT 1 OFFSET 1
 1054	1054	engine	one_table@column	limit_clause/LIMIT_limit_expr_,_limit_expr	CREATE VIEW _v AS SELECT a LIMIT 1, 1
@@ -1107,6 +1132,7 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	file_option/MAX_FILE_SIZE_opt_equal_mark_file_size_const+opt_equal_mark	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' MAX_FILE_SIZE = 1
 1054	1054	engine	one_table@column	file_option/BUFFER_SIZE_opt_equal_mark_file_size_const	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' BUFFER_SIZE 1
 1054	1054	engine	one_table@column	file_option/BUFFER_SIZE_opt_equal_mark_file_size_const+opt_equal_mark	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' BUFFER_SIZE = 1
+1054	1054	engine	one_table@column	file_option/BUFFER_SIZE_opt_equal_mark_file_size_const+file_size_const/STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' BUFFER_SIZE 's'
 1054	1054	engine	one_table@column	file_partition_opt/PARTITION_BY_bit_expr	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' PARTITION BY a
 1054	1054	engine	one_table@column	file_size_const/STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' MAX_FILE_SIZE 's'
 1054	1054	engine	one_table@column	line_opt/LINES_line_term_list	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' LINES TERMINATED BY 's'
@@ -1250,6 +1276,9 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	global_hint/OPT_PARAM_(_trans_param_name_opt_comma_trans_param_value_)!insert	CREATE VIEW _v AS SELECT /*+ OPT_PARAM('s' 's') zzz */ a
 1054	1054	engine	one_table@column	global_hint/OPT_PARAM_(_trans_param_name_opt_comma_trans_param_value_)!swap	CREATE VIEW _v AS SELECT /*+ OR('s' 's') */ a
 1054	1054	engine	one_table@column	global_hint/OPT_PARAM_(_trans_param_name_opt_comma_trans_param_value_)+opt_comma	CREATE VIEW _v AS SELECT /*+ OPT_PARAM('s', 's') */ a
+1054	1054	engine	one_table@column	global_hint/OPT_PARAM_(_trans_param_name_opt_comma_trans_param_value_)+trans_param_value/INTNUM	CREATE VIEW _v AS SELECT /*+ OPT_PARAM('s' 1) */ a
+1054	1054	engine	one_table@column	global_hint/OPT_PARAM_(_trans_param_name_opt_comma_trans_param_value_)+trans_param_value/NEG_SIGN_INTNUM	CREATE VIEW _v AS SELECT /*+ OPT_PARAM('s' - 1) */ a
+1054	1054	engine	one_table@column	global_hint/OPT_PARAM_(_trans_param_name_opt_comma_trans_param_value_)+trans_param_value/NEG_SIGN_INTNUM!drop-5	CREATE VIEW _v AS SELECT /*+ OPT_PARAM('s' -) */ a
 1054	1054	engine	one_table@column	global_hint/OB_DDL_SCHEMA_VERSION_(_relation_factor_in_hint_opt_comma_INTNUM_)	CREATE VIEW _v AS SELECT /*+ OB_DDL_SCHEMA_VERSION(a 1) */ a
 1054	1054	engine	one_table@column	global_hint/OB_DDL_SCHEMA_VERSION_(_relation_factor_in_hint_opt_comma_INTNUM_)!drop-1	CREATE VIEW _v AS SELECT /*+(a 1) */ a
 1054	1054	engine	one_table@column	global_hint/OB_DDL_SCHEMA_VERSION_(_relation_factor_in_hint_opt_comma_INTNUM_)!drop-2	CREATE VIEW _v AS SELECT /*+ OB_DDL_SCHEMA_VERSION a 1) */ a
@@ -1660,12 +1689,18 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	optimize_hint/INDEX_ASC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!drop-5	CREATE VIEW _v AS SELECT /*+ INDEX_ASC(a a */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_ASC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!insert	CREATE VIEW _v AS SELECT /*+ INDEX_ASC(a a) zzz */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_ASC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)+opt_comma	CREATE VIEW _v AS SELECT /*+ INDEX_ASC(a, a) */ a
+1054	1054	engine	one_table@column	optimize_hint/INDEX_ASC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)+opt_index_prefix/INTNUM	CREATE VIEW _v AS SELECT /*+ INDEX_ASC(a a 1) */ a
+1054	1054	engine	one_table@column	optimize_hint/INDEX_ASC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)+opt_index_prefix/NEG_SIGN_INTNUM	CREATE VIEW _v AS SELECT /*+ INDEX_ASC(a a - 1) */ a
+1054	1054	engine	one_table@column	optimize_hint/INDEX_ASC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)+opt_index_prefix/NEG_SIGN_INTNUM!drop-6	CREATE VIEW _v AS SELECT /*+ INDEX_ASC(a a -) */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_DESC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)	CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a a) */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_DESC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!drop-2	CREATE VIEW _v AS SELECT /*+ INDEX_DESC a a) */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_DESC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!drop-3	CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a) */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_DESC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!drop-5	CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a a */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_DESC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!insert	CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a a) zzz */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_DESC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)+opt_comma	CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a, a) */ a
+1054	1054	engine	one_table@column	optimize_hint/INDEX_DESC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)+opt_index_prefix/INTNUM	CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a a 1) */ a
+1054	1054	engine	one_table@column	optimize_hint/INDEX_DESC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)+opt_index_prefix/NEG_SIGN_INTNUM	CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a a - 1) */ a
+1054	1054	engine	one_table@column	optimize_hint/INDEX_DESC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)+opt_index_prefix/NEG_SIGN_INTNUM!drop-6	CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a a -) */ a
 1054	1054	engine	one_table@column	optimize_hint/NO_INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_)	CREATE VIEW _v AS SELECT /*+ NO_INDEX(a a) */ a
 1054	1054	engine	one_table@column	optimize_hint/NO_INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_)!drop-2	CREATE VIEW _v AS SELECT /*+ NO_INDEX a a) */ a
 1054	1054	engine	one_table@column	optimize_hint/NO_INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_)!drop-3	CREATE VIEW _v AS SELECT /*+ NO_INDEX(a) */ a
@@ -2144,7 +2179,6 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	select_expr_list/select_expr_list_,_projection	CREATE VIEW _v AS SELECT a, a
 1054	1054	engine	one_table@column	select_expr_list/select_expr_list_,_projection!insert	CREATE VIEW _v AS SELECT a, a zzz
 1066	1066	engine	one_table@column	table_references/table_references_,_table_reference	CREATE VIEW _v AS SELECT a FROM a, a
-ok:99a4b2110be5	ok:99a4b2110be5	engine	one_table@column	table_references/table_references_,_table_reference!drop-2	CREATE VIEW _v AS SELECT a FROM a a
 1052	1052	engine	one_table@column	table_references/table_references_,_table_reference!insert	CREATE VIEW _v AS SELECT a FROM a, a zzz
 1066	1066	engine	one_table@column	table_reference/joined_table	CREATE VIEW _v AS SELECT a FROM a JOIN a
 1052	1052	engine	one_table@column	table_reference/joined_table!insert	CREATE VIEW _v AS SELECT a FROM a JOIN a zzz
@@ -2184,6 +2218,7 @@ ok:9a10873b7d74	ok:9a10873b7d74	engine	one_table@column	table_factor/(_table_ref
 1054	1054	engine	one_table@column	relation_factor_in_hint_list/relation_factor_in_hint!insert	CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY((a zzz)) */ a
 1054	1054	engine	one_table@column	relation_factor_in_hint_list/relation_factor_in_hint_list_relation_sep_option_relation_factor_in_hint	CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY((a a)) */ a
 1054	1054	engine	one_table@column	relation_factor_in_hint_list/relation_factor_in_hint_list_relation_sep_option_relation_factor_in_hint!insert	CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY((a a zzz)) */ a
+1054	1054	engine	one_table@column	relation_factor_in_hint_list/relation_factor_in_hint_list_relation_sep_option_relation_factor_in_hint+relation_sep_option	CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY((a, a)) */ a
 1054	1054	engine	one_table@column	relation_sep_option/,	CREATE VIEW _v AS SELECT /*+ STAT(1, 1) */ a
 1054	1054	engine	one_table@column	relation_sep_option/,!insert	CREATE VIEW _v AS SELECT /*+ STAT(1, zzz 1) */ a
 1054	1054	engine	one_table@column	relation_sep_option/%empty	CREATE VIEW _v AS SELECT /*+ STAT(1 1) */ a
@@ -2192,6 +2227,7 @@ ok:9a10873b7d74	ok:9a10873b7d74	engine	one_table@column	table_factor/(_table_ref
 1054	1054	engine	one_table@column	relation_factor_in_mv_hint_list/normal_relation_factor!insert	CREATE VIEW _v AS SELECT /*+ MV_REWRITE(a zzz) */ a
 1054	1054	engine	one_table@column	relation_factor_in_mv_hint_list/relation_factor_in_mv_hint_list_relation_sep_option_normal_relation_factor	CREATE VIEW _v AS SELECT /*+ MV_REWRITE(a a) */ a
 1054	1054	engine	one_table@column	relation_factor_in_mv_hint_list/relation_factor_in_mv_hint_list_relation_sep_option_normal_relation_factor!insert	CREATE VIEW _v AS SELECT /*+ MV_REWRITE(a a zzz) */ a
+1054	1054	engine	one_table@column	relation_factor_in_mv_hint_list/relation_factor_in_mv_hint_list_relation_sep_option_normal_relation_factor+relation_sep_option	CREATE VIEW _v AS SELECT /*+ MV_REWRITE(a, a) */ a
 1054	1054	engine	one_table@column	opt_relation_factor_in_mv_hint_list/%empty!insert	CREATE VIEW _v AS SELECT /*+ MV_REWRITE(zzz) */ a
 1054	1054	engine	one_table@column	opt_relation_factor_in_hint_list/%empty!insert	CREATE VIEW _v AS SELECT /*+ PX_JOIN_FILTER(a zzz) */ a
 1054	1054	engine	one_table@column	opt_relation_factor_in_hint_list/relation_factor_in_hint	CREATE VIEW _v AS SELECT /*+ PX_JOIN_FILTER(a a) */ a
@@ -2215,21 +2251,25 @@ ok:9a10873b7d74	ok:9a10873b7d74	engine	one_table@column	table_factor/(_table_ref
 1054	1054	engine	one_table@column	relation_factor_in_leading_hint_list/(_relation_factor_in_leading_hint_list_)!insert	CREATE VIEW _v AS SELECT /*+ LEADING((a) zzz) */ a
 1054	1054	engine	one_table@column	relation_factor_in_leading_hint_list/relation_factor_in_leading_hint_list_relation_sep_option_relation_factor_in_hint	CREATE VIEW _v AS SELECT /*+ LEADING(a a) */ a
 1054	1054	engine	one_table@column	relation_factor_in_leading_hint_list/relation_factor_in_leading_hint_list_relation_sep_option_relation_factor_in_hint!insert	CREATE VIEW _v AS SELECT /*+ LEADING(a a zzz) */ a
+1054	1054	engine	one_table@column	relation_factor_in_leading_hint_list/relation_factor_in_leading_hint_list_relation_sep_option_relation_factor_in_hint+relation_sep_option	CREATE VIEW _v AS SELECT /*+ LEADING(a, a) */ a
 1054	1054	engine	one_table@column	relation_factor_in_leading_hint_list/relation_factor_in_leading_hint_list_relation_sep_option_(_relation_factor_in_leading_hint_list_)	CREATE VIEW _v AS SELECT /*+ LEADING(a(a)) */ a
 1054	1054	engine	one_table@column	relation_factor_in_leading_hint_list/relation_factor_in_leading_hint_list_relation_sep_option_(_relation_factor_in_leading_hint_list_)!drop-2	CREATE VIEW _v AS SELECT /*+ LEADING(a a)) */ a
 1054	1054	engine	one_table@column	relation_factor_in_leading_hint_list/relation_factor_in_leading_hint_list_relation_sep_option_(_relation_factor_in_leading_hint_list_)!drop-3	CREATE VIEW _v AS SELECT /*+ LEADING(a()) */ a
 1054	1054	engine	one_table@column	relation_factor_in_leading_hint_list/relation_factor_in_leading_hint_list_relation_sep_option_(_relation_factor_in_leading_hint_list_)!drop-4	CREATE VIEW _v AS SELECT /*+ LEADING(a(a) */ a
 1054	1054	engine	one_table@column	relation_factor_in_leading_hint_list/relation_factor_in_leading_hint_list_relation_sep_option_(_relation_factor_in_leading_hint_list_)!insert	CREATE VIEW _v AS SELECT /*+ LEADING(a(a) zzz) */ a
+1054	1054	engine	one_table@column	relation_factor_in_leading_hint_list/relation_factor_in_leading_hint_list_relation_sep_option_(_relation_factor_in_leading_hint_list_)+relation_sep_option	CREATE VIEW _v AS SELECT /*+ LEADING(a,(a)) */ a
 1054	1054	engine	one_table@column	relation_factor_in_use_join_hint_list/(_relation_factor_in_hint_list_)!drop-1	CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY(a)) */ a
 1054	1054	engine	one_table@column	relation_factor_in_use_join_hint_list/(_relation_factor_in_hint_list_)!drop-3	CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY((a) */ a
 1054	1054	engine	one_table@column	relation_factor_in_use_join_hint_list/(_relation_factor_in_hint_list_)!insert	CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY((a) zzz) */ a
 1054	1054	engine	one_table@column	relation_factor_in_use_join_hint_list/relation_factor_in_use_join_hint_list_relation_sep_option_relation_factor_in_hint	CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY(a a) */ a
 1054	1054	engine	one_table@column	relation_factor_in_use_join_hint_list/relation_factor_in_use_join_hint_list_relation_sep_option_relation_factor_in_hint!insert	CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY(a a zzz) */ a
+1054	1054	engine	one_table@column	relation_factor_in_use_join_hint_list/relation_factor_in_use_join_hint_list_relation_sep_option_relation_factor_in_hint+relation_sep_option	CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY(a, a) */ a
 1054	1054	engine	one_table@column	relation_factor_in_use_join_hint_list/relation_factor_in_use_join_hint_list_relation_sep_option_(_relation_factor_in_hint_list_)	CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY(a(a)) */ a
 1054	1054	engine	one_table@column	relation_factor_in_use_join_hint_list/relation_factor_in_use_join_hint_list_relation_sep_option_(_relation_factor_in_hint_list_)!drop-2	CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY(a a)) */ a
 1054	1054	engine	one_table@column	relation_factor_in_use_join_hint_list/relation_factor_in_use_join_hint_list_relation_sep_option_(_relation_factor_in_hint_list_)!drop-3	CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY(a()) */ a
 1054	1054	engine	one_table@column	relation_factor_in_use_join_hint_list/relation_factor_in_use_join_hint_list_relation_sep_option_(_relation_factor_in_hint_list_)!drop-4	CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY(a(a) */ a
 1054	1054	engine	one_table@column	relation_factor_in_use_join_hint_list/relation_factor_in_use_join_hint_list_relation_sep_option_(_relation_factor_in_hint_list_)!insert	CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY(a(a) zzz) */ a
+1054	1054	engine	one_table@column	relation_factor_in_use_join_hint_list/relation_factor_in_use_join_hint_list_relation_sep_option_(_relation_factor_in_hint_list_)+relation_sep_option	CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY(a,(a)) */ a
 1054	1054	engine	one_table@column	coalesce_strategy_list/WO_PULLUP!insert	CREATE VIEW _v AS SELECT /*+ COALESCE_AGGR(WO_PULLUP zzz) */ a
 1054	1054	engine	one_table@column	coalesce_strategy_list/WO_PULLUP!swap	CREATE VIEW _v AS SELECT /*+ COALESCE_AGGR(WRAPPER) */ a
 1054	1054	engine	one_table@column	coalesce_strategy_list/WITH_PULLUP	CREATE VIEW _v AS SELECT /*+ COALESCE_AGGR(WITH_PULLUP) */ a
@@ -2243,6 +2283,9 @@ ok:9a10873b7d74	ok:9a10873b7d74	engine	one_table@column	table_factor/(_table_ref
 1066	1066	engine	one_table@column	join_condition/ON_expr	CREATE VIEW _v AS SELECT a FROM a JOIN a ON a
 1066	1066	engine	one_table@column	join_condition/ON_expr!drop-1	CREATE VIEW _v AS SELECT a FROM a JOIN a a
 1066	1066	engine	one_table@column	join_condition/USING_(_column_list_)	CREATE VIEW _v AS SELECT a FROM a JOIN a USING(a)
+1066	1066	engine	one_table@column	joined_table/table_reference_inner_join_type_table_reference_join_condition+inner_join_type/INNER_JOIN	CREATE VIEW _v AS SELECT a FROM a INNER JOIN a ON a
+1066	1066	engine	one_table@column	joined_table/table_reference_inner_join_type_table_reference_join_condition+inner_join_type/CROSS_JOIN	CREATE VIEW _v AS SELECT a FROM a CROSS JOIN a ON a
+1066	1066	engine	one_table@column	joined_table/table_reference_inner_join_type_table_reference_join_condition+inner_join_type/STRAIGHT_JOIN	CREATE VIEW _v AS SELECT a FROM a STRAIGHT_JOIN a ON a
 1066	1066	engine	one_table@column	joined_table/table_reference_except_full_outer_join_type_table_reference_join_condition	CREATE VIEW _v AS SELECT a FROM a LEFT JOIN a ON a
 1052	1052	engine	one_table@column	joined_table/table_reference_except_full_outer_join_type_table_reference_join_condition!swap	CREATE VIEW _v AS SELECT a FROM a LEFT_TO_ANTI JOIN a ON a
 1066	1066	engine	one_table@column	joined_table/table_reference_FULL_JOIN_table_reference_join_condition	CREATE VIEW _v AS SELECT a FROM a FULL JOIN a ON a
@@ -2257,6 +2300,7 @@ ok:58523c408684	ok:58523c408684	engine	one_table@column	opt_full_table_factor/ta
 1146	1146	engine	one_table@column	natural_join_type/NATURAL_except_full_outer_join_type!insert	CREATE VIEW _v AS SELECT a FROM a NATURAL LEFT JOIN zzz a
 1066	1066	engine	one_table@column	natural_join_type/NATURAL_FULL_opt_outer_JOIN	CREATE VIEW _v AS SELECT a FROM a NATURAL FULL JOIN a
 1146	1146	engine	one_table@column	natural_join_type/NATURAL_FULL_opt_outer_JOIN!insert	CREATE VIEW _v AS SELECT a FROM a NATURAL FULL JOIN zzz a
+1066	1066	engine	one_table@column	natural_join_type/NATURAL_FULL_opt_outer_JOIN+opt_outer	CREATE VIEW _v AS SELECT a FROM a NATURAL FULL OUTER JOIN a
 1146	1146	engine	one_table@column	natural_join_type/NATURAL_JOIN!insert	CREATE VIEW _v AS SELECT a FROM a NATURAL JOIN zzz a
 1066	1066	engine	one_table@column	natural_join_type/NATURAL_INNER_JOIN	CREATE VIEW _v AS SELECT a FROM a NATURAL INNER JOIN a
 1146	1146	engine	one_table@column	natural_join_type/NATURAL_INNER_JOIN!insert	CREATE VIEW _v AS SELECT a FROM a NATURAL INNER JOIN zzz a
@@ -2272,6 +2316,7 @@ ok:58523c408684	ok:58523c408684	engine	one_table@column	opt_full_table_factor/ta
 1146	1146	engine	one_table@column	inner_join_type/STRAIGHT_JOIN!insert	CREATE VIEW _v AS SELECT a FROM a STRAIGHT_JOIN zzz a
 1066	1066	engine	one_table@column	except_full_outer_join_type/RIGHT_opt_outer_JOIN	CREATE VIEW _v AS SELECT a FROM a NATURAL RIGHT JOIN a
 1146	1146	engine	one_table@column	except_full_outer_join_type/RIGHT_opt_outer_JOIN!insert	CREATE VIEW _v AS SELECT a FROM a NATURAL RIGHT JOIN zzz a
+1066	1066	engine	one_table@column	except_full_outer_join_type/RIGHT_opt_outer_JOIN+opt_outer	CREATE VIEW _v AS SELECT a FROM a NATURAL RIGHT OUTER JOIN a
 1066	1066	engine	one_table@column	opt_outer/OUTER	CREATE VIEW _v AS SELECT a FROM a NATURAL LEFT OUTER JOIN a
 1054	1054	engine	one_table@column	with_select/with_clause_select_with_parens	CREATE VIEW _v AS WITH a AS(SELECT a)(SELECT a)
 1054	1054	engine	one_table@column	with_clause/WITH_RECURSIVE_with_list	CREATE VIEW _v AS WITH RECURSIVE a AS(SELECT a) SELECT a
@@ -2281,6 +2326,7 @@ ok:58523c408684	ok:58523c408684	engine	one_table@column	opt_full_table_factor/ta
 1054	1054	engine	one_table@column	common_table_expr/relation_name_opt_column_alias_name_list_AS_(_select_with_parens_)	CREATE VIEW _v AS WITH a AS((SELECT a)) SELECT a
 1054	1054	engine	one_table@column	opt_column_alias_name_list/(_alias_name_list_)	CREATE VIEW _v AS WITH a(a) AS(SELECT a) SELECT a
 3942	3942	engine	one_table@column	table_values_clause_with_order_by_and_limit/VALUES_values_row_list_order_by	CREATE VIEW _v AS VALUES ROW() ORDER BY a
+3942	3942	engine	one_table@column	table_values_clause_with_order_by_and_limit/VALUES_values_row_list_opt_order_by_limit_clause+opt_order_by	CREATE VIEW _v AS VALUES ROW() ORDER BY a LIMIT 1
 3942	3942	engine	one_table@column	values_row_list/values_row_list_,_row_value	CREATE VIEW _v AS VALUES ROW(), ROW()
 1054	1054	engine	one_table@column	column_name/unreserved_keyword	CREATE VIEW _v AS SELECT ACCESS_INFO
 1054	1054	engine	one_table@column	column_name/unreserved_keyword!insert	CREATE VIEW _v AS SELECT ACCESS_INFO zzz
@@ -2360,7 +2406,11 @@ ok:9b5ea0524e46	ok:9b5ea0524e46	engine	one_table@column	function_name/SESSION_US
 1054	1054	engine	one_table@column	json_table_column_def/json_table_exists_column_def!swap	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYTEXT EXISTS PATH 's'))
 1054	1054	engine	one_table@column	json_table_column_def/json_table_value_column_def	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH 's'))
 1054	1054	engine	one_table@column	json_table_column_def/json_table_value_column_def!swap	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYTEXT PATH 's'))
+1054	1054	engine	one_table@column	json_table_exists_column_def/column_name_data_type_opt_collation_EXISTS_PATH_literal_mock_jt_on_error_on_empty+opt_collation	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT COLLATE a EXISTS PATH 's'))
+1054	1054	engine	one_table@column	json_table_value_column_def/column_name_data_type_opt_collation_PATH_literal_opt_value_on_empty_or_error_or_mismatch+opt_collation	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT COLLATE a PATH 's'))
 1054	1054	engine	one_table@column	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED PATH 's' COLUMNS(a FOR ORDINALITY)))
+5454	5454	engine	one_table@column	json_query_expr/JSON_QUERY_(_simple_expr_,_complex_string_literal_opt_returning_type_opt_truncate_clause_opt_scalars_opt_pretty_opt_ascii_opt_wrapper_opt_asis_opt_query_on_error_or_empty_or_mismatch_opt_multivalue_)+opt_truncate_clause	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' TRUNCATE)
+5454	5454	engine	one_table@column	json_query_expr/JSON_QUERY_(_simple_expr_,_complex_string_literal_opt_returning_type_opt_truncate_clause_opt_scalars_opt_pretty_opt_ascii_opt_wrapper_opt_asis_opt_query_on_error_or_empty_or_mismatch_opt_multivalue_)+opt_ascii	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ASCII)
 1054	1054	engine	one_table@column	opt_array/ARRAY	CREATE VIEW _v AS SELECT CAST(a AS BINARY ARRAY)
 5454	5454	engine	one_table@column	opt_multivalue/MULTIVALUE	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' MULTIVALUE)
 5454	5454	engine	one_table@column	opt_asis/ASIS	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ASIS)
@@ -2377,7 +2427,9 @@ ok:9b5ea0524e46	ok:9b5ea0524e46	engine	one_table@column	function_name/SESSION_US
 5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query_on_mismatch_query	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR ERROR ON EMPTY ERROR ON MISMATCH)
 5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query_on_mismatch_query	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY ERROR ON ERROR ERROR ON MISMATCH)
 5454	5454	engine	one_table@column	opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' NULL ON EMPTY)
+5454	5454	engine	one_table@column	on_mismatch_query/opt_response_query_ON_MISMATCH+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' NULL ON MISMATCH)
 5454	5454	engine	one_table@column	on_mismatch_query/DOT_ON_MISMATCH	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' DOT ON MISMATCH)
+5454	5454	engine	one_table@column	on_error_query/opt_response_query_ON_ERROR_P+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' NULL ON ERROR)
 5454	5454	engine	one_table@column	on_error_query/EMPTY_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY ON ERROR)
 5454	5454	engine	one_table@column	on_error_query/EMPTY_ARRAY_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY ARRAY ON ERROR)
 5454	5454	engine	one_table@column	on_error_query/EMPTY_OBJECT_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY OBJECT ON ERROR)

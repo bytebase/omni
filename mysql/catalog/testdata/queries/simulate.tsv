@@ -14,6 +14,8 @@ ok:7df7723616a6	ok:7df7723616a6	engine	one_table@column	func_datetime_precision/
 ok:1dd453b3925d	ok:1dd453b3925d	engine	one_table@column	func_datetime_precision/(_NUM_)!insert	CREATE VIEW _v AS SELECT CURRENT_TIME(1) zzz FROM utf8mb4
 ok:32fc760ca150	ok:32fc760ca150	engine	one_table@column	now/NOW_SYM_func_datetime_precision	CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP FROM utf8mb4
 ok:0c73919c21bf	ok:0c73919c21bf	engine	one_table@column	now/NOW_SYM_func_datetime_precision!insert	CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP zzz FROM utf8mb4
+ok:8d8f3d24c4c7	ok:8d8f3d24c4c7	engine	one_table@column	now/NOW_SYM_func_datetime_precision+func_datetime_precision/(_)	CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP() FROM utf8mb4
+ok:f63dccd68282	ok:f63dccd68282	engine	one_table@column	now/NOW_SYM_func_datetime_precision+func_datetime_precision/(_NUM_)	CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP(1) FROM utf8mb4
 1350	1350	engine	one_table@column	opt_load_data_charset/%empty	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's'
 1350	1350	engine	one_table@column	opt_load_data_charset/character_set_charset_name	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' CHARSET utf8mb4
 1350	1350	engine	one_table@column	opt_load_data_charset/character_set_charset_name+character_set/CHAR_SYM_SET_SYM	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' CHAR SET utf8mb4
@@ -26,6 +28,9 @@ ok:72815fb30f10	ok:72815fb30f10	engine	one_table@column	ws_num_codepoints/(_real
 1064	1064	engine	one_table@column	select_stmt_with_into/query_expression_locking_clause_list_into_clause	CREATE VIEW _v AS SELECT utf8mb4 FOR UPDATE INTO utf8mb4
 1054	1054	engine	one_table@column	query_expression/with_clause_query_expression_body_opt_order_clause_opt_limit_clause	CREATE VIEW _v AS WITH utf8mb4 AS(SELECT utf8mb4) SELECT utf8mb4
 1054	1054	engine	one_table@column	query_expression/with_clause_query_expression_body_opt_order_clause_opt_limit_clause!insert	CREATE VIEW _v AS WITH utf8mb4 AS(SELECT utf8mb4) SELECT utf8mb4 zzz
+1054	1054	engine	one_table@column	query_expression/with_clause_query_expression_body_opt_order_clause_opt_limit_clause+opt_order_clause	CREATE VIEW _v AS WITH utf8mb4 AS(SELECT utf8mb4) SELECT utf8mb4 ORDER BY utf8mb4
+1327	1327	engine	one_table@column	query_expression/with_clause_query_expression_body_opt_order_clause_opt_limit_clause+opt_limit_clause	CREATE VIEW _v AS WITH utf8mb4 AS(SELECT utf8mb4) SELECT utf8mb4 LIMIT utf8mb4
+1054	1054	engine	one_table@column	query_expression/with_clause_query_expression_body_opt_order_clause_opt_limit_clause+opt_limit_clause!drop-10	CREATE VIEW _v AS WITH utf8mb4 AS(SELECT utf8mb4) SELECT utf8mb4 utf8mb4
 1054	1054	engine	one_table@column	query_expression_body/query_expression_body_UNION_SYM_union_option_query_expression_body	CREATE VIEW _v AS SELECT utf8mb4 UNION SELECT utf8mb4
 1054	1054	engine	one_table@column	query_expression_body/query_expression_body_UNION_SYM_union_option_query_expression_body!insert	CREATE VIEW _v AS SELECT utf8mb4 UNION SELECT utf8mb4 zzz
 1054	1054	engine	one_table@column	query_expression_body/query_expression_body_EXCEPT_SYM_union_option_query_expression_body	CREATE VIEW _v AS SELECT utf8mb4 EXCEPT SELECT utf8mb4
@@ -38,6 +43,7 @@ ok:72815fb30f10	ok:72815fb30f10	engine	one_table@column	ws_num_codepoints/(_real
 1054	1054	engine	one_table@column	query_expression_body/query_expression_body_INTERSECT_SYM_union_option_query_expression_body+union_option/ALL	CREATE VIEW _v AS SELECT utf8mb4 INTERSECT ALL SELECT utf8mb4
 3942	3942	engine	one_table@column	query_primary/table_value_constructor	CREATE VIEW _v AS VALUES ROW()
 ok:de68a052dbb9	ok:de68a052dbb9	engine	one_table@column	query_primary/explicit_table	CREATE VIEW _v AS TABLE utf8mb4
+1350	1350	engine	one_table@column	query_specification/SELECT_SYM_select_options_select_item_list_into_clause_opt_from_clause_opt_where_clause_opt_group_clause_opt_having_clause_opt_window_clause+opt_where_clause	CREATE VIEW _v AS SELECT utf8mb4 INTO utf8mb4 WHERE utf8mb4
 1054	1054	engine	one_table@column	opt_from_clause/from_clause	CREATE VIEW _v AS SELECT utf8mb4 FROM DUAL
 1146	1146	engine	one_table@column	from_tables/DUAL_SYM!swap	CREATE VIEW _v AS SELECT utf8mb4 FROM DUMPFILE
 ok:f3f69f0bafcd	ok:f3f69f0bafcd	engine	one_table@column	from_tables/table_reference_list!insert	CREATE VIEW _v AS SELECT utf8mb4 FROM utf8mb4 zzz
@@ -51,6 +57,7 @@ ok:f3f69f0bafcd	ok:f3f69f0bafcd	engine	one_table@column	from_tables/table_refere
 1054	1054	engine	one_table@column	select_option/SQL_NO_CACHE_SYM!insert	CREATE VIEW _v AS SELECT SQL_NO_CACHE zzz utf8mb4
 1054	1054	engine	one_table@column	locking_clause_list/locking_clause_list_locking_clause	CREATE VIEW _v AS SELECT utf8mb4 FOR UPDATE FOR UPDATE
 3568	3568	engine	one_table@column	locking_clause/FOR_SYM_lock_strength_table_locking_list_opt_locked_row_action	CREATE VIEW _v AS SELECT utf8mb4 FOR UPDATE OF utf8mb4
+3568	3568	engine	one_table@column	locking_clause/FOR_SYM_lock_strength_table_locking_list_opt_locked_row_action+lock_strength/SHARE_SYM	CREATE VIEW _v AS SELECT utf8mb4 FOR SHARE OF utf8mb4
 1054	1054	engine	one_table@column	locking_clause/LOCK_SYM_IN_SYM_SHARE_SYM_MODE_SYM	CREATE VIEW _v AS SELECT utf8mb4 LOCK IN SHARE MODE
 1054	1054	engine	one_table@column	lock_strength/SHARE_SYM	CREATE VIEW _v AS SELECT utf8mb4 FOR SHARE
 1054	1054	engine	one_table@column	opt_locked_row_action/locked_row_action	CREATE VIEW _v AS SELECT utf8mb4 FOR UPDATE NOWAIT
@@ -98,6 +105,11 @@ ok:61935ad5a6ea	ok:61935ad5a6ea	engine	one_table@column	bool_pri/bool_pri_comp_o
 ok:eb45d5950b02	ok:eb45d5950b02	engine	one_table@column	bool_pri/bool_pri_comp_op_all_or_any_table_subquery	CREATE VIEW _v AS SELECT utf8mb4 = ALL(SELECT utf8mb4) FROM utf8mb4
 ok:6ff326dc468a	ok:6ff326dc468a	engine	one_table@column	bool_pri/bool_pri_comp_op_all_or_any_table_subquery!drop-3	CREATE VIEW _v AS SELECT utf8mb4 =(SELECT utf8mb4) FROM utf8mb4
 ok:0905b2318408	ok:0905b2318408	engine	one_table@column	bool_pri/bool_pri_comp_op_all_or_any_table_subquery!insert	CREATE VIEW _v AS SELECT utf8mb4 = ALL(SELECT utf8mb4) zzz FROM utf8mb4
+ok:7c16b9ef2c4b	ok:7c16b9ef2c4b	engine	one_table@column	bool_pri/bool_pri_comp_op_all_or_any_table_subquery+comp_op/GE	CREATE VIEW _v AS SELECT utf8mb4 >= ALL(SELECT utf8mb4) FROM utf8mb4
+ok:ff8519729e9b	ok:ff8519729e9b	engine	one_table@column	bool_pri/bool_pri_comp_op_all_or_any_table_subquery+comp_op/GT_SYM	CREATE VIEW _v AS SELECT utf8mb4 > ALL(SELECT utf8mb4) FROM utf8mb4
+ok:5260ce6bdf86	ok:5260ce6bdf86	engine	one_table@column	bool_pri/bool_pri_comp_op_all_or_any_table_subquery+comp_op/LE	CREATE VIEW _v AS SELECT utf8mb4 <= ALL(SELECT utf8mb4) FROM utf8mb4
+ok:26a330fbc1b6	ok:26a330fbc1b6	engine	one_table@column	bool_pri/bool_pri_comp_op_all_or_any_table_subquery+comp_op/LT	CREATE VIEW _v AS SELECT utf8mb4 < ALL(SELECT utf8mb4) FROM utf8mb4
+ok:5b35857efe88	ok:5b35857efe88	engine	one_table@column	bool_pri/bool_pri_comp_op_all_or_any_table_subquery+comp_op/NE	CREATE VIEW _v AS SELECT utf8mb4 <> ALL(SELECT utf8mb4) FROM utf8mb4
 ok:94f6c6017b8d	ok:94f6c6017b8d	engine	one_table@column	predicate/bit_expr_IN_SYM_table_subquery	CREATE VIEW _v AS SELECT utf8mb4 IN(SELECT utf8mb4) FROM utf8mb4
 ok:d59cc9c0b7e2	ok:d59cc9c0b7e2	engine	one_table@column	predicate/bit_expr_IN_SYM_table_subquery!insert	CREATE VIEW _v AS SELECT utf8mb4 IN(SELECT utf8mb4) zzz FROM utf8mb4
 ok:775131e4febf	ok:775131e4febf	engine	one_table@column	predicate/bit_expr_not_IN_SYM_table_subquery	CREATE VIEW _v AS SELECT utf8mb4 NOT IN(SELECT utf8mb4) FROM utf8mb4
@@ -226,6 +238,7 @@ ok:467b47f3e163	ok:467b47f3e163	engine	one_table@column	simple_expr/CAST_SYM_(_e
 ok:1aa8b97f46a1	ok:1aa8b97f46a1	engine	one_table@column	simple_expr/CAST_SYM_(_expr_AS_cast_type_opt_array_cast_)!insert	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS BINARY) zzz FROM utf8mb4
 3998	3998	engine	one_table@column	simple_expr/CAST_SYM_(_expr_AT_SYM_TIME_SYM_ZONE_SYM_opt_interval_TEXT_STRING_literal_AS_DATETIME_SYM_type_datetime_precision_)	CREATE VIEW _v AS SELECT CAST(utf8mb4 AT TIME ZONE 's' AS DATETIME) FROM utf8mb4
 3998	3998	engine	one_table@column	simple_expr/CAST_SYM_(_expr_AT_SYM_TIME_SYM_ZONE_SYM_opt_interval_TEXT_STRING_literal_AS_DATETIME_SYM_type_datetime_precision_)!insert	CREATE VIEW _v AS SELECT CAST(utf8mb4 AT TIME ZONE 's' AS DATETIME) zzz FROM utf8mb4
+3998	3998	engine	one_table@column	simple_expr/CAST_SYM_(_expr_AT_SYM_TIME_SYM_ZONE_SYM_opt_interval_TEXT_STRING_literal_AS_DATETIME_SYM_type_datetime_precision_)+type_datetime_precision/(_NUM_)	CREATE VIEW _v AS SELECT CAST(utf8mb4 AT TIME ZONE 's' AS DATETIME(1)) FROM utf8mb4
 ok:12cd28cd3db2	ok:12cd28cd3db2	engine	one_table@column	simple_expr/CASE_SYM_opt_expr_when_list_opt_else_END	CREATE VIEW _v AS SELECT CASE WHEN utf8mb4 THEN utf8mb4 END FROM utf8mb4
 ok:1bd48cbd3464	ok:1bd48cbd3464	engine	one_table@column	simple_expr/CASE_SYM_opt_expr_when_list_opt_else_END!insert	CREATE VIEW _v AS SELECT CASE WHEN utf8mb4 THEN utf8mb4 END zzz FROM utf8mb4
 ok:a8352f42a9d4	ok:a8352f42a9d4	engine	one_table@column	simple_expr/CONVERT_SYM_(_expr_,_cast_type_)	CREATE VIEW _v AS SELECT CONVERT(utf8mb4, BINARY) FROM utf8mb4
@@ -294,6 +307,7 @@ ok:73a1d9c3a70e	ok:73a1d9c3a70e	engine	one_table@column	function_call_nonkeyword
 ok:8e93a383ee58	ok:8e93a383ee58	engine	one_table@column	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)!insert	CREATE VIEW _v AS SELECT ADDDATE(utf8mb4, utf8mb4) zzz FROM utf8mb4
 ok:5431ad2dd68f	ok:5431ad2dd68f	engine	one_table@column	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)	CREATE VIEW _v AS SELECT ADDDATE(utf8mb4, INTERVAL utf8mb4 DAY) FROM utf8mb4
 ok:8e93a383ee58	ok:8e93a383ee58	engine	one_table@column	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)!insert	CREATE VIEW _v AS SELECT ADDDATE(utf8mb4, INTERVAL utf8mb4 DAY) zzz FROM utf8mb4
+ok:e9c44ff5a804	ok:e9c44ff5a804	engine	one_table@column	function_call_nonkeyword/CURDATE_optional_braces+optional_braces/(_)	CREATE VIEW _v AS SELECT CURRENT_DATE() FROM utf8mb4
 ok:9949ff0264ac	ok:9949ff0264ac	engine	one_table@column	function_call_nonkeyword/DATE_ADD_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)	CREATE VIEW _v AS SELECT DATE_ADD(utf8mb4, INTERVAL utf8mb4 DAY) FROM utf8mb4
 ok:8e93a383ee58	ok:8e93a383ee58	engine	one_table@column	function_call_nonkeyword/DATE_ADD_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)!insert	CREATE VIEW _v AS SELECT DATE_ADD(utf8mb4, INTERVAL utf8mb4 DAY) zzz FROM utf8mb4
 ok:7bb85fe60365	ok:7bb85fe60365	engine	one_table@column	function_call_nonkeyword/DATE_SUB_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)	CREATE VIEW _v AS SELECT DATE_SUB(utf8mb4, INTERVAL utf8mb4 DAY) FROM utf8mb4
@@ -318,6 +332,8 @@ ok:9c49b15adc0b	ok:9c49b15adc0b	engine	one_table@column	function_call_nonkeyword
 ok:ad0d1a7c3a99	ok:ad0d1a7c3a99	engine	one_table@column	function_call_nonkeyword/SUBSTRING_(_expr_FROM_expr_)!insert	CREATE VIEW _v AS SELECT SUBSTRING(utf8mb4 FROM utf8mb4) zzz FROM utf8mb4
 1054	1054	engine	one_table@column	function_call_nonkeyword/SYSDATE_func_datetime_precision	CREATE VIEW _v AS SELECT SYSDATE FROM utf8mb4
 1054	1054	engine	one_table@column	function_call_nonkeyword/SYSDATE_func_datetime_precision!insert	CREATE VIEW _v AS SELECT SYSDATE zzz FROM utf8mb4
+ok:b32dff4ea3ab	ok:b32dff4ea3ab	engine	one_table@column	function_call_nonkeyword/SYSDATE_func_datetime_precision+func_datetime_precision/(_)	CREATE VIEW _v AS SELECT SYSDATE() FROM utf8mb4
+ok:d44fce6f5bd2	ok:d44fce6f5bd2	engine	one_table@column	function_call_nonkeyword/SYSDATE_func_datetime_precision+func_datetime_precision/(_NUM_)	CREATE VIEW _v AS SELECT SYSDATE(1) FROM utf8mb4
 ok:045e10439a7a	ok:045e10439a7a	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)	CREATE VIEW _v AS SELECT TIMESTAMPADD(DAY, utf8mb4, utf8mb4) FROM utf8mb4
 ok:8e93a383ee58	ok:8e93a383ee58	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)!insert	CREATE VIEW _v AS SELECT TIMESTAMPADD(DAY, utf8mb4, utf8mb4) zzz FROM utf8mb4
 ok:0a9a04ad5121	ok:0a9a04ad5121	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/WEEK_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(WEEK, utf8mb4, utf8mb4) FROM utf8mb4
@@ -340,11 +356,16 @@ ok:4556f2b8a190	ok:4556f2b8a190	engine	one_table@column	function_call_nonkeyword
 ok:7128e6c404f0	ok:7128e6c404f0	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/YEAR_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(YEAR, utf8mb4, utf8mb4) FROM utf8mb4
 ok:dea3f2e638ef	ok:dea3f2e638ef	engine	one_table@column	function_call_nonkeyword/UTC_DATE_SYM_optional_braces	CREATE VIEW _v AS SELECT UTC_DATE FROM utf8mb4
 ok:15fe77608040	ok:15fe77608040	engine	one_table@column	function_call_nonkeyword/UTC_DATE_SYM_optional_braces!insert	CREATE VIEW _v AS SELECT UTC_DATE zzz FROM utf8mb4
+ok:c1d3f4fe8bcc	ok:c1d3f4fe8bcc	engine	one_table@column	function_call_nonkeyword/UTC_DATE_SYM_optional_braces+optional_braces/(_)	CREATE VIEW _v AS SELECT UTC_DATE() FROM utf8mb4
 ok:43327382d9da	ok:43327382d9da	engine	one_table@column	function_call_nonkeyword/UTC_TIME_SYM_func_datetime_precision	CREATE VIEW _v AS SELECT UTC_TIME FROM utf8mb4
 ok:172a7562427c	ok:172a7562427c	engine	one_table@column	function_call_nonkeyword/UTC_TIME_SYM_func_datetime_precision!insert	CREATE VIEW _v AS SELECT UTC_TIME zzz FROM utf8mb4
+ok:0ba5f4726111	ok:0ba5f4726111	engine	one_table@column	function_call_nonkeyword/UTC_TIME_SYM_func_datetime_precision+func_datetime_precision/(_)	CREATE VIEW _v AS SELECT UTC_TIME() FROM utf8mb4
+ok:4e07c419e90b	ok:4e07c419e90b	engine	one_table@column	function_call_nonkeyword/UTC_TIME_SYM_func_datetime_precision+func_datetime_precision/(_NUM_)	CREATE VIEW _v AS SELECT UTC_TIME(1) FROM utf8mb4
 ok:f422c8d0b834	ok:f422c8d0b834	engine	one_table@column	function_call_nonkeyword/UTC_TIMESTAMP_SYM_func_datetime_precision	CREATE VIEW _v AS SELECT UTC_TIMESTAMP FROM utf8mb4
 ok:a9f21915f23a	ok:a9f21915f23a	engine	one_table@column	function_call_nonkeyword/UTC_TIMESTAMP_SYM_func_datetime_precision!insert	CREATE VIEW _v AS SELECT UTC_TIMESTAMP zzz FROM utf8mb4
 1054	1054	engine	one_table@column	function_call_nonkeyword/UTC_TIMESTAMP_SYM_func_datetime_precision!swap	CREATE VIEW _v AS SELECT VALIDATION FROM utf8mb4
+ok:ffaa71db8c74	ok:ffaa71db8c74	engine	one_table@column	function_call_nonkeyword/UTC_TIMESTAMP_SYM_func_datetime_precision+func_datetime_precision/(_)	CREATE VIEW _v AS SELECT UTC_TIMESTAMP() FROM utf8mb4
+ok:8b8db7f6ba2f	ok:8b8db7f6ba2f	engine	one_table@column	function_call_nonkeyword/UTC_TIMESTAMP_SYM_func_datetime_precision+func_datetime_precision/(_NUM_)	CREATE VIEW _v AS SELECT UTC_TIMESTAMP(1) FROM utf8mb4
 3146	3146	engine	one_table@column	opt_returning_type/RETURNING_SYM_cast_type	CREATE VIEW _v AS SELECT JSON_VALUE(utf8mb4, 's' RETURNING BINARY) FROM utf8mb4
 ok:65ca97ac2f9d	ok:65ca97ac2f9d	engine	one_table@column	function_call_conflict/ASCII_SYM_(_expr_)	CREATE VIEW _v AS SELECT ASCII(utf8mb4) FROM utf8mb4
 ok:ad0c56edd245	ok:ad0c56edd245	engine	one_table@column	function_call_conflict/ASCII_SYM_(_expr_)!insert	CREATE VIEW _v AS SELECT ASCII(utf8mb4) zzz FROM utf8mb4
@@ -525,9 +546,19 @@ ok:f86144eb9d44	ok:f86144eb9d44	engine	one_table@column	window_frame_units/RANGE
 1235	1235	engine	one_table@column	window_frame_units/GROUPS_SYM	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(GROUPS UNBOUNDED PRECEDING) FROM utf8mb4
 ok:48a77bd10fa1	ok:48a77bd10fa1	engine	one_table@column	opt_distinct/DISTINCT	CREATE VIEW _v AS SELECT GROUP_CONCAT(DISTINCT utf8mb4) FROM utf8mb4
 ok:7a4c2d67cc87	ok:7a4c2d67cc87	engine	one_table@column	opt_gconcat_separator/SEPARATOR_SYM_text_string	CREATE VIEW _v AS SELECT GROUP_CONCAT(utf8mb4 SEPARATOR 's') FROM utf8mb4
+ok:f045debc6a94	ok:f045debc6a94	engine	one_table@column	opt_gconcat_separator/SEPARATOR_SYM_text_string+text_string/HEX_NUM	CREATE VIEW _v AS SELECT GROUP_CONCAT(utf8mb4 SEPARATOR 0x1) FROM utf8mb4
+ok:70c2b9b07528	ok:70c2b9b07528	engine	one_table@column	opt_gconcat_separator/SEPARATOR_SYM_text_string+text_string/BIN_NUM	CREATE VIEW _v AS SELECT GROUP_CONCAT(utf8mb4 SEPARATOR b'1') FROM utf8mb4
 ok:914118d95692	ok:914118d95692	engine	one_table@column	opt_gorder_clause/ORDER_SYM_BY_gorder_list	CREATE VIEW _v AS SELECT GROUP_CONCAT(utf8mb4 ORDER BY utf8mb4) FROM utf8mb4
 ok:f576013d56ed	ok:f576013d56ed	engine	one_table@column	gorder_list/gorder_list_,_order_expr	CREATE VIEW _v AS SELECT GROUP_CONCAT(utf8mb4 ORDER BY utf8mb4, utf8mb4) FROM utf8mb4
 ok:b1886a91fa06	ok:b1886a91fa06	engine	one_table@column	cast_type/CHAR_SYM_opt_field_length_opt_charset_with_opt_binary	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR) FROM utf8mb4
+ok:13d8559a651e	ok:13d8559a651e	engine	one_table@column	cast_type/CHAR_SYM_opt_field_length_opt_charset_with_opt_binary+opt_charset_with_opt_binary/ascii	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR ASCII) FROM utf8mb4
+ok:08e9a0707882	ok:08e9a0707882	engine	one_table@column	cast_type/CHAR_SYM_opt_field_length_opt_charset_with_opt_binary+opt_charset_with_opt_binary/unicode	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR UNICODE) FROM utf8mb4
+ok:620f2680d154	ok:620f2680d154	engine	one_table@column	cast_type/CHAR_SYM_opt_field_length_opt_charset_with_opt_binary+opt_charset_with_opt_binary/BYTE_SYM	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR BYTE) FROM utf8mb4
+ok:5904e6b53f11	ok:5904e6b53f11	engine	one_table@column	cast_type/CHAR_SYM_opt_field_length_opt_charset_with_opt_binary+opt_charset_with_opt_binary/character_set_charset_name_opt_bin_mod	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR CHARSET utf8mb4) FROM utf8mb4
+ok:5af96181f865	ok:5af96181f865	engine	one_table@column	cast_type/CHAR_SYM_opt_field_length_opt_charset_with_opt_binary+character_set/CHAR_SYM_SET_SYM	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR CHAR SET utf8mb4) FROM utf8mb4
+ok:5c3b346a6db2	ok:5c3b346a6db2	engine	one_table@column	cast_type/CHAR_SYM_opt_field_length_opt_charset_with_opt_binary+opt_charset_with_opt_binary/BINARY_SYM	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR BINARY) FROM utf8mb4
+ok:76efa5a27951	ok:76efa5a27951	engine	one_table@column	cast_type/CHAR_SYM_opt_field_length_opt_charset_with_opt_binary+opt_charset_with_opt_binary/BINARY_SYM_character_set_charset_name	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR BINARY CHARSET utf8mb4) FROM utf8mb4
+ok:4b52c1f56078	ok:4b52c1f56078	engine	one_table@column	cast_type/CHAR_SYM_opt_field_length_opt_charset_with_opt_binary+character_set/CHAR_SYM_SET_SYM#2	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR BINARY CHAR SET utf8mb4) FROM utf8mb4
 ok:d4a26b74dbd7	ok:d4a26b74dbd7	engine	one_table@column	cast_type/nchar_opt_field_length	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS NCHAR) FROM utf8mb4
 ok:ac35f83a7c5f	ok:ac35f83a7c5f	engine	one_table@column	cast_type/nchar_opt_field_length+nchar/NATIONAL_SYM_CHAR_SYM	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS NATIONAL CHAR) FROM utf8mb4
 ok:9001fcddee12	ok:9001fcddee12	engine	one_table@column	cast_type/SIGNED_SYM	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS SIGNED) FROM utf8mb4
@@ -537,7 +568,9 @@ ok:c5729161541f	ok:c5729161541f	engine	one_table@column	cast_type/UNSIGNED_SYM_I
 ok:fb9a46b656ad	ok:fb9a46b656ad	engine	one_table@column	cast_type/DATE_SYM	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS DATE) FROM utf8mb4
 ok:90b6d776390a	ok:90b6d776390a	engine	one_table@column	cast_type/YEAR_SYM	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS YEAR) FROM utf8mb4
 ok:1b2c1f301388	ok:1b2c1f301388	engine	one_table@column	cast_type/TIME_SYM_type_datetime_precision	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS TIME) FROM utf8mb4
+ok:2453d6ae581e	ok:2453d6ae581e	engine	one_table@column	cast_type/TIME_SYM_type_datetime_precision+type_datetime_precision/(_NUM_)	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS TIME(1)) FROM utf8mb4
 ok:0dce04a9be10	ok:0dce04a9be10	engine	one_table@column	cast_type/DATETIME_SYM_type_datetime_precision	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS DATETIME) FROM utf8mb4
+ok:94c05bfb646b	ok:94c05bfb646b	engine	one_table@column	cast_type/DATETIME_SYM_type_datetime_precision+type_datetime_precision/(_NUM_)	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS DATETIME(1)) FROM utf8mb4
 ok:36ec4845b762	ok:36ec4845b762	engine	one_table@column	cast_type/DECIMAL_SYM_float_options	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS DECIMAL) FROM utf8mb4
 ok:454513c308b9	ok:454513c308b9	engine	one_table@column	cast_type/JSON_SYM	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS JSON) FROM utf8mb4
 ok:5314d426deea	ok:5314d426deea	engine	one_table@column	cast_type/real_type	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS REAL) FROM utf8mb4
@@ -559,6 +592,9 @@ ok:a575079055b1	ok:a575079055b1	engine	one_table@column	when_list/when_list_WHEN
 3146	3146	engine	one_table@column	opt_on_empty_or_error/on_empty_on_error	CREATE VIEW _v AS SELECT JSON_VALUE(utf8mb4, 's' ERROR ON EMPTY ERROR ON ERROR) FROM utf8mb4
 3146	3146	engine	one_table@column	json_on_response/NULL_SYM	CREATE VIEW _v AS SELECT JSON_VALUE(utf8mb4, 's' NULL ON EMPTY) FROM utf8mb4
 3146	3146	engine	one_table@column	json_on_response/DEFAULT_SYM_signed_literal	CREATE VIEW _v AS SELECT JSON_VALUE(utf8mb4, 's' DEFAULT 's' ON EMPTY) FROM utf8mb4
+3146	3146	engine	one_table@column	json_on_response/DEFAULT_SYM_signed_literal+signed_literal/+_NUM_literal	CREATE VIEW _v AS SELECT JSON_VALUE(utf8mb4, 's' DEFAULT + 1 ON EMPTY) FROM utf8mb4
+3146	3146	engine	one_table@column	json_on_response/DEFAULT_SYM_signed_literal+signed_literal/+_NUM_literal!drop-2	CREATE VIEW _v AS SELECT JSON_VALUE(utf8mb4, 's' DEFAULT 1 ON EMPTY) FROM utf8mb4
+3146	3146	engine	one_table@column	json_on_response/DEFAULT_SYM_signed_literal+signed_literal/-_NUM_literal	CREATE VIEW _v AS SELECT JSON_VALUE(utf8mb4, 's' DEFAULT - 1 ON EMPTY) FROM utf8mb4
 ok:171270e74e2e	ok:171270e74e2e	engine	one_table@column	interval/DAY_HOUR_SYM	CREATE VIEW _v AS SELECT utf8mb4 + INTERVAL utf8mb4 DAY_HOUR FROM utf8mb4
 ok:df053c1742e4	ok:df053c1742e4	engine	one_table@column	interval/DAY_HOUR_SYM!insert	CREATE VIEW _v AS SELECT utf8mb4 + INTERVAL utf8mb4 DAY_HOUR zzz FROM utf8mb4
 ok:3dd5d0657bb5	ok:3dd5d0657bb5	engine	one_table@column	interval/DAY_MICROSECOND_SYM	CREATE VIEW _v AS SELECT utf8mb4 + INTERVAL utf8mb4 DAY_MICROSECOND FROM utf8mb4
@@ -604,6 +640,7 @@ ok:0348d04b35dc	ok:0348d04b35dc	engine	one_table@column	opt_all/ALL	CREATE VIEW 
 1054	1054	engine	one_table@column	opt_where_clause/where_clause	CREATE VIEW _v AS SELECT utf8mb4 WHERE utf8mb4
 1054	1054	engine	one_table@column	opt_having_clause/HAVING_expr	CREATE VIEW _v AS SELECT utf8mb4 HAVING utf8mb4
 1054	1054	engine	one_table@column	with_clause/WITH_RECURSIVE_SYM_with_list	CREATE VIEW _v AS WITH RECURSIVE utf8mb4 AS(SELECT utf8mb4) SELECT utf8mb4
+1054	1054	engine	one_table@column	common_table_expr/ident_opt_derived_column_list_AS_table_subquery+opt_derived_column_list	CREATE VIEW _v AS WITH utf8mb4(utf8mb4) AS(SELECT utf8mb4) SELECT utf8mb4
 1054	1054	engine	one_table@column	opt_window_clause/WINDOW_SYM_window_definition_list	CREATE VIEW _v AS SELECT utf8mb4 WINDOW utf8mb4 AS()
 1054	1054	engine	one_table@column	window_definition_list/window_definition_list_,_window_definition	CREATE VIEW _v AS SELECT utf8mb4 WINDOW utf8mb4 AS(), utf8mb4 AS()
 1054	1054	engine	one_table@column	opt_group_clause/GROUP_SYM_BY_group_list_olap_opt	CREATE VIEW _v AS SELECT utf8mb4 GROUP BY utf8mb4
@@ -630,17 +667,30 @@ ok:0348d04b35dc	ok:0348d04b35dc	engine	one_table@column	opt_all/ALL	CREATE VIEW 
 1054	1054	engine	one_table@column	opt_values/%empty!insert	CREATE VIEW _v AS VALUES ROW(zzz)
 1054	1054	engine	one_table@column	opt_values/values	CREATE VIEW _v AS VALUES ROW(utf8mb4)
 1054	1054	engine	one_table@column	values/values_,_expr_or_default	CREATE VIEW _v AS VALUES ROW(utf8mb4, utf8mb4)
+1054	1054	engine	one_table@column	values/values_,_expr_or_default+expr_or_default/DEFAULT_SYM	CREATE VIEW _v AS VALUES ROW(utf8mb4, DEFAULT)
 3943	3943	engine	one_table@column	expr_or_default/DEFAULT_SYM	CREATE VIEW _v AS VALUES ROW(DEFAULT)
 1054	1054	engine	one_table@column	expr_or_default/DEFAULT_SYM!swap	CREATE VIEW _v AS VALUES ROW(DEFAULT_AUTH)
 1064	1064	engine	one_table@column	opt_with_clause/with_clause	CREATE VIEW _v AS WITH utf8mb4 AS(SELECT utf8mb4) DELETE FROM utf8mb4
 1350	1350	engine	one_table@column	opt_field_term/COLUMNS_field_term_list	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS TERMINATED BY 's'
 1350	1350	engine	one_table@column	field_term_list/field_term_list_field_term	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS TERMINATED BY 's' TERMINATED BY 's'
+1350	1350	engine	one_table@column	field_term/TERMINATED_BY_text_string+text_string/HEX_NUM	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS TERMINATED BY 0x1
+1350	1350	engine	one_table@column	field_term/TERMINATED_BY_text_string+text_string/BIN_NUM	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS TERMINATED BY b'1'
 1350	1350	engine	one_table@column	field_term/OPTIONALLY_ENCLOSED_BY_text_string	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS OPTIONALLY ENCLOSED BY 's'
+1350	1350	engine	one_table@column	field_term/OPTIONALLY_ENCLOSED_BY_text_string+text_string/HEX_NUM	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS OPTIONALLY ENCLOSED BY 0x1
+1350	1350	engine	one_table@column	field_term/OPTIONALLY_ENCLOSED_BY_text_string+text_string/BIN_NUM	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS OPTIONALLY ENCLOSED BY b'1'
 1350	1350	engine	one_table@column	field_term/ENCLOSED_BY_text_string	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS ENCLOSED BY 's'
+1350	1350	engine	one_table@column	field_term/ENCLOSED_BY_text_string+text_string/HEX_NUM	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS ENCLOSED BY 0x1
+1350	1350	engine	one_table@column	field_term/ENCLOSED_BY_text_string+text_string/BIN_NUM	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS ENCLOSED BY b'1'
 1350	1350	engine	one_table@column	field_term/ESCAPED_BY_text_string	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS ESCAPED BY 's'
+1350	1350	engine	one_table@column	field_term/ESCAPED_BY_text_string+text_string/HEX_NUM	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS ESCAPED BY 0x1
+1350	1350	engine	one_table@column	field_term/ESCAPED_BY_text_string+text_string/BIN_NUM	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS ESCAPED BY b'1'
 1350	1350	engine	one_table@column	opt_line_term/LINES_line_term_list	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' LINES TERMINATED BY 's'
 1350	1350	engine	one_table@column	line_term_list/line_term_list_line_term	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' LINES TERMINATED BY 's' TERMINATED BY 's'
+1350	1350	engine	one_table@column	line_term/TERMINATED_BY_text_string+text_string/HEX_NUM	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' LINES TERMINATED BY 0x1
+1350	1350	engine	one_table@column	line_term/TERMINATED_BY_text_string+text_string/BIN_NUM	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' LINES TERMINATED BY b'1'
 1350	1350	engine	one_table@column	line_term/STARTING_BY_text_string	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' LINES STARTING BY 's'
+1350	1350	engine	one_table@column	line_term/STARTING_BY_text_string+text_string/HEX_NUM	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' LINES STARTING BY 0x1
+1350	1350	engine	one_table@column	line_term/STARTING_BY_text_string+text_string/BIN_NUM	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' LINES STARTING BY b'1'
 ok:cef475d6ba92	ok:cef475d6ba92	engine	one_table@column	text_literal/NCHAR_STRING	CREATE VIEW _v AS SELECT N's' FROM utf8mb4
 ok:863ce302a828	ok:863ce302a828	engine	one_table@column	text_literal/NCHAR_STRING!insert	CREATE VIEW _v AS SELECT N's' zzz FROM utf8mb4
 ok:ccb1fcd425c1	ok:ccb1fcd425c1	engine	one_table@column	text_literal/UNDERSCORE_CHARSET_TEXT_STRING	CREATE VIEW _v AS SELECT _utf8mb4 's' FROM utf8mb4

@@ -82,19 +82,25 @@
 1146	1146	engine	one_table@missing	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier+IfExists	ALTER TABLE ident DROP STATS_EXTENDED IF EXISTS ident
 1146	1146	engine	one_table@missing	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
 1146	1146	engine	one_table@missing	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ALL
+1146	1146	engine	one_table@missing	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ident
 1146	1146	engine	one_table@missing	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ALL
 1146	1146	engine	one_table@missing	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident OPTIMIZE PARTITION NO_WRITE_TO_BINLOG ALL
 1146	1146	engine	one_table@missing	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident OPTIMIZE PARTITION LOCAL ALL
+1146	1146	engine	one_table@missing	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ident
 1146	1146	engine	one_table@missing	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REPAIR PARTITION ALL
 1146	1146	engine	one_table@missing	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident REPAIR PARTITION NO_WRITE_TO_BINLOG ALL
 1146	1146	engine	one_table@missing	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident REPAIR PARTITION LOCAL ALL
+1146	1146	engine	one_table@missing	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident REPAIR PARTITION ident
 1146	1146	engine	one_table@missing	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident IMPORT PARTITION ALL TABLESPACE
+1146	1146	engine	one_table@missing	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident IMPORT PARTITION ident TABLESPACE
 1146	1146	engine	one_table@missing	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident DISCARD PARTITION ALL TABLESPACE
+1146	1146	engine	one_table@missing	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident DISCARD PARTITION ident TABLESPACE
 1146	1146	engine	one_table@missing	AlterTableSpec/IMPORT_TABLESPACE	ALTER TABLE ident IMPORT TABLESPACE
 1146	1146	engine	one_table@missing	AlterTableSpec/DISCARD_TABLESPACE	ALTER TABLE ident DISCARD TABLESPACE
 1146	1146	engine	one_table@missing	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REBUILD PARTITION ALL
 1146	1146	engine	one_table@missing	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident REBUILD PARTITION NO_WRITE_TO_BINLOG ALL
 1146	1146	engine	one_table@missing	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident REBUILD PARTITION LOCAL ALL
+1146	1146	engine	one_table@missing	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident REBUILD PARTITION ident
 1146	1146	engine	one_table@missing	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier	ALTER TABLE ident DROP KEY ident
 1146	1146	engine	one_table@missing	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier+IfExists	ALTER TABLE ident DROP KEY IF EXISTS ident
 1146	1146	engine	one_table@missing	AlterTableSpec/DROP_FOREIGN_KEY_Symbol	ALTER TABLE ident DROP FOREIGN KEY ident
@@ -133,6 +139,7 @@
 1146	1146	engine	one_table@missing	AlterTableSpec/SECONDARY_LOAD	ALTER TABLE ident SECONDARY_LOAD
 1146	1146	engine	one_table@missing	AlterTableSpec/SECONDARY_UNLOAD	ALTER TABLE ident SECONDARY_UNLOAD
 1146	1146	engine	one_table@missing	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot	ALTER TABLE ident ALTER CHECK ident ENFORCED
+1146	1146	engine	one_table@missing	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot+CheckConstraintKeyword/CONSTRAINT	ALTER TABLE ident ALTER CONSTRAINT ident ENFORCED
 1146	1146	engine	one_table@missing	AlterTableSpec/DROP_CheckConstraintKeyword_Identifier	ALTER TABLE ident DROP CHECK ident
 1146	1146	engine	one_table@missing	AlterTableSpec/ALTER_INDEX_Identifier_IndexInvisible	ALTER TABLE ident ALTER INDEX ident VISIBLE
 1146	1146	engine	one_table@missing	AlterTableSpec/CACHE	ALTER TABLE ident CACHE
@@ -241,6 +248,9 @@
 1067	1067	engine	one_table@missing	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
 1067	1067	engine	one_table@missing	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
 1067	1067	engine	one_table@missing	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
+1067	1067	engine	one_table@missing	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME(1)
+1067	1067	engine	one_table@missing	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP(1)
+1067	1067	engine	one_table@missing	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW(1)
 1146	1146	engine	one_table@missing	NowSymOptionFraction/CurdateSym_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURDATE()
 1146	1146	engine	one_table@missing	NowSymOptionFraction/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE
 1146	1146	engine	one_table@missing	NextValueForSequenceParentheses/(_NextValueForSequenceParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(NEXT VALUE FOR ident)
@@ -301,6 +311,7 @@
 1146	1146	engine	one_table@missing	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident LIKE ident
 1146	1146	engine	one_table@missing	PartitionOpt/PARTITION_BY_PartitionMethod_PartitionNumOpt_SubPartitionOpt_PartitionDefinitionListOpt_UpdateIndexesOpt!drop-2	ALTER TABLE ident PARTITION SYSTEM_TIME
 1146	1146	engine	one_table@missing	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)	ALTER TABLE ident PARTITION BY KEY()
+1146	1146	engine	one_table@missing	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)+ColumnNameListOpt	ALTER TABLE ident PARTITION BY KEY(ident)
 1146	1146	engine	one_table@missing	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)	ALTER TABLE ident PARTITION BY HASH(ident)
 1146	1146	engine	one_table@missing	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)+LinearOpt	ALTER TABLE ident PARTITION BY LINEAR HASH(ident)
 1146	1146	engine	one_table@missing	PartitionKeyAlgorithmOpt/ALGORITHM_eq_NUM	ALTER TABLE ident PARTITION BY KEY ALGORITHM = 1()
@@ -540,6 +551,8 @@ ok:277aaa670a4a	ok:277aaa670a4a	engine	one_table@missing	TableElement/ColumnDef!
 1146	1146	engine	one_table@missing	NumericType/BooleanType_FieldOpts	ALTER TABLE ident ADD ident BOOL
 1146	1146	engine	one_table@missing	NumericType/FixedPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident DECIMAL
 1146	1146	engine	one_table@missing	NumericType/FloatingPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident FLOAT
+1146	1146	engine	one_table@missing	NumericType/FloatingPointType_FloatOpt_FieldOpts+FloatOpt/FieldLen	ALTER TABLE ident ADD ident FLOAT(1)
+1146	1146	engine	one_table@missing	NumericType/FloatingPointType_FloatOpt_FieldOpts+FloatOpt/Precision	ALTER TABLE ident ADD ident FLOAT(1, 1)
 1146	1146	engine	one_table@missing	NumericType/BitValueType_OptFieldLen	ALTER TABLE ident ADD ident BIT
 1146	1146	engine	one_table@missing	IntegerType/SMALLINT	ALTER TABLE ident ADD ident SMALLINT
 1146	1146	engine	one_table@missing	IntegerType/MEDIUMINT	ALTER TABLE ident ADD ident MEDIUMINT
@@ -562,24 +575,78 @@ ok:277aaa670a4a	ok:277aaa670a4a	engine	one_table@missing	TableElement/ColumnDef!
 1146	1146	engine	one_table@missing	FloatingPointType/FLOAT8	ALTER TABLE ident ADD ident FLOAT8
 1146	1146	engine	one_table@missing	StringType/Char_FieldLen_OptBinary	ALTER TABLE ident ADD ident CHARACTER(1)
 1146	1146	engine	one_table@missing	StringType/Char_FieldLen_OptBinary+Char/CHAR	ALTER TABLE ident ADD ident CHAR(1)
+1146	1146	engine	one_table@missing	StringType/Char_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER(1) BINARY
+1146	1146	engine	one_table@missing	StringType/Char_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident CHARACTER(1) CHARSET 'binary'
+1146	1146	engine	one_table@missing	StringType/Char_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER(1) CHARACTER SET 'binary'
+1146	1146	engine	one_table@missing	StringType/Char_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER(1) CHAR SET 'binary'
+1146	1146	engine	one_table@missing	StringType/Char_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
+1146	1146	engine	one_table@missing	StringType/Char_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
 1146	1146	engine	one_table@missing	StringType/NChar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NCHAR(1)
 1146	1146	engine	one_table@missing	StringType/NChar_FieldLen_OptBinary+NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
 1146	1146	engine	one_table@missing	StringType/NChar_FieldLen_OptBinary+NChar/NATIONAL_CHAR	ALTER TABLE ident ADD ident NATIONAL CHAR(1)
+1146	1146	engine	one_table@missing	StringType/NChar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NCHAR(1) BINARY
+1146	1146	engine	one_table@missing	StringType/NChar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NCHAR(1) CHARSET 'binary'
+1146	1146	engine	one_table@missing	StringType/NChar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NCHAR(1) CHARACTER SET 'binary'
+1146	1146	engine	one_table@missing	StringType/NChar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NCHAR(1) CHAR SET 'binary'
 1146	1146	engine	one_table@missing	StringType/NChar_OptBinary	ALTER TABLE ident ADD ident NCHAR
+1146	1146	engine	one_table@missing	StringType/NChar_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NCHAR BINARY
+1146	1146	engine	one_table@missing	StringType/NChar_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NCHAR CHARSET 'binary'
+1146	1146	engine	one_table@missing	StringType/NChar_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NCHAR CHARACTER SET 'binary'
+1146	1146	engine	one_table@missing	StringType/NChar_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NCHAR CHAR SET 'binary'
 1146	1146	engine	one_table@missing	StringType/Varchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident VARCHAR(1)
 1146	1146	engine	one_table@missing	StringType/Varchar_FieldLen_OptBinary+Varchar/CHARACTER_VARYING	ALTER TABLE ident ADD ident CHARACTER VARYING(1)
 1146	1146	engine	one_table@missing	StringType/Varchar_FieldLen_OptBinary+Varchar/CHAR_VARYING	ALTER TABLE ident ADD ident CHAR VARYING(1)
 1146	1146	engine	one_table@missing	StringType/Varchar_FieldLen_OptBinary+Varchar/VARCHARACTER	ALTER TABLE ident ADD ident VARCHARACTER(1)
+1146	1146	engine	one_table@missing	StringType/Varchar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident VARCHAR(1) BINARY
+1146	1146	engine	one_table@missing	StringType/Varchar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident VARCHAR(1) CHARSET 'binary'
+1146	1146	engine	one_table@missing	StringType/Varchar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident VARCHAR(1) CHARACTER SET 'binary'
+1146	1146	engine	one_table@missing	StringType/Varchar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident VARCHAR(1) CHAR SET 'binary'
 1146	1146	engine	one_table@missing	StringType/NVarchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NVARCHAR(1)
+1146	1146	engine	one_table@missing	StringType/NVarchar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NVARCHAR(1) BINARY
+1146	1146	engine	one_table@missing	StringType/NVarchar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NVARCHAR(1) CHARSET 'binary'
+1146	1146	engine	one_table@missing	StringType/NVarchar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NVARCHAR(1) CHARACTER SET 'binary'
+1146	1146	engine	one_table@missing	StringType/NVarchar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NVARCHAR(1) CHAR SET 'binary'
 1146	1146	engine	one_table@missing	StringType/BINARY_OptFieldLen	ALTER TABLE ident ADD ident BINARY
 1146	1146	engine	one_table@missing	StringType/VARBINARY_FieldLen	ALTER TABLE ident ADD ident VARBINARY(1)
 1146	1146	engine	one_table@missing	StringType/BlobType	ALTER TABLE ident ADD ident TINYBLOB
 1146	1146	engine	one_table@missing	StringType/TextType_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident TINYTEXT
+1146	1146	engine	one_table@missing	StringType/TextType_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident TINYTEXT BINARY
+1146	1146	engine	one_table@missing	StringType/TextType_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident TINYTEXT CHARSET 'binary'
+1146	1146	engine	one_table@missing	StringType/TextType_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident TINYTEXT CHARACTER SET 'binary'
+1146	1146	engine	one_table@missing	StringType/TextType_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident TINYTEXT CHAR SET 'binary'
 1146	1146	engine	one_table@missing	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident ENUM('binary')
+1146	1146	engine	one_table@missing	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident ENUM('binary') BINARY
+1146	1146	engine	one_table@missing	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident ENUM('binary') CHARSET 'binary'
+1146	1146	engine	one_table@missing	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident ENUM('binary') CHARACTER SET 'binary'
+1146	1146	engine	one_table@missing	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident ENUM('binary') CHAR SET 'binary'
+1146	1146	engine	one_table@missing	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident ENUM('binary') ASCII
+1115	1115	engine	one_table@missing	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident ENUM('binary') UNICODE
+1146	1146	engine	one_table@missing	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident ENUM('binary') BYTE
 1146	1146	engine	one_table@missing	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident SET('binary')
+1146	1146	engine	one_table@missing	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident SET('binary') BINARY
+1146	1146	engine	one_table@missing	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident SET('binary') CHARSET 'binary'
+1146	1146	engine	one_table@missing	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident SET('binary') CHARACTER SET 'binary'
+1146	1146	engine	one_table@missing	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident SET('binary') CHAR SET 'binary'
+1146	1146	engine	one_table@missing	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident SET('binary') ASCII
+1115	1115	engine	one_table@missing	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident SET('binary') UNICODE
+1146	1146	engine	one_table@missing	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident SET('binary') BYTE
 1146	1146	engine	one_table@missing	StringType/JSON	ALTER TABLE ident ADD ident JSON
 1146	1146	engine	one_table@missing	StringType/LONG_Varchar_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG VARCHAR
+1146	1146	engine	one_table@missing	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident LONG VARCHAR BINARY
+1146	1146	engine	one_table@missing	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident LONG VARCHAR CHARSET 'binary'
+1146	1146	engine	one_table@missing	StringType/LONG_Varchar_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident LONG VARCHAR CHARACTER SET 'binary'
+1146	1146	engine	one_table@missing	StringType/LONG_Varchar_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident LONG VARCHAR CHAR SET 'binary'
+1146	1146	engine	one_table@missing	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident LONG VARCHAR ASCII
+1115	1115	engine	one_table@missing	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident LONG VARCHAR UNICODE
+1146	1146	engine	one_table@missing	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident LONG VARCHAR BYTE
 1146	1146	engine	one_table@missing	StringType/LONG_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG
+1146	1146	engine	one_table@missing	StringType/LONG_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident LONG BINARY
+1146	1146	engine	one_table@missing	StringType/LONG_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident LONG CHARSET 'binary'
+1146	1146	engine	one_table@missing	StringType/LONG_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident LONG CHARACTER SET 'binary'
+1146	1146	engine	one_table@missing	StringType/LONG_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident LONG CHAR SET 'binary'
+1146	1146	engine	one_table@missing	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident LONG ASCII
+1115	1115	engine	one_table@missing	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident LONG UNICODE
+1146	1146	engine	one_table@missing	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident LONG BYTE
 1146	1146	engine	one_table@missing	StringType/VECTOR_OptVectorElementType_OptFieldLen	ALTER TABLE ident ADD ident VECTOR
 1146	1146	engine	one_table@missing	Char/CHAR	ALTER TABLE ident ADD ident CHAR
 1146	1146	engine	one_table@missing	NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER
@@ -620,8 +687,6 @@ ok:277aaa670a4a	ok:277aaa670a4a	engine	one_table@missing	TableElement/ColumnDef!
 1146	1146	engine	one_table@missing	OptVectorElementType/<_FLOAT_>	ALTER TABLE ident ADD ident VECTOR < FLOAT >
 1146	1146	engine	one_table@missing	OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY
 1146	1146	engine	one_table@missing	OptBinary/BINARY_OptCharset+OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET BINARY
-1146	1146	engine	one_table@missing	OptBinary/CharsetKw_CharsetName_OptBinMod+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
-1146	1146	engine	one_table@missing	OptBinary/CharsetKw_CharsetName_OptBinMod+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
 1146	1146	engine	one_table@missing	OptCharset/CharsetKw_CharsetName	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
 1146	1146	engine	one_table@missing	OptCharset/CharsetKw_CharsetName+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER BINARY CHARACTER SET 'binary'
 1146	1146	engine	one_table@missing	OptCharset/CharsetKw_CharsetName+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER BINARY CHAR SET 'binary'
@@ -629,6 +694,8 @@ ok:277aaa670a4a	ok:277aaa670a4a	engine	one_table@missing	TableElement/ColumnDef!
 1146	1146	engine	one_table@missing	TextString/hexLit	ALTER TABLE ident ADD ident ENUM(0x1)
 1146	1146	engine	one_table@missing	TextString/bitLit	ALTER TABLE ident ADD ident ENUM(b'1')
 1146	1146	engine	one_table@missing	TextStringList/TextStringList_,_TextString	ALTER TABLE ident ADD ident ENUM('binary', 'binary')
+1146	1146	engine	one_table@missing	TextStringList/TextStringList_,_TextString+TextString/hexLit	ALTER TABLE ident ADD ident ENUM('binary', 0x1)
+1146	1146	engine	one_table@missing	TextStringList/TextStringList_,_TextString+TextString/bitLit	ALTER TABLE ident ADD ident ENUM('binary', b'1')
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_AlterTableSpecListOpt_AlterTableSpecSingleOpt	ALTER TABLE ident
 1505	1505	engine	one_table@table	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident
 1505	1505	engine	one_table@table	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt+IgnoreOptional	ALTER IGNORE TABLE ident ANALYZE PARTITION ident
@@ -711,19 +778,25 @@ ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AlterTableSpec/DROP_Colum
 1105	1105	engine	one_table@table	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier+IfExists	ALTER TABLE ident DROP STATS_EXTENDED IF EXISTS ident
 1505	1505	engine	one_table@table	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
 1505	1505	engine	one_table@table	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ALL
+1505	1505	engine	one_table@table	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ident
 8200	8200	engine	one_table@table	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ALL
 8200	8200	engine	one_table@table	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident OPTIMIZE PARTITION NO_WRITE_TO_BINLOG ALL
 8200	8200	engine	one_table@table	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident OPTIMIZE PARTITION LOCAL ALL
+8200	8200	engine	one_table@table	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ident
 8200	8200	engine	one_table@table	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REPAIR PARTITION ALL
 8200	8200	engine	one_table@table	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident REPAIR PARTITION NO_WRITE_TO_BINLOG ALL
 8200	8200	engine	one_table@table	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident REPAIR PARTITION LOCAL ALL
+8200	8200	engine	one_table@table	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident REPAIR PARTITION ident
 8200	8200	engine	one_table@table	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident IMPORT PARTITION ALL TABLESPACE
+8200	8200	engine	one_table@table	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident IMPORT PARTITION ident TABLESPACE
 8200	8200	engine	one_table@table	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident DISCARD PARTITION ALL TABLESPACE
+8200	8200	engine	one_table@table	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident DISCARD PARTITION ident TABLESPACE
 8200	8200	engine	one_table@table	AlterTableSpec/IMPORT_TABLESPACE	ALTER TABLE ident IMPORT TABLESPACE
 8200	8200	engine	one_table@table	AlterTableSpec/DISCARD_TABLESPACE	ALTER TABLE ident DISCARD TABLESPACE
 8200	8200	engine	one_table@table	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REBUILD PARTITION ALL
 8200	8200	engine	one_table@table	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident REBUILD PARTITION NO_WRITE_TO_BINLOG ALL
 8200	8200	engine	one_table@table	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident REBUILD PARTITION LOCAL ALL
+8200	8200	engine	one_table@table	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident REBUILD PARTITION ident
 1091	1091	engine	one_table@table	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier	ALTER TABLE ident DROP KEY ident
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier+IfExists	ALTER TABLE ident DROP KEY IF EXISTS ident
 1091	1091	engine	one_table@table	AlterTableSpec/DROP_FOREIGN_KEY_Symbol	ALTER TABLE ident DROP FOREIGN KEY ident
@@ -762,6 +835,7 @@ ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AlterTableSpec/WITHOUT_VA
 8200	8200	engine	one_table@table	AlterTableSpec/SECONDARY_LOAD	ALTER TABLE ident SECONDARY_LOAD
 8200	8200	engine	one_table@table	AlterTableSpec/SECONDARY_UNLOAD	ALTER TABLE ident SECONDARY_UNLOAD
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot	ALTER TABLE ident ALTER CHECK ident ENFORCED
+ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot+CheckConstraintKeyword/CONSTRAINT	ALTER TABLE ident ALTER CONSTRAINT ident ENFORCED
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AlterTableSpec/DROP_CheckConstraintKeyword_Identifier	ALTER TABLE ident DROP CHECK ident
 1176	1176	engine	one_table@table	AlterTableSpec/ALTER_INDEX_Identifier_IndexInvisible	ALTER TABLE ident ALTER INDEX ident VISIBLE
 ok:d2478a522161	ok:d2478a522161	engine	one_table@table	AlterTableSpec/CACHE	ALTER TABLE ident CACHE
@@ -870,6 +944,9 @@ ok:87ef788e700c	ok:87ef788e700c	engine	one_table@table	DefaultValueExpr/SignedLi
 1067	1067	engine	one_table@table	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
 1067	1067	engine	one_table@table	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
 1067	1067	engine	one_table@table	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
+1067	1067	engine	one_table@table	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME(1)
+1067	1067	engine	one_table@table	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP(1)
+1067	1067	engine	one_table@table	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW(1)
 1067	1067	engine	one_table@table	NowSymOptionFraction/CurdateSym_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURDATE()
 1067	1067	engine	one_table@table	NowSymOptionFraction/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE
 1347	1347	engine	one_table@table	NextValueForSequenceParentheses/(_NextValueForSequenceParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(NEXT VALUE FOR ident)
@@ -930,6 +1007,7 @@ ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	CreateTableStmt/CREATE_Op
 ok:cf06ceb2fca6	ok:cf06ceb2fca6	engine	one_table@table	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident LIKE ident
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	PartitionOpt/PARTITION_BY_PartitionMethod_PartitionNumOpt_SubPartitionOpt_PartitionDefinitionListOpt_UpdateIndexesOpt!drop-2	ALTER TABLE ident PARTITION SYSTEM_TIME
 ok:acad9839805b	ok:acad9839805b	engine	one_table@table	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)	ALTER TABLE ident PARTITION BY KEY()
+1488	1488	engine	one_table@table	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)+ColumnNameListOpt	ALTER TABLE ident PARTITION BY KEY(ident)
 1054	1054	engine	one_table@table	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)	ALTER TABLE ident PARTITION BY HASH(ident)
 1054	1054	engine	one_table@table	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)+LinearOpt	ALTER TABLE ident PARTITION BY LINEAR HASH(ident)
 ok:acad9839805b	ok:acad9839805b	engine	one_table@table	PartitionKeyAlgorithmOpt/ALGORITHM_eq_NUM	ALTER TABLE ident PARTITION BY KEY ALGORITHM = 1()
@@ -1169,6 +1247,8 @@ ok:3aded484f062	ok:3aded484f062	engine	one_table@table	Type/DateAndTimeType	ALTE
 ok:4d846271fe24	ok:4d846271fe24	engine	one_table@table	NumericType/BooleanType_FieldOpts	ALTER TABLE ident ADD ident BOOL
 ok:c9ce9a238580	ok:c9ce9a238580	engine	one_table@table	NumericType/FixedPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident DECIMAL
 ok:fa6f1d93690f	ok:fa6f1d93690f	engine	one_table@table	NumericType/FloatingPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident FLOAT
+ok:fa6f1d93690f	ok:fa6f1d93690f	engine	one_table@table	NumericType/FloatingPointType_FloatOpt_FieldOpts+FloatOpt/FieldLen	ALTER TABLE ident ADD ident FLOAT(1)
+ok:797592460bc8	ok:797592460bc8	engine	one_table@table	NumericType/FloatingPointType_FloatOpt_FieldOpts+FloatOpt/Precision	ALTER TABLE ident ADD ident FLOAT(1, 1)
 ok:0dae7f70449f	ok:0dae7f70449f	engine	one_table@table	NumericType/BitValueType_OptFieldLen	ALTER TABLE ident ADD ident BIT
 ok:e8a10ad6ad7d	ok:e8a10ad6ad7d	engine	one_table@table	IntegerType/SMALLINT	ALTER TABLE ident ADD ident SMALLINT
 ok:c7bb01023660	ok:c7bb01023660	engine	one_table@table	IntegerType/MEDIUMINT	ALTER TABLE ident ADD ident MEDIUMINT
@@ -1191,24 +1271,78 @@ ok:fa6f1d93690f	ok:fa6f1d93690f	engine	one_table@table	FloatingPointType/FLOAT4	
 ok:271f4ea8078a	ok:271f4ea8078a	engine	one_table@table	FloatingPointType/FLOAT8	ALTER TABLE ident ADD ident FLOAT8
 ok:52ad42f32232	ok:52ad42f32232	engine	one_table@table	StringType/Char_FieldLen_OptBinary	ALTER TABLE ident ADD ident CHARACTER(1)
 ok:52ad42f32232	ok:52ad42f32232	engine	one_table@table	StringType/Char_FieldLen_OptBinary+Char/CHAR	ALTER TABLE ident ADD ident CHAR(1)
+ok:52ad42f32232	ok:52ad42f32232	engine	one_table@table	StringType/Char_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER(1) BINARY
+ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	StringType/Char_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident CHARACTER(1) CHARSET 'binary'
+ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	StringType/Char_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER(1) CHARACTER SET 'binary'
+ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	StringType/Char_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER(1) CHAR SET 'binary'
+ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	StringType/Char_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
+ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	StringType/Char_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
 ok:52ad42f32232	ok:52ad42f32232	engine	one_table@table	StringType/NChar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NCHAR(1)
 ok:52ad42f32232	ok:52ad42f32232	engine	one_table@table	StringType/NChar_FieldLen_OptBinary+NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
 ok:52ad42f32232	ok:52ad42f32232	engine	one_table@table	StringType/NChar_FieldLen_OptBinary+NChar/NATIONAL_CHAR	ALTER TABLE ident ADD ident NATIONAL CHAR(1)
+ok:52ad42f32232	ok:52ad42f32232	engine	one_table@table	StringType/NChar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NCHAR(1) BINARY
+ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	StringType/NChar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NCHAR(1) CHARSET 'binary'
+ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	StringType/NChar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NCHAR(1) CHARACTER SET 'binary'
+ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	StringType/NChar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NCHAR(1) CHAR SET 'binary'
 ok:52ad42f32232	ok:52ad42f32232	engine	one_table@table	StringType/NChar_OptBinary	ALTER TABLE ident ADD ident NCHAR
+ok:52ad42f32232	ok:52ad42f32232	engine	one_table@table	StringType/NChar_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NCHAR BINARY
+ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	StringType/NChar_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NCHAR CHARSET 'binary'
+ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	StringType/NChar_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NCHAR CHARACTER SET 'binary'
+ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	StringType/NChar_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NCHAR CHAR SET 'binary'
 ok:6525cb4d0e8c	ok:6525cb4d0e8c	engine	one_table@table	StringType/Varchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident VARCHAR(1)
 ok:6525cb4d0e8c	ok:6525cb4d0e8c	engine	one_table@table	StringType/Varchar_FieldLen_OptBinary+Varchar/CHARACTER_VARYING	ALTER TABLE ident ADD ident CHARACTER VARYING(1)
 ok:6525cb4d0e8c	ok:6525cb4d0e8c	engine	one_table@table	StringType/Varchar_FieldLen_OptBinary+Varchar/CHAR_VARYING	ALTER TABLE ident ADD ident CHAR VARYING(1)
 ok:6525cb4d0e8c	ok:6525cb4d0e8c	engine	one_table@table	StringType/Varchar_FieldLen_OptBinary+Varchar/VARCHARACTER	ALTER TABLE ident ADD ident VARCHARACTER(1)
+ok:6525cb4d0e8c	ok:6525cb4d0e8c	engine	one_table@table	StringType/Varchar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident VARCHAR(1) BINARY
+ok:3eff96df5068	ok:3eff96df5068	engine	one_table@table	StringType/Varchar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident VARCHAR(1) CHARSET 'binary'
+ok:3eff96df5068	ok:3eff96df5068	engine	one_table@table	StringType/Varchar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident VARCHAR(1) CHARACTER SET 'binary'
+ok:3eff96df5068	ok:3eff96df5068	engine	one_table@table	StringType/Varchar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident VARCHAR(1) CHAR SET 'binary'
 ok:6525cb4d0e8c	ok:6525cb4d0e8c	engine	one_table@table	StringType/NVarchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NVARCHAR(1)
+ok:6525cb4d0e8c	ok:6525cb4d0e8c	engine	one_table@table	StringType/NVarchar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NVARCHAR(1) BINARY
+ok:3eff96df5068	ok:3eff96df5068	engine	one_table@table	StringType/NVarchar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NVARCHAR(1) CHARSET 'binary'
+ok:3eff96df5068	ok:3eff96df5068	engine	one_table@table	StringType/NVarchar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NVARCHAR(1) CHARACTER SET 'binary'
+ok:3eff96df5068	ok:3eff96df5068	engine	one_table@table	StringType/NVarchar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NVARCHAR(1) CHAR SET 'binary'
 ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	StringType/BINARY_OptFieldLen	ALTER TABLE ident ADD ident BINARY
 ok:3eff96df5068	ok:3eff96df5068	engine	one_table@table	StringType/VARBINARY_FieldLen	ALTER TABLE ident ADD ident VARBINARY(1)
 ok:c880c6fcb3c6	ok:c880c6fcb3c6	engine	one_table@table	StringType/BlobType	ALTER TABLE ident ADD ident TINYBLOB
 ok:f28a05ab9744	ok:f28a05ab9744	engine	one_table@table	StringType/TextType_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident TINYTEXT
+ok:f28a05ab9744	ok:f28a05ab9744	engine	one_table@table	StringType/TextType_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident TINYTEXT BINARY
+ok:c880c6fcb3c6	ok:c880c6fcb3c6	engine	one_table@table	StringType/TextType_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident TINYTEXT CHARSET 'binary'
+ok:c880c6fcb3c6	ok:c880c6fcb3c6	engine	one_table@table	StringType/TextType_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident TINYTEXT CHARACTER SET 'binary'
+ok:c880c6fcb3c6	ok:c880c6fcb3c6	engine	one_table@table	StringType/TextType_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident TINYTEXT CHAR SET 'binary'
 ok:67f12305a9b5	ok:67f12305a9b5	engine	one_table@table	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident ENUM('binary')
+ok:67f12305a9b5	ok:67f12305a9b5	engine	one_table@table	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident ENUM('binary') BINARY
+ok:cfd8d60fbd1e	ok:cfd8d60fbd1e	engine	one_table@table	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident ENUM('binary') CHARSET 'binary'
+ok:cfd8d60fbd1e	ok:cfd8d60fbd1e	engine	one_table@table	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident ENUM('binary') CHARACTER SET 'binary'
+ok:cfd8d60fbd1e	ok:cfd8d60fbd1e	engine	one_table@table	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident ENUM('binary') CHAR SET 'binary'
+ok:949597cb9e2d	ok:949597cb9e2d	engine	one_table@table	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident ENUM('binary') ASCII
+1115	1115	engine	one_table@table	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident ENUM('binary') UNICODE
+ok:cfd8d60fbd1e	ok:cfd8d60fbd1e	engine	one_table@table	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident ENUM('binary') BYTE
 ok:88a976af4c60	ok:88a976af4c60	engine	one_table@table	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident SET('binary')
+ok:88a976af4c60	ok:88a976af4c60	engine	one_table@table	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident SET('binary') BINARY
+ok:664ed4f0027b	ok:664ed4f0027b	engine	one_table@table	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident SET('binary') CHARSET 'binary'
+ok:664ed4f0027b	ok:664ed4f0027b	engine	one_table@table	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident SET('binary') CHARACTER SET 'binary'
+ok:664ed4f0027b	ok:664ed4f0027b	engine	one_table@table	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident SET('binary') CHAR SET 'binary'
+ok:038ecd576e13	ok:038ecd576e13	engine	one_table@table	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident SET('binary') ASCII
+1115	1115	engine	one_table@table	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident SET('binary') UNICODE
+ok:664ed4f0027b	ok:664ed4f0027b	engine	one_table@table	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident SET('binary') BYTE
 ok:657ed758c286	ok:657ed758c286	engine	one_table@table	StringType/JSON	ALTER TABLE ident ADD ident JSON
 ok:847cad812e6d	ok:847cad812e6d	engine	one_table@table	StringType/LONG_Varchar_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG VARCHAR
+ok:847cad812e6d	ok:847cad812e6d	engine	one_table@table	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident LONG VARCHAR BINARY
+ok:ed78d879092d	ok:ed78d879092d	engine	one_table@table	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident LONG VARCHAR CHARSET 'binary'
+ok:ed78d879092d	ok:ed78d879092d	engine	one_table@table	StringType/LONG_Varchar_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident LONG VARCHAR CHARACTER SET 'binary'
+ok:ed78d879092d	ok:ed78d879092d	engine	one_table@table	StringType/LONG_Varchar_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident LONG VARCHAR CHAR SET 'binary'
+ok:e4de1b8c97b7	ok:e4de1b8c97b7	engine	one_table@table	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident LONG VARCHAR ASCII
+1115	1115	engine	one_table@table	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident LONG VARCHAR UNICODE
+ok:ed78d879092d	ok:ed78d879092d	engine	one_table@table	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident LONG VARCHAR BYTE
 ok:847cad812e6d	ok:847cad812e6d	engine	one_table@table	StringType/LONG_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG
+ok:847cad812e6d	ok:847cad812e6d	engine	one_table@table	StringType/LONG_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident LONG BINARY
+ok:ed78d879092d	ok:ed78d879092d	engine	one_table@table	StringType/LONG_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident LONG CHARSET 'binary'
+ok:ed78d879092d	ok:ed78d879092d	engine	one_table@table	StringType/LONG_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident LONG CHARACTER SET 'binary'
+ok:ed78d879092d	ok:ed78d879092d	engine	one_table@table	StringType/LONG_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident LONG CHAR SET 'binary'
+ok:e4de1b8c97b7	ok:e4de1b8c97b7	engine	one_table@table	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident LONG ASCII
+1115	1115	engine	one_table@table	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident LONG UNICODE
+ok:ed78d879092d	ok:ed78d879092d	engine	one_table@table	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident LONG BYTE
 ok:8b95583d87d0	ok:8b95583d87d0	engine	one_table@table	StringType/VECTOR_OptVectorElementType_OptFieldLen	ALTER TABLE ident ADD ident VECTOR
 ok:52ad42f32232	ok:52ad42f32232	engine	one_table@table	Char/CHAR	ALTER TABLE ident ADD ident CHAR
 ok:52ad42f32232	ok:52ad42f32232	engine	one_table@table	NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER
@@ -1249,8 +1383,6 @@ ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	OptBinMod/BINARY	ALTER TA
 ok:8b95583d87d0	ok:8b95583d87d0	engine	one_table@table	OptVectorElementType/<_FLOAT_>	ALTER TABLE ident ADD ident VECTOR < FLOAT >
 ok:52ad42f32232	ok:52ad42f32232	engine	one_table@table	OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY
 ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	OptBinary/BINARY_OptCharset+OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET BINARY
-ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	OptBinary/CharsetKw_CharsetName_OptBinMod+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
-ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	OptBinary/CharsetKw_CharsetName_OptBinMod+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
 ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	OptCharset/CharsetKw_CharsetName	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
 ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	OptCharset/CharsetKw_CharsetName+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER BINARY CHARACTER SET 'binary'
 ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	OptCharset/CharsetKw_CharsetName+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER BINARY CHAR SET 'binary'
@@ -1258,6 +1390,8 @@ ok:ca5a1296a70c	ok:ca5a1296a70c	engine	one_table@table	OptCharset/CharsetKw_Char
 ok:fa9bcc04d504	ok:fa9bcc04d504	engine	one_table@table	TextString/hexLit	ALTER TABLE ident ADD ident ENUM(0x1)
 ok:fa9bcc04d504	ok:fa9bcc04d504	engine	one_table@table	TextString/bitLit	ALTER TABLE ident ADD ident ENUM(b'1')
 1291	1291	engine	one_table@table	TextStringList/TextStringList_,_TextString	ALTER TABLE ident ADD ident ENUM('binary', 'binary')
+ok:e70314b57493	ok:e70314b57493	engine	one_table@table	TextStringList/TextStringList_,_TextString+TextString/hexLit	ALTER TABLE ident ADD ident ENUM('binary', 0x1)
+ok:e70314b57493	ok:e70314b57493	engine	one_table@table	TextStringList/TextStringList_,_TextString+TextString/bitLit	ALTER TABLE ident ADD ident ENUM('binary', b'1')
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_AlterTableSpecListOpt_AlterTableSpecSingleOpt	ALTER TABLE ident
 1505	1505	engine	one_table@column	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident
 1505	1505	engine	one_table@column	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt+IgnoreOptional	ALTER IGNORE TABLE ident ANALYZE PARTITION ident
@@ -1340,19 +1474,25 @@ ok:37aac6b805e7	ok:37aac6b805e7	engine	one_table@column	AlterTableSpec/DROP_Colu
 1105	1105	engine	one_table@column	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier+IfExists	ALTER TABLE ident DROP STATS_EXTENDED IF EXISTS ident
 1505	1505	engine	one_table@column	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
 1505	1505	engine	one_table@column	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ALL
+1505	1505	engine	one_table@column	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ident
 8200	8200	engine	one_table@column	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ALL
 8200	8200	engine	one_table@column	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident OPTIMIZE PARTITION NO_WRITE_TO_BINLOG ALL
 8200	8200	engine	one_table@column	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident OPTIMIZE PARTITION LOCAL ALL
+8200	8200	engine	one_table@column	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ident
 8200	8200	engine	one_table@column	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REPAIR PARTITION ALL
 8200	8200	engine	one_table@column	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident REPAIR PARTITION NO_WRITE_TO_BINLOG ALL
 8200	8200	engine	one_table@column	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident REPAIR PARTITION LOCAL ALL
+8200	8200	engine	one_table@column	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident REPAIR PARTITION ident
 8200	8200	engine	one_table@column	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident IMPORT PARTITION ALL TABLESPACE
+8200	8200	engine	one_table@column	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident IMPORT PARTITION ident TABLESPACE
 8200	8200	engine	one_table@column	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident DISCARD PARTITION ALL TABLESPACE
+8200	8200	engine	one_table@column	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident DISCARD PARTITION ident TABLESPACE
 8200	8200	engine	one_table@column	AlterTableSpec/IMPORT_TABLESPACE	ALTER TABLE ident IMPORT TABLESPACE
 8200	8200	engine	one_table@column	AlterTableSpec/DISCARD_TABLESPACE	ALTER TABLE ident DISCARD TABLESPACE
 8200	8200	engine	one_table@column	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REBUILD PARTITION ALL
 8200	8200	engine	one_table@column	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident REBUILD PARTITION NO_WRITE_TO_BINLOG ALL
 8200	8200	engine	one_table@column	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident REBUILD PARTITION LOCAL ALL
+8200	8200	engine	one_table@column	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident REBUILD PARTITION ident
 1091	1091	engine	one_table@column	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier	ALTER TABLE ident DROP KEY ident
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier+IfExists	ALTER TABLE ident DROP KEY IF EXISTS ident
 1091	1091	engine	one_table@column	AlterTableSpec/DROP_FOREIGN_KEY_Symbol	ALTER TABLE ident DROP FOREIGN KEY ident
@@ -1391,6 +1531,7 @@ ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	AlterTableSpec/WITHOUT_V
 8200	8200	engine	one_table@column	AlterTableSpec/SECONDARY_LOAD	ALTER TABLE ident SECONDARY_LOAD
 8200	8200	engine	one_table@column	AlterTableSpec/SECONDARY_UNLOAD	ALTER TABLE ident SECONDARY_UNLOAD
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot	ALTER TABLE ident ALTER CHECK ident ENFORCED
+ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot+CheckConstraintKeyword/CONSTRAINT	ALTER TABLE ident ALTER CONSTRAINT ident ENFORCED
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	AlterTableSpec/DROP_CheckConstraintKeyword_Identifier	ALTER TABLE ident DROP CHECK ident
 1176	1176	engine	one_table@column	AlterTableSpec/ALTER_INDEX_Identifier_IndexInvisible	ALTER TABLE ident ALTER INDEX ident VISIBLE
 ok:bcbcd7436311	ok:bcbcd7436311	engine	one_table@column	AlterTableSpec/CACHE	ALTER TABLE ident CACHE
@@ -1499,6 +1640,9 @@ ok:33cf39bfefb9	ok:33cf39bfefb9	engine	one_table@column	ConstraintElem/UNIQUE_Ke
 1067	1067	engine	one_table@column	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
 1067	1067	engine	one_table@column	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
 1067	1067	engine	one_table@column	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
+1067	1067	engine	one_table@column	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME(1)
+1067	1067	engine	one_table@column	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP(1)
+1067	1067	engine	one_table@column	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW(1)
 1060	1060	engine	one_table@column	NowSymOptionFraction/CurdateSym_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURDATE()
 1060	1060	engine	one_table@column	NowSymOptionFraction/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE
 1347	1347	engine	one_table@column	NextValueForSequenceParentheses/(_NextValueForSequenceParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(NEXT VALUE FOR ident)
@@ -1559,6 +1703,7 @@ ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	CreateTableStmt/CREATE_O
 ok:84b8db8a9c3e	ok:84b8db8a9c3e	engine	one_table@column	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident LIKE ident
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	PartitionOpt/PARTITION_BY_PartitionMethod_PartitionNumOpt_SubPartitionOpt_PartitionDefinitionListOpt_UpdateIndexesOpt!drop-2	ALTER TABLE ident PARTITION SYSTEM_TIME
 ok:c58d9662e615	ok:c58d9662e615	engine	one_table@column	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)	ALTER TABLE ident PARTITION BY KEY()
+1503	1503	engine	one_table@column	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)+ColumnNameListOpt	ALTER TABLE ident PARTITION BY KEY(ident)
 1503	1503	engine	one_table@column	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)	ALTER TABLE ident PARTITION BY HASH(ident)
 1503	1503	engine	one_table@column	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)+LinearOpt	ALTER TABLE ident PARTITION BY LINEAR HASH(ident)
 ok:c58d9662e615	ok:c58d9662e615	engine	one_table@column	PartitionKeyAlgorithmOpt/ALGORITHM_eq_NUM	ALTER TABLE ident PARTITION BY KEY ALGORITHM = 1()
@@ -1798,6 +1943,8 @@ ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	RowFormat/ROW_FORMAT_EqO
 1060	1060	engine	one_table@column	NumericType/BooleanType_FieldOpts	ALTER TABLE ident ADD ident BOOL
 1060	1060	engine	one_table@column	NumericType/FixedPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident DECIMAL
 1060	1060	engine	one_table@column	NumericType/FloatingPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident FLOAT
+1060	1060	engine	one_table@column	NumericType/FloatingPointType_FloatOpt_FieldOpts+FloatOpt/FieldLen	ALTER TABLE ident ADD ident FLOAT(1)
+1060	1060	engine	one_table@column	NumericType/FloatingPointType_FloatOpt_FieldOpts+FloatOpt/Precision	ALTER TABLE ident ADD ident FLOAT(1, 1)
 1060	1060	engine	one_table@column	NumericType/BitValueType_OptFieldLen	ALTER TABLE ident ADD ident BIT
 1060	1060	engine	one_table@column	IntegerType/SMALLINT	ALTER TABLE ident ADD ident SMALLINT
 1060	1060	engine	one_table@column	IntegerType/MEDIUMINT	ALTER TABLE ident ADD ident MEDIUMINT
@@ -1820,24 +1967,78 @@ ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	RowFormat/ROW_FORMAT_EqO
 1060	1060	engine	one_table@column	FloatingPointType/FLOAT8	ALTER TABLE ident ADD ident FLOAT8
 1060	1060	engine	one_table@column	StringType/Char_FieldLen_OptBinary	ALTER TABLE ident ADD ident CHARACTER(1)
 1060	1060	engine	one_table@column	StringType/Char_FieldLen_OptBinary+Char/CHAR	ALTER TABLE ident ADD ident CHAR(1)
+1060	1060	engine	one_table@column	StringType/Char_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER(1) BINARY
+1060	1060	engine	one_table@column	StringType/Char_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident CHARACTER(1) CHARSET 'binary'
+1060	1060	engine	one_table@column	StringType/Char_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER(1) CHARACTER SET 'binary'
+1060	1060	engine	one_table@column	StringType/Char_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER(1) CHAR SET 'binary'
+1060	1060	engine	one_table@column	StringType/Char_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
+1060	1060	engine	one_table@column	StringType/Char_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
 1060	1060	engine	one_table@column	StringType/NChar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NCHAR(1)
 1060	1060	engine	one_table@column	StringType/NChar_FieldLen_OptBinary+NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
 1060	1060	engine	one_table@column	StringType/NChar_FieldLen_OptBinary+NChar/NATIONAL_CHAR	ALTER TABLE ident ADD ident NATIONAL CHAR(1)
+1060	1060	engine	one_table@column	StringType/NChar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NCHAR(1) BINARY
+1060	1060	engine	one_table@column	StringType/NChar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NCHAR(1) CHARSET 'binary'
+1060	1060	engine	one_table@column	StringType/NChar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NCHAR(1) CHARACTER SET 'binary'
+1060	1060	engine	one_table@column	StringType/NChar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NCHAR(1) CHAR SET 'binary'
 1060	1060	engine	one_table@column	StringType/NChar_OptBinary	ALTER TABLE ident ADD ident NCHAR
+1060	1060	engine	one_table@column	StringType/NChar_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NCHAR BINARY
+1060	1060	engine	one_table@column	StringType/NChar_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NCHAR CHARSET 'binary'
+1060	1060	engine	one_table@column	StringType/NChar_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NCHAR CHARACTER SET 'binary'
+1060	1060	engine	one_table@column	StringType/NChar_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NCHAR CHAR SET 'binary'
 1060	1060	engine	one_table@column	StringType/Varchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident VARCHAR(1)
 1060	1060	engine	one_table@column	StringType/Varchar_FieldLen_OptBinary+Varchar/CHARACTER_VARYING	ALTER TABLE ident ADD ident CHARACTER VARYING(1)
 1060	1060	engine	one_table@column	StringType/Varchar_FieldLen_OptBinary+Varchar/CHAR_VARYING	ALTER TABLE ident ADD ident CHAR VARYING(1)
 1060	1060	engine	one_table@column	StringType/Varchar_FieldLen_OptBinary+Varchar/VARCHARACTER	ALTER TABLE ident ADD ident VARCHARACTER(1)
+1060	1060	engine	one_table@column	StringType/Varchar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident VARCHAR(1) BINARY
+1060	1060	engine	one_table@column	StringType/Varchar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident VARCHAR(1) CHARSET 'binary'
+1060	1060	engine	one_table@column	StringType/Varchar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident VARCHAR(1) CHARACTER SET 'binary'
+1060	1060	engine	one_table@column	StringType/Varchar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident VARCHAR(1) CHAR SET 'binary'
 1060	1060	engine	one_table@column	StringType/NVarchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NVARCHAR(1)
+1060	1060	engine	one_table@column	StringType/NVarchar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NVARCHAR(1) BINARY
+1060	1060	engine	one_table@column	StringType/NVarchar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NVARCHAR(1) CHARSET 'binary'
+1060	1060	engine	one_table@column	StringType/NVarchar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NVARCHAR(1) CHARACTER SET 'binary'
+1060	1060	engine	one_table@column	StringType/NVarchar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NVARCHAR(1) CHAR SET 'binary'
 1060	1060	engine	one_table@column	StringType/BINARY_OptFieldLen	ALTER TABLE ident ADD ident BINARY
 1060	1060	engine	one_table@column	StringType/VARBINARY_FieldLen	ALTER TABLE ident ADD ident VARBINARY(1)
 1060	1060	engine	one_table@column	StringType/BlobType	ALTER TABLE ident ADD ident TINYBLOB
 1060	1060	engine	one_table@column	StringType/TextType_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident TINYTEXT
+1060	1060	engine	one_table@column	StringType/TextType_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident TINYTEXT BINARY
+1060	1060	engine	one_table@column	StringType/TextType_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident TINYTEXT CHARSET 'binary'
+1060	1060	engine	one_table@column	StringType/TextType_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident TINYTEXT CHARACTER SET 'binary'
+1060	1060	engine	one_table@column	StringType/TextType_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident TINYTEXT CHAR SET 'binary'
 1060	1060	engine	one_table@column	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident ENUM('binary')
+1060	1060	engine	one_table@column	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident ENUM('binary') BINARY
+1060	1060	engine	one_table@column	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident ENUM('binary') CHARSET 'binary'
+1060	1060	engine	one_table@column	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident ENUM('binary') CHARACTER SET 'binary'
+1060	1060	engine	one_table@column	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident ENUM('binary') CHAR SET 'binary'
+1060	1060	engine	one_table@column	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident ENUM('binary') ASCII
+1115	1115	engine	one_table@column	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident ENUM('binary') UNICODE
+1060	1060	engine	one_table@column	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident ENUM('binary') BYTE
 1060	1060	engine	one_table@column	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident SET('binary')
+1060	1060	engine	one_table@column	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident SET('binary') BINARY
+1060	1060	engine	one_table@column	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident SET('binary') CHARSET 'binary'
+1060	1060	engine	one_table@column	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident SET('binary') CHARACTER SET 'binary'
+1060	1060	engine	one_table@column	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident SET('binary') CHAR SET 'binary'
+1060	1060	engine	one_table@column	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident SET('binary') ASCII
+1115	1115	engine	one_table@column	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident SET('binary') UNICODE
+1060	1060	engine	one_table@column	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident SET('binary') BYTE
 1060	1060	engine	one_table@column	StringType/JSON	ALTER TABLE ident ADD ident JSON
 1060	1060	engine	one_table@column	StringType/LONG_Varchar_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG VARCHAR
+1060	1060	engine	one_table@column	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident LONG VARCHAR BINARY
+1060	1060	engine	one_table@column	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident LONG VARCHAR CHARSET 'binary'
+1060	1060	engine	one_table@column	StringType/LONG_Varchar_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident LONG VARCHAR CHARACTER SET 'binary'
+1060	1060	engine	one_table@column	StringType/LONG_Varchar_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident LONG VARCHAR CHAR SET 'binary'
+1060	1060	engine	one_table@column	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident LONG VARCHAR ASCII
+1115	1115	engine	one_table@column	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident LONG VARCHAR UNICODE
+1060	1060	engine	one_table@column	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident LONG VARCHAR BYTE
 1060	1060	engine	one_table@column	StringType/LONG_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG
+1060	1060	engine	one_table@column	StringType/LONG_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident LONG BINARY
+1060	1060	engine	one_table@column	StringType/LONG_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident LONG CHARSET 'binary'
+1060	1060	engine	one_table@column	StringType/LONG_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident LONG CHARACTER SET 'binary'
+1060	1060	engine	one_table@column	StringType/LONG_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident LONG CHAR SET 'binary'
+1060	1060	engine	one_table@column	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident LONG ASCII
+1115	1115	engine	one_table@column	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident LONG UNICODE
+1060	1060	engine	one_table@column	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident LONG BYTE
 1060	1060	engine	one_table@column	StringType/VECTOR_OptVectorElementType_OptFieldLen	ALTER TABLE ident ADD ident VECTOR
 1060	1060	engine	one_table@column	Char/CHAR	ALTER TABLE ident ADD ident CHAR
 1060	1060	engine	one_table@column	NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER
@@ -1878,8 +2079,6 @@ ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	RowFormat/ROW_FORMAT_EqO
 1060	1060	engine	one_table@column	OptVectorElementType/<_FLOAT_>	ALTER TABLE ident ADD ident VECTOR < FLOAT >
 1060	1060	engine	one_table@column	OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY
 1060	1060	engine	one_table@column	OptBinary/BINARY_OptCharset+OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET BINARY
-1060	1060	engine	one_table@column	OptBinary/CharsetKw_CharsetName_OptBinMod+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
-1060	1060	engine	one_table@column	OptBinary/CharsetKw_CharsetName_OptBinMod+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
 1060	1060	engine	one_table@column	OptCharset/CharsetKw_CharsetName	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
 1060	1060	engine	one_table@column	OptCharset/CharsetKw_CharsetName+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER BINARY CHARACTER SET 'binary'
 1060	1060	engine	one_table@column	OptCharset/CharsetKw_CharsetName+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER BINARY CHAR SET 'binary'
@@ -1887,6 +2086,8 @@ ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	RowFormat/ROW_FORMAT_EqO
 1060	1060	engine	one_table@column	TextString/hexLit	ALTER TABLE ident ADD ident ENUM(0x1)
 1060	1060	engine	one_table@column	TextString/bitLit	ALTER TABLE ident ADD ident ENUM(b'1')
 1060	1060	engine	one_table@column	TextStringList/TextStringList_,_TextString	ALTER TABLE ident ADD ident ENUM('binary', 'binary')
+1060	1060	engine	one_table@column	TextStringList/TextStringList_,_TextString+TextString/hexLit	ALTER TABLE ident ADD ident ENUM('binary', 0x1)
+1060	1060	engine	one_table@column	TextStringList/TextStringList_,_TextString+TextString/bitLit	ALTER TABLE ident ADD ident ENUM('binary', b'1')
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_AlterTableSpecListOpt_AlterTableSpecSingleOpt	ALTER TABLE ident
 1505	1505	engine	one_table@index	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident
 1505	1505	engine	one_table@index	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt+IgnoreOptional	ALTER IGNORE TABLE ident ANALYZE PARTITION ident
@@ -1969,19 +2170,25 @@ ok:13661c7ab487	ok:13661c7ab487	engine	one_table@index	AlterTableSpec/DROP_Colum
 1105	1105	engine	one_table@index	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier+IfExists	ALTER TABLE ident DROP STATS_EXTENDED IF EXISTS ident
 1505	1505	engine	one_table@index	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
 1505	1505	engine	one_table@index	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ALL
+1505	1505	engine	one_table@index	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ident
 8200	8200	engine	one_table@index	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ALL
 8200	8200	engine	one_table@index	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident OPTIMIZE PARTITION NO_WRITE_TO_BINLOG ALL
 8200	8200	engine	one_table@index	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident OPTIMIZE PARTITION LOCAL ALL
+8200	8200	engine	one_table@index	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ident
 8200	8200	engine	one_table@index	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REPAIR PARTITION ALL
 8200	8200	engine	one_table@index	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident REPAIR PARTITION NO_WRITE_TO_BINLOG ALL
 8200	8200	engine	one_table@index	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident REPAIR PARTITION LOCAL ALL
+8200	8200	engine	one_table@index	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident REPAIR PARTITION ident
 8200	8200	engine	one_table@index	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident IMPORT PARTITION ALL TABLESPACE
+8200	8200	engine	one_table@index	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident IMPORT PARTITION ident TABLESPACE
 8200	8200	engine	one_table@index	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident DISCARD PARTITION ALL TABLESPACE
+8200	8200	engine	one_table@index	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident DISCARD PARTITION ident TABLESPACE
 8200	8200	engine	one_table@index	AlterTableSpec/IMPORT_TABLESPACE	ALTER TABLE ident IMPORT TABLESPACE
 8200	8200	engine	one_table@index	AlterTableSpec/DISCARD_TABLESPACE	ALTER TABLE ident DISCARD TABLESPACE
 8200	8200	engine	one_table@index	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REBUILD PARTITION ALL
 8200	8200	engine	one_table@index	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident REBUILD PARTITION NO_WRITE_TO_BINLOG ALL
 8200	8200	engine	one_table@index	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident REBUILD PARTITION LOCAL ALL
+8200	8200	engine	one_table@index	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident REBUILD PARTITION ident
 ok:6ecf57e9734c	ok:6ecf57e9734c	engine	one_table@index	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier	ALTER TABLE ident DROP KEY ident
 ok:6ecf57e9734c	ok:6ecf57e9734c	engine	one_table@index	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier+IfExists	ALTER TABLE ident DROP KEY IF EXISTS ident
 1091	1091	engine	one_table@index	AlterTableSpec/DROP_FOREIGN_KEY_Symbol	ALTER TABLE ident DROP FOREIGN KEY ident
@@ -2020,6 +2227,7 @@ ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AlterTableSpec/WITHOUT_VA
 8200	8200	engine	one_table@index	AlterTableSpec/SECONDARY_LOAD	ALTER TABLE ident SECONDARY_LOAD
 8200	8200	engine	one_table@index	AlterTableSpec/SECONDARY_UNLOAD	ALTER TABLE ident SECONDARY_UNLOAD
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot	ALTER TABLE ident ALTER CHECK ident ENFORCED
+ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot+CheckConstraintKeyword/CONSTRAINT	ALTER TABLE ident ALTER CONSTRAINT ident ENFORCED
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AlterTableSpec/DROP_CheckConstraintKeyword_Identifier	ALTER TABLE ident DROP CHECK ident
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AlterTableSpec/ALTER_INDEX_Identifier_IndexInvisible	ALTER TABLE ident ALTER INDEX ident VISIBLE
 ok:a87858d0f85f	ok:a87858d0f85f	engine	one_table@index	AlterTableSpec/CACHE	ALTER TABLE ident CACHE
@@ -2128,6 +2336,9 @@ ok:cb4427613c7e	ok:cb4427613c7e	engine	one_table@index	ConstraintElem/UNIQUE_Key
 1067	1067	engine	one_table@index	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
 1067	1067	engine	one_table@index	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
 1067	1067	engine	one_table@index	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
+1067	1067	engine	one_table@index	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME(1)
+1067	1067	engine	one_table@index	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP(1)
+1067	1067	engine	one_table@index	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW(1)
 1060	1060	engine	one_table@index	NowSymOptionFraction/CurdateSym_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURDATE()
 1060	1060	engine	one_table@index	NowSymOptionFraction/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE
 1347	1347	engine	one_table@index	NextValueForSequenceParentheses/(_NextValueForSequenceParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(NEXT VALUE FOR ident)
@@ -2188,6 +2399,7 @@ ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	CreateTableStmt/CREATE_Op
 ok:f9d3182fd35f	ok:f9d3182fd35f	engine	one_table@index	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident LIKE ident
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	PartitionOpt/PARTITION_BY_PartitionMethod_PartitionNumOpt_SubPartitionOpt_PartitionDefinitionListOpt_UpdateIndexesOpt!drop-2	ALTER TABLE ident PARTITION SYSTEM_TIME
 ok:af023d0766da	ok:af023d0766da	engine	one_table@index	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)	ALTER TABLE ident PARTITION BY KEY()
+1503	1503	engine	one_table@index	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)+ColumnNameListOpt	ALTER TABLE ident PARTITION BY KEY(ident)
 1503	1503	engine	one_table@index	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)	ALTER TABLE ident PARTITION BY HASH(ident)
 1503	1503	engine	one_table@index	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)+LinearOpt	ALTER TABLE ident PARTITION BY LINEAR HASH(ident)
 ok:af023d0766da	ok:af023d0766da	engine	one_table@index	PartitionKeyAlgorithmOpt/ALGORITHM_eq_NUM	ALTER TABLE ident PARTITION BY KEY ALGORITHM = 1()
@@ -2427,6 +2639,8 @@ ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	RowFormat/ROW_FORMAT_EqOp
 1060	1060	engine	one_table@index	NumericType/BooleanType_FieldOpts	ALTER TABLE ident ADD ident BOOL
 1060	1060	engine	one_table@index	NumericType/FixedPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident DECIMAL
 1060	1060	engine	one_table@index	NumericType/FloatingPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident FLOAT
+1060	1060	engine	one_table@index	NumericType/FloatingPointType_FloatOpt_FieldOpts+FloatOpt/FieldLen	ALTER TABLE ident ADD ident FLOAT(1)
+1060	1060	engine	one_table@index	NumericType/FloatingPointType_FloatOpt_FieldOpts+FloatOpt/Precision	ALTER TABLE ident ADD ident FLOAT(1, 1)
 1060	1060	engine	one_table@index	NumericType/BitValueType_OptFieldLen	ALTER TABLE ident ADD ident BIT
 1060	1060	engine	one_table@index	IntegerType/SMALLINT	ALTER TABLE ident ADD ident SMALLINT
 1060	1060	engine	one_table@index	IntegerType/MEDIUMINT	ALTER TABLE ident ADD ident MEDIUMINT
@@ -2449,24 +2663,78 @@ ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	RowFormat/ROW_FORMAT_EqOp
 1060	1060	engine	one_table@index	FloatingPointType/FLOAT8	ALTER TABLE ident ADD ident FLOAT8
 1060	1060	engine	one_table@index	StringType/Char_FieldLen_OptBinary	ALTER TABLE ident ADD ident CHARACTER(1)
 1060	1060	engine	one_table@index	StringType/Char_FieldLen_OptBinary+Char/CHAR	ALTER TABLE ident ADD ident CHAR(1)
+1060	1060	engine	one_table@index	StringType/Char_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER(1) BINARY
+1060	1060	engine	one_table@index	StringType/Char_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident CHARACTER(1) CHARSET 'binary'
+1060	1060	engine	one_table@index	StringType/Char_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER(1) CHARACTER SET 'binary'
+1060	1060	engine	one_table@index	StringType/Char_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER(1) CHAR SET 'binary'
+1060	1060	engine	one_table@index	StringType/Char_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
+1060	1060	engine	one_table@index	StringType/Char_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
 1060	1060	engine	one_table@index	StringType/NChar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NCHAR(1)
 1060	1060	engine	one_table@index	StringType/NChar_FieldLen_OptBinary+NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
 1060	1060	engine	one_table@index	StringType/NChar_FieldLen_OptBinary+NChar/NATIONAL_CHAR	ALTER TABLE ident ADD ident NATIONAL CHAR(1)
+1060	1060	engine	one_table@index	StringType/NChar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NCHAR(1) BINARY
+1060	1060	engine	one_table@index	StringType/NChar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NCHAR(1) CHARSET 'binary'
+1060	1060	engine	one_table@index	StringType/NChar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NCHAR(1) CHARACTER SET 'binary'
+1060	1060	engine	one_table@index	StringType/NChar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NCHAR(1) CHAR SET 'binary'
 1060	1060	engine	one_table@index	StringType/NChar_OptBinary	ALTER TABLE ident ADD ident NCHAR
+1060	1060	engine	one_table@index	StringType/NChar_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NCHAR BINARY
+1060	1060	engine	one_table@index	StringType/NChar_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NCHAR CHARSET 'binary'
+1060	1060	engine	one_table@index	StringType/NChar_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NCHAR CHARACTER SET 'binary'
+1060	1060	engine	one_table@index	StringType/NChar_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NCHAR CHAR SET 'binary'
 1060	1060	engine	one_table@index	StringType/Varchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident VARCHAR(1)
 1060	1060	engine	one_table@index	StringType/Varchar_FieldLen_OptBinary+Varchar/CHARACTER_VARYING	ALTER TABLE ident ADD ident CHARACTER VARYING(1)
 1060	1060	engine	one_table@index	StringType/Varchar_FieldLen_OptBinary+Varchar/CHAR_VARYING	ALTER TABLE ident ADD ident CHAR VARYING(1)
 1060	1060	engine	one_table@index	StringType/Varchar_FieldLen_OptBinary+Varchar/VARCHARACTER	ALTER TABLE ident ADD ident VARCHARACTER(1)
+1060	1060	engine	one_table@index	StringType/Varchar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident VARCHAR(1) BINARY
+1060	1060	engine	one_table@index	StringType/Varchar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident VARCHAR(1) CHARSET 'binary'
+1060	1060	engine	one_table@index	StringType/Varchar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident VARCHAR(1) CHARACTER SET 'binary'
+1060	1060	engine	one_table@index	StringType/Varchar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident VARCHAR(1) CHAR SET 'binary'
 1060	1060	engine	one_table@index	StringType/NVarchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NVARCHAR(1)
+1060	1060	engine	one_table@index	StringType/NVarchar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NVARCHAR(1) BINARY
+1060	1060	engine	one_table@index	StringType/NVarchar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NVARCHAR(1) CHARSET 'binary'
+1060	1060	engine	one_table@index	StringType/NVarchar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NVARCHAR(1) CHARACTER SET 'binary'
+1060	1060	engine	one_table@index	StringType/NVarchar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NVARCHAR(1) CHAR SET 'binary'
 1060	1060	engine	one_table@index	StringType/BINARY_OptFieldLen	ALTER TABLE ident ADD ident BINARY
 1060	1060	engine	one_table@index	StringType/VARBINARY_FieldLen	ALTER TABLE ident ADD ident VARBINARY(1)
 1060	1060	engine	one_table@index	StringType/BlobType	ALTER TABLE ident ADD ident TINYBLOB
 1060	1060	engine	one_table@index	StringType/TextType_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident TINYTEXT
+1060	1060	engine	one_table@index	StringType/TextType_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident TINYTEXT BINARY
+1060	1060	engine	one_table@index	StringType/TextType_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident TINYTEXT CHARSET 'binary'
+1060	1060	engine	one_table@index	StringType/TextType_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident TINYTEXT CHARACTER SET 'binary'
+1060	1060	engine	one_table@index	StringType/TextType_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident TINYTEXT CHAR SET 'binary'
 1060	1060	engine	one_table@index	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident ENUM('binary')
+1060	1060	engine	one_table@index	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident ENUM('binary') BINARY
+1060	1060	engine	one_table@index	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident ENUM('binary') CHARSET 'binary'
+1060	1060	engine	one_table@index	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident ENUM('binary') CHARACTER SET 'binary'
+1060	1060	engine	one_table@index	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident ENUM('binary') CHAR SET 'binary'
+1060	1060	engine	one_table@index	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident ENUM('binary') ASCII
+1115	1115	engine	one_table@index	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident ENUM('binary') UNICODE
+1060	1060	engine	one_table@index	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident ENUM('binary') BYTE
 1060	1060	engine	one_table@index	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident SET('binary')
+1060	1060	engine	one_table@index	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident SET('binary') BINARY
+1060	1060	engine	one_table@index	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident SET('binary') CHARSET 'binary'
+1060	1060	engine	one_table@index	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident SET('binary') CHARACTER SET 'binary'
+1060	1060	engine	one_table@index	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident SET('binary') CHAR SET 'binary'
+1060	1060	engine	one_table@index	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident SET('binary') ASCII
+1115	1115	engine	one_table@index	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident SET('binary') UNICODE
+1060	1060	engine	one_table@index	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident SET('binary') BYTE
 1060	1060	engine	one_table@index	StringType/JSON	ALTER TABLE ident ADD ident JSON
 1060	1060	engine	one_table@index	StringType/LONG_Varchar_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG VARCHAR
+1060	1060	engine	one_table@index	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident LONG VARCHAR BINARY
+1060	1060	engine	one_table@index	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident LONG VARCHAR CHARSET 'binary'
+1060	1060	engine	one_table@index	StringType/LONG_Varchar_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident LONG VARCHAR CHARACTER SET 'binary'
+1060	1060	engine	one_table@index	StringType/LONG_Varchar_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident LONG VARCHAR CHAR SET 'binary'
+1060	1060	engine	one_table@index	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident LONG VARCHAR ASCII
+1115	1115	engine	one_table@index	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident LONG VARCHAR UNICODE
+1060	1060	engine	one_table@index	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident LONG VARCHAR BYTE
 1060	1060	engine	one_table@index	StringType/LONG_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG
+1060	1060	engine	one_table@index	StringType/LONG_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident LONG BINARY
+1060	1060	engine	one_table@index	StringType/LONG_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident LONG CHARSET 'binary'
+1060	1060	engine	one_table@index	StringType/LONG_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident LONG CHARACTER SET 'binary'
+1060	1060	engine	one_table@index	StringType/LONG_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident LONG CHAR SET 'binary'
+1060	1060	engine	one_table@index	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident LONG ASCII
+1115	1115	engine	one_table@index	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident LONG UNICODE
+1060	1060	engine	one_table@index	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident LONG BYTE
 1060	1060	engine	one_table@index	StringType/VECTOR_OptVectorElementType_OptFieldLen	ALTER TABLE ident ADD ident VECTOR
 1060	1060	engine	one_table@index	Char/CHAR	ALTER TABLE ident ADD ident CHAR
 1060	1060	engine	one_table@index	NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER
@@ -2507,8 +2775,6 @@ ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	RowFormat/ROW_FORMAT_EqOp
 1060	1060	engine	one_table@index	OptVectorElementType/<_FLOAT_>	ALTER TABLE ident ADD ident VECTOR < FLOAT >
 1060	1060	engine	one_table@index	OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY
 1060	1060	engine	one_table@index	OptBinary/BINARY_OptCharset+OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET BINARY
-1060	1060	engine	one_table@index	OptBinary/CharsetKw_CharsetName_OptBinMod+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
-1060	1060	engine	one_table@index	OptBinary/CharsetKw_CharsetName_OptBinMod+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
 1060	1060	engine	one_table@index	OptCharset/CharsetKw_CharsetName	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
 1060	1060	engine	one_table@index	OptCharset/CharsetKw_CharsetName+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER BINARY CHARACTER SET 'binary'
 1060	1060	engine	one_table@index	OptCharset/CharsetKw_CharsetName+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER BINARY CHAR SET 'binary'
@@ -2516,6 +2782,8 @@ ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	RowFormat/ROW_FORMAT_EqOp
 1060	1060	engine	one_table@index	TextString/hexLit	ALTER TABLE ident ADD ident ENUM(0x1)
 1060	1060	engine	one_table@index	TextString/bitLit	ALTER TABLE ident ADD ident ENUM(b'1')
 1060	1060	engine	one_table@index	TextStringList/TextStringList_,_TextString	ALTER TABLE ident ADD ident ENUM('binary', 'binary')
+1060	1060	engine	one_table@index	TextStringList/TextStringList_,_TextString+TextString/hexLit	ALTER TABLE ident ADD ident ENUM('binary', 0x1)
+1060	1060	engine	one_table@index	TextStringList/TextStringList_,_TextString+TextString/bitLit	ALTER TABLE ident ADD ident ENUM('binary', b'1')
 1347	1347	engine	objects@view	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_AlterTableSpecListOpt_AlterTableSpecSingleOpt	ALTER TABLE ident
 1105	1105	engine	objects@view	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident
 1105	1105	engine	objects@view	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt+IgnoreOptional	ALTER IGNORE TABLE ident ANALYZE PARTITION ident
@@ -2598,19 +2866,25 @@ ok:26317606e7ec	ok:26317606e7ec	engine	objects@view	AlterTableStmt/ALTER_IgnoreO
 1347	1347	engine	objects@view	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier+IfExists	ALTER TABLE ident DROP STATS_EXTENDED IF EXISTS ident
 1347	1347	engine	objects@view	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
 1347	1347	engine	objects@view	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ALL
+1347	1347	engine	objects@view	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ident
 1347	1347	engine	objects@view	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ALL
 1347	1347	engine	objects@view	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident OPTIMIZE PARTITION NO_WRITE_TO_BINLOG ALL
 1347	1347	engine	objects@view	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident OPTIMIZE PARTITION LOCAL ALL
+1347	1347	engine	objects@view	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ident
 1347	1347	engine	objects@view	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REPAIR PARTITION ALL
 1347	1347	engine	objects@view	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident REPAIR PARTITION NO_WRITE_TO_BINLOG ALL
 1347	1347	engine	objects@view	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident REPAIR PARTITION LOCAL ALL
+1347	1347	engine	objects@view	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident REPAIR PARTITION ident
 1347	1347	engine	objects@view	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident IMPORT PARTITION ALL TABLESPACE
+1347	1347	engine	objects@view	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident IMPORT PARTITION ident TABLESPACE
 1347	1347	engine	objects@view	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident DISCARD PARTITION ALL TABLESPACE
+1347	1347	engine	objects@view	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident DISCARD PARTITION ident TABLESPACE
 1347	1347	engine	objects@view	AlterTableSpec/IMPORT_TABLESPACE	ALTER TABLE ident IMPORT TABLESPACE
 1347	1347	engine	objects@view	AlterTableSpec/DISCARD_TABLESPACE	ALTER TABLE ident DISCARD TABLESPACE
 1347	1347	engine	objects@view	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REBUILD PARTITION ALL
 1347	1347	engine	objects@view	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident REBUILD PARTITION NO_WRITE_TO_BINLOG ALL
 1347	1347	engine	objects@view	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident REBUILD PARTITION LOCAL ALL
+1347	1347	engine	objects@view	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident REBUILD PARTITION ident
 1347	1347	engine	objects@view	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier	ALTER TABLE ident DROP KEY ident
 1347	1347	engine	objects@view	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier+IfExists	ALTER TABLE ident DROP KEY IF EXISTS ident
 1347	1347	engine	objects@view	AlterTableSpec/DROP_FOREIGN_KEY_Symbol	ALTER TABLE ident DROP FOREIGN KEY ident
@@ -2649,6 +2923,7 @@ ok:26317606e7ec	ok:26317606e7ec	engine	objects@view	AlterTableStmt/ALTER_IgnoreO
 1347	1347	engine	objects@view	AlterTableSpec/SECONDARY_LOAD	ALTER TABLE ident SECONDARY_LOAD
 1347	1347	engine	objects@view	AlterTableSpec/SECONDARY_UNLOAD	ALTER TABLE ident SECONDARY_UNLOAD
 1347	1347	engine	objects@view	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot	ALTER TABLE ident ALTER CHECK ident ENFORCED
+1347	1347	engine	objects@view	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot+CheckConstraintKeyword/CONSTRAINT	ALTER TABLE ident ALTER CONSTRAINT ident ENFORCED
 1347	1347	engine	objects@view	AlterTableSpec/DROP_CheckConstraintKeyword_Identifier	ALTER TABLE ident DROP CHECK ident
 1347	1347	engine	objects@view	AlterTableSpec/ALTER_INDEX_Identifier_IndexInvisible	ALTER TABLE ident ALTER INDEX ident VISIBLE
 1347	1347	engine	objects@view	AlterTableSpec/CACHE	ALTER TABLE ident CACHE
@@ -2757,6 +3032,9 @@ ok:26317606e7ec	ok:26317606e7ec	engine	objects@view	AlterTableStmt/ALTER_IgnoreO
 1067	1067	engine	objects@view	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
 1067	1067	engine	objects@view	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
 1067	1067	engine	objects@view	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
+1067	1067	engine	objects@view	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME(1)
+1067	1067	engine	objects@view	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP(1)
+1067	1067	engine	objects@view	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW(1)
 1347	1347	engine	objects@view	NowSymOptionFraction/CurdateSym_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURDATE()
 1347	1347	engine	objects@view	NowSymOptionFraction/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE
 1347	1347	engine	objects@view	NextValueForSequenceParentheses/(_NextValueForSequenceParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(NEXT VALUE FOR ident)
@@ -2817,6 +3095,7 @@ ok:26317606e7ec	ok:26317606e7ec	engine	objects@view	AlterTableStmt/ALTER_IgnoreO
 1347	1347	engine	objects@view	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident LIKE ident
 1347	1347	engine	objects@view	PartitionOpt/PARTITION_BY_PartitionMethod_PartitionNumOpt_SubPartitionOpt_PartitionDefinitionListOpt_UpdateIndexesOpt!drop-2	ALTER TABLE ident PARTITION SYSTEM_TIME
 1347	1347	engine	objects@view	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)	ALTER TABLE ident PARTITION BY KEY()
+1347	1347	engine	objects@view	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)+ColumnNameListOpt	ALTER TABLE ident PARTITION BY KEY(ident)
 1347	1347	engine	objects@view	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)	ALTER TABLE ident PARTITION BY HASH(ident)
 1347	1347	engine	objects@view	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)+LinearOpt	ALTER TABLE ident PARTITION BY LINEAR HASH(ident)
 1347	1347	engine	objects@view	PartitionKeyAlgorithmOpt/ALGORITHM_eq_NUM	ALTER TABLE ident PARTITION BY KEY ALGORITHM = 1()
@@ -3056,6 +3335,8 @@ ok:c9381f79a233	ok:c9381f79a233	engine	objects@view	DropViewStmt/DROP_VIEW_IF_EX
 1347	1347	engine	objects@view	NumericType/BooleanType_FieldOpts	ALTER TABLE ident ADD ident BOOL
 1347	1347	engine	objects@view	NumericType/FixedPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident DECIMAL
 1347	1347	engine	objects@view	NumericType/FloatingPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident FLOAT
+1347	1347	engine	objects@view	NumericType/FloatingPointType_FloatOpt_FieldOpts+FloatOpt/FieldLen	ALTER TABLE ident ADD ident FLOAT(1)
+1347	1347	engine	objects@view	NumericType/FloatingPointType_FloatOpt_FieldOpts+FloatOpt/Precision	ALTER TABLE ident ADD ident FLOAT(1, 1)
 1347	1347	engine	objects@view	NumericType/BitValueType_OptFieldLen	ALTER TABLE ident ADD ident BIT
 1347	1347	engine	objects@view	IntegerType/SMALLINT	ALTER TABLE ident ADD ident SMALLINT
 1347	1347	engine	objects@view	IntegerType/MEDIUMINT	ALTER TABLE ident ADD ident MEDIUMINT
@@ -3078,24 +3359,78 @@ ok:c9381f79a233	ok:c9381f79a233	engine	objects@view	DropViewStmt/DROP_VIEW_IF_EX
 1347	1347	engine	objects@view	FloatingPointType/FLOAT8	ALTER TABLE ident ADD ident FLOAT8
 1347	1347	engine	objects@view	StringType/Char_FieldLen_OptBinary	ALTER TABLE ident ADD ident CHARACTER(1)
 1347	1347	engine	objects@view	StringType/Char_FieldLen_OptBinary+Char/CHAR	ALTER TABLE ident ADD ident CHAR(1)
+1347	1347	engine	objects@view	StringType/Char_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER(1) BINARY
+1347	1347	engine	objects@view	StringType/Char_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident CHARACTER(1) CHARSET 'binary'
+1347	1347	engine	objects@view	StringType/Char_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER(1) CHARACTER SET 'binary'
+1347	1347	engine	objects@view	StringType/Char_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER(1) CHAR SET 'binary'
+1347	1347	engine	objects@view	StringType/Char_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
+1347	1347	engine	objects@view	StringType/Char_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
 1347	1347	engine	objects@view	StringType/NChar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NCHAR(1)
 1347	1347	engine	objects@view	StringType/NChar_FieldLen_OptBinary+NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
 1347	1347	engine	objects@view	StringType/NChar_FieldLen_OptBinary+NChar/NATIONAL_CHAR	ALTER TABLE ident ADD ident NATIONAL CHAR(1)
+1347	1347	engine	objects@view	StringType/NChar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NCHAR(1) BINARY
+1347	1347	engine	objects@view	StringType/NChar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NCHAR(1) CHARSET 'binary'
+1347	1347	engine	objects@view	StringType/NChar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NCHAR(1) CHARACTER SET 'binary'
+1347	1347	engine	objects@view	StringType/NChar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NCHAR(1) CHAR SET 'binary'
 1347	1347	engine	objects@view	StringType/NChar_OptBinary	ALTER TABLE ident ADD ident NCHAR
+1347	1347	engine	objects@view	StringType/NChar_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NCHAR BINARY
+1347	1347	engine	objects@view	StringType/NChar_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NCHAR CHARSET 'binary'
+1347	1347	engine	objects@view	StringType/NChar_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NCHAR CHARACTER SET 'binary'
+1347	1347	engine	objects@view	StringType/NChar_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NCHAR CHAR SET 'binary'
 1347	1347	engine	objects@view	StringType/Varchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident VARCHAR(1)
 1347	1347	engine	objects@view	StringType/Varchar_FieldLen_OptBinary+Varchar/CHARACTER_VARYING	ALTER TABLE ident ADD ident CHARACTER VARYING(1)
 1347	1347	engine	objects@view	StringType/Varchar_FieldLen_OptBinary+Varchar/CHAR_VARYING	ALTER TABLE ident ADD ident CHAR VARYING(1)
 1347	1347	engine	objects@view	StringType/Varchar_FieldLen_OptBinary+Varchar/VARCHARACTER	ALTER TABLE ident ADD ident VARCHARACTER(1)
+1347	1347	engine	objects@view	StringType/Varchar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident VARCHAR(1) BINARY
+1347	1347	engine	objects@view	StringType/Varchar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident VARCHAR(1) CHARSET 'binary'
+1347	1347	engine	objects@view	StringType/Varchar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident VARCHAR(1) CHARACTER SET 'binary'
+1347	1347	engine	objects@view	StringType/Varchar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident VARCHAR(1) CHAR SET 'binary'
 1347	1347	engine	objects@view	StringType/NVarchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NVARCHAR(1)
+1347	1347	engine	objects@view	StringType/NVarchar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NVARCHAR(1) BINARY
+1347	1347	engine	objects@view	StringType/NVarchar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NVARCHAR(1) CHARSET 'binary'
+1347	1347	engine	objects@view	StringType/NVarchar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NVARCHAR(1) CHARACTER SET 'binary'
+1347	1347	engine	objects@view	StringType/NVarchar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NVARCHAR(1) CHAR SET 'binary'
 1347	1347	engine	objects@view	StringType/BINARY_OptFieldLen	ALTER TABLE ident ADD ident BINARY
 1347	1347	engine	objects@view	StringType/VARBINARY_FieldLen	ALTER TABLE ident ADD ident VARBINARY(1)
 1347	1347	engine	objects@view	StringType/BlobType	ALTER TABLE ident ADD ident TINYBLOB
 1347	1347	engine	objects@view	StringType/TextType_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident TINYTEXT
+1347	1347	engine	objects@view	StringType/TextType_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident TINYTEXT BINARY
+1347	1347	engine	objects@view	StringType/TextType_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident TINYTEXT CHARSET 'binary'
+1347	1347	engine	objects@view	StringType/TextType_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident TINYTEXT CHARACTER SET 'binary'
+1347	1347	engine	objects@view	StringType/TextType_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident TINYTEXT CHAR SET 'binary'
 1347	1347	engine	objects@view	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident ENUM('binary')
+1347	1347	engine	objects@view	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident ENUM('binary') BINARY
+1347	1347	engine	objects@view	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident ENUM('binary') CHARSET 'binary'
+1347	1347	engine	objects@view	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident ENUM('binary') CHARACTER SET 'binary'
+1347	1347	engine	objects@view	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident ENUM('binary') CHAR SET 'binary'
+1347	1347	engine	objects@view	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident ENUM('binary') ASCII
+1115	1115	engine	objects@view	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident ENUM('binary') UNICODE
+1347	1347	engine	objects@view	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident ENUM('binary') BYTE
 1347	1347	engine	objects@view	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident SET('binary')
+1347	1347	engine	objects@view	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident SET('binary') BINARY
+1347	1347	engine	objects@view	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident SET('binary') CHARSET 'binary'
+1347	1347	engine	objects@view	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident SET('binary') CHARACTER SET 'binary'
+1347	1347	engine	objects@view	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident SET('binary') CHAR SET 'binary'
+1347	1347	engine	objects@view	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident SET('binary') ASCII
+1115	1115	engine	objects@view	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident SET('binary') UNICODE
+1347	1347	engine	objects@view	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident SET('binary') BYTE
 1347	1347	engine	objects@view	StringType/JSON	ALTER TABLE ident ADD ident JSON
 1347	1347	engine	objects@view	StringType/LONG_Varchar_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG VARCHAR
+1347	1347	engine	objects@view	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident LONG VARCHAR BINARY
+1347	1347	engine	objects@view	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident LONG VARCHAR CHARSET 'binary'
+1347	1347	engine	objects@view	StringType/LONG_Varchar_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident LONG VARCHAR CHARACTER SET 'binary'
+1347	1347	engine	objects@view	StringType/LONG_Varchar_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident LONG VARCHAR CHAR SET 'binary'
+1347	1347	engine	objects@view	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident LONG VARCHAR ASCII
+1115	1115	engine	objects@view	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident LONG VARCHAR UNICODE
+1347	1347	engine	objects@view	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident LONG VARCHAR BYTE
 1347	1347	engine	objects@view	StringType/LONG_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG
+1347	1347	engine	objects@view	StringType/LONG_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident LONG BINARY
+1347	1347	engine	objects@view	StringType/LONG_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident LONG CHARSET 'binary'
+1347	1347	engine	objects@view	StringType/LONG_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident LONG CHARACTER SET 'binary'
+1347	1347	engine	objects@view	StringType/LONG_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident LONG CHAR SET 'binary'
+1347	1347	engine	objects@view	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident LONG ASCII
+1115	1115	engine	objects@view	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident LONG UNICODE
+1347	1347	engine	objects@view	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident LONG BYTE
 1347	1347	engine	objects@view	StringType/VECTOR_OptVectorElementType_OptFieldLen	ALTER TABLE ident ADD ident VECTOR
 1347	1347	engine	objects@view	Char/CHAR	ALTER TABLE ident ADD ident CHAR
 1347	1347	engine	objects@view	NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER
@@ -3136,8 +3471,6 @@ ok:c9381f79a233	ok:c9381f79a233	engine	objects@view	DropViewStmt/DROP_VIEW_IF_EX
 1347	1347	engine	objects@view	OptVectorElementType/<_FLOAT_>	ALTER TABLE ident ADD ident VECTOR < FLOAT >
 1347	1347	engine	objects@view	OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY
 1347	1347	engine	objects@view	OptBinary/BINARY_OptCharset+OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET BINARY
-1347	1347	engine	objects@view	OptBinary/CharsetKw_CharsetName_OptBinMod+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
-1347	1347	engine	objects@view	OptBinary/CharsetKw_CharsetName_OptBinMod+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
 1347	1347	engine	objects@view	OptCharset/CharsetKw_CharsetName	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
 1347	1347	engine	objects@view	OptCharset/CharsetKw_CharsetName+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER BINARY CHARACTER SET 'binary'
 1347	1347	engine	objects@view	OptCharset/CharsetKw_CharsetName+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER BINARY CHAR SET 'binary'
@@ -3145,6 +3478,8 @@ ok:c9381f79a233	ok:c9381f79a233	engine	objects@view	DropViewStmt/DROP_VIEW_IF_EX
 1347	1347	engine	objects@view	TextString/hexLit	ALTER TABLE ident ADD ident ENUM(0x1)
 1347	1347	engine	objects@view	TextString/bitLit	ALTER TABLE ident ADD ident ENUM(b'1')
 1347	1347	engine	objects@view	TextStringList/TextStringList_,_TextString	ALTER TABLE ident ADD ident ENUM('binary', 'binary')
+1347	1347	engine	objects@view	TextStringList/TextStringList_,_TextString+TextString/hexLit	ALTER TABLE ident ADD ident ENUM('binary', 0x1)
+1347	1347	engine	objects@view	TextStringList/TextStringList_,_TextString+TextString/bitLit	ALTER TABLE ident ADD ident ENUM('binary', b'1')
 ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_AlterTableSpecListOpt_AlterTableSpecSingleOpt	ALTER TABLE ident
 ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident
 ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt+IgnoreOptional	ALTER IGNORE TABLE ident ANALYZE PARTITION ident
@@ -3227,19 +3562,25 @@ ok:694502ec84b3	ok:694502ec84b3	engine	objects@partitioned	AlterTableSpec/DROP_P
 1105	1105	engine	objects@partitioned	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier+IfExists	ALTER TABLE ident DROP STATS_EXTENDED IF EXISTS ident
 1732	1732	engine	objects@partitioned	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
 ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ALL
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ident
 8200	8200	engine	objects@partitioned	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ALL
 8200	8200	engine	objects@partitioned	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident OPTIMIZE PARTITION NO_WRITE_TO_BINLOG ALL
 8200	8200	engine	objects@partitioned	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident OPTIMIZE PARTITION LOCAL ALL
+8200	8200	engine	objects@partitioned	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ident
 8200	8200	engine	objects@partitioned	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REPAIR PARTITION ALL
 8200	8200	engine	objects@partitioned	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident REPAIR PARTITION NO_WRITE_TO_BINLOG ALL
 8200	8200	engine	objects@partitioned	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident REPAIR PARTITION LOCAL ALL
+8200	8200	engine	objects@partitioned	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident REPAIR PARTITION ident
 8200	8200	engine	objects@partitioned	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident IMPORT PARTITION ALL TABLESPACE
+8200	8200	engine	objects@partitioned	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident IMPORT PARTITION ident TABLESPACE
 8200	8200	engine	objects@partitioned	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident DISCARD PARTITION ALL TABLESPACE
+8200	8200	engine	objects@partitioned	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident DISCARD PARTITION ident TABLESPACE
 8200	8200	engine	objects@partitioned	AlterTableSpec/IMPORT_TABLESPACE	ALTER TABLE ident IMPORT TABLESPACE
 8200	8200	engine	objects@partitioned	AlterTableSpec/DISCARD_TABLESPACE	ALTER TABLE ident DISCARD TABLESPACE
 8200	8200	engine	objects@partitioned	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REBUILD PARTITION ALL
 8200	8200	engine	objects@partitioned	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident REBUILD PARTITION NO_WRITE_TO_BINLOG ALL
 8200	8200	engine	objects@partitioned	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident REBUILD PARTITION LOCAL ALL
+8200	8200	engine	objects@partitioned	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident REBUILD PARTITION ident
 1091	1091	engine	objects@partitioned	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier	ALTER TABLE ident DROP KEY ident
 ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier+IfExists	ALTER TABLE ident DROP KEY IF EXISTS ident
 1091	1091	engine	objects@partitioned	AlterTableSpec/DROP_FOREIGN_KEY_Symbol	ALTER TABLE ident DROP FOREIGN KEY ident
@@ -3278,6 +3619,7 @@ ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/WITHOU
 8200	8200	engine	objects@partitioned	AlterTableSpec/SECONDARY_LOAD	ALTER TABLE ident SECONDARY_LOAD
 8200	8200	engine	objects@partitioned	AlterTableSpec/SECONDARY_UNLOAD	ALTER TABLE ident SECONDARY_UNLOAD
 ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot	ALTER TABLE ident ALTER CHECK ident ENFORCED
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot+CheckConstraintKeyword/CONSTRAINT	ALTER TABLE ident ALTER CONSTRAINT ident ENFORCED
 ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/DROP_CheckConstraintKeyword_Identifier	ALTER TABLE ident DROP CHECK ident
 1176	1176	engine	objects@partitioned	AlterTableSpec/ALTER_INDEX_Identifier_IndexInvisible	ALTER TABLE ident ALTER INDEX ident VISIBLE
 8242	8242	engine	objects@partitioned	AlterTableSpec/CACHE	ALTER TABLE ident CACHE
@@ -3386,6 +3728,9 @@ ok:8e70cfa3b4f1	ok:8e70cfa3b4f1	engine	objects@partitioned	ConstraintElem/UNIQUE
 1067	1067	engine	objects@partitioned	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
 1067	1067	engine	objects@partitioned	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
 1067	1067	engine	objects@partitioned	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
+1067	1067	engine	objects@partitioned	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME(1)
+1067	1067	engine	objects@partitioned	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP(1)
+1067	1067	engine	objects@partitioned	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW(1)
 1060	1060	engine	objects@partitioned	NowSymOptionFraction/CurdateSym_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURDATE()
 1060	1060	engine	objects@partitioned	NowSymOptionFraction/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE
 1347	1347	engine	objects@partitioned	NextValueForSequenceParentheses/(_NextValueForSequenceParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(NEXT VALUE FOR ident)
@@ -3446,6 +3791,7 @@ ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	CreateTableStmt/CREAT
 1562	1562	engine	objects@partitioned	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident LIKE ident
 ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	PartitionOpt/PARTITION_BY_PartitionMethod_PartitionNumOpt_SubPartitionOpt_PartitionDefinitionListOpt_UpdateIndexesOpt!drop-2	ALTER TABLE ident PARTITION SYSTEM_TIME
 ok:95ac641e6e9b	ok:95ac641e6e9b	engine	objects@partitioned	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)	ALTER TABLE ident PARTITION BY KEY()
+ok:7b8df2f4a2da	ok:7b8df2f4a2da	engine	objects@partitioned	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)+ColumnNameListOpt	ALTER TABLE ident PARTITION BY KEY(ident)
 ok:b920231a857c	ok:b920231a857c	engine	objects@partitioned	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)	ALTER TABLE ident PARTITION BY HASH(ident)
 ok:b920231a857c	ok:b920231a857c	engine	objects@partitioned	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)+LinearOpt	ALTER TABLE ident PARTITION BY LINEAR HASH(ident)
 ok:95ac641e6e9b	ok:95ac641e6e9b	engine	objects@partitioned	PartitionKeyAlgorithmOpt/ALGORITHM_eq_NUM	ALTER TABLE ident PARTITION BY KEY ALGORITHM = 1()
@@ -3685,6 +4031,8 @@ ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_
 1060	1060	engine	objects@partitioned	NumericType/BooleanType_FieldOpts	ALTER TABLE ident ADD ident BOOL
 1060	1060	engine	objects@partitioned	NumericType/FixedPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident DECIMAL
 1060	1060	engine	objects@partitioned	NumericType/FloatingPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident FLOAT
+1060	1060	engine	objects@partitioned	NumericType/FloatingPointType_FloatOpt_FieldOpts+FloatOpt/FieldLen	ALTER TABLE ident ADD ident FLOAT(1)
+1060	1060	engine	objects@partitioned	NumericType/FloatingPointType_FloatOpt_FieldOpts+FloatOpt/Precision	ALTER TABLE ident ADD ident FLOAT(1, 1)
 1060	1060	engine	objects@partitioned	NumericType/BitValueType_OptFieldLen	ALTER TABLE ident ADD ident BIT
 1060	1060	engine	objects@partitioned	IntegerType/SMALLINT	ALTER TABLE ident ADD ident SMALLINT
 1060	1060	engine	objects@partitioned	IntegerType/MEDIUMINT	ALTER TABLE ident ADD ident MEDIUMINT
@@ -3707,24 +4055,78 @@ ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_
 1060	1060	engine	objects@partitioned	FloatingPointType/FLOAT8	ALTER TABLE ident ADD ident FLOAT8
 1060	1060	engine	objects@partitioned	StringType/Char_FieldLen_OptBinary	ALTER TABLE ident ADD ident CHARACTER(1)
 1060	1060	engine	objects@partitioned	StringType/Char_FieldLen_OptBinary+Char/CHAR	ALTER TABLE ident ADD ident CHAR(1)
+1060	1060	engine	objects@partitioned	StringType/Char_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER(1) BINARY
+1060	1060	engine	objects@partitioned	StringType/Char_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident CHARACTER(1) CHARSET 'binary'
+1060	1060	engine	objects@partitioned	StringType/Char_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER(1) CHARACTER SET 'binary'
+1060	1060	engine	objects@partitioned	StringType/Char_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER(1) CHAR SET 'binary'
+1060	1060	engine	objects@partitioned	StringType/Char_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
+1060	1060	engine	objects@partitioned	StringType/Char_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
 1060	1060	engine	objects@partitioned	StringType/NChar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NCHAR(1)
 1060	1060	engine	objects@partitioned	StringType/NChar_FieldLen_OptBinary+NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
 1060	1060	engine	objects@partitioned	StringType/NChar_FieldLen_OptBinary+NChar/NATIONAL_CHAR	ALTER TABLE ident ADD ident NATIONAL CHAR(1)
+1060	1060	engine	objects@partitioned	StringType/NChar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NCHAR(1) BINARY
+1060	1060	engine	objects@partitioned	StringType/NChar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NCHAR(1) CHARSET 'binary'
+1060	1060	engine	objects@partitioned	StringType/NChar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NCHAR(1) CHARACTER SET 'binary'
+1060	1060	engine	objects@partitioned	StringType/NChar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NCHAR(1) CHAR SET 'binary'
 1060	1060	engine	objects@partitioned	StringType/NChar_OptBinary	ALTER TABLE ident ADD ident NCHAR
+1060	1060	engine	objects@partitioned	StringType/NChar_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NCHAR BINARY
+1060	1060	engine	objects@partitioned	StringType/NChar_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NCHAR CHARSET 'binary'
+1060	1060	engine	objects@partitioned	StringType/NChar_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NCHAR CHARACTER SET 'binary'
+1060	1060	engine	objects@partitioned	StringType/NChar_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NCHAR CHAR SET 'binary'
 1060	1060	engine	objects@partitioned	StringType/Varchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident VARCHAR(1)
 1060	1060	engine	objects@partitioned	StringType/Varchar_FieldLen_OptBinary+Varchar/CHARACTER_VARYING	ALTER TABLE ident ADD ident CHARACTER VARYING(1)
 1060	1060	engine	objects@partitioned	StringType/Varchar_FieldLen_OptBinary+Varchar/CHAR_VARYING	ALTER TABLE ident ADD ident CHAR VARYING(1)
 1060	1060	engine	objects@partitioned	StringType/Varchar_FieldLen_OptBinary+Varchar/VARCHARACTER	ALTER TABLE ident ADD ident VARCHARACTER(1)
+1060	1060	engine	objects@partitioned	StringType/Varchar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident VARCHAR(1) BINARY
+1060	1060	engine	objects@partitioned	StringType/Varchar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident VARCHAR(1) CHARSET 'binary'
+1060	1060	engine	objects@partitioned	StringType/Varchar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident VARCHAR(1) CHARACTER SET 'binary'
+1060	1060	engine	objects@partitioned	StringType/Varchar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident VARCHAR(1) CHAR SET 'binary'
 1060	1060	engine	objects@partitioned	StringType/NVarchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NVARCHAR(1)
+1060	1060	engine	objects@partitioned	StringType/NVarchar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NVARCHAR(1) BINARY
+1060	1060	engine	objects@partitioned	StringType/NVarchar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NVARCHAR(1) CHARSET 'binary'
+1060	1060	engine	objects@partitioned	StringType/NVarchar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NVARCHAR(1) CHARACTER SET 'binary'
+1060	1060	engine	objects@partitioned	StringType/NVarchar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NVARCHAR(1) CHAR SET 'binary'
 1060	1060	engine	objects@partitioned	StringType/BINARY_OptFieldLen	ALTER TABLE ident ADD ident BINARY
 1060	1060	engine	objects@partitioned	StringType/VARBINARY_FieldLen	ALTER TABLE ident ADD ident VARBINARY(1)
 1060	1060	engine	objects@partitioned	StringType/BlobType	ALTER TABLE ident ADD ident TINYBLOB
 1060	1060	engine	objects@partitioned	StringType/TextType_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident TINYTEXT
+1060	1060	engine	objects@partitioned	StringType/TextType_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident TINYTEXT BINARY
+1060	1060	engine	objects@partitioned	StringType/TextType_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident TINYTEXT CHARSET 'binary'
+1060	1060	engine	objects@partitioned	StringType/TextType_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident TINYTEXT CHARACTER SET 'binary'
+1060	1060	engine	objects@partitioned	StringType/TextType_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident TINYTEXT CHAR SET 'binary'
 1060	1060	engine	objects@partitioned	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident ENUM('binary')
+1060	1060	engine	objects@partitioned	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident ENUM('binary') BINARY
+1060	1060	engine	objects@partitioned	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident ENUM('binary') CHARSET 'binary'
+1060	1060	engine	objects@partitioned	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident ENUM('binary') CHARACTER SET 'binary'
+1060	1060	engine	objects@partitioned	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident ENUM('binary') CHAR SET 'binary'
+1060	1060	engine	objects@partitioned	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident ENUM('binary') ASCII
+1115	1115	engine	objects@partitioned	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident ENUM('binary') UNICODE
+1060	1060	engine	objects@partitioned	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident ENUM('binary') BYTE
 1060	1060	engine	objects@partitioned	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident SET('binary')
+1060	1060	engine	objects@partitioned	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident SET('binary') BINARY
+1060	1060	engine	objects@partitioned	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident SET('binary') CHARSET 'binary'
+1060	1060	engine	objects@partitioned	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident SET('binary') CHARACTER SET 'binary'
+1060	1060	engine	objects@partitioned	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident SET('binary') CHAR SET 'binary'
+1060	1060	engine	objects@partitioned	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident SET('binary') ASCII
+1115	1115	engine	objects@partitioned	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident SET('binary') UNICODE
+1060	1060	engine	objects@partitioned	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident SET('binary') BYTE
 1060	1060	engine	objects@partitioned	StringType/JSON	ALTER TABLE ident ADD ident JSON
 1060	1060	engine	objects@partitioned	StringType/LONG_Varchar_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG VARCHAR
+1060	1060	engine	objects@partitioned	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident LONG VARCHAR BINARY
+1060	1060	engine	objects@partitioned	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident LONG VARCHAR CHARSET 'binary'
+1060	1060	engine	objects@partitioned	StringType/LONG_Varchar_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident LONG VARCHAR CHARACTER SET 'binary'
+1060	1060	engine	objects@partitioned	StringType/LONG_Varchar_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident LONG VARCHAR CHAR SET 'binary'
+1060	1060	engine	objects@partitioned	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident LONG VARCHAR ASCII
+1115	1115	engine	objects@partitioned	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident LONG VARCHAR UNICODE
+1060	1060	engine	objects@partitioned	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident LONG VARCHAR BYTE
 1060	1060	engine	objects@partitioned	StringType/LONG_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG
+1060	1060	engine	objects@partitioned	StringType/LONG_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident LONG BINARY
+1060	1060	engine	objects@partitioned	StringType/LONG_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident LONG CHARSET 'binary'
+1060	1060	engine	objects@partitioned	StringType/LONG_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident LONG CHARACTER SET 'binary'
+1060	1060	engine	objects@partitioned	StringType/LONG_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident LONG CHAR SET 'binary'
+1060	1060	engine	objects@partitioned	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident LONG ASCII
+1115	1115	engine	objects@partitioned	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident LONG UNICODE
+1060	1060	engine	objects@partitioned	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident LONG BYTE
 1060	1060	engine	objects@partitioned	StringType/VECTOR_OptVectorElementType_OptFieldLen	ALTER TABLE ident ADD ident VECTOR
 1060	1060	engine	objects@partitioned	Char/CHAR	ALTER TABLE ident ADD ident CHAR
 1060	1060	engine	objects@partitioned	NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER
@@ -3765,8 +4167,6 @@ ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_
 1060	1060	engine	objects@partitioned	OptVectorElementType/<_FLOAT_>	ALTER TABLE ident ADD ident VECTOR < FLOAT >
 1060	1060	engine	objects@partitioned	OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY
 1060	1060	engine	objects@partitioned	OptBinary/BINARY_OptCharset+OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET BINARY
-1060	1060	engine	objects@partitioned	OptBinary/CharsetKw_CharsetName_OptBinMod+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
-1060	1060	engine	objects@partitioned	OptBinary/CharsetKw_CharsetName_OptBinMod+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
 1060	1060	engine	objects@partitioned	OptCharset/CharsetKw_CharsetName	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
 1060	1060	engine	objects@partitioned	OptCharset/CharsetKw_CharsetName+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER BINARY CHARACTER SET 'binary'
 1060	1060	engine	objects@partitioned	OptCharset/CharsetKw_CharsetName+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER BINARY CHAR SET 'binary'
@@ -3774,6 +4174,8 @@ ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_
 1060	1060	engine	objects@partitioned	TextString/hexLit	ALTER TABLE ident ADD ident ENUM(0x1)
 1060	1060	engine	objects@partitioned	TextString/bitLit	ALTER TABLE ident ADD ident ENUM(b'1')
 1060	1060	engine	objects@partitioned	TextStringList/TextStringList_,_TextString	ALTER TABLE ident ADD ident ENUM('binary', 'binary')
+1060	1060	engine	objects@partitioned	TextStringList/TextStringList_,_TextString+TextString/hexLit	ALTER TABLE ident ADD ident ENUM('binary', 0x1)
+1060	1060	engine	objects@partitioned	TextStringList/TextStringList_,_TextString+TextString/bitLit	ALTER TABLE ident ADD ident ENUM('binary', b'1')
 ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_AlterTableSpecListOpt_AlterTableSpecSingleOpt	ALTER TABLE ident
 1505	1505	engine	objects@fk	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident
 1505	1505	engine	objects@fk	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt+IgnoreOptional	ALTER IGNORE TABLE ident ANALYZE PARTITION ident
@@ -3856,19 +4258,25 @@ ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/ADD_Constraint	
 1105	1105	engine	objects@fk	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier+IfExists	ALTER TABLE ident DROP STATS_EXTENDED IF EXISTS ident
 1505	1505	engine	objects@fk	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
 1505	1505	engine	objects@fk	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ALL
+1505	1505	engine	objects@fk	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ident
 8200	8200	engine	objects@fk	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ALL
 8200	8200	engine	objects@fk	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident OPTIMIZE PARTITION NO_WRITE_TO_BINLOG ALL
 8200	8200	engine	objects@fk	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident OPTIMIZE PARTITION LOCAL ALL
+8200	8200	engine	objects@fk	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ident
 8200	8200	engine	objects@fk	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REPAIR PARTITION ALL
 8200	8200	engine	objects@fk	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident REPAIR PARTITION NO_WRITE_TO_BINLOG ALL
 8200	8200	engine	objects@fk	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident REPAIR PARTITION LOCAL ALL
+8200	8200	engine	objects@fk	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident REPAIR PARTITION ident
 8200	8200	engine	objects@fk	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident IMPORT PARTITION ALL TABLESPACE
+8200	8200	engine	objects@fk	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident IMPORT PARTITION ident TABLESPACE
 8200	8200	engine	objects@fk	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident DISCARD PARTITION ALL TABLESPACE
+8200	8200	engine	objects@fk	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident DISCARD PARTITION ident TABLESPACE
 8200	8200	engine	objects@fk	AlterTableSpec/IMPORT_TABLESPACE	ALTER TABLE ident IMPORT TABLESPACE
 8200	8200	engine	objects@fk	AlterTableSpec/DISCARD_TABLESPACE	ALTER TABLE ident DISCARD TABLESPACE
 8200	8200	engine	objects@fk	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REBUILD PARTITION ALL
 8200	8200	engine	objects@fk	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/NO_WRITE_TO_BINLOG	ALTER TABLE ident REBUILD PARTITION NO_WRITE_TO_BINLOG ALL
 8200	8200	engine	objects@fk	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+NoWriteToBinLogAliasOpt/LOCAL	ALTER TABLE ident REBUILD PARTITION LOCAL ALL
+8200	8200	engine	objects@fk	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList+AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident REBUILD PARTITION ident
 1553	1553	engine	objects@fk	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier	ALTER TABLE ident DROP KEY ident
 1553	1553	engine	objects@fk	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier+IfExists	ALTER TABLE ident DROP KEY IF EXISTS ident
 ok:eca862c8e46d	ok:eca862c8e46d	engine	objects@fk	AlterTableSpec/DROP_FOREIGN_KEY_Symbol	ALTER TABLE ident DROP FOREIGN KEY ident
@@ -3907,6 +4315,7 @@ ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/WITHOUT_VALIDAT
 8200	8200	engine	objects@fk	AlterTableSpec/SECONDARY_LOAD	ALTER TABLE ident SECONDARY_LOAD
 8200	8200	engine	objects@fk	AlterTableSpec/SECONDARY_UNLOAD	ALTER TABLE ident SECONDARY_UNLOAD
 ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot	ALTER TABLE ident ALTER CHECK ident ENFORCED
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot+CheckConstraintKeyword/CONSTRAINT	ALTER TABLE ident ALTER CONSTRAINT ident ENFORCED
 ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/DROP_CheckConstraintKeyword_Identifier	ALTER TABLE ident DROP CHECK ident
 ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/ALTER_INDEX_Identifier_IndexInvisible	ALTER TABLE ident ALTER INDEX ident VISIBLE
 ok:e6a4460fd7b0	ok:e6a4460fd7b0	engine	objects@fk	AlterTableSpec/CACHE	ALTER TABLE ident CACHE
@@ -4015,6 +4424,9 @@ ok:b2ab40e72814	ok:b2ab40e72814	engine	objects@fk	ConstraintElem/UNIQUE_KeyOrInd
 1067	1067	engine	objects@fk	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
 1067	1067	engine	objects@fk	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
 1067	1067	engine	objects@fk	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
+1067	1067	engine	objects@fk	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME(1)
+1067	1067	engine	objects@fk	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP(1)
+1067	1067	engine	objects@fk	NowSymOptionFraction/NowSymFunc_(_NUM_)+NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW(1)
 1060	1060	engine	objects@fk	NowSymOptionFraction/CurdateSym_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURDATE()
 1060	1060	engine	objects@fk	NowSymOptionFraction/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE
 1347	1347	engine	objects@fk	NextValueForSequenceParentheses/(_NextValueForSequenceParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(NEXT VALUE FOR ident)
@@ -4075,6 +4487,7 @@ ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	CreateTableStmt/CREATE_OptTemp
 ok:ac38dcb6c91e	ok:ac38dcb6c91e	engine	objects@fk	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident LIKE ident
 ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	PartitionOpt/PARTITION_BY_PartitionMethod_PartitionNumOpt_SubPartitionOpt_PartitionDefinitionListOpt_UpdateIndexesOpt!drop-2	ALTER TABLE ident PARTITION SYSTEM_TIME
 ok:9dd4c371f861	ok:9dd4c371f861	engine	objects@fk	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)	ALTER TABLE ident PARTITION BY KEY()
+1503	1503	engine	objects@fk	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)+ColumnNameListOpt	ALTER TABLE ident PARTITION BY KEY(ident)
 1503	1503	engine	objects@fk	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)	ALTER TABLE ident PARTITION BY HASH(ident)
 1503	1503	engine	objects@fk	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)+LinearOpt	ALTER TABLE ident PARTITION BY LINEAR HASH(ident)
 ok:9dd4c371f861	ok:9dd4c371f861	engine	objects@fk	PartitionKeyAlgorithmOpt/ALGORITHM_eq_NUM	ALTER TABLE ident PARTITION BY KEY ALGORITHM = 1()
@@ -4314,6 +4727,8 @@ ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_TOK
 1060	1060	engine	objects@fk	NumericType/BooleanType_FieldOpts	ALTER TABLE ident ADD ident BOOL
 1060	1060	engine	objects@fk	NumericType/FixedPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident DECIMAL
 1060	1060	engine	objects@fk	NumericType/FloatingPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident FLOAT
+1060	1060	engine	objects@fk	NumericType/FloatingPointType_FloatOpt_FieldOpts+FloatOpt/FieldLen	ALTER TABLE ident ADD ident FLOAT(1)
+1060	1060	engine	objects@fk	NumericType/FloatingPointType_FloatOpt_FieldOpts+FloatOpt/Precision	ALTER TABLE ident ADD ident FLOAT(1, 1)
 1060	1060	engine	objects@fk	NumericType/BitValueType_OptFieldLen	ALTER TABLE ident ADD ident BIT
 1060	1060	engine	objects@fk	IntegerType/SMALLINT	ALTER TABLE ident ADD ident SMALLINT
 1060	1060	engine	objects@fk	IntegerType/MEDIUMINT	ALTER TABLE ident ADD ident MEDIUMINT
@@ -4336,24 +4751,78 @@ ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_TOK
 1060	1060	engine	objects@fk	FloatingPointType/FLOAT8	ALTER TABLE ident ADD ident FLOAT8
 1060	1060	engine	objects@fk	StringType/Char_FieldLen_OptBinary	ALTER TABLE ident ADD ident CHARACTER(1)
 1060	1060	engine	objects@fk	StringType/Char_FieldLen_OptBinary+Char/CHAR	ALTER TABLE ident ADD ident CHAR(1)
+1060	1060	engine	objects@fk	StringType/Char_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER(1) BINARY
+1060	1060	engine	objects@fk	StringType/Char_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident CHARACTER(1) CHARSET 'binary'
+1060	1060	engine	objects@fk	StringType/Char_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER(1) CHARACTER SET 'binary'
+1060	1060	engine	objects@fk	StringType/Char_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER(1) CHAR SET 'binary'
+1060	1060	engine	objects@fk	StringType/Char_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
+1060	1060	engine	objects@fk	StringType/Char_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
 1060	1060	engine	objects@fk	StringType/NChar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NCHAR(1)
 1060	1060	engine	objects@fk	StringType/NChar_FieldLen_OptBinary+NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
 1060	1060	engine	objects@fk	StringType/NChar_FieldLen_OptBinary+NChar/NATIONAL_CHAR	ALTER TABLE ident ADD ident NATIONAL CHAR(1)
+1060	1060	engine	objects@fk	StringType/NChar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NCHAR(1) BINARY
+1060	1060	engine	objects@fk	StringType/NChar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NCHAR(1) CHARSET 'binary'
+1060	1060	engine	objects@fk	StringType/NChar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NCHAR(1) CHARACTER SET 'binary'
+1060	1060	engine	objects@fk	StringType/NChar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NCHAR(1) CHAR SET 'binary'
 1060	1060	engine	objects@fk	StringType/NChar_OptBinary	ALTER TABLE ident ADD ident NCHAR
+1060	1060	engine	objects@fk	StringType/NChar_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NCHAR BINARY
+1060	1060	engine	objects@fk	StringType/NChar_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NCHAR CHARSET 'binary'
+1060	1060	engine	objects@fk	StringType/NChar_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NCHAR CHARACTER SET 'binary'
+1060	1060	engine	objects@fk	StringType/NChar_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NCHAR CHAR SET 'binary'
 1060	1060	engine	objects@fk	StringType/Varchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident VARCHAR(1)
 1060	1060	engine	objects@fk	StringType/Varchar_FieldLen_OptBinary+Varchar/CHARACTER_VARYING	ALTER TABLE ident ADD ident CHARACTER VARYING(1)
 1060	1060	engine	objects@fk	StringType/Varchar_FieldLen_OptBinary+Varchar/CHAR_VARYING	ALTER TABLE ident ADD ident CHAR VARYING(1)
 1060	1060	engine	objects@fk	StringType/Varchar_FieldLen_OptBinary+Varchar/VARCHARACTER	ALTER TABLE ident ADD ident VARCHARACTER(1)
+1060	1060	engine	objects@fk	StringType/Varchar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident VARCHAR(1) BINARY
+1060	1060	engine	objects@fk	StringType/Varchar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident VARCHAR(1) CHARSET 'binary'
+1060	1060	engine	objects@fk	StringType/Varchar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident VARCHAR(1) CHARACTER SET 'binary'
+1060	1060	engine	objects@fk	StringType/Varchar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident VARCHAR(1) CHAR SET 'binary'
 1060	1060	engine	objects@fk	StringType/NVarchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NVARCHAR(1)
+1060	1060	engine	objects@fk	StringType/NVarchar_FieldLen_OptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident NVARCHAR(1) BINARY
+1060	1060	engine	objects@fk	StringType/NVarchar_FieldLen_OptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident NVARCHAR(1) CHARSET 'binary'
+1060	1060	engine	objects@fk	StringType/NVarchar_FieldLen_OptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident NVARCHAR(1) CHARACTER SET 'binary'
+1060	1060	engine	objects@fk	StringType/NVarchar_FieldLen_OptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident NVARCHAR(1) CHAR SET 'binary'
 1060	1060	engine	objects@fk	StringType/BINARY_OptFieldLen	ALTER TABLE ident ADD ident BINARY
 1060	1060	engine	objects@fk	StringType/VARBINARY_FieldLen	ALTER TABLE ident ADD ident VARBINARY(1)
 1060	1060	engine	objects@fk	StringType/BlobType	ALTER TABLE ident ADD ident TINYBLOB
 1060	1060	engine	objects@fk	StringType/TextType_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident TINYTEXT
+1060	1060	engine	objects@fk	StringType/TextType_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident TINYTEXT BINARY
+1060	1060	engine	objects@fk	StringType/TextType_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident TINYTEXT CHARSET 'binary'
+1060	1060	engine	objects@fk	StringType/TextType_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident TINYTEXT CHARACTER SET 'binary'
+1060	1060	engine	objects@fk	StringType/TextType_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident TINYTEXT CHAR SET 'binary'
 1060	1060	engine	objects@fk	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident ENUM('binary')
+1060	1060	engine	objects@fk	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident ENUM('binary') BINARY
+1060	1060	engine	objects@fk	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident ENUM('binary') CHARSET 'binary'
+1060	1060	engine	objects@fk	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident ENUM('binary') CHARACTER SET 'binary'
+1060	1060	engine	objects@fk	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident ENUM('binary') CHAR SET 'binary'
+1060	1060	engine	objects@fk	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident ENUM('binary') ASCII
+1115	1115	engine	objects@fk	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident ENUM('binary') UNICODE
+1060	1060	engine	objects@fk	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident ENUM('binary') BYTE
 1060	1060	engine	objects@fk	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident SET('binary')
+1060	1060	engine	objects@fk	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident SET('binary') BINARY
+1060	1060	engine	objects@fk	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident SET('binary') CHARSET 'binary'
+1060	1060	engine	objects@fk	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident SET('binary') CHARACTER SET 'binary'
+1060	1060	engine	objects@fk	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident SET('binary') CHAR SET 'binary'
+1060	1060	engine	objects@fk	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident SET('binary') ASCII
+1115	1115	engine	objects@fk	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident SET('binary') UNICODE
+1060	1060	engine	objects@fk	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident SET('binary') BYTE
 1060	1060	engine	objects@fk	StringType/JSON	ALTER TABLE ident ADD ident JSON
 1060	1060	engine	objects@fk	StringType/LONG_Varchar_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG VARCHAR
+1060	1060	engine	objects@fk	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident LONG VARCHAR BINARY
+1060	1060	engine	objects@fk	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident LONG VARCHAR CHARSET 'binary'
+1060	1060	engine	objects@fk	StringType/LONG_Varchar_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident LONG VARCHAR CHARACTER SET 'binary'
+1060	1060	engine	objects@fk	StringType/LONG_Varchar_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident LONG VARCHAR CHAR SET 'binary'
+1060	1060	engine	objects@fk	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident LONG VARCHAR ASCII
+1115	1115	engine	objects@fk	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident LONG VARCHAR UNICODE
+1060	1060	engine	objects@fk	StringType/LONG_Varchar_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident LONG VARCHAR BYTE
 1060	1060	engine	objects@fk	StringType/LONG_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG
+1060	1060	engine	objects@fk	StringType/LONG_OptCharsetWithOptBinary+OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident LONG BINARY
+1060	1060	engine	objects@fk	StringType/LONG_OptCharsetWithOptBinary+OptBinary/CharsetKw_CharsetName_OptBinMod	ALTER TABLE ident ADD ident LONG CHARSET 'binary'
+1060	1060	engine	objects@fk	StringType/LONG_OptCharsetWithOptBinary+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident LONG CHARACTER SET 'binary'
+1060	1060	engine	objects@fk	StringType/LONG_OptCharsetWithOptBinary+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident LONG CHAR SET 'binary'
+1060	1060	engine	objects@fk	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident LONG ASCII
+1115	1115	engine	objects@fk	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident LONG UNICODE
+1060	1060	engine	objects@fk	StringType/LONG_OptCharsetWithOptBinary+OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident LONG BYTE
 1060	1060	engine	objects@fk	StringType/VECTOR_OptVectorElementType_OptFieldLen	ALTER TABLE ident ADD ident VECTOR
 1060	1060	engine	objects@fk	Char/CHAR	ALTER TABLE ident ADD ident CHAR
 1060	1060	engine	objects@fk	NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER
@@ -4394,8 +4863,6 @@ ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_TOK
 1060	1060	engine	objects@fk	OptVectorElementType/<_FLOAT_>	ALTER TABLE ident ADD ident VECTOR < FLOAT >
 1060	1060	engine	objects@fk	OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY
 1060	1060	engine	objects@fk	OptBinary/BINARY_OptCharset+OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET BINARY
-1060	1060	engine	objects@fk	OptBinary/CharsetKw_CharsetName_OptBinMod+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER CHARACTER SET 'binary'
-1060	1060	engine	objects@fk	OptBinary/CharsetKw_CharsetName_OptBinMod+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER CHAR SET 'binary'
 1060	1060	engine	objects@fk	OptCharset/CharsetKw_CharsetName	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
 1060	1060	engine	objects@fk	OptCharset/CharsetKw_CharsetName+CharsetKw/CHARACTER_SET	ALTER TABLE ident ADD ident CHARACTER BINARY CHARACTER SET 'binary'
 1060	1060	engine	objects@fk	OptCharset/CharsetKw_CharsetName+CharsetKw/CHAR_SET	ALTER TABLE ident ADD ident CHARACTER BINARY CHAR SET 'binary'
@@ -4403,6 +4870,8 @@ ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_TOK
 1060	1060	engine	objects@fk	TextString/hexLit	ALTER TABLE ident ADD ident ENUM(0x1)
 1060	1060	engine	objects@fk	TextString/bitLit	ALTER TABLE ident ADD ident ENUM(b'1')
 1060	1060	engine	objects@fk	TextStringList/TextStringList_,_TextString	ALTER TABLE ident ADD ident ENUM('binary', 'binary')
+1060	1060	engine	objects@fk	TextStringList/TextStringList_,_TextString+TextString/hexLit	ALTER TABLE ident ADD ident ENUM('binary', 0x1)
+1060	1060	engine	objects@fk	TextStringList/TextStringList_,_TextString+TextString/bitLit	ALTER TABLE ident ADD ident ENUM('binary', b'1')
 8200	8200	engine	features@charset	charset:convert	ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4
 8200	8200	engine	features@charset	charset:convert	ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 8200	8200	engine	features@charset	charset:convert	ALTER TABLE notes CONVERT TO CHARACTER SET latin1

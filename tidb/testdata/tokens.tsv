@@ -27,6 +27,15 @@ OptCollate	(every site)	parser.y:13561 COLLATE
 OptBinMod	(every site)	parser.y:13497 BINARY
 OptCharset	(every site)	parser.y:13547 CHARACTER SET
 LowPriorityOpt	(every site)	parser.y:14858 LOW_PRIORITY
+WhereClauseOptional	(every site)	parser.y:13684 WHERE
+OrderByOptional	(every site)	parser.y:7762 ORDER BY
+SelectStmtLimitOpt	(every site)	parser.y:10156 LIMIT
+ExpressionListOpt	(every site)	parser.y:6229 an optional expression list
+OfTablesOpt	(every site)	parser.y:10472 OF tables
+ColumnNameListOpt	(every site)	parser.y:3535 (columns)
+TableAsNameOpt	(every site)	parser.y:9944 a table alias
+FormatOpt	(every site)	parser.y:14867 FORMAT 'string'
+LikeOrIlikeEscapeOpt	(every site)	parser.y:6453 ESCAPE 'c'
 PriorityOpt	(every alternative)	parser.y:9060 LOW_PRIORITY, HIGH_PRIORITY or DELAYED, or none
 ConstraintKeywordOpt	(every alternative)	parser.y:2945 CONSTRAINT [name]
 ColumnPosition	(every alternative)	parser.y:2902 FIRST or AFTER a column
@@ -71,6 +80,33 @@ ObjectType	(every alternative)	parser.y:14710 TABLE, FUNCTION or PROCEDURE
 FieldsOrColumns	(every alternative)	parser.y:14931 FIELDS or COLUMNS
 TablesTerminalSym	(every alternative)	parser.y:15187 TABLES or TABLE
 KillOrKillTiDB	(every alternative)	parser.y:15321 KILL or KILL TIDB
+EqOrAssignmentEq	(every alternative)	parser.y:10920 = or :=
+CompareOp	(every alternative)	parser.y:6277 a comparison operator
+ExplainFormatType	(every alternative)	parser.y:5593 EXPLAIN's formats
+NumLiteral	(every alternative)	parser.y:4175 an integer, float or decimal literal
+FieldTerminator	(every alternative)	parser.y:15009 a string, hex or bit literal
+TextString	(every alternative)	parser.y:13580 a string, hex or bit literal
+NowSymFunc	(every alternative)	parser.y:4146 CURRENT_TIMESTAMP, LOCALTIME, LOCALTIMESTAMP or NOW
+RequireListElement	(every alternative)	parser.y:13913 REQUIRE ISSUER, SUBJECT, CIPHER, SAN or TOKEN_ISSUER
+StatsType	(every alternative)	parser.y:4180 CARDINALITY, DEPENDENCY or CORRELATION
+OnCommitOpt	(every alternative)	parser.y:4565 ON COMMIT DELETE or PRESERVE ROWS
+OptVectorElementType	(every alternative)	parser.y:13506 VECTOR<FLOAT> or VECTOR<DOUBLE>
+CheckConstraintKeyword	(every alternative)	parser.y:12522 CHECK or CONSTRAINT
+OptionalBraces	(every alternative)	parser.y:8139 optional ()
+HashString	(every alternative)	parser.y:14129 a string or hex literal
+AllColumnsOrPredicateColumnsOpt	(every alternative)	parser.y:3355 ALL or PREDICATE COLUMNS
+CommentOrAttributeOption	(every alternative)	parser.y:13950 COMMENT or ATTRIBUTE
+ResourceGroupRunawayWatchOption	(every alternative)	parser.y:1817 EXACT, SIMILAR or PLAN
+TableSampleMethodOpt	(every alternative)	parser.y:9362 SYSTEM, BERNOULLI or REGIONS
+SplitSyntaxOption	(every alternative)	parser.y:3251 REGION FOR, PARTITION or both
+SelectLockOpt	(every alternative)	parser.y:10409 FOR UPDATE, FOR SHARE and their wait options
+OptBinary	(every alternative)	parser.y:13525 a type's BINARY or character set
+FloatOpt	(every alternative)	parser.y:13481 a float type's (length) or (precision, scale)
+SetExpr	(every alternative)	parser.y:10909 ON, BINARY or an expression
+OptCharsetWithOptBinary	(every alternative)	parser.y:13370 a type's character set, ASCII, UNICODE or BYTE
+AllOrPartitionNameList	(every alternative)	parser.y:2789 ALL or partition names
+ExprOrDefault	(every alternative)	parser.y:7516 an expression or DEFAULT
+ResourceGroupName	(every alternative)	parser.y:4445 a name or DEFAULT
 
 identifier	ident
 stringLit	'binary'	a string that is also a charset and a collation: TiDB looks those names up while parsing, and an unknown one answers before a later syntax error

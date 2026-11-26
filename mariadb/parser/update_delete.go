@@ -672,11 +672,11 @@ func (p *Parser) parseDeleteHistory(stmt *nodes.DeleteStmt) (*nodes.DeleteStmt, 
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
-		point, err := p.parseHistoryPoint(stmt)
+		point, unit, err := p.parseHistoryPoint()
 		if err != nil {
 			return nil, err
 		}
-		stmt.HistoryBefore = point
+		stmt.HistoryBefore, stmt.HistoryUnit = point, unit
 	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -684,20 +684,23 @@ func (p *Parser) parseDeleteHistory(stmt *nodes.DeleteStmt) (*nodes.DeleteStmt, 
 
 // parseHistoryPoint reads history_point: TIMESTAMP 'datetime', whose action
 // refuses a string that is no datetime; TIMESTAMP(expr [, expr]); or
-// [TRANSACTION | TIMESTAMP] bit_expr, the unit going to stmt.HistoryUnit.
+// [TRANSACTION | TIMESTAMP] bit_expr, returning the unit written. A TIMESTAMP
+// before anything else is the unit, never a column (opt_history_unit's empty
+// alternative is %prec PREC_BELOW_IDENTIFIER_OPT_SPECIAL_CASE), so a bare
+// TIMESTAMP is a 1064.
 //
 // Ref: history_point and function_call_keyword_timestamp in MariaDB 11.8
 // sql/sql_yacc.yy.
-func (p *Parser) parseHistoryPoint(stmt *nodes.DeleteStmt) (nodes.ExprNode, error) {
+func (p *Parser) parseHistoryPoint() (nodes.ExprNode, string, error) {
 	switch {
 	case p.cur.Type == kwTIMESTAMP && p.peekNext().Type == tokSCONST:
 		start := p.pos()
 		p.advance() // consume TIMESTAMP
 		if !historyDatetimeValid(p.cur.Str) {
-			return nil, &ParseError{Message: "Incorrect DATETIME value: '" + p.cur.Str + "'", Position: p.cur.Loc}
+			return nil, "", &ParseError{Message: "Incorrect DATETIME value: '" + p.cur.Str + "'", Position: p.cur.Loc}
 		}
 		val := p.advance().Str
-		return &nodes.TemporalLit{Loc: nodes.Loc{Start: start, End: p.prev.End}, Type: "TIMESTAMP", Value: val}, nil
+		return &nodes.TemporalLit{Loc: nodes.Loc{Start: start, End: p.prev.End}, Type: "TIMESTAMP", Value: val}, "", nil
 	case p.cur.Type == kwTIMESTAMP && p.peekNext().Type == '(':
 		start := p.pos()
 		p.advance() // consume TIMESTAMP
@@ -706,10 +709,10 @@ func (p *Parser) parseHistoryPoint(stmt *nodes.DeleteStmt) (nodes.ExprNode, erro
 		for {
 			arg, err := p.parseExpr()
 			if err != nil {
-				return nil, err
+				return nil, "", err
 			}
 			if arg == nil {
-				return nil, p.syntaxErrorAtCur()
+				return nil, "", p.syntaxErrorAtCur()
 			}
 			fc.Args = append(fc.Args, arg)
 			if len(fc.Args) == 2 || p.cur.Type != ',' {
@@ -718,21 +721,23 @@ func (p *Parser) parseHistoryPoint(stmt *nodes.DeleteStmt) (nodes.ExprNode, erro
 			p.advance()
 		}
 		if _, err := p.expect(')'); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		fc.Loc.End = p.prev.End
-		return fc, nil
-	case p.cur.Type == kwTIMESTAMP || p.cur.Type == kwTRANSACTION:
-		stmt.HistoryUnit = strings.ToUpper(p.advance().Str)
+		return fc, "", nil
+	}
+	var unit string
+	if p.cur.Type == kwTIMESTAMP || p.cur.Type == kwTRANSACTION {
+		unit = strings.ToUpper(p.advance().Str)
 	}
 	point, err := p.parseBitExpr()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if point == nil {
-		return nil, p.syntaxErrorAtCur()
+		return nil, "", p.syntaxErrorAtCur()
 	}
-	return point, nil
+	return point, unit, nil
 }
 
 // historyDatetimeValid reports whether s reads as a DATETIME: digits alone

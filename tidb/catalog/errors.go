@@ -223,6 +223,7 @@ const (
 	ErrWindowNoSuchWindow      = 3579
 	ErrWindowFrameStartIllegal = 3584
 	ErrWindowFrameEndIllegal   = 3585
+	ErrWindowFrameIllegal      = 3586
 	ErrWindowDuplicateName     = 3591
 	ErrWindowRowsIntervalUse   = 3596
 )
@@ -323,6 +324,7 @@ var sqlStateMap = map[int]string{
 	ErrWindowNoSuchWindow:                  "HY000",
 	ErrWindowFrameStartIllegal:             "HY000",
 	ErrWindowFrameEndIllegal:               "HY000",
+	ErrWindowFrameIllegal:                  "HY000",
 	ErrWindowDuplicateName:                 "HY000",
 	ErrWindowRowsIntervalUse:               "HY000",
 }

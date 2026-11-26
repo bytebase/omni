@@ -358,10 +358,12 @@ func (p *Parser) parseCompressionName() (string, error) {
 	return name, err
 }
 
-// parseCollationName parses the name a database option's COLLATE takes. This
-// is where OceanBase departs from MySQL: its collation name carries no BINARY
-// arm, so CE 4.3.5.6 answers 1064 to `COLLATE = binary` and to
-// `COLLATE binary` while taking `CHARSET = binary`. Quoted, the same word is
+// parseCollationName parses the name a COLLATE takes, collation_name: NAME_OB
+// | STRING_VALUE (sql_parser_mysql_mode.y:7399), in a database or table
+// option, a column type and a column attribute alike. This is where OceanBase
+// departs from MySQL: its collation name carries no BINARY arm, so CE 4.3.5.6
+// answers 1064 to `COLLATE = binary`, `COLLATE binary` and CHAR(1) COLLATE
+// BINARY while taking `CHARSET = binary` and TINYINT COLLATE 'utf8mb4_bin'. Quoted, the same word is
 // an ordinary ident_or_text name and parses, in single quotes and in
 // backquotes alike.
 func (p *Parser) parseCollationName() (string, error) {

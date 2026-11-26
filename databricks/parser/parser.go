@@ -86,6 +86,10 @@ type Parser struct {
 	offsetLoc              Loc
 	tableRefs              []TableRef
 	cteScopes              []map[string]struct{}
+
+	// inMultiInsertFrom is set while the FROM clause of a multi-insert query
+	// (SqlBaseParser.g4:624, fromClause multiInsertQueryBody+) is parsed.
+	inMultiInsertFrom bool
 }
 
 // Parse parses a Databricks / Spark SQL input string (one or more
