@@ -231,6 +231,18 @@ SELECT [Name, Email] AS arr FROM Customers
 SELECT (SELECT AS STRUCT Name, Email) AS s FROM Customers
 SELECT c FROM Customers c
 SELECT TO_JSON_STRING(c) FROM Customers c
+SELECT Customers FROM Customers
+SELECT Name FROM Customers AS Name
+SELECT o FROM Customers c JOIN Orders o USING (CustomerId)
+SELECT s FROM (SELECT Name, Email FROM Customers) AS s
+SELECT s FROM (SELECT * EXCEPT (Email) FROM Customers) AS s
+SELECT r FROM (SELECT c AS r FROM Customers c)
+WITH big AS (SELECT CustomerId, Amount FROM Orders) SELECT big FROM big
+SELECT v FROM CustomerOrders AS v
+SELECT x FROM omni_span.OrdersOf(1) AS x
+SELECT * FROM omni_span.OrdersOf(1)
+FROM (SELECT * FROM omni_span.OrdersOf(1)) AS a |> SELECT TO_JSON_STRING(a) AS j
+SELECT TO_JSON_STRING(t) FROM omni_span.INFORMATION_SCHEMA.TABLES AS t
 SELECT ANY_VALUE(Ship).City FROM Orders
 
 -- PIVOT and UNPIVOT.
@@ -321,6 +333,10 @@ SELECT c.Name FROM (FROM Customers AS c)
 (FROM Customers |> AS c) |> SELECT c.Name
 FROM (FROM Customers AS c |> SET Name = Email) |> SELECT c.Name, Name
 SELECT c.Name FROM (FROM Customers AS c) AS s
+FROM Customers AS c |> SELECT c
+FROM Customers AS c |> EXTEND 1 AS c |> SELECT c
+FROM Customers |> AS c |> SELECT c.Name, c
+FROM Customers AS c |> SET Name = Email |> SELECT c, Name
 
 -- INFORMATION_SCHEMA and other datasets.
 SELECT table_name FROM omni_span.INFORMATION_SCHEMA.TABLES

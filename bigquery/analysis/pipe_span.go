@@ -147,11 +147,10 @@ func (w *spanWalker) pipeFailClosed(what string) *pipeTable {
 // returns the function that restores the previous scope.
 func (w *spanWalker) enterPipeScope(t *pipeTable) func() {
 	prevLeaves, prevFrom, prevUnresolved := w.leaves, w.fromAliases, w.fromUnresolved
-	prevRows, prevCols := w.pipeRowNames, w.pipeColumns
+	prevCols := w.pipeColumns
 	w.leaves = &leafSet{}
 	w.fromAliases = map[string]bool{}
 	w.fromUnresolved = false
-	w.pipeRowNames = map[string]bool{}
 	w.pipeColumns = map[string]bool{}
 	for _, c := range t.cols {
 		w.pipeColumns[foldKey(c.name)] = true
@@ -160,13 +159,10 @@ func (w *spanWalker) enterPipeScope(t *pipeTable) func() {
 	for _, rel := range t.ranges {
 		w.leaves.add(rel)
 		w.registerFromAlias(rel.name)
-		if !rel.valueTable {
-			w.pipeRowNames[foldKey(rel.name)] = true
-		}
 	}
 	return func() {
 		w.leaves, w.fromAliases, w.fromUnresolved = prevLeaves, prevFrom, prevUnresolved
-		w.pipeRowNames, w.pipeColumns = prevRows, prevCols
+		w.pipeColumns = prevCols
 	}
 }
 
@@ -282,6 +278,12 @@ func (w *spanWalker) pipeAggregate(sel *ast.SelectStmt) *pipeTable {
 				cols = append(cols, projColumn{name: name, sources: sources})
 			case ast.GroupingEmpty:
 			case ast.GroupingRollup, ast.GroupingCube, ast.GroupingSets:
+				// BigQuery takes ROLLUP, CUBE and GROUPING SETS only as the one
+				// grouping element ("only supports ROLLUP when there are no other
+				// grouping elements"), so their columns never repeat another's.
+				if len(sel.GroupBy.Items) > 1 {
+					return w.pipeFailClosed("a pipe AGGREGATE with ROLLUP, CUBE or GROUPING SETS beside other grouping elements")
+				}
 				seen := map[string]bool{}
 				for _, e := range gi.Items {
 					parts := exprToParts(e)

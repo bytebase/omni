@@ -117,7 +117,7 @@ func TestRegression_TruncateWhere(t *testing.T) {
 // Finding #6: TVF arguments contribute predicate columns (the doc-promised
 // behavior), not just subquery discovery.
 func TestRegression_TVFArgsPredicateColumns(t *testing.T) {
-	span, err := GetQuerySpan("SELECT * FROM my_tvf(t.id) AS x")
+	span, err := GetQuerySpan("SELECT x.a FROM my_tvf(t.id) AS x")
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)
 	}

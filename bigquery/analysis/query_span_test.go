@@ -792,7 +792,7 @@ func TestGetQuerySpan_ScalarSubqueryInSelectListIsOpaque(t *testing.T) {
 // reference (Column=c, no table qualifier) so the catalog-aware consumer matches
 // it against BOTH joined sides' c columns; the USING column is also a predicate.
 func TestGetQuerySpan_JoinUsingCoalesceSurfacesColumn(t *testing.T) {
-	sql := "SELECT ID, NAME, ADDRESS FROM people JOIN address USING (ID)"
+	sql := "SELECT ID, NAME, ZIP FROM people JOIN address USING (ID)"
 	span, err := GetQuerySpan(sql)
 	if err != nil {
 		t.Fatalf("GetQuerySpan error: %v", err)

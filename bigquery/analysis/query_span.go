@@ -380,12 +380,12 @@ type spanWalker struct {
 	// operator, and the FROM clause an unaliased subquery of it sits in, read
 	// them. A reader takes it right after visitBody.
 	outRanges []*relation
-	// pipeRowNames holds, folded, the range variables a pipe operator's
-	// expressions see that stand for a whole row (not an UNNEST element).
-	pipeRowNames map[string]bool
 	// pipeColumns holds, folded, the names of the columns a pipe operator's
 	// expressions read (see requirePipeColumn); nil outside a pipe operator.
 	pipeColumns map[string]bool
+	// opaqueSubqueries counts the subqueries met in lineage expressions (a
+	// select item, a REPLACE or pipe value), whose output gets no sources.
+	opaqueSubqueries int
 	// fixpoints counts the recursive-CTE fixpoints started, so
 	// recursiveFixpoint can tell whether a recursive arm holds another one.
 	fixpoints int
@@ -1274,13 +1274,13 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 	w.leaves = &leafSet{}
 	prevUnresolved := w.fromUnresolved
 	w.fromUnresolved = false
-	prevRows, prevCols := w.pipeRowNames, w.pipeColumns
-	w.pipeRowNames, w.pipeColumns = nil, nil
+	prevCols := w.pipeColumns
+	w.pipeColumns = nil
 	defer func() {
 		w.fromAliases = prevFrom
 		w.leaves = prevLeaves
 		w.fromUnresolved = prevUnresolved
-		w.pipeRowNames, w.pipeColumns = prevRows, prevCols
+		w.pipeColumns = prevCols
 	}()
 
 	// Resolve the FROM clause into the comma-item relations (a join collapses into
@@ -2564,7 +2564,7 @@ func (ew *exprWalk) followSubquery(query ast.Node) {
 // (TestGetQuerySpan_GQLEmptySpan) — the patterns and the graph name contribute
 // no access table.
 func (ew *exprWalk) walkGraph(node ast.Node) {
-	inner := &exprWalk{w: ew.w, followSub: true}
+	inner := &exprWalk{w: ew.w, followSub: true, onSubquery: ew.onSubquery}
 	inner.walkGraphNode(node)
 }
 
@@ -2880,7 +2880,7 @@ func (ew *exprWalk) walkBoundBody(bound []string, body ast.Node) {
 			names[strings.ToLower(b)] = true
 		}
 	}
-	inner := &exprWalk{w: ew.w, followSub: ew.followSub}
+	inner := &exprWalk{w: ew.w, followSub: ew.followSub, onSubquery: ew.onSubquery}
 	if ew.onColumn != nil {
 		outer := ew.onColumn
 		inner.onColumn = func(ref ColumnRef) {
