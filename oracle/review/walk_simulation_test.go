@@ -438,7 +438,7 @@ func TestWalkSimulation(t *testing.T) {
 const walkSimQueriesSuite = "../catalog/testdata/queries/simulate.tsv"
 
 // walkSimQueriesMinRecallPct is the queries subtest's recall floor.
-const walkSimQueriesMinRecallPct = 87.5
+const walkSimQueriesMinRecallPct = 89.0
 
 // walkSimProgramsSuite is oracle/catalog's stored-program suite: procedures,
 // functions, packages, triggers and types with bodies, and changes to the
@@ -446,7 +446,7 @@ const walkSimQueriesMinRecallPct = 87.5
 const walkSimProgramsSuite = "../catalog/testdata/programs/simulate.tsv"
 
 // walkSimProgramsMinRecallPct is the programs subtest's recall floor.
-const walkSimProgramsMinRecallPct = 69.0
+const walkSimProgramsMinRecallPct = 71.5
 
 // walkSimSuite holds WALK_THROUGH to one of oracle/catalog's suites as
 // TestWalkSimulation holds it to compat.tsv: no finding on a statement
@@ -494,6 +494,9 @@ func walkSimSuite(t *testing.T, w *walkSchemas, shop, allNames, name, path strin
 			case verdict == "ok":
 			case finding == nil:
 				fxRefused++
+				if *walkSimShowMissed {
+					t.Logf("MISSED [%s] ORA-%s: %s", fxName, verdict, r.Statement)
+				}
 			default:
 				fxRefused++
 				fxFound++

@@ -86,7 +86,7 @@ func (b *builder) statement(n ast.Node) bool {
 		return true
 	case *ast.CreatePackageStmt:
 		if v.IsBody {
-			return true
+			return b.createPackageBody(v)
 		}
 		return b.createObject(v.Name, kindPackage, v.IfNotExists, v.OrReplace)
 	case *ast.AlterPackageStmt:
@@ -127,6 +127,24 @@ func (b *builder) statement(n ast.Node) bool {
 		return true
 	}
 	return false
+}
+
+// createPackageBody follows CREATE PACKAGE BODY, whose name is in a
+// namespace of its own: without OR REPLACE a body must not hold it
+// (00955, verified). With no package of its name Oracle creates the body
+// all the same, with compilation errors.
+func (b *builder) createPackageBody(v *ast.CreatePackageStmt) bool {
+	r, ok := b.ref(v.Name)
+	if !ok {
+		return true
+	}
+	k := r.key(spacePackageBody)
+	if !v.OrReplace && !v.IfNotExists {
+		b.Order = walk.Lookups
+		b.need(k, walk.Absent, nil, r.rng, "", "Package body "+review.Code(r.written)+" already exists.")
+	}
+	b.Set(k, walk.Present, "")
+	return true
 }
 
 // createObject follows CREATE of a sequence, a private synonym, a type, a
@@ -596,11 +614,12 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 		}
 		b.leaveObject(r)
 	case ast.OBJECT_PACKAGE_BODY:
-		// The body has a namespace of its own, which the sync does not
-		// list, but it needs its package (04043).
+		// The body has a namespace of its own, but it needs its package
+		// (04043).
 		if !v.IfExists {
 			b.routineExists(r, kindPackage, false)
 		}
+		b.Set(r.key(spacePackageBody), walk.Absent, "")
 	case ast.OBJECT_PACKAGE, ast.OBJECT_PROCEDURE, ast.OBJECT_FUNCTION:
 		kind := map[ast.ObjectType]string{
 			ast.OBJECT_PACKAGE:   kindPackage,
@@ -611,6 +630,9 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 			return true
 		}
 		b.leaveObject(r)
+		if kind == kindPackage {
+			b.Set(r.key(spacePackageBody), walk.Absent, "")
+		}
 	case ast.OBJECT_TYPE:
 		if !b.exists(r.key(spaceObject), []string{kindType}, v.IfExists, r.rng, missingKind(kindType, r.written), notKind(r.written, kindWord(kindType))) {
 			return true

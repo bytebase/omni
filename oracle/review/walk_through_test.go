@@ -391,6 +391,33 @@ func TestWalkThroughOracle(t *testing.T) {
 // Oracle gives one to no partitioned, index-organized, external, or
 // temporary table, so a table the sync gives one is a heap table of no
 // partitions.
+// TestWalkThroughOraclePackageBody pins that a body the sync appends to its
+// package's definition holds the body's name (00955), and that DROP
+// PACKAGE BODY and DROP PACKAGE free it.
+func TestWalkThroughOraclePackageBody(t *testing.T) {
+	db := walkSchema(false)
+	db.Schemas[0].Packages = append(db.Schemas[0].Packages, &metadata.PackageMetadata{
+		Name:       "PKB",
+		Definition: "CREATE OR REPLACE PACKAGE pkb AS PROCEDURE p; END;\n\nCREATE OR REPLACE PACKAGE BODY pkb AS PROCEDURE p IS BEGIN NULL; END; END;",
+	})
+	shop := review.Target{Schema: db}
+	oneFinding(t, "CREATE PACKAGE BODY pkb AS PROCEDURE p IS BEGIN NULL; END; END;", 0, "Package body `PKB` already exists.", shop)
+	oneFinding(t, "CREATE PACKAGE BODY nosuch AS PROCEDURE p IS BEGIN NULL; END; END;\n/\nCREATE PACKAGE BODY nosuch AS PROCEDURE p IS BEGIN NULL; END; END;", 1, "Package body `NOSUCH` already exists.", shop)
+	noFinding(t, "CREATE OR REPLACE PACKAGE BODY pkb AS PROCEDURE p IS BEGIN NULL; END; END;", shop)
+	noFinding(t, "CREATE PACKAGE BODY pkg AS PROCEDURE p IS BEGIN NULL; END; END;", shop)
+	noFinding(t, "DROP PACKAGE BODY pkb;\nCREATE PACKAGE BODY pkb AS PROCEDURE p IS BEGIN NULL; END; END;", shop)
+	noFinding(t, "DROP PACKAGE pkb;\nCREATE PACKAGE BODY pkb AS PROCEDURE p IS BEGIN NULL; END; END;", shop)
+}
+
+// TestWalkThroughOracleTableOfNumber pins that a view's TABLE operator on a
+// number fails (22905), and one on anything else is left to Oracle.
+func TestWalkThroughOracleTableOfNumber(t *testing.T) {
+	shop := review.Target{Schema: walkSchema(false)}
+	oneFinding(t, "CREATE VIEW v AS SELECT * FROM TABLE(1);", 0, "Oracle refuses the view's query: ORA-22905: Cannot access rows from unsupported input to TABLE operator.", shop)
+	noFinding(t, "CREATE VIEW v AS SELECT * FROM TABLE(f(1));", shop)
+	noFinding(t, "CREATE VIEW v AS SELECT * FROM TABLE(1) a, TABLE(f(1)) b;", shop)
+}
+
 func TestWalkThroughOracleHeapTable(t *testing.T) {
 	schema := walkSchema(false)
 	heap := &metadata.TableMetadata{
@@ -1077,7 +1104,7 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	noFinding(t, "CREATE VIEW v AS SELECT * FROM plain PIVOT (myagg(id) FOR val IN (1));", rich)
 	// An analytic view named for a table, or for itself.
 	oneFinding(t, "CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW (USING plain);", 0, "Oracle refuses the view's query: ORA-18307: analytic view \"\".\"PLAIN\" does not exist.", rich)
-	oneFinding(t, "CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW (USING plain HIERARCHIES (h));", 0, "Oracle refuses the view's query: ORA-18370: The HIERARCHIES clause may only be specified for cubes..", rich)
+	oneFinding(t, "CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW (USING plain HIERARCHIES (h));", 0, "Oracle refuses the view's query: ORA-18370: The HIERARCHIES clause may only be specified for cubes.", rich)
 	oneFinding(t, "CREATE VIEW v AS WITH x ANALYTIC VIEW AS (USING x) SELECT * FROM plain;", 0, "Oracle refuses the view's query: ORA-18385: recursive WITH clause not allowed in a derived analytic view.", rich)
 	noFinding(t, "CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW (USING sales_av);", rich)
 	noFinding(t, "CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW (USING other.plain);", rich)
