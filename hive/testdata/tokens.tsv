@@ -109,3 +109,76 @@ intervalQualifiers	(every alternative)	IdentifiersParser.g:520 an interval unit
 tableOrPartition	(every alternative)	IdentifiersParser.g:810 a table, with or without a PARTITION spec
 tableOrPartition(partitionSpec)?	(every alternative)	IdentifiersParser.g:810 the PARTITION spec tableOrPartition may add, or none
 alterTblPartitionStatementSuffix	(every alternative)	AlterClauseParser.g:85 the ALTER TABLE suffixes that also take a PARTITION spec
+# More choices and optional clauses tried at every site that names them (wave
+# 21): keyword and expression choices named at several sites, and the
+# optional groups of SHOW, CREATE TABLE, joins and a query body.
+showStatement(KW_FROM|KW_IN)	(every alternative)	HiveParser.g:1327 showStatement: FROM or IN
+showStatement(KW_DATABASE|KW_SCHEMA)	(every alternative)	HiveParser.g:1327 showStatement: DATABASE or SCHEMA
+showStatement(KW_LIKE_showStmtIdentifier|showStmtIdentifier)?	(every alternative)	HiveParser.g:1327 showStatement: a pattern, with or without LIKE
+createDatabaseStatement(KW_DATABASE|KW_SCHEMA)	(every alternative)	HiveParser.g:1171 createDatabaseStatement: DATABASE or SCHEMA
+selectExpression	(every alternative)	SelectClauseParser.g:104 a star or an expression
+selectItem	(every alternative)	SelectClauseParser.g:80 a star or an expression with its alias
+selectClause	(every alternative)	SelectClauseParser.g:48 SELECT or a TRANSFORM, MAP or REDUCE clause
+functionIdentifier	(every alternative)	IdentifiersParser.g:906 db.function or function
+principalIdentifier	(every alternative)	IdentifiersParser.g:915 a name or a quoted name
+expressionOrDefault	(every alternative)	IdentifiersParser.g:185 DEFAULT or an expression
+expressions	(every alternative)	IdentifiersParser.g:210 an expression list in parentheses or not
+precedenceSimilarExpression	(every alternative)	IdentifiersParser.g:655 a comparison or EXISTS (subquery)
+precedenceRegexpOperator	(every alternative)	IdentifiersParser.g:640 LIKE, RLIKE or REGEXP
+subQuerySelectorOperator	(every alternative)	IdentifiersParser.g:841 =, <>, <=, <, >= or >
+timeUnitQualifiers	(every alternative)	IdentifiersParser.g:411 DAY, HOUR or MINUTE
+null_treatment	(every alternative)	IdentifiersParser.g:306 RESPECT NULLS or IGNORE NULLS
+groupingSetExpression	(every alternative)	IdentifiersParser.g:116 a parenthesized set or one expression
+tableSample	(every alternative)	FromClauseParser.g:201 TABLESAMPLE BUCKET or a split sample
+tableAllColumns	(every alternative)	FromClauseParser.g:50 * or table.*
+partitioningSpec	(every alternative)	FromClauseParser.g:263 PARTITION BY, ORDER BY, DISTRIBUTE BY, SORT BY or CLUSTER BY
+window_frame_boundary(KW_PRECEDING|KW_FOLLOWING)	(every alternative)	SelectClauseParser.g:172 PRECEDING or FOLLOWING
+window_frame_start_boundary	(every alternative)	SelectClauseParser.g:163 UNBOUNDED PRECEDING, CURRENT ROW or n PRECEDING
+likeTableOrFile	(every alternative)	CreateDDLParser.g:46 LIKE FILE or LIKE a table
+snapshotIdOfRef	(every alternative)	AlterClauseParser.g:522 FOR SYSTEM_VERSION, SYSTEM_TIME or TAG AS OF
+viewPartition	(every alternative)	HiveParser.g:1695 PARTITIONED ON columns or a SPEC
+scheduleSpec	(every alternative)	HiveParser.g:1821 CRON or EVERY
+updateOrDelete	(every alternative)	HiveParser.g:2961 a MERGE's UPDATE SET or DELETE
+transactionMode	(every alternative)	HiveParser.g:2866 an isolation level or an access mode
+triggerActionExpression	(every alternative)	ResourcePlanParser.g:197 KILL or MOVE TO a pool
+recordReader	(every alternative)	HiveParser.g:1958 RECORDREADER or none
+recordWriter	(every alternative)	HiveParser.g:1965 RECORDWRITER or none
+atomjoinSource(lateralView)*	(every site)	FromClauseParser.g:105 atomjoinSource: LATERAL VIEW after a source
+joinSourcePart(lateralView)*	(every site)	FromClauseParser.g:122 joinSourcePart: LATERAL VIEW after a joined source
+joinToken(KW_OUTER)?	(every site)	FromClauseParser.g:146 joinToken: OUTER after LEFT, RIGHT or FULL
+lateralView(COMMA)?	(every site)	FromClauseParser.g:161 lateralView: a comma before LATERAL
+lateralView(KW_AS_identifier_(COMMA_identifier)*)?	(every site)	FromClauseParser.g:161 lateralView: AS column aliases
+setOperator(KW_DISTINCT)?	(every site)	HiveParser.g:2542 setOperator: DISTINCT
+showStatement((KW_FROM|KW_IN)_identifier)?	(every site)	HiveParser.g:1327 showStatement: FROM or IN a database
+showStatement(KW_EXTENDED)?	(every site)	HiveParser.g:1327 showStatement: EXTENDED
+showStatement(limitClause)?	(every site)	HiveParser.g:1327 showStatement: LIMIT
+showStatement(orderByClause)?	(every site)	HiveParser.g:1327 showStatement: ORDER BY
+showStatement(partTypeExpr)?	(every site)	HiveParser.g:1327 showStatement: a table and partition
+showStatement(compactionPool)?	(every site)	HiveParser.g:1327 showStatement: SHOW COMPACTIONS ... POOL
+showStatement(compactionType)?	(every site)	HiveParser.g:1327 showStatement: SHOW COMPACTIONS ... TYPE
+showStatement(compactionStatus)?	(every site)	HiveParser.g:1327 showStatement: SHOW COMPACTIONS ... STATUS
+descStatement(KW_EXTENDED)?	(every site)	HiveParser.g:1296 descStatement: DESCRIBE ... EXTENDED
+createDatabaseStatement(databaseComment)?	(every site)	HiveParser.g:1171 createDatabaseStatement: COMMENT
+createDatabaseStatement(KW_WITH_KW_DBPROPERTIES_dbProperties)?	(every site)	HiveParser.g:1171 createDatabaseStatement: WITH DBPROPERTIES
+createTableStatement(LPAREN_columnNameTypeOrConstraintList_RPAREN)?	(every site)	CreateDDLParser.g:53 createTableStatement: a column list
+createTableStatement(tableComment)?	(every site)	CreateDDLParser.g:53 createTableStatement: COMMENT
+createTableStatement(createTablePartitionSpec)?	(every site)	CreateDDLParser.g:53 createTableStatement: PARTITIONED BY
+createTableStatement(tableBuckets)?	(every site)	CreateDDLParser.g:53 createTableStatement: CLUSTERED BY
+createTableStatement(tableSkewed)?	(every site)	CreateDDLParser.g:53 createTableStatement: SKEWED BY
+createTableStatement(tableRowFormat)?	(every site)	CreateDDLParser.g:53 createTableStatement: ROW FORMAT
+createTableStatement(tableFileFormat)?	(every site)	CreateDDLParser.g:53 createTableStatement: STORED AS or BY
+createTableStatement(tableLocation)?	(every site)	CreateDDLParser.g:53 createTableStatement: LOCATION
+createTableStatement(tablePropertiesPrefixed)?	(every site)	CreateDDLParser.g:53 createTableStatement: TBLPROPERTIES
+createTableStatement(KW_AS_selectStatementWithCTE)?	(every site)	CreateDDLParser.g:53 createTableStatement: AS a query
+explainStatement(explainOption)*	(every site)	HiveParser.g:904 explainStatement: EXPLAIN options
+body(lateralView)?	(every site)	HiveParser.g:2749 body: LATERAL VIEW
+body(whereClause)?	(every site)	HiveParser.g:2749 body: WHERE
+body(groupByClause)?	(every site)	HiveParser.g:2749 body: GROUP BY
+body(havingClause)?	(every site)	HiveParser.g:2749 body: HAVING
+body(window_clause)?	(every site)	HiveParser.g:2749 body: WINDOW
+body(qualifyClause)?	(every site)	HiveParser.g:2749 body: QUALIFY
+body(orderByClause)?	(every site)	HiveParser.g:2749 body: ORDER BY
+body(clusterByClause)?	(every site)	HiveParser.g:2749 body: CLUSTER BY
+body(distributeByClause)?	(every site)	HiveParser.g:2749 body: DISTRIBUTE BY
+body(sortByClause)?	(every site)	HiveParser.g:2749 body: SORT BY
+body(limitClause)?	(every site)	HiveParser.g:2749 body: LIMIT

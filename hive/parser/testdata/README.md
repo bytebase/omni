@@ -16,18 +16,20 @@ fresh container (`OMNI_RECORD=verify`).
 
 | Rows | Total | Agree | Only Hive accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| Generated alternatives | 2,380 | 2,380 | 0 | 0 |
-| Generated near-misses | 5,035 | 5,035 | 0 | 0 |
-| **All** | **7,415** | **7,415** | **0** | **0** |
+| Generated alternatives | 2,556 | 2,556 | 0 | 0 |
+| Generated near-misses | 5,477 | 5,477 | 0 | 0 |
+| **All** | **8,033** | **8,033** | **0** | **0** |
 
-Apache Hive 4.0.1 accepts 2,367 of the 2,380 generated alternatives and rejects
-13: 12 `MERGE` rows with zero `WHEN` clauses (where Hive 4.0.1's `HiveParser`
-throws ANTLR 3's `RewriteEmptyStreamException` on `whenClauses` during parsing)
-and 1 `SELECT a(*, *)` row (where `function`'s `(STAR) => STAR` syntactic
-predicate matches bare `*` before `selectExpression`). It rejects 4,585 of the
-5,035 near-misses and accepts 450 whose single-token mutation still produces
-valid HiveQL. `hive/parser` agrees with live `apache/hive:4.0.1` on all 7,415
-rows (100.0%).
+Apache Hive 4.0.1 accepts 2,535 of the 2,556 generated alternatives and rejects
+21: 12 `MERGE` rows with zero `WHEN` clauses (where Hive 4.0.1's `HiveParser`
+throws ANTLR 3's `RewriteEmptyStreamException` on `whenClauses` during parsing),
+4 `SELECT a(*, ...)` rows (where `function`'s `(STAR) => STAR` syntactic
+predicate matches bare `*` before `selectExpression`), and 5 `CREATE TABLE ...
+LIKE FILE` rows followed by `PARTITIONED BY`, `STORED BY` or `TBLPROPERTIES`
+(where HiveParser.g's k=3 decision reads the keyword as the file format and
+then wants a URI string). It rejects 5,025 of the 5,477 near-misses and accepts
+452 whose single-token mutation still produces valid HiveQL. `hive/parser`
+agrees with live `apache/hive:4.0.1` on all 8,033 rows (100.0%).
 
 ## Grammar source
 

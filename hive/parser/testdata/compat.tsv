@@ -21,6 +21,7 @@ reject	reject	engine	explainStatement(explainOption)*/%empty!insert	EXPLAIN zzz 
 accept	accept	engine	explainStatement(explainOption)*/explainOption_(explainOption)*	EXPLAIN EXTENDED COMMIT
 reject	reject	engine	explainStatement(explainOption)*/explainOption_(explainOption)*!insert	EXPLAIN EXTENDED zzz COMMIT
 reject	reject	engine	explainStatement(explainOption)*/explainOption_(explainOption)*!swap	EXPLAIN EXTERNAL COMMIT
+accept	accept	engine	explainStatement(explainOption)*/explainOption_(explainOption)*+explainStatement(explainOption)*	EXPLAIN EXTENDED EXTENDED COMMIT
 accept	accept	engine	explainOption/KW_EXTENDED	EXPLAIN EXTENDED COMMIT
 accept	accept	engine	explainOption/KW_FORMATTED	EXPLAIN FORMATTED COMMIT
 reject	reject	engine	explainOption/KW_FORMATTED!insert	EXPLAIN FORMATTED zzz COMMIT
@@ -668,6 +669,18 @@ accept	accept	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW
 reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(ifNotExists)?!drop-4	CREATE REMOTE DATABASE NOT EXISTS a USING a
 reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(ifNotExists)?!drop-5	CREATE REMOTE DATABASE IF EXISTS a USING a
 reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(ifNotExists)?!drop-6	CREATE REMOTE DATABASE IF NOT a USING a
+accept	accept	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(databaseComment)?	CREATE REMOTE DATABASE a COMMENT 'a' USING a
+reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(databaseComment)?!drop-5	CREATE REMOTE DATABASE a 'a' USING a
+reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(databaseComment)?!drop-6	CREATE REMOTE DATABASE a COMMENT USING a
+accept	accept	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(KW_WITH_KW_DBPROPERTIES_dbProperties)?	CREATE REMOTE DATABASE a USING a WITH DBPROPERTIES('a' = 'a')
+reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(KW_WITH_KW_DBPROPERTIES_dbProperties)?!drop-7	CREATE REMOTE DATABASE a USING a DBPROPERTIES('a' = 'a')
+reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(KW_WITH_KW_DBPROPERTIES_dbProperties)?!drop-8	CREATE REMOTE DATABASE a USING a WITH('a' = 'a')
+reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(KW_WITH_KW_DBPROPERTIES_dbProperties)?!drop-9	CREATE REMOTE DATABASE a USING a WITH DBPROPERTIES 'a' = 'a')
+reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(KW_WITH_KW_DBPROPERTIES_dbProperties)?!drop-10	CREATE REMOTE DATABASE a USING a WITH DBPROPERTIES(= 'a')
+reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(KW_WITH_KW_DBPROPERTIES_dbProperties)?!drop-11	CREATE REMOTE DATABASE a USING a WITH DBPROPERTIES('a' 'a')
+reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(KW_WITH_KW_DBPROPERTIES_dbProperties)?!drop-12	CREATE REMOTE DATABASE a USING a WITH DBPROPERTIES('a' =)
+reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(KW_WITH_KW_DBPROPERTIES_dbProperties)?!drop-13	CREATE REMOTE DATABASE a USING a WITH DBPROPERTIES('a' = 'a'
+accept	accept	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(KW_DATABASE|KW_SCHEMA)/KW_SCHEMA	CREATE REMOTE SCHEMA a USING a
 accept	accept	engine	createDatabaseStatement(KW_DATABASE|KW_SCHEMA)/KW_DATABASE	CREATE DATABASE a
 reject	reject	engine	createDatabaseStatement(KW_DATABASE|KW_SCHEMA)/KW_DATABASE!truncate	CREATE
 reject	reject	engine	createDatabaseStatement(KW_DATABASE|KW_SCHEMA)/KW_DATABASE!insert	CREATE DATABASE zzz a
@@ -828,11 +841,13 @@ accept	accept	engine	descStatement((KW_DATABASE|KW_SCHEMA)_KW_EXTENDED?~c196e20a
 reject	reject	engine	descStatement((KW_DATABASE|KW_SCHEMA)_KW_EXTENDED?~c196e20a)/KW_DATACONNECTOR_(KW_EXTENDED)?_identifier!drop-2	DESCRIBE CONNECTOR
 reject	reject	engine	descStatement((KW_DATABASE|KW_SCHEMA)_KW_EXTENDED?~c196e20a)/KW_DATACONNECTOR_(KW_EXTENDED)?_identifier!insert	DESCRIBE CONNECTOR a zzz
 reject	reject	engine	descStatement((KW_DATABASE|KW_SCHEMA)_KW_EXTENDED?~c196e20a)/KW_DATACONNECTOR_(KW_EXTENDED)?_identifier!swap	DESCRIBE CONNECTORS a
+accept	accept	engine	descStatement((KW_DATABASE|KW_SCHEMA)_KW_EXTENDED?~c196e20a)/KW_DATACONNECTOR_(KW_EXTENDED)?_identifier+descStatement(KW_EXTENDED)?	DESCRIBE CONNECTOR EXTENDED a
 accept	accept	engine	descStatement((KW_DATABASE|KW_SCHEMA)_KW_EXTENDED?~c196e20a)/KW_FUNCTION_(KW_EXTENDED)?_descFuncNames	DESCRIBE FUNCTION AND
 reject	reject	engine	descStatement((KW_DATABASE|KW_SCHEMA)_KW_EXTENDED?~c196e20a)/KW_FUNCTION_(KW_EXTENDED)?_descFuncNames!drop-1	DESCRIBE AND
 reject	reject	engine	descStatement((KW_DATABASE|KW_SCHEMA)_KW_EXTENDED?~c196e20a)/KW_FUNCTION_(KW_EXTENDED)?_descFuncNames!drop-2	DESCRIBE FUNCTION
 reject	reject	engine	descStatement((KW_DATABASE|KW_SCHEMA)_KW_EXTENDED?~c196e20a)/KW_FUNCTION_(KW_EXTENDED)?_descFuncNames!insert	DESCRIBE FUNCTION AND zzz
 reject	reject	engine	descStatement((KW_DATABASE|KW_SCHEMA)_KW_EXTENDED?~c196e20a)/KW_FUNCTION_(KW_EXTENDED)?_descFuncNames!swap	DESCRIBE FUNCTIONS AND
+accept	accept	engine	descStatement((KW_DATABASE|KW_SCHEMA)_KW_EXTENDED?~c196e20a)/KW_FUNCTION_(KW_EXTENDED)?_descFuncNames+descStatement(KW_EXTENDED)?	DESCRIBE FUNCTION EXTENDED AND
 accept	accept	engine	descStatement((KW_DATABASE|KW_SCHEMA)_KW_EXTENDED?~c196e20a)/(KW_FORMATTED|KW_EXTENDED)_tabPartColTypeExpr	DESCRIBE FORMATTED a
 accept	accept	engine	descStatement((KW_DATABASE|KW_SCHEMA)_KW_EXTENDED?~c196e20a)/(KW_FORMATTED|KW_EXTENDED)_tabPartColTypeExpr!drop-2	DESCRIBE FORMATTED
 accept	accept	engine	descStatement((KW_DATABASE|KW_SCHEMA)_KW_EXTENDED?~c196e20a)/(KW_FORMATTED|KW_EXTENDED)_tabPartColTypeExpr!insert	DESCRIBE FORMATTED a zzz
@@ -891,11 +906,23 @@ accept	accept	engine	showStatement/KW_SHOW_KW_VIEWS_((KW_FROM|KW_IN)_identifier)
 reject	reject	engine	showStatement/KW_SHOW_KW_VIEWS_((KW_FROM|KW_IN)_identifier)?_(KW_LIKE~84a12cd0!drop-1	VIEWS
 accept	accept	engine	showStatement/KW_SHOW_KW_VIEWS_((KW_FROM|KW_IN)_identifier)?_(KW_LIKE~84a12cd0!insert	SHOW VIEWS zzz
 reject	reject	engine	showStatement/KW_SHOW_KW_VIEWS_((KW_FROM|KW_IN)_identifier)?_(KW_LIKE~84a12cd0!swap	SHOW_DATABASE VIEWS
+accept	accept	engine	showStatement/KW_SHOW_KW_VIEWS_((KW_FROM|KW_IN)_identifier)?_(KW_LIKE~84a12cd0+showStatement((KW_FROM|KW_IN)_identifier)?	SHOW VIEWS FROM a
+reject	reject	engine	showStatement/KW_SHOW_KW_VIEWS_((KW_FROM|KW_IN)_identifier)?_(KW_LIKE~84a12cd0+showStatement((KW_FROM|KW_IN)_identifier)?!drop-4	SHOW VIEWS FROM
+accept	accept	engine	showStatement/KW_SHOW_KW_VIEWS_((KW_FROM|KW_IN)_identifier)?_(KW_LIKE~84a12cd0+showStmtIdentifier/StringLiteral	SHOW VIEWS LIKE 'a'
+reject	reject	engine	showStatement/KW_SHOW_KW_VIEWS_((KW_FROM|KW_IN)_identifier)?_(KW_LIKE~84a12cd0+showStmtIdentifier/StringLiteral!drop-4	SHOW VIEWS LIKE
+accept	accept	engine	showStatement/KW_SHOW_KW_VIEWS_((KW_FROM|KW_IN)_identifier)?_(KW_LIKE~84a12cd0+showStmtIdentifier/StringLiteral#2	SHOW VIEWS 'a'
 accept	accept	engine	showStatement/KW_SHOW_KW_MATERIALIZED_KW_VIEWS_((KW_FROM|KW_IN)_ident~73d4c50b	SHOW MATERIALIZED VIEWS
 reject	reject	engine	showStatement/KW_SHOW_KW_MATERIALIZED_KW_VIEWS_((KW_FROM|KW_IN)_ident~73d4c50b!drop-1	MATERIALIZED VIEWS
 reject	reject	engine	showStatement/KW_SHOW_KW_MATERIALIZED_KW_VIEWS_((KW_FROM|KW_IN)_ident~73d4c50b!drop-3	SHOW MATERIALIZED
 accept	accept	engine	showStatement/KW_SHOW_KW_MATERIALIZED_KW_VIEWS_((KW_FROM|KW_IN)_ident~73d4c50b!insert	SHOW MATERIALIZED VIEWS zzz
 reject	reject	engine	showStatement/KW_SHOW_KW_MATERIALIZED_KW_VIEWS_((KW_FROM|KW_IN)_ident~73d4c50b!swap	SHOW_DATABASE MATERIALIZED VIEWS
+accept	accept	engine	showStatement/KW_SHOW_KW_MATERIALIZED_KW_VIEWS_((KW_FROM|KW_IN)_ident~73d4c50b+showStatement((KW_FROM|KW_IN)_identifier)?	SHOW MATERIALIZED VIEWS FROM a
+reject	reject	engine	showStatement/KW_SHOW_KW_MATERIALIZED_KW_VIEWS_((KW_FROM|KW_IN)_ident~73d4c50b+showStatement((KW_FROM|KW_IN)_identifier)?!drop-5	SHOW MATERIALIZED VIEWS FROM
+accept	accept	engine	showStatement/KW_SHOW_KW_MATERIALIZED_KW_VIEWS_((KW_FROM|KW_IN)_ident~73d4c50b+showStatement(KW_LIKE_showStmtIdentifier|showStmtIdentifier)?/KW_LIKE_showStmtIdentifier	SHOW MATERIALIZED VIEWS LIKE a
+reject	reject	engine	showStatement/KW_SHOW_KW_MATERIALIZED_KW_VIEWS_((KW_FROM|KW_IN)_ident~73d4c50b+showStatement(KW_LIKE_showStmtIdentifier|showStmtIdentifier)?/KW_LIKE_showStmtIdentifier!drop-5	SHOW MATERIALIZED VIEWS LIKE
+accept	accept	engine	showStatement/KW_SHOW_KW_MATERIALIZED_KW_VIEWS_((KW_FROM|KW_IN)_ident~73d4c50b+showStmtIdentifier/StringLiteral	SHOW MATERIALIZED VIEWS LIKE 'a'
+accept	accept	engine	showStatement/KW_SHOW_KW_MATERIALIZED_KW_VIEWS_((KW_FROM|KW_IN)_ident~73d4c50b+showStatement(KW_LIKE_showStmtIdentifier|showStmtIdentifier)?/showStmtIdentifier	SHOW MATERIALIZED VIEWS a
+accept	accept	engine	showStatement/KW_SHOW_KW_MATERIALIZED_KW_VIEWS_((KW_FROM|KW_IN)_ident~73d4c50b+showStmtIdentifier/StringLiteral#2	SHOW MATERIALIZED VIEWS 'a'
 accept	accept	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935	SHOW COLUMNS FROM a
 reject	reject	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935!drop-1	COLUMNS FROM a
 reject	reject	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935!drop-2	SHOW FROM a
@@ -903,10 +930,17 @@ reject	reject	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_I
 reject	reject	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935!drop-4	SHOW COLUMNS FROM
 accept	accept	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935!insert	SHOW COLUMNS FROM a zzz
 reject	reject	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935!swap	SHOW_DATABASE COLUMNS FROM a
+accept	accept	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935+showStatement((KW_FROM|KW_IN)_identifier)?	SHOW COLUMNS FROM a FROM a
+reject	reject	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935+showStatement((KW_FROM|KW_IN)_identifier)?!drop-6	SHOW COLUMNS FROM a FROM
+accept	accept	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935+showStatement(KW_FROM|KW_IN)/KW_IN	SHOW COLUMNS IN a
 accept	accept	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935+tableName/identifier_DOT_identifier_(DOT_identifier)?	SHOW COLUMNS FROM a.a
 reject	reject	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-4	SHOW COLUMNS FROM.a
-accept	accept	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-5	SHOW COLUMNS FROM a a
 reject	reject	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-6	SHOW COLUMNS FROM a.
+accept	accept	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935+showStatement(KW_LIKE_showStmtIdentifier|showStmtIdentifier)?/KW_LIKE_showStmtIdentifier	SHOW COLUMNS FROM a LIKE a
+reject	reject	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935+showStatement(KW_LIKE_showStmtIdentifier|showStmtIdentifier)?/KW_LIKE_showStmtIdentifier!drop-6	SHOW COLUMNS FROM a LIKE
+accept	accept	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935+showStmtIdentifier/StringLiteral	SHOW COLUMNS FROM a LIKE 'a'
+accept	accept	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935+showStatement(KW_LIKE_showStmtIdentifier|showStmtIdentifier)?/showStmtIdentifier	SHOW COLUMNS FROM a a
+accept	accept	engine	showStatement/KW_SHOW_(KW_SORTED)?_KW_COLUMNS_(KW_FROM|KW_IN)_tableNa~10552935+showStmtIdentifier/StringLiteral#2	SHOW COLUMNS FROM a 'a'
 accept	accept	engine	showStatement/KW_SHOW_KW_FUNCTIONS_(KW_LIKE_showFunctionIdentifier)?	SHOW FUNCTIONS
 reject	reject	engine	showStatement/KW_SHOW_KW_FUNCTIONS_(KW_LIKE_showFunctionIdentifier)?!insert	SHOW FUNCTIONS zzz
 reject	reject	engine	showStatement/KW_SHOW_KW_FUNCTIONS_(KW_LIKE_showFunctionIdentifier)?!swap	SHOW_DATABASE FUNCTIONS
@@ -915,6 +949,13 @@ reject	reject	engine	showStatement/KW_SHOW_KW_PARTITIONS_tableName_(partitionSpe
 reject	reject	engine	showStatement/KW_SHOW_KW_PARTITIONS_tableName_(partitionSpec)?_(where~e7e43b1f!drop-3	SHOW PARTITIONS
 reject	reject	engine	showStatement/KW_SHOW_KW_PARTITIONS_tableName_(partitionSpec)?_(where~e7e43b1f!insert	SHOW PARTITIONS a zzz
 reject	reject	engine	showStatement/KW_SHOW_KW_PARTITIONS_tableName_(partitionSpec)?_(where~e7e43b1f!swap	SHOW_DATABASE PARTITIONS a
+accept	accept	engine	showStatement/KW_SHOW_KW_PARTITIONS_tableName_(partitionSpec)?_(where~e7e43b1f+showStatement(orderByClause)?	SHOW PARTITIONS a ORDER BY 1
+reject	reject	engine	showStatement/KW_SHOW_KW_PARTITIONS_tableName_(partitionSpec)?_(where~e7e43b1f+showStatement(orderByClause)?!drop-4	SHOW PARTITIONS a BY 1
+reject	reject	engine	showStatement/KW_SHOW_KW_PARTITIONS_tableName_(partitionSpec)?_(where~e7e43b1f+showStatement(orderByClause)?!drop-5	SHOW PARTITIONS a ORDER 1
+reject	reject	engine	showStatement/KW_SHOW_KW_PARTITIONS_tableName_(partitionSpec)?_(where~e7e43b1f+showStatement(orderByClause)?!drop-6	SHOW PARTITIONS a ORDER BY
+accept	accept	engine	showStatement/KW_SHOW_KW_PARTITIONS_tableName_(partitionSpec)?_(where~e7e43b1f+showStatement(limitClause)?	SHOW PARTITIONS a LIMIT 1
+reject	reject	engine	showStatement/KW_SHOW_KW_PARTITIONS_tableName_(partitionSpec)?_(where~e7e43b1f+showStatement(limitClause)?!drop-4	SHOW PARTITIONS a 1
+reject	reject	engine	showStatement/KW_SHOW_KW_PARTITIONS_tableName_(partitionSpec)?_(where~e7e43b1f+showStatement(limitClause)?!drop-5	SHOW PARTITIONS a LIMIT
 accept	accept	engine	showStatement/KW_SHOW_KW_PARTITIONS_tableName_(partitionSpec)?_(where~e7e43b1f+tableName/identifier_DOT_identifier_(DOT_identifier)?	SHOW PARTITIONS a.a
 reject	reject	engine	showStatement/KW_SHOW_KW_PARTITIONS_tableName_(partitionSpec)?_(where~e7e43b1f+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-3	SHOW PARTITIONS.a
 reject	reject	engine	showStatement/KW_SHOW_KW_PARTITIONS_tableName_(partitionSpec)?_(where~e7e43b1f+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-4	SHOW PARTITIONS a a
@@ -933,6 +974,9 @@ reject	reject	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)
 reject	reject	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45!drop-5	SHOW TABLE EXTENDED LIKE
 reject	reject	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45!insert	SHOW TABLE EXTENDED LIKE a zzz
 reject	reject	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45!swap	SHOW_DATABASE TABLE EXTENDED LIKE a
+accept	accept	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45+showStatement((KW_FROM|KW_IN)_identifier)?	SHOW TABLE EXTENDED FROM a LIKE a
+reject	reject	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45+showStatement((KW_FROM|KW_IN)_identifier)?!drop-4	SHOW TABLE EXTENDED a LIKE a
+reject	reject	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45+showStatement((KW_FROM|KW_IN)_identifier)?!drop-5	SHOW TABLE EXTENDED FROM LIKE a
 accept	accept	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45+showStatement(partitionSpec)?	SHOW TABLE EXTENDED LIKE a PARTITION(a)
 reject	reject	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45+showStatement(partitionSpec)?!drop-6	SHOW TABLE EXTENDED LIKE a(a)
 reject	reject	engine	showStatement/KW_SHOW_KW_TABLE_KW_EXTENDED_((KW_FROM|KW_IN)_identifie~185d9c45+showStatement(partitionSpec)?!drop-7	SHOW TABLE EXTENDED LIKE a PARTITION a)
@@ -1008,13 +1052,10 @@ accept	accept	engine	showStatement(showTablesFilterExpr)?/showTablesFilterExpr	S
 reject	reject	engine	showStatement(showTablesFilterExpr)?/showTablesFilterExpr!insert	SHOW TABLES a zzz
 accept	accept	engine	showStatement(KW_LIKE_showStmtIdentifier|showStmtIdentifier)?/%empty	SHOW VIEWS
 accept	accept	engine	showStatement(KW_LIKE_showStmtIdentifier|showStmtIdentifier)?/KW_LIKE_showStmtIdentifier	SHOW VIEWS LIKE a
-reject	reject	engine	showStatement(KW_LIKE_showStmtIdentifier|showStmtIdentifier)?/KW_LIKE_showStmtIdentifier!drop-2	SHOW VIEWS LIKE
 reject	reject	engine	showStatement(KW_LIKE_showStmtIdentifier|showStmtIdentifier)?/KW_LIKE_showStmtIdentifier!insert	SHOW VIEWS LIKE a zzz
 reject	reject	engine	showStatement(KW_LIKE_showStmtIdentifier|showStmtIdentifier)?/KW_LIKE_showStmtIdentifier!swap	SHOW VIEWS LIMIT a
-accept	accept	engine	showStatement(KW_LIKE_showStmtIdentifier|showStmtIdentifier)?/KW_LIKE_showStmtIdentifier+showStmtIdentifier/StringLiteral	SHOW VIEWS LIKE 'a'
 accept	accept	engine	showStatement(KW_LIKE_showStmtIdentifier|showStmtIdentifier)?/showStmtIdentifier	SHOW VIEWS a
 reject	reject	engine	showStatement(KW_LIKE_showStmtIdentifier|showStmtIdentifier)?/showStmtIdentifier!insert	SHOW VIEWS a zzz
-accept	accept	engine	showStatement(KW_LIKE_showStmtIdentifier|showStmtIdentifier)?/showStmtIdentifier+showStmtIdentifier/StringLiteral	SHOW VIEWS 'a'
 accept	accept	engine	showStatement(KW_SORTED)?/%empty	SHOW COLUMNS FROM a
 reject	reject	engine	showStatement(KW_SORTED)?/%empty!insert	SHOW zzz COLUMNS FROM a
 accept	accept	engine	showStatement(KW_SORTED)?/KW_SORTED	SHOW SORTED COLUMNS FROM a
@@ -1036,7 +1077,6 @@ reject	reject	engine	showStatement(partitionSpec)?/partitionSpec!insert	SHOW PAR
 reject	reject	engine	showStatement(partitionSpec)?/partitionSpec!swap	SHOW PARTITIONS a PARTITIONED(a)
 accept	accept	engine	showStatement(whereClause)?/%empty	SHOW PARTITIONS a
 accept	accept	engine	showStatement(whereClause)?/whereClause	SHOW PARTITIONS a WHERE 1
-reject	reject	engine	showStatement(whereClause)?/whereClause!drop-1	SHOW PARTITIONS a 1
 reject	reject	engine	showStatement(whereClause)?/whereClause!drop-2	SHOW PARTITIONS a WHERE
 reject	reject	engine	showStatement(whereClause)?/whereClause!insert	SHOW PARTITIONS a WHERE 1 zzz
 reject	reject	engine	showStatement(whereClause)?/whereClause!swap	SHOW PARTITIONS a WHILE 1
@@ -1084,7 +1124,10 @@ accept	accept	engine	showStatement((KW_DATABASE|KW_SCHEMA)_(identifier)~9e13c274
 reject	reject	engine	showStatement((KW_DATABASE|KW_SCHEMA)_(identifier)~9e13c274)/(KW_DATABASE|KW_SCHEMA)_identifier_(KW_EXTENDED)?!drop-2	SHOW LOCKS DATABASE
 reject	reject	engine	showStatement((KW_DATABASE|KW_SCHEMA)_(identifier)~9e13c274)/(KW_DATABASE|KW_SCHEMA)_identifier_(KW_EXTENDED)?!insert	SHOW LOCKS DATABASE a zzz
 accept	accept	engine	showStatement((KW_DATABASE|KW_SCHEMA)_(identifier)~9e13c274)/(KW_DATABASE|KW_SCHEMA)_identifier_(KW_EXTENDED)?!swap	SHOW LOCKS DATABASES a
+accept	accept	engine	showStatement((KW_DATABASE|KW_SCHEMA)_(identifier)~9e13c274)/(KW_DATABASE|KW_SCHEMA)_identifier_(KW_EXTENDED)?+showStatement(KW_EXTENDED)?	SHOW LOCKS DATABASE a EXTENDED
+accept	accept	engine	showStatement((KW_DATABASE|KW_SCHEMA)_(identifier)~9e13c274)/(KW_DATABASE|KW_SCHEMA)_identifier_(KW_EXTENDED)?+showStatement(KW_DATABASE|KW_SCHEMA)/KW_SCHEMA	SHOW LOCKS SCHEMA a
 accept	accept	engine	showStatement((KW_DATABASE|KW_SCHEMA)_(identifier)~9e13c274)/(partTypeExpr)?_(KW_EXTENDED)?	SHOW LOCKS
+accept	accept	engine	showStatement((KW_DATABASE|KW_SCHEMA)_(identifier)~9e13c274)/(partTypeExpr)?_(KW_EXTENDED)?+showStatement(KW_EXTENDED)?	SHOW LOCKS EXTENDED
 accept	accept	engine	showStatement(partTypeExpr)?/%empty	SHOW LOCKS
 accept	accept	engine	showStatement(partTypeExpr)?/partTypeExpr	SHOW LOCKS a
 accept	accept	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/compactionId	SHOW COMPACTIONS COMPACTIONID = 1
@@ -1094,11 +1137,26 @@ reject	reject	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb
 reject	reject	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/compactionId!insert	SHOW COMPACTIONS COMPACTIONID = 1 zzz
 reject	reject	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/compactionId!swap	SHOW COMPACTIONS COMPACTIONS = 1
 accept	accept	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979	SHOW COMPACTIONS DATABASE a
-accept	accept	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979!drop-1	SHOW COMPACTIONS a
 reject	reject	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979!drop-2	SHOW COMPACTIONS DATABASE
 reject	reject	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979!insert	SHOW COMPACTIONS DATABASE a zzz
 accept	accept	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979!swap	SHOW COMPACTIONS DATABASES a
+accept	accept	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979+showStatement(compactionPool)?	SHOW COMPACTIONS DATABASE a POOL 'a'
+reject	reject	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979+showStatement(compactionPool)?!drop-3	SHOW COMPACTIONS DATABASE a 'a'
+reject	reject	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979+showStatement(compactionPool)?!drop-4	SHOW COMPACTIONS DATABASE a POOL
+accept	accept	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979+showStatement(compactionType)?	SHOW COMPACTIONS DATABASE a TYPE 'a'
+reject	reject	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979+showStatement(compactionType)?!drop-4	SHOW COMPACTIONS DATABASE a TYPE
+accept	accept	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979+showStatement(compactionStatus)?	SHOW COMPACTIONS DATABASE a STATUS 'a'
+reject	reject	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979+showStatement(compactionStatus)?!drop-4	SHOW COMPACTIONS DATABASE a STATUS
+accept	accept	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979+showStatement(orderByClause)?	SHOW COMPACTIONS DATABASE a ORDER BY 1
+reject	reject	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979+showStatement(orderByClause)?!drop-3	SHOW COMPACTIONS DATABASE a BY 1
+reject	reject	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979+showStatement(orderByClause)?!drop-4	SHOW COMPACTIONS DATABASE a ORDER 1
+reject	reject	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979+showStatement(orderByClause)?!drop-5	SHOW COMPACTIONS DATABASE a ORDER BY
+accept	accept	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979+showStatement(limitClause)?	SHOW COMPACTIONS DATABASE a LIMIT 1
+reject	reject	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979+showStatement(limitClause)?!drop-3	SHOW COMPACTIONS DATABASE a 1
+reject	reject	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979+showStatement(limitClause)?!drop-4	SHOW COMPACTIONS DATABASE a LIMIT
+accept	accept	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(KW_DATABASE|KW_SCHEMA)_identifier_(compactionPool)?_(c~f33cf979+showStatement(KW_DATABASE|KW_SCHEMA)/KW_SCHEMA	SHOW COMPACTIONS SCHEMA a
 accept	accept	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(partTypeExpr)?_(compactionPool)?_(compactionType)?_(co~8e78a8ad	SHOW COMPACTIONS
+accept	accept	engine	showStatement(compactionId|(KW_DATABASE|KW_SCHEMA)~4d8f03fb)/(partTypeExpr)?_(compactionPool)?_(compactionType)?_(co~8e78a8ad+showStatement(partTypeExpr)?	SHOW COMPACTIONS a
 accept	accept	engine	showStatement(compactionPool)?/%empty	SHOW COMPACTIONS
 accept	accept	engine	showStatement(compactionPool)?/compactionPool	SHOW COMPACTIONS POOL 'a'
 reject	reject	engine	showStatement(compactionPool)?/compactionPool!drop-1	SHOW COMPACTIONS 'a'
@@ -1510,6 +1568,10 @@ accept	accept	engine	resourceType/KW_ARCHIVE	CREATE FUNCTION a AS 'a' USING ARCH
 reject	reject	engine	resourceType/KW_ARCHIVE!insert	CREATE FUNCTION a AS 'a' USING ARCHIVE zzz 'a'
 reject	reject	engine	resourceType/KW_ARCHIVE!swap	CREATE FUNCTION a AS 'a' USING ARRAY 'a'
 accept	accept	engine	createFunctionStatement/KW_CREATE_(KW_TEMPORARY)?_KW_FUNCTION_functionIdentifie~66690138	CREATE FUNCTION a AS 'a'
+accept	accept	engine	createFunctionStatement/KW_CREATE_(KW_TEMPORARY)?_KW_FUNCTION_functionIdentifie~66690138+functionIdentifier/identifier_DOT_identifier	CREATE FUNCTION a.a AS 'a'
+reject	reject	engine	createFunctionStatement/KW_CREATE_(KW_TEMPORARY)?_KW_FUNCTION_functionIdentifie~66690138+functionIdentifier/identifier_DOT_identifier!drop-3	CREATE FUNCTION.a AS 'a'
+reject	reject	engine	createFunctionStatement/KW_CREATE_(KW_TEMPORARY)?_KW_FUNCTION_functionIdentifie~66690138+functionIdentifier/identifier_DOT_identifier!drop-4	CREATE FUNCTION a a AS 'a'
+reject	reject	engine	createFunctionStatement/KW_CREATE_(KW_TEMPORARY)?_KW_FUNCTION_functionIdentifie~66690138+functionIdentifier/identifier_DOT_identifier!drop-5	CREATE FUNCTION a.AS 'a'
 accept	accept	engine	createFunctionStatement(KW_TEMPORARY)?/%empty	CREATE FUNCTION a AS 'a'
 reject	reject	engine	createFunctionStatement(KW_TEMPORARY)?/%empty!insert	CREATE zzz FUNCTION a AS 'a'
 accept	accept	engine	createFunctionStatement(KW_TEMPORARY)?/KW_TEMPORARY	CREATE TEMPORARY FUNCTION a AS 'a'
@@ -1520,6 +1582,10 @@ accept	accept	engine	createFunctionStatement(KW_USING_resourceList)?/KW_USING_re
 reject	reject	engine	createFunctionStatement(KW_USING_resourceList)?/KW_USING_resourceList!drop-1	CREATE FUNCTION a AS 'a' JAR 'a'
 reject	reject	engine	createFunctionStatement(KW_USING_resourceList)?/KW_USING_resourceList!swap	CREATE FUNCTION a AS 'a' UTC JAR 'a'
 accept	accept	engine	dropFunctionStatement/KW_DROP_(KW_TEMPORARY)?_KW_FUNCTION_(ifExists)?_functio~39879f4a	DROP FUNCTION a
+accept	accept	engine	dropFunctionStatement/KW_DROP_(KW_TEMPORARY)?_KW_FUNCTION_(ifExists)?_functio~39879f4a+functionIdentifier/identifier_DOT_identifier	DROP FUNCTION a.a
+reject	reject	engine	dropFunctionStatement/KW_DROP_(KW_TEMPORARY)?_KW_FUNCTION_(ifExists)?_functio~39879f4a+functionIdentifier/identifier_DOT_identifier!drop-3	DROP FUNCTION.a
+reject	reject	engine	dropFunctionStatement/KW_DROP_(KW_TEMPORARY)?_KW_FUNCTION_(ifExists)?_functio~39879f4a+functionIdentifier/identifier_DOT_identifier!drop-4	DROP FUNCTION a a
+reject	reject	engine	dropFunctionStatement/KW_DROP_(KW_TEMPORARY)?_KW_FUNCTION_(ifExists)?_functio~39879f4a+functionIdentifier/identifier_DOT_identifier!drop-5	DROP FUNCTION a.
 accept	accept	engine	dropFunctionStatement(KW_TEMPORARY)?/%empty	DROP FUNCTION a
 reject	reject	engine	dropFunctionStatement(KW_TEMPORARY)?/%empty!insert	DROP zzz FUNCTION a
 accept	accept	engine	dropFunctionStatement(KW_TEMPORARY)?/KW_TEMPORARY	DROP TEMPORARY FUNCTION a
@@ -1694,6 +1760,12 @@ reject	reject	engine	createMaterializedViewStatement(viewPartition)?/viewPartiti
 reject	reject	engine	createMaterializedViewStatement(viewPartition)?/viewPartition!truncate	CREATE MATERIALIZED VIEW a PARTITIONED ON(a
 reject	reject	engine	createMaterializedViewStatement(viewPartition)?/viewPartition!insert	CREATE MATERIALIZED VIEW a PARTITIONED ON(a) zzz AS SELECT *
 reject	reject	engine	createMaterializedViewStatement(viewPartition)?/viewPartition!swap	CREATE MATERIALIZED VIEW a PARTITIONS ON(a) AS SELECT *
+accept	accept	engine	createMaterializedViewStatement(viewPartition)?/viewPartition+viewPartition/KW_PARTITIONED_KW_ON_KW_SPEC_LPAREN_partitionTransformS~cbc23c76	CREATE MATERIALIZED VIEW a PARTITIONED ON SPEC(a) AS SELECT *
+reject	reject	engine	createMaterializedViewStatement(viewPartition)?/viewPartition+viewPartition/KW_PARTITIONED_KW_ON_KW_SPEC_LPAREN_partitionTransformS~cbc23c76!drop-1	CREATE MATERIALIZED VIEW a ON SPEC(a) AS SELECT *
+reject	reject	engine	createMaterializedViewStatement(viewPartition)?/viewPartition+viewPartition/KW_PARTITIONED_KW_ON_KW_SPEC_LPAREN_partitionTransformS~cbc23c76!drop-2	CREATE MATERIALIZED VIEW a PARTITIONED SPEC(a) AS SELECT *
+reject	reject	engine	createMaterializedViewStatement(viewPartition)?/viewPartition+viewPartition/KW_PARTITIONED_KW_ON_KW_SPEC_LPAREN_partitionTransformS~cbc23c76!drop-4	CREATE MATERIALIZED VIEW a PARTITIONED ON SPEC a) AS SELECT *
+reject	reject	engine	createMaterializedViewStatement(viewPartition)?/viewPartition+viewPartition/KW_PARTITIONED_KW_ON_KW_SPEC_LPAREN_partitionTransformS~cbc23c76!drop-5	CREATE MATERIALIZED VIEW a PARTITIONED ON SPEC() AS SELECT *
+reject	reject	engine	createMaterializedViewStatement(viewPartition)?/viewPartition+viewPartition/KW_PARTITIONED_KW_ON_KW_SPEC_LPAREN_partitionTransformS~cbc23c76!drop-6	CREATE MATERIALIZED VIEW a PARTITIONED ON SPEC(a AS SELECT *
 accept	accept	engine	createMaterializedViewStatement(viewOrganization)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT *
 accept	accept	engine	createMaterializedViewStatement(viewOrganization)?/viewOrganization	CREATE MATERIALIZED VIEW a CLUSTERED ON(a) AS SELECT *
 accept	accept	engine	createMaterializedViewStatement(tableRowFormat)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT *
@@ -1755,6 +1827,29 @@ reject	reject	engine	dropMaterializedViewStatement(ifExists)?/ifExists!truncate	
 reject	reject	engine	dropMaterializedViewStatement(ifExists)?/ifExists!insert	DROP MATERIALIZED VIEW IF EXISTS zzz a
 reject	reject	engine	dropMaterializedViewStatement(ifExists)?/ifExists!swap	DROP MATERIALIZED VIEW IGNORE EXISTS a
 accept	accept	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f	CREATE SCHEDULED QUERY a CRON 'a' AS COMMIT
+accept	accept	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05	CREATE SCHEDULED QUERY a EVERY YEAR AS COMMIT
+reject	reject	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05!drop-5	CREATE SCHEDULED QUERY a YEAR AS COMMIT
+reject	reject	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05!drop-6	CREATE SCHEDULED QUERY a EVERY AS COMMIT
+accept	accept	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_YEAR_KW_TO_KW_MONTH	CREATE SCHEDULED QUERY a EVERY YEAR TO MONTH AS COMMIT
+reject	reject	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_YEAR_KW_TO_KW_MONTH!drop-5	CREATE SCHEDULED QUERY a YEAR TO MONTH AS COMMIT
+reject	reject	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_YEAR_KW_TO_KW_MONTH!drop-6	CREATE SCHEDULED QUERY a EVERY TO MONTH AS COMMIT
+reject	reject	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_YEAR_KW_TO_KW_MONTH!drop-7	CREATE SCHEDULED QUERY a EVERY YEAR MONTH AS COMMIT
+reject	reject	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_YEAR_KW_TO_KW_MONTH!drop-8	CREATE SCHEDULED QUERY a EVERY YEAR TO AS COMMIT
+accept	accept	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_DAY_KW_TO_KW_SECOND	CREATE SCHEDULED QUERY a EVERY DAY TO SECOND AS COMMIT
+reject	reject	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_DAY_KW_TO_KW_SECOND!drop-5	CREATE SCHEDULED QUERY a DAY TO SECOND AS COMMIT
+reject	reject	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_DAY_KW_TO_KW_SECOND!drop-6	CREATE SCHEDULED QUERY a EVERY TO SECOND AS COMMIT
+reject	reject	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_DAY_KW_TO_KW_SECOND!drop-7	CREATE SCHEDULED QUERY a EVERY DAY SECOND AS COMMIT
+reject	reject	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_DAY_KW_TO_KW_SECOND!drop-8	CREATE SCHEDULED QUERY a EVERY DAY TO AS COMMIT
+accept	accept	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_MONTH	CREATE SCHEDULED QUERY a EVERY MONTH AS COMMIT
+reject	reject	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_MONTH!drop-5	CREATE SCHEDULED QUERY a MONTH AS COMMIT
+accept	accept	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_DAY	CREATE SCHEDULED QUERY a EVERY DAY AS COMMIT
+reject	reject	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_DAY!drop-5	CREATE SCHEDULED QUERY a DAY AS COMMIT
+accept	accept	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_HOUR	CREATE SCHEDULED QUERY a EVERY HOUR AS COMMIT
+reject	reject	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_HOUR!drop-5	CREATE SCHEDULED QUERY a HOUR AS COMMIT
+accept	accept	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_MINUTE	CREATE SCHEDULED QUERY a EVERY MINUTE AS COMMIT
+reject	reject	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_MINUTE!drop-5	CREATE SCHEDULED QUERY a MINUTE AS COMMIT
+accept	accept	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_SECOND	CREATE SCHEDULED QUERY a EVERY SECOND AS COMMIT
+reject	reject	engine	createScheduledQueryStatement/KW_CREATE_KW_SCHEDULED_KW_QUERY_identifier_scheduleSpec~b542c03f+intervalQualifiers/KW_SECOND!drop-5	CREATE SCHEDULED QUERY a SECOND AS COMMIT
 accept	accept	engine	createScheduledQueryStatement(executedAsSpec)?/%empty	CREATE SCHEDULED QUERY a CRON 'a' AS COMMIT
 reject	reject	engine	createScheduledQueryStatement(executedAsSpec)?/%empty!insert	CREATE SCHEDULED QUERY a CRON 'a' zzz AS COMMIT
 accept	accept	engine	createScheduledQueryStatement(executedAsSpec)?/executedAsSpec	CREATE SCHEDULED QUERY a CRON 'a' EXECUTED AS 'a' AS COMMIT
@@ -1777,6 +1872,27 @@ reject	reject	engine	alterScheduledQueryChange/scheduleSpec!drop-1	ALTER SCHEDUL
 reject	reject	engine	alterScheduledQueryChange/scheduleSpec!drop-2	ALTER SCHEDULED QUERY a CRON
 reject	reject	engine	alterScheduledQueryChange/scheduleSpec!insert	ALTER SCHEDULED QUERY a CRON 'a' zzz
 reject	reject	engine	alterScheduledQueryChange/scheduleSpec!swap	ALTER SCHEDULED QUERY a CROSS 'a'
+accept	accept	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_YEAR_KW_TO_KW_MONTH	ALTER SCHEDULED QUERY a EVERY YEAR TO MONTH
+reject	reject	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_YEAR_KW_TO_KW_MONTH!drop-1	ALTER SCHEDULED QUERY a YEAR TO MONTH
+reject	reject	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_YEAR_KW_TO_KW_MONTH!drop-2	ALTER SCHEDULED QUERY a EVERY TO MONTH
+reject	reject	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_YEAR_KW_TO_KW_MONTH!drop-3	ALTER SCHEDULED QUERY a EVERY YEAR MONTH
+reject	reject	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_YEAR_KW_TO_KW_MONTH!drop-4	ALTER SCHEDULED QUERY a EVERY YEAR TO
+accept	accept	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_DAY_KW_TO_KW_SECOND	ALTER SCHEDULED QUERY a EVERY DAY TO SECOND
+reject	reject	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_DAY_KW_TO_KW_SECOND!drop-1	ALTER SCHEDULED QUERY a DAY TO SECOND
+reject	reject	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_DAY_KW_TO_KW_SECOND!drop-2	ALTER SCHEDULED QUERY a EVERY TO SECOND
+reject	reject	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_DAY_KW_TO_KW_SECOND!drop-3	ALTER SCHEDULED QUERY a EVERY DAY SECOND
+reject	reject	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_DAY_KW_TO_KW_SECOND!drop-4	ALTER SCHEDULED QUERY a EVERY DAY TO
+accept	accept	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_MONTH	ALTER SCHEDULED QUERY a EVERY MONTH
+reject	reject	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_MONTH!drop-1	ALTER SCHEDULED QUERY a MONTH
+reject	reject	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_MONTH!drop-2	ALTER SCHEDULED QUERY a EVERY
+accept	accept	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_DAY	ALTER SCHEDULED QUERY a EVERY DAY
+reject	reject	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_DAY!drop-1	ALTER SCHEDULED QUERY a DAY
+accept	accept	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_HOUR	ALTER SCHEDULED QUERY a EVERY HOUR
+reject	reject	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_HOUR!drop-1	ALTER SCHEDULED QUERY a HOUR
+accept	accept	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_MINUTE	ALTER SCHEDULED QUERY a EVERY MINUTE
+reject	reject	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_MINUTE!drop-1	ALTER SCHEDULED QUERY a MINUTE
+accept	accept	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_SECOND	ALTER SCHEDULED QUERY a EVERY SECOND
+reject	reject	engine	alterScheduledQueryChange/scheduleSpec+intervalQualifiers/KW_SECOND!drop-1	ALTER SCHEDULED QUERY a SECOND
 accept	accept	engine	alterScheduledQueryChange/executedAsSpec	ALTER SCHEDULED QUERY a EXECUTED AS 'a'
 reject	reject	engine	alterScheduledQueryChange/executedAsSpec!drop-1	ALTER SCHEDULED QUERY a AS 'a'
 reject	reject	engine	alterScheduledQueryChange/executedAsSpec!drop-2	ALTER SCHEDULED QUERY a EXECUTED 'a'
@@ -1796,22 +1912,8 @@ reject	reject	engine	alterScheduledQueryChange/KW_EXECUTE!swap	ALTER SCHEDULED Q
 accept	accept	engine	scheduleSpec/KW_CRON_StringLiteral	ALTER SCHEDULED QUERY a CRON 'a'
 accept	accept	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05	ALTER SCHEDULED QUERY a EVERY YEAR
 reject	reject	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05!drop-1	ALTER SCHEDULED QUERY a YEAR
-reject	reject	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05!drop-2	ALTER SCHEDULED QUERY a EVERY
 reject	reject	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05!insert	ALTER SCHEDULED QUERY a EVERY YEAR zzz
 reject	reject	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05!swap	ALTER SCHEDULED QUERY a EXCEPT YEAR
-accept	accept	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05+intervalQualifiers/KW_YEAR_KW_TO_KW_MONTH	ALTER SCHEDULED QUERY a EVERY YEAR TO MONTH
-reject	reject	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05+intervalQualifiers/KW_YEAR_KW_TO_KW_MONTH!drop-2	ALTER SCHEDULED QUERY a EVERY TO MONTH
-reject	reject	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05+intervalQualifiers/KW_YEAR_KW_TO_KW_MONTH!drop-3	ALTER SCHEDULED QUERY a EVERY YEAR MONTH
-reject	reject	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05+intervalQualifiers/KW_YEAR_KW_TO_KW_MONTH!drop-4	ALTER SCHEDULED QUERY a EVERY YEAR TO
-accept	accept	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05+intervalQualifiers/KW_DAY_KW_TO_KW_SECOND	ALTER SCHEDULED QUERY a EVERY DAY TO SECOND
-reject	reject	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05+intervalQualifiers/KW_DAY_KW_TO_KW_SECOND!drop-2	ALTER SCHEDULED QUERY a EVERY TO SECOND
-reject	reject	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05+intervalQualifiers/KW_DAY_KW_TO_KW_SECOND!drop-3	ALTER SCHEDULED QUERY a EVERY DAY SECOND
-reject	reject	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05+intervalQualifiers/KW_DAY_KW_TO_KW_SECOND!drop-4	ALTER SCHEDULED QUERY a EVERY DAY TO
-accept	accept	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05+intervalQualifiers/KW_MONTH	ALTER SCHEDULED QUERY a EVERY MONTH
-accept	accept	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05+intervalQualifiers/KW_DAY	ALTER SCHEDULED QUERY a EVERY DAY
-accept	accept	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05+intervalQualifiers/KW_HOUR	ALTER SCHEDULED QUERY a EVERY HOUR
-accept	accept	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05+intervalQualifiers/KW_MINUTE	ALTER SCHEDULED QUERY a EVERY MINUTE
-accept	accept	engine	scheduleSpec/KW_EVERY_(Number)?_intervalQualifiers_((KW_AT|KW_OFFSET~a6ae2f05+intervalQualifiers/KW_SECOND	ALTER SCHEDULED QUERY a EVERY SECOND
 accept	accept	engine	scheduleSpec(Number)?/%empty	ALTER SCHEDULED QUERY a EVERY YEAR
 reject	reject	engine	scheduleSpec(Number)?/%empty!insert	ALTER SCHEDULED QUERY a EVERY zzz YEAR
 accept	accept	engine	scheduleSpec(Number)?/Number	ALTER SCHEDULED QUERY a EVERY 1 YEAR
@@ -1838,6 +1940,10 @@ accept	accept	engine	definedAsSpec(KW_DEFINED)?/KW_DEFINED	ALTER SCHEDULED QUERY
 reject	reject	engine	definedAsSpec(KW_DEFINED)?/KW_DEFINED!insert	ALTER SCHEDULED QUERY a DEFINED zzz AS COMMIT
 reject	reject	engine	definedAsSpec(KW_DEFINED)?/KW_DEFINED!swap	ALTER SCHEDULED QUERY a DELETE AS COMMIT
 accept	accept	engine	showFunctionIdentifier/functionIdentifier	SHOW FUNCTIONS LIKE a
+accept	accept	engine	showFunctionIdentifier/functionIdentifier+functionIdentifier/identifier_DOT_identifier	SHOW FUNCTIONS LIKE a.a
+reject	reject	engine	showFunctionIdentifier/functionIdentifier+functionIdentifier/identifier_DOT_identifier!drop-1	SHOW FUNCTIONS LIKE.a
+reject	reject	engine	showFunctionIdentifier/functionIdentifier+functionIdentifier/identifier_DOT_identifier!drop-2	SHOW FUNCTIONS LIKE a a
+reject	reject	engine	showFunctionIdentifier/functionIdentifier+functionIdentifier/identifier_DOT_identifier!drop-3	SHOW FUNCTIONS LIKE a.
 accept	accept	engine	showFunctionIdentifier/StringLiteral	SHOW FUNCTIONS LIKE 'a'
 reject	reject	engine	showFunctionIdentifier/StringLiteral!insert	SHOW FUNCTIONS LIKE 'a' zzz
 accept	accept	engine	showStmtIdentifier/identifier	SHOW TABLES a
@@ -2900,6 +3006,7 @@ reject	reject	engine	setOperator/KW_INTERSECT_KW_ALL!swap	SELECT * INTERVAL ALL 
 accept	accept	engine	setOperator/KW_INTERSECT_(KW_DISTINCT)?	SELECT * INTERSECT SELECT *
 reject	reject	engine	setOperator/KW_INTERSECT_(KW_DISTINCT)?!insert	SELECT * INTERSECT zzz SELECT *
 reject	reject	engine	setOperator/KW_INTERSECT_(KW_DISTINCT)?!swap	SELECT * INTERVAL SELECT *
+accept	accept	engine	setOperator/KW_INTERSECT_(KW_DISTINCT)?+setOperator(KW_DISTINCT)?	SELECT * INTERSECT DISTINCT SELECT *
 accept	accept	engine	setOperator/KW_EXCEPT_KW_ALL	SELECT * EXCEPT ALL SELECT *
 reject	reject	engine	setOperator/KW_EXCEPT_KW_ALL!truncate	SELECT * EXCEPT
 reject	reject	engine	setOperator/KW_EXCEPT_KW_ALL!insert	SELECT * EXCEPT ALL zzz SELECT *
@@ -2907,6 +3014,7 @@ reject	reject	engine	setOperator/KW_EXCEPT_KW_ALL!swap	SELECT * EXCHANGE ALL SEL
 accept	accept	engine	setOperator/KW_EXCEPT_(KW_DISTINCT)?	SELECT * EXCEPT SELECT *
 reject	reject	engine	setOperator/KW_EXCEPT_(KW_DISTINCT)?!insert	SELECT * EXCEPT zzz SELECT *
 reject	reject	engine	setOperator/KW_EXCEPT_(KW_DISTINCT)?!swap	SELECT * EXCHANGE SELECT *
+accept	accept	engine	setOperator/KW_EXCEPT_(KW_DISTINCT)?+setOperator(KW_DISTINCT)?	SELECT * EXCEPT DISTINCT SELECT *
 accept	accept	engine	setOperator/KW_MINUS_KW_ALL	SELECT * MINUS ALL SELECT *
 reject	reject	engine	setOperator/KW_MINUS_KW_ALL!truncate	SELECT * MINUS
 reject	reject	engine	setOperator/KW_MINUS_KW_ALL!insert	SELECT * MINUS ALL zzz SELECT *
@@ -2914,6 +3022,7 @@ reject	reject	engine	setOperator/KW_MINUS_KW_ALL!swap	SELECT * MINUTE ALL SELECT
 accept	accept	engine	setOperator/KW_MINUS_(KW_DISTINCT)?	SELECT * MINUS SELECT *
 reject	reject	engine	setOperator/KW_MINUS_(KW_DISTINCT)?!insert	SELECT * MINUS zzz SELECT *
 reject	reject	engine	setOperator/KW_MINUS_(KW_DISTINCT)?!swap	SELECT * MINUTE SELECT *
+accept	accept	engine	setOperator/KW_MINUS_(KW_DISTINCT)?+setOperator(KW_DISTINCT)?	SELECT * MINUS DISTINCT SELECT *
 accept	accept	engine	setOperator(KW_DISTINCT)?/%empty	SELECT * UNION SELECT *
 accept	accept	engine	setOperator(KW_DISTINCT)?/KW_DISTINCT	SELECT * UNION DISTINCT SELECT *
 reject	reject	engine	setOperator(KW_DISTINCT)?/KW_DISTINCT!insert	SELECT * UNION DISTINCT zzz SELECT *
@@ -3131,7 +3240,55 @@ reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)
 reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2!drop-5	FROM a INSERT INTO a SELECT
 reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2!insert	FROM a INSERT INTO a SELECT * zzz
 reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2!swap	FROM a INT INTO a SELECT *
+accept	accept	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(lateralView)?	FROM a INSERT INTO a SELECT * LATERAL VIEW a() a
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(lateralView)?!drop-6	FROM a INSERT INTO a SELECT * VIEW a() a
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(lateralView)?!drop-7	FROM a INSERT INTO a SELECT * LATERAL a() a
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(lateralView)?!drop-8	FROM a INSERT INTO a SELECT * LATERAL VIEW() a
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(lateralView)?!drop-9	FROM a INSERT INTO a SELECT * LATERAL VIEW a) a
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(lateralView)?!drop-10	FROM a INSERT INTO a SELECT * LATERAL VIEW a(a
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(lateralView)?!drop-11	FROM a INSERT INTO a SELECT * LATERAL VIEW a()
+accept	accept	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(whereClause)?	FROM a INSERT INTO a SELECT * WHERE 1
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(whereClause)?!drop-6	FROM a INSERT INTO a SELECT * 1
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(whereClause)?!drop-7	FROM a INSERT INTO a SELECT * WHERE
+accept	accept	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(groupByClause)?	FROM a INSERT INTO a SELECT * GROUP BY DEFAULT
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(groupByClause)?!drop-6	FROM a INSERT INTO a SELECT * BY DEFAULT
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(groupByClause)?!drop-7	FROM a INSERT INTO a SELECT * GROUP DEFAULT
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(groupByClause)?!drop-8	FROM a INSERT INTO a SELECT * GROUP BY
+accept	accept	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(havingClause)?	FROM a INSERT INTO a SELECT * HAVING 1
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(havingClause)?!drop-7	FROM a INSERT INTO a SELECT * HAVING
+accept	accept	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(window_clause)?	FROM a INSERT INTO a SELECT * WINDOW a AS a
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(window_clause)?!drop-6	FROM a INSERT INTO a SELECT * a AS a
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(window_clause)?!drop-7	FROM a INSERT INTO a SELECT * WINDOW AS a
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(window_clause)?!drop-8	FROM a INSERT INTO a SELECT * WINDOW a a
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(window_clause)?!drop-9	FROM a INSERT INTO a SELECT * WINDOW a AS
+accept	accept	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(qualifyClause)?	FROM a INSERT INTO a SELECT * QUALIFY 1
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(qualifyClause)?!drop-7	FROM a INSERT INTO a SELECT * QUALIFY
+accept	accept	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(orderByClause)?	FROM a INSERT INTO a SELECT * ORDER BY 1
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(orderByClause)?!drop-6	FROM a INSERT INTO a SELECT * BY 1
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(orderByClause)?!drop-7	FROM a INSERT INTO a SELECT * ORDER 1
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(orderByClause)?!drop-8	FROM a INSERT INTO a SELECT * ORDER BY
+accept	accept	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(clusterByClause)?	FROM a INSERT INTO a SELECT * CLUSTER BY DEFAULT
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(clusterByClause)?!drop-7	FROM a INSERT INTO a SELECT * CLUSTER DEFAULT
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(clusterByClause)?!drop-8	FROM a INSERT INTO a SELECT * CLUSTER BY
+accept	accept	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(distributeByClause)?	FROM a INSERT INTO a SELECT * DISTRIBUTE BY DEFAULT
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(distributeByClause)?!drop-7	FROM a INSERT INTO a SELECT * DISTRIBUTE DEFAULT
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(distributeByClause)?!drop-8	FROM a INSERT INTO a SELECT * DISTRIBUTE BY
+accept	accept	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(sortByClause)?	FROM a INSERT INTO a SELECT * SORT BY 1
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(sortByClause)?!drop-7	FROM a INSERT INTO a SELECT * SORT 1
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(sortByClause)?!drop-8	FROM a INSERT INTO a SELECT * SORT BY
+accept	accept	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(limitClause)?	FROM a INSERT INTO a SELECT * LIMIT 1
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+body(limitClause)?!drop-7	FROM a INSERT INTO a SELECT * LIMIT
+accept	accept	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+selectClause/trfmClause	FROM a INSERT INTO a MAP * USING 'a'
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+selectClause/trfmClause!drop-4	FROM a INSERT INTO a * USING 'a'
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+selectClause/trfmClause!drop-5	FROM a INSERT INTO a MAP USING 'a'
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+selectClause/trfmClause!drop-6	FROM a INSERT INTO a MAP * 'a'
+reject	reject	engine	body/insertClause_selectClause_(lateralView)?_(whereClause)?~07b899a2+selectClause/trfmClause!drop-7	FROM a INSERT INTO a MAP * USING
 accept	accept	engine	body/selectClause_(lateralView)?_(whereClause)?_(groupByClau~fd3588ee	FROM a SELECT *
+accept	accept	engine	body/selectClause_(lateralView)?_(whereClause)?_(groupByClau~fd3588ee+selectClause/trfmClause	FROM a MAP * USING 'a'
+reject	reject	engine	body/selectClause_(lateralView)?_(whereClause)?_(groupByClau~fd3588ee+selectClause/trfmClause!drop-1	FROM a * USING 'a'
+reject	reject	engine	body/selectClause_(lateralView)?_(whereClause)?_(groupByClau~fd3588ee+selectClause/trfmClause!drop-2	FROM a MAP USING 'a'
+reject	reject	engine	body/selectClause_(lateralView)?_(whereClause)?_(groupByClau~fd3588ee+selectClause/trfmClause!drop-3	FROM a MAP * 'a'
+reject	reject	engine	body/selectClause_(lateralView)?_(whereClause)?_(groupByClau~fd3588ee+selectClause/trfmClause!drop-4	FROM a MAP * USING
 accept	accept	engine	body(lateralView)?/%empty	FROM a SELECT *
 accept	accept	engine	body(lateralView)?/lateralView	FROM a SELECT * LATERAL VIEW a() a
 reject	reject	engine	body(lateralView)?/lateralView!drop-1	FROM a SELECT * VIEW a() a
@@ -3396,6 +3553,10 @@ reject	reject	engine	startTransactionStatement(COMMA_transactionMode)*/COMMA_tra
 reject	reject	engine	startTransactionStatement(COMMA_transactionMode)*/COMMA_transactionMode_(COMMA_transactionMode)*!drop-3	START TRANSACTION READ ONLY, READ
 reject	reject	engine	startTransactionStatement(COMMA_transactionMode)*/COMMA_transactionMode_(COMMA_transactionMode)*!insert	START TRANSACTION READ ONLY, READ ONLY zzz
 reject	reject	engine	startTransactionStatement(COMMA_transactionMode)*/COMMA_transactionMode_(COMMA_transactionMode)*!swap	START TRANSACTION READ ONLY, READS ONLY
+accept	accept	engine	startTransactionStatement(COMMA_transactionMode)*/COMMA_transactionMode_(COMMA_transactionMode)*+transactionMode/isolationLevel	START TRANSACTION READ ONLY, ISOLATION LEVEL SNAPSHOT
+reject	reject	engine	startTransactionStatement(COMMA_transactionMode)*/COMMA_transactionMode_(COMMA_transactionMode)*+transactionMode/isolationLevel!drop-2	START TRANSACTION READ ONLY, LEVEL SNAPSHOT
+reject	reject	engine	startTransactionStatement(COMMA_transactionMode)*/COMMA_transactionMode_(COMMA_transactionMode)*+transactionMode/isolationLevel!drop-3	START TRANSACTION READ ONLY, ISOLATION SNAPSHOT
+reject	reject	engine	startTransactionStatement(COMMA_transactionMode)*/COMMA_transactionMode_(COMMA_transactionMode)*+transactionMode/isolationLevel!drop-4	START TRANSACTION READ ONLY, ISOLATION LEVEL
 accept	accept	engine	transactionMode/isolationLevel	START TRANSACTION ISOLATION LEVEL SNAPSHOT
 reject	reject	engine	transactionMode/isolationLevel!drop-1	START TRANSACTION LEVEL SNAPSHOT
 reject	reject	engine	transactionMode/isolationLevel!drop-2	START TRANSACTION ISOLATION SNAPSHOT
@@ -3499,6 +3660,9 @@ reject	reject	engine	whenNotMatchedClause(columnParenthesesList)?/columnParenthe
 reject	reject	engine	whenNotMatchedClause(columnParenthesesList)?/columnParenthesesList!truncate	MERGE INTO a USING a ON 1 WHEN NOT MATCHED THEN INSERT(a
 reject	reject	engine	whenNotMatchedClause(columnParenthesesList)?/columnParenthesesList!insert	MERGE INTO a USING a ON 1 WHEN NOT MATCHED THEN INSERT(a) zzz VALUES(DEFAULT)
 accept	accept	engine	whenMatchedAndClause/KW_WHEN_KW_MATCHED_KW_AND_expression_KW_THEN_updateOrDelete	MERGE INTO a USING a ON 1 WHEN MATCHED AND 1 THEN DELETE
+accept	accept	engine	whenMatchedAndClause/KW_WHEN_KW_MATCHED_KW_AND_expression_KW_THEN_updateOrDelete+updateOrDelete/KW_UPDATE_setColumnsClause	MERGE INTO a USING a ON 1 WHEN MATCHED AND 1 THEN UPDATE SET
+reject	reject	engine	whenMatchedAndClause/KW_WHEN_KW_MATCHED_KW_AND_expression_KW_THEN_updateOrDelete+updateOrDelete/KW_UPDATE_setColumnsClause!drop-6	MERGE INTO a USING a ON 1 WHEN MATCHED AND 1 THEN SET
+reject	reject	engine	whenMatchedAndClause/KW_WHEN_KW_MATCHED_KW_AND_expression_KW_THEN_updateOrDelete+updateOrDelete/KW_UPDATE_setColumnsClause!drop-7	MERGE INTO a USING a ON 1 WHEN MATCHED AND 1 THEN UPDATE
 accept	accept	engine	whenMatchedThenClause/KW_WHEN_KW_MATCHED_KW_THEN_updateOrDelete	MERGE INTO a USING a ON 1 WHEN MATCHED THEN DELETE
 accept	accept	engine	updateOrDelete/KW_UPDATE_setColumnsClause	MERGE INTO a USING a ON 1 WHEN MATCHED THEN UPDATE SET
 reject	reject	engine	updateOrDelete/KW_UPDATE_setColumnsClause!drop-1	MERGE INTO a USING a ON 1 WHEN MATCHED THEN SET
@@ -4428,6 +4592,8 @@ reject	reject	engine	retentionOfSnapshots(Number_timeUnitQualifiers)?/Number_tim
 reject	reject	engine	retentionOfSnapshots(Number_timeUnitQualifiers)?/Number_timeUnitQualifiers!drop-2	ALTER TABLE a CREATE BRANCH a WITH SNAPSHOT RETENTION 1 SNAPSHOTS 1
 reject	reject	engine	retentionOfSnapshots(Number_timeUnitQualifiers)?/Number_timeUnitQualifiers!insert	ALTER TABLE a CREATE BRANCH a WITH SNAPSHOT RETENTION 1 SNAPSHOTS 1 DAY zzz
 reject	reject	engine	retentionOfSnapshots(Number_timeUnitQualifiers)?/Number_timeUnitQualifiers!swap	ALTER TABLE a CREATE BRANCH a WITH SNAPSHOT RETENTION 1 SNAPSHOTS 1 DAYOFWEEK
+accept	accept	engine	retentionOfSnapshots(Number_timeUnitQualifiers)?/Number_timeUnitQualifiers+timeUnitQualifiers/KW_HOUR	ALTER TABLE a CREATE BRANCH a WITH SNAPSHOT RETENTION 1 SNAPSHOTS 1 HOUR
+accept	accept	engine	retentionOfSnapshots(Number_timeUnitQualifiers)?/Number_timeUnitQualifiers+timeUnitQualifiers/KW_MINUTE	ALTER TABLE a CREATE BRANCH a WITH SNAPSHOT RETENTION 1 SNAPSHOTS 1 MINUTE
 accept	accept	engine	alterStatementSuffixDropTag/KW_DROP_KW_TAG_(ifExists)?_identifier	ALTER TABLE a DROP TAG a
 accept	accept	engine	alterStatementSuffixDropTag(ifExists)?/%empty	ALTER TABLE a DROP TAG a
 reject	reject	engine	alterStatementSuffixDropTag(ifExists)?/%empty!insert	ALTER TABLE a DROP TAG zzz a
@@ -4447,6 +4613,18 @@ reject	reject	engine	alterStatementSuffixCreateTag(snapshotIdOfRef)?/snapshotIdO
 reject	reject	engine	alterStatementSuffixCreateTag(snapshotIdOfRef)?/snapshotIdOfRef!drop-5	ALTER TABLE a CREATE TAG a FOR SYSTEM_VERSION AS OF
 reject	reject	engine	alterStatementSuffixCreateTag(snapshotIdOfRef)?/snapshotIdOfRef!insert	ALTER TABLE a CREATE TAG a FOR SYSTEM_VERSION AS OF 1 zzz
 reject	reject	engine	alterStatementSuffixCreateTag(snapshotIdOfRef)?/snapshotIdOfRef!swap	ALTER TABLE a CREATE TAG a FORCE SYSTEM_VERSION AS OF 1
+accept	accept	engine	alterStatementSuffixCreateTag(snapshotIdOfRef)?/snapshotIdOfRef+snapshotIdOfRef/KW_FOR_KW_SYSTEM_TIME_KW_AS_KW_OF_StringLiteral	ALTER TABLE a CREATE TAG a FOR SYSTEM_TIME AS OF 'a'
+reject	reject	engine	alterStatementSuffixCreateTag(snapshotIdOfRef)?/snapshotIdOfRef+snapshotIdOfRef/KW_FOR_KW_SYSTEM_TIME_KW_AS_KW_OF_StringLiteral!drop-1	ALTER TABLE a CREATE TAG a SYSTEM_TIME AS OF 'a'
+reject	reject	engine	alterStatementSuffixCreateTag(snapshotIdOfRef)?/snapshotIdOfRef+snapshotIdOfRef/KW_FOR_KW_SYSTEM_TIME_KW_AS_KW_OF_StringLiteral!drop-2	ALTER TABLE a CREATE TAG a FOR AS OF 'a'
+reject	reject	engine	alterStatementSuffixCreateTag(snapshotIdOfRef)?/snapshotIdOfRef+snapshotIdOfRef/KW_FOR_KW_SYSTEM_TIME_KW_AS_KW_OF_StringLiteral!drop-3	ALTER TABLE a CREATE TAG a FOR SYSTEM_TIME OF 'a'
+reject	reject	engine	alterStatementSuffixCreateTag(snapshotIdOfRef)?/snapshotIdOfRef+snapshotIdOfRef/KW_FOR_KW_SYSTEM_TIME_KW_AS_KW_OF_StringLiteral!drop-4	ALTER TABLE a CREATE TAG a FOR SYSTEM_TIME AS 'a'
+reject	reject	engine	alterStatementSuffixCreateTag(snapshotIdOfRef)?/snapshotIdOfRef+snapshotIdOfRef/KW_FOR_KW_SYSTEM_TIME_KW_AS_KW_OF_StringLiteral!drop-5	ALTER TABLE a CREATE TAG a FOR SYSTEM_TIME AS OF
+accept	accept	engine	alterStatementSuffixCreateTag(snapshotIdOfRef)?/snapshotIdOfRef+snapshotIdOfRef/KW_FOR_KW_TAG_KW_AS_KW_OF_identifier	ALTER TABLE a CREATE TAG a FOR TAG AS OF a
+reject	reject	engine	alterStatementSuffixCreateTag(snapshotIdOfRef)?/snapshotIdOfRef+snapshotIdOfRef/KW_FOR_KW_TAG_KW_AS_KW_OF_identifier!drop-1	ALTER TABLE a CREATE TAG a TAG AS OF a
+reject	reject	engine	alterStatementSuffixCreateTag(snapshotIdOfRef)?/snapshotIdOfRef+snapshotIdOfRef/KW_FOR_KW_TAG_KW_AS_KW_OF_identifier!drop-2	ALTER TABLE a CREATE TAG a FOR AS OF a
+reject	reject	engine	alterStatementSuffixCreateTag(snapshotIdOfRef)?/snapshotIdOfRef+snapshotIdOfRef/KW_FOR_KW_TAG_KW_AS_KW_OF_identifier!drop-3	ALTER TABLE a CREATE TAG a FOR TAG OF a
+reject	reject	engine	alterStatementSuffixCreateTag(snapshotIdOfRef)?/snapshotIdOfRef+snapshotIdOfRef/KW_FOR_KW_TAG_KW_AS_KW_OF_identifier!drop-4	ALTER TABLE a CREATE TAG a FOR TAG AS a
+reject	reject	engine	alterStatementSuffixCreateTag(snapshotIdOfRef)?/snapshotIdOfRef+snapshotIdOfRef/KW_FOR_KW_TAG_KW_AS_KW_OF_identifier!drop-5	ALTER TABLE a CREATE TAG a FOR TAG AS OF
 accept	accept	engine	alterStatementSuffixCreateTag(refRetain)?/%empty	ALTER TABLE a CREATE TAG a
 accept	accept	engine	alterStatementSuffixCreateTag(refRetain)?/refRetain	ALTER TABLE a CREATE TAG a RETAIN 1 DAY
 reject	reject	engine	alterStatementSuffixCreateTag(refRetain)?/refRetain!drop-1	ALTER TABLE a CREATE TAG a 1 DAY
@@ -4529,11 +4707,28 @@ accept	accept	engine	selectClause(KW_ALL|KW_DISTINCT)?/KW_DISTINCT	SELECT DISTIN
 reject	reject	engine	selectClause(KW_ALL|KW_DISTINCT)?/KW_DISTINCT!insert	SELECT DISTINCT zzz *
 reject	reject	engine	selectClause(KW_ALL|KW_DISTINCT)?/KW_DISTINCT!swap	SELECT DISTRIBUTE *
 accept	accept	engine	selectList/selectItem_(COMMA_selectItem)*	SELECT *
+accept	accept	engine	selectList/selectItem_(COMMA_selectItem)*+tableName/identifier_DOT_identifier_(DOT_identifier)?	SELECT a.a.*
+reject	reject	engine	selectList/selectItem_(COMMA_selectItem)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-1	SELECT.a.*
+reject	reject	engine	selectList/selectItem_(COMMA_selectItem)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-2	SELECT a a.*
+reject	reject	engine	selectList/selectItem_(COMMA_selectItem)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-3	SELECT a..*
+reject	reject	engine	selectList/selectItem_(COMMA_selectItem)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-4	SELECT a.a *
+reject	reject	engine	selectList/selectItem_(COMMA_selectItem)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-5	SELECT a.a.
 accept	accept	engine	selectList(COMMA_selectItem)*/%empty	SELECT *
 accept	accept	engine	selectList(COMMA_selectItem)*/COMMA_selectItem_(COMMA_selectItem)*	SELECT *, *
 reject	reject	engine	selectList(COMMA_selectItem)*/COMMA_selectItem_(COMMA_selectItem)*!drop-1	SELECT * *
 reject	reject	engine	selectList(COMMA_selectItem)*/COMMA_selectItem_(COMMA_selectItem)*!drop-2	SELECT *,
 reject	reject	engine	selectList(COMMA_selectItem)*/COMMA_selectItem_(COMMA_selectItem)*!insert	SELECT *, * zzz
+accept	accept	engine	selectList(COMMA_selectItem)*/COMMA_selectItem_(COMMA_selectItem)*+tableAllColumns/tableName_DOT_STAR	SELECT *, a.*
+reject	reject	engine	selectList(COMMA_selectItem)*/COMMA_selectItem_(COMMA_selectItem)*+tableAllColumns/tableName_DOT_STAR!drop-2	SELECT *,.*
+reject	reject	engine	selectList(COMMA_selectItem)*/COMMA_selectItem_(COMMA_selectItem)*+tableAllColumns/tableName_DOT_STAR!drop-3	SELECT *, a *
+reject	reject	engine	selectList(COMMA_selectItem)*/COMMA_selectItem_(COMMA_selectItem)*+tableAllColumns/tableName_DOT_STAR!drop-4	SELECT *, a.
+accept	accept	engine	selectList(COMMA_selectItem)*/COMMA_selectItem_(COMMA_selectItem)*+tableName/identifier_DOT_identifier_(DOT_identifier)?	SELECT *, a.a.*
+reject	reject	engine	selectList(COMMA_selectItem)*/COMMA_selectItem_(COMMA_selectItem)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-2	SELECT *,.a.*
+reject	reject	engine	selectList(COMMA_selectItem)*/COMMA_selectItem_(COMMA_selectItem)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-3	SELECT *, a a.*
+reject	reject	engine	selectList(COMMA_selectItem)*/COMMA_selectItem_(COMMA_selectItem)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-4	SELECT *, a..*
+reject	reject	engine	selectList(COMMA_selectItem)*/COMMA_selectItem_(COMMA_selectItem)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-5	SELECT *, a.a *
+reject	reject	engine	selectList(COMMA_selectItem)*/COMMA_selectItem_(COMMA_selectItem)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-6	SELECT *, a.a.
+accept	accept	engine	selectList(COMMA_selectItem)*/COMMA_selectItem_(COMMA_selectItem)*+selectItem/expression_((KW_AS?_identifier)|(KW_AS_LPAREN_id~f927e4b8)?	SELECT *, 1
 accept	accept	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016	SELECT TRANSFORM(*) USING 'a'
 reject	reject	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016!swap	SELECT TRANSFORM(*) UTC 'a'
 accept	accept	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016+rowFormat/rowFormatSerde	SELECT TRANSFORM(*) ROW FORMAT SERDE 'a' USING 'a'
@@ -4545,6 +4740,9 @@ accept	accept	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowForm
 reject	reject	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016+rowFormat/rowFormatDelimited!drop-4	SELECT TRANSFORM(*) FORMAT DELIMITED USING 'a'
 reject	reject	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016+rowFormat/rowFormatDelimited!drop-5	SELECT TRANSFORM(*) ROW DELIMITED USING 'a'
 reject	reject	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016+rowFormat/rowFormatDelimited!drop-6	SELECT TRANSFORM(*) ROW FORMAT USING 'a'
+accept	accept	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016+recordWriter/KW_RECORDWRITER_StringLiteral	SELECT TRANSFORM(*) RECORDWRITER 'a' USING 'a'
+reject	reject	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016+recordWriter/KW_RECORDWRITER_StringLiteral!drop-4	SELECT TRANSFORM(*) 'a' USING 'a'
+reject	reject	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016+recordWriter/KW_RECORDWRITER_StringLiteral!drop-5	SELECT TRANSFORM(*) RECORDWRITER USING 'a'
 accept	accept	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016+rowFormat/rowFormatSerde#2	SELECT TRANSFORM(*) USING 'a' ROW FORMAT SERDE 'a'
 reject	reject	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016+rowFormat/rowFormatSerde#2!drop-6	SELECT TRANSFORM(*) USING 'a' FORMAT SERDE 'a'
 reject	reject	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016+rowFormat/rowFormatSerde#2!drop-7	SELECT TRANSFORM(*) USING 'a' ROW SERDE 'a'
@@ -4554,6 +4752,9 @@ accept	accept	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowForm
 reject	reject	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016+rowFormat/rowFormatDelimited#2!drop-6	SELECT TRANSFORM(*) USING 'a' FORMAT DELIMITED
 reject	reject	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016+rowFormat/rowFormatDelimited#2!drop-7	SELECT TRANSFORM(*) USING 'a' ROW DELIMITED
 reject	reject	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016+rowFormat/rowFormatDelimited#2!drop-8	SELECT TRANSFORM(*) USING 'a' ROW FORMAT
+accept	accept	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016+recordReader/KW_RECORDREADER_StringLiteral	SELECT TRANSFORM(*) USING 'a' RECORDREADER 'a'
+reject	reject	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016+recordReader/KW_RECORDREADER_StringLiteral!drop-6	SELECT TRANSFORM(*) USING 'a' 'a'
+reject	reject	engine	selectTrfmClause/LPAREN_selectExpressionList_RPAREN_rowFormat_recordWrit~1573f016+recordReader/KW_RECORDREADER_StringLiteral!drop-7	SELECT TRANSFORM(*) USING 'a' RECORDREADER
 accept	accept	engine	selectTrfmClause(KW_AS_((LPAREN_(aliasList|columnName~c5cdbf99)?/%empty	SELECT TRANSFORM(*) USING 'a'
 accept	accept	engine	selectTrfmClause(KW_AS_((LPAREN_(aliasList|columnName~c5cdbf99)?/KW_AS_((LPAREN_(aliasList|columnNameTypeLis~7568f305)	SELECT TRANSFORM(*) USING 'a' AS a
 reject	reject	engine	selectTrfmClause(KW_AS_((LPAREN_(aliasList|columnName~c5cdbf99)?/KW_AS_((LPAREN_(aliasList|columnNameTypeLis~7568f305)!drop-1	SELECT TRANSFORM(*) USING 'a' a
@@ -4628,6 +4829,16 @@ accept	accept	engine	trfmClause((LPAREN_(aliasList|columnNameTypeLis~7568f305)/(
 accept	accept	engine	trfmClause(aliasList|columnNameTypeList)/aliasList	MAP * USING 'a' AS a
 accept	accept	engine	trfmClause(aliasList|columnNameTypeList)/columnNameTypeList	MAP * USING 'a' AS a TINYINT
 accept	accept	engine	selectExpression/tableAllColumns	MAP * USING 'a'
+accept	accept	engine	selectExpression/tableAllColumns+tableAllColumns/tableName_DOT_STAR	MAP a.* USING 'a'
+reject	reject	engine	selectExpression/tableAllColumns+tableAllColumns/tableName_DOT_STAR!drop-1	MAP.* USING 'a'
+reject	reject	engine	selectExpression/tableAllColumns+tableAllColumns/tableName_DOT_STAR!drop-2	MAP a * USING 'a'
+reject	reject	engine	selectExpression/tableAllColumns+tableAllColumns/tableName_DOT_STAR!drop-3	MAP a.USING 'a'
+accept	accept	engine	selectExpression/tableAllColumns+tableName/identifier_DOT_identifier_(DOT_identifier)?	MAP a.a.* USING 'a'
+reject	reject	engine	selectExpression/tableAllColumns+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-1	MAP.a.* USING 'a'
+reject	reject	engine	selectExpression/tableAllColumns+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-2	MAP a a.* USING 'a'
+reject	reject	engine	selectExpression/tableAllColumns+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-3	MAP a..* USING 'a'
+reject	reject	engine	selectExpression/tableAllColumns+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-4	MAP a.a * USING 'a'
+reject	reject	engine	selectExpression/tableAllColumns+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-5	MAP a.a.USING 'a'
 accept	accept	engine	selectExpression/expression	MAP 1 USING 'a'
 reject	reject	engine	selectExpression/expression!insert	MAP 1 zzz USING 'a'
 accept	accept	engine	selectExpressionList/selectExpression_(COMMA_selectExpression)*	MAP * USING 'a'
@@ -4637,6 +4848,17 @@ reject	reject	engine	selectExpressionList(COMMA_selectExpression)*/COMMA_selectE
 reject	reject	engine	selectExpressionList(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*!drop-2	MAP *, USING 'a'
 reject	reject	engine	selectExpressionList(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*!truncate	MAP *,
 reject	reject	engine	selectExpressionList(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*!insert	MAP *, * zzz USING 'a'
+accept	accept	engine	selectExpressionList(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableAllColumns/tableName_DOT_STAR	MAP *, a.* USING 'a'
+reject	reject	engine	selectExpressionList(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableAllColumns/tableName_DOT_STAR!drop-2	MAP *,.* USING 'a'
+reject	reject	engine	selectExpressionList(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableAllColumns/tableName_DOT_STAR!drop-3	MAP *, a * USING 'a'
+reject	reject	engine	selectExpressionList(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableAllColumns/tableName_DOT_STAR!drop-4	MAP *, a.USING 'a'
+accept	accept	engine	selectExpressionList(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?	MAP *, a.a.* USING 'a'
+reject	reject	engine	selectExpressionList(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-2	MAP *,.a.* USING 'a'
+reject	reject	engine	selectExpressionList(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-3	MAP *, a a.* USING 'a'
+reject	reject	engine	selectExpressionList(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-4	MAP *, a..* USING 'a'
+reject	reject	engine	selectExpressionList(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-5	MAP *, a.a * USING 'a'
+reject	reject	engine	selectExpressionList(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-6	MAP *, a.a.USING 'a'
+accept	accept	engine	selectExpressionList(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+selectExpression/expression	MAP *, 1 USING 'a'
 accept	accept	engine	window_clause/KW_WINDOW_window_defn_(COMMA_window_defn)*	SELECT * WINDOW a AS a
 accept	accept	engine	window_clause(COMMA_window_defn)*/%empty	SELECT * WINDOW a AS a
 accept	accept	engine	window_clause(COMMA_window_defn)*/COMMA_window_defn_(COMMA_window_defn)*	SELECT * WINDOW a AS a, a AS a
@@ -4695,12 +4917,23 @@ reject	reject	engine	window_range_expression/KW_ROWS_KW_BETWEEN_window_frame_bou
 reject	reject	engine	window_range_expression/KW_ROWS_KW_BETWEEN_window_frame_boundary_KW_AND_window_~8b0847ea!truncate	SELECT a() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED
 reject	reject	engine	window_range_expression/KW_ROWS_KW_BETWEEN_window_frame_boundary_KW_AND_window_~8b0847ea!insert	SELECT a() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING zzz)
 reject	reject	engine	window_range_expression/KW_ROWS_KW_BETWEEN_window_frame_boundary_KW_AND_window_~8b0847ea!swap	SELECT a() OVER(SCHEDULED BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
+accept	accept	engine	window_range_expression/KW_ROWS_KW_BETWEEN_window_frame_boundary_KW_AND_window_~8b0847ea+window_frame_boundary(KW_PRECEDING|KW_FOLLOWING)/KW_FOLLOWING#2	SELECT a() OVER(ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED PRECEDING)
+reject	reject	engine	window_range_expression/KW_ROWS_KW_BETWEEN_window_frame_boundary_KW_AND_window_~8b0847ea+window_frame_boundary(KW_PRECEDING|KW_FOLLOWING)/KW_FOLLOWING#2!drop-3	SELECT a() OVER(ROWS BETWEEN FOLLOWING AND UNBOUNDED PRECEDING)
+reject	reject	engine	window_range_expression/KW_ROWS_KW_BETWEEN_window_frame_boundary_KW_AND_window_~8b0847ea+window_frame_boundary(KW_PRECEDING|KW_FOLLOWING)/KW_FOLLOWING#2!drop-4	SELECT a() OVER(ROWS BETWEEN 1 AND UNBOUNDED PRECEDING)
+accept	accept	engine	window_range_expression/KW_ROWS_KW_BETWEEN_window_frame_boundary_KW_AND_window_~8b0847ea+window_frame_boundary(KW_PRECEDING|KW_FOLLOWING)/KW_FOLLOWING#2	SELECT a() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)
+reject	reject	engine	window_range_expression/KW_ROWS_KW_BETWEEN_window_frame_boundary_KW_AND_window_~8b0847ea+window_frame_boundary(KW_PRECEDING|KW_FOLLOWING)/KW_FOLLOWING#2!drop-6	SELECT a() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND FOLLOWING)
 accept	accept	engine	window_range_expression/KW_ROWS_KW_BETWEEN_window_frame_boundary_KW_AND_window_~8b0847ea+window_frame_boundary/KW_CURRENT_KW_ROW#2	SELECT a() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
 reject	reject	engine	window_range_expression/KW_ROWS_KW_BETWEEN_window_frame_boundary_KW_AND_window_~8b0847ea+window_frame_boundary/KW_CURRENT_KW_ROW#2!drop-6	SELECT a() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND ROW)
 reject	reject	engine	window_range_expression/KW_ROWS_KW_BETWEEN_window_frame_boundary_KW_AND_window_~8b0847ea+window_frame_boundary/KW_CURRENT_KW_ROW#2!drop-7	SELECT a() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT)
 accept	accept	engine	window_range_expression/KW_ROWS_KW_BETWEEN_window_frame_boundary_KW_AND_window_~8b0847ea+window_frame_boundary/Number_(KW_PRECEDING|KW_FOLLOWING)#2	SELECT a() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)
 reject	reject	engine	window_range_expression/KW_ROWS_KW_BETWEEN_window_frame_boundary_KW_AND_window_~8b0847ea+window_frame_boundary/Number_(KW_PRECEDING|KW_FOLLOWING)#2!drop-7	SELECT a() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND 1)
+accept	accept	engine	window_range_expression/KW_ROWS_KW_BETWEEN_window_frame_boundary_KW_AND_window_~8b0847ea+window_frame_boundary(KW_PRECEDING|KW_FOLLOWING)/KW_FOLLOWING#2#2	SELECT a() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING)
 accept	accept	engine	window_value_expression/KW_RANGE_window_frame_start_boundary	SELECT a() OVER(RANGE UNBOUNDED PRECEDING)
+accept	accept	engine	window_value_expression/KW_RANGE_window_frame_start_boundary+window_frame_start_boundary/KW_CURRENT_KW_ROW	SELECT a() OVER(RANGE CURRENT ROW)
+reject	reject	engine	window_value_expression/KW_RANGE_window_frame_start_boundary+window_frame_start_boundary/KW_CURRENT_KW_ROW!drop-2	SELECT a() OVER(RANGE ROW)
+reject	reject	engine	window_value_expression/KW_RANGE_window_frame_start_boundary+window_frame_start_boundary/KW_CURRENT_KW_ROW!drop-3	SELECT a() OVER(RANGE CURRENT)
+accept	accept	engine	window_value_expression/KW_RANGE_window_frame_start_boundary+window_frame_start_boundary/Number_KW_PRECEDING	SELECT a() OVER(RANGE 1 PRECEDING)
+reject	reject	engine	window_value_expression/KW_RANGE_window_frame_start_boundary+window_frame_start_boundary/Number_KW_PRECEDING!drop-3	SELECT a() OVER(RANGE 1)
 accept	accept	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf	SELECT a() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 reject	reject	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf!drop-2	SELECT a() OVER(RANGE UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 reject	reject	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf!drop-3	SELECT a() OVER(RANGE BETWEEN PRECEDING AND UNBOUNDED PRECEDING)
@@ -4711,16 +4944,22 @@ reject	reject	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_bo
 reject	reject	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf!truncate	SELECT a() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED
 reject	reject	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf!insert	SELECT a() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING zzz)
 reject	reject	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf!swap	SELECT a() OVER(READ BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
+accept	accept	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf+window_frame_boundary(KW_PRECEDING|KW_FOLLOWING)/KW_FOLLOWING	SELECT a() OVER(RANGE BETWEEN UNBOUNDED FOLLOWING AND UNBOUNDED PRECEDING)
+reject	reject	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf+window_frame_boundary(KW_PRECEDING|KW_FOLLOWING)/KW_FOLLOWING!drop-3	SELECT a() OVER(RANGE BETWEEN FOLLOWING AND UNBOUNDED PRECEDING)
 accept	accept	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf+window_frame_boundary/KW_CURRENT_KW_ROW	SELECT a() OVER(RANGE BETWEEN CURRENT ROW AND UNBOUNDED PRECEDING)
 reject	reject	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf+window_frame_boundary/KW_CURRENT_KW_ROW!drop-3	SELECT a() OVER(RANGE BETWEEN ROW AND UNBOUNDED PRECEDING)
 reject	reject	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf+window_frame_boundary/KW_CURRENT_KW_ROW!drop-4	SELECT a() OVER(RANGE BETWEEN CURRENT AND UNBOUNDED PRECEDING)
 accept	accept	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf+window_frame_boundary/Number_(KW_PRECEDING|KW_FOLLOWING)	SELECT a() OVER(RANGE BETWEEN 1 PRECEDING AND UNBOUNDED PRECEDING)
 reject	reject	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf+window_frame_boundary/Number_(KW_PRECEDING|KW_FOLLOWING)!drop-4	SELECT a() OVER(RANGE BETWEEN 1 AND UNBOUNDED PRECEDING)
+accept	accept	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf+window_frame_boundary(KW_PRECEDING|KW_FOLLOWING)/KW_FOLLOWING#2	SELECT a() OVER(RANGE BETWEEN 1 FOLLOWING AND UNBOUNDED PRECEDING)
+accept	accept	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf+window_frame_boundary(KW_PRECEDING|KW_FOLLOWING)/KW_FOLLOWING#2	SELECT a() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)
+reject	reject	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf+window_frame_boundary(KW_PRECEDING|KW_FOLLOWING)/KW_FOLLOWING#2!drop-6	SELECT a() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND FOLLOWING)
 accept	accept	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf+window_frame_boundary/KW_CURRENT_KW_ROW#2	SELECT a() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
 reject	reject	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf+window_frame_boundary/KW_CURRENT_KW_ROW#2!drop-6	SELECT a() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND ROW)
 reject	reject	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf+window_frame_boundary/KW_CURRENT_KW_ROW#2!drop-7	SELECT a() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT)
 accept	accept	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf+window_frame_boundary/Number_(KW_PRECEDING|KW_FOLLOWING)#2	SELECT a() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)
 reject	reject	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf+window_frame_boundary/Number_(KW_PRECEDING|KW_FOLLOWING)#2!drop-7	SELECT a() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND 1)
+accept	accept	engine	window_value_expression/KW_RANGE_KW_BETWEEN_window_frame_boundary_KW_AND_window~aa799fdf+window_frame_boundary(KW_PRECEDING|KW_FOLLOWING)/KW_FOLLOWING#2#2	SELECT a() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING)
 accept	accept	engine	window_frame_start_boundary/KW_UNBOUNDED_KW_PRECEDING	SELECT a() OVER(ROWS UNBOUNDED PRECEDING)
 reject	reject	engine	window_frame_start_boundary/KW_UNBOUNDED_KW_PRECEDING!swap	SELECT a() OVER(ROWS UNDO PRECEDING)
 accept	accept	engine	window_frame_start_boundary/KW_CURRENT_KW_ROW	SELECT a() OVER(ROWS CURRENT ROW)
@@ -4745,7 +4984,6 @@ reject	reject	engine	window_frame_boundary/KW_CURRENT_KW_ROW!truncate	SELECT a()
 reject	reject	engine	window_frame_boundary/KW_CURRENT_KW_ROW!insert	SELECT a() OVER(ROWS BETWEEN CURRENT ROW zzz AND UNBOUNDED PRECEDING)
 reject	reject	engine	window_frame_boundary/KW_CURRENT_KW_ROW!swap	SELECT a() OVER(ROWS BETWEEN CURRENT_DATE ROW AND UNBOUNDED PRECEDING)
 accept	accept	engine	window_frame_boundary/Number_(KW_PRECEDING|KW_FOLLOWING)	SELECT a() OVER(ROWS BETWEEN 1 PRECEDING AND UNBOUNDED PRECEDING)
-reject	reject	engine	window_frame_boundary/Number_(KW_PRECEDING|KW_FOLLOWING)!drop-2	SELECT a() OVER(ROWS BETWEEN 1 AND UNBOUNDED PRECEDING)
 reject	reject	engine	window_frame_boundary/Number_(KW_PRECEDING|KW_FOLLOWING)!truncate	SELECT a() OVER(ROWS BETWEEN 1
 reject	reject	engine	window_frame_boundary/Number_(KW_PRECEDING|KW_FOLLOWING)!insert	SELECT a() OVER(ROWS BETWEEN 1 PRECEDING zzz AND UNBOUNDED PRECEDING)
 reject	reject	engine	window_frame_boundary/Number_(KW_PRECEDING|KW_FOLLOWING)!swap	SELECT a() OVER(ROWS BETWEEN 1 PRECISION AND UNBOUNDED PRECEDING)
@@ -4760,10 +4998,6 @@ reject	reject	engine	tableAllColumns/tableName_DOT_STAR!drop-1	SELECT.*
 reject	reject	engine	tableAllColumns/tableName_DOT_STAR!drop-2	SELECT a *
 reject	reject	engine	tableAllColumns/tableName_DOT_STAR!drop-3	SELECT a.
 reject	reject	engine	tableAllColumns/tableName_DOT_STAR!insert	SELECT a.* zzz
-accept	accept	engine	tableAllColumns/tableName_DOT_STAR+tableName/identifier_DOT_identifier_(DOT_identifier)?	SELECT a.a.*
-reject	reject	engine	tableAllColumns/tableName_DOT_STAR+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-1	SELECT.a.*
-reject	reject	engine	tableAllColumns/tableName_DOT_STAR+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-2	SELECT a a.*
-reject	reject	engine	tableAllColumns/tableName_DOT_STAR+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-3	SELECT a..*
 accept	accept	engine	tableOrColumn/identifier	SELECT a
 accept	accept	engine	tableOrColumn/identifier!insert	SELECT a zzz
 accept	accept	engine	defaultValue/KW_DEFAULT	SELECT(DEFAULT)
@@ -4831,6 +5065,13 @@ reject	reject	engine	atomjoinSource/virtualTableSource_(lateralView)*!drop-9	FRO
 reject	reject	engine	atomjoinSource/virtualTableSource_(lateralView)*!truncate	FROM TABLE(VALUES(DEFAULT)) a
 reject	reject	engine	atomjoinSource/virtualTableSource_(lateralView)*!insert	FROM TABLE(VALUES(DEFAULT)) a) zzz SELECT *
 reject	reject	engine	atomjoinSource/virtualTableSource_(lateralView)*!swap	FROM TABLES(VALUES(DEFAULT)) a) SELECT *
+accept	accept	engine	atomjoinSource/virtualTableSource_(lateralView)*+atomjoinSource(lateralView)*	FROM TABLE(VALUES(DEFAULT)) a) LATERAL VIEW a() a SELECT *
+reject	reject	engine	atomjoinSource/virtualTableSource_(lateralView)*+atomjoinSource(lateralView)*!drop-10	FROM TABLE(VALUES(DEFAULT)) a) VIEW a() a SELECT *
+reject	reject	engine	atomjoinSource/virtualTableSource_(lateralView)*+atomjoinSource(lateralView)*!drop-11	FROM TABLE(VALUES(DEFAULT)) a) LATERAL a() a SELECT *
+reject	reject	engine	atomjoinSource/virtualTableSource_(lateralView)*+atomjoinSource(lateralView)*!drop-12	FROM TABLE(VALUES(DEFAULT)) a) LATERAL VIEW() a SELECT *
+reject	reject	engine	atomjoinSource/virtualTableSource_(lateralView)*+atomjoinSource(lateralView)*!drop-13	FROM TABLE(VALUES(DEFAULT)) a) LATERAL VIEW a) a SELECT *
+reject	reject	engine	atomjoinSource/virtualTableSource_(lateralView)*+atomjoinSource(lateralView)*!drop-14	FROM TABLE(VALUES(DEFAULT)) a) LATERAL VIEW a(a SELECT *
+reject	reject	engine	atomjoinSource/virtualTableSource_(lateralView)*+atomjoinSource(lateralView)*!drop-15	FROM TABLE(VALUES(DEFAULT)) a) LATERAL VIEW a() SELECT *
 accept	accept	engine	atomjoinSource/subQuerySource_(lateralView)*	FROM(SELECT *) a SELECT *
 reject	reject	engine	atomjoinSource/subQuerySource_(lateralView)*!drop-1	FROM SELECT *) a SELECT *
 reject	reject	engine	atomjoinSource/subQuerySource_(lateralView)*!drop-2	FROM(*) a SELECT *
@@ -4840,6 +5081,13 @@ reject	reject	engine	atomjoinSource/subQuerySource_(lateralView)*!drop-5	FROM(SE
 reject	reject	engine	atomjoinSource/subQuerySource_(lateralView)*!truncate	FROM(SELECT *)
 reject	reject	engine	atomjoinSource/subQuerySource_(lateralView)*!insert	FROM(SELECT *) a zzz SELECT *
 reject	reject	engine	atomjoinSource/subQuerySource_(lateralView)*!swap	FROM(SEMI *) a SELECT *
+accept	accept	engine	atomjoinSource/subQuerySource_(lateralView)*+atomjoinSource(lateralView)*	FROM(SELECT *) a LATERAL VIEW a() a SELECT *
+reject	reject	engine	atomjoinSource/subQuerySource_(lateralView)*+atomjoinSource(lateralView)*!drop-6	FROM(SELECT *) a VIEW a() a SELECT *
+reject	reject	engine	atomjoinSource/subQuerySource_(lateralView)*+atomjoinSource(lateralView)*!drop-7	FROM(SELECT *) a LATERAL a() a SELECT *
+reject	reject	engine	atomjoinSource/subQuerySource_(lateralView)*+atomjoinSource(lateralView)*!drop-8	FROM(SELECT *) a LATERAL VIEW() a SELECT *
+reject	reject	engine	atomjoinSource/subQuerySource_(lateralView)*+atomjoinSource(lateralView)*!drop-9	FROM(SELECT *) a LATERAL VIEW a) a SELECT *
+reject	reject	engine	atomjoinSource/subQuerySource_(lateralView)*+atomjoinSource(lateralView)*!drop-10	FROM(SELECT *) a LATERAL VIEW a(a SELECT *
+reject	reject	engine	atomjoinSource/subQuerySource_(lateralView)*+atomjoinSource(lateralView)*!drop-11	FROM(SELECT *) a LATERAL VIEW a() SELECT *
 accept	accept	engine	atomjoinSource/subQuerySource_(lateralView)*#2	FROM(SELECT *) a SELECT *
 accept	accept	engine	atomjoinSource/subQuerySource_(lateralView)*#3	FROM(SELECT *) a SELECT *
 accept	accept	engine	atomjoinSource/partitionedTableFunction_(lateralView)*	FROM a(ON a) SELECT *
@@ -4851,6 +5099,13 @@ reject	reject	engine	atomjoinSource/partitionedTableFunction_(lateralView)*!drop
 reject	reject	engine	atomjoinSource/partitionedTableFunction_(lateralView)*!truncate	FROM a(ON a
 accept	accept	engine	atomjoinSource/partitionedTableFunction_(lateralView)*!insert	FROM a(ON a) zzz SELECT *
 reject	reject	engine	atomjoinSource/partitionedTableFunction_(lateralView)*!swap	FROM a(ONLY a) SELECT *
+accept	accept	engine	atomjoinSource/partitionedTableFunction_(lateralView)*+atomjoinSource(lateralView)*	FROM a(ON a) LATERAL VIEW a() a SELECT *
+reject	reject	engine	atomjoinSource/partitionedTableFunction_(lateralView)*+atomjoinSource(lateralView)*!drop-6	FROM a(ON a) VIEW a() a SELECT *
+reject	reject	engine	atomjoinSource/partitionedTableFunction_(lateralView)*+atomjoinSource(lateralView)*!drop-7	FROM a(ON a) LATERAL a() a SELECT *
+reject	reject	engine	atomjoinSource/partitionedTableFunction_(lateralView)*+atomjoinSource(lateralView)*!drop-8	FROM a(ON a) LATERAL VIEW() a SELECT *
+reject	reject	engine	atomjoinSource/partitionedTableFunction_(lateralView)*+atomjoinSource(lateralView)*!drop-9	FROM a(ON a) LATERAL VIEW a) a SELECT *
+reject	reject	engine	atomjoinSource/partitionedTableFunction_(lateralView)*+atomjoinSource(lateralView)*!drop-10	FROM a(ON a) LATERAL VIEW a(a SELECT *
+reject	reject	engine	atomjoinSource/partitionedTableFunction_(lateralView)*+atomjoinSource(lateralView)*!drop-11	FROM a(ON a) LATERAL VIEW a() SELECT *
 accept	accept	engine	atomjoinSource/LPAREN_joinSource_RPAREN	FROM(a) SELECT *
 reject	reject	engine	atomjoinSource/LPAREN_joinSource_RPAREN!drop-1	FROM a) SELECT *
 reject	reject	engine	atomjoinSource/LPAREN_joinSource_RPAREN!drop-2	FROM() SELECT *
@@ -4868,6 +5123,13 @@ reject	reject	engine	atomjoinSource(lateralView)*/lateralView_(lateralView)*!dro
 reject	reject	engine	atomjoinSource(lateralView)*/lateralView_(lateralView)*!truncate	FROM a LATERAL VIEW a()
 reject	reject	engine	atomjoinSource(lateralView)*/lateralView_(lateralView)*!insert	FROM a LATERAL VIEW a() a zzz SELECT *
 reject	reject	engine	atomjoinSource(lateralView)*/lateralView_(lateralView)*!swap	FROM a LEADING VIEW a() a SELECT *
+accept	accept	engine	atomjoinSource(lateralView)*/lateralView_(lateralView)*+atomjoinSource(lateralView)*	FROM a LATERAL VIEW a() a LATERAL VIEW a() a SELECT *
+reject	reject	engine	atomjoinSource(lateralView)*/lateralView_(lateralView)*+atomjoinSource(lateralView)*!drop-7	FROM a LATERAL VIEW a() a VIEW a() a SELECT *
+reject	reject	engine	atomjoinSource(lateralView)*/lateralView_(lateralView)*+atomjoinSource(lateralView)*!drop-8	FROM a LATERAL VIEW a() a LATERAL a() a SELECT *
+reject	reject	engine	atomjoinSource(lateralView)*/lateralView_(lateralView)*+atomjoinSource(lateralView)*!drop-9	FROM a LATERAL VIEW a() a LATERAL VIEW() a SELECT *
+reject	reject	engine	atomjoinSource(lateralView)*/lateralView_(lateralView)*+atomjoinSource(lateralView)*!drop-10	FROM a LATERAL VIEW a() a LATERAL VIEW a) a SELECT *
+reject	reject	engine	atomjoinSource(lateralView)*/lateralView_(lateralView)*+atomjoinSource(lateralView)*!drop-11	FROM a LATERAL VIEW a() a LATERAL VIEW a(a SELECT *
+reject	reject	engine	atomjoinSource(lateralView)*/lateralView_(lateralView)*+atomjoinSource(lateralView)*!drop-12	FROM a LATERAL VIEW a() a LATERAL VIEW a() SELECT *
 accept	accept	engine	joinSource/atomjoinSource_(joinToken_joinSourcePart_(KW_ON_expr~179e06a8)*	FROM a SELECT *
 accept	accept	engine	joinSource(joinToken_joinSourcePart_(KW_ON_expr~179e06a8)*/%empty	FROM a SELECT *
 accept	accept	engine	joinSource(joinToken_joinSourcePart_(KW_ON_expr~179e06a8)*/joinToken_joinSourcePart_(KW_ON_expression|KW_USING_col~484ff35a	FROM a JOIN a SELECT *
@@ -4932,6 +5194,13 @@ reject	reject	engine	joinSourcePart(lateralView)*/lateralView_(lateralView)*!dro
 reject	reject	engine	joinSourcePart(lateralView)*/lateralView_(lateralView)*!truncate	FROM a JOIN a LATERAL VIEW a()
 reject	reject	engine	joinSourcePart(lateralView)*/lateralView_(lateralView)*!insert	FROM a JOIN a LATERAL VIEW a() a zzz SELECT *
 reject	reject	engine	joinSourcePart(lateralView)*/lateralView_(lateralView)*!swap	FROM a JOIN a LEADING VIEW a() a SELECT *
+accept	accept	engine	joinSourcePart(lateralView)*/lateralView_(lateralView)*+joinSourcePart(lateralView)*	FROM a JOIN a LATERAL VIEW a() a LATERAL VIEW a() a SELECT *
+reject	reject	engine	joinSourcePart(lateralView)*/lateralView_(lateralView)*+joinSourcePart(lateralView)*!drop-7	FROM a JOIN a LATERAL VIEW a() a VIEW a() a SELECT *
+reject	reject	engine	joinSourcePart(lateralView)*/lateralView_(lateralView)*+joinSourcePart(lateralView)*!drop-8	FROM a JOIN a LATERAL VIEW a() a LATERAL a() a SELECT *
+reject	reject	engine	joinSourcePart(lateralView)*/lateralView_(lateralView)*+joinSourcePart(lateralView)*!drop-9	FROM a JOIN a LATERAL VIEW a() a LATERAL VIEW() a SELECT *
+reject	reject	engine	joinSourcePart(lateralView)*/lateralView_(lateralView)*+joinSourcePart(lateralView)*!drop-10	FROM a JOIN a LATERAL VIEW a() a LATERAL VIEW a) a SELECT *
+reject	reject	engine	joinSourcePart(lateralView)*/lateralView_(lateralView)*+joinSourcePart(lateralView)*!drop-11	FROM a JOIN a LATERAL VIEW a() a LATERAL VIEW a(a SELECT *
+reject	reject	engine	joinSourcePart(lateralView)*/lateralView_(lateralView)*+joinSourcePart(lateralView)*!drop-12	FROM a JOIN a LATERAL VIEW a() a LATERAL VIEW a() SELECT *
 accept	accept	engine	joinSourcePart(lateralView)*/lateralView_(lateralView)*+lateralView/KW_LATERAL_KW_VIEW_KW_OUTER_function_tableAlias_(KW_AS_~7d9aa2c3	FROM a JOIN a LATERAL VIEW OUTER a() a SELECT *
 reject	reject	engine	joinSourcePart(lateralView)*/lateralView_(lateralView)*+lateralView/KW_LATERAL_KW_VIEW_KW_OUTER_function_tableAlias_(KW_AS_~7d9aa2c3!drop-1	FROM a JOIN a VIEW OUTER a() a SELECT *
 reject	reject	engine	joinSourcePart(lateralView)*/lateralView_(lateralView)*+lateralView/KW_LATERAL_KW_VIEW_KW_OUTER_function_tableAlias_(KW_AS_~7d9aa2c3!drop-2	FROM a JOIN a LATERAL OUTER a() a SELECT *
@@ -4983,11 +5252,13 @@ reject	reject	engine	joinToken/KW_RIGHT_(KW_OUTER)?_KW_JOIN!drop-2	FROM a RIGHT 
 reject	reject	engine	joinToken/KW_RIGHT_(KW_OUTER)?_KW_JOIN!truncate	FROM a RIGHT
 accept	accept	engine	joinToken/KW_RIGHT_(KW_OUTER)?_KW_JOIN!insert	FROM a RIGHT JOIN zzz a SELECT *
 reject	reject	engine	joinToken/KW_RIGHT_(KW_OUTER)?_KW_JOIN!swap	FROM a RLIKE JOIN a SELECT *
+accept	accept	engine	joinToken/KW_RIGHT_(KW_OUTER)?_KW_JOIN+joinToken(KW_OUTER)?	FROM a RIGHT OUTER JOIN a SELECT *
 accept	accept	engine	joinToken/KW_FULL_(KW_OUTER)?_KW_JOIN	FROM a FULL JOIN a SELECT *
 reject	reject	engine	joinToken/KW_FULL_(KW_OUTER)?_KW_JOIN!drop-2	FROM a FULL a SELECT *
 reject	reject	engine	joinToken/KW_FULL_(KW_OUTER)?_KW_JOIN!truncate	FROM a FULL
 accept	accept	engine	joinToken/KW_FULL_(KW_OUTER)?_KW_JOIN!insert	FROM a FULL JOIN zzz a SELECT *
 reject	reject	engine	joinToken/KW_FULL_(KW_OUTER)?_KW_JOIN!swap	FROM a FUNCTION JOIN a SELECT *
+accept	accept	engine	joinToken/KW_FULL_(KW_OUTER)?_KW_JOIN+joinToken(KW_OUTER)?	FROM a FULL OUTER JOIN a SELECT *
 accept	accept	engine	joinToken/KW_LEFT_KW_SEMI_KW_JOIN	FROM a LEFT SEMI JOIN a SELECT *
 accept	accept	engine	joinToken/KW_LEFT_KW_SEMI_KW_JOIN!drop-1	FROM a SEMI JOIN a SELECT *
 reject	reject	engine	joinToken/KW_LEFT_KW_SEMI_KW_JOIN!drop-3	FROM a LEFT SEMI a SELECT *
@@ -5009,6 +5280,9 @@ reject	reject	engine	lateralView/KW_LATERAL_KW_VIEW_KW_OUTER_function_tableAlias
 reject	reject	engine	lateralView/KW_LATERAL_KW_VIEW_KW_OUTER_function_tableAlias_(KW_AS_~7d9aa2c3!truncate	FROM a LATERAL VIEW OUTER a()
 reject	reject	engine	lateralView/KW_LATERAL_KW_VIEW_KW_OUTER_function_tableAlias_(KW_AS_~7d9aa2c3!insert	FROM a LATERAL VIEW OUTER a() a zzz SELECT *
 reject	reject	engine	lateralView/KW_LATERAL_KW_VIEW_KW_OUTER_function_tableAlias_(KW_AS_~7d9aa2c3!swap	FROM a LEADING VIEW OUTER a() a SELECT *
+accept	accept	engine	lateralView/KW_LATERAL_KW_VIEW_KW_OUTER_function_tableAlias_(KW_AS_~7d9aa2c3+lateralView(KW_AS_identifier_(COMMA_identifier)*)?	FROM a LATERAL VIEW OUTER a() a AS a SELECT *
+reject	reject	engine	lateralView/KW_LATERAL_KW_VIEW_KW_OUTER_function_tableAlias_(KW_AS_~7d9aa2c3+lateralView(KW_AS_identifier_(COMMA_identifier)*)?!drop-8	FROM a LATERAL VIEW OUTER a() a a SELECT *
+reject	reject	engine	lateralView/KW_LATERAL_KW_VIEW_KW_OUTER_function_tableAlias_(KW_AS_~7d9aa2c3+lateralView(KW_AS_identifier_(COMMA_identifier)*)?!drop-9	FROM a LATERAL VIEW OUTER a() a AS SELECT *
 accept	accept	engine	lateralView/(COMMA)?_KW_LATERAL_KW_VIEW_function_tableAlias_(KW_AS_~4a90977d	FROM a LATERAL VIEW a() a SELECT *
 accept	accept	engine	lateralView/(COMMA)?_KW_LATERAL_KW_TABLE_LPAREN_valuesClause_RPAREN~915a3775	FROM a LATERAL TABLE(VALUES(DEFAULT)) a SELECT *
 reject	reject	engine	lateralView/(COMMA)?_KW_LATERAL_KW_TABLE_LPAREN_valuesClause_RPAREN~915a3775!drop-1	FROM a TABLE(VALUES(DEFAULT)) a SELECT *
@@ -5022,6 +5296,7 @@ reject	reject	engine	lateralView/(COMMA)?_KW_LATERAL_KW_TABLE_LPAREN_valuesClaus
 reject	reject	engine	lateralView/(COMMA)?_KW_LATERAL_KW_TABLE_LPAREN_valuesClause_RPAREN~915a3775!truncate	FROM a LATERAL TABLE(VALUES(DEFAULT))
 reject	reject	engine	lateralView/(COMMA)?_KW_LATERAL_KW_TABLE_LPAREN_valuesClause_RPAREN~915a3775!insert	FROM a LATERAL TABLE(VALUES(DEFAULT)) a zzz SELECT *
 reject	reject	engine	lateralView/(COMMA)?_KW_LATERAL_KW_TABLE_LPAREN_valuesClause_RPAREN~915a3775!swap	FROM a LEADING TABLE(VALUES(DEFAULT)) a SELECT *
+accept	accept	engine	lateralView/(COMMA)?_KW_LATERAL_KW_TABLE_LPAREN_valuesClause_RPAREN~915a3775+lateralView(COMMA)?	FROM a, LATERAL TABLE(VALUES(DEFAULT)) a SELECT *
 accept	accept	engine	lateralView(KW_AS_identifier_(COMMA_identifier)*)?/%empty	FROM a LATERAL VIEW a() a SELECT *
 accept	accept	engine	lateralView(KW_AS_identifier_(COMMA_identifier)*)?/KW_AS_identifier_(COMMA_identifier)*	FROM a LATERAL VIEW a() a AS a SELECT *
 reject	reject	engine	lateralView(KW_AS_identifier_(COMMA_identifier)*)?/KW_AS_identifier_(COMMA_identifier)*!drop-1	FROM a LATERAL VIEW a() a a SELECT *
@@ -5153,6 +5428,15 @@ reject	reject	engine	uniqueJoinTableSource(tableSample)?/tableSample!drop-4	FROM
 reject	reject	engine	uniqueJoinTableSource(tableSample)?/tableSample!truncate	FROM UNIQUEJOIN a TABLESAMPLE(1K
 accept	accept	engine	uniqueJoinTableSource(tableSample)?/tableSample!insert	FROM UNIQUEJOIN a TABLESAMPLE(1K) zzz(1), a(1) SELECT *
 reject	reject	engine	uniqueJoinTableSource(tableSample)?/tableSample!swap	FROM UNIQUEJOIN a TAG(1K)(1), a(1) SELECT *
+accept	accept	engine	uniqueJoinTableSource(tableSample)?/tableSample+tableSample/tableBucketSample	FROM UNIQUEJOIN a TABLESAMPLE(BUCKET 1 OUT OF 1)(1), a(1) SELECT *
+reject	reject	engine	uniqueJoinTableSource(tableSample)?/tableSample+tableSample/tableBucketSample!drop-1	FROM UNIQUEJOIN a(BUCKET 1 OUT OF 1)(1), a(1) SELECT *
+reject	reject	engine	uniqueJoinTableSource(tableSample)?/tableSample+tableSample/tableBucketSample!drop-2	FROM UNIQUEJOIN a TABLESAMPLE BUCKET 1 OUT OF 1)(1), a(1) SELECT *
+reject	reject	engine	uniqueJoinTableSource(tableSample)?/tableSample+tableSample/tableBucketSample!drop-3	FROM UNIQUEJOIN a TABLESAMPLE(1 OUT OF 1)(1), a(1) SELECT *
+reject	reject	engine	uniqueJoinTableSource(tableSample)?/tableSample+tableSample/tableBucketSample!drop-4	FROM UNIQUEJOIN a TABLESAMPLE(BUCKET OUT OF 1)(1), a(1) SELECT *
+reject	reject	engine	uniqueJoinTableSource(tableSample)?/tableSample+tableSample/tableBucketSample!drop-5	FROM UNIQUEJOIN a TABLESAMPLE(BUCKET 1 OF 1)(1), a(1) SELECT *
+reject	reject	engine	uniqueJoinTableSource(tableSample)?/tableSample+tableSample/tableBucketSample!drop-6	FROM UNIQUEJOIN a TABLESAMPLE(BUCKET 1 OUT 1)(1), a(1) SELECT *
+reject	reject	engine	uniqueJoinTableSource(tableSample)?/tableSample+tableSample/tableBucketSample!drop-7	FROM UNIQUEJOIN a TABLESAMPLE(BUCKET 1 OUT OF)(1), a(1) SELECT *
+reject	reject	engine	uniqueJoinTableSource(tableSample)?/tableSample+tableSample/tableBucketSample!drop-8	FROM UNIQUEJOIN a TABLESAMPLE(BUCKET 1 OUT OF 1(1), a(1) SELECT *
 accept	accept	engine	uniqueJoinTableSource(KW_AS?_identifier)?/%empty	FROM UNIQUEJOIN a(1), a(1) SELECT *
 accept	accept	engine	uniqueJoinTableSource(KW_AS?_identifier)?/(KW_AS)?_identifier	FROM UNIQUEJOIN a a(1), a(1) SELECT *
 reject	reject	engine	uniqueJoinTableSource(KW_AS?_identifier)?/(KW_AS)?_identifier!truncate	FROM UNIQUEJOIN a
@@ -5257,6 +5541,19 @@ reject	reject	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpe
 reject	reject	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpec!truncate	FROM a(ON a PARTITION BY
 reject	reject	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpec!insert	FROM a(ON a PARTITION BY DEFAULT zzz) SELECT *
 reject	reject	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpec!swap	FROM a(ON a PARTITIONED BY DEFAULT) SELECT *
+accept	accept	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpec+partitioningSpec/orderByClause	FROM a(ON a ORDER BY 1) SELECT *
+reject	reject	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpec+partitioningSpec/orderByClause!drop-1	FROM a(ON a BY 1) SELECT *
+reject	reject	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpec+partitioningSpec/orderByClause!drop-2	FROM a(ON a ORDER 1) SELECT *
+reject	reject	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpec+partitioningSpec/orderByClause!drop-3	FROM a(ON a ORDER BY) SELECT *
+accept	accept	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpec+partitioningSpec/distributeByClause_(sortByClause)?	FROM a(ON a DISTRIBUTE BY DEFAULT) SELECT *
+reject	reject	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpec+partitioningSpec/distributeByClause_(sortByClause)?!drop-2	FROM a(ON a DISTRIBUTE DEFAULT) SELECT *
+reject	reject	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpec+partitioningSpec/distributeByClause_(sortByClause)?!drop-3	FROM a(ON a DISTRIBUTE BY) SELECT *
+accept	accept	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpec+partitioningSpec/sortByClause	FROM a(ON a SORT BY 1) SELECT *
+reject	reject	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpec+partitioningSpec/sortByClause!drop-2	FROM a(ON a SORT 1) SELECT *
+reject	reject	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpec+partitioningSpec/sortByClause!drop-3	FROM a(ON a SORT BY) SELECT *
+accept	accept	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpec+partitioningSpec/clusterByClause	FROM a(ON a CLUSTER BY DEFAULT) SELECT *
+reject	reject	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpec+partitioningSpec/clusterByClause!drop-2	FROM a(ON a CLUSTER DEFAULT) SELECT *
+reject	reject	engine	partitionedTableFunction(partitioningSpec)?/partitioningSpec+partitioningSpec/clusterByClause!drop-3	FROM a(ON a CLUSTER BY) SELECT *
 accept	accept	engine	partitionedTableFunction(Identifier_LPAREN_expression_RPAREN_~a5885d35)?/%empty	FROM a(ON a) SELECT *
 accept	accept	engine	partitionedTableFunction(Identifier_LPAREN_expression_RPAREN_~a5885d35)?/Identifier_LPAREN_expression_RPAREN_(COMMA_Identifier_L~943189af	FROM a(ON a a(1)) SELECT *
 reject	reject	engine	partitionedTableFunction(Identifier_LPAREN_expression_RPAREN_~a5885d35)?/Identifier_LPAREN_expression_RPAREN_(COMMA_Identifier_L~943189af!drop-1	FROM a(ON a(1)) SELECT *
@@ -5373,6 +5670,9 @@ reject	reject	engine	rollupOldSyntax(COMMA_groupingSetExpression)*/COMMA_groupin
 reject	reject	engine	rollupOldSyntax(COMMA_groupingSetExpression)*/COMMA_groupingSetExpression_(COMMA_groupingSetExpression)*!drop-2	SELECT * GROUP BY DEFAULT GROUPING SETS(1,)
 reject	reject	engine	rollupOldSyntax(COMMA_groupingSetExpression)*/COMMA_groupingSetExpression_(COMMA_groupingSetExpression)*!truncate	SELECT * GROUP BY DEFAULT GROUPING SETS(1,
 reject	reject	engine	rollupOldSyntax(COMMA_groupingSetExpression)*/COMMA_groupingSetExpression_(COMMA_groupingSetExpression)*!insert	SELECT * GROUP BY DEFAULT GROUPING SETS(1, 1 zzz)
+accept	accept	engine	rollupOldSyntax(COMMA_groupingSetExpression)*/COMMA_groupingSetExpression_(COMMA_groupingSetExpression)*+groupingSetExpression/groupingSetExpressionMultiple	SELECT * GROUP BY DEFAULT GROUPING SETS(1,())
+reject	reject	engine	rollupOldSyntax(COMMA_groupingSetExpression)*/COMMA_groupingSetExpression_(COMMA_groupingSetExpression)*+groupingSetExpression/groupingSetExpressionMultiple!drop-2	SELECT * GROUP BY DEFAULT GROUPING SETS(1,))
+reject	reject	engine	rollupOldSyntax(COMMA_groupingSetExpression)*/COMMA_groupingSetExpression_(COMMA_groupingSetExpression)*+groupingSetExpression/groupingSetExpressionMultiple!drop-3	SELECT * GROUP BY DEFAULT GROUPING SETS(1,()
 accept	accept	engine	groupingSetExpression/groupingSetExpressionMultiple	SELECT * GROUP BY DEFAULT GROUPING SETS(())
 reject	reject	engine	groupingSetExpression/groupingSetExpressionMultiple!drop-1	SELECT * GROUP BY DEFAULT GROUPING SETS())
 reject	reject	engine	groupingSetExpression/groupingSetExpressionMultiple!drop-2	SELECT * GROUP BY DEFAULT GROUPING SETS(()
@@ -5408,6 +5708,7 @@ reject	reject	engine	expressionsNotInParenthesis(expressionPart)?/expressionPart
 accept	accept	engine	expressionsNotInParenthesis(expressionPart)?/expressionPart!swap	SELECT(DEFAULT, DEFERRED)
 accept	accept	engine	expressionPart/(COMMA_expressionOrDefault)+	SELECT(DEFAULT, DEFAULT)
 accept	accept	engine	expressionPart(COMMA_expressionOrDefault)+/COMMA_expressionOrDefault	SELECT(DEFAULT, DEFAULT)
+accept	accept	engine	expressionPart(COMMA_expressionOrDefault)+/COMMA_expressionOrDefault+expressionOrDefault/expression	SELECT(DEFAULT, 1)
 accept	accept	engine	expressionPart(COMMA_expressionOrDefault)+/COMMA_expressionOrDefault_(COMMA_expressionOrDefault)+	SELECT(DEFAULT, DEFAULT, DEFAULT)
 reject	reject	engine	expressionPart(COMMA_expressionOrDefault)+/COMMA_expressionOrDefault_(COMMA_expressionOrDefault)+!drop-1	SELECT(DEFAULT DEFAULT, DEFAULT)
 reject	reject	engine	expressionPart(COMMA_expressionOrDefault)+/COMMA_expressionOrDefault_(COMMA_expressionOrDefault)+!drop-2	SELECT(DEFAULT,, DEFAULT)
@@ -5416,6 +5717,7 @@ reject	reject	engine	expressionPart(COMMA_expressionOrDefault)+/COMMA_expression
 reject	reject	engine	expressionPart(COMMA_expressionOrDefault)+/COMMA_expressionOrDefault_(COMMA_expressionOrDefault)+!truncate	SELECT(DEFAULT, DEFAULT,
 reject	reject	engine	expressionPart(COMMA_expressionOrDefault)+/COMMA_expressionOrDefault_(COMMA_expressionOrDefault)+!insert	SELECT(DEFAULT, DEFAULT, DEFAULT zzz)
 accept	accept	engine	expressionPart(COMMA_expressionOrDefault)+/COMMA_expressionOrDefault_(COMMA_expressionOrDefault)+!swap	SELECT(DEFAULT, DEFERRED, DEFAULT)
+accept	accept	engine	expressionPart(COMMA_expressionOrDefault)+/COMMA_expressionOrDefault_(COMMA_expressionOrDefault)++expressionOrDefault/expression	SELECT(DEFAULT, 1, DEFAULT)
 accept	accept	engine	expressionOrDefault/defaultValue	SELECT(DEFAULT)
 accept	accept	engine	expressionOrDefault/expression	SELECT(1)
 reject	reject	engine	expressionOrDefault/expression!insert	SELECT(1 zzz)
@@ -5478,7 +5780,15 @@ reject	reject	engine	orderByClause(COMMA_columnRefOrder)*/COMMA_columnRefOrder_(
 reject	reject	engine	orderByClause(COMMA_columnRefOrder)*/COMMA_columnRefOrder_(COMMA_columnRefOrder)*!insert	SELECT * ORDER BY 1, 1 zzz
 accept	accept	engine	clusterByClause/KW_CLUSTER_KW_BY_expressions	SELECT * CLUSTER BY DEFAULT
 accept	accept	engine	partitionByClause/KW_PARTITION_KW_BY_expressions	SELECT a() OVER(PARTITION BY DEFAULT)
+accept	accept	engine	partitionByClause/KW_PARTITION_KW_BY_expressions+expressions/expressionsInParenthesis	SELECT a() OVER(PARTITION BY(DEFAULT))
+reject	reject	engine	partitionByClause/KW_PARTITION_KW_BY_expressions+expressions/expressionsInParenthesis!drop-3	SELECT a() OVER(PARTITION BY DEFAULT))
+reject	reject	engine	partitionByClause/KW_PARTITION_KW_BY_expressions+expressions/expressionsInParenthesis!drop-4	SELECT a() OVER(PARTITION BY())
+reject	reject	engine	partitionByClause/KW_PARTITION_KW_BY_expressions+expressions/expressionsInParenthesis!drop-5	SELECT a() OVER(PARTITION BY(DEFAULT)
 accept	accept	engine	distributeByClause/KW_DISTRIBUTE_KW_BY_expressions	SELECT * DISTRIBUTE BY DEFAULT
+accept	accept	engine	distributeByClause/KW_DISTRIBUTE_KW_BY_expressions+expressions/expressionsInParenthesis	SELECT * DISTRIBUTE BY(DEFAULT)
+reject	reject	engine	distributeByClause/KW_DISTRIBUTE_KW_BY_expressions+expressions/expressionsInParenthesis!drop-3	SELECT * DISTRIBUTE BY DEFAULT)
+reject	reject	engine	distributeByClause/KW_DISTRIBUTE_KW_BY_expressions+expressions/expressionsInParenthesis!drop-4	SELECT * DISTRIBUTE BY()
+reject	reject	engine	distributeByClause/KW_DISTRIBUTE_KW_BY_expressions+expressions/expressionsInParenthesis!drop-5	SELECT * DISTRIBUTE BY(DEFAULT
 accept	accept	engine	sortByClause/KW_SORT_KW_BY_(columnRefOrderInParenthesis|columnRe~0b343cb0)	SELECT * SORT BY 1
 accept	accept	engine	sortByClause(columnRefOrderInParenthesis|columnRe~0b343cb0)/columnRefOrderInParenthesis	SELECT * SORT BY(1)
 accept	accept	engine	sortByClause(columnRefOrderInParenthesis|columnRe~0b343cb0)/columnRefOrderNotInParenthesis	SELECT * SORT BY 1
@@ -5490,6 +5800,17 @@ reject	reject	engine	trimFunction/KW_TRIM_LPAREN_(KW_LEADING|KW_TRAILING|KW_BOTH
 reject	reject	engine	trimFunction/KW_TRIM_LPAREN_(KW_LEADING|KW_TRAILING|KW_BOTH)?_(selec~49aad378!drop-5	SELECT TRIM(FROM *
 accept	accept	engine	trimFunction/KW_TRIM_LPAREN_(KW_LEADING|KW_TRAILING|KW_BOTH)?_(selec~49aad378!insert	SELECT TRIM(FROM *) zzz
 reject	reject	engine	trimFunction/KW_TRIM_LPAREN_(KW_LEADING|KW_TRAILING|KW_BOTH)?_(selec~49aad378!swap	SELECT TRUE(FROM *)
+accept	accept	engine	trimFunction/KW_TRIM_LPAREN_(KW_LEADING|KW_TRAILING|KW_BOTH)?_(selec~49aad378+tableAllColumns/tableName_DOT_STAR	SELECT TRIM(FROM a.*)
+reject	reject	engine	trimFunction/KW_TRIM_LPAREN_(KW_LEADING|KW_TRAILING|KW_BOTH)?_(selec~49aad378+tableAllColumns/tableName_DOT_STAR!drop-4	SELECT TRIM(FROM.*)
+reject	reject	engine	trimFunction/KW_TRIM_LPAREN_(KW_LEADING|KW_TRAILING|KW_BOTH)?_(selec~49aad378+tableAllColumns/tableName_DOT_STAR!drop-5	SELECT TRIM(FROM a *)
+reject	reject	engine	trimFunction/KW_TRIM_LPAREN_(KW_LEADING|KW_TRAILING|KW_BOTH)?_(selec~49aad378+tableAllColumns/tableName_DOT_STAR!drop-6	SELECT TRIM(FROM a.)
+accept	accept	engine	trimFunction/KW_TRIM_LPAREN_(KW_LEADING|KW_TRAILING|KW_BOTH)?_(selec~49aad378+tableName/identifier_DOT_identifier_(DOT_identifier)?	SELECT TRIM(FROM a.a.*)
+reject	reject	engine	trimFunction/KW_TRIM_LPAREN_(KW_LEADING|KW_TRAILING|KW_BOTH)?_(selec~49aad378+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-4	SELECT TRIM(FROM.a.*)
+reject	reject	engine	trimFunction/KW_TRIM_LPAREN_(KW_LEADING|KW_TRAILING|KW_BOTH)?_(selec~49aad378+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-5	SELECT TRIM(FROM a a.*)
+reject	reject	engine	trimFunction/KW_TRIM_LPAREN_(KW_LEADING|KW_TRAILING|KW_BOTH)?_(selec~49aad378+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-6	SELECT TRIM(FROM a..*)
+reject	reject	engine	trimFunction/KW_TRIM_LPAREN_(KW_LEADING|KW_TRAILING|KW_BOTH)?_(selec~49aad378+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-7	SELECT TRIM(FROM a.a *)
+reject	reject	engine	trimFunction/KW_TRIM_LPAREN_(KW_LEADING|KW_TRAILING|KW_BOTH)?_(selec~49aad378+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-8	SELECT TRIM(FROM a.a.)
+accept	accept	engine	trimFunction/KW_TRIM_LPAREN_(KW_LEADING|KW_TRAILING|KW_BOTH)?_(selec~49aad378+selectExpression/expression	SELECT TRIM(FROM 1)
 accept	accept	engine	trimFunction(KW_LEADING|KW_TRAILING|KW_BOTH)?/%empty	SELECT TRIM(FROM *)
 accept	accept	engine	trimFunction(KW_LEADING|KW_TRAILING|KW_BOTH)?/%empty!insert	SELECT TRIM(zzz FROM *)
 accept	accept	engine	trimFunction(KW_LEADING|KW_TRAILING|KW_BOTH)?/KW_LEADING	SELECT TRIM(LEADING FROM *)
@@ -5505,6 +5826,17 @@ accept	accept	engine	trimFunction(KW_LEADING|KW_TRAILING|KW_BOTH)?/KW_BOTH!swap	
 accept	accept	engine	trimFunction(selectExpression)?/%empty	SELECT TRIM(FROM *)
 accept	accept	engine	trimFunction(selectExpression)?/selectExpression	SELECT TRIM(* FROM *)
 reject	reject	engine	trimFunction(selectExpression)?/selectExpression!insert	SELECT TRIM(* zzz FROM *)
+accept	accept	engine	trimFunction(selectExpression)?/selectExpression+tableAllColumns/tableName_DOT_STAR	SELECT TRIM(a.* FROM *)
+reject	reject	engine	trimFunction(selectExpression)?/selectExpression+tableAllColumns/tableName_DOT_STAR!drop-1	SELECT TRIM(.* FROM *)
+reject	reject	engine	trimFunction(selectExpression)?/selectExpression+tableAllColumns/tableName_DOT_STAR!drop-2	SELECT TRIM(a * FROM *)
+reject	reject	engine	trimFunction(selectExpression)?/selectExpression+tableAllColumns/tableName_DOT_STAR!drop-3	SELECT TRIM(a.FROM *)
+accept	accept	engine	trimFunction(selectExpression)?/selectExpression+tableName/identifier_DOT_identifier_(DOT_identifier)?	SELECT TRIM(a.a.* FROM *)
+reject	reject	engine	trimFunction(selectExpression)?/selectExpression+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-1	SELECT TRIM(.a.* FROM *)
+reject	reject	engine	trimFunction(selectExpression)?/selectExpression+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-2	SELECT TRIM(a a.* FROM *)
+reject	reject	engine	trimFunction(selectExpression)?/selectExpression+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-3	SELECT TRIM(a..* FROM *)
+reject	reject	engine	trimFunction(selectExpression)?/selectExpression+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-4	SELECT TRIM(a.a * FROM *)
+reject	reject	engine	trimFunction(selectExpression)?/selectExpression+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-5	SELECT TRIM(a.a.FROM *)
+accept	accept	engine	trimFunction(selectExpression)?/selectExpression+selectExpression/expression	SELECT TRIM(1 FROM *)
 accept	accept	engine	function/trimFunction	SELECT TRIM(FROM *)
 accept	accept	engine	function/functionName_LPAREN_((STAR)|(KW_DISTINCT|KW_ALL)?_(sele~0d3ba5a3	SELECT a()
 reject	reject	engine	function/functionName_LPAREN_((STAR)|(KW_DISTINCT|KW_ALL)?_(sele~0d3ba5a3!drop-2	SELECT a)
@@ -5523,12 +5855,34 @@ accept	accept	engine	function(KW_DISTINCT|KW_ALL)?/KW_ALL!insert	SELECT a(ALL zz
 accept	accept	engine	function(KW_DISTINCT|KW_ALL)?/KW_ALL!swap	SELECT a(ALLOC_FRACTION)
 accept	accept	engine	function(selectExpression_(COMMA_selectExpression)*)?/%empty	SELECT a()
 accept	accept	engine	function(selectExpression_(COMMA_selectExpression)*)?/selectExpression_(COMMA_selectExpression)*	SELECT a(*)
+accept	accept	engine	function(selectExpression_(COMMA_selectExpression)*)?/selectExpression_(COMMA_selectExpression)*+tableAllColumns/tableName_DOT_STAR	SELECT a(a.*)
+reject	reject	engine	function(selectExpression_(COMMA_selectExpression)*)?/selectExpression_(COMMA_selectExpression)*+tableAllColumns/tableName_DOT_STAR!drop-1	SELECT a(.*)
+reject	reject	engine	function(selectExpression_(COMMA_selectExpression)*)?/selectExpression_(COMMA_selectExpression)*+tableAllColumns/tableName_DOT_STAR!drop-2	SELECT a(a *)
+reject	reject	engine	function(selectExpression_(COMMA_selectExpression)*)?/selectExpression_(COMMA_selectExpression)*+tableAllColumns/tableName_DOT_STAR!drop-3	SELECT a(a.)
+accept	accept	engine	function(selectExpression_(COMMA_selectExpression)*)?/selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?	SELECT a(a.a.*)
+reject	reject	engine	function(selectExpression_(COMMA_selectExpression)*)?/selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-1	SELECT a(.a.*)
+reject	reject	engine	function(selectExpression_(COMMA_selectExpression)*)?/selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-2	SELECT a(a a.*)
+reject	reject	engine	function(selectExpression_(COMMA_selectExpression)*)?/selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-3	SELECT a(a..*)
+reject	reject	engine	function(selectExpression_(COMMA_selectExpression)*)?/selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-4	SELECT a(a.a *)
+reject	reject	engine	function(selectExpression_(COMMA_selectExpression)*)?/selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-5	SELECT a(a.a.)
+accept	accept	engine	function(selectExpression_(COMMA_selectExpression)*)?/selectExpression_(COMMA_selectExpression)*+selectExpression/expression	SELECT a(1)
 accept	accept	engine	function(COMMA_selectExpression)*/%empty	SELECT a(*)
 reject	reject	engine	function(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*	SELECT a(*, *)
 reject	reject	engine	function(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*!drop-1	SELECT a(* *)
 reject	reject	engine	function(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*!drop-2	SELECT a(*,)
 reject	reject	engine	function(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*!truncate	SELECT a(*,
 reject	reject	engine	function(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*!insert	SELECT a(*, * zzz)
+reject	reject	engine	function(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableAllColumns/tableName_DOT_STAR	SELECT a(*, a.*)
+reject	reject	engine	function(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableAllColumns/tableName_DOT_STAR!drop-2	SELECT a(*,.*)
+reject	reject	engine	function(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableAllColumns/tableName_DOT_STAR!drop-3	SELECT a(*, a *)
+reject	reject	engine	function(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableAllColumns/tableName_DOT_STAR!drop-4	SELECT a(*, a.)
+reject	reject	engine	function(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?	SELECT a(*, a.a.*)
+reject	reject	engine	function(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-2	SELECT a(*,.a.*)
+reject	reject	engine	function(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-3	SELECT a(*, a a.*)
+reject	reject	engine	function(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-4	SELECT a(*, a..*)
+reject	reject	engine	function(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-5	SELECT a(*, a.a *)
+reject	reject	engine	function(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-6	SELECT a(*, a.a.)
+reject	reject	engine	function(COMMA_selectExpression)*/COMMA_selectExpression_(COMMA_selectExpression)*+selectExpression/expression	SELECT a(*, 1)
 accept	accept	engine	function((RPAREN_(KW_WITHIN_KW_GROUP_LPAREN_o~c1f6a1db)/RPAREN_KW_WITHIN_KW_GROUP_LPAREN_orderByClause_RPAREN	SELECT a() WITHIN GROUP(ORDER BY 1)
 reject	reject	engine	function((RPAREN_(KW_WITHIN_KW_GROUP_LPAREN_o~c1f6a1db)/RPAREN_KW_WITHIN_KW_GROUP_LPAREN_orderByClause_RPAREN!drop-1	SELECT a(WITHIN GROUP(ORDER BY 1)
 reject	reject	engine	function((RPAREN_(KW_WITHIN_KW_GROUP_LPAREN_o~c1f6a1db)/RPAREN_KW_WITHIN_KW_GROUP_LPAREN_orderByClause_RPAREN!drop-2	SELECT a() GROUP(ORDER BY 1)
@@ -5552,6 +5906,8 @@ reject	reject	engine	function((RPAREN_(KW_WITHIN_KW_GROUP_LPAREN_o~c1f6a1db)/nul
 reject	reject	engine	function((RPAREN_(KW_WITHIN_KW_GROUP_LPAREN_o~c1f6a1db)/null_treatment_RPAREN_KW_OVER_window_specification!drop-5	SELECT a(RESPECT NULLS) OVER
 accept	accept	engine	function((RPAREN_(KW_WITHIN_KW_GROUP_LPAREN_o~c1f6a1db)/null_treatment_RPAREN_KW_OVER_window_specification!insert	SELECT a(RESPECT NULLS) OVER a zzz
 reject	reject	engine	function((RPAREN_(KW_WITHIN_KW_GROUP_LPAREN_o~c1f6a1db)/null_treatment_RPAREN_KW_OVER_window_specification!swap	SELECT a(RESTRICT NULLS) OVER a
+accept	accept	engine	function((RPAREN_(KW_WITHIN_KW_GROUP_LPAREN_o~c1f6a1db)/null_treatment_RPAREN_KW_OVER_window_specification+null_treatment/KW_IGNORE_KW_NULLS	SELECT a(IGNORE NULLS) OVER a
+accept	accept	engine	function((RPAREN_(KW_WITHIN_KW_GROUP_LPAREN_o~c1f6a1db)/null_treatment_RPAREN_KW_OVER_window_specification+null_treatment/KW_IGNORE_KW_NULLS!drop-2	SELECT a(IGNORE) OVER a
 accept	accept	engine	function((RPAREN_(KW_WITHIN_KW_GROUP_LPAREN_o~c1f6a1db)/RPAREN	SELECT a()
 accept	accept	engine	function(null_treatment)?/%empty	SELECT a() OVER a
 reject	reject	engine	function(null_treatment)?/%empty!insert	SELECT a() zzz OVER a
@@ -5569,6 +5925,10 @@ reject	reject	engine	null_treatment/KW_IGNORE_KW_NULLS!insert	SELECT a() IGNORE 
 reject	reject	engine	null_treatment/KW_IGNORE_KW_NULLS!swap	SELECT a() IMPORT NULLS OVER a
 accept	accept	engine	functionName/functionIdentifier	SELECT a()
 reject	reject	engine	functionName/functionIdentifier!insert	SELECT a zzz()
+accept	accept	engine	functionName/functionIdentifier+functionIdentifier/identifier_DOT_identifier	SELECT a.a()
+reject	reject	engine	functionName/functionIdentifier+functionIdentifier/identifier_DOT_identifier!drop-1	SELECT.a()
+reject	reject	engine	functionName/functionIdentifier+functionIdentifier/identifier_DOT_identifier!drop-2	SELECT a a()
+reject	reject	engine	functionName/functionIdentifier+functionIdentifier/identifier_DOT_identifier!drop-3	SELECT a.()
 accept	accept	engine	functionName/sql11ReservedKeywordsUsedAsFunctionName	SELECT IF()
 reject	reject	engine	functionName/sql11ReservedKeywordsUsedAsFunctionName!insert	SELECT IF zzz()
 accept	accept	engine	functionName/sql11ReservedKeywordsUsedAsFunctionName!swap	SELECT IGNORE()
@@ -6060,6 +6420,8 @@ accept	accept	engine	precedenceSimilarExpressionIn/expressionsInParenthesis	SELE
 accept	accept	engine	precedenceSimilarExpressionIn/expressionsInParenthesis!swap	SELECT 1 IN(DEFERRED)
 accept	accept	engine	precedenceSimilarExpressionPartNot/precedenceRegexpOperator_precedenceBitwiseOrExpression	SELECT 1 NOT LIKE 1
 reject	reject	engine	precedenceSimilarExpressionPartNot/precedenceRegexpOperator_precedenceBitwiseOrExpression!swap	SELECT 1 NOT LIMIT 1
+accept	accept	engine	precedenceSimilarExpressionPartNot/precedenceRegexpOperator_precedenceBitwiseOrExpression+precedenceRegexpOperator/KW_RLIKE	SELECT 1 NOT RLIKE 1
+accept	accept	engine	precedenceSimilarExpressionPartNot/precedenceRegexpOperator_precedenceBitwiseOrExpression+precedenceRegexpOperator/KW_REGEXP	SELECT 1 NOT REGEXP 1
 accept	accept	engine	precedenceSimilarExpressionPartNot/precedenceSimilarExpressionAtom	SELECT 1 NOT IN(DEFAULT)
 reject	reject	engine	precedenceSimilarExpressionPartNot/precedenceSimilarExpressionAtom!drop-1	SELECT 1 NOT(DEFAULT)
 reject	reject	engine	precedenceSimilarExpressionPartNot/precedenceSimilarExpressionAtom!drop-2	SELECT 1 NOT IN DEFAULT)
@@ -6092,9 +6454,20 @@ accept	accept	engine	precedenceEqualExpression(precedenceEqualOperator_precedenc
 accept	accept	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)*/(precedenceEqualOperator_precedenceSi~42703ed4)_(preced~b895e53b	SELECT 1 = 1
 accept	accept	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)*/(precedenceEqualOperator_precedenceSi~42703ed4)_(preced~b895e53b!insert	SELECT 1 = 1 zzz
 accept	accept	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)/precedenceEqualOperator_precedenceSimilarExpression	SELECT 1 = 1
+accept	accept	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)/precedenceEqualOperator_precedenceSimilarExpression+precedenceSimilarExpression/KW_EXISTS_subQueryExpression	SELECT 1 = EXISTS(SELECT *)
+reject	reject	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)/precedenceEqualOperator_precedenceSimilarExpression+precedenceSimilarExpression/KW_EXISTS_subQueryExpression!drop-3	SELECT 1 = EXISTS SELECT *)
+reject	reject	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)/precedenceEqualOperator_precedenceSimilarExpression+precedenceSimilarExpression/KW_EXISTS_subQueryExpression!drop-4	SELECT 1 = EXISTS(*)
+reject	reject	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)/precedenceEqualOperator_precedenceSimilarExpression+precedenceSimilarExpression/KW_EXISTS_subQueryExpression!drop-5	SELECT 1 = EXISTS(SELECT)
+reject	reject	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)/precedenceEqualOperator_precedenceSimilarExpression+precedenceSimilarExpression/KW_EXISTS_subQueryExpression!drop-6	SELECT 1 = EXISTS(SELECT *
 accept	accept	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)/precedenceDistinctOperator_precedenceSimilarExpression	SELECT 1 IS DISTINCT FROM 1
 reject	reject	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)/precedenceDistinctOperator_precedenceSimilarExpression!drop-4	SELECT 1 IS DISTINCT FROM
 accept	accept	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)/precedenceDistinctOperator_precedenceSimilarExpression!insert	SELECT 1 IS DISTINCT FROM 1 zzz
+accept	accept	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)/precedenceDistinctOperator_precedenceSimilarExpression+precedenceSimilarExpression/KW_EXISTS_subQueryExpression	SELECT 1 IS DISTINCT FROM EXISTS(SELECT *)
+accept	accept	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)/precedenceDistinctOperator_precedenceSimilarExpression+precedenceSimilarExpression/KW_EXISTS_subQueryExpression!drop-4	SELECT 1 IS DISTINCT FROM(SELECT *)
+reject	reject	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)/precedenceDistinctOperator_precedenceSimilarExpression+precedenceSimilarExpression/KW_EXISTS_subQueryExpression!drop-5	SELECT 1 IS DISTINCT FROM EXISTS SELECT *)
+reject	reject	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)/precedenceDistinctOperator_precedenceSimilarExpression+precedenceSimilarExpression/KW_EXISTS_subQueryExpression!drop-6	SELECT 1 IS DISTINCT FROM EXISTS(*)
+reject	reject	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)/precedenceDistinctOperator_precedenceSimilarExpression+precedenceSimilarExpression/KW_EXISTS_subQueryExpression!drop-7	SELECT 1 IS DISTINCT FROM EXISTS(SELECT)
+reject	reject	engine	precedenceEqualExpression(precedenceEqualOperator_precedenceSi~42703ed4)/precedenceDistinctOperator_precedenceSimilarExpression+precedenceSimilarExpression/KW_EXISTS_subQueryExpression!drop-8	SELECT 1 IS DISTINCT FROM EXISTS(SELECT *
 accept	accept	engine	isCondition/KW_NULL	SELECT 1 IS NULL
 reject	reject	engine	isCondition/KW_NULL!drop-1	SELECT 1 IS
 accept	accept	engine	isCondition/KW_NULL!insert	SELECT 1 IS NULL zzz
@@ -6233,6 +6606,11 @@ reject	reject	engine	partitionSelectorOperator/KW_LIKE!truncate	ALTER TABLE a DR
 reject	reject	engine	partitionSelectorOperator/KW_LIKE!insert	ALTER TABLE a DROP PARTITION(a LIKE zzz 1)
 accept	accept	engine	partitionSelectorOperator/subQuerySelectorOperator	ALTER TABLE a DROP PARTITION(a = 1)
 reject	reject	engine	partitionSelectorOperator/subQuerySelectorOperator!insert	ALTER TABLE a DROP PARTITION(a = zzz 1)
+accept	accept	engine	partitionSelectorOperator/subQuerySelectorOperator+subQuerySelectorOperator/NOTEQUAL	ALTER TABLE a DROP PARTITION(a <> 1)
+accept	accept	engine	partitionSelectorOperator/subQuerySelectorOperator+subQuerySelectorOperator/LESSTHANOREQUALTO	ALTER TABLE a DROP PARTITION(a <= 1)
+accept	accept	engine	partitionSelectorOperator/subQuerySelectorOperator+subQuerySelectorOperator/LESSTHAN	ALTER TABLE a DROP PARTITION(a < 1)
+accept	accept	engine	partitionSelectorOperator/subQuerySelectorOperator+subQuerySelectorOperator/GREATERTHANOREQUALTO	ALTER TABLE a DROP PARTITION(a >= 1)
+accept	accept	engine	partitionSelectorOperator/subQuerySelectorOperator+subQuerySelectorOperator/GREATERTHAN	ALTER TABLE a DROP PARTITION(a > 1)
 accept	accept	engine	subQuerySelectorOperator/EQUAL	SELECT 1 = ANY(SELECT *)
 reject	reject	engine	subQuerySelectorOperator/EQUAL!insert	SELECT 1 = zzz ANY(SELECT *)
 accept	accept	engine	subQuerySelectorOperator/NOTEQUAL	SELECT 1 <> ANY(SELECT *)
@@ -7238,6 +7616,10 @@ reject	reject	engine	alterTriggerStatement((KW_WHEN_triggerExpression_KW_DO_tri~
 reject	reject	engine	alterTriggerStatement((KW_WHEN_triggerExpression_KW_DO_tri~f7a8bfac)/KW_WHEN_triggerExpression_KW_DO_triggerActionExpression!drop-6	ALTER TRIGGER a.a WHEN a > 1 DO
 reject	reject	engine	alterTriggerStatement((KW_WHEN_triggerExpression_KW_DO_tri~f7a8bfac)/KW_WHEN_triggerExpression_KW_DO_triggerActionExpression!insert	ALTER TRIGGER a.a WHEN a > 1 DO KILL zzz
 reject	reject	engine	alterTriggerStatement((KW_WHEN_triggerExpression_KW_DO_tri~f7a8bfac)/KW_WHEN_triggerExpression_KW_DO_triggerActionExpression!swap	ALTER TRIGGER a.a WHERE a > 1 DO KILL
+accept	accept	engine	alterTriggerStatement((KW_WHEN_triggerExpression_KW_DO_tri~f7a8bfac)/KW_WHEN_triggerExpression_KW_DO_triggerActionExpression+triggerActionExpression/KW_MOVE_KW_TO_poolPath	ALTER TRIGGER a.a WHEN a > 1 DO MOVE TO a
+reject	reject	engine	alterTriggerStatement((KW_WHEN_triggerExpression_KW_DO_tri~f7a8bfac)/KW_WHEN_triggerExpression_KW_DO_triggerActionExpression+triggerActionExpression/KW_MOVE_KW_TO_poolPath!drop-6	ALTER TRIGGER a.a WHEN a > 1 DO TO a
+reject	reject	engine	alterTriggerStatement((KW_WHEN_triggerExpression_KW_DO_tri~f7a8bfac)/KW_WHEN_triggerExpression_KW_DO_triggerActionExpression+triggerActionExpression/KW_MOVE_KW_TO_poolPath!drop-7	ALTER TRIGGER a.a WHEN a > 1 DO MOVE a
+reject	reject	engine	alterTriggerStatement((KW_WHEN_triggerExpression_KW_DO_tri~f7a8bfac)/KW_WHEN_triggerExpression_KW_DO_triggerActionExpression+triggerActionExpression/KW_MOVE_KW_TO_poolPath!drop-8	ALTER TRIGGER a.a WHEN a > 1 DO MOVE TO
 accept	accept	engine	alterTriggerStatement((KW_WHEN_triggerExpression_KW_DO_tri~f7a8bfac)/KW_ADD_KW_TO_KW_POOL_poolPath	ALTER TRIGGER a.a ADD TO POOL a
 reject	reject	engine	alterTriggerStatement((KW_WHEN_triggerExpression_KW_DO_tri~f7a8bfac)/KW_ADD_KW_TO_KW_POOL_poolPath!drop-1	ALTER TRIGGER a.a TO POOL a
 reject	reject	engine	alterTriggerStatement((KW_WHEN_triggerExpression_KW_DO_tri~f7a8bfac)/KW_ADD_KW_TO_KW_POOL_poolPath!drop-2	ALTER TRIGGER a.a ADD POOL a
@@ -7431,6 +7813,27 @@ reject	reject	engine	createTableStatement(ifNotExists)?/ifNotExists!truncate	CRE
 reject	reject	engine	createTableStatement(ifNotExists)?/ifNotExists!insert	CREATE TABLE IF NOT EXISTS zzz a
 reject	reject	engine	createTableStatement(ifNotExists)?/ifNotExists!swap	CREATE TABLE IGNORE NOT EXISTS a
 accept	accept	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3	CREATE TABLE a LIKE FILE
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(createTablePartitionSpec)?	CREATE TABLE a LIKE FILE PARTITIONED BY(a)
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(createTablePartitionSpec)?!drop-3	CREATE TABLE a LIKE FILE BY(a)
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(createTablePartitionSpec)?!drop-4	CREATE TABLE a LIKE FILE PARTITIONED(a)
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(createTablePartitionSpec)?!drop-5	CREATE TABLE a LIKE FILE PARTITIONED BY a)
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(createTablePartitionSpec)?!drop-6	CREATE TABLE a LIKE FILE PARTITIONED BY()
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(createTablePartitionSpec)?!drop-7	CREATE TABLE a LIKE FILE PARTITIONED BY(a
+accept	accept	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(tableRowFormat)?	CREATE TABLE a LIKE FILE ROW FORMAT DELIMITED
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(tableRowFormat)?!drop-3	CREATE TABLE a LIKE FILE FORMAT DELIMITED
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(tableRowFormat)?!drop-4	CREATE TABLE a LIKE FILE ROW DELIMITED
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(tableRowFormat)?!drop-5	CREATE TABLE a LIKE FILE ROW FORMAT
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(tableFileFormat)?	CREATE TABLE a LIKE FILE STORED BY 'a'
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(tableFileFormat)?!drop-3	CREATE TABLE a LIKE FILE BY 'a'
+accept	accept	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(tableFileFormat)?!drop-4	CREATE TABLE a LIKE FILE STORED 'a'
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(tableFileFormat)?!drop-5	CREATE TABLE a LIKE FILE STORED BY
+accept	accept	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(tableLocation)?	CREATE TABLE a LIKE FILE LOCATION 'a'
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(tableLocation)?!drop-4	CREATE TABLE a LIKE FILE LOCATION
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(tablePropertiesPrefixed)?	CREATE TABLE a LIKE FILE TBLPROPERTIES('a')
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(tablePropertiesPrefixed)?!drop-3	CREATE TABLE a LIKE FILE('a')
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(tablePropertiesPrefixed)?!drop-4	CREATE TABLE a LIKE FILE TBLPROPERTIES 'a')
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(tablePropertiesPrefixed)?!drop-5	CREATE TABLE a LIKE FILE TBLPROPERTIES()
+reject	reject	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/likeTableOrFile_(createTablePartitionSpec)?_(tableRowFo~90763eb3+createTableStatement(tablePropertiesPrefixed)?!drop-6	CREATE TABLE a LIKE FILE TBLPROPERTIES('a'
 accept	accept	engine	createTableStatement(likeTableOrFile_createTablePartition~7689cd89)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57	CREATE TABLE a
 accept	accept	engine	createTableStatement(createTablePartitionSpec)?/%empty	CREATE TABLE a
 accept	accept	engine	createTableStatement(createTablePartitionSpec)?/createTablePartitionSpec	CREATE TABLE a PARTITIONED BY(a)
@@ -7467,7 +7870,85 @@ reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8
 reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5!drop-2	CREATE MANAGED TABLE a LIKE
 reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5!insert	CREATE MANAGED TABLE a LIKE FILE zzz
 reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5!swap	CREATE MANAGED TABLE a LIMIT FILE
+accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+createTableStatement(tableRowFormat)?	CREATE MANAGED TABLE a LIKE FILE ROW FORMAT DELIMITED
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+createTableStatement(tableRowFormat)?!drop-3	CREATE MANAGED TABLE a LIKE FILE FORMAT DELIMITED
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+createTableStatement(tableRowFormat)?!drop-4	CREATE MANAGED TABLE a LIKE FILE ROW DELIMITED
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+createTableStatement(tableRowFormat)?!drop-5	CREATE MANAGED TABLE a LIKE FILE ROW FORMAT
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+createTableStatement(tableFileFormat)?	CREATE MANAGED TABLE a LIKE FILE STORED BY 'a'
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+createTableStatement(tableFileFormat)?!drop-3	CREATE MANAGED TABLE a LIKE FILE BY 'a'
+accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+createTableStatement(tableFileFormat)?!drop-4	CREATE MANAGED TABLE a LIKE FILE STORED 'a'
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+createTableStatement(tableFileFormat)?!drop-5	CREATE MANAGED TABLE a LIKE FILE STORED BY
+accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+createTableStatement(tableLocation)?	CREATE MANAGED TABLE a LIKE FILE LOCATION 'a'
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+createTableStatement(tableLocation)?!drop-3	CREATE MANAGED TABLE a LIKE FILE 'a'
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+createTableStatement(tableLocation)?!drop-4	CREATE MANAGED TABLE a LIKE FILE LOCATION
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+createTableStatement(tablePropertiesPrefixed)?	CREATE MANAGED TABLE a LIKE FILE TBLPROPERTIES('a')
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+createTableStatement(tablePropertiesPrefixed)?!drop-3	CREATE MANAGED TABLE a LIKE FILE('a')
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+createTableStatement(tablePropertiesPrefixed)?!drop-4	CREATE MANAGED TABLE a LIKE FILE TBLPROPERTIES 'a')
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+createTableStatement(tablePropertiesPrefixed)?!drop-5	CREATE MANAGED TABLE a LIKE FILE TBLPROPERTIES()
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+createTableStatement(tablePropertiesPrefixed)?!drop-6	CREATE MANAGED TABLE a LIKE FILE TBLPROPERTIES('a'
+accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+likeTableOrFile/KW_LIKE_KW_FILE_identifier_StringLiteral	CREATE MANAGED TABLE a LIKE FILE a 'a'
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+likeTableOrFile/KW_LIKE_KW_FILE_identifier_StringLiteral!drop-1	CREATE MANAGED TABLE a FILE a 'a'
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+likeTableOrFile/KW_LIKE_KW_FILE_identifier_StringLiteral!drop-2	CREATE MANAGED TABLE a LIKE a 'a'
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+likeTableOrFile/KW_LIKE_KW_FILE_identifier_StringLiteral!drop-4	CREATE MANAGED TABLE a LIKE FILE a
+accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+likeTableOrFile/KW_LIKE_tableName	CREATE MANAGED TABLE a LIKE a
+accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+tableName/identifier_DOT_identifier_(DOT_identifier)?	CREATE MANAGED TABLE a LIKE a.a
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-1	CREATE MANAGED TABLE a a.a
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-2	CREATE MANAGED TABLE a LIKE.a
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-3	CREATE MANAGED TABLE a LIKE a a
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/likeTableOrFile_(tableRowFormat)?_(tableFileFormat)?_(t~e7917ba5+tableName/identifier_DOT_identifier_(DOT_identifier)?!drop-4	CREATE MANAGED TABLE a LIKE a.
 accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57	CREATE MANAGED TABLE a
+accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(LPAREN_columnNameTypeOrConstraintList_RPAREN)?	CREATE MANAGED TABLE a(a TINYINT)
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(LPAREN_columnNameTypeOrConstraintList_RPAREN)?!drop-1	CREATE MANAGED TABLE a a TINYINT)
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(LPAREN_columnNameTypeOrConstraintList_RPAREN)?!drop-2	CREATE MANAGED TABLE a(TINYINT)
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(LPAREN_columnNameTypeOrConstraintList_RPAREN)?!drop-3	CREATE MANAGED TABLE a(a)
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(LPAREN_columnNameTypeOrConstraintList_RPAREN)?!drop-4	CREATE MANAGED TABLE a(a TINYINT
+accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableComment)?	CREATE MANAGED TABLE a COMMENT 'a'
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableComment)?!drop-1	CREATE MANAGED TABLE a 'a'
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableComment)?!drop-2	CREATE MANAGED TABLE a COMMENT
+accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(createTablePartitionSpec)?	CREATE MANAGED TABLE a PARTITIONED BY(a)
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(createTablePartitionSpec)?!drop-1	CREATE MANAGED TABLE a BY(a)
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(createTablePartitionSpec)?!drop-2	CREATE MANAGED TABLE a PARTITIONED(a)
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(createTablePartitionSpec)?!drop-3	CREATE MANAGED TABLE a PARTITIONED BY a)
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(createTablePartitionSpec)?!drop-4	CREATE MANAGED TABLE a PARTITIONED BY()
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(createTablePartitionSpec)?!drop-5	CREATE MANAGED TABLE a PARTITIONED BY(a
+accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableBuckets)?	CREATE MANAGED TABLE a CLUSTERED BY(a) INTO 1 BUCKETS
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableBuckets)?!drop-1	CREATE MANAGED TABLE a BY(a) INTO 1 BUCKETS
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableBuckets)?!drop-2	CREATE MANAGED TABLE a CLUSTERED(a) INTO 1 BUCKETS
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableBuckets)?!drop-3	CREATE MANAGED TABLE a CLUSTERED BY a) INTO 1 BUCKETS
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableBuckets)?!drop-4	CREATE MANAGED TABLE a CLUSTERED BY() INTO 1 BUCKETS
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableBuckets)?!drop-5	CREATE MANAGED TABLE a CLUSTERED BY(a INTO 1 BUCKETS
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableBuckets)?!drop-6	CREATE MANAGED TABLE a CLUSTERED BY(a) 1 BUCKETS
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableBuckets)?!drop-7	CREATE MANAGED TABLE a CLUSTERED BY(a) INTO BUCKETS
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableBuckets)?!drop-8	CREATE MANAGED TABLE a CLUSTERED BY(a) INTO 1
+accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableSkewed)?	CREATE MANAGED TABLE a SKEWED BY(a) ON(1)
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableSkewed)?!drop-1	CREATE MANAGED TABLE a BY(a) ON(1)
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableSkewed)?!drop-2	CREATE MANAGED TABLE a SKEWED(a) ON(1)
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableSkewed)?!drop-3	CREATE MANAGED TABLE a SKEWED BY a) ON(1)
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableSkewed)?!drop-4	CREATE MANAGED TABLE a SKEWED BY() ON(1)
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableSkewed)?!drop-5	CREATE MANAGED TABLE a SKEWED BY(a ON(1)
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableSkewed)?!drop-6	CREATE MANAGED TABLE a SKEWED BY(a)(1)
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableSkewed)?!drop-7	CREATE MANAGED TABLE a SKEWED BY(a) ON 1)
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableSkewed)?!drop-8	CREATE MANAGED TABLE a SKEWED BY(a) ON()
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableSkewed)?!drop-9	CREATE MANAGED TABLE a SKEWED BY(a) ON(1
+accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableRowFormat)?	CREATE MANAGED TABLE a ROW FORMAT DELIMITED
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableRowFormat)?!drop-1	CREATE MANAGED TABLE a FORMAT DELIMITED
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableRowFormat)?!drop-2	CREATE MANAGED TABLE a ROW DELIMITED
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableRowFormat)?!drop-3	CREATE MANAGED TABLE a ROW FORMAT
+accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableFileFormat)?	CREATE MANAGED TABLE a STORED BY 'a'
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableFileFormat)?!drop-1	CREATE MANAGED TABLE a BY 'a'
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableFileFormat)?!drop-2	CREATE MANAGED TABLE a STORED 'a'
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableFileFormat)?!drop-3	CREATE MANAGED TABLE a STORED BY
+accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableLocation)?	CREATE MANAGED TABLE a LOCATION 'a'
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tableLocation)?!drop-2	CREATE MANAGED TABLE a LOCATION
+accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tablePropertiesPrefixed)?	CREATE MANAGED TABLE a TBLPROPERTIES('a')
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tablePropertiesPrefixed)?!drop-1	CREATE MANAGED TABLE a('a')
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tablePropertiesPrefixed)?!drop-2	CREATE MANAGED TABLE a TBLPROPERTIES 'a')
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tablePropertiesPrefixed)?!drop-3	CREATE MANAGED TABLE a TBLPROPERTIES()
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(tablePropertiesPrefixed)?!drop-4	CREATE MANAGED TABLE a TBLPROPERTIES('a'
+accept	accept	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(KW_AS_selectStatementWithCTE)?	CREATE MANAGED TABLE a AS SELECT *
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(KW_AS_selectStatementWithCTE)?!drop-1	CREATE MANAGED TABLE a SELECT *
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(KW_AS_selectStatementWithCTE)?!drop-2	CREATE MANAGED TABLE a AS *
+reject	reject	engine	createTableStatement(likeTableOrFile_tableRowFormat?_tabl~8b56be99)/(LPAREN_columnNameTypeOrConstraintList_RPAREN)?_(tableC~d2ec9e57+createTableStatement(KW_AS_selectStatementWithCTE)?!drop-3	CREATE MANAGED TABLE a AS SELECT
 accept	accept	engine	createDataConnectorStatement/KW_CREATE_KW_DATACONNECTOR_(ifNotExists)?_identifier_da~4779654f	CREATE CONNECTOR a TYPE 'a' URL 'a'
 accept	accept	engine	createDataConnectorStatement(ifNotExists)?/%empty	CREATE CONNECTOR a TYPE 'a' URL 'a'
 reject	reject	engine	createDataConnectorStatement(ifNotExists)?/%empty!insert	CREATE CONNECTOR zzz a TYPE 'a' URL 'a'
