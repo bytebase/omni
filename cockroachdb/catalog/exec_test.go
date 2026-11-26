@@ -598,3 +598,14 @@ func TestExecRound41(t *testing.T) {
 	_, err = execLast(t, "CREATE TABLE t (a INT8); CREATE TABLE u (b INT8); CREATE VIEW v AS SELECT (SELECT b FROM u LIMIT 1) AS x FROM t")
 	require.NoError(t, err)
 }
+
+func TestExecRound42(t *testing.T) {
+	_, err := execLast(t, "CREATE TABLE t (a INT8); CREATE TABLE u (a INT8); CREATE VIEW v AS SELECT * FROM t UNION ALL SELECT * FROM u")
+	require.Error(t, err)
+	_, err = execLast(t, "CREATE TABLE t (a INT8); CREATE VIEW v AS SELECT count(*) AS n FROM t")
+	require.NoError(t, err)
+	_, err = execLast(t, "CREATE TABLE t (a INT8); CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT a + 1 FROM t LIMIT 1 $$; ALTER TABLE t ALTER COLUMN a TYPE STRING USING a::STRING")
+	require.Error(t, err)
+	_, err = execLast(t, "CREATE TABLE t (a INT8, b INT8); ALTER TABLE t ALTER COLUMN b SET DEFAULT t.a")
+	require.Equal(t, "42601", code(err))
+}

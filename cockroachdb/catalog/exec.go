@@ -830,7 +830,13 @@ func (c *Catalog) checkDefault(expr tree.Expr, in string) error {
 		return nil
 	}
 	reads := false
-	tree.WalkExprConst(&columnCollector{visit: func(string) { reads = true }}, expr)
+	_, _ = tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
+		// A column, alone or under its relation (t.a).
+		if name, ok := e.(*tree.UnresolvedName); ok && !name.Star && name.NumParts <= 2 {
+			reads = true
+		}
+		return true, e, nil
+	})
 	if reads {
 		return refuse("42601", "variable sub-expressions are not allowed in DEFAULT (in %s)", in)
 	}
@@ -1342,16 +1348,27 @@ func (c *Catalog) unexpandedStar(s *metadatapb.SchemaMetadata, name string, n *t
 	if !ok {
 		return nil
 	}
-	sel, ok := query.Select.(*tree.SelectClause)
-	if !ok {
-		return nil
-	}
 	// The loader writes the columns a star stands for in place of it; a
-	// star left in the select list is one it could not expand.
-	for _, expr := range sel.Exprs {
-		if star(expr.Expr) {
-			return &Error{Message: fmt.Sprintf("a star view %q reads cannot be expanded by the catalog", name)}
+	// star left anywhere but in count(*) is one it could not expand.
+	stars, counted := 0, 0
+	tree.WalkStmt(&exprVisitor{visit: func(e tree.Expr) {
+		switch x := e.(type) {
+		case tree.UnqualifiedStar:
+			stars++
+		case *tree.UnresolvedName:
+			if x.Star {
+				stars++
+			}
+		case *tree.FuncExpr:
+			for _, arg := range x.Exprs {
+				if star(arg) {
+					counted++
+				}
+			}
 		}
+	}}, query)
+	if stars > counted {
+		return &Error{Message: fmt.Sprintf("a star view %q reads cannot be expanded by the catalog", name)}
 	}
 	return nil
 }
@@ -3467,6 +3484,9 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 		}
 		if deps := c.dependents(schema, table.Name, col.Name); len(deps) > 0 {
 			return refuse(codeDependentObjects, "cannot alter type of column %q because view %q depends on it", col.Name, deps[0].name)
+		}
+		if err := c.routineColumn(schema, table.Name, col.Name); err != nil {
+			return err
 		}
 		typ, collation := sdlType(cmd.ToType)
 		if cmd.Collation != "" {
