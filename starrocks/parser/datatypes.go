@@ -313,6 +313,23 @@ func (p *Parser) parseArrayType() (*ast.TypeName, error) {
 	return typName, nil
 }
 
+// checkMapKey refuses a map key that is not a base type, as StarRocks's AST
+// builder does (visitMapType, Type.isValidMapKeyType) though mapType
+// (StarRocks.g4:2796) takes any type: the pinned server answers
+// MAP<ARRAY<INT>, INT> with "Unsupported type specification: 'ARRAY<INT>' for
+// map's key, which should be base types", and the same for STRUCT, MAP,
+// JSON, HLL, BITMAP and PERCENTILE keys.
+func checkMapKey(key *ast.TypeName) error {
+	switch key.Name {
+	case "ARRAY", "MAP", "STRUCT", "JSON", "HLL", "BITMAP", "PERCENTILE":
+		return &ParseError{
+			Position: key.Loc.Start, End: key.Loc.End,
+			Message: "unsupported type " + key.Name + " for a map's key, which should be a base type",
+		}
+	}
+	return nil
+}
+
 // parseMapType parses: MAP '<' keyType ',' valueType '>'
 func (p *Parser) parseMapType() (*ast.TypeName, error) {
 	startTok := p.advance() // consume MAP
@@ -332,6 +349,9 @@ func (p *Parser) parseMapType() (*ast.TypeName, error) {
 	// Parse key type
 	keyType, err := p.parseDataType()
 	if err != nil {
+		return nil, err
+	}
+	if err := checkMapKey(keyType); err != nil {
 		return nil, err
 	}
 	typName.ElementType = keyType

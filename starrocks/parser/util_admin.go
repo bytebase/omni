@@ -665,15 +665,16 @@ func (p *Parser) parseInstallPlugin(startLoc ast.Loc) (ast.Node, error) {
 
 // parseUninstallPlugin parses:
 //
-//	UNINSTALL PLUGIN name
+//	UNINSTALL PLUGIN identifierOrString
 //
+// as uninstallPluginStatement (StarRocks.g4:1894) has it: a name or a string.
 // On entry, cur is PLUGIN (UNINSTALL was consumed by dispatch).
 func (p *Parser) parseUninstallPlugin(startLoc ast.Loc) (ast.Node, error) {
 	if _, err := p.expect(kwPLUGIN); err != nil {
 		return nil, err
 	}
 
-	name, nameLoc, err := p.parseIdentifier()
+	name, nameLoc, err := p.parseIdentifierOrString()
 	if err != nil {
 		return nil, err
 	}
