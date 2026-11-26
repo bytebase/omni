@@ -828,8 +828,8 @@ func (c *Catalog) checkSequences(expr tree.Expr) error {
 	if expr == nil {
 		return nil
 	}
-	for _, name := range usedSequences(tree.AsString(expr)) {
-		schema, sequence, _ := strings.Cut(name, ".")
+	for _, tn := range calledSequences(expr) {
+		schema, sequence := schemaOf(tn), string(tn.ObjectName)
 		switch relation(c.l.schemas[schema], sequence) {
 		case relSequence:
 		case relNone:
@@ -839,6 +839,36 @@ func (c *Catalog) checkSequences(expr tree.Expr) error {
 		}
 	}
 	return nil
+}
+
+// calledSequences returns the sequences an expression's nextval, currval and
+// setval name, each with its schema and name apart.
+func calledSequences(expr tree.Expr) []*tree.TableName {
+	var out []*tree.TableName
+	_, _ = tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
+		call, ok := e.(*tree.FuncExpr)
+		if !ok || len(call.Exprs) == 0 {
+			return true, e, nil
+		}
+		name, ok := call.Func.FunctionReference.(*tree.UnresolvedName)
+		if !ok || !slices.Contains([]string{"nextval", "currval", "setval"}, strings.ToLower(name.Parts[0])) {
+			return true, e, nil
+		}
+		arg := unparen(call.Exprs[0])
+		if cast, ok := arg.(*tree.CastExpr); ok {
+			arg = unparen(cast.Expr)
+		}
+		if annotation, ok := arg.(*tree.AnnotateTypeExpr); ok {
+			arg = unparen(annotation.Expr)
+		}
+		if str, ok := arg.(*tree.StrVal); ok {
+			if tn, err := parser.ParseQualifiedTableName(str.RawString()); err == nil {
+				out = append(out, tn)
+			}
+		}
+		return true, e, nil
+	})
+	return out
 }
 
 // checkIndexDef refuses an index a table definition declares that keys,
@@ -1471,6 +1501,10 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 					if expr, err := parser.ParseExpr(column.Default); err == nil && column.Default != "" && uncastLabel(expr, from) && stuck == nil {
 						stuck = &Error{Message: fmt.Sprintf("renaming enum value %q, which the default of column %q holds uncast, is not supported", from, column.Name)}
 					}
+				} else if namesType(column.Default, typ) {
+					// A cast to the enum in another column's default
+					// (('sad'::mood)::STRING).
+					column.Default = relabel(column.Default)
 				}
 			}
 			reads := func(text string) bool {

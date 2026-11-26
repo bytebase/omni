@@ -330,3 +330,14 @@ func TestSDLComputedAnnotationOverloads(t *testing.T) {
 		catalog.SDLMigrationOptions{})
 	require.Error(t, err)
 }
+
+func TestExecRound14(t *testing.T) {
+	c, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad'); CREATE TABLE t (a STRING DEFAULT ('sad'::mood)::STRING); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.NoError(t, err)
+	require.Equal(t, "('blue'::mood)::STRING", c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
+	c, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad'); CREATE TABLE t (a STRING CHECK (a::mood = 'sad'::mood)); ALTER TYPE mood RENAME TO feeling")
+	require.NoError(t, err)
+	require.Contains(t, c.Metadata().Schemas[0].Tables[0].CheckConstraints[0].Expression, "public.feeling")
+	_, err = execLast(t, `CREATE SCHEMA "a.b"; CREATE SEQUENCE "a.b".sq; CREATE TABLE t (id INT8 DEFAULT nextval('"a.b".sq'))`)
+	require.NoError(t, err)
+}
