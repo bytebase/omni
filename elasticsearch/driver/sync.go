@@ -43,10 +43,12 @@ func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 	}, nil
 }
 
-// SyncDatabase reads the cluster's indices, with the document count and data
-// size each reports, and their aliases. Indices are ordered by name: the cat
-// API's order is the server's, and the metadata and its golden must hold one
-// order.
+// SyncDatabase reads the cluster's indices and data streams, with the
+// document count and data size each reports, and their aliases. A data stream
+// is a table named for the stream, since a request reads it by that name and a
+// masking policy must name it; its backing indices are hidden and stay out.
+// Tables are ordered by name: the cat API's order is the server's, and the
+// metadata and its golden must hold one order.
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
 	indices, err := d.getIndices(ctx)
 	if err != nil {
@@ -75,9 +77,9 @@ type aliasesResult struct {
 
 // getAliases reads the aliases of the synced indices. An alias is another
 // name a request may read an index by, which the engine resolves when it is
-// used, so each is a synonym: one per index the alias names, ordered by
-// alias and then index. An alias of an index the sync leaves out (a hidden
-// one, a data stream's) is left out with it.
+// used, so each is a synonym: one per index or data stream the alias names,
+// ordered by alias and then target. An alias of an index the sync leaves out
+// (a hidden one, a data stream's backing index) is left out with it.
 func (d *Driver) getAliases(ctx context.Context, indices []*metadatapb.TableMetadata) ([]*metadatapb.SynonymMetadata, error) {
 	resp, err := d.client.Do(ctx, http.MethodGet, aliasesRoute, nil)
 	if err != nil {
@@ -186,16 +188,22 @@ func (d *Driver) getHiddenIndices(ctx context.Context) (map[string]bool, error) 
 	return hiddenIndices, nil
 }
 
-// catIndicesRoute lists every index the cat API reports.
+// catIndicesRoute lists every index the cat API reports: the indices a
+// wildcard reaches and the backing indices of each data stream it reaches,
+// hidden as those are.
 const catIndicesRoute = "/_cat/indices?format=json&pretty"
 
 // getIndices reads every index's name, document count and data size, hidden
-// ones left out.
+// ones left out, and every data stream's, summed over its backing indices.
 func (d *Driver) getIndices(ctx context.Context) ([]*metadatapb.TableMetadata, error) {
 	// Get hidden indices to filter them out.
 	hiddenIndices, err := d.getHiddenIndices(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get hidden indices: %w", err)
+	}
+	dataStreams, err := d.getDataStreams(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	resp, err := d.client.Do(ctx, http.MethodGet, catIndicesRoute, nil)
@@ -211,13 +219,22 @@ func (d *Driver) getIndices(ctx context.Context) ([]*metadatapb.TableMetadata, e
 		// Include response body to help debug parsing issues
 		return nil, fmt.Errorf("failed to parse Elasticsearch indices response: %s: %w", truncate(body, 500), err)
 	}
-	slices.SortFunc(results, func(a, b indicesResult) int {
-		return strings.Compare(a.Index, b.Index)
-	})
 
-	var indicesMetadata []*metadatapb.TableMetadata
+	streamOf := map[string]*metadatapb.TableMetadata{}
+	var tables []*metadatapb.TableMetadata
+	for _, stream := range dataStreams {
+		if stream.Hidden {
+			continue
+		}
+		table := &metadatapb.TableMetadata{Name: stream.Name}
+		tables = append(tables, table)
+		for _, index := range stream.Indices {
+			streamOf[index.IndexName] = table
+		}
+	}
 	for _, m := range results {
-		if hiddenIndices[m.Index] {
+		stream := streamOf[m.Index]
+		if stream == nil && hiddenIndices[m.Index] {
 			continue
 		}
 		dataSize, err := unitConversion(m.IndexSize)
@@ -228,13 +245,78 @@ func (d *Driver) getIndices(ctx context.Context) ([]*metadatapb.TableMetadata, e
 		if err != nil {
 			return nil, err
 		}
-		indicesMetadata = append(indicesMetadata, &metadatapb.TableMetadata{
+		if stream != nil {
+			stream.DataSize += dataSize
+			stream.RowCount += docCount
+			continue
+		}
+		tables = append(tables, &metadatapb.TableMetadata{
 			Name:     m.Index,
 			DataSize: dataSize,
 			RowCount: docCount,
 		})
 	}
-	return indicesMetadata, nil
+	slices.SortFunc(tables, func(a, b *metadatapb.TableMetadata) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	return tables, nil
+}
+
+// dataStreamsRoute lists the data streams a search reaches by wildcard
+// (expand_wildcards defaults to open), so a hidden stream stays out as a
+// hidden index does; a listed stream marked hidden is left out too.
+//
+// Ref: https://www.elastic.co/docs/api/doc/elasticsearch/v8/operation/operation-indices-get-data-stream
+const dataStreamsRoute = "/_data_stream"
+
+// dataStreamsResult is the part of the data stream listing the sync reads.
+type dataStreamsResult struct {
+	DataStreams []dataStream `json:"data_streams"`
+}
+
+type dataStream struct {
+	Name    string `json:"name"`
+	Hidden  bool   `json:"hidden"`
+	Indices []struct {
+		IndexName string `json:"index_name"`
+	} `json:"indices"`
+}
+
+// getDataStreams reads every data stream and its backing indices. A server
+// without data streams (before 7.9, or an OSS distribution) reads the route
+// as an index named _data_stream and refuses it: 7.8.1 and 7.10.2 OSS answer
+// 400 invalid_index_name_exception. That answer is no data streams.
+func (d *Driver) getDataStreams(ctx context.Context) ([]dataStream, error) {
+	resp, err := d.client.Do(ctx, http.MethodGet, dataStreamsRoute, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list data streams: %w", err)
+	}
+	body, err := readBody(resp)
+	if err != nil {
+		if resp.StatusCode == http.StatusBadRequest && errorType(body) == "invalid_index_name_exception" {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to list data streams: %w", err)
+	}
+	var result dataStreamsResult
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse Elasticsearch data streams response: %s: %w", truncate(body, 500), err)
+	}
+	return result.DataStreams, nil
+}
+
+// errorType is the type of the error an Elasticsearch answer reports, or ""
+// when the answer holds none.
+func errorType(body []byte) string {
+	var failure struct {
+		Error struct {
+			Type string `json:"type"`
+		} `json:"error"`
+	}
+	if json.Unmarshal(body, &failure) != nil {
+		return ""
+	}
+	return failure.Error.Type
 }
 
 // parseDocCount parses document count string, returning 0 for empty values

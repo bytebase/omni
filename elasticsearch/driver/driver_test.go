@@ -302,7 +302,9 @@ func TestGetIndicesFiltersHiddenAndSortsByName(t *testing.T) {
 				"beta":{"settings":{"index":{"hidden":"false"}}},
 				"hidden-one":{"settings":{"index":{"hidden":"true"}}}
 			}`))
-		case "/_cat/indices?format=json&pretty":
+		case dataStreamsRoute:
+			_, _ = w.Write([]byte(`{"data_streams":[]}`))
+		case catIndicesRoute:
 			_, _ = w.Write([]byte(`[
 				{"index":"beta","docs.count":"2","store.size":"227b"},
 				{"index":"hidden-one","docs.count":"1","store.size":"1kb"},
@@ -329,6 +331,50 @@ func TestGetIndicesFiltersHiddenAndSortsByName(t *testing.T) {
 	require.Equal(t, int64(227), indices[1].DataSize)
 }
 
+// TestGetIndicesWithoutDataStreams pins that a server with no data streams,
+// which refuses the listing's route as an index name (as 7.8.1 and 7.10.2 OSS
+// answer), still syncs its indices.
+func TestGetIndicesWithoutDataStreams(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.RequestURI() {
+		case hiddenSettingsRoute:
+			_, _ = w.Write([]byte(`{}`))
+		case dataStreamsRoute:
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":{"root_cause":[{"type":"invalid_index_name_exception","reason":"Invalid index name [_data_stream], must not start with '_'.","index_uuid":"_na_","index":"_data_stream"}],"type":"invalid_index_name_exception","reason":"Invalid index name [_data_stream], must not start with '_'.","index_uuid":"_na_","index":"_data_stream"},"status":400}`))
+		case catIndicesRoute:
+			_, _ = w.Write([]byte(`[{"index":"alpha","docs.count":"4","store.size":"1kb"}]`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	d, err := Open(context.Background(), driver.Config{Host: srv.URL})
+	require.NoError(t, err)
+	defer func() { _ = d.Close() }()
+
+	indices, err := d.getIndices(context.Background())
+	require.NoError(t, err)
+	require.Len(t, indices, 1)
+	require.Equal(t, "alpha", indices[0].Name)
+
+	// Any other refusal still fails the sync.
+	srv.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.RequestURI() {
+		case hiddenSettingsRoute:
+			_, _ = w.Write([]byte(`{}`))
+		case dataStreamsRoute:
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"error":{"type":"security_exception"},"status":403}`))
+		}
+	})
+	_, err = d.getIndices(context.Background())
+	require.ErrorContains(t, err, "failed to list data streams")
+}
+
 // TestSyncInstanceFailsOpenOnUsers pins that a security-endpoint failure leaves
 // Roles empty without failing SyncInstance.
 func TestSyncInstanceFailsOpenOnUsers(t *testing.T) {
@@ -339,7 +385,9 @@ func TestSyncInstanceFailsOpenOnUsers(t *testing.T) {
 			_, _ = w.Write([]byte(`{"version":{"number":"8.19.25"}}`))
 		case hiddenSettingsRoute:
 			_, _ = w.Write([]byte(`{}`))
-		case "/_cat/indices?format=json&pretty":
+		case dataStreamsRoute:
+			_, _ = w.Write([]byte(`{"data_streams":[]}`))
+		case catIndicesRoute:
 			_, _ = w.Write([]byte(`[]`))
 		case "/_alias":
 			_, _ = w.Write([]byte(`{}`))

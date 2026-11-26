@@ -157,6 +157,57 @@ POST /hidden-closed/_close
 	require.Zero(t, byName["closed-index"].DataSize)
 }
 
+// TestSyncDataStreams holds a data stream as a table named for the stream,
+// with the documents and data size of its backing indices, which are hidden
+// and stay out, as a hidden stream does. An alias of the stream is a synonym
+// of it, so a request that reads the stream by either name reaches its
+// masking policy.
+func TestSyncDataStreams(t *testing.T) {
+	d := openDriver(t)
+	executeCorpus(t, d, `
+PUT /alpha
+{"settings": {"number_of_shards": 1, "number_of_replicas": 0}}
+
+PUT /_index_template/omni-logs
+{"index_patterns": ["logs-omni-*"], "data_stream": {}, "priority": 500, "template": {"settings": {"number_of_shards": 1, "number_of_replicas": 0}, "mappings": {"properties": {"@timestamp": {"type": "date"}, "user": {"type": "keyword"}}}}}
+
+PUT /_index_template/omni-quiet
+{"index_patterns": ["quiet-omni-*"], "data_stream": {"hidden": true}, "priority": 500, "template": {"settings": {"number_of_shards": 1, "number_of_replicas": 0, "index.hidden": true}}}
+
+PUT /_data_stream/logs-omni-app
+
+PUT /_data_stream/quiet-omni-app
+
+POST /logs-omni-app/_rollover
+
+POST /logs-omni-app/_bulk?refresh=true
+{"create": {}}
+{"@timestamp": "2026-11-25T00:00:00Z", "user": "alice"}
+{"create": {}}
+{"@timestamp": "2026-11-25T00:00:01Z", "user": "bob"}
+
+POST /_aliases
+{"actions": [{"add": {"index": "logs-omni-app", "alias": "app-logs"}}]}
+`)
+	got, err := d.SyncDatabase(context.Background())
+	require.NoError(t, err)
+	schema := got.Schemas[0]
+	var names []string
+	byName := map[string]*metadatapb.TableMetadata{}
+	for _, table := range schema.Tables {
+		names = append(names, table.Name)
+		byName[table.Name] = table
+	}
+	require.Equal(t, []string{"alpha", "logs-omni-app"}, names)
+	require.Equal(t, int64(2), byName["logs-omni-app"].RowCount)
+	require.Positive(t, byName["logs-omni-app"].DataSize)
+	var synonyms []string
+	for _, s := range schema.Synonyms {
+		synonyms = append(synonyms, s.Name+"->"+s.TargetName)
+	}
+	require.Equal(t, []string{"app-logs->logs-omni-app"}, synonyms)
+}
+
 func writeOrCompareGolden(t *testing.T, path string, got *metadatapb.DatabaseSchemaMetadata) {
 	t.Helper()
 	if *update {

@@ -147,9 +147,10 @@ func buildFixture(c *testcontainer.Client, text string) (syncedIndices, error) {
 			return syncedIndices{}, fmt.Errorf("%s: %d %s", head, status, answer)
 		}
 	}
-	// The sync's own two requests: every index the cat API lists, less
-	// those marked hidden (elasticsearch/driver/sync.go).
-	_, answer, err := do(c, "GET", "/*/_settings?filter_path=**.hidden&expand_wildcards=open,hidden", "")
+	// The sync's own requests (elasticsearch/driver/sync.go): every index the
+	// cat API lists less those marked hidden, and every data stream named
+	// for itself, its hidden backing indices left out.
+	_, answer, err := do(c, "GET", "/*/_settings?filter_path=**.hidden&expand_wildcards=all", "")
 	if err != nil {
 		return syncedIndices{}, err
 	}
@@ -163,6 +164,19 @@ func buildFixture(c *testcontainer.Client, text string) (syncedIndices, error) {
 	if err := json.Unmarshal(answer, &settings); err != nil {
 		return syncedIndices{}, fmt.Errorf("settings: %w", err)
 	}
+	_, answer, err = do(c, "GET", "/_data_stream", "")
+	if err != nil {
+		return syncedIndices{}, err
+	}
+	var streams struct {
+		DataStreams []struct {
+			Name   string `json:"name"`
+			Hidden bool   `json:"hidden"`
+		} `json:"data_streams"`
+	}
+	if err := json.Unmarshal(answer, &streams); err != nil {
+		return syncedIndices{}, fmt.Errorf("data streams: %w", err)
+	}
 	_, answer, err = do(c, "GET", "/_cat/indices?format=json&pretty", "")
 	if err != nil {
 		return syncedIndices{}, err
@@ -173,14 +187,24 @@ func buildFixture(c *testcontainer.Client, text string) (syncedIndices, error) {
 	if err := json.Unmarshal(answer, &cat); err != nil {
 		return syncedIndices{}, fmt.Errorf("cat indices: %w", err)
 	}
+	var names []string
+	for _, d := range streams.DataStreams {
+		if !d.Hidden {
+			names = append(names, d.Name)
+		}
+	}
+	for _, e := range cat {
+		if settings[e.Index].Settings.Index.Hidden != "true" {
+			names = append(names, e.Index)
+		}
+	}
+	slices.Sort(names)
 	schema := &metadata.SchemaMetadata{}
 	s := syncedIndices{meta: &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{schema}}, fields: map[string][]string{}}
-	for _, e := range cat {
-		if settings[e.Index].Settings.Index.Hidden == "true" {
-			continue
-		}
-		schema.Tables = append(schema.Tables, &metadata.TableMetadata{Name: e.Index})
-		_, answer, err := do(c, "GET", "/"+url.PathEscape(e.Index)+"/_mapping", "")
+	for _, name := range names {
+		schema.Tables = append(schema.Tables, &metadata.TableMetadata{Name: name})
+		// A data stream's mapping is its backing indices', one entry each.
+		_, answer, err := do(c, "GET", "/"+url.PathEscape(name)+"/_mapping", "")
 		if err != nil {
 			return syncedIndices{}, err
 		}
@@ -188,9 +212,14 @@ func buildFixture(c *testcontainer.Client, text string) (syncedIndices, error) {
 			Mappings mappingNode `json:"mappings"`
 		}
 		if err := json.Unmarshal(answer, &mapping); err != nil {
-			return syncedIndices{}, fmt.Errorf("mapping of %s: %w", e.Index, err)
+			return syncedIndices{}, fmt.Errorf("mapping of %s: %w", name, err)
 		}
-		s.fields[e.Index] = mapping[e.Index].Mappings.leaves("")
+		var fields []string
+		for _, m := range mapping {
+			fields = append(fields, m.Mappings.leaves("")...)
+		}
+		slices.Sort(fields)
+		s.fields[name] = slices.Compact(fields)
 	}
 	// The sync's aliases: one synonym per synced index an alias names.
 	_, answer, err = do(c, "GET", "/_alias", "")

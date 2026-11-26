@@ -18,6 +18,10 @@
 < raw
 | {"status":200,"contentType":"application/json","body":"{\".security-7\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}}}"}
 > raw
+| {"method":"GET","route":"/_data_stream"}
+< raw
+| {"status":200,"contentType":"application/json","body":"{\"data_streams\":[]}"}
+> raw
 | {"method":"GET","route":"/_cat/indices?format=json\u0026pretty"}
 < raw
 | {"status":200,"contentType":"application/json","body":"[{\"index\":\"exec_items\",\"docs.count\":\"1\",\"store.size\":\"4.5kb\"}]"}
