@@ -49,8 +49,8 @@ OMNI_RECORD=1 go test ./elasticsearch/analysis/ -run '^TestQuerySpanFidelity$'  
   stream that `*`, `_all` and a request with no index also read): the sync
   stores neither, so no masking policy can name them and omni knows none of
   their fields.
-- **Multi-search** with a `_source` per search: omni keeps one filter for the
-  whole request, so it names every field of every index, more than the
-  engine returns.
+- **Multi-search** with a different `_source` per search: omni keeps one
+  filter for the whole request, which keeps each field some search keeps, so
+  it names fields of one search's index that only another search returns.
 - **A missing index**: Elasticsearch refuses the request
   (`index_not_found_exception`); omni names it.

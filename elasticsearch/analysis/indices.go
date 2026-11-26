@@ -44,7 +44,7 @@ func requestTargets(api MaskableAPI, urlPath, body string) [][]string {
 			}
 		}
 		return targets
-	case api == APIMaskSearch && strings.Contains(urlPath, "_msearch"):
+	case api == APIMaskSearch && isMultiSearch(urlPath):
 		// A multi-search body alternates a header and a search body, each a
 		// JSON object, which the console may spread over lines; a header's
 		// index (or indices) is a name, a comma-separated list or an array.
