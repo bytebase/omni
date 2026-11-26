@@ -20,10 +20,11 @@ cells. A data stream is named for itself: its backing index
 
 omni resolves each request as Bytebase can: against what
 `elasticsearch/driver`'s sync stores for the fixture, the indices the cat API
-lists less the hidden ones, each with the fields its mapping defines (which
-an `ObjectSchema` describes), and their aliases, one synonym per index an
-alias names. The test reads those with the sync's own requests and each
-index's `_mapping`.
+lists less the hidden ones and each data stream named for itself, each with
+the fields its mapping defines (which an `ObjectSchema` describes; a stream's
+is its backing indices'), and their aliases, one synonym per index or stream
+an alias names. The test reads those with the sync's own requests and each
+table's `_mapping`.
 
 The fixture is `span/fixtures/shop.sql`, a list of console requests separated
 by blank lines (the harness reads every fixture as `<name>.sql`). Every
@@ -45,10 +46,8 @@ OMNI_RECORD=1 go test ./elasticsearch/analysis/ -run '^TestQuerySpanFidelity$'  
 
 ### Known differences
 
-- **Data streams and hidden indices** (`events-app`, `hidden_audit`, and the
-  stream that `*`, `_all` and a request with no index also read): the sync
-  stores neither, so no masking policy can name them and omni knows none of
-  their fields.
+- **A hidden index** (`hidden_audit`): the sync stores none, so no masking
+  policy can name it and omni knows none of its fields.
 - **Multi-search** with a different `_source` per search: omni keeps one
   filter for the whole request, which keeps each field some search keeps, so
   it names fields of one search's index that only another search returns.

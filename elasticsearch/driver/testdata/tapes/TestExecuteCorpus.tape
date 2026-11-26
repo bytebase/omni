@@ -66,6 +66,10 @@
 < raw
 | {"status":200,"contentType":"application/json","body":"{\".security-7\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}},\"hidden-one\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}}}"}
 > raw
+| {"method":"GET","route":"/_data_stream"}
+< raw
+| {"status":200,"contentType":"application/json","body":"{\"data_streams\":[]}"}
+> raw
 | {"method":"GET","route":"/_cat/indices?format=json\u0026pretty"}
 < raw
 | {"status":200,"contentType":"application/json","body":"[{\"index\":\"alpha\",\"docs.count\":\"5\",\"store.size\":\"6.6kb\"},{\"index\":\"beta\",\"docs.count\":\"5\",\"store.size\":\"5.1kb\"}]"}
