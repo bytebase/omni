@@ -107,10 +107,6 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		}
 	}
 
-	if err := c.validateRelOptions(stmt.Options, 'v', ""); err != nil {
-		return err
-	}
-
 	var checkOption byte
 	switch stmt.WithCheckOption {
 	case 1: // LOCAL
@@ -171,6 +167,22 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		}
 	}
 
+	// A new view's storage parameters are validated in DefineRelation, before
+	// heap_create_with_catalog finds the name taken or checks the columns. OR
+	// REPLACE of an existing relation first refuses one that is not a view
+	// and checks the columns, and validates the parameters only in the
+	// AT_ReplaceRelOptions that follows: CREATE OR REPLACE VIEW a WITH (a) on
+	// a table a is 42809, not 22023.
+	// pg: src/backend/commands/view.c:111 (REL_17_12) — DefineVirtualRelation
+	// pg: src/backend/commands/view.c:194 (REL_17_12) — DefineVirtualRelation
+	_, held := relationNamespaceKind(schema, viewName)
+	replacing := stmt.Replace && held
+	if !replacing {
+		if err := c.validateRelOptions(stmt.Options, 'v', ""); err != nil {
+			return err
+		}
+	}
+
 	// Build Column objects and check for duplicate column names before any view replacement mutation.
 	columns := make([]*Column, len(cols))
 	colByName := make(map[string]int, len(cols))
@@ -223,6 +235,9 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		if err := c.checkViewColumns(cols, existing); err != nil {
 			return err
 		}
+		if err := c.validateRelOptions(stmt.Options, 'v', ""); err != nil {
+			return err
+		}
 		if err := c.replaceView(schema, existing, cols, analyzedQuery); err != nil {
 			return err
 		}
@@ -236,7 +251,7 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 	}
 
 	// An index or sequence holds the name in the relation namespace.
-	if _, held := relationNamespaceKind(schema, viewName); held {
+	if held {
 		if stmt.Replace {
 			return errWrongObjectType(viewName, "a view")
 		}
