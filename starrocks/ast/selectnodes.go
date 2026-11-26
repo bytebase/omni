@@ -59,6 +59,7 @@ type SelectStmt struct {
 	All      bool               // ALL keyword present (explicit, rarely used)
 	Items    []*SelectItem      // SELECT list
 	From     []Node             // FROM clause table references (TableRef or JoinClause)
+	Pivot    *PivotClause       // PIVOT after the FROM relations (nil if absent)
 	Where    Node               // WHERE expression (nil if absent)
 	GroupBy  []Node             // GROUP BY expressions
 	Having   Node               // HAVING expression (nil if absent)
@@ -69,6 +70,50 @@ type SelectStmt struct {
 	Into     *IntoOutfileClause // INTO OUTFILE clause (nil if absent)
 	Loc      Loc
 }
+
+// PivotClause is the PIVOT that ends a FROM clause (StarRocks.g4:2202),
+// rotating the rows of every FROM relation, joined, into columns:
+//
+//	PIVOT ( agg [[AS] alias], ...
+//	        FOR { column | ( column, ... ) }
+//	        IN ( value [[AS] alias], ... ) )
+type PivotClause struct {
+	Aggregations []*PivotAggregation
+	Columns      []string // the FOR columns
+	Values       []*PivotValue
+	Loc          Loc
+}
+
+// Tag implements Node.
+func (n *PivotClause) Tag() NodeTag { return T_PivotClause }
+
+var _ Node = (*PivotClause)(nil)
+
+// PivotAggregation is one aggregate of a PIVOT (pivotAggregationExpression,
+// StarRocks.g4:2207): a function call and its optional alias.
+type PivotAggregation struct {
+	Func  Node // a *FuncCallExpr or *ExtractExpr
+	Alias string
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *PivotAggregation) Tag() NodeTag { return T_PivotAggregation }
+
+var _ Node = (*PivotAggregation)(nil)
+
+// PivotValue is one IN value of a PIVOT (pivotValue, StarRocks.g4:2212): a
+// literal for each FOR column, and its optional alias.
+type PivotValue struct {
+	Exprs []Node
+	Alias string
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *PivotValue) Tag() NodeTag { return T_PivotValue }
+
+var _ Node = (*PivotValue)(nil)
 
 // IntoOutfileClause represents an INTO OUTFILE clause for exporting query
 // results to a file (StarRocks supports S3, HDFS, etc.):

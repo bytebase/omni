@@ -37,6 +37,10 @@ func TestFunctionArgumentDeparse(t *testing.T) {
 		{"SELECT JSON_OBJECTAGG(c1, c2) FROM t", "select json_objectagg(`c1`,`c2`) AS `JSON_OBJECTAGG(c1, c2)` from `t`"},
 		{"SELECT GROUP_CONCAT(DISTINCTROW c2, c1 ORDER BY c1 SEPARATOR '-') FROM t", "select group_concat(distinct `c2`,`c1` order by `c1` ASC separator '-') AS `GROUP_CONCAT(DISTINCTROW c2, c1 ORDER BY c1 SEPARATOR '-')` from `t`"},
 		{"SELECT GROUP_CONCAT(c1) OVER () FROM t", "select group_concat(`c1` separator ',') over () AS `GROUP_CONCAT(c1 SEPARATOR ',') OVER ()` from `t`"},
+		// mariadb:11.8.8 stores LIMIT after SEPARATOR, its OFFSET form as `offset,count`.
+		{"SELECT GROUP_CONCAT(c1 ORDER BY c2 SEPARATOR ';' LIMIT 1, 3) FROM t", "select group_concat(`c1` order by `c2` ASC separator ';' limit 1,3) AS `GROUP_CONCAT(c1 ORDER BY c2 SEPARATOR ';' LIMIT 1, 3)` from `t`"},
+		{"SELECT GROUP_CONCAT(c1 SEPARATOR ',' LIMIT 3 OFFSET 1) FROM t", "select group_concat(`c1` separator ',' limit 1,3) AS `GROUP_CONCAT(c1 SEPARATOR ',' LIMIT 3 OFFSET 1)` from `t`"},
+		{"SELECT GROUP_CONCAT(c1 SEPARATOR ',' LIMIT 2) FROM t", "select group_concat(`c1` separator ',' limit 2) AS `GROUP_CONCAT(c1 SEPARATOR ',' LIMIT 2)` from `t`"},
 		{"SELECT EXTRACT(DAY_HOUR FROM a) FROM t", "select extract(day_hour from `a`) AS `EXTRACT(DAY_HOUR FROM a)` from `t`"},
 		{"SELECT EXTRACT(SQL_TSI_DAY FROM a) FROM t", "select extract(day from `a`) AS `EXTRACT(DAY FROM a)` from `t`"},
 		{"SELECT CAST(b AS SIGNED) FROM t", "select cast(`b` as signed) AS `CAST(b AS SIGNED)` from `t`"},

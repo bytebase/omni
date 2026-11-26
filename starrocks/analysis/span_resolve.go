@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -293,6 +294,13 @@ func (r *spanResolver) trailing(orderBy []*ast.OrderByItem, limit, offset ast.No
 func (r *spanResolver) selectStmt(stmt *ast.SelectStmt, outer *spanScope, ctes *cteBinding, withBound bool) []spanColumn {
 	if !withBound {
 		ctes = r.with(stmt.With, outer, ctes)
+	}
+	if stmt.Pivot != nil {
+		// A PIVOT replaces the FROM columns with one per IN value and
+		// aggregate, named by rules this resolver does not follow yet, so
+		// the span fails closed rather than answer the FROM's columns.
+		r.fail(errors.New("the query span does not resolve PIVOT"))
+		return nil
 	}
 	sc := &spanScope{parent: outer}
 	for _, from := range stmt.From {

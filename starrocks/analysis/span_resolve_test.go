@@ -230,3 +230,16 @@ func TestResolveQuerySpanExplain(t *testing.T) {
 		t.Errorf("EXPLAIN of a missing column: %v, NotFoundError %v; want one", err, span.NotFoundError)
 	}
 }
+
+// A PIVOT replaces its FROM's columns with columns the resolver does not
+// name, so the span fails closed, inside a subquery too.
+func TestResolveQuerySpanPivotFails(t *testing.T) {
+	for _, statement := range []string{
+		"SELECT * FROM orders PIVOT (SUM(amount) FOR customer_id IN (1, 2))",
+		"SELECT * FROM (SELECT * FROM orders PIVOT (SUM(amount) FOR customer_id IN (1))) s",
+	} {
+		if span, err := resolveWithCatalog(t, statement); err == nil {
+			t.Errorf("ResolveQuerySpan(%q) = %+v, want an error", statement, span)
+		}
+	}
+}

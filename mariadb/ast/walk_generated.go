@@ -559,6 +559,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Over)
 		}
 		Walk(v, n.Separator)
+		if n.Limit != nil {
+			Walk(v, n.Limit)
+		}
 	case *FuncParam:
 		if n.TypeName != nil {
 			Walk(v, n.TypeName)

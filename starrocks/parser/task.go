@@ -607,6 +607,9 @@ func selectEndBeforeInto(n *ast.SelectStmt) int {
 	for _, from := range n.From {
 		note(from)
 	}
+	if n.Pivot != nil {
+		note(n.Pivot)
+	}
 	for _, node := range []ast.Node{n.Where, n.Having, n.Qualify, n.Limit, n.Offset} {
 		if node != nil {
 			note(node)
