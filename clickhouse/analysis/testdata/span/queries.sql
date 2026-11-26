@@ -227,6 +227,7 @@ SELECT id, sum(amount) OVER (PARTITION BY customer_id ORDER BY id) AS running FR
 SELECT id, rank() OVER (PARTITION BY status ORDER BY amount DESC) FROM orders
 SELECT id, lagInFrame(amount) OVER (ORDER BY id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM orders
 SELECT id, count() OVER w FROM orders WINDOW w AS (PARTITION BY customer_id)
+SELECT count(*) OVER (PARTITION BY email) FROM customers
 SELECT id FROM orders QUALIFY row_number() OVER (PARTITION BY customer_id ORDER BY amount DESC) = 1
 
 -- Star transformers.
@@ -267,6 +268,8 @@ SELECT name FROM customers SETTINGS max_threads = 1
 SELECT id FROM orders WHERE _part = 'all_0_0_0'
 SELECT _part, id FROM orders
 SELECT name FROM customers WHERE id > 0 ORDER BY id LIMIT 3
+SELECT id FROM customers LIMIT (SELECT count() FROM orders)
+SELECT id FROM customers LIMIT 1 OFFSET (SELECT count() FROM items)
 SELECT DISTINCT ON (country) country, name FROM customers
 SELECT TOP 3 name FROM customers
 

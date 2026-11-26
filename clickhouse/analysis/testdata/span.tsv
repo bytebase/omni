@@ -606,6 +606,9 @@ shop.orders	shop.orders	engine	shop	shop	tables	SELECT id, lagInFrame(amount) OV
 id, count() OVER w	id, count() OVER w	engine	shop	shop	results	SELECT id, count() OVER w FROM orders WINDOW w AS (PARTITION BY customer_id)
 shop.orders.id | shop.orders.customer_id	shop.orders.id | shop.orders.customer_id	engine	shop	shop	lineage	SELECT id, count() OVER w FROM orders WINDOW w AS (PARTITION BY customer_id)
 shop.orders	shop.orders	engine	shop	shop	tables	SELECT id, count() OVER w FROM orders WINDOW w AS (PARTITION BY customer_id)
+count() OVER (PARTITION BY email)	count() OVER (PARTITION BY email)	engine	shop	shop	results	SELECT count(*) OVER (PARTITION BY email) FROM customers
+shop.customers.email	shop.customers.email	engine	shop	shop	lineage	SELECT count(*) OVER (PARTITION BY email) FROM customers
+shop.customers	shop.customers	engine	shop	shop	tables	SELECT count(*) OVER (PARTITION BY email) FROM customers
 id	id	engine	shop	shop	results	SELECT id FROM orders QUALIFY row_number() OVER (PARTITION BY customer_id ORDER BY amount DESC) = 1
 shop.orders.id	shop.orders.id	engine	shop	shop	lineage	SELECT id FROM orders QUALIFY row_number() OVER (PARTITION BY customer_id ORDER BY amount DESC) = 1
 shop.orders	shop.orders	engine	shop	shop	tables	SELECT id FROM orders QUALIFY row_number() OVER (PARTITION BY customer_id ORDER BY amount DESC) = 1
@@ -708,6 +711,12 @@ shop.orders	shop.orders	engine	shop	shop	tables	SELECT _part, id FROM orders
 name	name	engine	shop	shop	results	SELECT name FROM customers WHERE id > 0 ORDER BY id LIMIT 3
 shop.customers.name	shop.customers.name	engine	shop	shop	lineage	SELECT name FROM customers WHERE id > 0 ORDER BY id LIMIT 3
 shop.customers	shop.customers	engine	shop	shop	tables	SELECT name FROM customers WHERE id > 0 ORDER BY id LIMIT 3
+id	id	engine	shop	shop	results	SELECT id FROM customers LIMIT (SELECT count() FROM orders)
+shop.customers.id	shop.customers.id	engine	shop	shop	lineage	SELECT id FROM customers LIMIT (SELECT count() FROM orders)
+shop.customers, shop.orders	shop.customers, shop.orders	engine	shop	shop	tables	SELECT id FROM customers LIMIT (SELECT count() FROM orders)
+id	id	engine	shop	shop	results	SELECT id FROM customers LIMIT 1 OFFSET (SELECT count() FROM items)
+shop.customers.id	shop.customers.id	engine	shop	shop	lineage	SELECT id FROM customers LIMIT 1 OFFSET (SELECT count() FROM items)
+shop.customers, shop.items	shop.customers, shop.items	engine	shop	shop	tables	SELECT id FROM customers LIMIT 1 OFFSET (SELECT count() FROM items)
 country, name	country, name	engine	shop	shop	results	SELECT DISTINCT ON (country) country, name FROM customers
 shop.customers.country | shop.customers.name	shop.customers.country | shop.customers.name	engine	shop	shop	lineage	SELECT DISTINCT ON (country) country, name FROM customers
 shop.customers	shop.customers	engine	shop	shop	tables	SELECT DISTINCT ON (country) country, name FROM customers

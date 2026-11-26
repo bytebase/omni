@@ -1028,6 +1028,11 @@
 | {"columns":["id","count() OVER w"],"lineage":[["shop.orders.id"],["shop.orders.customer_id"]],"tables":["shop.orders"]}
 > raw
 | span shop
+| SELECT count(*) OVER (PARTITION BY email) FROM customers
+< raw
+| {"columns":["count() OVER (PARTITION BY email)"],"lineage":[["shop.customers.email"]],"tables":["shop.customers"]}
+> raw
+| span shop
 | SELECT id FROM orders QUALIFY row_number() OVER (PARTITION BY customer_id ORDER BY amount DESC) = 1
 < raw
 | {"columns":["id"],"lineage":[["shop.orders.id"]],"tables":["shop.orders"]}
@@ -1196,6 +1201,16 @@
 | SELECT name FROM customers WHERE id > 0 ORDER BY id LIMIT 3
 < raw
 | {"columns":["name"],"lineage":[["shop.customers.name"]],"tables":["shop.customers"]}
+> raw
+| span shop
+| SELECT id FROM customers LIMIT (SELECT count() FROM orders)
+< raw
+| {"columns":["id"],"lineage":[["shop.customers.id"]],"tables":["shop.customers","shop.orders"]}
+> raw
+| span shop
+| SELECT id FROM customers LIMIT 1 OFFSET (SELECT count() FROM items)
+< raw
+| {"columns":["id"],"lineage":[["shop.customers.id"]],"tables":["shop.customers","shop.items"]}
 > raw
 | span shop
 | SELECT DISTINCT ON (country) country, name FROM customers

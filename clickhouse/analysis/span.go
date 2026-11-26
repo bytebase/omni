@@ -189,6 +189,9 @@ type relation struct {
 	arrayJoin bool
 	// virtual marks a catalog table, whose virtual columns a name reads.
 	virtual bool
+	// starTables are the tables an unexpanded * of a derived relation
+	// read, whose columns an unknown name of it reads.
+	starTables SourceColumnSet
 }
 
 func (rel *relation) column(name string) (spanColumn, bool) {
@@ -202,6 +205,9 @@ func (rel *relation) column(name string) (spanColumn, bool) {
 		c := spanColumn{name: name, sources: SourceColumnSet{}, plain: true, rel: rel}
 		if rel.table != "" {
 			c.sources[ColumnResource{Database: rel.database, Table: rel.table, Column: name}] = true
+		}
+		for t := range rel.starTables {
+			c.sources[ColumnResource{Database: t.Database, Table: t.Table, Column: name}] = true
 		}
 		return c, true
 	}
@@ -258,6 +264,10 @@ type spanResolver struct {
 	// preferColumns is the query's prefer_column_name_to_alias: a column
 	// name resolves to the column before an alias of that name.
 	preferColumns bool
+	// aliasMemo holds what an alias read where it was used; skipped counts
+	// the aliases passed over because they were being resolved.
+	aliasMemo map[aliasUse]SourceColumnSet
+	skipped   int
 	// err is why a view's definition could not be read: the span fails
 	// rather than omit what the view reads.
 	err   error
@@ -267,8 +277,15 @@ type spanResolver struct {
 	resolving map[any]bool
 }
 
+// aliasUse is an alias's expression used in one scope.
+type aliasUse struct {
+	expr parser.Expr
+	sc   *spanScope
+}
+
 func newSpanResolver(opts ResolveOptions, text string) *spanResolver {
 	return &spanResolver{
+		aliasMemo: map[aliasUse]SourceColumnSet{},
 		opts:      opts,
 		database:  opts.DefaultDatabase,
 		text:      text,
@@ -422,7 +439,11 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 	r.orderBy(s.OrderBy, sc, ctes)
 	r.exprs(s.Interpolate, sc, ctes)
 	if s.LimitBy != nil {
+		r.exprs([]parser.Expr{s.LimitBy.Limit, s.LimitBy.Offset}, sc, ctes)
 		r.exprs(s.LimitBy.By, sc, ctes)
+	}
+	if s.Limit != nil {
+		r.exprs([]parser.Expr{s.Limit.Limit, s.Limit.Offset}, sc, ctes)
 	}
 	return out
 }
@@ -710,8 +731,25 @@ func (r *spanResolver) merge(f *parser.FuncCallExpr, name string) *relation {
 	return rel
 }
 
+// derived is a subquery's or CTE's relation. A * no metadata expanded
+// leaves its columns unknown: any name then resolves, to that column of
+// the tables the * read.
 func derived(name string, cols []spanColumn) *relation {
-	return &relation{name: name, columns: cols}
+	rel := &relation{name: name}
+	for _, c := range cols {
+		if !c.star {
+			rel.columns = append(rel.columns, c)
+			continue
+		}
+		rel.open = true
+		if rel.starTables == nil {
+			rel.starTables = SourceColumnSet{}
+		}
+		for t := range c.sources {
+			rel.starTables[ColumnResource{Database: t.Database, Table: t.Table}] = true
+		}
+	}
+	return rel
 }
 
 // renamed is cols with the names of a column alias list, AS t(a, b).
@@ -818,7 +856,7 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 			continue
 		}
 		if rel.open && len(rel.columns) == 0 {
-			sources := SourceColumnSet{}
+			sources := union(SourceColumnSet{}, rel.starTables)
 			if rel.table != "" {
 				sources[ColumnResource{Database: rel.database, Table: rel.table}] = true
 			}
@@ -1055,9 +1093,10 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 		}
 		return out
 	case *parser.FuncCallExpr:
+		args := n.Args
 		if countStar(n) {
-			// count(*) reads no column.
-			return out
+			// count(*) reads no column; its window still does.
+			args = nil
 		}
 		if lambda := r.lambdaAlias(n.Name, sc); lambda != nil {
 			// A WITH-bound lambda called by its alias reads what its body
@@ -1073,7 +1112,7 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 			}
 			return out
 		}
-		out = union(out, union(r.exprs(n.Params, sc, ctes), r.exprs(n.Args, sc, ctes)))
+		out = union(out, union(r.exprs(n.Params, sc, ctes), r.exprs(args, sc, ctes)))
 		over := n.Over
 		if n.OverName != "" {
 			over = sc.window(n.OverName)
@@ -1172,11 +1211,26 @@ func (r *spanResolver) ident(parts []string, sc *spanScope, ctes *cteBinding) So
 	if len(parts) == 1 {
 		for s := sc; s != nil; s = s.parent {
 			if e, ok := s.aliases[parts[0]]; ok && !r.resolving[e] {
-				// An alias stands for its expression where it is used.
+				// An alias stands for its expression where it is used. It is
+				// resolved once per scope, so aliases built on aliases stay
+				// linear.
+				key := aliasUse{e, sc}
+				if out, ok := r.aliasMemo[key]; ok {
+					return out
+				}
+				skipped := r.skipped
 				r.resolving[e] = true
 				out := r.expr(e, sc, ctes)
 				delete(r.resolving, e)
+				if r.skipped == skipped {
+					// A result that broke a cycle depends on what was being
+					// resolved, so only one that did not is kept.
+					r.aliasMemo[key] = out
+				}
 				return out
+			}
+			if _, ok := s.aliases[parts[0]]; ok {
+				r.skipped++
 			}
 		}
 	}

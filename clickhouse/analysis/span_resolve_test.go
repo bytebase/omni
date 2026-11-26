@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -83,5 +84,42 @@ func TestResolveQuerySpanQuotedDottedName(t *testing.T) {
 	}
 	if len(got.Results) != 1 || got.Results[0].Name != "a.b" {
 		t.Fatalf("results %+v", got.Results)
+	}
+}
+
+// Without a catalog a subquery's * leaves its columns unknown, and a name
+// read from it reads that column of the tables the * read.
+func TestResolveQuerySpanStarWithoutCatalog(t *testing.T) {
+	for _, q := range []string{
+		"SELECT email FROM (SELECT * FROM shop.customers)",
+		"WITH c AS (SELECT * FROM shop.customers) SELECT email FROM c",
+	} {
+		got, err := ResolveQuerySpan(q, ResolveOptions{DefaultDatabase: "shop"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.NotFoundError != nil || len(got.Results) != 1 {
+			t.Fatalf("%s: %+v", q, got)
+		}
+		if want := []string{"shop.customers.email"}; !slices.Equal(names(got.Results[0].SourceColumns), want) {
+			t.Errorf("%s: reads %v, want %v", q, names(got.Results[0].SourceColumns), want)
+		}
+	}
+}
+
+// Aliases built on aliases resolve in linear time.
+func TestResolveQuerySpanNestedAliases(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("WITH email AS a0")
+	for i := 1; i <= 200; i++ {
+		fmt.Fprintf(&b, ", concat(a%d, a%d) AS a%d", i-1, i-1, i)
+	}
+	b.WriteString(" SELECT a200 FROM shop.customers")
+	got, err := ResolveQuerySpan(b.String(), ResolveOptions{DefaultDatabase: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"shop.customers.email"}; !slices.Equal(names(got.Results[0].SourceColumns), want) {
+		t.Errorf("reads %v, want %v", names(got.Results[0].SourceColumns), want)
 	}
 }
