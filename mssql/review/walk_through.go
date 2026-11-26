@@ -952,7 +952,7 @@ func (b *builder) refTooLong(tr *ast.TableRef, r objRef) bool {
 // goLine matches a GO line as Bytebase's batcher reads it, as sqlcmd
 // does: blanks, GO, and blanks and a count or nothing.
 //
-// bytebase: backend/plugin/parser/tsql/batch/batch.go — goCommandMatcher
+// mirrors: mssql/analysis/batch.go — goCommandMatcher
 var goLine = regexp.MustCompile(`(?i)^[\t ]*?GO(?:[ ]+(.*)|)$`)
 
 // goCount returns how many times Bytebase sends the batch before a GO,

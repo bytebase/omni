@@ -244,7 +244,7 @@ func TestPriorBackupAgainstMSSQL(t *testing.T) {
 // Bytebase builds it, before the change, and returns the statements whose
 // query fails, with the error.
 //
-// bytebase: backend/plugin/parser/tsql/backup.go — generateSQLForTable
+// mirrors: mssql/analysis/backup.go — generateSQLForTable
 func backupFailures(t *testing.T, conn *sql.Conn, change string) map[int]error {
 	t.Helper()
 	ctx := context.Background()

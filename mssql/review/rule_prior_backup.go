@@ -11,7 +11,7 @@ import (
 // SQL Server change fail, which fails the task before any of the change
 // runs, judged from the SQL and the synced schema alone. The backup works
 // like this (bytebase backend/runner/taskrun/database_migrate_executor.go,
-// backupData, and backend/plugin/parser/tsql/backup.go):
+// backupData, and omni mssql/analysis/backup.go):
 //
 //   - It runs before the change, on the database the change runs in, with
 //     the schema Bytebase last synced; a USE in the change does not move
@@ -77,7 +77,7 @@ func dmlOf(n ast.Node) (dmlTarget, bool) {
 // backup skips, a temporary table's, or one whose target the rule does
 // not know.
 //
-// bytebase: backend/plugin/parser/tsql/backup.go — prepareTransformation,
+// mirrors: mssql/analysis/backup.go — prepareTransformation,
 // generateSQLForTable
 func backupTable(s *statement) (d dmlTarget, ref *ast.TableRef, code review.FindingCode, refusal string) {
 	d, ok := dmlOf(s.node)
@@ -142,7 +142,7 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 // as written. db is "" when the target's name is not known: then a name
 // without a database matches only another without one.
 //
-// bytebase: backend/plugin/parser/tsql/backup.go — prepareTransformation,
+// mirrors: mssql/analysis/backup.go — prepareTransformation,
 // generateSQL
 func checkPriorBackupGroups(sql string, stmts []statement, db string, r *reporter) {
 	type group struct {

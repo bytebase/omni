@@ -340,7 +340,7 @@ type oracleDML struct {
 // as if it were the change's only one, so every reason the backup fails
 // shows; Bytebase stops at the first.
 //
-// bytebase: backend/plugin/parser/plsql/backup.go — TransformDMLToSelect, prepareTransformation, generateSQL, generateSQLForTable, writeBranchSelect, writeSuffixSelectClause
+// mirrors: oracle/analysis/backup.go — TransformDMLToSelect, prepareTransformation, generateSQL, generateSQLForTable, writeBranchSelect, writeSuffixSelectClause
 // bytebase: backend/runner/taskrun/database_migrate_executor.go — backupData
 func runBackup(t *testing.T, conn *sql.Conn, change, db string, archive bool) backupOutcome {
 	t.Helper()

@@ -1037,7 +1037,7 @@ type bytebaseBatch struct {
 // bytebaseBatches splits a change at the lines Bytebase's batcher takes
 // for GO, outside strings and comments, which the cases do not hold.
 //
-// bytebase: backend/plugin/parser/tsql/batch/batch.go
+// mirrors: mssql/analysis/batch.go — goCommandMatcher
 func bytebaseBatches(sql string) []bytebaseBatch {
 	var out []bytebaseBatch
 	var cur []string
