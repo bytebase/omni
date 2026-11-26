@@ -9,9 +9,8 @@ import (
 	"github.com/bytebase/omni/review"
 )
 
-// The walk takes a refusal from pg/catalog for a routine or a view when
-// the synced schema loads in full, and only for a code no unsynced object
-// can cause.
+// The walk takes a refusal from pg/catalog when the synced schema loads in
+// full, and only for a code no unsynced object can cause or cure.
 func TestWalkThroughCatalogRefusals(t *testing.T) {
 	target := review.Target{SessionUser: "u", Schema: &metadata.DatabaseSchemaMetadata{
 		Name:       "db",
@@ -32,6 +31,11 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		{sql: "CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;", message: `PostgreSQL refuses this statement: syntax error at or near "end of input", expected END (SQLSTATE 42601).`},
 		{sql: "CREATE FUNCTION f_double(y int) RETURNS int LANGUAGE sql AS 'SELECT y';", message: `PostgreSQL refuses this statement: function "f_double" already exists (SQLSTATE 42723).`},
 		{sql: "CALL f_double(1);", message: "PostgreSQL refuses this statement: f_double(integer) is not a procedure (SQLSTATE 42809)."},
+		{sql: "CALL nope();", message: "PostgreSQL refuses this statement: procedure nope() does not exist (SQLSTATE 42883)."},
+		{sql: "CREATE TRIGGER tr BEFORE UPDATE OF nope ON t FOR EACH ROW EXECUTE FUNCTION f_double();", message: `PostgreSQL refuses this statement: function "f_double" does not exist (SQLSTATE 42883).`},
+		{sql: "CREATE FUNCTION g() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x t.nope%TYPE; BEGIN RETURN 1; END $$;", message: `PostgreSQL refuses this statement: column "nope" of relation "t" does not exist (SQLSTATE 42703).`},
+		{sql: "ALTER TABLE t ALTER n TYPE json USING JSON_ARRAYAGG(n);", message: "PostgreSQL refuses this statement: aggregate functions are not allowed in transform expressions (SQLSTATE 42803)."},
+		{sql: "DO $$ BEGIN RAISE EXCEPTION 'boom'; END $$;", message: "PostgreSQL refuses this statement: boom (SQLSTATE P0001)."},
 		{sql: "CREATE TABLE u (a int);\nCREATE FUNCTION g() RETURNS void LANGUAGE plpgsql AS $$ BEGIN RETURN 1; END $$;", statement: 1, message: "PostgreSQL refuses this statement: RETURN cannot have a parameter in function returning void (SQLSTATE 42804)."},
 	} {
 		got := walkFindings(t, tc.sql, target)
@@ -43,6 +47,15 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		// A missing name may be an object the sync does not list.
 		"CREATE FUNCTION f() RETURNS bigint LANGUAGE sql AS 'SELECT count(*) FROM missing_t';",
 		"CREATE VIEW v AS SELECT nope_fn(n) FROM t;",
+		// A query may call an aggregate, which the sync does not list.
+		"CREATE TABLE u AS SELECT nope_agg(n) FROM t;",
+		// DROP ROUTINE also drops an aggregate, which the sync does not list.
+		"DROP ROUTINE nope_agg(int);",
+		// A call may be a function-style cast to a domain the sync does not list.
+		"CALL f_double(nope_domain(1));",
+		"CREATE PROCEDURE q() LANGUAGE sql AS 'CALL f_double(nope_domain(1))';",
+		// The catalog does not know which index a foreign key uses.
+		"ALTER TABLE t DROP CONSTRAINT t_pkey;",
 		// The change turns the body check off.
 		"SET check_function_bodies = off;\nCREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;",
 		// After a statement that runs user code, the catalog is not asked.
@@ -68,7 +81,7 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		"CREATE FUNCTION f() RETURNS int LANGUAGE sql SET search_path = public AS 'SELECT n, n FROM t';",
 		// A cast the sync does not list may allow the coercion.
 		"CREATE FUNCTION f() RETURNS date LANGUAGE sql AS 'SELECT 20260101';",
-		// A refusal of another statement ends the replay.
+		// A refusal a cast may cure ends the replay.
 		"ALTER TABLE t ALTER n TYPE boolean;\nCREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;",
 	} {
 		if got := walkFindings(t, sql, target); len(got) != 0 {
