@@ -669,6 +669,12 @@ shop.customers	shop.customers	engine	shop	shop	tables	SELECT * EXCEPT ('mail') F
 tupleElement((id, email), '1'), tupleElement((id, email), '2')	tupleElement((id, email), '1'), tupleElement((id, email), '2')	engine	shop	shop	results	SELECT untuple((id, email)) FROM customers
 shop.customers.email shop.customers.id | shop.customers.email shop.customers.id	shop.customers.email shop.customers.id | shop.customers.email shop.customers.id	engine	shop	shop	lineage	SELECT untuple((id, email)) FROM customers
 shop.customers	shop.customers	engine	shop	shop	tables	SELECT untuple((id, email)) FROM customers
+tupleElement((email, id), '1'), tupleElement((email, id), '2')	tupleElement((email, id), '1'), tupleElement((email, id), '2')	engine	shop	shop	results	SELECT untuple(tuple(*)) FROM (SELECT email, id FROM customers)
+shop.customers.email shop.customers.id | shop.customers.email shop.customers.id	shop.customers.email shop.customers.id | shop.customers.email shop.customers.id	engine	shop	shop	lineage	SELECT untuple(tuple(*)) FROM (SELECT email, id FROM customers)
+shop.customers	shop.customers	engine	shop	shop	tables	SELECT untuple(tuple(*)) FROM (SELECT email, id FROM customers)
+(((email)))	(((email)))	engine	shop	shop	results	SELECT tuple(tuple(tuple(email))) FROM customers
+shop.customers.email	shop.customers.email	engine	shop	shop	lineage	SELECT tuple(tuple(tuple(email))) FROM customers
+shop.customers	shop.customers	engine	shop	shop	tables	SELECT tuple(tuple(tuple(email))) FROM customers
 country, created	country, created	engine	shop	shop	results	SELECT COLUMNS('^c') FROM customers
 shop.customers.country | shop.customers.created	shop.customers.country | shop.customers.created	engine	shop	shop	lineage	SELECT COLUMNS('^c') FROM customers
 shop.customers	shop.customers	engine	shop	shop	tables	SELECT COLUMNS('^c') FROM customers
@@ -909,3 +915,6 @@ lab.calc	lab.calc	engine	nested	lab	tables	SELECT secret FROM calc ORDER BY ALL
 id, secret	id, secret	engine	nested	lab	results	SELECT id, secret FROM calc ORDER BY ALL DESC
 lab.calc.id | lab.calc.secret	lab.calc.id | lab.calc.secret	engine	nested	lab	lineage	SELECT id, secret FROM calc ORDER BY ALL DESC
 lab.calc	lab.calc	engine	nested	lab	tables	SELECT id, secret FROM calc ORDER BY ALL DESC
+id, secret, a, b	id, secret, a, b	engine	nested	lab	results	SELECT * FROM (SELECT * FROM calc SETTINGS asterisk_include_alias_columns = 1)
+lab.calc.id | lab.calc.secret | lab.calc.a lab.calc.secret | lab.calc.a lab.calc.b lab.calc.secret	lab.calc.id | lab.calc.secret | lab.calc.a lab.calc.secret | lab.calc.a lab.calc.b lab.calc.secret	engine	nested	lab	lineage	SELECT * FROM (SELECT * FROM calc SETTINGS asterisk_include_alias_columns = 1)
+lab.calc	lab.calc	engine	nested	lab	tables	SELECT * FROM (SELECT * FROM calc SETTINGS asterisk_include_alias_columns = 1)

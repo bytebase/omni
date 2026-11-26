@@ -1133,6 +1133,16 @@
 | {"columns":["tupleElement((id, email), '1')","tupleElement((id, email), '2')"],"lineage":[["shop.customers.email","shop.customers.id"],["shop.customers.email","shop.customers.id"]],"tables":["shop.customers"]}
 > raw
 | span shop
+| SELECT untuple(tuple(*)) FROM (SELECT email, id FROM customers)
+< raw
+| {"columns":["tupleElement((email, id), '1')","tupleElement((email, id), '2')"],"lineage":[["shop.customers.email","shop.customers.id"],["shop.customers.email","shop.customers.id"]],"tables":["shop.customers"]}
+> raw
+| span shop
+| SELECT tuple(tuple(tuple(email))) FROM customers
+< raw
+| {"columns":["(((email)))"],"lineage":[["shop.customers.email"]],"tables":["shop.customers"]}
+> raw
+| span shop
 | SELECT COLUMNS('^c') FROM customers
 < raw
 | {"columns":["country","created"],"lineage":[["shop.customers.country"],["shop.customers.created"]],"tables":["shop.customers"]}
@@ -1539,3 +1549,8 @@
 | SELECT id, secret FROM calc ORDER BY ALL DESC
 < raw
 | {"columns":["id","secret"],"lineage":[["lab.calc.id"],["lab.calc.secret"]],"tables":["lab.calc"]}
+> raw
+| span lab
+| SELECT * FROM (SELECT * FROM calc SETTINGS asterisk_include_alias_columns = 1)
+< raw
+| {"columns":["id","secret","a","b"],"lineage":[["lab.calc.id"],["lab.calc.secret"],["lab.calc.a","lab.calc.secret"],["lab.calc.a","lab.calc.b","lab.calc.secret"]],"tables":["lab.calc"]}

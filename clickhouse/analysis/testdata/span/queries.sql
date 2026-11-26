@@ -250,6 +250,8 @@ SELECT * APPLY (x -> concat(toString(x), status)) FROM orders
 SELECT * EXCEPT (sku) APPLY (max) FROM items
 SELECT * EXCEPT ('mail') FROM customers
 SELECT untuple((id, email)) FROM customers
+SELECT untuple(tuple(*)) FROM (SELECT email, id FROM customers)
+SELECT tuple(tuple(tuple(email))) FROM customers
 SELECT COLUMNS('^c') FROM customers
 SELECT concat(COLUMNS('^(name|email)$')) FROM customers
 
@@ -345,3 +347,4 @@ SELECT joinGet('lab.lookup', 'email', toUInt32(1))
 SELECT id, joinGet('lookup', 'email', id) AS e FROM calc
 SELECT secret FROM calc ORDER BY ALL
 SELECT id, secret FROM calc ORDER BY ALL DESC
+SELECT * FROM (SELECT * FROM calc SETTINGS asterisk_include_alias_columns = 1)

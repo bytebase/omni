@@ -274,3 +274,27 @@ func TestResolveQuerySpanSelfNamedAlias(t *testing.T) {
 		t.Errorf("reads %v, want %v", names(got.Results[0].SourceColumns), want)
 	}
 }
+
+// Nested one-element tuples are named in linear time.
+func TestResolveQuerySpanNestedTuples(t *testing.T) {
+	q := "SELECT " + strings.Repeat("tuple(", 60) + "email" + strings.Repeat(")", 60) + " FROM shop.customers"
+	got, err := ResolveQuerySpan(q, ResolveOptions{DefaultDatabase: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := strings.Repeat("(", 60) + "email" + strings.Repeat(")", 60); got.Results[0].Name != want {
+		t.Errorf("name %q, want %q", got.Results[0].Name, want)
+	}
+}
+
+// A subquery inside a table function's argument is read; the argument's
+// other names are the function's, not columns.
+func TestResolveQuerySpanTableFunctionArgument(t *testing.T) {
+	got, err := ResolveQuerySpan("SELECT number FROM numbers(toUInt64((SELECT count() FROM shop.customers)))", ResolveOptions{DefaultDatabase: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"shop.customers"}; !slices.Equal(names(got.SourceColumns), want) {
+		t.Errorf("tables %v, want %v", names(got.SourceColumns), want)
+	}
+}

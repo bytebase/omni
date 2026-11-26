@@ -111,9 +111,6 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedSpan, err
 		return out, nil
 	}
 	r := newSpanResolver(opts, seg.Text)
-	r.preferColumns = setting(query, "prefer_column_name_to_alias")
-	r.starAlias = setting(query, "asterisk_include_alias_columns")
-	r.starMaterialized = setting(query, "asterisk_include_materialized_columns")
 	cols := r.query(query, nil, nil)
 	if r.err != nil {
 		return nil, r.err
@@ -137,8 +134,26 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedSpan, err
 	return out, nil
 }
 
-// setting reports whether a query's SETTINGS turn a boolean setting on.
-func setting(q *parser.SelectUnionStmt, name string) bool {
+// settings applies a query's SETTINGS that name resolution reads, for as
+// long as the query is resolved: a subquery's own SETTINGS hold inside it.
+// The returned function restores the enclosing query's.
+func (r *spanResolver) settings(q *parser.SelectUnionStmt) func() {
+	saved := [3]bool{r.preferColumns, r.starAlias, r.starMaterialized}
+	for name, flag := range map[string]*bool{
+		"prefer_column_name_to_alias":           &r.preferColumns,
+		"asterisk_include_alias_columns":        &r.starAlias,
+		"asterisk_include_materialized_columns": &r.starMaterialized,
+	} {
+		if v, ok := setting(q, name); ok {
+			*flag = v
+		}
+	}
+	return func() { r.preferColumns, r.starAlias, r.starMaterialized = saved[0], saved[1], saved[2] }
+}
+
+// setting is a boolean setting's value in a query's SETTINGS, and whether
+// they set it.
+func setting(q *parser.SelectUnionStmt, name string) (on, set bool) {
 	settings := []*parser.SettingExpr{}
 	if q.Output != nil {
 		settings = append(settings, q.Output.Settings...)
@@ -151,10 +166,10 @@ func setting(q *parser.SelectUnionStmt, name string) bool {
 			continue
 		}
 		if lit, ok := st.Value.(*parser.LiteralExpr); ok {
-			return lit.Val == "1" || strings.EqualFold(lit.Val, "true")
+			return lit.Val == "1" || strings.EqualFold(lit.Val, "true"), true
 		}
 	}
-	return false
+	return false, false
 }
 
 // spanColumn is one column a relation or a query produces.
@@ -326,6 +341,7 @@ func (r *spanResolver) missing(nf NotFoundError) {
 // query resolves a query's columns: a set operation's columns are named by
 // its first query and read what every query reads in that position.
 func (r *spanResolver) query(q *parser.SelectUnionStmt, outer *spanScope, ctes *cteBinding) []spanColumn {
+	defer r.settings(q)()
 	var (
 		out []spanColumn
 		// The first query's WITH clause is every query's
@@ -434,8 +450,10 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 			// untuple(t) is one result column per element of t, each
 			// taken from the whole tuple.
 			arg := item.(*parser.FuncCallExpr).Args[0]
-			name, sources := (&namer{r: r, sc: sc, ctes: ctes}).name(arg), r.expr(arg, sc, ctes)
-			for i := range items {
+			n := &namer{r: r, sc: sc, ctes: ctes}
+			name, sources := n.name(arg), r.expr(arg, sc, ctes)
+			// A star or COLUMNS('re') among the elements is one per column.
+			for i := range n.args(items) {
 				out = append(out, spanColumn{name: fmt.Sprintf("tupleElement(%s, '%d')", name, i+1), sources: sources})
 			}
 			continue
@@ -609,7 +627,18 @@ func (r *spanResolver) tableExpr(t *parser.TableExpr, outer *spanScope, ctes *ct
 		for _, a := range t.Func.Args {
 			if sub, ok := a.(*parser.SubqueryExpr); ok {
 				view = r.query(sub.Query, outer, ctes)
+				continue
 			}
+			// A subquery inside an argument, numbers((SELECT ...)), is
+			// read too; the argument's names are the function's own
+			// (a database, a table, a pattern), not columns.
+			walkExpr(a, func(e parser.Expr) bool {
+				if sub, ok := e.(*parser.SubqueryExpr); ok {
+					r.query(sub.Query, outer, ctes)
+					return false
+				}
+				return true
+			})
 		}
 		name := t.Alias
 		if name == "" {
@@ -982,8 +1011,10 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 			case !c.hidden && (!c.omitted || c.alias != "" && r.starAlias || c.alias == "" && r.starMaterialized):
 				if c.omitted {
 					// An ALIAS or MATERIALIZED column a setting includes,
-					// read as a name reads it.
+					// read as a name reads it, and a column of this query's
+					// result like any other.
 					c, _ = rel.column(c.name)
+					c.omitted = false
 				}
 				c.rel = rel
 				c.name = starName(c, sc)

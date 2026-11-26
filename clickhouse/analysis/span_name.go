@@ -152,10 +152,12 @@ func (n *namer) name(e parser.Expr) string {
 		return "_subquery_" + strconv.Itoa(n.r.subqueries)
 	case *parser.FuncCallExpr:
 		if strings.EqualFold(x.Name, "tuple") && len(x.Params) == 0 && x.Over == nil {
-			// ClickHouse writes a tuple of more than one element as (a, b).
-			if args := n.args(x.Args); len(args) > 1 {
+			// ClickHouse writes tuple(a, b) as (a, b), and tuple(a) as (a).
+			args := n.args(x.Args)
+			if len(args) > 0 {
 				return "(" + strings.Join(args, ", ") + ")"
 			}
+			return n.funcNameWith(x, args)
 		}
 		return n.funcName(x)
 	case *parser.CastExpr:
@@ -259,11 +261,15 @@ func chain(e parser.Expr, op string) []parser.Expr {
 }
 
 func (n *namer) funcName(f *parser.FuncCallExpr) string {
-	name := f.Name
-	args := f.Args
 	if countStar(f) {
-		args = nil
+		return n.funcNameWith(f, nil)
 	}
+	return n.funcNameWith(f, n.args(f.Args))
+}
+
+// funcNameWith names a call whose arguments are already named.
+func (n *namer) funcNameWith(f *parser.FuncCallExpr, args []string) string {
+	name := f.Name
 	if f.Distinct {
 		name += "Distinct"
 	}
@@ -271,7 +277,7 @@ func (n *namer) funcName(f *parser.FuncCallExpr) string {
 	if len(f.Params) > 0 {
 		out += "(" + n.list(f.Params) + ")"
 	}
-	out += "(" + n.list(args) + ")"
+	out += "(" + strings.Join(args, ", ") + ")"
 	switch {
 	case f.Over != nil:
 		out += " OVER (" + n.window(f.Over) + ")"
