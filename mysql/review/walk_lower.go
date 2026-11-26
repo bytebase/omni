@@ -544,7 +544,7 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 		parts := constraintKeyParts(c)
 		isFK := c.Type == ast.ConstrForeignKey
 		fulltext := c.Type == ast.ConstrFulltextIndex
-		spatial := c.Type == ast.ConstrSpatialIndex || isSpatialIndexType(c.IndexType)
+		spatial := isSpatialConstraint(c)
 		crng := rangeOf(c.Loc)
 		if crng == (review.Range{}) {
 			crng = r.rng
@@ -580,6 +580,10 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 				b.fail(crng, nil, review.ObjectNotFound, notFound("key column", ident(p.name), r.written))
 				return true
 			}
+		}
+		if spatial && len(parts) > 1 {
+			b.fail(crng, nil, review.UnsupportedForm, spatialOnePart) // 1070
+			return true
 		}
 		if fulltext && partitioned {
 			b.fail(crng, nil, review.UnsupportedForm, "Partitioned table "+review.Code(r.written)+" doesn't support "+review.Code("FULLTEXT")+" indexes.")
@@ -785,7 +789,7 @@ func (b *builder) created(v *ast.CreateTableStmt, r tableRef, optional bool) {
 					con.Type == ast.ConstrUnique,
 					false,
 					con.Type == ast.ConstrFulltextIndex,
-					con.Type == ast.ConstrSpatialIndex || isSpatialIndexType(con.IndexType),
+					isSpatialConstraint(con),
 					constraintKeyParts(con),
 				)
 			} else {

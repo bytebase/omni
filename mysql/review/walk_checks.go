@@ -25,9 +25,14 @@ type tablePartitionInfo struct {
 	// subparts is set when the table has subpartitions, whose names
 	// TRUNCATE and EXCHANGE PARTITION take too; names holds none of them.
 	subparts bool
-	// bounds holds each partition's bound in order, as
-	// INFORMATION_SCHEMA.PARTITIONS describes it; nil if unknown.
-	bounds []string
+	// bounds holds each partition's name and bound in order, as
+	// INFORMATION_SCHEMA.PARTITIONS describes them; nil if unknown.
+	bounds []partBound
+}
+
+// partBound is one partition's lower-case name and its bound.
+type partBound struct {
+	name, value string
 }
 
 func (p *tablePartitionInfo) clone() *tablePartitionInfo {
@@ -35,7 +40,7 @@ func (p *tablePartitionInfo) clone() *tablePartitionInfo {
 		return nil
 	}
 	cp := *p
-	cp.bounds = append([]string(nil), p.bounds...)
+	cp.bounds = append([]partBound(nil), p.bounds...)
 	if p.names != nil {
 		cp.names = make(map[string]bool, len(p.names))
 		for k, v := range p.names {
@@ -269,7 +274,29 @@ func isPrefixableBaseType(dt string) bool {
 		"tinyblob", "blob", "mediumblob", "longblob":
 		return true
 	}
-	return isGeometryBaseType(dt)
+	return false
+}
+
+// spatialOnePart is the finding for a SPATIAL key of more than one part.
+var spatialOnePart = "A " + review.Code("SPATIAL") + " index takes one key part."
+
+// usingType is an index's declared type: USING (or TYPE) written after
+// the key parts overrides the one written before them.
+func usingType(indexType string, opts []*ast.IndexOption) string {
+	for _, opt := range opts {
+		if strings.EqualFold(opt.Name, "USING") {
+			if s, ok := opt.Value.(*ast.StringLit); ok {
+				indexType = s.Value
+			}
+		}
+	}
+	return indexType
+}
+
+// isSpatialConstraint reports whether a table constraint defines a SPATIAL
+// key: SPATIAL, or USING RTREE before or after its key parts.
+func isSpatialConstraint(con *ast.Constraint) bool {
+	return con.Type == ast.ConstrSpatialIndex || isSpatialIndexType(usingType(con.IndexType, con.IndexOptions))
 }
 
 func isSpatialIndexType(indexType string) bool {
@@ -566,7 +593,8 @@ func (b *builder) columnDefTextFails(col *ast.ColumnDef) bool {
 		case "bit":
 			maxLen = 64
 		}
-		if col.TypeName.HasLength && (col.TypeName.Length > maxLen || col.TypeName.Length < 0) {
+		// FLOAT(p) keeps p in Length without HasLength.
+		if col.TypeName.Length > maxLen || col.TypeName.HasLength && col.TypeName.Length < 0 {
 			b.fail(rng, nil, review.UnsupportedForm, "Column "+review.Code(ident(col.Name))+" has a display width or length past "+engineName+"'s limit.")
 			return true
 		}
@@ -916,6 +944,10 @@ func (b *builder) checkIndexParts(
 				return false // ledger check recorded; caller continues so walk.Run reports it
 			}
 		}
+	}
+	if spatial && len(parts) > 1 {
+		b.fail(rng, nil, review.UnsupportedForm, spatialOnePart) // 1070
+		return true
 	}
 	if fulltext && partitioned {
 		b.fail(rng, nil, review.UnsupportedForm, "Partitioned table "+review.Code(r.written)+" doesn't support "+review.Code("FULLTEXT")+" indexes.")

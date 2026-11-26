@@ -223,6 +223,10 @@ type walker struct {
 	// sqlModeSet is set once the session assigns sql_mode, which may leave
 	// NO_ENGINE_SUBSTITUTION out and make an unknown engine a warning.
 	sqlModeSet bool
+	// gipkSet is set once the session assigns
+	// sql_generate_invisible_primary_key, whose generated primary key keeps
+	// a UNIQUE key from becoming the table's.
+	gipkSet bool
 	// triggered lists the relations with a trigger, synced or created;
 	// anyTrigger is set when any table may have one the walk does not
 	// know. anyFunction is set when a call may run a stored function the

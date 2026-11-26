@@ -404,6 +404,7 @@ var walkCodes = []struct {
 		return strings.HasSuffix(m, "'s bound must be greater than the partition's before it.")
 	}, []string{"1493"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "The partitions' `VALUES IN` name ") }, []string{"1495"}},
+	{func(m, _ string) bool { return m == "`REORGANIZE PARTITION` must name consecutive partitions." }, []string{"1519"}},
 	{func(m, _ string) bool { return saysTwice(m, "partition", "names") }, []string{"1517"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Partition column ") && strings.HasSuffix(m, ", and the partitioning function must be an integer.")
@@ -524,6 +525,7 @@ var walkCodes = []struct {
 	}, []string{"1075"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "Column ") && strings.Contains(m, "`FULLTEXT`") }, []string{"1283"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "Column ") && strings.Contains(m, "`SPATIAL`") }, []string{"1687"}},
+	{func(m, _ string) bool { return m == spatialOnePart }, []string{"1070"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Column ") && strings.HasSuffix(m, " cannot use an index prefix length.")
 	}, []string{"1089"}},
