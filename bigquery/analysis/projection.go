@@ -329,6 +329,7 @@ func (w *spanWalker) resolvePath(parts []string) (string, []ColumnRef) {
 			// a pipe expression that lineage.
 			w.failClosed(fmt.Errorf("a pipe expression reads the range variable %s as a whole row (fail closed)", col))
 		}
+		w.requirePipeColumn(col)
 		return col, w.resolveColumn("", col)
 	}
 	// `rel.col` where the leading identifier names a leaf relation: resolve the
@@ -349,6 +350,7 @@ func (w *spanWalker) resolvePath(parts []string) (string, []ColumnRef) {
 	// Otherwise the leading identifier is a struct/field column root (`s.field`,
 	// `s.a.b`): resolve `parts[0]` as a column (dropping the trailing field path),
 	// mirroring the legacy a-as-column attempt for an unqualified field path.
+	w.requirePipeColumn(parts[0])
 	return parts[0], w.resolveColumn("", parts[0])
 }
 
@@ -1225,4 +1227,15 @@ func exprToParts(expr ast.Node) []string {
 		return exprToParts(e.Expr)
 	}
 	return nil
+}
+
+// requirePipeColumn fails the span closed when, inside a pipe operator, an
+// unqualified name is none of the input's columns. The pipe input is listed
+// column by column, so such a name is a field of a struct UNNEST element
+// (`|> CROSS JOIN UNNEST(structs) AS e |> SELECT y`) or one BigQuery refuses,
+// and omni cannot tell which element owns a field.
+func (w *spanWalker) requirePipeColumn(name string) {
+	if w.pipeColumns != nil && !w.pipeColumns[foldKey(name)] {
+		w.failClosed(fmt.Errorf("a pipe expression reads %s, which is none of the input's columns (fail closed)", name))
+	}
 }

@@ -383,6 +383,9 @@ type spanWalker struct {
 	// pipeRowNames holds, folded, the range variables a pipe operator's
 	// expressions see that stand for a whole row (not an UNNEST element).
 	pipeRowNames map[string]bool
+	// pipeColumns holds, folded, the names of the columns a pipe operator's
+	// expressions read (see requirePipeColumn); nil outside a pipe operator.
+	pipeColumns map[string]bool
 	// fixpoints counts the recursive-CTE fixpoints started, so
 	// recursiveFixpoint can tell whether a recursive arm holds another one.
 	fixpoints int
@@ -914,6 +917,9 @@ func (w *spanWalker) visitQueryStmt(q *ast.QueryStmt) []projColumn {
 	resolvePipe := q.Pipe != nil && !w.tablesOnly && !pipeKeepsProjection(q.Pipe)
 	results := w.visitBody(q.Body)
 	ranges := w.outRanges
+	if resolvePipe && isValueTableQuery(q.Body) {
+		w.failClosed(fmt.Errorf("a pipe operator over a SELECT AS STRUCT or AS VALUE query, whose single value column this walker does not represent (fail closed)"))
+	}
 	if sel, ok := q.Body.(*ast.SelectStmt); ok && resolvePipe {
 		for _, src := range sel.From {
 			if sourceReshapes(src) {
@@ -1268,13 +1274,13 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 	w.leaves = &leafSet{}
 	prevUnresolved := w.fromUnresolved
 	w.fromUnresolved = false
-	prevRows := w.pipeRowNames
-	w.pipeRowNames = nil
+	prevRows, prevCols := w.pipeRowNames, w.pipeColumns
+	w.pipeRowNames, w.pipeColumns = nil, nil
 	defer func() {
 		w.fromAliases = prevFrom
 		w.leaves = prevLeaves
 		w.fromUnresolved = prevUnresolved
-		w.pipeRowNames = prevRows
+		w.pipeRowNames, w.pipeColumns = prevRows, prevCols
 	}()
 
 	// Resolve the FROM clause into the comma-item relations (a join collapses into

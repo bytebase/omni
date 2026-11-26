@@ -146,11 +146,16 @@ func (w *spanWalker) pipeFailClosed(what string) *pipeTable {
 // unqualified name reads t's columns, and a qualified one a range variable. It
 // returns the function that restores the previous scope.
 func (w *spanWalker) enterPipeScope(t *pipeTable) func() {
-	prevLeaves, prevFrom, prevUnresolved, prevRows := w.leaves, w.fromAliases, w.fromUnresolved, w.pipeRowNames
+	prevLeaves, prevFrom, prevUnresolved := w.leaves, w.fromAliases, w.fromUnresolved
+	prevRows, prevCols := w.pipeRowNames, w.pipeColumns
 	w.leaves = &leafSet{}
 	w.fromAliases = map[string]bool{}
 	w.fromUnresolved = false
 	w.pipeRowNames = map[string]bool{}
+	w.pipeColumns = map[string]bool{}
+	for _, c := range t.cols {
+		w.pipeColumns[foldKey(c.name)] = true
+	}
 	w.leaves.add(&relation{columns: t.cols})
 	for _, rel := range t.ranges {
 		w.leaves.add(rel)
@@ -160,7 +165,8 @@ func (w *spanWalker) enterPipeScope(t *pipeTable) func() {
 		}
 	}
 	return func() {
-		w.leaves, w.fromAliases, w.fromUnresolved, w.pipeRowNames = prevLeaves, prevFrom, prevUnresolved, prevRows
+		w.leaves, w.fromAliases, w.fromUnresolved = prevLeaves, prevFrom, prevUnresolved
+		w.pipeRowNames, w.pipeColumns = prevRows, prevCols
 	}
 }
 
@@ -385,6 +391,11 @@ func (w *spanWalker) pipeJoin(in *pipeTable, join *ast.JoinExpr) *pipeTable {
 	}
 	known := len(w.leaves.rels)
 	rel := w.buildFromItem(join.Right)
+	if te, ok := join.Right.(*ast.TableExpr); ok && te != nil && te.Subquery != nil && isValueTableQuery(te.Subquery) {
+		w.recordSourceTVFArgs(join.Right)
+		w.walkPredicate(join.On)
+		return w.pipeFailClosed("a pipe JOIN to a SELECT AS STRUCT or AS VALUE subquery")
+	}
 	if sourceReshapes(join.Right) {
 		w.recordSourceTVFArgs(join.Right)
 		w.walkPredicate(join.On)
@@ -455,6 +466,10 @@ func (w *spanWalker) pipeSetOperation(cols []projColumn, n *ast.PipeSetOperation
 	}
 	m := setOpMerger{cols: cols}
 	for _, rhs := range n.Right {
+		if isValueTableQuery(rhs) {
+			w.visitPipeOperand(rhs)
+			return w.pipeFailClosed("a pipe set operation with a SELECT AS STRUCT or AS VALUE operand")
+		}
 		right := w.visitBody(rhs)
 		if set.ByName || set.Corresponding {
 			m.mergeByName(right, set.MatchColumns)
@@ -489,4 +504,29 @@ func sourceReshapes(node ast.Node) bool {
 		return n != nil && (sourceReshapes(n.Left) || sourceReshapes(n.Right))
 	}
 	return false
+}
+
+// isValueTableQuery reports whether a query body returns a value table: a
+// SELECT AS STRUCT or AS VALUE (through parentheses, and a set operation's
+// first operand). Its rows are one value, not the select list's columns that
+// visitBody returns.
+func isValueTableQuery(node ast.Node) bool {
+	for {
+		switch n := node.(type) {
+		case *ast.SelectStmt:
+			return n != nil && n.As != ast.SelectAsNone
+		case *ast.QueryStmt:
+			if n == nil {
+				return false
+			}
+			node = n.Body
+		case *ast.SetOperation:
+			if n == nil {
+				return false
+			}
+			node = n.Left
+		default:
+			return false
+		}
+	}
 }

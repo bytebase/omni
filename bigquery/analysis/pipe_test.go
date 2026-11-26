@@ -141,6 +141,14 @@ func TestGetQuerySpanPipe(t *testing.T) {
 			// A star expands a struct element's fields.
 			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> SELECT *",
 			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> AS z |> SELECT z.*",
+			// A struct element's field read by its name alone.
+			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> SELECT y",
+			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> EXTEND y.z AS q",
+			// A value table is one struct column.
+			"SELECT AS STRUCT public, secret FROM t |> UNION ALL (SELECT AS STRUCT public, secret FROM u)",
+			"(SELECT AS VALUE STRUCT(public, secret) FROM t) |> SELECT *",
+			"SELECT x FROM t |> JOIN (SELECT AS STRUCT public, secret FROM u) AS s ON true",
+			"SELECT x FROM t |> UNION ALL (SELECT AS STRUCT secret FROM u)",
 			// A subquery's lineage is not resolved.
 			"SELECT 0 AS p |> EXTEND (SELECT secret FROM t LIMIT 1) AS s",
 			"SELECT 0 AS p |> SELECT ARRAY(SELECT secret FROM t) AS s",
