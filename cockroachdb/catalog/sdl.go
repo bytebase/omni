@@ -651,7 +651,8 @@ func (l *sdlLoader) addColumn(schema string, table *metadatapb.TableMetadata, co
 	if column.Unique.WithoutIndex {
 		return fmt.Errorf("column %s: UNIQUE WITHOUT INDEX is not supported", column.Name)
 	}
-	if column.Unique.IsUnique {
+	if column.Unique.IsUnique && !column.PrimaryKey.IsPrimaryKey {
+		// A key that is also UNIQUE is one index, the primary key.
 		index := &tree.CreateIndex{Unique: true, Columns: tree.IndexElemList{{Column: column.Name}}, Name: column.Unique.ConstraintName}
 		key := sdlIndex(schema, table.Name, table.Indexes, index)
 		key.IsConstraint = true

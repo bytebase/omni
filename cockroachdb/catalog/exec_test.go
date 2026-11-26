@@ -245,3 +245,88 @@ func TestExecRound12(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "lower(b)", c.Metadata().Schemas[0].Tables[0].Indexes[0].Expressions[0])
 }
+
+// TestExecReviewRound13 holds the codes the pinned server answered for the
+// review's thirteenth round.
+func TestExecReviewRound13(t *testing.T) {
+	for _, tc := range []struct{ script, code string }{
+		{"CREATE FUNCTION f(x missing_type) RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$", "42704"},
+		{"CREATE FUNCTION f() RETURNS missing_type LANGUAGE SQL AS $$ SELECT 1 $$", "42704"},
+		{"CREATE FUNCTION f(x INT8 DEFAULT nextval('missing')) RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$", "42P01"},
+		{"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$; CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$", "42723"},
+		{"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$; CREATE OR REPLACE FUNCTION f() RETURNS STRING LANGUAGE SQL AS $$ SELECT 'a' $$", "42P13"},
+		{"CREATE PROCEDURE f() LANGUAGE SQL AS $$ SELECT 1 $$; CREATE OR REPLACE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$", "42809"},
+		{"CREATE TABLE t (a INT8 AS (a + 1) STORED)", "42P16"},
+		{"CREATE TABLE t (a INT8, b INT8 AS (a + 1) STORED, c INT8 AS (b + 1) STORED)", "42P16"},
+		{"CREATE TABLE t (a INT8, b INT8 DEFAULT 1 AS (a + 1) STORED)", "42P16"},
+		{"CREATE TABLE t (a INT8); CREATE VIEW v AS SELECT a FROM t; CREATE OR REPLACE VIEW v AS SELECT a FROM v", "42P17"},
+		{"CREATE TABLE t (a INT8); CREATE VIEW v (x, y) AS SELECT a FROM t", "42601"},
+		{"CREATE VIEW v (x, x) AS SELECT 1, 2", "42701"},
+		{"CREATE VIEW v AS SELECT 1 AS x, 2 AS x", "42701"},
+		{"CREATE MATERIALIZED VIEW mv (a, rowid) AS SELECT 1", "42601"},
+		{"CREATE TABLE t (a INT8); CREATE VIEW v AS SELECT a FROM t; CREATE VIEW w AS SELECT missing FROM v", "42703"},
+		{"CREATE TABLE t (a INT8); CREATE VIEW v AS SELECT a FROM t ORDER BY missing", "42703"},
+		{"CREATE TABLE t (a INT8); CREATE VIEW v AS SELECT t.missing FROM t", "42703"},
+		{"CREATE TABLE t (a INT8, CHECK (t.missing > 0))", "42703"},
+		{"CREATE SEQUENCE sq CACHE 0", "22023"},
+		{"CREATE SEQUENCE sq; ALTER SEQUENCE sq CACHE -1", "22023"},
+		{"CREATE SEQUENCE sq AS INT2 MAXVALUE 100000", "22023"},
+		{"CREATE SEQUENCE sq MAXVALUE 100000; ALTER SEQUENCE sq AS INT2", "22023"},
+		{"CREATE SEQUENCE sq MAXVALUE 10; ALTER SEQUENCE sq RESTART WITH 50", "22023"},
+		{"CREATE TABLE a (x INT8); CREATE TABLE b (x INT8); CREATE INDEX i ON a (x); CREATE INDEX i ON b (x); DROP INDEX i", "42P08"},
+		{"CREATE TYPE pair AS (x INT8, x STRING)", "42P17"},
+		{"CREATE TYPE m1 AS ENUM ('a'); CREATE TABLE p (id m1 PRIMARY KEY); CREATE TABLE c (x INT8 REFERENCES p (id))", "42804"},
+		{"CREATE TABLE p (id INT8[] PRIMARY KEY); CREATE TABLE c (x STRING[] REFERENCES p (id))", "42804"},
+		{"CREATE TYPE m1 AS ENUM ('a'); CREATE TYPE m2 AS ENUM ('a'); CREATE TABLE t (a m1 PRIMARY KEY); ALTER TABLE t ALTER COLUMN a TYPE m2 USING a::STRING::m2", "0A000"},
+		{"CREATE TABLE t (a INT8, b INT8 AS (a * 2) STORED); ALTER TABLE t ALTER COLUMN b TYPE STRING", "XXUUU"},
+		{"CREATE TABLE t (a INT8, b INT8 AS (a * 2) STORED); ALTER TABLE t ALTER COLUMN b SET DEFAULT 5", "42601"},
+		{"CREATE TABLE t (a INT8, b INT8 AS (a * 2) STORED); ALTER TABLE t ALTER COLUMN b DROP DEFAULT", "42601"},
+		{"CREATE TABLE t (a INT8); ALTER TABLE t ALTER COLUMN a TYPE INT8 COLLATE \"en_US\"", "42601"},
+		{"CREATE TABLE t (a STRING, INDEX (a)); ALTER TABLE t ALTER COLUMN a TYPE STRING COLLATE \"en_US\"", "0A000"},
+		{"CREATE TABLE t (b INT8); ALTER TABLE t ALTER COLUMN b TYPE STRING USING missing::STRING", "42703"},
+		{"CREATE TABLE t (a INT8, b INT8 UNIQUE, INDEX t_a_idx (a)); ALTER TABLE t RENAME CONSTRAINT t_b_key TO t_a_idx", "42P07"},
+		{"CREATE TABLE t (a INT8, b INT8); CREATE UNIQUE INDEX ux ON t (b); ALTER TABLE t VALIDATE CONSTRAINT ux", "42809"},
+		{"CREATE TABLE t (a INT8); CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT count(*) FROM t $$; DROP TABLE t", "2BP01"},
+		{"CREATE TABLE t (a INT8); CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT count(*) FROM t $$; ALTER TABLE t RENAME TO t2", "2BP01"},
+		{"CREATE SCHEMA s; CREATE TABLE s.t (a INT8); CREATE FUNCTION public.f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT count(*) FROM s.t $$; ALTER SCHEMA s RENAME TO s2", "2BP01"},
+	} {
+		_, err := execLast(t, tc.script)
+		require.Equal(t, tc.code, code(err), "%s: %v", tc.script, err)
+	}
+	for _, script := range []string{
+		"CREATE EXTENSION fuzzystrmatch; CREATE EXTENSION fuzzystrmatch",
+		"CREATE TABLE p (id INT8 PRIMARY KEY); CREATE TABLE c (x INT4 REFERENCES p (id))",
+		"CREATE TABLE t (a INT8, b INT8); CREATE UNIQUE INDEX ux ON t (b); ALTER TABLE t RENAME CONSTRAINT ux TO uy",
+	} {
+		_, err := execLast(t, script)
+		require.NoError(t, err, script)
+	}
+	c, err := execLast(t, "CREATE TABLE t (a INT8 CONSTRAINT k PRIMARY KEY UNIQUE)")
+	require.NoError(t, err)
+	require.Len(t, c.Metadata().Schemas[0].Tables[0].Indexes, 1)
+	c, err = execLast(t, "CREATE TABLE t (a INT8 PRIMARY KEY, b INT8 NOT NULL, c INT8); CREATE INDEX t_a_key ON t (c); ALTER TABLE t ALTER PRIMARY KEY USING COLUMNS (b)")
+	require.NoError(t, err)
+	var names []string
+	for _, index := range c.Metadata().Schemas[0].Tables[0].Indexes {
+		names = append(names, index.Name)
+	}
+	require.ElementsMatch(t, []string{"t_pkey", "t_a_key", "t_a_key1"}, names)
+	c, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad'); CREATE TABLE t (m mood, CHECK (m = 'sad'::mood)); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.NoError(t, err)
+	require.Equal(t, "((m = 'blue'::mood))", c.Metadata().Schemas[0].Tables[0].CheckConstraints[0].Expression)
+	c, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad'); CREATE TABLE t (m mood[] DEFAULT ARRAY['sad']::mood[]); ALTER TYPE mood RENAME TO feeling")
+	require.NoError(t, err)
+	require.Equal(t, "ARRAY['sad']::public.feeling[]", c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
+	_, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'x'); CREATE TABLE t (m mood DEFAULT COALESCE(NULL, 'sad')); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.Error(t, err)
+	_, err = execLast(t, `CREATE TYPE "Mood" AS ENUM ('a'); CREATE FUNCTION f(x "Mood") RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$; DROP TYPE "Mood"`)
+	require.Equal(t, "2BP01", code(err))
+}
+
+func TestSDLComputedAnnotationOverloads(t *testing.T) {
+	_, err := catalog.BuildSDLMigrationPlan(
+		"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING AS (pg_typeof(1:::INT8)::STRING) STORED);",
+		"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING AS (pg_typeof(1:::DECIMAL)::STRING) STORED);",
+		catalog.SDLMigrationOptions{})
+	require.Error(t, err)
+}

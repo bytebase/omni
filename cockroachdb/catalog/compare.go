@@ -36,18 +36,42 @@ func exprKey(expr string, columns map[string]string) string {
 
 // generationKey is exprKey for a computed column's expression, which
 // CockroachDB stores with each literal annotated with the type it resolved
-// it to (a * 2:::INT8, price * 100:::DECIMAL). An annotation that holds the
-// literal exactly and that the literal resolves to bare goes
-// (impliedAnnotation); one that picks another overload ('é':::BYTES) or may
-// round (:::FLOAT8) stays.
+// it to (a * 2:::INT8, price * 100:::DECIMAL). An annotation goes where the
+// bare literal resolves to the same type: one that names the literal's own
+// type (an integer's INT8, a fraction's DECIMAL, a string's STRING), and an
+// exact numeric one on an arithmetic operand beside a non-literal, whose type
+// decides the literal's. One that picks another overload (pg_typeof(1:::DECIMAL),
+// 'é':::BYTES) or may round (:::FLOAT8) stays.
 func generationKey(expr string) string {
 	parsed, err := crparser.ParseExpr(expr)
 	if err != nil {
 		return expr
 	}
+	strip := func(e tree.Expr, contextual bool) tree.Expr {
+		a, ok := unparen(e).(*tree.AnnotateTypeExpr)
+		if !ok {
+			return e
+		}
+		literal := unparen(a.Expr)
+		if !isLiteral(literal) {
+			return e
+		}
+		if ownType(literal, a.Type) || contextual && exactNumeric(literal, a.Type) {
+			return literal
+		}
+		return e
+	}
 	parsed, err = tree.SimpleVisit(parsed, func(e tree.Expr) (bool, tree.Expr, error) {
-		if a, ok := e.(*tree.AnnotateTypeExpr); ok && impliedAnnotation(unparen(a.Expr), a.Type) {
-			return false, unparen(a.Expr), nil
+		switch x := e.(type) {
+		case *tree.BinaryExpr:
+			op := *x
+			op.Left = strip(x.Left, !isLiteral(unparen(x.Right)) && !annotatedLiteral(x.Right))
+			op.Right = strip(x.Right, !isLiteral(unparen(x.Left)) && !annotatedLiteral(x.Left))
+			return true, &op, nil
+		case *tree.AnnotateTypeExpr:
+			if out := strip(x, false); out != tree.Expr(x) {
+				return false, out, nil
+			}
 		}
 		return true, e, nil
 	})
@@ -57,26 +81,24 @@ func generationKey(expr string) string {
 	return groupedKey(parsed)
 }
 
-// impliedAnnotation reports whether an annotation names a type its literal
-// resolves to unannotated and holds it exactly: INT8 or DECIMAL on an
-// integer, DECIMAL on a fraction, STRING on a string.
-func impliedAnnotation(literal tree.Expr, ref tree.ResolvableTypeReference) bool {
+func annotatedLiteral(e tree.Expr) bool {
+	a, ok := unparen(e).(*tree.AnnotateTypeExpr)
+	return ok && isLiteral(unparen(a.Expr))
+}
+
+// exactNumeric reports whether an annotation is INT8 on an integer or
+// DECIMAL on a number, which hold it exactly.
+func exactNumeric(literal tree.Expr, ref tree.ResolvableTypeReference) bool {
 	t, ok := tree.GetStaticallyKnownType(ref)
-	if !ok {
+	n, isNum := literal.(*tree.NumVal)
+	if !ok || !isNum {
 		return false
 	}
-	switch l := literal.(type) {
-	case *tree.NumVal:
-		// An integer as INT or DECIMAL, or a number with a fraction as
-		// DECIMAL, holds its value exactly; FLOAT may round it.
-		switch {
-		case t.Identical(types.Int):
-			return !strings.ContainsAny(l.OrigString(), ".eE")
-		case t.Identical(types.Decimal):
-			return true
-		}
-	case *tree.StrVal:
-		return t.Identical(types.String)
+	switch {
+	case t.Identical(types.Int):
+		return !strings.ContainsAny(n.OrigString(), ".eE")
+	case t.Identical(types.Decimal):
+		return true
 	}
 	return false
 }

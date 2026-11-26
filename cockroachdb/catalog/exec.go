@@ -2,13 +2,14 @@ package catalog
 
 import (
 	"fmt"
-	"regexp"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
+	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/types"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/bytebase/omni/cockroachdb/analysis"
@@ -32,6 +33,9 @@ type Catalog struct {
 	// creating is the schema of the table CREATE TABLE is declaring, whose
 	// keys pending holds; empty otherwise.
 	creating string
+	// computed holds the computed columns of the table CREATE TABLE or
+	// ALTER TABLE is declaring.
+	computed map[string]bool
 }
 
 // New returns the catalog of an empty database.
@@ -197,10 +201,13 @@ func (c *Catalog) exec(stmt tree.Statement) error {
 			// The catalog resolves every name in public.
 			return &Error{Message: "SET search_path is not supported"}
 		}
-	case *tree.CreateRoutine:
-		if n.Name.ExplicitSchema && c.l.schemas[string(n.Name.SchemaName)] == nil {
-			return refuse(codeUndefinedSchema, "cannot create %q because the target database or schema does not exist", n.Name.String())
+	case *tree.CreateExtension:
+		if slices.ContainsFunc(c.l.meta.Extensions, func(e *metadatapb.ExtensionMetadata) bool { return e.Name == n.Name.String() }) {
+			// CockroachDB takes it again, with IF NOT EXISTS or not.
+			return nil
 		}
+	case *tree.CreateRoutine:
+		return c.createRoutine(n)
 	case *tree.CommentOnSchema:
 		if c.l.schemas[string(n.Name.SchemaName)] == nil {
 			return refuse(codeUndefinedSchema, "unknown schema %q", n.Name.SchemaName)
@@ -340,6 +347,70 @@ func uniqueConstraintNames(table string, defs tree.TableDefs) error {
 	return nil
 }
 
+// createRoutine checks a CREATE FUNCTION or PROCEDURE as CockroachDB does
+// before the loader stores it.
+func (c *Catalog) createRoutine(n *tree.CreateRoutine) error {
+	schema := "public"
+	if n.Name.ExplicitSchema {
+		schema = string(n.Name.SchemaName)
+	}
+	s := c.l.schemas[schema]
+	if s == nil {
+		return refuse(codeUndefinedSchema, "cannot create %q because the target database or schema does not exist", n.Name.String())
+	}
+	var args []string
+	for _, param := range n.Params {
+		if err := c.checkType(param.Type); err != nil {
+			return err
+		}
+		if err := c.checkSequences(param.DefaultVal); err != nil {
+			return err
+		}
+		if param.Class != tree.RoutineParamOut {
+			args = append(args, signatureType(param.Type))
+		}
+	}
+	if n.ReturnType != nil {
+		if err := c.checkType(n.ReturnType.Type); err != nil {
+			return err
+		}
+	}
+	name := string(n.Name.ObjectName)
+	signature := name + "(" + strings.Join(args, ", ") + ")"
+	for _, function := range s.Functions {
+		if function.Signature != signature {
+			continue
+		}
+		if !n.Replace {
+			return refuse("42723", "function %q already exists with same argument types", name)
+		}
+		stmt, err := parser.ParseOne(function.Definition)
+		if err != nil {
+			break
+		}
+		old, ok := stmt.AST.(*tree.CreateRoutine)
+		if !ok {
+			break
+		}
+		if old.IsProcedure != n.IsProcedure {
+			return refuse(codeWrongObjectType, "cannot change routine kind")
+		}
+		if old.ReturnType != nil && n.ReturnType != nil && signatureType(old.ReturnType.Type) != signatureType(n.ReturnType.Type) {
+			return refuse("42P13", "cannot change return type of existing function")
+		}
+	}
+	return c.l.load(n)
+}
+
+// signatureType writes a type as a routine's signature holds it, a
+// user-defined one under its schema.
+func signatureType(ref tree.ResolvableTypeReference) string {
+	if _, known := tree.GetStaticallyKnownType(ref); known {
+		return ref.SQLString()
+	}
+	return schemaQualified(ref).SQLString()
+}
+
 // The kinds of relation a schema holds, which share its namespace.
 type relKind int
 
@@ -455,11 +526,19 @@ func (c *Catalog) alterSchema(n *tree.AlterSchema) error {
 		if err := c.routineTypeUser(s.Name, typ); err != nil {
 			return err
 		}
+		if err := c.retypeBlocked(s.Name, typ); err != nil {
+			return err
+		}
 	}
 	if len(s.Functions) > 0 {
 		// A routine's stored definition names its schema, which the
 		// catalog does not rewrite.
 		return &Error{Message: fmt.Sprintf("renaming schema %q, which holds routines, is not supported", s.Name)}
+	}
+	for _, relation := range append(append(tableNames(s), viewNames(s)...), sequenceNames(s)...) {
+		if readers := c.routineReaders(s.Name, relation); len(readers) > 0 {
+			return refuse(codeDependentObjects, "cannot rename schema because function %q depends on relation %q", readers[0], relation)
+		}
 	}
 	for _, other := range c.l.meta.Schemas {
 		for _, deps := range viewDependencies(other) {
@@ -670,7 +749,13 @@ func (c *Catalog) createTable(n *tree.CreateTable) error {
 		}
 	}
 	c.pending, c.creating = pending, s.Name
-	defer func() { c.pending, c.creating = nil, "" }()
+	c.computed = map[string]bool{}
+	for _, def := range n.Defs {
+		if d, ok := def.(*tree.ColumnTableDef); ok && d.Computed.Computed {
+			c.computed[string(d.Name)] = true
+		}
+	}
+	defer func() { c.pending, c.creating, c.computed = nil, "", nil }()
 	for _, def := range n.Defs {
 		if err := c.checkTableDef(name, columns, def); err != nil {
 			return err
@@ -687,6 +772,16 @@ func (c *Catalog) checkTableDef(table string, columns map[string]bool, def tree.
 		if d.Computed.Computed {
 			if err := checkColumns(columns, d.Computed.Expr); err != nil {
 				return err
+			}
+			if d.DefaultExpr.Expr != nil {
+				return refuse(codeInvalidTableDef, "STORED COMPUTED COLUMN cannot have default values")
+			}
+			if !d.Computed.Virtual {
+				for column := range c.computed {
+					if exprReads(d.Computed.Expr, column) {
+						return refuse(codeInvalidTableDef, "STORED COMPUTED COLUMN expression cannot reference computed columns")
+					}
+				}
 			}
 		}
 		for _, check := range d.CheckExprs {
@@ -781,11 +876,13 @@ func checkIndexColumns(columns map[string]bool, elems tree.IndexElemList) error 
 // have.
 func checkColumns(columns map[string]bool, expr tree.Expr) error {
 	var missing string
-	tree.WalkExprConst(&columnCollector{visit: func(column string) {
-		if missing == "" && !columns[column] {
-			missing = column
+	_, _ = tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
+		// A column named alone or under its relation (t.a).
+		if name, ok := e.(*tree.UnresolvedName); ok && !name.Star && name.NumParts <= 2 && missing == "" && !columns[name.Parts[0]] {
+			missing = name.Parts[0]
 		}
-	}}, expr)
+		return true, e, nil
+	})
 	if missing != "" {
 		return refuse(codeUndefinedColumn, "column %q does not exist", missing)
 	}
@@ -878,9 +975,21 @@ func family(typ string) string {
 	if err != nil {
 		return ""
 	}
+	return refFamily(ref)
+}
+
+// refFamily is the family of a type reference: a user-defined type is a
+// family of its own, and an array's family is its element's.
+func refFamily(ref tree.ResolvableTypeReference) string {
+	if array, ok := ref.(*tree.ArrayTypeReference); ok {
+		return "array:" + refFamily(array.ElementType)
+	}
 	t, ok := tree.GetStaticallyKnownType(ref)
 	if !ok {
-		return ""
+		return "udt:" + schemaQualified(ref).SQLString()
+	}
+	if t.Family() == types.ArrayFamily {
+		return "array:" + t.ArrayContents().Family().String()
 	}
 	return t.Family().String()
 }
@@ -899,6 +1008,11 @@ func sameSet(a, b []string) bool {
 			return false
 		}
 	}
+	for _, x := range b {
+		if !slices.Contains(a, x) {
+			return false
+		}
+	}
 	return true
 }
 
@@ -914,6 +1028,34 @@ func (c *Catalog) createView(n *tree.CreateView) error {
 	}
 	if err := c.checkViewQuery(n.AsSource); err != nil {
 		return err
+	}
+	if kind != relNone {
+		var cyclic bool
+		storedRelations(n.AsSource, func(tn *tree.TableName) {
+			cyclic = cyclic || schemaOf(tn) == s.Name && string(tn.ObjectName) == name
+		})
+		if cyclic && n.Replace {
+			return refuse("42P17", "cyclic view dependency for relation %s", name)
+		}
+	}
+	if output := outputNames(n.AsSource); output != nil {
+		names := output
+		if len(n.ColumnNames) > 0 {
+			if len(n.ColumnNames) != len(output) {
+				return refuse("42601", "CREATE VIEW specifies %d column names, but data source has %d column", len(n.ColumnNames), len(output))
+			}
+			names = nil
+			for _, col := range n.ColumnNames {
+				names = append(names, string(col))
+			}
+		}
+		seen := map[string]bool{}
+		for _, col := range names {
+			if seen[col] {
+				return refuse(codeDuplicateColumn, "duplicate column name: %q", col)
+			}
+			seen[col] = true
+		}
 	}
 	switch {
 	case kind == relNone:
@@ -970,17 +1112,52 @@ func (c *Catalog) checkViewColumns(query *tree.Select) error {
 	if !ok {
 		return nil
 	}
-	table := schemaTable(c.l.schemas[schemaOf(tn)], string(tn.ObjectName))
-	if table == nil {
+	s := c.l.schemas[schemaOf(tn)]
+	var relationColumns []*metadatapb.ColumnMetadata
+	switch name := string(tn.ObjectName); relation(s, name) {
+	case relTable:
+		relationColumns = schemaTable(s, name).Columns
+	case relView:
+		relationColumns = findView(s, name).Columns
+	case relMaterializedView:
+		relationColumns = findMaterializedView(s, name).Columns
+	}
+	if len(relationColumns) == 0 {
 		return nil
 	}
 	columns := map[string]bool{}
-	for _, column := range table.Columns {
+	for _, column := range relationColumns {
 		columns[column.Name] = true
 	}
 	exprs := []tree.Expr{}
 	for _, expr := range sel.Exprs {
 		exprs = append(exprs, expr.Expr)
+	}
+	for _, expr := range sel.DistinctOn {
+		exprs = append(exprs, expr)
+	}
+	for _, window := range sel.Window {
+		exprs = append(exprs, window.Partitions...)
+		for _, order := range window.OrderBy {
+			exprs = append(exprs, order.Expr)
+		}
+	}
+	if query.Limit != nil {
+		exprs = append(exprs, query.Limit.Count, query.Limit.Offset)
+	}
+	// ORDER BY may name an output column too.
+	ordered := maps.Clone(columns)
+	for _, expr := range sel.Exprs {
+		if expr.As != "" {
+			ordered[string(expr.As)] = true
+		}
+	}
+	for _, order := range query.OrderBy {
+		if order.Expr != nil {
+			if err := checkColumns(ordered, order.Expr); err != nil {
+				return err
+			}
+		}
 	}
 	exprs = append(exprs, sel.GroupBy...)
 	if sel.Where != nil {
@@ -990,6 +1167,9 @@ func (c *Catalog) checkViewColumns(query *tree.Select) error {
 		exprs = append(exprs, sel.Having.Expr)
 	}
 	for _, expr := range exprs {
+		if expr == nil {
+			continue
+		}
 		if err := checkColumns(columns, expr); err != nil {
 			return err
 		}
@@ -1058,9 +1238,17 @@ func checkBounds(sequence *metadatapb.SequenceMetadata) error {
 	if err1 != nil || err2 != nil || err3 != nil {
 		return nil
 	}
+	if cache, err := strconv.ParseInt(sequence.CacheSize, 10, 64); err == nil && cache <= 0 {
+		return refuse(codeInvalidParameter, "CACHE (%d) must be greater than zero", cache)
+	}
+	limit := sequenceLimit(sequence.DataType)
 	switch {
 	case sequence.Increment == "0":
 		return refuse(codeInvalidParameter, "INCREMENT must not be zero")
+	case maximum > limit:
+		return refuse(codeInvalidParameter, "MAXVALUE (%d) must be less than (%d) for type %s", maximum, limit, sequence.DataType)
+	case minimum < -limit-1:
+		return refuse(codeInvalidParameter, "MINVALUE (%d) must be greater than (%d) for type %s", minimum, -limit-1, sequence.DataType)
 	case minimum > maximum:
 		return refuse(codeInvalidParameter, "MINVALUE (%d) must be less than MAXVALUE (%d)", minimum, maximum)
 	case start > maximum:
@@ -1110,12 +1298,31 @@ func (c *Catalog) alterSequence(n *tree.AlterSequence) error {
 	if err := c.checkSequenceOptions(s.Name, n.Options); err != nil {
 		return err
 	}
-	// RESTART moves the sequence's value, which the catalog does not hold.
+	// RESTART moves the sequence's value, which the catalog does not hold,
+	// within its bounds.
+	var restart *int64
+	for _, o := range n.Options {
+		if o.Name == tree.SeqOptRestart && o.IntVal != nil {
+			restart = o.IntVal
+		}
+	}
 	n.Options = slices.DeleteFunc(n.Options, func(o tree.SequenceOption) bool { return o.Name == tree.SeqOptRestart })
 	if err := c.l.load(n); err != nil {
 		return err
 	}
-	return checkBounds(findSequence(s, n.Name.Object()))
+	sequence := findSequence(s, n.Name.Object())
+	if err := checkBounds(sequence); err != nil {
+		return err
+	}
+	if restart != nil {
+		if maximum, err := strconv.ParseInt(sequence.MaxValue, 10, 64); err == nil && *restart > maximum {
+			return refuse(codeInvalidParameter, "RESTART value (%d) cannot be greater than MAXVALUE (%d)", *restart, maximum)
+		}
+		if minimum, err := strconv.ParseInt(sequence.MinValue, 10, 64); err == nil && *restart < minimum {
+			return refuse(codeInvalidParameter, "RESTART value (%d) cannot be less than MINVALUE (%d)", *restart, minimum)
+		}
+	}
+	return nil
 }
 
 func (c *Catalog) createIndex(n *tree.CreateIndex) error {
@@ -1183,7 +1390,12 @@ func (c *Catalog) createType(n *tree.CreateType) error {
 		}
 		seen[label] = true
 	}
+	labels := map[tree.Name]bool{}
 	for _, elem := range n.CompositeTypeList {
+		if labels[elem.Label] {
+			return refuse("42P17", "composite type definition contains duplicate label %q", elem.Label)
+		}
+		labels[elem.Label] = true
 		if err := c.checkType(elem.Type); err != nil {
 			return err
 		}
@@ -1234,15 +1446,51 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 			return refuse(codeDuplicateObject, "enum value %q already exists", cmd.NewVal)
 		}
 		enum.Values[at] = string(cmd.NewVal)
-		// A default holds the label by its value, which follows the rename.
+		// An expression holds the label by its value, which follows the
+		// rename; one that holds it where the catalog cannot tell it is the
+		// enum's is refused.
 		typ := typeName(s.Name, name)
+		from, to := string(cmd.OldVal), string(cmd.NewVal)
+		var stuck error
 		c.eachTable(func(_ *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
+			var enumColumns []string
 			for _, column := range table.Columns {
-				if column.Type == typ && column.Default != "" {
-					column.Default = relabelIn(column.Default, typ, string(cmd.OldVal), string(cmd.NewVal))
+				if column.Type == typ || column.Type == typ+"[]" {
+					enumColumns = append(enumColumns, column.Name)
+				}
+			}
+			relabel := func(text string) string {
+				if text == "" {
+					return text
+				}
+				return relabelIn(text, typ, from, to, enumColumns)
+			}
+			for _, column := range table.Columns {
+				if column.Type == typ || column.Type == typ+"[]" {
+					column.Default = relabel(column.Default)
+					if expr, err := parser.ParseExpr(column.Default); err == nil && column.Default != "" && uncastLabel(expr, from) && stuck == nil {
+						stuck = &Error{Message: fmt.Sprintf("renaming enum value %q, which the default of column %q holds uncast, is not supported", from, column.Name)}
+					}
+				}
+			}
+			reads := func(text string) bool {
+				expr, err := parser.ParseExpr(text)
+				return err == nil && (namesType(text, typ) || slices.ContainsFunc(enumColumns, func(col string) bool { return exprReads(expr, col) }))
+			}
+			for _, column := range table.Columns {
+				if column.Generation != nil && reads(column.Generation.Expression) {
+					column.Generation.Expression = relabel(column.Generation.Expression)
+				}
+			}
+			for _, check := range table.CheckConstraints {
+				if reads(check.Expression) {
+					check.Expression = relabel(check.Expression)
 				}
 			}
 		})
+		if stuck != nil {
+			return stuck
+		}
 	case *tree.AlterTypeDropValue:
 		if enum == nil {
 			return refuse(codeWrongObjectType, "%q is not an enum", name)
@@ -1259,6 +1507,9 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 		if err := c.routineTypeUser(s.Name, name); err != nil {
 			return err
 		}
+		if err := c.retypeBlocked(s.Name, name); err != nil {
+			return err
+		}
 		to := string(cmd.NewName)
 		if typeTaken(s, to) || relation(s, to) != relNone {
 			return refuse(codeDuplicateObject, "type %q already exists", to)
@@ -1271,6 +1522,9 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 		}
 	case *tree.AlterTypeSetSchema:
 		if err := c.routineTypeUser(s.Name, name); err != nil {
+			return err
+		}
+		if err := c.retypeBlocked(s.Name, name); err != nil {
 			return err
 		}
 		target, err := c.schemaFor(string(cmd.Schema))
@@ -1311,8 +1565,43 @@ func (c *Catalog) retype(fromSchema, from, toSchema, to string) {
 				column.Type = now + "[]"
 			}
 			column.Default = retypeIn(column.Default, old, now)
+			if column.Generation != nil {
+				column.Generation.Expression = retypeIn(column.Generation.Expression, old, now)
+			}
+		}
+		for _, check := range table.CheckConstraints {
+			check.Expression = retypeIn(check.Expression, old, now)
 		}
 	})
+}
+
+// retypeBlocked refuses renaming or moving a type that a view's query or an
+// index's definition names, which the catalog does not rewrite.
+func (c *Catalog) retypeBlocked(schema, name string) error {
+	typ := typeName(schema, name)
+	for _, s := range c.l.meta.Schemas {
+		var definitions []string
+		for _, v := range s.Views {
+			definitions = append(definitions, v.Definition)
+		}
+		for _, v := range s.MaterializedViews {
+			definitions = append(definitions, v.Definition)
+			for _, index := range v.Indexes {
+				definitions = append(definitions, index.Definition)
+			}
+		}
+		for _, table := range s.Tables {
+			for _, index := range table.Indexes {
+				definitions = append(definitions, index.Definition)
+			}
+		}
+		for _, definition := range definitions {
+			if strings.Contains(definition, "::") && (strings.Contains(definition, typ) || strings.Contains(definition, tree.NameString(name))) {
+				return &Error{Message: fmt.Sprintf("renaming or moving type %q, which a view or an index names, is not supported", typ)}
+			}
+		}
+	}
+	return nil
 }
 
 // retypeIn returns an expression with its casts and annotations to a
@@ -1330,23 +1619,34 @@ func retypeIn(text, old, now string) string {
 	if err != nil {
 		return text
 	}
-	matches := func(t tree.ResolvableTypeReference) bool {
-		_, known := tree.GetStaticallyKnownType(t)
-		return !known && schemaQualified(t).SQLString() == old
+	// renamed returns the type a cast or annotation names, renamed, or nil
+	// when it names another: the type itself or an array of it.
+	var renamed func(t tree.ResolvableTypeReference) tree.ResolvableTypeReference
+	renamed = func(t tree.ResolvableTypeReference) tree.ResolvableTypeReference {
+		if array, ok := t.(*tree.ArrayTypeReference); ok {
+			if element := renamed(array.ElementType); element != nil {
+				return &tree.ArrayTypeReference{ElementType: element}
+			}
+			return nil
+		}
+		if _, known := tree.GetStaticallyKnownType(t); !known && schemaQualified(t).SQLString() == old {
+			return ref
+		}
+		return nil
 	}
 	changed := false
 	out, err := tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
 		switch x := e.(type) {
 		case *tree.CastExpr:
-			if matches(x.Type) {
+			if t := renamed(x.Type); t != nil {
 				cast := *x
-				cast.Type, changed = ref, true
+				cast.Type, changed = t, true
 				return true, &cast, nil
 			}
 		case *tree.AnnotateTypeExpr:
-			if matches(x.Type) {
+			if t := renamed(x.Type); t != nil {
 				annotation := *x
-				annotation.Type, changed = ref, true
+				annotation.Type, changed = t, true
 				return true, &annotation, nil
 			}
 		}
@@ -1361,7 +1661,7 @@ func retypeIn(text, old, now string) string {
 // relabelIn returns a default of enum type typ with a label renamed: the
 // default itself when it is the label, and the label cast or annotated to
 // the type anywhere in it. Other strings are left as written.
-func relabelIn(text, typ, from, to string) string {
+func relabelIn(text, typ, from, to string, enumColumns []string) string {
 	expr, err := parser.ParseExpr(text)
 	if err != nil {
 		return text
@@ -1369,20 +1669,70 @@ func relabelIn(text, typ, from, to string) string {
 	if str, ok := unparen(expr).(*tree.StrVal); ok && str.RawString() == from {
 		return tree.AsString(tree.NewStrVal(to))
 	}
+	isEnum := func(t tree.ResolvableTypeReference) bool {
+		_, known := tree.GetStaticallyKnownType(t)
+		return !known && schemaQualified(t).SQLString() == typ
+	}
 	label := func(inner tree.Expr, t tree.ResolvableTypeReference) bool {
 		str, ok := unparen(inner).(*tree.StrVal)
-		_, known := tree.GetStaticallyKnownType(t)
-		return ok && !known && str.RawString() == from && schemaQualified(t).SQLString() == typ
+		return ok && isEnum(t) && str.RawString() == from
+	}
+	// relabelArray renames the label among an array's elements cast to an
+	// array of the enum.
+	relabelArray := func(inner tree.Expr, t tree.ResolvableTypeReference) (tree.Expr, bool) {
+		elem, ok := t.(*tree.ArrayTypeReference)
+		array, isArray := unparen(inner).(*tree.Array)
+		if !ok || !isArray || !isEnum(elem.ElementType) {
+			return nil, false
+		}
+		out := *array
+		out.Exprs = make(tree.Exprs, len(array.Exprs))
+		for i, e := range array.Exprs {
+			out.Exprs[i] = e
+			if str, ok := unparen(e).(*tree.StrVal); ok && str.RawString() == from {
+				out.Exprs[i] = tree.NewStrVal(to)
+			}
+		}
+		return &out, true
+	}
+	isEnumColumn := func(e tree.Expr) bool {
+		name, ok := unparen(e).(*tree.UnresolvedName)
+		return ok && !name.Star && slices.Contains(enumColumns, name.Parts[0])
+	}
+	bare := func(e tree.Expr) bool {
+		str, ok := unparen(e).(*tree.StrVal)
+		return ok && str.RawString() == from
 	}
 	out, err := tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
 		switch x := e.(type) {
+		case *tree.ComparisonExpr:
+			// A label compared with an enum column is the enum's (m = 'sad').
+			cmp := *x
+			switch {
+			case isEnumColumn(x.Left) && bare(x.Right):
+				cmp.Right = tree.NewStrVal(to)
+				return true, &cmp, nil
+			case isEnumColumn(x.Right) && bare(x.Left):
+				cmp.Left = tree.NewStrVal(to)
+				return true, &cmp, nil
+			}
 		case *tree.CastExpr:
+			if inner, ok := relabelArray(x.Expr, x.Type); ok {
+				cast := *x
+				cast.Expr = inner
+				return false, &cast, nil
+			}
 			if label(x.Expr, x.Type) {
 				cast := *x
 				cast.Expr = tree.NewStrVal(to)
 				return false, &cast, nil
 			}
 		case *tree.AnnotateTypeExpr:
+			if inner, ok := relabelArray(x.Expr, x.Type); ok {
+				annotation := *x
+				annotation.Expr = inner
+				return false, &annotation, nil
+			}
 			if label(x.Expr, x.Type) {
 				annotation := *x
 				annotation.Expr = tree.NewStrVal(to)
@@ -1410,6 +1760,74 @@ func viewDependencies(s *metadatapb.SchemaMetadata) [][]*metadatapb.DependencyCo
 	return out
 }
 
+func tableNames(s *metadatapb.SchemaMetadata) []string {
+	var out []string
+	for _, x := range s.Tables {
+		out = append(out, x.Name)
+	}
+	return out
+}
+
+func viewNames(s *metadatapb.SchemaMetadata) []string {
+	var out []string
+	for _, x := range s.Views {
+		out = append(out, x.Name)
+	}
+	for _, x := range s.MaterializedViews {
+		out = append(out, x.Name)
+	}
+	return out
+}
+
+func sequenceNames(s *metadatapb.SchemaMetadata) []string {
+	var out []string
+	for _, x := range s.Sequences {
+		out = append(out, x.Name)
+	}
+	return out
+}
+
+// routineReaders returns the routines, schema-qualified, whose bodies read
+// a relation.
+func (c *Catalog) routineReaders(schema, name string) []string {
+	id := getObjectID(schema, name)
+	var out []string
+	for _, s := range c.l.meta.Schemas {
+		for _, function := range s.Functions {
+			if slices.Contains(routineRelations(function.Definition), id) {
+				out = append(out, typeName(s.Name, function.Name))
+			}
+		}
+	}
+	return out
+}
+
+// routineNamesType reports whether a routine's parameters or result have a
+// type, as the catalog names a user-defined type.
+func routineNamesType(definition, typ string) bool {
+	stmt, err := parser.ParseOne(definition)
+	if err != nil {
+		return false
+	}
+	routine, ok := stmt.AST.(*tree.CreateRoutine)
+	if !ok {
+		return false
+	}
+	is := func(ref tree.ResolvableTypeReference) bool {
+		if _, known := tree.GetStaticallyKnownType(ref); known {
+			return false
+		}
+		name := schemaQualified(ref).SQLString()
+		return name == typ || name == typ+"[]"
+	}
+	for _, param := range routine.Params {
+		if is(param.Type) {
+			return true
+		}
+	}
+	return routine.ReturnType != nil && is(routine.ReturnType.Type)
+}
+
 func enumNames(s *metadatapb.SchemaMetadata) []string {
 	var out []string
 	for _, e := range s.EnumTypes {
@@ -1430,9 +1848,21 @@ func compositeNames(s *metadatapb.SchemaMetadata) []string {
 func (c *Catalog) labelUser(typ, label string) string {
 	user := ""
 	c.eachTable(func(_ *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
+		var texts []string
 		for _, column := range table.Columns {
-			if user == "" && column.Type == typ && column.Default != "" {
-				expr, err := parser.ParseExpr(column.Default)
+			if column.Type == typ || column.Type == typ+"[]" {
+				texts = append(texts, column.Default)
+			}
+			if column.Generation != nil {
+				texts = append(texts, column.Generation.Expression)
+			}
+		}
+		for _, check := range table.CheckConstraints {
+			texts = append(texts, check.Expression)
+		}
+		for _, text := range texts {
+			if user == "" && text != "" {
+				expr, err := parser.ParseExpr(text)
 				if err == nil && readsLabel(expr, label) {
 					user = table.Name
 				}
@@ -1440,6 +1870,28 @@ func (c *Catalog) labelUser(typ, label string) string {
 		}
 	})
 	return user
+}
+
+// uncastLabel reports whether an expression holds a label as a bare string
+// other than as a comparison's operand, where its type is not the catalog's
+// to tell.
+func uncastLabel(expr tree.Expr, label string) bool {
+	operands := map[tree.Expr]bool{}
+	found := false
+	_, _ = tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
+		switch x := e.(type) {
+		case *tree.ComparisonExpr:
+			operands[unparen(x.Left)], operands[unparen(x.Right)] = true, true
+		case *tree.CastExpr, *tree.AnnotateTypeExpr:
+			return false, e, nil
+		case *tree.StrVal:
+			if x.RawString() == label && !operands[e] {
+				found = true
+			}
+		}
+		return true, e, nil
+	})
+	return found
 }
 
 func readsLabel(expr tree.Expr, label string) bool {
@@ -1485,7 +1937,7 @@ func (c *Catalog) typeUsers(schema, name string) []string {
 		}
 		// A routine names its parameter and result types by their schema.
 		for _, function := range s.Functions {
-			if slices.Contains(typeNamed.FindAllString(function.Definition, -1), typ) {
+			if routineNamesType(function.Definition, typ) {
 				users = append(users, typeName(s.Name, function.Name))
 			}
 		}
@@ -1504,16 +1956,13 @@ func (c *Catalog) routineTypeUser(schema, name string) error {
 	typ := typeName(schema, name)
 	for _, s := range c.l.meta.Schemas {
 		for _, function := range s.Functions {
-			if slices.Contains(typeNamed.FindAllString(function.Definition, -1), typ) {
+			if routineNamesType(function.Definition, typ) {
 				return &Error{Message: fmt.Sprintf("renaming or moving type %q, which routine %q names, is not supported", typ, function.Name)}
 			}
 		}
 	}
 	return nil
 }
-
-// typeNamed matches the schema-qualified names a routine's definition holds.
-var typeNamed = regexp.MustCompile(`[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*`)
 
 func (c *Catalog) dropType(n *tree.DropType) error {
 	type target struct {
@@ -1759,6 +2208,16 @@ func (c *Catalog) dropRelations(names tree.TableNames, ifExists bool, behavior t
 	cascade := behavior == tree.DropCascade
 	for i := 0; i < len(targets); i++ {
 		t := targets[i]
+		for _, reader := range c.routineReaders(t.s.Name, t.name) {
+			if inSchema && strings.HasPrefix(reader, tree.NameString(t.s.Name)+".") {
+				// It goes with its schema.
+				continue
+			}
+			if !cascade {
+				return refuse(codeDependentObjects, "cannot drop relation %q because function %q depends on it", t.name, reader)
+			}
+			return &Error{Message: fmt.Sprintf("dropping relation %q with the routine %q that reads it is not supported", t.name, reader)}
+		}
 		for _, d := range c.dependents(t.s.Name, t.name, "") {
 			if dropping(d.schema.Name, d.name) {
 				continue
@@ -1860,6 +2319,9 @@ func (c *Catalog) renameRelation(n *tree.RenameTable) error {
 	if deps := c.dependents(s.Name, name, ""); len(deps) > 0 {
 		return refuse(codeDependentObjects, "cannot rename relation %q because view %q depends on it", name, deps[0].name)
 	}
+	if readers := c.routineReaders(s.Name, name); len(readers) > 0 {
+		return refuse(codeDependentObjects, "cannot rename relation %q because function %q depends on it", name, readers[0])
+	}
 	// A new name without a schema keeps the relation in its own.
 	targetSchema := n.NewName.Schema()
 	if targetSchema == "" {
@@ -1911,6 +2373,9 @@ func (c *Catalog) setRelationSchema(n *tree.AlterTableSetSchema) error {
 	}
 	if deps := c.dependents(s.Name, name, ""); len(deps) > 0 {
 		return refuse(codeDependentObjects, "cannot set schema on relation %q because view %q depends on it", name, deps[0].name)
+	}
+	if readers := c.routineReaders(s.Name, name); len(readers) > 0 {
+		return refuse(codeDependentObjects, "cannot set schema on relation %q because function %q depends on it", name, readers[0])
 	}
 	if err := ownedAcross(s, name, got, target); err != nil {
 		return err
@@ -2092,7 +2557,13 @@ func (c *Catalog) alterTable(n *tree.AlterTable) error {
 	}
 	schema := schemaOf(&tn)
 	c.pending = table
-	defer func() { c.pending = nil }()
+	c.computed = map[string]bool{}
+	for _, column := range table.Columns {
+		if column.Generation != nil {
+			c.computed[column.Name] = true
+		}
+	}
+	defer func() { c.pending, c.computed = nil, nil }()
 	for _, cmd := range n.Cmds {
 		if err := c.alterTableCmd(schema, table, cmd); err != nil {
 			return err
@@ -2194,10 +2665,19 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 		if !constraintNamed(table, string(cmd.Constraint)) {
 			return refuse(codeUndefinedObject, "constraint %q of relation %q does not exist", cmd.Constraint, table.Name)
 		}
+		if !constraintTaken(table, string(cmd.Constraint)) {
+			return refuse(codeWrongObjectType, "constraint %q of relation %q is not a foreign key, check, or unique without index constraint", cmd.Constraint, table.Name)
+		}
 	case *tree.AlterTableSetDefault:
 		col, err := column(cmd.Column)
 		if err != nil {
 			return err
+		}
+		if col.Generation != nil {
+			if cmd.Default == nil {
+				return refuse("42601", "column %q of relation %q is a computed column", col.Name, table.Name)
+			}
+			return refuse("42601", "computed column %q cannot also have a DEFAULT expression", col.Name)
 		}
 		if err := c.checkDefault(cmd.Default, "SET DEFAULT"); err != nil {
 			return err
@@ -2239,6 +2719,22 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 			return refuse(codeDependentObjects, "cannot alter type of column %q because view %q depends on it", col.Name, deps[0].name)
 		}
 		typ, collation := sdlType(cmd.ToType)
+		if cmd.Collation != "" {
+			if family(typ) != types.StringFamily.String() && family(typ) != types.CollatedStringFamily.String() {
+				return refuse("42601", "COLLATE can only be used with string types")
+			}
+			collation = cmd.Collation
+		}
+		if cmd.Using != nil {
+			if err := checkColumns(columns, cmd.Using); err != nil {
+				return err
+			}
+		}
+		// A change of family or of collation rewrites the stored data.
+		rewrites := family(typ) != family(col.Type) || collation != col.Collation
+		if col.Generation != nil && family(typ) != family(col.Type) {
+			return refuse("XXUUU", "expected STORED COMPUTED COLUMN expression to have type %s", typ)
+		}
 		inForeignKey := len(c.referencing(schema, table.Name, col.Name)) > 0 ||
 			slices.ContainsFunc(table.ForeignKeys, func(fk *metadatapb.ForeignKeyMetadata) bool { return slices.Contains(fk.Columns, col.Name) })
 		for _, other := range table.Columns {
@@ -2254,16 +2750,13 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 			expr, err := parser.ParseExpr(k.Expression)
 			return err == nil && exprReads(expr, col.Name)
 		})
-		if inIndex && family(typ) != family(col.Type) {
+		if inIndex && rewrites {
 			return refuse(codeFeatureNotSupport, "unimplemented: ALTER COLUMN TYPE requiring rewrite of on-disk data is currently not supported for columns that are part of an index")
 		}
-		if (inForeignKey || inCheck) && family(typ) != family(col.Type) {
+		if (inForeignKey || inCheck) && rewrites {
 			return refuse(codeFeatureNotSupport, "unimplemented: ALTER COLUMN TYPE requiring a rewrite of on-disk data is not supported for columns that have constraints")
 		}
 		col.Type, col.Collation = typ, collation
-		if cmd.Collation != "" {
-			col.Collation = cmd.Collation
-		}
 	case *tree.AlterTableRenameColumn:
 		col, err := column(cmd.Column)
 		if err != nil {
@@ -2289,6 +2782,9 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 		from, to := string(cmd.Constraint), string(cmd.NewName)
 		if !constraintNamed(table, from) {
 			return refuse(codeUndefinedObject, "constraint %q of relation %q does not exist", from, table.Name)
+		}
+		if slices.ContainsFunc(table.Indexes, func(i *metadatapb.IndexMetadata) bool { return i.Name == to }) {
+			return refuse(codeDuplicateRelation, "relation %s already exists", to)
 		}
 		if constraintNamed(table, to) {
 			return refuse(codeDuplicateObject, "duplicate constraint name: %q", to)
@@ -2401,7 +2897,9 @@ func (c *Catalog) alterPrimaryKey(schema string, table *metadatapb.TableMetadata
 			stmt, err := parser.ParseOne(old.Definition)
 			if err == nil {
 				if n, ok := stmt.AST.(*tree.CreateIndex); ok {
-					n.Name = tree.Name(table.Name + "_" + strings.Join(old.Expressions, "_") + "_key")
+					// CockroachDB keeps it as t_<columns>_key, numbered past
+					// a name another index holds (t_a_key1).
+					n.Name = ""
 					table.Indexes = append(table.Indexes, sdlIndex(schema, table.Name, table.Indexes, n))
 				}
 			}
@@ -2409,6 +2907,8 @@ func (c *Catalog) alterPrimaryKey(schema string, table *metadatapb.TableMetadata
 	}
 	if name == "" && old != nil {
 		name = old.Name
+	} else if slices.ContainsFunc(table.Indexes, func(i *metadatapb.IndexMetadata) bool { return i.Name == name }) {
+		return refuse(codeDuplicateRelation, "relation %q already exists", name)
 	}
 	addPrimaryKey(schema, table, name, key)
 	return nil
@@ -2592,12 +3092,21 @@ func (c *Catalog) index(n *tree.TableIndexName, ifExists bool) (*metadatapb.Inde
 				lists = append(lists, &view.Indexes)
 			}
 		}
+		var found *metadatapb.IndexMetadata
+		var in *[]*metadatapb.IndexMetadata
 		for _, list := range lists {
 			for _, index := range *list {
-				if index.Name == name {
-					return index, list, nil
+				if index.Name != name {
+					continue
 				}
+				if found != nil {
+					return nil, nil, refuse("42P08", "index name %q is ambiguous", name)
+				}
+				found, in = index, list
 			}
+		}
+		if found != nil {
+			return found, in, nil
 		}
 	}
 	return nil, nil, refuse(codeUndefinedObject, "index %q does not exist", name)
