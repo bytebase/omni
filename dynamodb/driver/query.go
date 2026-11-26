@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
 	"github.com/bytebase/omni/driver"
-	"github.com/bytebase/omni/partiql"
+	"github.com/bytebase/omni/dynamodb"
 )
 
 // Session opens one session. DynamoDB has no session state this driver sets,
@@ -72,12 +72,12 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	return results, nil
 }
 
-// splitStatements hands a script to partiql.Split, so statement boundaries are
+// splitStatements hands a script to dynamodb.Split, so statement boundaries are
 // the PartiQL grammar's judgment, and drops the segments that hold no
 // statement.
-func splitStatements(script string) []partiql.Segment {
-	var statements []partiql.Segment
-	for _, segment := range partiql.Split(script) {
+func splitStatements(script string) []dynamodb.Segment {
+	var statements []dynamodb.Segment
+	for _, segment := range dynamodb.Split(script) {
 		if segment.Empty() {
 			continue
 		}

@@ -43,7 +43,7 @@ func OpenTapePaged(t testing.TB) *tapeClient {
 
 func openTape(t testing.TB, endpoint func(testing.TB) (string, error)) *tapeClient {
 	t.Helper()
-	raw := tape.OpenRaw(t, testcontainer.Server, testcontainer.Default, func(request string) (string, error) {
+	raw := tape.OpenRaw(t, testcontainer.Server, testcontainer.Driver, func(request string) (string, error) {
 		// A recording reaches the endpoint on its first call, so a test that
 		// replays starts no container.
 		return live(t, endpoint, request)

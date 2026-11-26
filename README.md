@@ -28,7 +28,7 @@ Every engine lives in its own top-level directory and follows the same shape: `a
 | BigQuery (GoogleSQL) | `bigquery/` | `analysis`, `diagnostics` |
 | Apache Doris | `doris/` | `analysis` |
 | StarRocks | `starrocks/` | `analysis` |
-| PartiQL (DynamoDB) | `partiql/` | `catalog`, `completion`, `analysis` |
+| DynamoDB (PartiQL) | `dynamodb/` | `catalog`, `completion`, `analysis` |
 | Apache Cassandra (CQL) | `cassandra/` | -- |
 | MongoDB (mongosh) | `mongo/` | `catalog`, `completion`, `analysis` |
 | Azure Cosmos DB | `cosmosdb/` | `analysis` |
@@ -80,7 +80,7 @@ Root-package entry points differ per engine:
 | Engine | Root package exports |
 |--------|----------------------|
 | `pg`, `redshift`, `mssql`, `oracle`, `mongo`, `cassandra`, `cosmosdb` | `Parse` (plus `Split`, `CollectCompletion`, and engine-specific helpers where present) |
-| `partiql` | `Split` only; parsing is in `partiql/parser` |
+| `dynamodb` | `Split` only; parsing is in `dynamodb/parser` |
 | `elasticsearch` | `ParseElasticsearchREST`, `SplitMultiSQL`, `ClassifyRequest`, `Diagnose`, `GetQuerySpan`, `GetStatementRanges` |
 | all others | no root package; import `<engine>/parser` |
 

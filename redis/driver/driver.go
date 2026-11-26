@@ -15,7 +15,7 @@
 // database's keys are not a schema, so SyncDatabase is the database number
 // alone.
 //
-// Redis has no SQL surface, so nothing under partiql/ or analysis is involved.
+// Redis has no SQL surface, so nothing under dynamodb/ or analysis is involved.
 // What the driver decides is what a script is — one command per line, its
 // arguments parsed as a shell parses them — and what a server's answer means:
 // the database numbers from CONFIG GET databases, or from the keyspace section

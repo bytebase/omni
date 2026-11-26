@@ -2,7 +2,7 @@
 // auto-completion and query-span/lineage analysis, and runs DDL on it
 // (Exec) as Trino does on its memory connector.
 //
-// Unlike the flat partiql (DynamoDB tables) and mongo (collections) catalogs,
+// Unlike the flat dynamodb (DynamoDB tables) and mongo (collections) catalogs,
 // Trino has a three-level object namespace — catalog -> schema -> table/view
 // -> column. A fully-qualified Trino name is catalog.schema.table; shorter
 // names resolve against the session's current catalog and schema (set via

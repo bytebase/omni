@@ -91,8 +91,8 @@ var Pins = func() string {
 	return filepath.Join(filepath.Dir(file), "..", "..", "testdata", "pins.tsv")
 }()
 
-// Default is the pin role of the one DynamoDB Local the tests ask.
-const Default = "default"
+// Driver is the pin role of the one DynamoDB Local the tests ask.
+const Driver = "driver"
 
 // Port is the port DynamoDB Local serves.
 const Port = "8000"
@@ -176,7 +176,7 @@ func PagedEndpoint(t testing.TB) (string, error) {
 // fixture.
 func (s *server) start(t testing.TB, what string, write func(*awssdk.Client) error) (string, error) {
 	t.Helper()
-	pin, err := enginetest.LoadPin(Pins, Default)
+	pin, err := enginetest.LoadPin(Pins, Driver)
 	if err != nil {
 		return "", err
 	}

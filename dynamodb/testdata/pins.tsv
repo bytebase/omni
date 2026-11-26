@@ -1,7 +1,22 @@
-# The server this engine's committed answers come from. default records the
-# tapes and nothing else: DynamoDB Local, Amazon's own local endpoint for the
-# service, at the release whose answers they hold. There is no compat.tsv
-# jar to judge: partiql's compatibility rows are judged by the reference
-# grammar in partiql/testdata.
+# The grammar and the server this engine's committed answers come from.
+#
+# default is the grammar compat.tsv (dynamodb/parser) is judged by. DynamoDB
+# has no grammar of its own and no server CI can start, so default is no
+# image: it is the grammar of the PartiQL reference implementation,
+# partiql-lang-kotlin, at the commit of the release in the source tag
+# (partiql-parser/src/main/antlr). The digest is the SHA-256 of
+# testdata/PartiQLParser.g4 followed by testdata/PartiQLTokens.g4, which are
+# those files byte for byte.
+#
+# v0.14.9 is the last release of the grammar that holds every statement
+# DynamoDB documents. The v1 grammar (v1.6.1 on 2026-11-13) was rewritten
+# along SQL's EBNF and no longer derives INSERT INTO t VALUE {...}, an
+# UPDATE's REMOVE, or RETURNING.
+#
+# driver records the tapes and nothing else: DynamoDB Local, Amazon's own
+# local endpoint for the service, at the release whose answers they hold. It
+# does not judge compat.tsv: it runs a PartiQL subset, so it cannot judge the
+# statements omni must accept beyond it.
 # columns: role, image, digest, source tag
-default	amazon/dynamodb-local:3.3.2	sha256:6ada631ec7aa5fc83446855eb17233e3dad184fec47477e8140c6c569cfe0c86	3.3.2
+default	github.com/partiql/partiql-lang-kotlin@3a9ef181ce7ce654fd3c6e0d0d75732d317b8f19	sha256:9bf19a20c3d3ca3a6519a7b7d523c4e636df523b0c6c4e2cd396e4f12afd1ce3	v0.14.9
+driver	amazon/dynamodb-local:3.3.2	sha256:6ada631ec7aa5fc83446855eb17233e3dad184fec47477e8140c6c569cfe0c86	3.3.2
