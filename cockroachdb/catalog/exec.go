@@ -2843,33 +2843,38 @@ func (c *Catalog) dropRelations(names tree.TableNames, ifExists bool, behavior t
 					return refuse(codeDependentObjects, "%q is referenced by foreign key %q", t.name, fk.Name)
 				}
 			}
-		case relSequence:
-			droppingSchema := ""
-			if inSchema {
-				droppingSchema = t.s.Name
+		}
+	}
+	// A sequence's users are checked once the cascade's closure is known.
+	for _, t := range targets {
+		if t.kind != relSequence {
+			continue
+		}
+		droppingSchema := ""
+		if inSchema {
+			droppingSchema = t.s.Name
+		}
+		// Views the statement drops too go with the sequence.
+		if err := c.sequenceUserOutside(t.s.Name, t.name, relSequence, droppingSchema, dropping); err != nil {
+			return err
+		}
+		var users []*metadatapb.ColumnMetadata
+		c.eachTable(func(s *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
+			if dropping(s.Name, table.Name) {
+				return
 			}
-			// Views the statement drops too go with the sequence.
-			if err := c.sequenceUserOutside(t.s.Name, t.name, relSequence, droppingSchema, dropping); err != nil {
-				return err
+			for _, column := range table.Columns {
+				if callsSequence(column.Default, t.s.Name, t.name) {
+					users = append(users, column)
+				}
 			}
-			var users []*metadatapb.ColumnMetadata
-			c.eachTable(func(s *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
-				if dropping(s.Name, table.Name) {
-					return
-				}
-				for _, column := range table.Columns {
-					if callsSequence(column.Default, t.s.Name, t.name) {
-						users = append(users, column)
-					}
-				}
-			})
-			if len(users) > 0 {
-				if !cascade {
-					return refuse(codeDependentObjects, "cannot drop sequence %s because other objects depend on it", t.name)
-				}
-				for _, column := range users {
-					column.Default = ""
-				}
+		})
+		if len(users) > 0 {
+			if !cascade {
+				return refuse(codeDependentObjects, "cannot drop sequence %s because other objects depend on it", t.name)
+			}
+			for _, column := range users {
+				column.Default = ""
 			}
 		}
 	}

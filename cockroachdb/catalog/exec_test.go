@@ -575,3 +575,8 @@ func TestExecRound38(t *testing.T) {
 	_, err := execLast(t, "CREATE TABLE t (a INT8, b INT8); CREATE TABLE u (a INT8); CREATE VIEW v AS SELECT b FROM t WHERE EXISTS (SELECT 1 FROM t JOIN u USING (a)); ALTER TABLE t DROP COLUMN a")
 	require.Equal(t, "2BP01", code(err))
 }
+
+func TestExecRound39(t *testing.T) {
+	_, err := execLast(t, "CREATE TABLE t (a INT8); CREATE SEQUENCE sq OWNED BY t.a; CREATE VIEW v1 AS SELECT a FROM t; CREATE VIEW v2 AS SELECT a FROM v1; CREATE VIEW v3 AS SELECT a, nextval('sq') AS n FROM v2; DROP TABLE t CASCADE")
+	require.NoError(t, err)
+}
