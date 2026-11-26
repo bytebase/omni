@@ -196,7 +196,7 @@ type relation struct {
 
 func (rel *relation) column(name string) (spanColumn, bool) {
 	for _, c := range rel.columns {
-		if c.name == name {
+		if c.name == name && !c.star {
 			c.rel = rel
 			return c, true
 		}
@@ -426,14 +426,19 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 			sources: r.expr(item, sc, ctes),
 			plain:   isPlainColumn(item),
 		}
-		if parts, ok := identParts(item); ok && !r.isAlias(parts, sc) {
+		if parts, ok := identParts(item); ok && r.isAlias(parts, sc) {
+			// An alias is a plain field only when it names a column.
+			c.plain = isPlainColumn(r.aliasExpr(parts[0], sc))
+		} else if ok {
 			// A column is named by its own name (a Nested column's is
 			// dotted), and a qualified one keeps its qualifier unless the
 			// bare name reads the same column.
 			found, ok := lookup(parts, sc)
 			switch n := nameParts(parts, found.name); {
 			case ok == found1 && found.rel != nil && n > 0:
-				c.name = found.name
+				// A column of a subquery or CTE is as plain as its
+				// projection.
+				c.name, c.plain = found.name, found.plain
 				if len(parts) > n && !bareNames(found, sc) {
 					c.name = strings.Join(parts, ".")
 				}
@@ -755,12 +760,12 @@ func (r *spanResolver) merge(f *parser.FuncCallExpr, name string) *relation {
 // leaves its columns unknown: any name then resolves, to that column of
 // the tables the * read.
 func derived(name string, cols []spanColumn) *relation {
-	rel := &relation{name: name}
+	rel := &relation{name: name, columns: cols}
 	for _, c := range cols {
 		if !c.star {
-			rel.columns = append(rel.columns, c)
 			continue
 		}
+		// The * stays in its place, so a * over the relation keeps it.
 		rel.open = true
 		if rel.starTables == nil {
 			rel.starTables = SourceColumnSet{}
@@ -884,7 +889,10 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 			continue
 		}
 		for _, c := range rel.columns {
-			if !c.hidden {
+			switch {
+			case c.star:
+				out = append(out, c)
+			case !c.hidden:
 				c.rel = rel
 				c.name = starName(c, sc)
 				out = append(out, c)
@@ -1031,6 +1039,16 @@ func nestedGroup(sc *spanScope, name string) bool {
 	return found
 }
 
+// aliasExpr is the expression an alias in scope stands for.
+func (r *spanResolver) aliasExpr(name string, sc *spanScope) parser.Expr {
+	for s := sc; s != nil; s = s.parent {
+		if e, ok := s.aliases[name]; ok {
+			return e
+		}
+	}
+	return nil
+}
+
 // untupled is the elements of an untuple((a, b)) item.
 func untupled(e parser.Expr) ([]parser.Expr, bool) {
 	f, ok := e.(*parser.FuncCallExpr)
@@ -1070,7 +1088,7 @@ func (r *spanResolver) matching(re *regexp.Regexp, sc *spanScope) []spanColumn {
 			continue
 		}
 		for _, c := range rel.columns {
-			if !c.hidden && re.MatchString(c.name) {
+			if !c.hidden && !c.star && re.MatchString(c.name) {
 				c.rel = rel
 				c.name = starName(c, sc)
 				out = append(out, c)

@@ -148,3 +148,37 @@ func TestResolveQuerySpanCatalogError(t *testing.T) {
 		t.Fatalf("err %v, want the catalog's", err)
 	}
 }
+
+// Without a catalog, a * over a subquery that also names a column keeps the
+// subquery's unexpanded * beside that column.
+func TestResolveQuerySpanStarBesideColumnWithoutCatalog(t *testing.T) {
+	got, err := ResolveQuerySpan("SELECT * FROM (SELECT *, email AS masked FROM shop.customers)", ResolveOptions{DefaultDatabase: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Results) != 2 || !got.Results[0].SelectAsterisk || got.Results[1].Name != "masked" {
+		t.Fatalf("results %+v", got.Results)
+	}
+	if want := []string{"shop.customers"}; !slices.Equal(names(got.Results[0].SourceColumns), want) {
+		t.Errorf("* reads %v, want %v", names(got.Results[0].SourceColumns), want)
+	}
+}
+
+// A column computed in a subquery or by an alias is no plain field where
+// it is read by name.
+func TestResolveQuerySpanPlainField(t *testing.T) {
+	for q, plain := range map[string]bool{
+		"SELECT x FROM (SELECT lower(email) AS x FROM shop.customers)": false,
+		"WITH lower(email) AS x SELECT x FROM shop.customers":          false,
+		"SELECT x FROM (SELECT email AS x FROM shop.customers)":        true,
+		"SELECT email FROM shop.customers":                             true,
+	} {
+		got, err := ResolveQuerySpan(q, ResolveOptions{DefaultDatabase: "shop"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Results[0].IsPlainField != plain {
+			t.Errorf("%s: IsPlainField %v, want %v", q, got.Results[0].IsPlainField, plain)
+		}
+	}
+}
