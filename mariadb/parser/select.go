@@ -2372,64 +2372,51 @@ func (p *Parser) parseForSystemTime() (*nodes.SystemTime, error) {
 
 	st := &nodes.SystemTime{Loc: nodes.Loc{Start: start}}
 
+	// Each bound is a history_point (parseHistoryPoint): a bit_expr, so the
+	// AND of BETWEEN ends the first, after an optional TRANSACTION or
+	// TIMESTAMP unit.
+	//
+	// Ref: system_time_expr and history_point in MariaDB 11.8 sql/sql_yacc.yy:9320.
 	switch p.cur.Type {
 	case kwAS:
-		// AS OF expr  |  AS OF TRANSACTION expr (time travel by transaction id)
+		// AS OF history_point
 		p.advance() // AS
 		if _, err := p.expect(kwOF); err != nil {
 			return nil, err
 		}
+		point, unit, err := p.parseHistoryPoint()
+		if err != nil {
+			return nil, err
+		}
 		st.Kind = nodes.SystemTimeAsOf
-		if p.cur.Type == kwTRANSACTION {
-			p.advance() // TRANSACTION
+		if unit == "TRANSACTION" {
 			st.Kind = nodes.SystemTimeAsOfTransaction
 		}
-		expr, err := p.parseExpr()
+		st.From = point
+	case kwBETWEEN, kwFROM:
+		// BETWEEN history_point AND history_point | FROM history_point TO history_point
+		between := p.cur.Type == kwBETWEEN
+		p.advance() // BETWEEN or FROM
+		lo, loUnit, err := p.parseHistoryPoint()
 		if err != nil {
 			return nil, err
 		}
-		st.From = expr
-	case kwBETWEEN:
-		// BETWEEN [TRANSACTION] expr AND [TRANSACTION] expr — bounds parsed at
-		// precAdd so the AND is read as the range separator, not a boolean
-		// operator (see parseBetweenExpr). Each bound may carry a TRANSACTION
-		// qualifier (transaction-id precision), independently.
-		p.advance() // BETWEEN
-		st.FromTransaction = p.consumeTransactionKeyword()
-		lo, err := p.parseExprPrec(precAdd)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwAND); err != nil {
-			return nil, err
-		}
-		st.ToTransaction = p.consumeTransactionKeyword()
-		hi, err := p.parseExprPrec(precAdd)
-		if err != nil {
-			return nil, err
-		}
-		st.Kind = nodes.SystemTimeBetween
-		st.From = lo
-		st.To = hi
-	case kwFROM:
-		// FROM [TRANSACTION] expr TO [TRANSACTION] expr
-		p.advance() // FROM
-		st.FromTransaction = p.consumeTransactionKeyword()
-		lo, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwTO); err != nil {
-			return nil, err
-		}
-		st.ToTransaction = p.consumeTransactionKeyword()
-		hi, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
+		sep := kwTO
 		st.Kind = nodes.SystemTimeFromTo
-		st.From = lo
-		st.To = hi
+		if between {
+			sep = kwAND
+			st.Kind = nodes.SystemTimeBetween
+		}
+		if _, err := p.expect(sep); err != nil {
+			return nil, err
+		}
+		hi, hiUnit, err := p.parseHistoryPoint()
+		if err != nil {
+			return nil, err
+		}
+		st.From, st.To = lo, hi
+		st.FromTransaction = loUnit == "TRANSACTION"
+		st.ToTransaction = hiUnit == "TRANSACTION"
 	case kwALL:
 		p.advance() // ALL
 		st.Kind = nodes.SystemTimeAll
@@ -2439,16 +2426,6 @@ func (p *Parser) parseForSystemTime() (*nodes.SystemTime, error) {
 
 	st.Loc.End = p.prev.End
 	return st, nil
-}
-
-// consumeTransactionKeyword consumes a leading TRANSACTION qualifier on a
-// FOR SYSTEM_TIME point-in-time bound and reports whether it was present.
-func (p *Parser) consumeTransactionKeyword() bool {
-	if p.cur.Type == kwTRANSACTION {
-		p.advance()
-		return true
-	}
-	return false
 }
 
 // parseLockInShareMode parses MariaDB's shared read lock and the wait

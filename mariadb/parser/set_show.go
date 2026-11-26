@@ -1225,10 +1225,15 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 
 	case kwSLAVE:
 		p.advance() // consume SLAVE
-		if p.cur.Type == kwSTATUS {
+		if p.cur.Type == kwSTATUS || p.cur.Type == tokSCONST {
+			// SLAVE optional_connection_name STATUS_SYM optional_for_channel
+			// (sql_yacc.yy:14559).
+			named := p.parseShowConnectionName(stmt)
+			if _, err := p.expect(kwSTATUS); err != nil {
+				return nil, err
+			}
 			stmt.Type = "SLAVE STATUS"
-			p.advance()
-			if err := p.parseShowChannel(stmt); err != nil {
+			if err := p.parseShowChannel(stmt, named); err != nil {
 				return nil, err
 			}
 		} else if p.cur.Type == kwHOSTS {
@@ -1250,11 +1255,13 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			stmt.Type = "REPLICAS"
 			break
 		}
+		// REPLICA is SLAVE to the lexer, so it takes the connection name too.
+		named := p.parseShowConnectionName(stmt)
 		if _, err := p.expect(kwSTATUS); err != nil {
 			return nil, err
 		}
 		stmt.Type = "REPLICA STATUS"
-		if err := p.parseShowChannel(stmt); err != nil {
+		if err := p.parseShowChannel(stmt, named); err != nil {
 			return nil, err
 		}
 
@@ -1397,6 +1404,8 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 
 	case kwRELAYLOG:
 		p.advance() // consume RELAYLOG
+		// RELAYLOG_SYM optional_connection_name EVENTS_SYM ... (sql_yacc.yy:14406).
+		named := p.parseShowConnectionName(stmt)
 		if _, err := p.expect(kwEVENTS); err != nil {
 			return nil, err
 		}
@@ -1428,7 +1437,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		if err := p.parseShowLimit(stmt); err != nil {
 			return nil, err
 		}
-		if err := p.parseShowChannel(stmt); err != nil {
+		if err := p.parseShowChannel(stmt, named); err != nil {
 			return nil, err
 		}
 
@@ -1660,20 +1669,32 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 // STATUS and SHOW RELAYLOG EVENTS. The channel is MySQL's
 // TEXT_STRING_sys_nonewline (sql_yacc.yy, opt_channel): a string literal, so
 // `FOR CHANNEL c` names no channel and is a 1064, and a FOR with no CHANNEL
-// after it is one too.
-func (p *Parser) parseShowChannel(stmt *nodes.ShowStmt) error {
-	if p.cur.Type != kwFOR {
-		return nil
-	}
-	p.advance() // consume FOR
-	if _, err := p.expect(kwCHANNEL); err != nil {
+// after it is one too. The channel is the connection name by another
+// spelling, so named, a connection name before it, refuses it the way
+// parseForChannel does.
+func (p *Parser) parseShowChannel(stmt *nodes.ShowStmt, named bool) error {
+	name, ok, err := p.parseForChannel(named)
+	if err != nil {
 		return err
 	}
-	if p.cur.Type != tokSCONST {
-		return p.syntaxErrorAtCur()
+	if ok {
+		stmt.Channel = name
 	}
-	stmt.Channel = p.advance().Str
 	return nil
+}
+
+// parseShowConnectionName reads the optional_connection_name of SHOW {SLAVE |
+// REPLICA} STATUS and SHOW RELAYLOG EVENTS, a string, into stmt.Channel, which
+// is where the CHANGE MASTER family keeps it too. It reports whether there was
+// one.
+//
+// Ref: optional_connection_name in MariaDB 11.8 sql/sql_yacc.yy:2472.
+func (p *Parser) parseShowConnectionName(stmt *nodes.ShowStmt) bool {
+	name, named := p.parseConnectionName()
+	if named {
+		stmt.Channel = name
+	}
+	return named
 }
 
 // parseShowLikeOrWhere parses the optional LIKE or WHERE of a SHOW statement.

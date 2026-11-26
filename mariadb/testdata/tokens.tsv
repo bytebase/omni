@@ -93,6 +93,24 @@ opt_aggregate	(every site)	sql_yacc.yy:3243 AGGREGATE
 opt_generated_always	(every site)	sql_yacc.yy:6336 GENERATED ALWAYS
 opt_returning	(every site)	sql_yacc.yy:14149 RETURNING
 opt_with_admin	(every site)	sql_yacc.yy:17864 WITH ADMIN
+opt_field_length	(every site)	sql_yacc.yy:6792 a type's (length)
+opt_binary	(every site)	sql_yacc.yy:7001 a type's character set or BINARY
+opt_expr_list	(every site)	sql_yacc.yy:11743 an optional expression list
+optional_connection_name	(every site)	sql_yacc.yy:2472 a replication connection name
+opt_where_clause	(every site)	sql_yacc.yy:12478 WHERE
+optional_for_channel	(every site)	sql_yacc.yy:2492 FOR CHANNEL
+opt_table_alias_clause	(every site)	sql_yacc.yy:12459 a table alias
+opt_ident	(every site)	sql_yacc.yy:7415 an optional name
+opt_use_partition	(every site)	sql_yacc.yy:12212 PARTITION (names)
+opt_format_json	(every site)	sql_yacc.yy:14863 FORMAT = JSON
+opt_field_scale	(every site)	sql_yacc.yy:6797 a type's (scale)
+view_list_opt	(every site)	sql_yacc.yy:18465 a view's (columns)
+opt_distinct	(every site)	sql_yacc.yy:11613 DISTINCT
+opt_into	(every site)	sql_yacc.yy:13694 INTO
+opt_table	(every site)	sql_yacc.yy:17920 TABLE
+opt_vers_auto_part	(every site)	sql_yacc.yy:5605 AUTO
+srid_option	(every site)	sql_yacc.yy:6744 REF_SYSTEM_ID = n
+opt_sp_for_loop_direction	(every site)	sql_yacc.yy:4620 REVERSE
 
 # Keyword choices tried at every site that names them, and not only where
 # their own alternatives' rows reach (see grammar.EveryAlternative).
@@ -140,6 +158,29 @@ opt_lock_wait_timeout	(every alternative)	sql_yacc.yy:17605 WAIT n or NOWAIT
 opt_lock_wait_timeout_new	(every alternative)	sql_yacc.yy:9452 WAIT n, NOWAIT or SKIP LOCKED
 opt_place	(every alternative)	sql_yacc.yy:8274 AFTER or FIRST
 wild_and_where	(every alternative)	sql_yacc.yy:14785 LIKE or WHERE
+equal	(every alternative)	sql_yacc.yy:13768 = or :=
+opt_plus	(every alternative)	sql_yacc.yy:13062 a number's +
+comp_op	(every alternative)	sql_yacc.yy:10034 a comparison operator
+field_options	(every alternative)	sql_yacc.yy:6764 SIGNED, UNSIGNED or ZEROFILL
+opt_password_expire_option	(every alternative)	sql_yacc.yy:7643 PASSWORD EXPIRE NEVER, DEFAULT or INTERVAL
+optional_braces	(every alternative)	sql_yacc.yy:9594 optional ()
+json_text_literal	(every alternative)	sql_yacc.yy:11829 a string, N'' or _charset''
+inner_join	(every alternative)	sql_yacc.yy:12197 JOIN, INNER JOIN or STRAIGHT_JOIN
+opt_var_ident_type	(every alternative)	sql_yacc.yy:17150 GLOBAL., LOCAL. or SESSION.
+sp_suid	(every alternative)	sql_yacc.yy:3327 SQL SECURITY DEFINER or INVOKER
+text_or_password	(every alternative)	sql_yacc.yy:17537 a string, PASSWORD() or OLD_PASSWORD()
+charset_or_alias	(every alternative)	sql_yacc.yy:6991 a character set, ASCII or UNICODE
+expr_or_ignore_or_default	(every alternative)	sql_yacc.yy:13872 an expression, IGNORE or DEFAULT
+all_or_alt_part_name_list	(every alternative)	sql_yacc.yy:7879 ALL or partition names
+history_point	(every alternative)	sql_yacc.yy:9320 a system-versioning point
+opt_time_precision	(every alternative)	sql_yacc.yy:9588 a time type's optional (precision)
+opt_binary_and_compression	(every alternative)	sql_yacc.yy:6568 BINARY or COMPRESSED
+float_options	(every alternative)	sql_yacc.yy:6754 a float type's (length) or (precision, scale)
+opt_key_algorithm_clause	(every alternative)	sql_yacc.yy:7305 USING or TYPE BTREE or RTREE
+delete_limit_clause	(every alternative)	sql_yacc.yy:12957 LIMIT [ROWS EXAMINED]
+opt_require_clause	(every alternative)	sql_yacc.yy:18195 REQUIRE options
+ws_level_flag_desc	(every alternative)	sql_yacc.yy:7086 ASC or DESC
+text_string	(every alternative)	sql_yacc.yy:15509 a string, hex or bit literal
 
 # Operators and keywords of lex.h.
 PREPARE_SYM	PREPARE
