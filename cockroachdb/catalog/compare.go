@@ -34,6 +34,88 @@ func exprKey(expr string, columns map[string]string) string {
 	return groupedKey(parsed)
 }
 
+// generationKey is exprKey for a computed column's expression, which
+// CockroachDB stores with each literal annotated with the type it resolved
+// it to (a * 2:::INT8, price * 100:::DECIMAL). An annotation goes where the
+// bare literal resolves to the same type: one that names the literal's own
+// type (an integer's INT8, a fraction's DECIMAL, a string's STRING), and an
+// exact numeric one on an arithmetic operand beside a column of that type's
+// family (price * 100:::DECIMAL with price DECIMAL(10, 2)), which decides the
+// literal's. One that picks another overload (pg_typeof(1:::DECIMAL),
+// x + 1:::DECIMAL with x INT8, 'é':::BYTES) or may round (:::FLOAT8) stays.
+// columns maps the table's columns to their types.
+func generationKey(expr string, columns map[string]string) string {
+	parsed, err := crparser.ParseExpr(expr)
+	if err != nil {
+		return expr
+	}
+	columnOf := func(e tree.Expr) string {
+		return literalCastStripper{columns}.columnType(e)
+	}
+	strip := func(e tree.Expr, beside string) tree.Expr {
+		a, ok := unparen(e).(*tree.AnnotateTypeExpr)
+		if !ok {
+			return e
+		}
+		literal := unparen(a.Expr)
+		if !isLiteral(literal) {
+			return e
+		}
+		if ownType(literal, a.Type) || beside != "" && exactNumeric(literal, a.Type) && sameFamily(a.Type, beside) {
+			return literal
+		}
+		return e
+	}
+	parsed, err = tree.SimpleVisit(parsed, func(e tree.Expr) (bool, tree.Expr, error) {
+		switch x := e.(type) {
+		case *tree.BinaryExpr:
+			op := *x
+			op.Left = strip(x.Left, columnOf(x.Right))
+			op.Right = strip(x.Right, columnOf(x.Left))
+			return true, &op, nil
+		case *tree.AnnotateTypeExpr:
+			if out := strip(x, ""); out != tree.Expr(x) {
+				return false, out, nil
+			}
+		}
+		return true, e, nil
+	})
+	if err != nil {
+		return expr
+	}
+	return groupedKey(parsed)
+}
+
+// sameFamily reports whether a type is of the family of typ, a type as the
+// sync states it: an INT8 beside an INT4 adds as integers, a DECIMAL beside a
+// DECIMAL(10, 2) as decimals.
+func sameFamily(ref tree.ResolvableTypeReference, typ string) bool {
+	t, ok := tree.GetStaticallyKnownType(ref)
+	other, err := crparser.GetTypeFromValidSQLSyntax(typ)
+	if !ok || err != nil {
+		return false
+	}
+	o, ok := tree.GetStaticallyKnownType(other)
+	return ok && t.Family() == o.Family()
+}
+
+// exactNumeric reports whether an annotation is INT8 on an integer or
+// DECIMAL on a number, which hold it exactly.
+func exactNumeric(literal tree.Expr, ref tree.ResolvableTypeReference) bool {
+	t, ok := tree.GetStaticallyKnownType(ref)
+	n, isNum := literal.(*tree.NumVal)
+	if !ok || !isNum {
+		return false
+	}
+	switch {
+	case t.Identical(types.Int):
+		return !strings.ContainsAny(n.OrigString(), ".eE")
+	case t.Identical(types.Decimal):
+		return true
+	}
+	return false
+}
+
 // columnTypes maps a table's columns to their types, for exprKey.
 func columnTypes(columns []*metadatapb.ColumnMetadata) map[string]string {
 	typed := make(map[string]string, len(columns))
@@ -91,6 +173,12 @@ func stripTypedCast(expr tree.Expr, typ string) tree.Expr {
 		if isLiteral(literal) && (sameType(e.Type, typ) || ownType(literal, e.Type)) {
 			return trimZeros(literal)
 		}
+		// An annotation converts nothing, so one naming the type the
+		// expression is assigned to, as CockroachDB writes on a default
+		// it stores (now():::TIMESTAMPTZ), says nothing.
+		if _, call := literal.(*tree.FuncExpr); call && sameType(e.Type, typ) {
+			return literal
+		}
 	case *tree.NumVal:
 		return trimZeros(e)
 	case *tree.Tuple:
@@ -107,9 +195,15 @@ func stripTypedCast(expr tree.Expr, typ string) tree.Expr {
 // sameType reports whether a cast's type is typ, a type as the sync states
 // it.
 func sameType(ref tree.ResolvableTypeReference, typ string) bool {
-	t, ok := tree.GetStaticallyKnownType(ref)
-	if !ok || typ == "" {
+	if typ == "" {
 		return false
+	}
+	t, ok := tree.GetStaticallyKnownType(ref)
+	if !ok {
+		// A user-defined type, which CockroachDB writes on a default it
+		// stores ('a':::public.mood), named by its schema as the sync names
+		// a column's type.
+		return schemaQualified(ref).SQLString() == typ
 	}
 	other, err := crparser.GetTypeFromValidSQLSyntax(typ)
 	if err != nil {
@@ -194,12 +288,21 @@ func (v literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 		default:
 			return true, expr
 		}
-		cast, ok := unparen(e.Exprs[0]).(*tree.CastExpr)
-		if !ok || !isLiteral(unparen(cast.Expr)) || !strings.EqualFold(cast.Type.SQLString(), "REGCLASS") {
+		arg := unparen(e.Exprs[0])
+		if cast, ok := arg.(*tree.CastExpr); ok && isLiteral(unparen(cast.Expr)) && strings.EqualFold(cast.Type.SQLString(), "REGCLASS") {
+			arg = unparen(cast.Expr)
+		}
+		literal, ok := arg.(*tree.StrVal)
+		if !ok {
 			break
 		}
+		// CockroachDB stores the name it resolved, in its schema:
+		// nextval('s') as nextval('public.s'::REGCLASS).
+		if sequence, err := crparser.ParseQualifiedTableName(literal.RawString()); err == nil {
+			literal = tree.NewStrVal(tree.NameString(schemaOf(sequence)) + "." + tree.NameString(string(sequence.ObjectName)))
+		}
 		call := *e
-		call.Exprs = append(tree.Exprs{unparen(cast.Expr)}, e.Exprs[1:]...)
+		call.Exprs = append(tree.Exprs{literal}, e.Exprs[1:]...)
 		return true, &call
 	}
 	return true, expr

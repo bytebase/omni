@@ -437,17 +437,17 @@ func (v *sequenceCollector) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 		return true, expr
 	}
 	name, ok := call.Func.FunctionReference.(*tree.UnresolvedName)
-	if !ok || (name.Parts[0] != "nextval" && name.Parts[0] != "currval") {
+	if !ok || (name.Parts[0] != "nextval" && name.Parts[0] != "currval" && name.Parts[0] != "setval") {
 		return true, expr
 	}
 	// The name may carry a cast ('s'::REGCLASS) or an annotation
-	// ('s':::STRING), as CockroachDB stores it.
-	arg := call.Exprs[0]
+	// ('s':::STRING), as CockroachDB stores it, and parentheses.
+	arg := unparen(call.Exprs[0])
 	if cast, ok := arg.(*tree.CastExpr); ok {
-		arg = cast.Expr
+		arg = unparen(cast.Expr)
 	}
 	if annotation, ok := arg.(*tree.AnnotateTypeExpr); ok {
-		arg = annotation.Expr
+		arg = unparen(annotation.Expr)
 	}
 	literal, ok := arg.(*tree.StrVal)
 	if !ok {

@@ -523,7 +523,8 @@ func TestSDLKeysKeepTypedConditionals(t *testing.T) {
 }
 
 // TestSDLStarAtCreation expands a star against the relation as it is when
-// the view is created, as CockroachDB does.
+// the view is created, as CockroachDB does, under the relation's name
+// (simulate.tsv's CREATE VIEW v2 AS SELECT * FROM t rows).
 func TestSDLStarAtCreation(t *testing.T) {
 	loaded, err := catalog.LoadSDL("CREATE TABLE t (id INT8 PRIMARY KEY); CREATE VIEW v AS SELECT * FROM t; ALTER TABLE t ADD COLUMN extra STRING;")
 	require.NoError(t, err)
@@ -532,7 +533,7 @@ func TestSDLStarAtCreation(t *testing.T) {
 		names = append(names, column.Name)
 	}
 	require.Equal(t, []string{"id"}, names)
-	require.Equal(t, "SELECT id FROM t", loaded.Schemas[0].Views[0].Definition)
+	require.Equal(t, "SELECT t.id FROM t", loaded.Schemas[0].Views[0].Definition)
 }
 
 // TestSDLColumnAliasRebuildsView rebuilds a view that reads a column through
