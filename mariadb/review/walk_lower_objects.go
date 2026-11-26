@@ -70,6 +70,10 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	}
 	if tf == walk.Present && tkind == relTable && (!v.IfNotExists || idxFact == walk.Absent) {
 		b.checkIndexColumns(r, v.Columns)
+		if !v.Spatial && !v.Fulltext && !v.Vector && usesRTree(v.IndexType, v.Options) {
+			b.fail(rng, nil, review.UnsupportedForm, notRTree) // 1210
+			return true
+		}
 		if !b.w.ignoresFKs[relKey(r.db, r.name)] && b.keyPartTypesFail(createIndexKeyKind(v), v.Columns, b.typeOf(r)) {
 			return true
 		}
@@ -605,7 +609,7 @@ func (b *builder) set(v *ast.SetStmt) bool {
 		case global:
 			continue
 		}
-		if name == "sql_mode" && !b.sqlModeOption {
+		if (name == "sql_mode" || name == "innodb_strict_mode") && !b.sqlModeOption {
 			b.Session(func() { b.w.sqlModeSet = true })
 			continue
 		}

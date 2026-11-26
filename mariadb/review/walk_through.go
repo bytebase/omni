@@ -249,7 +249,9 @@ type walker struct {
 	// dropped or made, whose synced time and event no longer hold.
 	triggersMade map[walk.Key]bool
 	// sqlModeSet is set once the session assigns sql_mode, which may take
-	// NO_ENGINE_SUBSTITUTION or STRICT_TRANS_TABLES out of it.
+	// NO_ENGINE_SUBSTITUTION or STRICT_TRANS_TABLES out of it or put
+	// IGNORE_BAD_TABLE_OPTIONS in, or innodb_strict_mode, which may turn
+	// InnoDB's refusal of a table option into a warning.
 	sqlModeSet bool
 }
 
@@ -335,10 +337,11 @@ func (w *walker) lower(i int, l *walk.Ledger) *walk.Step {
 	if on, named := fkOption(w.stmts[i].options); named {
 		w.fkChecks, b.fkOption = on, true
 	}
-	// SET STATEMENT sql_mode holds for this statement alone too.
+	// SET STATEMENT sql_mode and innodb_strict_mode hold for this
+	// statement alone too.
 	modeSet := w.sqlModeSet
 	for _, a := range w.stmts[i].options {
-		if a.Column != nil && a.Column.Table == "" && strings.EqualFold(a.Column.Column, "sql_mode") {
+		if a.Column != nil && a.Column.Table == "" && (strings.EqualFold(a.Column.Column, "sql_mode") || strings.EqualFold(a.Column.Column, "innodb_strict_mode")) {
 			w.sqlModeSet, b.sqlModeOption = true, true
 		}
 	}

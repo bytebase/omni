@@ -161,7 +161,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		})
 	}
 	if b.alterTextFails(v, r) || b.alterColumnsFail(v) || b.alterAlgorithmFails(v, r) || b.fkEngineFails(v, r) || b.fkColumnFails(v, r) ||
-		b.alterPartitionFails(v, r) || b.alterPartitionColumnsFail(v, r) || b.alterChecksFail(v, r) {
+		b.alterPartitionFails(v, r) || b.alterPartitionColumnsFail(v, r) || b.alterChecksFail(v, r) || b.innoDBOptionsFail(v, r) || b.alterFormFails(v) {
 		return true
 	}
 	if dropIdx, dropCols, ok := alterDropsOnly(v); ok && !sets && b.fkIndexDropFails(r, dropIdx, dropCols, b.anchor()) {
@@ -331,6 +331,56 @@ func (b *builder) toSequenceFails(v *ast.AlterTableStmt, r tableRef) bool {
 	}) // 4086
 	return false
 }
+
+// alterFormFails fails an ALTER TABLE that MariaDB refuses for its form,
+// whatever the table holds (verified on mariadb:11.8.8):
+//
+//   - USING RTREE or TYPE RTREE on a key that is no SPATIAL key (1210), on
+//     every engine;
+//   - CHANGE or MODIFY of a column AFTER the column itself (1054), which
+//     the column list no longer holds by that name.
+func (b *builder) alterFormFails(v *ast.AlterTableStmt) bool {
+	for _, c := range v.Commands {
+		if c == nil {
+			continue
+		}
+		if con := c.Constraint; con != nil && (con.Type == ast.ConstrIndex || con.Type == ast.ConstrUnique || con.Type == ast.ConstrPrimaryKey) && usesRTree(con.IndexType, con.IndexOptions) {
+			b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, notRTree)
+			return true
+		}
+		if (c.Type != ast.ATChangeColumn && c.Type != ast.ATModifyColumn) || c.IfExists || c.After == "" || c.Column == nil {
+			continue
+		}
+		name := c.Name
+		if c.Type == ast.ATModifyColumn || name == "" {
+			name = c.Column.Name
+		}
+		old, ok1 := b.key(spaceColumn, name)
+		after, ok2 := b.key(spaceColumn, c.After)
+		if ok1 && ok2 && old == after {
+			b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, "Column "+review.Code(ident(name))+" can't be placed after itself.")
+			return true
+		}
+	}
+	return false
+}
+
+// usesRTree reports whether a key is declared USING or TYPE RTREE, before
+// its columns or after them.
+func usesRTree(indexType string, opts []*ast.IndexOption) bool {
+	declared := indexType
+	for _, o := range opts {
+		if o != nil && !o.Engine && strings.EqualFold(o.Name, "USING") {
+			if s, ok := o.Value.(*ast.StringLit); ok {
+				declared = s.Value
+			}
+		}
+	}
+	return strings.EqualFold(declared, "RTREE")
+}
+
+// notRTree is the text for an RTREE key that is no SPATIAL key (1210).
+var notRTree = "Only a " + review.Code("SPATIAL") + " key can be an " + review.Code("RTREE") + " key."
 
 // alterEngine returns the ENGINE an ALTER TABLE sets, if it sets one.
 func alterEngine(v *ast.AlterTableStmt) (string, bool) {

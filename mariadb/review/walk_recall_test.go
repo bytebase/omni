@@ -23,6 +23,7 @@ var recallSchemaSQL = []string{
 	"CREATE TABLE sub (id int PRIMARY KEY) ENGINE=InnoDB PARTITION BY RANGE (id) SUBPARTITION BY HASH (id) (PARTITION p0 VALUES LESS THAN (10) (SUBPARTITION p0sp0));",
 	"CREATE VIEW v AS SELECT 1 AS x;",
 	"CREATE FUNCTION f() RETURNS int DETERMINISTIC RETURN 1;",
+	"CREATE SEQUENCE q;",
 }
 
 // recallTarget is recallSchemaSQL as the sync lists it, with foreign keys
@@ -92,6 +93,37 @@ func TestWalkThroughMariaDBTableOptions(t *testing.T) {
 		{sql: "CREATE TABLE x (a int) ENGINE = HEAP;"},
 		{sql: "CREATE TABLE x (a int) ENGINE = MERGE;"},
 		{sql: "CREATE TABLE x (a int) ENGINE = MARIA;"},
+	})
+}
+
+// TestWalkThroughMariaDBInnoDBOptions pins the walk's findings on options
+// InnoDB doesn't take and on forms MariaDB refuses whatever the table holds
+// (innoDBOptionsFail, alterFormFails, sequenceTypeFails). Each case was run
+// on mariadb:11.8.8.
+func TestWalkThroughMariaDBInnoDBOptions(t *testing.T) {
+	runRecallCases(t, []recallCase{
+		{sql: "ALTER TABLE t x = 1;", want: "Storage engine `InnoDB` has no option `x`.", code: "1911"},
+		{sql: "ALTER TABLE t ADD c INT x = 1;", want: "Storage engine `InnoDB` has no option `x`.", code: "1911"},
+		{sql: "ALTER TABLE t MODIFY a INT x = 1;", want: "Storage engine `InnoDB` has no option `x`.", code: "1911"},
+		{sql: "ALTER TABLE t ADD KEY (a) x = 1;", want: "Storage engine `InnoDB` has no option `x`.", code: "1911"},
+		{sql: "ALTER TABLE t PAGE_COMPRESSED = 1;"},
+		{sql: "ALTER TABLE t ENCRYPTED = DEFAULT;"},
+		{sql: "SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS';\nALTER TABLE t x = 1;"},
+		{sql: "ALTER TABLE t ROW_FORMAT = FIXED;", want: "Storage engine `InnoDB` doesn't take `ROW_FORMAT=FIXED`.", code: "1478"},
+		{sql: "ALTER TABLE t ROW_FORMAT = DYNAMIC, ROW_FORMAT = FIXED;", want: "Storage engine `InnoDB` doesn't take `ROW_FORMAT=FIXED`.", code: "1478"},
+		{sql: "ALTER TABLE t ROW_FORMAT = PAGE, ADD COLUMN zz INT;", want: "Storage engine `InnoDB` doesn't take `ROW_FORMAT=PAGE`.", code: "1478"},
+		{sql: "ALTER TABLE t ROW_FORMAT = FIXED, ROW_FORMAT = DYNAMIC;"},
+		{sql: "ALTER TABLE t ROW_FORMAT = FIXED, ENGINE = MyISAM;"},
+		{sql: "SET innodb_strict_mode = OFF;\nALTER TABLE t ROW_FORMAT = FIXED;"},
+		{sql: "SET STATEMENT innodb_strict_mode = OFF FOR ALTER TABLE t ROW_FORMAT = PAGE;"},
+		{sql: "ALTER TABLE t ADD KEY k2 (a) USING RTREE;", want: "Only a `SPATIAL` key can be an `RTREE` key.", code: "1210"},
+		{sql: "ALTER TABLE t ADD UNIQUE KEY k3 (a) USING RTREE;", want: "Only a `SPATIAL` key can be an `RTREE` key.", code: "1210"},
+		{sql: "ALTER TABLE t CHANGE a b INT AFTER a;", want: "Column `a` can't be placed after itself.", code: "1054"},
+		{sql: "ALTER TABLE t MODIFY A INT AFTER a;", want: "Column `A` can't be placed after itself.", code: "1054"},
+		{sql: "ALTER TABLE t MODIFY a INT AFTER s;"},
+		{sql: "ALTER SEQUENCE q AS INT;", want: "Sequence `q` has a value out of the range of `INT`.", code: "1264"},
+		{sql: "ALTER SEQUENCE q AS BIGINT UNSIGNED;"},
+		{sql: "SET sql_mode = '';\nALTER SEQUENCE q AS INT;"},
 	})
 }
 
