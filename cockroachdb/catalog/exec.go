@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -173,6 +174,13 @@ func (c *Catalog) restore(meta *metadatapb.DatabaseSchemaMetadata) {
 }
 
 func ptr[T any](v T) *T { return &v }
+
+// missing reports whether a refusal is for an object that does not exist,
+// which IF EXISTS takes.
+func missing(err error) bool {
+	var refusal *Error
+	return errors.As(err, &refusal) && (refusal.Code == codeUndefinedObject || refusal.Code == codeUndefinedTable)
+}
 
 // refuse is an Error with CockroachDB's SQLSTATE.
 func refuse(code, format string, args ...any) *Error {
@@ -1597,7 +1605,7 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 				return relabelIn(text, typ, from, to, enumColumns)
 			}
 			for _, column := range table.Columns {
-				if arrayLiteral(column.Default, typ, from) && stuck == nil {
+				if (arrayLiteral(column.Default, typ, from) || column.Type == typ+"[]" && bareArrayLiteral(column.Default, from)) && stuck == nil {
 					stuck = &Error{Message: fmt.Sprintf("renaming enum value %q, which an array literal in the default of column %q holds, is not supported", from, column.Name)}
 				}
 				if column.Type == typ || column.Type == typ+"[]" {
@@ -2126,7 +2134,7 @@ func (c *Catalog) labelUser(typ, label string) string {
 		for _, text := range texts {
 			if user == "" && text != "" {
 				expr, err := parser.ParseExpr(text)
-				if err == nil && (readsLabel(expr, label) || arrayLiteral(text, typ, label)) {
+				if err == nil && (readsLabel(expr, label) || arrayLiteral(text, typ, label) || bareArrayLiteral(text, label)) {
 					user = table.Name
 				}
 			}
@@ -2165,6 +2173,17 @@ func arrayLiteral(text, typ, label string) bool {
 		return true, e, nil
 	})
 	return found
+}
+
+// bareArrayLiteral reports whether a default is a string whose array text
+// may hold a label ('{sad}' in a mood[] column).
+func bareArrayLiteral(text, label string) bool {
+	expr, err := parser.ParseExpr(text)
+	if err != nil {
+		return false
+	}
+	str, ok := unparen(expr).(*tree.StrVal)
+	return ok && strings.HasPrefix(str.RawString(), "{") && strings.Contains(str.RawString(), label)
 }
 
 // uncastLabel reports whether an expression holds a label as a bare string
@@ -2310,10 +2329,19 @@ func (c *Catalog) viewTypeUser(schema, name, what string) error {
 // viewSequenceUser refuses renaming, moving or dropping a sequence a view's
 // query calls, which the catalog does not track or rewrite.
 func (c *Catalog) viewSequenceUser(schema, name string, kind relKind) error {
+	return c.sequenceUserOutside(schema, name, kind, "")
+}
+
+// sequenceUserOutside is viewSequenceUser without the views and routines of
+// the schema dropping, which go with it.
+func (c *Catalog) sequenceUserOutside(schema, name string, kind relKind, dropping string) error {
 	if kind != relSequence {
 		return nil
 	}
 	for _, s := range c.l.meta.Schemas {
+		if dropping != "" && s.Name == dropping {
+			continue
+		}
 		for _, function := range s.Functions {
 			// Its body or a parameter's default.
 			if identifierIn(function.Definition, name) {
@@ -2385,6 +2413,17 @@ type exprVisitor struct{ visit func(tree.Expr) }
 
 func (v *exprVisitor) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 	v.visit(expr)
+	// The walker does not descend into OVER (...).
+	if f, ok := expr.(*tree.FuncExpr); ok && f.WindowDef != nil {
+		for _, p := range f.WindowDef.Partitions {
+			tree.WalkExprConst(v, p)
+		}
+		for _, o := range f.WindowDef.OrderBy {
+			if o.Expr != nil {
+				tree.WalkExprConst(v, o.Expr)
+			}
+		}
+	}
 	return true, expr
 }
 
@@ -2710,7 +2749,11 @@ func (c *Catalog) dropRelations(names tree.TableNames, ifExists bool, behavior t
 				}
 			}
 		case relSequence:
-			if err := c.viewSequenceUser(t.s.Name, t.name, relSequence); err != nil {
+			droppingSchema := ""
+			if inSchema {
+				droppingSchema = t.s.Name
+			}
+			if err := c.sequenceUserOutside(t.s.Name, t.name, relSequence, droppingSchema); err != nil {
 				return err
 			}
 			var users []*metadatapb.ColumnMetadata
@@ -3690,7 +3733,7 @@ func (c *Catalog) index(n *tree.TableIndexName, ifExists bool) (*metadatapb.Inde
 func (c *Catalog) renameIndex(n *tree.RenameIndex) error {
 	index, list, err := c.index(n.Index, n.IfExists)
 	if err != nil {
-		if n.IfExists {
+		if n.IfExists && missing(err) {
 			return nil
 		}
 		return err
@@ -3708,7 +3751,7 @@ func (c *Catalog) renameIndex(n *tree.RenameIndex) error {
 func (c *Catalog) alterIndexVisible(n *tree.AlterIndexVisible) error {
 	index, _, err := c.index(&n.Index, n.IfExists)
 	if err != nil {
-		if n.IfExists {
+		if n.IfExists && missing(err) {
 			return nil
 		}
 		return err
@@ -3728,7 +3771,7 @@ func (c *Catalog) dropIndex(n *tree.DropIndex) error {
 	for _, name := range n.IndexList {
 		index, list, err := c.index(name, n.IfExists)
 		if err != nil {
-			if n.IfExists {
+			if n.IfExists && missing(err) {
 				continue
 			}
 			return err

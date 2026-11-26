@@ -522,3 +522,16 @@ func TestExecRound31(t *testing.T) {
 	_, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (m mood CHECK (m = 'sad')); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
 	require.NoError(t, err)
 }
+
+func TestExecRound32(t *testing.T) {
+	_, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad'); CREATE VIEW v AS SELECT row_number() OVER (ORDER BY 'sad'::mood) AS n; DROP TYPE mood")
+	require.Equal(t, "2BP01", code(err))
+	_, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (m mood[] DEFAULT '{sad}'); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.Error(t, err)
+	_, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (m mood[] DEFAULT '{sad}'); ALTER TYPE mood DROP VALUE 'sad'")
+	require.Equal(t, "2BP01", code(err))
+	_, err = execLast(t, "CREATE SCHEMA s; CREATE SEQUENCE s.sq; CREATE FUNCTION s.f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT nextval('s.sq') $$; DROP SCHEMA s CASCADE")
+	require.NoError(t, err)
+	_, err = execLast(t, "CREATE TABLE a (x INT8); CREATE TABLE b (x INT8); CREATE INDEX ix ON a (x); CREATE INDEX ix ON b (x); DROP INDEX IF EXISTS ix")
+	require.Equal(t, "42P08", code(err))
+}
