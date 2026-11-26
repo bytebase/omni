@@ -584,6 +584,8 @@ var walkCodes = []struct {
 	{func(m, _ string) bool { return m == "A view's query can't read a variable." }, []string{"1351", "1350"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "A view's query can't hold a parameter marker ") }, []string{"1149"}},
 	{func(m, _ string) bool { return strings.HasSuffix(m, "()` needs at least one argument.") }, []string{"1582"}},
+	{func(m, _ string) bool { return m == "`USER()` takes no argument." }, []string{"1582"}},
+	{func(m, _ string) bool { return m == "A `ROWS` window frame counts whole rows, not a fraction." }, []string{"3586"}},
 	{func(m, _ string) bool { return strings.HasSuffix(m, " takes a constant, not a column, as its count.") }, []string{"1210"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Window ") && strings.Contains(m, " isn't defined in the query's ")

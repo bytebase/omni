@@ -16,20 +16,26 @@ fresh container (`OMNI_RECORD=verify`).
 
 | Rows | Total | Agree | Only Hive accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| Generated alternatives | 2,556 | 2,556 | 0 | 0 |
-| Generated near-misses | 5,477 | 5,477 | 0 | 0 |
-| **All** | **8,033** | **8,033** | **0** | **0** |
+| Generated alternatives | 2,897 | 2,897 | 0 | 0 |
+| Generated near-misses | 5,784 | 5,784 | 0 | 0 |
+| `suite:keyword-choices` | 38 | 38 | 0 | 0 |
+| **All** | **8,719** | **8,719** | **0** | **0** |
 
-Apache Hive 4.0.1 accepts 2,535 of the 2,556 generated alternatives and rejects
-21: 12 `MERGE` rows with zero `WHEN` clauses (where Hive 4.0.1's `HiveParser`
+Apache Hive 4.0.1 accepts 2,868 of the 2,897 generated alternatives and rejects
+29: 16 `MERGE` rows with zero `WHEN` clauses (where Hive 4.0.1's `HiveParser`
 throws ANTLR 3's `RewriteEmptyStreamException` on `whenClauses` during parsing),
-4 `SELECT a(*, ...)` rows (where `function`'s `(STAR) => STAR` syntactic
-predicate matches bare `*` before `selectExpression`), and 5 `CREATE TABLE ...
+7 `SELECT a(*, ...)` rows (where `function`'s `(STAR) => STAR` syntactic
+predicate matches bare `*` before `selectExpression`), 5 `CREATE TABLE ...
 LIKE FILE` rows followed by `PARTITIONED BY`, `STORED BY` or `TBLPROPERTIES`
 (where HiveParser.g's k=3 decision reads the keyword as the file format and
-then wants a URI string). It rejects 5,025 of the 5,477 near-misses and accepts
-452 whose single-token mutation still produces valid HiveQL. `hive/parser`
-agrees with live `apache/hive:4.0.1` on all 8,033 rows (100.0%).
+then wants a URI string), and `FROM a(ON a) ABORT SELECT *`, whose alias Hive
+takes for `zzz` but not for the keyword `ABORT`. It rejects 5,326 of the 5,784
+near-misses and accepts 458 whose single-token mutation still produces valid
+HiveQL. The 38 `suite:keyword-choices` rows pin what Hive reads around keyword
+names: LIMIT, POOL, TYPE and STATUS name a column in `SHOW LOCKS` and `SHOW
+COMPACTIONS` unless a number or string follows, WITHIN after a call is a name
+unless GROUP follows, and `1.e` with no exponent digits is a lexical error.
+`hive/parser` agrees with live `apache/hive:4.0.1` on all 8,719 rows (100.0%).
 
 ## Grammar source
 

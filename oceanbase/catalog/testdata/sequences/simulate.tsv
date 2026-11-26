@@ -8,13 +8,33 @@ ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	opt_sequence_option_lis
 4301	4301	engine	one_table@missing	sequence_option_list/sequence_option_list_sequence_option	CREATE SEQUENCE a NOMAXVALUE NOMAXVALUE
 ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option_list/sequence_option_list_sequence_option!swap	CREATE SEQUENCE a NOMINVALUE NOMAXVALUE
 ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option/INCREMENT_BY_simple_num	CREATE SEQUENCE a INCREMENT BY 1
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option/INCREMENT_BY_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a INCREMENT BY + 1
+ok:4c5f8ae1cc71	ok:4c5f8ae1cc71	engine	one_table@missing	sequence_option/INCREMENT_BY_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a INCREMENT BY - 1
+4317	4317	engine	one_table@missing	sequence_option/INCREMENT_BY_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a INCREMENT BY + 1.5
+4317	4317	engine	one_table@missing	sequence_option/INCREMENT_BY_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a INCREMENT BY - 1.5
+4317	4317	engine	one_table@missing	sequence_option/INCREMENT_BY_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a INCREMENT BY 1.5
 ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option/START_WITH_simple_num	CREATE SEQUENCE a START WITH 1
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option/START_WITH_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a START WITH + 1
+4322	4322	engine	one_table@missing	sequence_option/START_WITH_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a START WITH - 1
+4317	4317	engine	one_table@missing	sequence_option/START_WITH_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a START WITH + 1.5
+4317	4317	engine	one_table@missing	sequence_option/START_WITH_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a START WITH - 1.5
+4317	4317	engine	one_table@missing	sequence_option/START_WITH_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a START WITH 1.5
 4320	4320	engine	one_table@missing	sequence_option/MAXVALUE_simple_num	CREATE SEQUENCE a MAXVALUE 1
 ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option/MINVALUE_simple_num	CREATE SEQUENCE a MINVALUE 1
+ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option/MINVALUE_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a MINVALUE + 1
+ok:5c7226e62959	ok:5c7226e62959	engine	one_table@missing	sequence_option/MINVALUE_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a MINVALUE - 1
+4317	4317	engine	one_table@missing	sequence_option/MINVALUE_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a MINVALUE + 1.5
+4317	4317	engine	one_table@missing	sequence_option/MINVALUE_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a MINVALUE - 1.5
+4317	4317	engine	one_table@missing	sequence_option/MINVALUE_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a MINVALUE 1.5
 ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option/NOMINVALUE	CREATE SEQUENCE a NOMINVALUE
 4330	4330	engine	one_table@missing	sequence_option/CYCLE	CREATE SEQUENCE a CYCLE
 ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option/NOCYCLE	CREATE SEQUENCE a NOCYCLE
 4326	4326	engine	one_table@missing	sequence_option/CACHE_simple_num	CREATE SEQUENCE a CACHE 1
+4326	4326	engine	one_table@missing	sequence_option/CACHE_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a CACHE + 1
+4326	4326	engine	one_table@missing	sequence_option/CACHE_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a CACHE - 1
+4317	4317	engine	one_table@missing	sequence_option/CACHE_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a CACHE + 1.5
+4317	4317	engine	one_table@missing	sequence_option/CACHE_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a CACHE - 1.5
+4317	4317	engine	one_table@missing	sequence_option/CACHE_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a CACHE 1.5
 ok:f18ece527390	ok:f18ece527390	engine	one_table@missing	sequence_option/NOCACHE	CREATE SEQUENCE a NOCACHE
 ok:0e35fbe527e3	ok:0e35fbe527e3	engine	one_table@missing	sequence_option/ORDER	CREATE SEQUENCE a ORDER
 ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence_option/NOORDER	CREATE SEQUENCE a NOORDER
@@ -54,10 +74,6 @@ ok:4c5f8ae1cc71	ok:4c5f8ae1cc71	engine	one_table@missing	sequence/create_minvalu
 ok:9e98f3207935	ok:9e98f3207935	engine	one_table@missing	sequence/create_maxvalue_whole_decimal	CREATE SEQUENCE a MAXVALUE 10.0
 ok:6de364ebeca4	ok:6de364ebeca4	engine	one_table@missing	sequence/create_maxvalue_wide_fraction	CREATE SEQUENCE a MAXVALUE 99999999999999999999.5
 4317	4317	engine	one_table@missing	sequence/create_maxvalue_fraction_cycle	CREATE SEQUENCE a MAXVALUE 1.5 CYCLE
-4317	4317	engine	one_table@missing	sequence/create_minvalue_fraction	CREATE SEQUENCE a MINVALUE 1.5
-4317	4317	engine	one_table@missing	sequence/create_increment_fraction	CREATE SEQUENCE a INCREMENT BY 1.5
-4317	4317	engine	one_table@missing	sequence/create_start_fraction	CREATE SEQUENCE a START WITH 1.5
-4317	4317	engine	one_table@missing	sequence/create_cache_fraction	CREATE SEQUENCE a CACHE 1.5
 5114	5114	engine	one_table@missing	sequence/create_maxvalue_exponent	CREATE SEQUENCE a MAXVALUE 1e5
 ok:4c5f8ae1cc71	ok:4c5f8ae1cc71	engine	one_table@missing	sequence/create_nomaxvalue_descending	CREATE SEQUENCE a NOMAXVALUE INCREMENT BY -1
 4312	4312	engine	one_table@missing	sequence/create_dup_increment	CREATE SEQUENCE a INCREMENT BY 1 INCREMENT BY 2
@@ -129,13 +145,33 @@ ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	opt_sequence_option_list/
 4301	4301	engine	one_table@table	sequence_option_list/sequence_option_list_sequence_option	CREATE SEQUENCE a NOMAXVALUE NOMAXVALUE
 ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option_list/sequence_option_list_sequence_option!swap	CREATE SEQUENCE a NOMINVALUE NOMAXVALUE
 ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option/INCREMENT_BY_simple_num	CREATE SEQUENCE a INCREMENT BY 1
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option/INCREMENT_BY_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a INCREMENT BY + 1
+ok:999c9eab4b46	ok:999c9eab4b46	engine	one_table@table	sequence_option/INCREMENT_BY_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a INCREMENT BY - 1
+4317	4317	engine	one_table@table	sequence_option/INCREMENT_BY_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a INCREMENT BY + 1.5
+4317	4317	engine	one_table@table	sequence_option/INCREMENT_BY_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a INCREMENT BY - 1.5
+4317	4317	engine	one_table@table	sequence_option/INCREMENT_BY_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a INCREMENT BY 1.5
 ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option/START_WITH_simple_num	CREATE SEQUENCE a START WITH 1
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option/START_WITH_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a START WITH + 1
+4322	4322	engine	one_table@table	sequence_option/START_WITH_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a START WITH - 1
+4317	4317	engine	one_table@table	sequence_option/START_WITH_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a START WITH + 1.5
+4317	4317	engine	one_table@table	sequence_option/START_WITH_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a START WITH - 1.5
+4317	4317	engine	one_table@table	sequence_option/START_WITH_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a START WITH 1.5
 4320	4320	engine	one_table@table	sequence_option/MAXVALUE_simple_num	CREATE SEQUENCE a MAXVALUE 1
 ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option/MINVALUE_simple_num	CREATE SEQUENCE a MINVALUE 1
+ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option/MINVALUE_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a MINVALUE + 1
+ok:ce94226ec90d	ok:ce94226ec90d	engine	one_table@table	sequence_option/MINVALUE_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a MINVALUE - 1
+4317	4317	engine	one_table@table	sequence_option/MINVALUE_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a MINVALUE + 1.5
+4317	4317	engine	one_table@table	sequence_option/MINVALUE_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a MINVALUE - 1.5
+4317	4317	engine	one_table@table	sequence_option/MINVALUE_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a MINVALUE 1.5
 ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option/NOMINVALUE	CREATE SEQUENCE a NOMINVALUE
 4330	4330	engine	one_table@table	sequence_option/CYCLE	CREATE SEQUENCE a CYCLE
 ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option/NOCYCLE	CREATE SEQUENCE a NOCYCLE
 4326	4326	engine	one_table@table	sequence_option/CACHE_simple_num	CREATE SEQUENCE a CACHE 1
+4326	4326	engine	one_table@table	sequence_option/CACHE_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a CACHE + 1
+4326	4326	engine	one_table@table	sequence_option/CACHE_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a CACHE - 1
+4317	4317	engine	one_table@table	sequence_option/CACHE_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a CACHE + 1.5
+4317	4317	engine	one_table@table	sequence_option/CACHE_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a CACHE - 1.5
+4317	4317	engine	one_table@table	sequence_option/CACHE_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a CACHE 1.5
 ok:6615dbfe98bb	ok:6615dbfe98bb	engine	one_table@table	sequence_option/NOCACHE	CREATE SEQUENCE a NOCACHE
 ok:d3b436d4c07f	ok:d3b436d4c07f	engine	one_table@table	sequence_option/ORDER	CREATE SEQUENCE a ORDER
 ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence_option/NOORDER	CREATE SEQUENCE a NOORDER
@@ -175,10 +211,6 @@ ok:999c9eab4b46	ok:999c9eab4b46	engine	one_table@table	sequence/create_minvalue_
 ok:141b3f63bd6f	ok:141b3f63bd6f	engine	one_table@table	sequence/create_maxvalue_whole_decimal	CREATE SEQUENCE a MAXVALUE 10.0
 ok:c1e8cfb541b1	ok:c1e8cfb541b1	engine	one_table@table	sequence/create_maxvalue_wide_fraction	CREATE SEQUENCE a MAXVALUE 99999999999999999999.5
 4317	4317	engine	one_table@table	sequence/create_maxvalue_fraction_cycle	CREATE SEQUENCE a MAXVALUE 1.5 CYCLE
-4317	4317	engine	one_table@table	sequence/create_minvalue_fraction	CREATE SEQUENCE a MINVALUE 1.5
-4317	4317	engine	one_table@table	sequence/create_increment_fraction	CREATE SEQUENCE a INCREMENT BY 1.5
-4317	4317	engine	one_table@table	sequence/create_start_fraction	CREATE SEQUENCE a START WITH 1.5
-4317	4317	engine	one_table@table	sequence/create_cache_fraction	CREATE SEQUENCE a CACHE 1.5
 5114	5114	engine	one_table@table	sequence/create_maxvalue_exponent	CREATE SEQUENCE a MAXVALUE 1e5
 ok:999c9eab4b46	ok:999c9eab4b46	engine	one_table@table	sequence/create_nomaxvalue_descending	CREATE SEQUENCE a NOMAXVALUE INCREMENT BY -1
 4312	4312	engine	one_table@table	sequence/create_dup_increment	CREATE SEQUENCE a INCREMENT BY 1 INCREMENT BY 2
@@ -250,13 +282,33 @@ ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	opt_sequence_option_list/seq
 4301	4301	engine	objects@view	sequence_option_list/sequence_option_list_sequence_option	CREATE SEQUENCE a NOMAXVALUE NOMAXVALUE
 ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option_list/sequence_option_list_sequence_option!swap	CREATE SEQUENCE a NOMINVALUE NOMAXVALUE
 ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option/INCREMENT_BY_simple_num	CREATE SEQUENCE a INCREMENT BY 1
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option/INCREMENT_BY_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a INCREMENT BY + 1
+ok:d7635c30c3a7	ok:d7635c30c3a7	engine	objects@view	sequence_option/INCREMENT_BY_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a INCREMENT BY - 1
+4317	4317	engine	objects@view	sequence_option/INCREMENT_BY_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a INCREMENT BY + 1.5
+4317	4317	engine	objects@view	sequence_option/INCREMENT_BY_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a INCREMENT BY - 1.5
+4317	4317	engine	objects@view	sequence_option/INCREMENT_BY_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a INCREMENT BY 1.5
 ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option/START_WITH_simple_num	CREATE SEQUENCE a START WITH 1
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option/START_WITH_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a START WITH + 1
+4322	4322	engine	objects@view	sequence_option/START_WITH_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a START WITH - 1
+4317	4317	engine	objects@view	sequence_option/START_WITH_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a START WITH + 1.5
+4317	4317	engine	objects@view	sequence_option/START_WITH_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a START WITH - 1.5
+4317	4317	engine	objects@view	sequence_option/START_WITH_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a START WITH 1.5
 4320	4320	engine	objects@view	sequence_option/MAXVALUE_simple_num	CREATE SEQUENCE a MAXVALUE 1
 ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option/MINVALUE_simple_num	CREATE SEQUENCE a MINVALUE 1
+ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option/MINVALUE_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a MINVALUE + 1
+ok:4a4d012e5476	ok:4a4d012e5476	engine	objects@view	sequence_option/MINVALUE_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a MINVALUE - 1
+4317	4317	engine	objects@view	sequence_option/MINVALUE_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a MINVALUE + 1.5
+4317	4317	engine	objects@view	sequence_option/MINVALUE_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a MINVALUE - 1.5
+4317	4317	engine	objects@view	sequence_option/MINVALUE_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a MINVALUE 1.5
 ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option/NOMINVALUE	CREATE SEQUENCE a NOMINVALUE
 4330	4330	engine	objects@view	sequence_option/CYCLE	CREATE SEQUENCE a CYCLE
 ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option/NOCYCLE	CREATE SEQUENCE a NOCYCLE
 4326	4326	engine	objects@view	sequence_option/CACHE_simple_num	CREATE SEQUENCE a CACHE 1
+4326	4326	engine	objects@view	sequence_option/CACHE_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a CACHE + 1
+4326	4326	engine	objects@view	sequence_option/CACHE_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a CACHE - 1
+4317	4317	engine	objects@view	sequence_option/CACHE_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a CACHE + 1.5
+4317	4317	engine	objects@view	sequence_option/CACHE_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a CACHE - 1.5
+4317	4317	engine	objects@view	sequence_option/CACHE_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a CACHE 1.5
 ok:da90986016d7	ok:da90986016d7	engine	objects@view	sequence_option/NOCACHE	CREATE SEQUENCE a NOCACHE
 ok:9388cf7290a5	ok:9388cf7290a5	engine	objects@view	sequence_option/ORDER	CREATE SEQUENCE a ORDER
 ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence_option/NOORDER	CREATE SEQUENCE a NOORDER
@@ -296,10 +348,6 @@ ok:d7635c30c3a7	ok:d7635c30c3a7	engine	objects@view	sequence/create_minvalue_pas
 ok:c5910c08f00c	ok:c5910c08f00c	engine	objects@view	sequence/create_maxvalue_whole_decimal	CREATE SEQUENCE a MAXVALUE 10.0
 ok:57a98eab6a95	ok:57a98eab6a95	engine	objects@view	sequence/create_maxvalue_wide_fraction	CREATE SEQUENCE a MAXVALUE 99999999999999999999.5
 4317	4317	engine	objects@view	sequence/create_maxvalue_fraction_cycle	CREATE SEQUENCE a MAXVALUE 1.5 CYCLE
-4317	4317	engine	objects@view	sequence/create_minvalue_fraction	CREATE SEQUENCE a MINVALUE 1.5
-4317	4317	engine	objects@view	sequence/create_increment_fraction	CREATE SEQUENCE a INCREMENT BY 1.5
-4317	4317	engine	objects@view	sequence/create_start_fraction	CREATE SEQUENCE a START WITH 1.5
-4317	4317	engine	objects@view	sequence/create_cache_fraction	CREATE SEQUENCE a CACHE 1.5
 5114	5114	engine	objects@view	sequence/create_maxvalue_exponent	CREATE SEQUENCE a MAXVALUE 1e5
 ok:d7635c30c3a7	ok:d7635c30c3a7	engine	objects@view	sequence/create_nomaxvalue_descending	CREATE SEQUENCE a NOMAXVALUE INCREMENT BY -1
 4312	4312	engine	objects@view	sequence/create_dup_increment	CREATE SEQUENCE a INCREMENT BY 1 INCREMENT BY 2
@@ -371,13 +419,33 @@ ok:8304a329b142	ok:8304a329b142	engine	objects@sequence	create_sequence_stmt/cre
 4301	4301	engine	objects@sequence	sequence_option_list/sequence_option_list_sequence_option	CREATE SEQUENCE a NOMAXVALUE NOMAXVALUE
 4297	4297	engine	objects@sequence	sequence_option_list/sequence_option_list_sequence_option!swap	CREATE SEQUENCE a NOMINVALUE NOMAXVALUE
 4297	4297	engine	objects@sequence	sequence_option/INCREMENT_BY_simple_num	CREATE SEQUENCE a INCREMENT BY 1
+4297	4297	engine	objects@sequence	sequence_option/INCREMENT_BY_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a INCREMENT BY + 1
+4297	4297	engine	objects@sequence	sequence_option/INCREMENT_BY_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a INCREMENT BY - 1
+4297	4297	engine	objects@sequence	sequence_option/INCREMENT_BY_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a INCREMENT BY + 1.5
+4297	4297	engine	objects@sequence	sequence_option/INCREMENT_BY_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a INCREMENT BY - 1.5
+4297	4297	engine	objects@sequence	sequence_option/INCREMENT_BY_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a INCREMENT BY 1.5
 4297	4297	engine	objects@sequence	sequence_option/START_WITH_simple_num	CREATE SEQUENCE a START WITH 1
+4297	4297	engine	objects@sequence	sequence_option/START_WITH_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a START WITH + 1
+4297	4297	engine	objects@sequence	sequence_option/START_WITH_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a START WITH - 1
+4297	4297	engine	objects@sequence	sequence_option/START_WITH_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a START WITH + 1.5
+4297	4297	engine	objects@sequence	sequence_option/START_WITH_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a START WITH - 1.5
+4297	4297	engine	objects@sequence	sequence_option/START_WITH_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a START WITH 1.5
 4297	4297	engine	objects@sequence	sequence_option/MAXVALUE_simple_num	CREATE SEQUENCE a MAXVALUE 1
 4297	4297	engine	objects@sequence	sequence_option/MINVALUE_simple_num	CREATE SEQUENCE a MINVALUE 1
+4297	4297	engine	objects@sequence	sequence_option/MINVALUE_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a MINVALUE + 1
+4297	4297	engine	objects@sequence	sequence_option/MINVALUE_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a MINVALUE - 1
+4297	4297	engine	objects@sequence	sequence_option/MINVALUE_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a MINVALUE + 1.5
+4297	4297	engine	objects@sequence	sequence_option/MINVALUE_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a MINVALUE - 1.5
+4297	4297	engine	objects@sequence	sequence_option/MINVALUE_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a MINVALUE 1.5
 4297	4297	engine	objects@sequence	sequence_option/NOMINVALUE	CREATE SEQUENCE a NOMINVALUE
 4297	4297	engine	objects@sequence	sequence_option/CYCLE	CREATE SEQUENCE a CYCLE
 4297	4297	engine	objects@sequence	sequence_option/NOCYCLE	CREATE SEQUENCE a NOCYCLE
 4297	4297	engine	objects@sequence	sequence_option/CACHE_simple_num	CREATE SEQUENCE a CACHE 1
+4297	4297	engine	objects@sequence	sequence_option/CACHE_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a CACHE + 1
+4297	4297	engine	objects@sequence	sequence_option/CACHE_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a CACHE - 1
+4297	4297	engine	objects@sequence	sequence_option/CACHE_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a CACHE + 1.5
+4297	4297	engine	objects@sequence	sequence_option/CACHE_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a CACHE - 1.5
+4297	4297	engine	objects@sequence	sequence_option/CACHE_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a CACHE 1.5
 4297	4297	engine	objects@sequence	sequence_option/NOCACHE	CREATE SEQUENCE a NOCACHE
 4297	4297	engine	objects@sequence	sequence_option/ORDER	CREATE SEQUENCE a ORDER
 4297	4297	engine	objects@sequence	sequence_option/NOORDER	CREATE SEQUENCE a NOORDER
@@ -417,10 +485,6 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@sequence	drop_sequence_stmt/DROP_
 4297	4297	engine	objects@sequence	sequence/create_maxvalue_whole_decimal	CREATE SEQUENCE a MAXVALUE 10.0
 4297	4297	engine	objects@sequence	sequence/create_maxvalue_wide_fraction	CREATE SEQUENCE a MAXVALUE 99999999999999999999.5
 4297	4297	engine	objects@sequence	sequence/create_maxvalue_fraction_cycle	CREATE SEQUENCE a MAXVALUE 1.5 CYCLE
-4297	4297	engine	objects@sequence	sequence/create_minvalue_fraction	CREATE SEQUENCE a MINVALUE 1.5
-4297	4297	engine	objects@sequence	sequence/create_increment_fraction	CREATE SEQUENCE a INCREMENT BY 1.5
-4297	4297	engine	objects@sequence	sequence/create_start_fraction	CREATE SEQUENCE a START WITH 1.5
-4297	4297	engine	objects@sequence	sequence/create_cache_fraction	CREATE SEQUENCE a CACHE 1.5
 5114	5114	engine	objects@sequence	sequence/create_maxvalue_exponent	CREATE SEQUENCE a MAXVALUE 1e5
 4297	4297	engine	objects@sequence	sequence/create_nomaxvalue_descending	CREATE SEQUENCE a NOMAXVALUE INCREMENT BY -1
 4312	4312	engine	objects@sequence	sequence/create_dup_increment	CREATE SEQUENCE a INCREMENT BY 1 INCREMENT BY 2
@@ -492,13 +556,33 @@ ok:4a375443b8ea	ok:4a375443b8ea	engine	objects@sequence_options	create_sequence_
 4301	4301	engine	objects@sequence_options	sequence_option_list/sequence_option_list_sequence_option	CREATE SEQUENCE a NOMAXVALUE NOMAXVALUE
 4297	4297	engine	objects@sequence_options	sequence_option_list/sequence_option_list_sequence_option!swap	CREATE SEQUENCE a NOMINVALUE NOMAXVALUE
 4297	4297	engine	objects@sequence_options	sequence_option/INCREMENT_BY_simple_num	CREATE SEQUENCE a INCREMENT BY 1
+4297	4297	engine	objects@sequence_options	sequence_option/INCREMENT_BY_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a INCREMENT BY + 1
+4297	4297	engine	objects@sequence_options	sequence_option/INCREMENT_BY_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a INCREMENT BY - 1
+4297	4297	engine	objects@sequence_options	sequence_option/INCREMENT_BY_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a INCREMENT BY + 1.5
+4297	4297	engine	objects@sequence_options	sequence_option/INCREMENT_BY_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a INCREMENT BY - 1.5
+4297	4297	engine	objects@sequence_options	sequence_option/INCREMENT_BY_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a INCREMENT BY 1.5
 4297	4297	engine	objects@sequence_options	sequence_option/START_WITH_simple_num	CREATE SEQUENCE a START WITH 1
+4297	4297	engine	objects@sequence_options	sequence_option/START_WITH_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a START WITH + 1
+4297	4297	engine	objects@sequence_options	sequence_option/START_WITH_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a START WITH - 1
+4297	4297	engine	objects@sequence_options	sequence_option/START_WITH_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a START WITH + 1.5
+4297	4297	engine	objects@sequence_options	sequence_option/START_WITH_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a START WITH - 1.5
+4297	4297	engine	objects@sequence_options	sequence_option/START_WITH_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a START WITH 1.5
 4297	4297	engine	objects@sequence_options	sequence_option/MAXVALUE_simple_num	CREATE SEQUENCE a MAXVALUE 1
 4297	4297	engine	objects@sequence_options	sequence_option/MINVALUE_simple_num	CREATE SEQUENCE a MINVALUE 1
+4297	4297	engine	objects@sequence_options	sequence_option/MINVALUE_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a MINVALUE + 1
+4297	4297	engine	objects@sequence_options	sequence_option/MINVALUE_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a MINVALUE - 1
+4297	4297	engine	objects@sequence_options	sequence_option/MINVALUE_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a MINVALUE + 1.5
+4297	4297	engine	objects@sequence_options	sequence_option/MINVALUE_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a MINVALUE - 1.5
+4297	4297	engine	objects@sequence_options	sequence_option/MINVALUE_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a MINVALUE 1.5
 4297	4297	engine	objects@sequence_options	sequence_option/NOMINVALUE	CREATE SEQUENCE a NOMINVALUE
 4297	4297	engine	objects@sequence_options	sequence_option/CYCLE	CREATE SEQUENCE a CYCLE
 4297	4297	engine	objects@sequence_options	sequence_option/NOCYCLE	CREATE SEQUENCE a NOCYCLE
 4297	4297	engine	objects@sequence_options	sequence_option/CACHE_simple_num	CREATE SEQUENCE a CACHE 1
+4297	4297	engine	objects@sequence_options	sequence_option/CACHE_simple_num+simple_num/+_INTNUM	CREATE SEQUENCE a CACHE + 1
+4297	4297	engine	objects@sequence_options	sequence_option/CACHE_simple_num+simple_num/-_INTNUM	CREATE SEQUENCE a CACHE - 1
+4297	4297	engine	objects@sequence_options	sequence_option/CACHE_simple_num+simple_num/+_DECIMAL_VAL	CREATE SEQUENCE a CACHE + 1.5
+4297	4297	engine	objects@sequence_options	sequence_option/CACHE_simple_num+simple_num/-_DECIMAL_VAL	CREATE SEQUENCE a CACHE - 1.5
+4297	4297	engine	objects@sequence_options	sequence_option/CACHE_simple_num+simple_num/DECIMAL_VAL	CREATE SEQUENCE a CACHE 1.5
 4297	4297	engine	objects@sequence_options	sequence_option/NOCACHE	CREATE SEQUENCE a NOCACHE
 4297	4297	engine	objects@sequence_options	sequence_option/ORDER	CREATE SEQUENCE a ORDER
 4297	4297	engine	objects@sequence_options	sequence_option/NOORDER	CREATE SEQUENCE a NOORDER
@@ -538,10 +622,6 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@sequence_options	drop_sequence_st
 4297	4297	engine	objects@sequence_options	sequence/create_maxvalue_whole_decimal	CREATE SEQUENCE a MAXVALUE 10.0
 4297	4297	engine	objects@sequence_options	sequence/create_maxvalue_wide_fraction	CREATE SEQUENCE a MAXVALUE 99999999999999999999.5
 4297	4297	engine	objects@sequence_options	sequence/create_maxvalue_fraction_cycle	CREATE SEQUENCE a MAXVALUE 1.5 CYCLE
-4297	4297	engine	objects@sequence_options	sequence/create_minvalue_fraction	CREATE SEQUENCE a MINVALUE 1.5
-4297	4297	engine	objects@sequence_options	sequence/create_increment_fraction	CREATE SEQUENCE a INCREMENT BY 1.5
-4297	4297	engine	objects@sequence_options	sequence/create_start_fraction	CREATE SEQUENCE a START WITH 1.5
-4297	4297	engine	objects@sequence_options	sequence/create_cache_fraction	CREATE SEQUENCE a CACHE 1.5
 5114	5114	engine	objects@sequence_options	sequence/create_maxvalue_exponent	CREATE SEQUENCE a MAXVALUE 1e5
 4297	4297	engine	objects@sequence_options	sequence/create_nomaxvalue_descending	CREATE SEQUENCE a NOMAXVALUE INCREMENT BY -1
 4312	4312	engine	objects@sequence_options	sequence/create_dup_increment	CREATE SEQUENCE a INCREMENT BY 1 INCREMENT BY 2

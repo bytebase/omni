@@ -228,7 +228,10 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	// Documented for LOAD XML only, but the shared load_stmt rule makes
 	// MySQL 8.0 accept it syntactically for LOAD DATA as well.
 	// ROWS at this position can only start this clause (IGNORE n ROWS is
-	// introduced by IGNORE), and MySQL requires every token of it.
+	// introduced by IGNORE), and MySQL requires every token of it. The tag is
+	// a text_string, so a hex or bit literal spells it too.
+	//
+	// Ref: opt_xml_rows_identified_by in sql_yacc.yy:14528.
 	if p.cur.Type == kwROWS {
 		p.advance()
 		if _, err := p.expect(kwIDENTIFIED); err != nil {
@@ -237,11 +240,11 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
 		}
-		if p.cur.Type != tokSCONST {
-			return nil, p.syntaxErrorAtCur()
+		tag, err := p.parseFieldTerminator()
+		if err != nil {
+			return nil, err
 		}
-		stmt.RowsIdentifiedBy = p.cur.Str
-		p.advance()
+		stmt.RowsIdentifiedBy = tag
 	}
 
 	// [{FIELDS | COLUMNS} ...]

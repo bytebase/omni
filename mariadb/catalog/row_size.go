@@ -62,8 +62,8 @@ func (c *Catalog) checkRowLengths(tbl *Table) error {
 	return nil
 }
 
-// checkOversizeVarchars refuses, under a strict sql_mode, a VARCHAR a
-// statement defines past 65535 bytes (1074), which the catalog otherwise
+// checkOversizeVarchars refuses, under a strict sql_mode, a VARCHAR or
+// VARBINARY a statement defines past 65535 bytes (1074), which the catalog otherwise
 // stores as the MEDIUMTEXT MariaDB makes of it outside one: VARCHAR(70000) in
 // latin1 is "max = 65532" and VARCHAR(20000) in utf8mb4 "max = 16383"
 // (mariadb:11.8.8). A length past the bytes the column's character set allows
@@ -73,7 +73,11 @@ func (c *Catalog) checkOversizeVarchars(defs []*nodes.ColumnDef, tableCharset st
 		return nil
 	}
 	for _, def := range defs {
-		if def == nil || def.TypeName == nil || normalizedTypeName(def.TypeName.Name) != "varchar" || def.TypeName.Length <= maxRecordLength {
+		if def == nil || def.TypeName == nil || def.TypeName.Length <= maxRecordLength {
+			continue
+		}
+		typ := normalizedTypeName(def.TypeName.Name)
+		if typ != "varchar" && typ != "varbinary" {
 			continue
 		}
 		charset := def.TypeName.Charset
@@ -84,7 +88,7 @@ func (c *Catalog) checkOversizeVarchars(defs []*nodes.ColumnDef, tableCharset st
 			charset = tableCharset
 		}
 		mb := charsetMaxBytes(normalizeCharsetName(charset))
-		if def.TypeName.Binary || strings.EqualFold(charset, "binary") {
+		if typ == "varbinary" || def.TypeName.Binary || strings.EqualFold(charset, "binary") {
 			mb = 1
 		}
 		return errTooBigFieldLength(def.Name, maxVarcharBytes/mb)

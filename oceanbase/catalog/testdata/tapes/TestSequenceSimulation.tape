@@ -326,6 +326,147 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE SEQUENCE a INCREMENT BY + 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT SEQUENCE_NAME, LAST_NUMBER, MIN_VALUE, MAX_VALUE, INCREMENT_BY, CACHE_SIZE, ORDER_FLAG, CYCLE_FLAG FROM oceanbase.DBA_SEQUENCES WHERE SEQUENCE_OWNER = DATABASE() ORDER BY SEQUENCE_NAME
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "LAST_NUMBER" "DECIMAL" "string" precision 38 scale 0
+< column "MIN_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "MAX_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "INCREMENT_BY" "DECIMAL" "string" precision 28 scale 0
+< column "CACHE_SIZE" "DECIMAL" "string" precision 28 scale 0
+< column "ORDER_FLAG" "VARCHAR"
+< column "CYCLE_FLAG" "VARCHAR"
+< row
+: bytes
+| a
+: bytes
+| 1
+: bytes
+| 1
+: bytes
+| 9223372036854775807
+: bytes
+| 1
+: bytes
+| 20
+: bytes
+| N
+: bytes
+| N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY - 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT SEQUENCE_NAME, LAST_NUMBER, MIN_VALUE, MAX_VALUE, INCREMENT_BY, CACHE_SIZE, ORDER_FLAG, CYCLE_FLAG FROM oceanbase.DBA_SEQUENCES WHERE SEQUENCE_OWNER = DATABASE() ORDER BY SEQUENCE_NAME
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "LAST_NUMBER" "DECIMAL" "string" precision 38 scale 0
+< column "MIN_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "MAX_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "INCREMENT_BY" "DECIMAL" "string" precision 28 scale 0
+< column "CACHE_SIZE" "DECIMAL" "string" precision 28 scale 0
+< column "ORDER_FLAG" "VARCHAR"
+< column "CYCLE_FLAG" "VARCHAR"
+< row
+: bytes
+| a
+: bytes
+| -1
+: bytes
+| -9223372036854775808
+: bytes
+| -1
+: bytes
+| -1
+: bytes
+| 20
+: bytes
+| N
+: bytes
+| N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY + 1.5
+< error
+| 4317 HY000 sequence parameter INCREMENT must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY - 1.5
+< error
+| 4317 HY000 sequence parameter INCREMENT must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY 1.5
+< error
+| 4317 HY000 sequence parameter INCREMENT must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE SEQUENCE a START WITH 1
 < ok 0 0
 > query
@@ -382,6 +523,94 @@
 | N
 : bytes
 | N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH + 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT SEQUENCE_NAME, LAST_NUMBER, MIN_VALUE, MAX_VALUE, INCREMENT_BY, CACHE_SIZE, ORDER_FLAG, CYCLE_FLAG FROM oceanbase.DBA_SEQUENCES WHERE SEQUENCE_OWNER = DATABASE() ORDER BY SEQUENCE_NAME
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "LAST_NUMBER" "DECIMAL" "string" precision 38 scale 0
+< column "MIN_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "MAX_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "INCREMENT_BY" "DECIMAL" "string" precision 28 scale 0
+< column "CACHE_SIZE" "DECIMAL" "string" precision 28 scale 0
+< column "ORDER_FLAG" "VARCHAR"
+< column "CYCLE_FLAG" "VARCHAR"
+< row
+: bytes
+| a
+: bytes
+| 1
+: bytes
+| 1
+: bytes
+| 9223372036854775807
+: bytes
+| 1
+: bytes
+| 20
+: bytes
+| N
+: bytes
+| N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH - 1
+< error
+| 4322 HY000 START WITH cannot be less than MINVALUE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH + 1.5
+< error
+| 4317 HY000 sequence parameter START WITH must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH - 1.5
+< error
+| 4317 HY000 sequence parameter START WITH must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH 1.5
+< error
+| 4317 HY000 sequence parameter START WITH must be an integer
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -449,6 +678,147 @@
 | N
 : bytes
 | N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE + 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT SEQUENCE_NAME, LAST_NUMBER, MIN_VALUE, MAX_VALUE, INCREMENT_BY, CACHE_SIZE, ORDER_FLAG, CYCLE_FLAG FROM oceanbase.DBA_SEQUENCES WHERE SEQUENCE_OWNER = DATABASE() ORDER BY SEQUENCE_NAME
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "LAST_NUMBER" "DECIMAL" "string" precision 38 scale 0
+< column "MIN_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "MAX_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "INCREMENT_BY" "DECIMAL" "string" precision 28 scale 0
+< column "CACHE_SIZE" "DECIMAL" "string" precision 28 scale 0
+< column "ORDER_FLAG" "VARCHAR"
+< column "CYCLE_FLAG" "VARCHAR"
+< row
+: bytes
+| a
+: bytes
+| 1
+: bytes
+| 1
+: bytes
+| 9223372036854775807
+: bytes
+| 1
+: bytes
+| 20
+: bytes
+| N
+: bytes
+| N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE - 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT SEQUENCE_NAME, LAST_NUMBER, MIN_VALUE, MAX_VALUE, INCREMENT_BY, CACHE_SIZE, ORDER_FLAG, CYCLE_FLAG FROM oceanbase.DBA_SEQUENCES WHERE SEQUENCE_OWNER = DATABASE() ORDER BY SEQUENCE_NAME
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "LAST_NUMBER" "DECIMAL" "string" precision 38 scale 0
+< column "MIN_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "MAX_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "INCREMENT_BY" "DECIMAL" "string" precision 28 scale 0
+< column "CACHE_SIZE" "DECIMAL" "string" precision 28 scale 0
+< column "ORDER_FLAG" "VARCHAR"
+< column "CYCLE_FLAG" "VARCHAR"
+< row
+: bytes
+| a
+: bytes
+| -1
+: bytes
+| -1
+: bytes
+| 9223372036854775807
+: bytes
+| 1
+: bytes
+| 20
+: bytes
+| N
+: bytes
+| N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE + 1.5
+< error
+| 4317 HY000 sequence parameter MINVALUE must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE - 1.5
+< error
+| 4317 HY000 sequence parameter MINVALUE must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE 1.5
+< error
+| 4317 HY000 sequence parameter MINVALUE must be an integer
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -583,6 +953,41 @@
 | CREATE SEQUENCE a CACHE 1
 < error
 | 4326 HY000 the number of values to CACHE must be greater than 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE + 1
+< error
+| 4326 HY000 the number of values to CACHE must be greater than 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE - 1
+< error
+| 4326 HY000 the number of values to CACHE must be greater than 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE + 1.5
+< error
+| 4317 HY000 sequence parameter CACHE must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE - 1.5
+< error
+| 4317 HY000 sequence parameter CACHE must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE 1.5
+< error
+| 4317 HY000 sequence parameter CACHE must be an integer
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -1744,34 +2149,6 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
-| CREATE SEQUENCE a MINVALUE 1.5
-< error
-| 4317 HY000 sequence parameter MINVALUE must be an integer
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| CREATE SEQUENCE a INCREMENT BY 1.5
-< error
-| 4317 HY000 sequence parameter INCREMENT must be an integer
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| CREATE SEQUENCE a START WITH 1.5
-< error
-| 4317 HY000 sequence parameter START WITH must be an integer
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| CREATE SEQUENCE a CACHE 1.5
-< error
-| 4317 HY000 sequence parameter CACHE must be an integer
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
 | CREATE SEQUENCE a MAXVALUE 1e5
 < error
 | 5114 42000 Invalid numeric
@@ -2782,6 +3159,147 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE SEQUENCE a INCREMENT BY + 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT SEQUENCE_NAME, LAST_NUMBER, MIN_VALUE, MAX_VALUE, INCREMENT_BY, CACHE_SIZE, ORDER_FLAG, CYCLE_FLAG FROM oceanbase.DBA_SEQUENCES WHERE SEQUENCE_OWNER = DATABASE() ORDER BY SEQUENCE_NAME
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "LAST_NUMBER" "DECIMAL" "string" precision 38 scale 0
+< column "MIN_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "MAX_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "INCREMENT_BY" "DECIMAL" "string" precision 28 scale 0
+< column "CACHE_SIZE" "DECIMAL" "string" precision 28 scale 0
+< column "ORDER_FLAG" "VARCHAR"
+< column "CYCLE_FLAG" "VARCHAR"
+< row
+: bytes
+| a
+: bytes
+| 1
+: bytes
+| 1
+: bytes
+| 9223372036854775807
+: bytes
+| 1
+: bytes
+| 20
+: bytes
+| N
+: bytes
+| N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY - 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT SEQUENCE_NAME, LAST_NUMBER, MIN_VALUE, MAX_VALUE, INCREMENT_BY, CACHE_SIZE, ORDER_FLAG, CYCLE_FLAG FROM oceanbase.DBA_SEQUENCES WHERE SEQUENCE_OWNER = DATABASE() ORDER BY SEQUENCE_NAME
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "LAST_NUMBER" "DECIMAL" "string" precision 38 scale 0
+< column "MIN_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "MAX_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "INCREMENT_BY" "DECIMAL" "string" precision 28 scale 0
+< column "CACHE_SIZE" "DECIMAL" "string" precision 28 scale 0
+< column "ORDER_FLAG" "VARCHAR"
+< column "CYCLE_FLAG" "VARCHAR"
+< row
+: bytes
+| a
+: bytes
+| -1
+: bytes
+| -9223372036854775808
+: bytes
+| -1
+: bytes
+| -1
+: bytes
+| 20
+: bytes
+| N
+: bytes
+| N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY + 1.5
+< error
+| 4317 HY000 sequence parameter INCREMENT must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY - 1.5
+< error
+| 4317 HY000 sequence parameter INCREMENT must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY 1.5
+< error
+| 4317 HY000 sequence parameter INCREMENT must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE SEQUENCE a START WITH 1
 < ok 0 0
 > query
@@ -2838,6 +3356,94 @@
 | N
 : bytes
 | N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH + 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT SEQUENCE_NAME, LAST_NUMBER, MIN_VALUE, MAX_VALUE, INCREMENT_BY, CACHE_SIZE, ORDER_FLAG, CYCLE_FLAG FROM oceanbase.DBA_SEQUENCES WHERE SEQUENCE_OWNER = DATABASE() ORDER BY SEQUENCE_NAME
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "LAST_NUMBER" "DECIMAL" "string" precision 38 scale 0
+< column "MIN_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "MAX_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "INCREMENT_BY" "DECIMAL" "string" precision 28 scale 0
+< column "CACHE_SIZE" "DECIMAL" "string" precision 28 scale 0
+< column "ORDER_FLAG" "VARCHAR"
+< column "CYCLE_FLAG" "VARCHAR"
+< row
+: bytes
+| a
+: bytes
+| 1
+: bytes
+| 1
+: bytes
+| 9223372036854775807
+: bytes
+| 1
+: bytes
+| 20
+: bytes
+| N
+: bytes
+| N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH - 1
+< error
+| 4322 HY000 START WITH cannot be less than MINVALUE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH + 1.5
+< error
+| 4317 HY000 sequence parameter START WITH must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH - 1.5
+< error
+| 4317 HY000 sequence parameter START WITH must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH 1.5
+< error
+| 4317 HY000 sequence parameter START WITH must be an integer
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -2905,6 +3511,147 @@
 | N
 : bytes
 | N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE + 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT SEQUENCE_NAME, LAST_NUMBER, MIN_VALUE, MAX_VALUE, INCREMENT_BY, CACHE_SIZE, ORDER_FLAG, CYCLE_FLAG FROM oceanbase.DBA_SEQUENCES WHERE SEQUENCE_OWNER = DATABASE() ORDER BY SEQUENCE_NAME
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "LAST_NUMBER" "DECIMAL" "string" precision 38 scale 0
+< column "MIN_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "MAX_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "INCREMENT_BY" "DECIMAL" "string" precision 28 scale 0
+< column "CACHE_SIZE" "DECIMAL" "string" precision 28 scale 0
+< column "ORDER_FLAG" "VARCHAR"
+< column "CYCLE_FLAG" "VARCHAR"
+< row
+: bytes
+| a
+: bytes
+| 1
+: bytes
+| 1
+: bytes
+| 9223372036854775807
+: bytes
+| 1
+: bytes
+| 20
+: bytes
+| N
+: bytes
+| N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE - 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT SEQUENCE_NAME, LAST_NUMBER, MIN_VALUE, MAX_VALUE, INCREMENT_BY, CACHE_SIZE, ORDER_FLAG, CYCLE_FLAG FROM oceanbase.DBA_SEQUENCES WHERE SEQUENCE_OWNER = DATABASE() ORDER BY SEQUENCE_NAME
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "LAST_NUMBER" "DECIMAL" "string" precision 38 scale 0
+< column "MIN_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "MAX_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "INCREMENT_BY" "DECIMAL" "string" precision 28 scale 0
+< column "CACHE_SIZE" "DECIMAL" "string" precision 28 scale 0
+< column "ORDER_FLAG" "VARCHAR"
+< column "CYCLE_FLAG" "VARCHAR"
+< row
+: bytes
+| a
+: bytes
+| -1
+: bytes
+| -1
+: bytes
+| 9223372036854775807
+: bytes
+| 1
+: bytes
+| 20
+: bytes
+| N
+: bytes
+| N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE + 1.5
+< error
+| 4317 HY000 sequence parameter MINVALUE must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE - 1.5
+< error
+| 4317 HY000 sequence parameter MINVALUE must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE 1.5
+< error
+| 4317 HY000 sequence parameter MINVALUE must be an integer
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -3039,6 +3786,41 @@
 | CREATE SEQUENCE a CACHE 1
 < error
 | 4326 HY000 the number of values to CACHE must be greater than 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE + 1
+< error
+| 4326 HY000 the number of values to CACHE must be greater than 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE - 1
+< error
+| 4326 HY000 the number of values to CACHE must be greater than 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE + 1.5
+< error
+| 4317 HY000 sequence parameter CACHE must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE - 1.5
+< error
+| 4317 HY000 sequence parameter CACHE must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE 1.5
+< error
+| 4317 HY000 sequence parameter CACHE must be an integer
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -4200,34 +4982,6 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
-| CREATE SEQUENCE a MINVALUE 1.5
-< error
-| 4317 HY000 sequence parameter MINVALUE must be an integer
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| CREATE SEQUENCE a INCREMENT BY 1.5
-< error
-| 4317 HY000 sequence parameter INCREMENT must be an integer
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| CREATE SEQUENCE a START WITH 1.5
-< error
-| 4317 HY000 sequence parameter START WITH must be an integer
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| CREATE SEQUENCE a CACHE 1.5
-< error
-| 4317 HY000 sequence parameter CACHE must be an integer
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
 | CREATE SEQUENCE a MAXVALUE 1e5
 < error
 | 5114 42000 Invalid numeric
@@ -5352,6 +6106,194 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| CREATE SEQUENCE a INCREMENT BY + 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| VIEW
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `a`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE VIEW `a` AS select `omni_t_simulation`.`t`.`b` AS `b`,`omni_t_simulation`.`t`.`a` AS `a`,`omni_t_simulation`.`t`.`d` AS `d` from `omni_t_simulation`.`t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT SEQUENCE_NAME, LAST_NUMBER, MIN_VALUE, MAX_VALUE, INCREMENT_BY, CACHE_SIZE, ORDER_FLAG, CYCLE_FLAG FROM oceanbase.DBA_SEQUENCES WHERE SEQUENCE_OWNER = DATABASE() ORDER BY SEQUENCE_NAME
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "LAST_NUMBER" "DECIMAL" "string" precision 38 scale 0
+< column "MIN_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "MAX_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "INCREMENT_BY" "DECIMAL" "string" precision 28 scale 0
+< column "CACHE_SIZE" "DECIMAL" "string" precision 28 scale 0
+< column "ORDER_FLAG" "VARCHAR"
+< column "CYCLE_FLAG" "VARCHAR"
+< row
+: bytes
+| a
+: bytes
+| 1
+: bytes
+| 1
+: bytes
+| 9223372036854775807
+: bytes
+| 1
+: bytes
+| 20
+: bytes
+| N
+: bytes
+| N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY - 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| VIEW
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `a`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE VIEW `a` AS select `omni_t_simulation`.`t`.`b` AS `b`,`omni_t_simulation`.`t`.`a` AS `a`,`omni_t_simulation`.`t`.`d` AS `d` from `omni_t_simulation`.`t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT SEQUENCE_NAME, LAST_NUMBER, MIN_VALUE, MAX_VALUE, INCREMENT_BY, CACHE_SIZE, ORDER_FLAG, CYCLE_FLAG FROM oceanbase.DBA_SEQUENCES WHERE SEQUENCE_OWNER = DATABASE() ORDER BY SEQUENCE_NAME
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "LAST_NUMBER" "DECIMAL" "string" precision 38 scale 0
+< column "MIN_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "MAX_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "INCREMENT_BY" "DECIMAL" "string" precision 28 scale 0
+< column "CACHE_SIZE" "DECIMAL" "string" precision 28 scale 0
+< column "ORDER_FLAG" "VARCHAR"
+< column "CYCLE_FLAG" "VARCHAR"
+< row
+: bytes
+| a
+: bytes
+| -1
+: bytes
+| -9223372036854775808
+: bytes
+| -1
+: bytes
+| -1
+: bytes
+| 20
+: bytes
+| N
+: bytes
+| N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY + 1.5
+< error
+| 4317 HY000 sequence parameter INCREMENT must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY - 1.5
+< error
+| 4317 HY000 sequence parameter INCREMENT must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY 1.5
+< error
+| 4317 HY000 sequence parameter INCREMENT must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | CREATE SEQUENCE a START WITH 1
 < ok 0 0
 > query
@@ -5429,6 +6371,120 @@
 | N
 : bytes
 | N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH + 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| VIEW
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `a`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE VIEW `a` AS select `omni_t_simulation`.`t`.`b` AS `b`,`omni_t_simulation`.`t`.`a` AS `a`,`omni_t_simulation`.`t`.`d` AS `d` from `omni_t_simulation`.`t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT SEQUENCE_NAME, LAST_NUMBER, MIN_VALUE, MAX_VALUE, INCREMENT_BY, CACHE_SIZE, ORDER_FLAG, CYCLE_FLAG FROM oceanbase.DBA_SEQUENCES WHERE SEQUENCE_OWNER = DATABASE() ORDER BY SEQUENCE_NAME
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "LAST_NUMBER" "DECIMAL" "string" precision 38 scale 0
+< column "MIN_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "MAX_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "INCREMENT_BY" "DECIMAL" "string" precision 28 scale 0
+< column "CACHE_SIZE" "DECIMAL" "string" precision 28 scale 0
+< column "ORDER_FLAG" "VARCHAR"
+< column "CYCLE_FLAG" "VARCHAR"
+< row
+: bytes
+| a
+: bytes
+| 1
+: bytes
+| 1
+: bytes
+| 9223372036854775807
+: bytes
+| 1
+: bytes
+| 20
+: bytes
+| N
+: bytes
+| N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH - 1
+< error
+| 4322 HY000 START WITH cannot be less than MINVALUE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH + 1.5
+< error
+| 4317 HY000 sequence parameter START WITH must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH - 1.5
+< error
+| 4317 HY000 sequence parameter START WITH must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH 1.5
+< error
+| 4317 HY000 sequence parameter START WITH must be an integer
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
 | CREATE VIEW a AS SELECT b, a, d FROM t
@@ -5519,6 +6575,194 @@
 | N
 : bytes
 | N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE + 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| VIEW
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `a`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE VIEW `a` AS select `omni_t_simulation`.`t`.`b` AS `b`,`omni_t_simulation`.`t`.`a` AS `a`,`omni_t_simulation`.`t`.`d` AS `d` from `omni_t_simulation`.`t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT SEQUENCE_NAME, LAST_NUMBER, MIN_VALUE, MAX_VALUE, INCREMENT_BY, CACHE_SIZE, ORDER_FLAG, CYCLE_FLAG FROM oceanbase.DBA_SEQUENCES WHERE SEQUENCE_OWNER = DATABASE() ORDER BY SEQUENCE_NAME
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "LAST_NUMBER" "DECIMAL" "string" precision 38 scale 0
+< column "MIN_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "MAX_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "INCREMENT_BY" "DECIMAL" "string" precision 28 scale 0
+< column "CACHE_SIZE" "DECIMAL" "string" precision 28 scale 0
+< column "ORDER_FLAG" "VARCHAR"
+< column "CYCLE_FLAG" "VARCHAR"
+< row
+: bytes
+| a
+: bytes
+| 1
+: bytes
+| 1
+: bytes
+| 9223372036854775807
+: bytes
+| 1
+: bytes
+| 20
+: bytes
+| N
+: bytes
+| N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE - 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| VIEW
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `a`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE VIEW `a` AS select `omni_t_simulation`.`t`.`b` AS `b`,`omni_t_simulation`.`t`.`a` AS `a`,`omni_t_simulation`.`t`.`d` AS `d` from `omni_t_simulation`.`t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT SEQUENCE_NAME, LAST_NUMBER, MIN_VALUE, MAX_VALUE, INCREMENT_BY, CACHE_SIZE, ORDER_FLAG, CYCLE_FLAG FROM oceanbase.DBA_SEQUENCES WHERE SEQUENCE_OWNER = DATABASE() ORDER BY SEQUENCE_NAME
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "LAST_NUMBER" "DECIMAL" "string" precision 38 scale 0
+< column "MIN_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "MAX_VALUE" "DECIMAL" "string" precision 28 scale 0
+< column "INCREMENT_BY" "DECIMAL" "string" precision 28 scale 0
+< column "CACHE_SIZE" "DECIMAL" "string" precision 28 scale 0
+< column "ORDER_FLAG" "VARCHAR"
+< column "CYCLE_FLAG" "VARCHAR"
+< row
+: bytes
+| a
+: bytes
+| -1
+: bytes
+| -1
+: bytes
+| 9223372036854775807
+: bytes
+| 1
+: bytes
+| 20
+: bytes
+| N
+: bytes
+| N
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE + 1.5
+< error
+| 4317 HY000 sequence parameter MINVALUE must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE - 1.5
+< error
+| 4317 HY000 sequence parameter MINVALUE must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE 1.5
+< error
+| 4317 HY000 sequence parameter MINVALUE must be an integer
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
 | CREATE VIEW a AS SELECT b, a, d FROM t
@@ -5699,6 +6943,46 @@
 | CREATE SEQUENCE a CACHE 1
 < error
 | 4326 HY000 the number of values to CACHE must be greater than 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE + 1
+< error
+| 4326 HY000 the number of values to CACHE must be greater than 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE - 1
+< error
+| 4326 HY000 the number of values to CACHE must be greater than 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE + 1.5
+< error
+| 4317 HY000 sequence parameter CACHE must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE - 1.5
+< error
+| 4317 HY000 sequence parameter CACHE must be an integer
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE 1.5
+< error
+| 4317 HY000 sequence parameter CACHE must be an integer
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
 | CREATE VIEW a AS SELECT b, a, d FROM t
@@ -7257,38 +8541,6 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
-| CREATE SEQUENCE a MINVALUE 1.5
-< error
-| 4317 HY000 sequence parameter MINVALUE must be an integer
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
-| CREATE VIEW a AS SELECT b, a, d FROM t
-< ok 0 0
-> exec
-| CREATE SEQUENCE a INCREMENT BY 1.5
-< error
-| 4317 HY000 sequence parameter INCREMENT must be an integer
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
-| CREATE VIEW a AS SELECT b, a, d FROM t
-< ok 0 0
-> exec
-| CREATE SEQUENCE a START WITH 1.5
-< error
-| 4317 HY000 sequence parameter START WITH must be an integer
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
-| CREATE VIEW a AS SELECT b, a, d FROM t
-< ok 0 0
-> exec
-| CREATE SEQUENCE a CACHE 1.5
-< error
-| 4317 HY000 sequence parameter CACHE must be an integer
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
-| CREATE VIEW a AS SELECT b, a, d FROM t
-< ok 0 0
-> exec
 | CREATE SEQUENCE a MAXVALUE 1e5
 < error
 | 5114 42000 Invalid numeric
@@ -8248,7 +9500,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
 < ok 0 0
 > exec
+| CREATE SEQUENCE a INCREMENT BY + 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY - 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY + 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY - 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
 | CREATE SEQUENCE a START WITH 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH + 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH - 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH + 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH - 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH 1.5
 < error
 | 4297 HY000 name is already used by an existing object
 > exec
@@ -8263,6 +9585,41 @@
 < ok 0 0
 > exec
 | CREATE SEQUENCE a MINVALUE 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE + 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE - 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE + 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE - 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE 1.5
 < error
 | 4297 HY000 name is already used by an existing object
 > exec
@@ -8291,6 +9648,41 @@
 < ok 0 0
 > exec
 | CREATE SEQUENCE a CACHE 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE + 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE - 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE + 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE - 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE 1.5
 < error
 | 4297 HY000 name is already used by an existing object
 > exec
@@ -8579,34 +9971,6 @@
 < ok 0 0
 > exec
 | CREATE SEQUENCE a MAXVALUE 1.5 CYCLE
-< error
-| 4297 HY000 name is already used by an existing object
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
-< ok 0 0
-> exec
-| CREATE SEQUENCE a MINVALUE 1.5
-< error
-| 4297 HY000 name is already used by an existing object
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
-< ok 0 0
-> exec
-| CREATE SEQUENCE a INCREMENT BY 1.5
-< error
-| 4297 HY000 name is already used by an existing object
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
-< ok 0 0
-> exec
-| CREATE SEQUENCE a START WITH 1.5
-< error
-| 4297 HY000 name is already used by an existing object
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a
-< ok 0 0
-> exec
-| CREATE SEQUENCE a CACHE 1.5
 < error
 | 4297 HY000 name is already used by an existing object
 > exec
@@ -9942,7 +11306,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
 < ok 0 0
 > exec
+| CREATE SEQUENCE a INCREMENT BY + 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY - 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY + 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY - 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a INCREMENT BY 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
 | CREATE SEQUENCE a START WITH 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH + 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH - 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH + 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH - 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a START WITH 1.5
 < error
 | 4297 HY000 name is already used by an existing object
 > exec
@@ -9957,6 +11391,41 @@
 < ok 0 0
 > exec
 | CREATE SEQUENCE a MINVALUE 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE + 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE - 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE + 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE - 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a MINVALUE 1.5
 < error
 | 4297 HY000 name is already used by an existing object
 > exec
@@ -9985,6 +11454,41 @@
 < ok 0 0
 > exec
 | CREATE SEQUENCE a CACHE 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE + 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE - 1
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE + 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE - 1.5
+< error
+| 4297 HY000 name is already used by an existing object
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
+< ok 0 0
+> exec
+| CREATE SEQUENCE a CACHE 1.5
 < error
 | 4297 HY000 name is already used by an existing object
 > exec
@@ -10273,34 +11777,6 @@
 < ok 0 0
 > exec
 | CREATE SEQUENCE a MAXVALUE 1.5 CYCLE
-< error
-| 4297 HY000 name is already used by an existing object
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
-< ok 0 0
-> exec
-| CREATE SEQUENCE a MINVALUE 1.5
-< error
-| 4297 HY000 name is already used by an existing object
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
-< ok 0 0
-> exec
-| CREATE SEQUENCE a INCREMENT BY 1.5
-< error
-| 4297 HY000 name is already used by an existing object
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
-< ok 0 0
-> exec
-| CREATE SEQUENCE a START WITH 1.5
-< error
-| 4297 HY000 name is already used by an existing object
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE SEQUENCE a START WITH 10 INCREMENT BY -2 MINVALUE -100 MAXVALUE 100 CYCLE CACHE 5 ORDER
-< ok 0 0
-> exec
-| CREATE SEQUENCE a CACHE 1.5
 < error
 | 4297 HY000 name is already used by an existing object
 > exec

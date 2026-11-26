@@ -14,6 +14,7 @@ ok:09efbd95121f	ok:09efbd95121f	engine	one_table@column	ws_level_flag_desc/DESC	
 ok:b31f0b484664	ok:b31f0b484664	engine	one_table@column	ws_level_flag_reverse/REVERSE_SYM	CREATE VIEW _v AS SELECT WEIGHT_STRING(a LEVEL 1 REVERSE) FROM a
 ok:e63dee151be9	ok:e63dee151be9	engine	one_table@column	ws_level_flags/%empty	CREATE VIEW _v AS SELECT WEIGHT_STRING(a LEVEL 1) FROM a
 ok:def83fa17889	ok:def83fa17889	engine	one_table@column	ws_level_flags/ws_level_flag_desc_ws_level_flag_reverse	CREATE VIEW _v AS SELECT WEIGHT_STRING(a LEVEL 1 ASC REVERSE) FROM a
+ok:b4f60e426fdf	ok:b4f60e426fdf	engine	one_table@column	ws_level_flags/ws_level_flag_desc_ws_level_flag_reverse+ws_level_flag_desc/DESC	CREATE VIEW _v AS SELECT WEIGHT_STRING(a LEVEL 1 DESC REVERSE) FROM a
 ok:62920087db3b	ok:62920087db3b	engine	one_table@column	ws_level_list/ws_level_list_,_ws_level_list_item	CREATE VIEW _v AS SELECT WEIGHT_STRING(a LEVEL 1, 1) FROM a
 ok:3667d9867bb0	ok:3667d9867bb0	engine	one_table@column	ws_level_range/ws_level_number_-_ws_level_number	CREATE VIEW _v AS SELECT WEIGHT_STRING(a LEVEL 1 - 1) FROM a
 ok:20566ff0f59b	ok:20566ff0f59b	engine	one_table@column	opt_ws_levels/%empty	CREATE VIEW _v AS SELECT WEIGHT_STRING(a) FROM a
@@ -21,6 +22,7 @@ ok:0f1e3756021e	ok:0f1e3756021e	engine	one_table@column	opt_ws_levels/LEVEL_SYM_
 1054	1054	engine	one_table@column	select/with_clause_query_expression_no_with_clause_opt_procedure_or_into	CREATE VIEW _v AS WITH a AS(SELECT a) SELECT a
 1054	1054	engine	one_table@column	select/with_clause_query_expression_no_with_clause_opt_procedure_or_into!insert	CREATE VIEW _v AS WITH a AS(SELECT a) SELECT a zzz
 1064	1064	engine	one_table@column	select_into/with_clause_select_into_query_specification_opt_order_limit_lock	CREATE VIEW _v AS WITH a AS(SELECT a) SELECT a INTO @a
+1064	1064	engine	one_table@column	select_into_query_specification/query_specification_start_into_opt_from_clause_opt_where_clause_opt_group_clause_opt_having_clause_opt_window_clause+opt_where_clause	CREATE VIEW _v AS SELECT a INTO @a WHERE a
 1054	1054	engine	one_table@column	query_expression_body/query_expression_body_unit_type_decl_query_primary	CREATE VIEW _v AS SELECT a UNION SELECT a
 1054	1054	engine	one_table@column	query_expression_body/query_expression_body_unit_type_decl_query_primary!insert	CREATE VIEW _v AS SELECT a UNION SELECT a zzz
 1054	1054	engine	one_table@column	query_primary/query_expression_body_ext_parens	CREATE VIEW _v AS SELECT a UNION(SELECT a)
@@ -78,6 +80,11 @@ ok:48e7e524bcaf	ok:48e7e524bcaf	engine	one_table@column	boolean_test/boolean_tes
 ok:492b30cf70b1	ok:492b30cf70b1	engine	one_table@column	boolean_test/boolean_test_comp_op_predicate	CREATE VIEW _v AS SELECT a = a FROM a
 ok:e4986660f98d	ok:e4986660f98d	engine	one_table@column	boolean_test/boolean_test_comp_op_all_or_any_(_subselect_)	CREATE VIEW _v AS SELECT a = ALL(SELECT a) FROM a
 ok:2ba629044986	ok:2ba629044986	engine	one_table@column	boolean_test/boolean_test_comp_op_all_or_any_(_subselect_)!drop-3	CREATE VIEW _v AS SELECT a =(SELECT a) FROM a
+ok:fb9efa712526	ok:fb9efa712526	engine	one_table@column	boolean_test/boolean_test_comp_op_all_or_any_(_subselect_)+comp_op/GE	CREATE VIEW _v AS SELECT a >= ALL(SELECT a) FROM a
+ok:e9c27e525fb5	ok:e9c27e525fb5	engine	one_table@column	boolean_test/boolean_test_comp_op_all_or_any_(_subselect_)+comp_op/>	CREATE VIEW _v AS SELECT a > ALL(SELECT a) FROM a
+ok:995c3065edcc	ok:995c3065edcc	engine	one_table@column	boolean_test/boolean_test_comp_op_all_or_any_(_subselect_)+comp_op/LE	CREATE VIEW _v AS SELECT a <= ALL(SELECT a) FROM a
+ok:6625528b742c	ok:6625528b742c	engine	one_table@column	boolean_test/boolean_test_comp_op_all_or_any_(_subselect_)+comp_op/<	CREATE VIEW _v AS SELECT a < ALL(SELECT a) FROM a
+ok:8f2a3aed4cc0	ok:8f2a3aed4cc0	engine	one_table@column	boolean_test/boolean_test_comp_op_all_or_any_(_subselect_)+comp_op/NE	CREATE VIEW _v AS SELECT a <> ALL(SELECT a) FROM a
 ok:45d6e96209bd	ok:45d6e96209bd	engine	one_table@column	predicate/predicate_IN_SYM_subquery	CREATE VIEW _v AS SELECT a IN(SELECT a) FROM a
 ok:f3f62171ac72	ok:f3f62171ac72	engine	one_table@column	predicate/predicate_not_IN_SYM_subquery	CREATE VIEW _v AS SELECT a NOT IN(SELECT a) FROM a
 ok:bab8af7ceb0f	ok:bab8af7ceb0f	engine	one_table@column	predicate/predicate_IN_SYM_(_expr_)	CREATE VIEW _v AS SELECT a IN(a) FROM a
@@ -129,8 +136,13 @@ ok:b40ecd22c6a7	ok:b40ecd22c6a7	engine	one_table@column	numeric_dyncol_type/DOUB
 ok:b3e9768496f2	ok:b3e9768496f2	engine	one_table@column	numeric_dyncol_type/REAL	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a AS REAL) FROM a
 ok:af7d26a3fc87	ok:af7d26a3fc87	engine	one_table@column	numeric_dyncol_type/FLOAT_SYM	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a AS FLOAT) FROM a
 ok:8d54d8a8ebeb	ok:8d54d8a8ebeb	engine	one_table@column	numeric_dyncol_type/DECIMAL_SYM_float_options	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a AS DECIMAL) FROM a
+ok:11f9465e36fc	ok:11f9465e36fc	engine	one_table@column	numeric_dyncol_type/DECIMAL_SYM_float_options+float_options/field_length	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a AS DECIMAL(2147483648)) FROM a
+ok:6bad779f74cd	ok:6bad779f74cd	engine	one_table@column	numeric_dyncol_type/DECIMAL_SYM_float_options+float_options/precision	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a AS DECIMAL(1, 1)) FROM a
 ok:e7a1df72ec30	ok:e7a1df72ec30	engine	one_table@column	temporal_dyncol_type/TIME_SYM_opt_field_scale	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a AS TIME) FROM a
+ok:5f83b934510f	ok:5f83b934510f	engine	one_table@column	temporal_dyncol_type/TIME_SYM_opt_field_scale+opt_field_scale	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a AS TIME(2147483648)) FROM a
 ok:f6e2388d2cd9	ok:f6e2388d2cd9	engine	one_table@column	temporal_dyncol_type/DATETIME_opt_field_scale	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a AS DATETIME) FROM a
+ok:edafebdb9576	ok:edafebdb9576	engine	one_table@column	temporal_dyncol_type/DATETIME_opt_field_scale+opt_field_scale	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a AS DATETIME(2147483648)) FROM a
+ok:36050077756e	ok:36050077756e	engine	one_table@column	string_dyncol_type/char_opt_binary+opt_binary	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a AS CHAR BYTE) FROM a
 ok:6bae2e54cc77	ok:6bae2e54cc77	engine	one_table@column	string_dyncol_type/nchar	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a AS NCHAR) FROM a
 ok:02ff51cec918	ok:02ff51cec918	engine	one_table@column	string_dyncol_type/nchar+nchar/NATIONAL_SYM_CHAR_SYM	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a AS NATIONAL CHAR) FROM a
 ok:fba8eec5eff8	ok:fba8eec5eff8	engine	one_table@column	dyncall_create_list/dyncall_create_list_,_dyncall_create_element	CREATE VIEW _v AS SELECT COLUMN_CREATE(a, a, a, a) FROM a
@@ -186,6 +198,7 @@ ok:12b309b4502e	ok:12b309b4502e	engine	one_table@column	function_call_keyword_ti
 ok:1834f8d7219e	ok:1834f8d7219e	engine	one_table@column	function_call_keyword/CHAR_SYM_(_expr_list_)	CREATE VIEW _v AS SELECT CHAR(a) FROM a
 ok:b867141f2f5e	ok:b867141f2f5e	engine	one_table@column	function_call_keyword/CHAR_SYM_(_expr_list_USING_charset_name_)	CREATE VIEW _v AS SELECT CHAR(a USING utf8mb4) FROM a
 ok:51b053c9e292	ok:51b053c9e292	engine	one_table@column	function_call_keyword/CURRENT_ROLE_optional_braces	CREATE VIEW _v AS SELECT CURRENT_ROLE FROM a
+ok:fcbeb1a16905	ok:fcbeb1a16905	engine	one_table@column	function_call_keyword/CURRENT_ROLE_optional_braces+optional_braces/(_)	CREATE VIEW _v AS SELECT CURRENT_ROLE() FROM a
 ok:c78707d5000d	ok:c78707d5000d	engine	one_table@column	function_call_keyword/DATE_SYM_(_expr_)	CREATE VIEW _v AS SELECT DATE(a) FROM a
 ok:e58d382806c2	ok:e58d382806c2	engine	one_table@column	function_call_keyword/DAY_SYM_(_expr_)	CREATE VIEW _v AS SELECT DAY(a) FROM a
 ok:d2c78457a253	ok:d2c78457a253	engine	one_table@column	function_call_keyword/HOUR_SYM_(_expr_)	CREATE VIEW _v AS SELECT HOUR(a) FROM a
@@ -212,12 +225,17 @@ ok:1505f56cc358	ok:1505f56cc358	engine	one_table@column	substring_operands_speci
 ok:9c8d35ee3ce6	ok:9c8d35ee3ce6	engine	one_table@column	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)	CREATE VIEW _v AS SELECT ADDDATE(a, a) FROM a
 1630	1630	engine	one_table@column	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_expr_)!swap	CREATE VIEW _v AS SELECT ADMIN(a, a) FROM a
 ok:92d40b31d8b2	ok:92d40b31d8b2	engine	one_table@column	function_call_nonkeyword/ADDDATE_SYM_(_expr_,_INTERVAL_SYM_expr_interval_)	CREATE VIEW _v AS SELECT ADDDATE(a, INTERVAL a DAY) FROM a
+ok:6d9b28c5ef6c	ok:6d9b28c5ef6c	engine	one_table@column	function_call_nonkeyword/CURDATE_optional_braces+optional_braces/(_)	CREATE VIEW _v AS SELECT CURRENT_DATE() FROM a
 ok:ab687789af13	ok:ab687789af13	engine	one_table@column	function_call_nonkeyword/DATE_ADD_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a DAY) FROM a
 ok:0527c6cc6a04	ok:0527c6cc6a04	engine	one_table@column	function_call_nonkeyword/DATE_SUB_INTERVAL_(_expr_,_INTERVAL_SYM_expr_interval_)	CREATE VIEW _v AS SELECT DATE_SUB(a, INTERVAL a DAY) FROM a
 ok:9f9105e0b7e4	ok:9f9105e0b7e4	engine	one_table@column	function_call_nonkeyword/EXTRACT_SYM_(_interval_FROM_expr_)	CREATE VIEW _v AS SELECT EXTRACT(DAY FROM a) FROM a
 ok:eb9c842bb4bb	ok:eb9c842bb4bb	engine	one_table@column	function_call_nonkeyword/GET_FORMAT_(_date_time_type_,_expr_)	CREATE VIEW _v AS SELECT GET_FORMAT(DATE, a) FROM a
 ok:90d63fff5d44	ok:90d63fff5d44	engine	one_table@column	function_call_nonkeyword/LOCALTIMESTAMP_opt_time_precision	CREATE VIEW _v AS SELECT LOCALTIMESTAMP FROM a
+ok:663fe283ad25	ok:663fe283ad25	engine	one_table@column	function_call_nonkeyword/LOCALTIMESTAMP_opt_time_precision+opt_time_precision/(_)	CREATE VIEW _v AS SELECT LOCALTIMESTAMP() FROM a
+ok:74be3fc00eaf	ok:74be3fc00eaf	engine	one_table@column	function_call_nonkeyword/LOCALTIMESTAMP_opt_time_precision+opt_time_precision/(_real_ulong_num_)	CREATE VIEW _v AS SELECT LOCALTIMESTAMP(1) FROM a
 ok:0f9d77e0bab4	ok:0f9d77e0bab4	engine	one_table@column	function_call_nonkeyword/NOW_SYM_opt_time_precision	CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP FROM a
+ok:423d1803ae8f	ok:423d1803ae8f	engine	one_table@column	function_call_nonkeyword/NOW_SYM_opt_time_precision+opt_time_precision/(_)	CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP() FROM a
+ok:f8cb382c769e	ok:f8cb382c769e	engine	one_table@column	function_call_nonkeyword/NOW_SYM_opt_time_precision+opt_time_precision/(_real_ulong_num_)	CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP(1) FROM a
 ok:3c3788630a71	ok:3c3788630a71	engine	one_table@column	function_call_nonkeyword/POSITION_SYM_(_bit_expr_IN_SYM_expr_)	CREATE VIEW _v AS SELECT POSITION(a IN a) FROM a
 ok:00c8c82a5823	ok:00c8c82a5823	engine	one_table@column	function_call_nonkeyword/ROWNUM_SYM_(_)	CREATE VIEW _v AS SELECT ROWNUM() FROM a
 ok:7fa672aa14cc	ok:7fa672aa14cc	engine	one_table@column	function_call_nonkeyword/SUBDATE_SYM_(_expr_,_expr_)	CREATE VIEW _v AS SELECT SUBDATE(a, a) FROM a
@@ -247,9 +265,14 @@ ok:7591294b825d	ok:7591294b825d	engine	one_table@column	function_call_nonkeyword
 ok:2e6ace8effdd	ok:2e6ace8effdd	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/YEAR_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(YEAR, a, a) FROM a
 ok:c1c11a5f8c1a	ok:c1c11a5f8c1a	engine	one_table@column	function_call_nonkeyword/TRIM_ORACLE_(_trim_operands_)	CREATE VIEW _v AS SELECT TRIM_ORACLE(a) FROM a
 ok:d374df6bf6b8	ok:d374df6bf6b8	engine	one_table@column	function_call_nonkeyword/UTC_DATE_SYM_optional_braces	CREATE VIEW _v AS SELECT UTC_DATE FROM a
+ok:79c7ec8f1d07	ok:79c7ec8f1d07	engine	one_table@column	function_call_nonkeyword/UTC_DATE_SYM_optional_braces+optional_braces/(_)	CREATE VIEW _v AS SELECT UTC_DATE() FROM a
 ok:eda844179de1	ok:eda844179de1	engine	one_table@column	function_call_nonkeyword/UTC_TIME_SYM_opt_time_precision	CREATE VIEW _v AS SELECT UTC_TIME FROM a
+ok:77af90107964	ok:77af90107964	engine	one_table@column	function_call_nonkeyword/UTC_TIME_SYM_opt_time_precision+opt_time_precision/(_)	CREATE VIEW _v AS SELECT UTC_TIME() FROM a
+ok:f9d20cb05190	ok:f9d20cb05190	engine	one_table@column	function_call_nonkeyword/UTC_TIME_SYM_opt_time_precision+opt_time_precision/(_real_ulong_num_)	CREATE VIEW _v AS SELECT UTC_TIME(1) FROM a
 ok:a2e140137900	ok:a2e140137900	engine	one_table@column	function_call_nonkeyword/UTC_TIMESTAMP_SYM_opt_time_precision	CREATE VIEW _v AS SELECT UTC_TIMESTAMP FROM a
 1054	1054	engine	one_table@column	function_call_nonkeyword/UTC_TIMESTAMP_SYM_opt_time_precision!swap	CREATE VIEW _v AS SELECT VALIDATION FROM a
+ok:591e31f58428	ok:591e31f58428	engine	one_table@column	function_call_nonkeyword/UTC_TIMESTAMP_SYM_opt_time_precision+opt_time_precision/(_)	CREATE VIEW _v AS SELECT UTC_TIMESTAMP() FROM a
+ok:fd360051f2f5	ok:fd360051f2f5	engine	one_table@column	function_call_nonkeyword/UTC_TIMESTAMP_SYM_opt_time_precision+opt_time_precision/(_real_ulong_num_)	CREATE VIEW _v AS SELECT UTC_TIMESTAMP(1) FROM a
 ok:4e51a68259a8	ok:4e51a68259a8	engine	one_table@column	function_call_nonkeyword/COLUMN_ADD_SYM_(_expr_,_dyncall_create_list_)	CREATE VIEW _v AS SELECT COLUMN_ADD(a, a, a) FROM a
 ok:278514b94209	ok:278514b94209	engine	one_table@column	function_call_nonkeyword/COLUMN_DELETE_SYM_(_expr_,_expr_list_)	CREATE VIEW _v AS SELECT COLUMN_DELETE(a, a) FROM a
 ok:94218acc0f6e	ok:94218acc0f6e	engine	one_table@column	function_call_nonkeyword/COLUMN_GET_SYM_(_expr_,_expr_AS_cast_type_)	CREATE VIEW _v AS SELECT COLUMN_GET(a, a AS BINARY) FROM a
@@ -272,14 +295,19 @@ ok:a3ceb883bf92	ok:a3ceb883bf92	engine	one_table@column	function_call_conflict/W
 1630	1630	engine	one_table@column	function_call_generic/CONTAINS_SYM_(_opt_expr_list_)!swap	CREATE VIEW _v AS SELECT CONTEXT() FROM a
 1630	1630	engine	one_table@column	function_call_generic/WITHIN_(_opt_expr_list_)!swap	CREATE VIEW _v AS SELECT WITHOUT() FROM a
 1305	1305	engine	one_table@column	function_call_generic/ident_cli_._ident_cli_(_opt_expr_list_)	CREATE VIEW _v AS SELECT a.a() FROM a
+1305	1305	engine	one_table@column	function_call_generic/ident_cli_._ident_cli_(_opt_expr_list_)+opt_expr_list	CREATE VIEW _v AS SELECT a.a(CURRENT_USER) FROM a
 1305	1305	engine	one_table@column	function_call_generic/ident_cli_._ident_cli_._ident_cli_(_opt_expr_list_)	CREATE VIEW _v AS SELECT a.a.a() FROM a
+1305	1305	engine	one_table@column	function_call_generic/ident_cli_._ident_cli_._ident_cli_(_opt_expr_list_)+opt_expr_list	CREATE VIEW _v AS SELECT a.a.a(CURRENT_USER) FROM a
 1630	1630	engine	one_table@column	function_call_generic/ident_cli_._REPLACE_(_opt_expr_list_)	CREATE VIEW _v AS SELECT a.REPLACE() FROM a
 1630	1630	engine	one_table@column	function_call_generic/ident_cli_._REPLACE_(_opt_expr_list_)!swap	CREATE VIEW _v AS SELECT a.REPLAY() FROM a
+1630	1630	engine	one_table@column	function_call_generic/ident_cli_._REPLACE_(_opt_expr_list_)+opt_expr_list	CREATE VIEW _v AS SELECT a.REPLACE(CURRENT_USER) FROM a
 1630	1630	engine	one_table@column	function_call_generic/ident_cli_._SUBSTRING_(_opt_expr_list_)	CREATE VIEW _v AS SELECT a.SUBSTRING() FROM a
 1630	1630	engine	one_table@column	function_call_generic/ident_cli_._SUBSTRING_(_opt_expr_list_)!swap	CREATE VIEW _v AS SELECT a.SUM() FROM a
+1630	1630	engine	one_table@column	function_call_generic/ident_cli_._SUBSTRING_(_opt_expr_list_)+opt_expr_list	CREATE VIEW _v AS SELECT a.SUBSTRING(CURRENT_USER) FROM a
 1128	1128	engine	one_table@column	function_call_generic/ident_cli_._SUBSTRING_(_substring_operands_special_)	CREATE VIEW _v AS SELECT a.SUBSTRING(a FROM a) FROM a
 1630	1630	engine	one_table@column	function_call_generic/ident_cli_._TRIM_(_opt_expr_list_)	CREATE VIEW _v AS SELECT a.TRIM() FROM a
 1630	1630	engine	one_table@column	function_call_generic/ident_cli_._TRIM_(_opt_expr_list_)!swap	CREATE VIEW _v AS SELECT a.TRIM_ORACLE() FROM a
+1630	1630	engine	one_table@column	function_call_generic/ident_cli_._TRIM_(_opt_expr_list_)+opt_expr_list	CREATE VIEW _v AS SELECT a.TRIM(CURRENT_USER) FROM a
 1128	1128	engine	one_table@column	function_call_generic/ident_cli_._TRIM_(_trim_operands_special_)	CREATE VIEW _v AS SELECT a.TRIM(LEADING FROM a) FROM a
 1210	1210	engine	one_table@column	fulltext_options/IN_SYM_BOOLEAN_SYM_MODE_SYM	CREATE VIEW _v AS SELECT MATCH a AGAINST(a IN BOOLEAN MODE) FROM a
 1210	1210	engine	one_table@column	opt_natural_language_mode/IN_SYM_NATURAL_LANGUAGE_SYM_MODE_SYM	CREATE VIEW _v AS SELECT MATCH a AGAINST(a IN NATURAL LANGUAGE MODE) FROM a
@@ -310,6 +338,7 @@ ok:91094b50d663	ok:91094b50d663	engine	one_table@column	sum_expr/SUM_SYM_(_in_su
 ok:b21b6d106350	ok:b21b6d106350	engine	one_table@column	sum_expr/SUM_SYM_(_DISTINCT_in_sum_expr_)	CREATE VIEW _v AS SELECT SUM(DISTINCT a) FROM a
 ok:d96950074c8a	ok:d96950074c8a	engine	one_table@column	sum_expr/GROUP_CONCAT_SYM_(_opt_distinct_expr_list_opt_gorder_clause_opt_gconcat_separator_opt_glimit_clause_)	CREATE VIEW _v AS SELECT GROUP_CONCAT(a) FROM a
 ok:8f95e56e9445	ok:8f95e56e9445	engine	one_table@column	sum_expr/JSON_ARRAYAGG_SYM_(_opt_distinct_expr_list_opt_gorder_clause_opt_glimit_clause_)	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) FROM a
+ok:6628f9215532	ok:6628f9215532	engine	one_table@column	sum_expr/JSON_ARRAYAGG_SYM_(_opt_distinct_expr_list_opt_gorder_clause_opt_glimit_clause_)+opt_distinct	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(DISTINCT a) FROM a
 ok:2c51c7225c2b	ok:2c51c7225c2b	engine	one_table@column	sum_expr/JSON_OBJECTAGG_SYM_(_expr_,_expr_)	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a, a) FROM a
 1630	1630	engine	one_table@column	sum_expr/JSON_OBJECTAGG_SYM_(_expr_,_expr_)!swap	CREATE VIEW _v AS SELECT JSON_TABLE(a, a) FROM a
 ok:b8e6c8ef5904	ok:b8e6c8ef5904	engine	one_table@column	window_func_expr/window_func_OVER_SYM_window_spec	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER() FROM a
@@ -332,15 +361,21 @@ ok:08612bf7391e	ok:08612bf7391e	engine	one_table@column	order_by_single_element_
 ok:173f0a26f9c4	ok:173f0a26f9c4	engine	one_table@column	order_by_single_element_list/ORDER_SYM_BY_order_ident_order_dir+order_dir/DESC	CREATE VIEW _v AS SELECT PERCENTILE_CONT(a) WITHIN GROUP(ORDER BY a DESC) OVER() FROM a
 ok:6b48e67ed580	ok:6b48e67ed580	engine	one_table@column	opt_distinct/DISTINCT	CREATE VIEW _v AS SELECT GROUP_CONCAT(DISTINCT a) FROM a
 ok:f9ad6581b783	ok:f9ad6581b783	engine	one_table@column	opt_gconcat_separator/SEPARATOR_SYM_text_string	CREATE VIEW _v AS SELECT GROUP_CONCAT(a SEPARATOR 's') FROM a
+ok:999797021a7d	ok:999797021a7d	engine	one_table@column	opt_gconcat_separator/SEPARATOR_SYM_text_string+text_string/hex_or_bin_String	CREATE VIEW _v AS SELECT GROUP_CONCAT(a SEPARATOR 0x41) FROM a
 ok:f2e6e733ebf5	ok:f2e6e733ebf5	engine	one_table@column	opt_gorder_clause/ORDER_SYM_BY_gorder_list	CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a) FROM a
 ok:a202142f116b	ok:a202142f116b	engine	one_table@column	gorder_list/gorder_list_,_order_ident_order_dir	CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a, a) FROM a
 ok:923c05cfc76c	ok:923c05cfc76c	engine	one_table@column	gorder_list/gorder_list_,_order_ident_order_dir+order_dir/ASC	CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a, a ASC) FROM a
 ok:92e9dcc65cc0	ok:92e9dcc65cc0	engine	one_table@column	gorder_list/gorder_list_,_order_ident_order_dir+order_dir/DESC	CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a, a DESC) FROM a
 ok:c69e45f23421	ok:c69e45f23421	engine	one_table@column	gorder_list/order_ident_order_dir+order_dir/ASC	CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a ASC) FROM a
 ok:c99146934a2f	ok:c99146934a2f	engine	one_table@column	gorder_list/order_ident_order_dir+order_dir/DESC	CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a DESC) FROM a
+ok:2b72773c082b	ok:2b72773c082b	engine	one_table@column	cast_type/BINARY_opt_field_length+opt_field_length	CREATE VIEW _v AS SELECT CAST(a AS BINARY(2147483648)) FROM a
 ok:fcc3e8c089b8	ok:fcc3e8c089b8	engine	one_table@column	cast_type/CHAR_SYM_opt_field_length_opt_binary	CREATE VIEW _v AS SELECT CAST(a AS CHAR) FROM a
+ok:f10836f010d8	ok:f10836f010d8	engine	one_table@column	cast_type/CHAR_SYM_opt_field_length_opt_binary+opt_field_length	CREATE VIEW _v AS SELECT CAST(a AS CHAR(2147483648)) FROM a
+ok:9521ed5c0633	ok:9521ed5c0633	engine	one_table@column	cast_type/CHAR_SYM_opt_field_length_opt_binary+opt_binary	CREATE VIEW _v AS SELECT CAST(a AS CHAR BYTE) FROM a
 ok:1607aeb18ced	ok:1607aeb18ced	engine	one_table@column	cast_type/VARCHAR_field_length_opt_binary	CREATE VIEW _v AS SELECT CAST(a AS VARCHAR(2147483648)) FROM a
+ok:c725b4fff8ee	ok:c725b4fff8ee	engine	one_table@column	cast_type/VARCHAR_field_length_opt_binary+opt_binary	CREATE VIEW _v AS SELECT CAST(a AS VARCHAR(2147483648) BYTE) FROM a
 ok:985c040b9f20	ok:985c040b9f20	engine	one_table@column	cast_type/NCHAR_SYM_opt_field_length	CREATE VIEW _v AS SELECT CAST(a AS NCHAR) FROM a
+ok:a73b832df9e6	ok:a73b832df9e6	engine	one_table@column	cast_type/NCHAR_SYM_opt_field_length+opt_field_length	CREATE VIEW _v AS SELECT CAST(a AS NCHAR(2147483648)) FROM a
 ok:2707f27aed57	ok:2707f27aed57	engine	one_table@column	cast_type/cast_type_numeric	CREATE VIEW _v AS SELECT CAST(a AS INT) FROM a
 ok:f2a21f035185	ok:f2a21f035185	engine	one_table@column	cast_type/cast_type_temporal	CREATE VIEW _v AS SELECT CAST(a AS DATE) FROM a
 ok:7298ddc816f9	ok:7298ddc816f9	engine	one_table@column	cast_type_numeric/SIGNED_SYM	CREATE VIEW _v AS SELECT CAST(a AS SIGNED) FROM a
@@ -348,6 +383,7 @@ ok:f6c1b47f3d81	ok:f6c1b47f3d81	engine	one_table@column	cast_type_numeric/SIGNED
 ok:ca09e547c626	ok:ca09e547c626	engine	one_table@column	cast_type_numeric/UNSIGNED	CREATE VIEW _v AS SELECT CAST(a AS UNSIGNED) FROM a
 ok:a04b8057db6b	ok:a04b8057db6b	engine	one_table@column	cast_type_numeric/UNSIGNED_INT_SYM	CREATE VIEW _v AS SELECT CAST(a AS UNSIGNED INT) FROM a
 ok:2ee9fd9185d3	ok:2ee9fd9185d3	engine	one_table@column	cast_type_numeric/DECIMAL_SYM_float_options	CREATE VIEW _v AS SELECT CAST(a AS DECIMAL) FROM a
+ok:ea89b309f57e	ok:ea89b309f57e	engine	one_table@column	cast_type_numeric/DECIMAL_SYM_float_options+float_options/precision	CREATE VIEW _v AS SELECT CAST(a AS DECIMAL(1, 1)) FROM a
 ok:ab56d5ecc353	ok:ab56d5ecc353	engine	one_table@column	cast_type_numeric/FLOAT_SYM	CREATE VIEW _v AS SELECT CAST(a AS FLOAT) FROM a
 ok:bd76ee3bc902	ok:bd76ee3bc902	engine	one_table@column	cast_type_numeric/DOUBLE_SYM_opt_precision	CREATE VIEW _v AS SELECT CAST(a AS DOUBLE) FROM a
 ok:c7d9a83efe95	ok:c7d9a83efe95	engine	one_table@column	cast_type_temporal/DATETIME_opt_field_scale	CREATE VIEW _v AS SELECT CAST(a AS DATETIME) FROM a
@@ -429,12 +465,18 @@ ok:be3c8c402eeb	ok:be3c8c402eeb	engine	one_table@column	real_ulong_num/ULONGLONG
 1064	1064	engine	one_table@column	into_destination/DUMPFILE_TEXT_STRING_filesystem	CREATE VIEW _v AS SELECT a INTO DUMPFILE 's'
 1064	1064	engine	one_table@column	opt_field_term/COLUMNS_field_term_list	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS TERMINATED BY 's'
 1064	1064	engine	one_table@column	field_term_list/field_term_list_field_term	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS TERMINATED BY 's' TERMINATED BY 's'
+1064	1064	engine	one_table@column	field_term/TERMINATED_BY_text_string+text_string/hex_or_bin_String	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS TERMINATED BY 0x41
 1064	1064	engine	one_table@column	field_term/OPTIONALLY_ENCLOSED_BY_text_string	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS OPTIONALLY ENCLOSED BY 's'
+1064	1064	engine	one_table@column	field_term/OPTIONALLY_ENCLOSED_BY_text_string+text_string/hex_or_bin_String	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS OPTIONALLY ENCLOSED BY 0x41
 1064	1064	engine	one_table@column	field_term/ENCLOSED_BY_text_string	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS ENCLOSED BY 's'
+1064	1064	engine	one_table@column	field_term/ENCLOSED_BY_text_string+text_string/hex_or_bin_String	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS ENCLOSED BY 0x41
 1064	1064	engine	one_table@column	field_term/ESCAPED_BY_text_string	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS ESCAPED BY 's'
+1064	1064	engine	one_table@column	field_term/ESCAPED_BY_text_string+text_string/hex_or_bin_String	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS ESCAPED BY 0x41
 1064	1064	engine	one_table@column	opt_line_term/LINES_line_term_list	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' LINES TERMINATED BY 's'
 1064	1064	engine	one_table@column	line_term_list/line_term_list_line_term	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' LINES TERMINATED BY 's' TERMINATED BY 's'
+1064	1064	engine	one_table@column	line_term/TERMINATED_BY_text_string+text_string/hex_or_bin_String	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' LINES TERMINATED BY 0x41
 1064	1064	engine	one_table@column	line_term/STARTING_BY_text_string	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' LINES STARTING BY 's'
+1064	1064	engine	one_table@column	line_term/STARTING_BY_text_string+text_string/hex_or_bin_String	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' LINES STARTING BY 0x41
 ok:27874ef00228	ok:27874ef00228	engine	one_table@column	text_literal/NCHAR_STRING	CREATE VIEW _v AS SELECT N's' FROM a
 ok:23f2057ce84a	ok:23f2057ce84a	engine	one_table@column	text_literal/UNDERSCORE_CHARSET_TEXT_STRING	CREATE VIEW _v AS SELECT _utf8mb4 's' FROM a
 ok:6f8be1facf6f	ok:6f8be1facf6f	engine	one_table@column	text_literal/text_literal_TEXT_STRING_literal	CREATE VIEW _v AS SELECT 's' 's' FROM a

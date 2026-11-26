@@ -86,6 +86,13 @@ func (p *Parser) parseCreateSearchVectorIndex(create Token, orReplace bool, scop
 	}
 	stmt.Table = table
 
+	// as_alias? opt_index_unnest_expression_list (googlesql.tm:2577).
+	alias, unnest, err := p.parseIndexAliasAndUnnest()
+	if err != nil {
+		return nil, err
+	}
+	stmt.TableAlias, stmt.Unnest = alias, unnest
+
 	// index_order_by_and_options: `( column_ordering_and_options_expr, … )` or
 	// index_all_columns `( ALL COLUMNS opt_with_column_options? )`.
 	if p.cur.Type != int('(') {
