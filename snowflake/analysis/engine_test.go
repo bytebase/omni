@@ -8,15 +8,15 @@ import (
 	"github.com/bytebase/omni/snowflake/ast"
 )
 
-func TestEngineSplitDropsEmptySegments(t *testing.T) {
-	script := "SELECT 1;;\n-- c\n;SELECT 2"
+func TestEngineSplitKeepsEmptySegments(t *testing.T) {
+	script := "SELECT 1;;SELECT 2"
 	segments := Engine.Split(script)
-	if len(segments) != 2 || segments[0].Text != "SELECT 1;" || segments[1].Text != "SELECT 2" {
+	if len(segments) != 3 || segments[0].Text != "SELECT 1;" || !segments[1].Empty || segments[2].Text != "SELECT 2" {
 		t.Fatalf("Split = %+v", segments)
 	}
 	for _, s := range segments {
-		if s.Empty || script[s.Start:s.End] != s.Text {
-			t.Fatalf("segment %+v", s)
+		if script[s.Start:s.End] != s.Text {
+			t.Fatalf("segment %+v does not tile the script", s)
 		}
 	}
 }
@@ -32,8 +32,14 @@ func TestEngineParse(t *testing.T) {
 	if _, ok := parsed[0].Node.(*ast.CreateTableStmt); !ok {
 		t.Fatalf("node = %T", parsed[0].Node)
 	}
-	if parsed, err := Engine.Parse(";; -- c\n"); err != nil || parsed == nil || len(parsed) != 0 {
+	parsed, err = Engine.Parse(";; -- c\n")
+	if err != nil || len(parsed) == 0 {
 		t.Fatalf("Parse of no statement = %#v, %v", parsed, err)
+	}
+	for _, p := range parsed {
+		if p.Node != nil {
+			t.Fatalf("an empty segment has node %T", p.Node)
+		}
 	}
 }
 

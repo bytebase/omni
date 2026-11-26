@@ -3,6 +3,7 @@ package analysis
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/snowflake/diagnostics"
@@ -25,18 +26,22 @@ var (
 	_ analysis.ResultLimiter   = Engine
 )
 
-// Split returns SplitStatements: empty segments are dropped, and a segment's
-// text ends at the semicolon that follows it.
+// Split returns SplitStatements: a segment's text ends at the semicolon that
+// follows it.
 func (engine) Split(script string) []analysis.Statement {
 	return SplitStatements(script)
 }
 
-// Parse parses each segment Split returns, which holds no empty one, into the
-// segment's first node. A syntax error is positioned in the script, and its
-// message names that position.
+// Parse parses each segment Split returns into the segment's first node, and
+// keeps an empty segment with no node. A syntax error is positioned in the
+// script, and its message names that position.
 func (e engine) Parse(script string) ([]analysis.ParsedStatement, error) {
 	parsed := []analysis.ParsedStatement{}
 	for _, segment := range e.Split(script) {
+		if segment.Empty || strings.TrimSpace(segment.Text) == "" {
+			parsed = append(parsed, analysis.ParsedStatement{Statement: segment})
+			continue
+		}
 		file, err := parser.Parse(segment.Text)
 		if err != nil {
 			return nil, segmentSyntaxError(script, segment, err)
