@@ -279,10 +279,7 @@ func (w *spanWalker) resolveExprSources(expr ast.Node) (string, []ColumnRef) {
 	if expr == nil || w.tablesOnly {
 		return "", nil
 	}
-	paths := w.collectColumnPaths(expr)
-	if len(paths) == 0 {
-		return "", nil
-	}
+	paths, subqueries := w.collectColumnPaths(expr)
 	// One refUnion for the whole expression: re-unioning the sources gathered
 	// so far with each path's made `a1 + a2 + ... + an` cost O(n^2).
 	var sources refUnion
@@ -294,6 +291,11 @@ func (w *spanWalker) resolveExprSources(expr ast.Node) (string, []ColumnRef) {
 	}
 	if len(paths) > 1 {
 		name = ""
+	}
+	// A scalar or ARRAY subquery's value is its projection, which the walk
+	// kept when it visited the subquery's body.
+	for _, q := range subqueries {
+		subquerySources(&sources, w.subqueryCols[q])
 	}
 	return name, sources.refs
 }
@@ -1169,21 +1171,77 @@ func segmentsToWire(segs []projColumn) []StarSegment {
 
 // collectColumnPaths returns the raw dotted-name component lists of every column
 // reference directly mentioned in expr (in source order, excluding nested
-// subqueries), mirroring the legacy getPossibleColumnResources. The flat parts —
+// subqueries), mirroring the legacy getPossibleColumnResources, and the bodies
+// of the scalar and ARRAY subqueries whose value expr holds. The flat parts —
 // not a dialect-bucketed ColumnRef — are what relation-aware resolution needs (a
 // 2-part `rel.col` must be tried as relation.column, not dataset.column).
-func (w *spanWalker) collectColumnPaths(expr ast.Node) [][]string {
+func (w *spanWalker) collectColumnPaths(expr ast.Node) (paths [][]string, subqueries []ast.Node) {
 	if expr == nil {
-		return nil
+		return nil, nil
 	}
-	var paths [][]string
 	ew := &exprWalk{
-		w:         w,
-		followSub: false,
-		onParts:   func(parts []string) { paths = append(paths, parts) },
+		w:          w,
+		followSub:  false,
+		onParts:    func(parts []string) { paths = append(paths, parts) },
+		onSubquery: func(q ast.Node) { subqueries = append(subqueries, q) },
 	}
 	ew.walk(expr)
-	return paths
+	return paths, subqueries
+}
+
+// subquerySources is every source of a subquery's projection, which a scalar
+// or ARRAY subquery's value is made of. A base-table star stands as the
+// table's column "*", which the consumer matches to every column of the table
+// (addMatchingColumns).
+func subquerySources(u *refUnion, cols []projColumn) {
+	for _, c := range cols {
+		u.add(c.sources)
+		if c.baseStar != nil {
+			u.add([]ColumnRef{starRef(*c.baseStar)})
+		}
+		if c.starMerge != nil {
+			u.add([]ColumnRef{starRef(c.starMerge.table)})
+		}
+		if c.starGroup != nil {
+			subquerySources(u, c.starGroup.segments)
+			for _, r := range c.starGroup.replace {
+				u.add(r.Sources)
+			}
+		}
+		if c.setOpMerge != nil {
+			columnInfoSources(u, c.setOpMerge.left)
+			columnInfoSources(u, c.setOpMerge.right)
+		}
+	}
+}
+
+// columnInfoSources is subquerySources over a set-operation arm's wire form.
+func columnInfoSources(u *refUnion, infos []ColumnInfo) {
+	for _, c := range infos {
+		u.add(c.SourceColumns)
+		for _, seg := range c.StarSegments {
+			u.add(seg.Sources)
+			if seg.BaseTable != nil {
+				u.add([]ColumnRef{starRef(*seg.BaseTable)})
+			}
+		}
+		for _, r := range c.StarReplace {
+			u.add(r.Sources)
+		}
+		if c.StarMerge != nil {
+			u.add([]ColumnRef{starRef(c.StarMerge.Table)})
+		}
+		if c.SetOpMerge != nil {
+			columnInfoSources(u, c.SetOpMerge.Left)
+			columnInfoSources(u, c.SetOpMerge.Right)
+		}
+	}
+}
+
+// starRef is the source standing for every column of table.
+func starRef(table ColumnRef) ColumnRef {
+	table.Column = "*"
+	return table
 }
 
 // exprToParts renders a dotted-name expression (Identifier / PathExpr /
