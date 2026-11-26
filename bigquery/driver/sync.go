@@ -14,8 +14,9 @@ import (
 )
 
 // SyncDatabase reads the schema of the dataset the driver is open on: every
-// table's columns from the dataset's INFORMATION_SCHEMA, and each table's comment,
-// row count and data size from its metadata.
+// table's and view's columns, and each view's definition, from the dataset's
+// INFORMATION_SCHEMA, and each table's comment, row count and data size from its
+// metadata.
 //
 // The dataset is one unnamed schema in the synced metadata, which is what
 // Bytebase's driver reported: a BigQuery dataset has no schema layer below it.
@@ -41,13 +42,17 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, notFoundError(err)
 	}
-	tables, err := d.tables(ctx, columns)
+	views, err := d.viewDefinitions(ctx)
+	if err != nil {
+		return nil, notFoundError(err)
+	}
+	schema, err := d.relations(ctx, columns, views)
 	if err != nil {
 		return nil, notFoundError(err)
 	}
 	return &metadatapb.DatabaseSchemaMetadata{
 		Name:    d.databaseName,
-		Schemas: []*metadatapb.SchemaMetadata{{Tables: tables}},
+		Schemas: []*metadatapb.SchemaMetadata{schema},
 	}, nil
 }
 
@@ -209,22 +214,71 @@ func convertYesNo(value string) (bool, error) {
 	}
 }
 
-// tables reads every table of the dataset with its columns, comment, row count
-// and data size, ordered by name. Table IDs are sorted before reading each
-// table's metadata so metadata requests happen in deterministic name order.
-func (d *Driver) tables(ctx context.Context, columns map[string][]*metadatapb.ColumnMetadata) ([]*metadatapb.TableMetadata, error) {
+// viewDefinitions reads the definition of every logical view in the dataset,
+// keyed by view name. A materialized view is not listed in
+// INFORMATION_SCHEMA.VIEWS, so it stays a table: it stores rows, and a query
+// reads them rather than its definition.
+func (d *Driver) viewDefinitions(ctx context.Context) (map[string]string, error) {
+	statement := fmt.Sprintf(`
+		SELECT
+			table_name,
+			view_definition
+		FROM %s.INFORMATION_SCHEMA.VIEWS ORDER BY table_name;`, quoteIdentifier(d.databaseName))
+	it, err := d.client.Read(ctx, d.databaseName, statement)
+	if err != nil {
+		return nil, err
+	}
+	views := make(map[string]string)
+	for {
+		values, err := it.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if len(values) < 2 {
+			return nil, fmt.Errorf("INFORMATION_SCHEMA.VIEWS row holds %d values, want 2", len(values))
+		}
+		name, ok := values[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("unexpected table_name value %T", values[0])
+		}
+		definition, ok := values[1].(string)
+		if !ok {
+			return nil, fmt.Errorf("unexpected view_definition value %T", values[1])
+		}
+		views[name] = definition
+	}
+	return views, nil
+}
+
+// relations reads every table and view of the dataset, ordered by name: a table
+// with its columns, comment, row count and data size, and a view with its
+// columns, comment and definition. Table IDs are sorted before reading each
+// one's metadata so metadata requests happen in deterministic name order.
+func (d *Driver) relations(ctx context.Context, columns map[string][]*metadatapb.ColumnMetadata, views map[string]string) (*metadatapb.SchemaMetadata, error) {
 	tableIDs, err := d.client.ListTables(ctx, d.databaseName)
 	if err != nil {
 		return nil, err
 	}
 	sort.Strings(tableIDs)
-	tables := make([]*metadatapb.TableMetadata, 0, len(tableIDs))
+	schema := &metadatapb.SchemaMetadata{}
 	for _, tableID := range tableIDs {
 		metadata, err := d.client.TableMetadata(ctx, d.databaseName, tableID)
 		if err != nil {
 			return nil, err
 		}
-		tables = append(tables, &metadatapb.TableMetadata{
+		if definition, ok := views[tableID]; ok {
+			schema.Views = append(schema.Views, &metadatapb.ViewMetadata{
+				Name:       tableID,
+				Definition: definition,
+				Columns:    columns[tableID],
+				Comment:    metadata.Description,
+			})
+			continue
+		}
+		schema.Tables = append(schema.Tables, &metadatapb.TableMetadata{
 			Name:     tableID,
 			Columns:  columns[tableID],
 			RowCount: int64(metadata.NumRows),
@@ -232,7 +286,7 @@ func (d *Driver) tables(ctx context.Context, columns map[string][]*metadatapb.Co
 			DataSize: metadata.NumBytes,
 		})
 	}
-	return tables, nil
+	return schema, nil
 }
 
 // quoteIdentifier quotes name as a BigQuery path expression, which is what a

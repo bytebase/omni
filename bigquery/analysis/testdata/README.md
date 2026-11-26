@@ -20,15 +20,16 @@ the expected cell of each of its rows; omni's refusal is `error:omni`.
 omni resolves each query as Bytebase does for BigQuery
 (`bigqueryResolveOptions`, with the session's dataset as the default one),
 against the metadata `bigquery/driver`'s sync stores for the fixture: one
-unnamed schema holding every table and view of the dataset as a table, with its
-top-level columns in order. The sync stores no view definitions and no
-routines.
+unnamed schema holding every table of the dataset with its top-level columns in
+order, and every view with its columns and its definition as
+`INFORMATION_SCHEMA.VIEWS` states it. The sync stores no routines.
 
 ### Where BigQuery's answers come from
 
 A recording (`bigquery/internal/testcontainer/span.go`) creates the dataset
 `omni_span` in the pinned project, labelled `omni=span`, runs the fixture's DDL
-in it, and reads back each table and view the dataset lists. Each query is then
+in it, and reads back each table and view the dataset lists, with each view's
+definition from `INFORMATION_SCHEMA.VIEWS`. Each query is then
 a dry run with `omni_span` as the default dataset: BigQuery resolves it and
 states its output schema and the tables and views it references, reads no
 data, and bills nothing. The fixture's tables hold no rows. When the test ends
@@ -63,9 +64,6 @@ that hold the text.
 
 ### Known differences
 
-- Views: BigQuery reports the tables behind a view, through nested views.
-  omni lists the view alone, because the sync stores a view as a table with
-  its columns and no definition.
 - Table functions: BigQuery reports the tables a table function reads. The
   sync stores no routines, so omni lists none of them, and fails closed on a
   star over a table function and on its range variable used as a value

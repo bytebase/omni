@@ -60,11 +60,14 @@ type SpanAnswer struct {
 }
 
 // A SpanRelation is one table or view of a fixture, with its top-level
-// columns in order. Their types are not kept: the analysis reads none.
+// columns in order and, for a view, its definition as
+// INFORMATION_SCHEMA.VIEWS states it. Column types are not kept: the analysis
+// reads none.
 type SpanRelation struct {
-	Name    string   `json:"name"`
-	View    bool     `json:"view,omitempty"`
-	Columns []string `json:"columns"`
+	Name       string   `json:"name"`
+	View       bool     `json:"view,omitempty"`
+	Definition string   `json:"definition,omitempty"`
+	Columns    []string `json:"columns"`
 }
 
 // SpanOracle answers span requests: from t's tape in a replay, and from BigQuery
@@ -210,7 +213,8 @@ func (l *spanLive) dropDataset(ctx context.Context) error {
 
 // fixture builds ddl in a fresh SpanDataset and reads back its relations as
 // bigquery/driver's sync lists them: every table and view of the dataset, in
-// name order, with its top-level columns in order.
+// name order, with its top-level columns in order, and each view's definition
+// from INFORMATION_SCHEMA.VIEWS.
 func (l *spanLive) fixture(ctx context.Context, ddl string) (SpanAnswer, error) {
 	if err := l.dropDataset(ctx); err != nil {
 		return SpanAnswer{}, err
@@ -249,6 +253,10 @@ func (l *spanLive) fixture(ctx context.Context, ddl string) (SpanAnswer, error) 
 		names = append(names, tb.TableID)
 	}
 	slices.Sort(names)
+	definitions, err := l.viewDefinitions(ctx)
+	if err != nil {
+		return SpanAnswer{}, err
+	}
 	var a SpanAnswer
 	for _, name := range names {
 		meta, err := ds.Table(name).Metadata(ctx)
@@ -256,12 +264,45 @@ func (l *spanLive) fixture(ctx context.Context, ddl string) (SpanAnswer, error) 
 			return SpanAnswer{}, err
 		}
 		rel := SpanRelation{Name: name, View: meta.Type == bigquery.ViewTable}
+		if rel.View {
+			definition, ok := definitions[name]
+			if !ok {
+				return SpanAnswer{}, fmt.Errorf("view %s is not in INFORMATION_SCHEMA.VIEWS", name)
+			}
+			rel.Definition = definition
+		}
 		for _, f := range meta.Schema {
 			rel.Columns = append(rel.Columns, f.Name)
 		}
 		a.Relations = append(a.Relations, rel)
 	}
 	return a, nil
+}
+
+// viewDefinitions reads SpanDataset's INFORMATION_SCHEMA.VIEWS as
+// bigquery/driver's sync does, keyed by view name.
+func (l *spanLive) viewDefinitions(ctx context.Context) (map[string]string, error) {
+	q := l.client.Query("SELECT table_name, view_definition FROM `" + SpanDataset + "`.INFORMATION_SCHEMA.VIEWS")
+	q.Location = "US"
+	it, err := q.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read %s.INFORMATION_SCHEMA.VIEWS: %w", SpanDataset, err)
+	}
+	out := map[string]string{}
+	for {
+		var row struct {
+			Name       string `bigquery:"table_name"`
+			Definition string `bigquery:"view_definition"`
+		}
+		err := it.Next(&row)
+		if errors.Is(err, iterator.Done) {
+			return out, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("read %s.INFORMATION_SCHEMA.VIEWS: %w", SpanDataset, err)
+		}
+		out[row.Name] = row.Definition
+	}
 }
 
 // dryRun submits query as a dry-run job, which reads no data and costs

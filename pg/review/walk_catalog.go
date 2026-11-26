@@ -22,6 +22,7 @@ import (
 // 0A000, which the catalog also raises for what it does not model.
 var catalogCodes = map[string]review.FindingCode{
 	"22005": review.UnsupportedForm, // error in assignment
+	"22023": review.UnsupportedForm, // invalid parameter value: an unrecognized storage parameter
 	"22007": review.UnsupportedForm, // invalid datetime format
 	"22P02": review.UnsupportedForm, // invalid text representation
 	"2BP01": review.UnsupportedForm, // dependent objects still exist
@@ -36,6 +37,7 @@ var catalogCodes = map[string]review.FindingCode{
 	"42804": review.UnsupportedForm, // datatype mismatch, of a RETURN
 	"42809": review.WrongObjectKind, // wrong object type
 	"42883": review.ObjectNotFound,  // undefined function, by its signature
+	"42830": review.UnsupportedForm, // invalid foreign key: no unique key matches
 	"42P02": review.UnsupportedForm, // undefined parameter
 	"42P13": review.UnsupportedForm, // invalid function definition
 	"42P17": review.UnsupportedForm, // invalid object definition
@@ -206,8 +208,11 @@ func setsOwnSettings(node ast.Node) bool {
 // column named by a qualified name, which may be a function called in
 // attribute notation (t.f for f(t)), or in a routine's body, for an
 // undefined column; a user routine named as a built-in aggregate or window
-// function, found first where the path puts pg_catalog after its schema; a
-// cast, for a coercion the catalog finds none for (a RETURN that does not
+// function, found first where the path puts pg_catalog after its schema; an
+// invalid parameter value but an index's, a table's or a view's storage
+// parameter it does not recognize, which an extension may add; a refusal
+// of an index or an added constraint but those, alone (addsKey); a cast, for
+// a coercion the catalog finds none for (a RETURN that does not
 // fit its routine's kind needs no cast); or, for a missing function,
 // anything but the lookup of a routine node names by its signature, which
 // the sync lists unless it may have lost routines or the routine is a range
@@ -223,7 +228,16 @@ func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []strin
 		}
 		return err.InCall || err.Code != "42883" && err.Code != "42809" || v.Funccall == nil || !untypedArgs(v.Funccall.Args) || snap.lostRoutines
 	}
+	if keys, alone := addsKey(node); keys && (!alone || err.Code != "22023" && err.Code != "42830") {
+		return true
+	}
 	switch err.Code {
+	case "22023":
+		switch node.(type) {
+		case *ast.IndexStmt, *ast.AlterTableStmt, *ast.ViewStmt:
+			return !strings.HasPrefix(err.Message, "unrecognized parameter ") || snap.extensions
+		}
+		return true
 	case "42703":
 		switch node.(type) {
 		case *ast.AlterTableStmt, *ast.CreateTrigStmt:
@@ -256,6 +270,28 @@ func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []strin
 		return snap.lostRoutines || !failsLookup(err.Message, node, snap)
 	}
 	return false
+}
+
+// addsKey reports whether node creates an index or adds a constraint, of
+// whose refusals only a storage parameter's (22023) and a foreign key's
+// unmatched key (42830) are judged, and only when alone: the catalog does
+// not inline a SQL function before checking an index expression's
+// volatility, nor run an ALTER TABLE's index constraints before its
+// foreign keys.
+func addsKey(node ast.Node) (keys, alone bool) {
+	switch v := node.(type) {
+	case *ast.IndexStmt:
+		return true, true
+	case *ast.AlterTableStmt:
+		if v.Cmds != nil {
+			for _, item := range v.Cmds.Items {
+				if cmd, ok := item.(*ast.AlterTableCmd); ok && cmd.Subtype == int(ast.AT_AddConstraint) {
+					return true, len(v.Cmds.Items) == 1
+				}
+			}
+		}
+	}
+	return false, false
 }
 
 // failsLookup reports whether message is the catalog's failure to find a
@@ -335,8 +371,9 @@ func untypedArgs(args *ast.List) bool {
 // catalogJudges reports whether the catalog's refusal of node is reported:
 // a view's query; what defines, changes, calls or drops a routine or a
 // trigger; dropping a table, view or type, or a column or its type, that a
-// routine may depend on; which pg/catalog's queries and programs suites
-// pin. Any other statement the catalog follows, and its refusal ends the
+// routine may depend on, which pg/catalog's queries and programs suites
+// pin; and an index and an added constraint, whose storage parameters and
+// foreign keys its DDL suites pin. Any other statement the catalog follows, and its refusal ends the
 // replay.
 func catalogJudges(node ast.Node) bool {
 	switch v := node.(type) {
@@ -349,13 +386,15 @@ func catalogJudges(node ast.Node) bool {
 			ast.OBJECT_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW, ast.OBJECT_TYPE:
 			return true
 		}
+	case *ast.IndexStmt:
+		return true
 	case *ast.AlterTableStmt:
 		if ast.ObjectType(v.ObjType) != ast.OBJECT_TABLE || v.Cmds == nil || len(v.Cmds.Items) == 0 {
 			return false
 		}
 		for _, item := range v.Cmds.Items {
 			cmd, ok := item.(*ast.AlterTableCmd)
-			if !ok || cmd.Subtype != int(ast.AT_DropColumn) && cmd.Subtype != int(ast.AT_AlterColumnType) {
+			if !ok || !slices.Contains(judgedTableCmds, ast.AlterTableType(cmd.Subtype)) {
 				return false
 			}
 		}
@@ -368,6 +407,10 @@ func catalogJudges(node ast.Node) bool {
 	}
 	return false
 }
+
+// judgedTableCmds are the ALTER TABLE subcommands whose refusals
+// catalogJudges reports.
+var judgedTableCmds = []ast.AlterTableType{ast.AT_DropColumn, ast.AT_AlterColumnType, ast.AT_AddConstraint}
 
 // processUtility runs one statement in the catalog. A panic in the catalog
 // is no refusal.
