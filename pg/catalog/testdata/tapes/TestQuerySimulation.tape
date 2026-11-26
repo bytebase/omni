@@ -594,7 +594,7 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
-| CREATE VIEW _v AS SELECT DISTINCT a WHERE a
+| CREATE VIEW _v AS SELECT DISTINCT a INTO a
 < error
 | 42703 column "a" does not exist
 | position: 35
@@ -606,6 +606,17 @@
 < ok 0 -
 > exec
 | CREATE VIEW _v AS SELECT DISTINCT a a
+< error
+| 42703 column "a" does not exist
+| position: 35
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT DISTINCT a WHERE a
 < error
 | 42703 column "a" does not exist
 | position: 35
@@ -4476,6 +4487,17 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT FROM a a TABLESAMPLE a(a)
+< error
+| 42704 tablesample method a does not exist
+| position: 47
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT FROM CURRENT_DATE
 < ok 0 -
 > query
@@ -5068,6 +5090,17 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT FROM XMLTABLE(a PASSING a COLUMNS a a) a
+< error
+| 42703 column "a" does not exist
+| position: 40
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT FROM LATERAL XMLTABLE(a PASSING a COLUMNS a a)
 < error
 | 42703 column "a" does not exist
@@ -5080,6 +5113,17 @@
 < ok 0 -
 > exec
 | CREATE VIEW _v AS SELECT FROM LATERAL XMLTABLE(a PASSING a COLUMNS a a) zzz
+< error
+| 42703 column "a" does not exist
+| position: 48
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT FROM LATERAL XMLTABLE(a PASSING a COLUMNS a a) a
 < error
 | 42703 column "a" does not exist
 | position: 48
@@ -5318,6 +5362,120 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT FROM(SELECT) a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| VIEW
+: string
+| _v
+: string
+| CREATE VIEW _v AS SELECT
+|    FROM ( SELECT) a;
+|
+< row
+: string
+| TABLE
+: string
+| a
+: string
+| CREATE TABLE a (b integer NOT NULL, a integer, d integer);
+| ALTER TABLE a ADD CONSTRAINT a_pkey PRIMARY KEY (b);
+| CREATE INDEX a_d_idx ON public.a USING btree (d);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT FROM LATERAL(SELECT)
 < ok 0 -
 > query
@@ -5528,6 +5686,120 @@
 : string
 | CREATE VIEW _v AS SELECT
 |    FROM LATERAL ( SELECT) zzz;
+|
+< row
+: string
+| TABLE
+: string
+| a
+: string
+| CREATE TABLE a (b integer NOT NULL, a integer, d integer);
+| ALTER TABLE a ADD CONSTRAINT a_pkey PRIMARY KEY (b);
+| CREATE INDEX a_d_idx ON public.a USING btree (d);
+|
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT FROM LATERAL(SELECT) a
+< ok 0 -
+> query
+| WITH rel AS (
+| 	SELECT c.oid, c.relname, c.relkind, c.relpersistence, c.relispartition, c.relispopulated, c.relpartbound,
+| 		c.relreplident, c.relrowsecurity, c.relforcerowsecurity,
+| 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
+| 	FROM pg_catalog.pg_class c
+| 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+| 		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
+| ), comments AS (
+| 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
+| 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+| 				r.relname, pg_catalog.obj_description(r.oid, 'pg_class'))
+| 			WHERE pg_catalog.obj_description(r.oid, 'pg_class') IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON COLUMN %I.%I IS %L;\n', r.relname, a.attname, pg_catalog.col_description(r.oid, a.attnum)), '' ORDER BY a.attnum)
+| 			FROM pg_catalog.pg_attribute a WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND pg_catalog.col_description(r.oid, a.attnum) IS NOT NULL), '')
+| 		|| coalesce((SELECT string_agg(format(E'COMMENT ON INDEX %I IS %L;\n', i.relname, pg_catalog.obj_description(i.oid, 'pg_class')), '' ORDER BY i.relname)
+| 			FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 			WHERE x.indrelid = r.oid AND pg_catalog.obj_description(i.oid, 'pg_class') IS NOT NULL), '') AS text
+| 	FROM rel r
+| ), indexes AS (
+| 	SELECT r.oid, coalesce(string_agg(pg_catalog.pg_get_indexdef(x.indexrelid) || E';\n', '' ORDER BY i.relname), '') AS text
+| 	FROM rel r JOIN pg_catalog.pg_index x ON x.indrelid = r.oid JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 	WHERE NOT EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid = x.indexrelid AND k.contype IN ('p', 'u', 'x') AND k.conrelid = r.oid)
+| 		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits h WHERE h.inhrelid = x.indexrelid)
+| 	GROUP BY r.oid
+| )
+| SELECT kind, relname, text FROM (
+| 	SELECT 'SEQUENCE' AS kind, r.relname, format(E'CREATE %sSEQUENCE %I AS %s INCREMENT BY %s MINVALUE %s MAXVALUE %s START WITH %s CACHE %s%s;\n',
+| 			CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname, pg_catalog.format_type(q.seqtypid, NULL),
+| 			q.seqincrement, q.seqmin, q.seqmax, q.seqstart, q.seqcache, CASE WHEN q.seqcycle THEN ' CYCLE' ELSE '' END) || m.text AS text
+| 		FROM rel r JOIN pg_catalog.pg_sequence q ON q.seqrelid = r.oid JOIN comments m ON m.oid = r.oid
+| 		WHERE r.relkind = 'S'
+| 	UNION ALL
+| 	SELECT 'TABLE', r.relname,
+| 		CASE WHEN r.relispartition THEN format(E'CREATE TABLE %I PARTITION OF %I %s', r.relname,
+| 				(SELECT p.relname FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid),
+| 				pg_catalog.pg_get_expr(r.relpartbound, r.oid))
+| 			ELSE format('CREATE %sTABLE %I (%s)', CASE r.relpersistence WHEN 'u' THEN 'UNLOGGED ' ELSE '' END, r.relname,
+| 				coalesce((SELECT string_agg(format('%I %s', a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod))
+| 						|| CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+| 							THEN ' COLLATE ' || (SELECT format('%I', l.collname) FROM pg_catalog.pg_collation l WHERE l.oid = a.attcollation) ELSE '' END
+| 						|| CASE WHEN a.attgenerated = 's' THEN ' GENERATED ALWAYS AS (' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) || ') STORED'
+| 							WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_catalog.pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+| 						|| CASE a.attidentity WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY' ELSE '' END
+| 						|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END, ', ' ORDER BY a.attnum)
+| 					FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+| 					LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+| 					WHERE a.attrelid = r.oid AND a.attnum > 0 AND NOT a.attisdropped AND a.attislocal), ''))
+| 				|| coalesce((SELECT ' INHERITS (' || string_agg(format('%I', p.relname), ', ' ORDER BY h.inhseqno) || ')'
+| 					FROM pg_catalog.pg_inherits h JOIN pg_catalog.pg_class p ON p.oid = h.inhparent WHERE h.inhrelid = r.oid), '')
+| 		END
+| 		|| CASE WHEN r.relkind = 'p' THEN ' PARTITION BY ' || pg_catalog.pg_get_partkeydef(r.oid) ELSE '' END
+| 		|| r.options || E';\n'
+| 		|| coalesce((SELECT string_agg(format(E'ALTER TABLE %I ADD CONSTRAINT %I %s;\n', r.relname, k.conname, pg_catalog.pg_get_constraintdef(k.oid)), '' ORDER BY k.conname)
+| 			FROM pg_catalog.pg_constraint k WHERE k.conrelid = r.oid AND k.conislocal AND k.contype IN ('c', 'f', 'p', 'u', 'x')), '')
+| 		|| coalesce(x.text, '')
+| 		|| CASE r.relreplident
+| 			WHEN 'f' THEN format(E'ALTER TABLE %I REPLICA IDENTITY FULL;\n', r.relname)
+| 			WHEN 'n' THEN format(E'ALTER TABLE %I REPLICA IDENTITY NOTHING;\n', r.relname)
+| 			WHEN 'i' THEN coalesce((SELECT format(E'ALTER TABLE %I REPLICA IDENTITY USING INDEX %I;\n', r.relname, i.relname)
+| 				FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 				WHERE x.indrelid = r.oid AND x.indisreplident), '')
+| 			ELSE '' END
+| 		|| CASE WHEN r.relrowsecurity THEN format(E'ALTER TABLE %I ENABLE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| CASE WHEN r.relforcerowsecurity THEN format(E'ALTER TABLE %I FORCE ROW LEVEL SECURITY;\n', r.relname) ELSE '' END
+| 		|| m.text
+| 		|| coalesce((SELECT string_agg(format(E'ALTER SEQUENCE %I OWNED BY %I.%I;\n', s.relname, r.relname, a.attname), '' ORDER BY s.relname)
+| 			FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class s ON s.oid = d.objid
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.refobjid = r.oid AND d.deptype = 'a' AND s.relkind = 'S'), '')
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 		WHERE r.relkind IN ('r', 'p')
+| 	UNION ALL
+| 	SELECT CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname,
+| 		format(E'CREATE %s %I%s AS %s%s;\n', CASE r.relkind WHEN 'v' THEN 'VIEW' ELSE 'MATERIALIZED VIEW' END, r.relname, r.options,
+| 			rtrim(btrim(pg_catalog.pg_get_viewdef(r.oid)), ';'),
+| 			CASE WHEN r.relkind = 'm' AND NOT r.relispopulated THEN ' WITH NO DATA' ELSE '' END)
+| 		|| coalesce(x.text, '') || m.text
+| 		FROM rel r JOIN comments m ON m.oid = r.oid LEFT JOIN indexes x ON x.oid = r.oid
+| 		WHERE r.relkind IN ('v', 'm')
+| ) o ORDER BY relname COLLATE "C", kind
+< result
+< column "kind" "TEXT"
+< column "relname" "NAME"
+< column "text" "TEXT"
+< row
+: string
+| VIEW
+: string
+| _v
+: string
+| CREATE VIEW _v AS SELECT
+|    FROM LATERAL ( SELECT) a;
 |
 < row
 : string
@@ -10188,6 +10460,17 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT a NOT BETWEEN ASYMMETRIC a AND a
+< error
+| 42703 column "a" does not exist
+| position: 26
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT a BETWEEN SYMMETRIC a AND a
 < error
 | 42703 column "a" does not exist
@@ -10529,6 +10812,39 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT a IS NOT NFD NORMALIZED
+< error
+| 42703 column "a" does not exist
+| position: 26
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT a IS NOT NFKC NORMALIZED
+< error
+| 42703 column "a" does not exist
+| position: 26
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT a IS NOT NFKD NORMALIZED
+< error
+| 42703 column "a" does not exist
+| position: 26
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT a IS JSON
 < error
 | 42703 column "a" does not exist
@@ -10574,6 +10890,50 @@
 < ok 0 -
 > exec
 | CREATE VIEW _v AS SELECT a IS NOT JSON zzz
+< error
+| 42703 column "a" does not exist
+| position: 26
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT a IS NOT JSON VALUE
+< error
+| 42703 column "a" does not exist
+| position: 26
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT a IS NOT JSON ARRAY
+< error
+| 42703 column "a" does not exist
+| position: 26
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT a IS NOT JSON OBJECT
+< error
+| 42703 column "a" does not exist
+| position: 26
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT a IS NOT JSON SCALAR
 < error
 | 42703 column "a" does not exist
 | position: 26
@@ -11541,6 +11901,50 @@
 < ok 0 -
 > exec
 | CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) zzz
+< error
+| 42703 column "a" does not exist
+| position: 40
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) FILTER(WHERE a)
+< error
+| 42703 column "a" does not exist
+| position: 40
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) OVER()
+< error
+| 42703 column "a" does not exist
+| position: 40
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) OVER a
+< error
+| 42703 column "a" does not exist
+| position: 40
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) a
 < error
 | 42703 column "a" does not exist
 | position: 40
@@ -15175,6 +15579,39 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT NORMALIZE(a, NFD)
+< error
+| 42703 column "a" does not exist
+| position: 36
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT NORMALIZE(a, NFKC)
+< error
+| 42703 column "a" does not exist
+| position: 36
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT NORMALIZE(a, NFKD)
+< error
+| 42703 column "a" does not exist
+| position: 36
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT OVERLAY(a PLACING a FROM a)
 < error
 | 42703 column "a" does not exist
@@ -16293,6 +16730,39 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT JSON_OBJECT(a VALUE a RETURNING a)
+< error
+| 42703 column "a" does not exist
+| position: 38
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_OBJECT(a VALUE a NULL ON NULL)
+< error
+| 42703 column "a" does not exist
+| position: 38
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_OBJECT(a VALUE a ABSENT ON NULL)
+< error
+| 42703 column "a" does not exist
+| position: 38
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT JSON_OBJECT(a VALUE a WITH UNIQUE KEYS)
 < error
 | 42703 column "a" does not exist
@@ -16585,6 +17055,39 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT JSON_ARRAY(a RETURNING a)
+< error
+| 42703 column "a" does not exist
+| position: 37
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_ARRAY(a NULL ON NULL)
+< error
+| 42703 column "a" does not exist
+| position: 37
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_ARRAY(a ABSENT ON NULL)
+< error
+| 42703 column "a" does not exist
+| position: 37
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT)
 < error
 | 42601 subquery must return only one column
@@ -16600,6 +17103,61 @@
 < error
 | 42601 subquery must return only one column
 | position: 26
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT FORMAT JSON)
+< error
+| 42601 subquery must return only one column
+| position: 26
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT JSON)
+< error
+| 42703 column "json" does not exist
+| position: 44
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT FORMAT)
+< error
+| 42703 column "format" does not exist
+| position: 44
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT RETURNING a)
+< error
+| 42601 subquery must return only one column
+| position: 26
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT a)
+< error
+| 42703 column "a" does not exist
+| position: 44
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
@@ -16833,6 +17391,16 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT JSON_ARRAY(RETURNING a)
+< error
+| 42846 cannot cast type json to a
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT JSON(a)
 < error
 | 42703 column "a" does not exist
@@ -16943,6 +17511,17 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT JSON_SERIALIZE(a RETURNING a)
+< error
+| 42703 column "a" does not exist
+| position: 41
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT MERGE_ACTION()
 < error
 | 42601 MERGE_ACTION() can only be used in the RETURNING list of a MERGE command
@@ -16999,6 +17578,17 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT JSON_QUERY(a, a RETURNING a)
+< error
+| 42703 column "a" does not exist
+| position: 37
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT JSON_EXISTS(a, a)
 < error
 | 42703 column "a" does not exist
@@ -17022,6 +17612,17 @@
 < ok 0 -
 > exec
 | CREATE VIEW _v AS SELECT JSON_OBJECT(a, a)
+< error
+| 42703 column "a" does not exist
+| position: 38
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_EXISTS(a, a PASSING a AS a)
 < error
 | 42703 column "a" does not exist
 | position: 38
@@ -17058,6 +17659,28 @@
 < error
 | 42703 column "a" does not exist
 | position: 31
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_VALUE(a, a PASSING a AS a)
+< error
+| 42703 column "a" does not exist
+| position: 37
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_VALUE(a, a RETURNING a)
+< error
+| 42703 column "a" does not exist
+| position: 37
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
@@ -19665,7 +20288,40 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT JSON_QUERY(a, a DEFAULT a ON ERROR)
+< error
+| 42703 column "a" does not exist
+| position: 37
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT JSON_QUERY(a, a ERROR ON EMPTY ERROR ON ERROR)
+< error
+| 42703 column "a" does not exist
+| position: 37
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_QUERY(a, a DEFAULT a ON EMPTY ERROR ON ERROR)
+< error
+| 42703 column "a" does not exist
+| position: 37
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_QUERY(a, a ERROR ON EMPTY DEFAULT a ON ERROR)
 < error
 | 42703 column "a" does not exist
 | position: 37
@@ -19680,6 +20336,18 @@
 < error
 | 42703 column "a" does not exist
 | position: 38
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_EXISTS(a, a DEFAULT a ON ERROR)
+< error
+| 42601 invalid ON ERROR behavior
+| position: 43
+| detail: Only ERROR, TRUE, FALSE, or UNKNOWN is allowed in ON ERROR for JSON_EXISTS().
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
@@ -19745,6 +20413,17 @@
 | CREATE VIEW _v AS SELECT JSON_OBJECT(RETURNING a)
 < error
 | 42846 cannot cast type json to a
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_OBJECT(RETURNING a FORMAT JSON)
+< error
+| 42846 cannot cast type json to a
+| position: 50
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
@@ -20049,6 +20728,17 @@
 | CREATE INDEX a_d_idx ON a (d);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a VALUE a RETURNING a)
+< error
+| 42703 column "a" does not exist
+| position: 41
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a VALUE a WITH UNIQUE KEYS)
 < error
 | 42703 column "a" does not exist
@@ -20086,6 +20776,17 @@
 < error
 | 42703 column "a" does not exist
 | position: 41
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+| CREATE INDEX a_d_idx ON a (d);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a RETURNING a)
+< error
+| 42703 column "a" does not exist
+| position: 40
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;

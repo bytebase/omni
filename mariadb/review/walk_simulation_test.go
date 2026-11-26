@@ -41,11 +41,11 @@ func TestWalkSimulation(t *testing.T) {
 		// function may hold; and one moves an event into the past (1589),
 		// which needs the event's ON COMPLETION and the server's clock.
 		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 64.6, 449},
-		// Of the 212 refusals, 21 are statements the parser refuses. The 12
+		// Of the 224 refusals, 28 are statements the parser refuses. The 17
 		// the walk misses call a function the target doesn't hold, which a
 		// loadable function may answer to unqualified (1305), or qualified
 		// by a database other than the target's (1305, 1630).
-		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 84.4, 179},
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 79.9, 179},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{

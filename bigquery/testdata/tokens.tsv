@@ -97,3 +97,56 @@ struct_field	(every alternative)	googlesql.tm:10255 a STRUCT field, named or not
 tvf_schema_column	(every alternative)	googlesql.tm:4085 a TABLE<...> column, named or not
 type_parameter	(every alternative)	googlesql.tm:10341 a type parameter: a literal or MAX
 grouping_set	(every alternative)	googlesql.tm:8206 (), an expression, ROLLUP or CUBE
+
+# Second pass: paths, literals, lists and clause choices named at several sites.
+maybe_dashed_path_expression	(every alternative)	googlesql.tm:9823 a path, dashed or not
+maybe_slashed_or_dashed_path_expression	(every alternative)	googlesql.tm:9851 a path, slashed, dashed or not
+string_literal	(every alternative)	googlesql.tm:11369 a string, or adjacent strings
+bytes_literal	(every alternative)	googlesql.tm:11431 bytes, or adjacent bytes
+select_list	(every alternative)	googlesql.tm:5879 a select list, with or without a trailing comma
+table_element_list	(every alternative)	googlesql.tm:3286 a table element list, or ()
+table_constraint_spec	(every alternative)	googlesql.tm:3833 CHECK or FOREIGN KEY
+returning_clause	(every alternative)	googlesql.tm:11983 THEN RETURN [WITH ACTION [AS a]]
+named_argument	(every alternative)	googlesql.tm:10907 a => argument: expression, lambda or table
+type_or_tvf_schema	(every alternative)	googlesql.tm:10440 a type, templated type or TABLE<...>
+update_item	(every alternative)	googlesql.tm:12315 a SET item or a nested DML statement
+query	(every alternative)	googlesql.tm:4818 a query, with or without pipe operators
+column_attribute	(every alternative)	googlesql.tm:3723 PRIMARY KEY, REFERENCES, HIDDEN or NOT NULL
+limit_offset_clause	(every alternative)	googlesql.tm:8477 LIMIT [ALL] [OFFSET]
+grouping_item	(every alternative)	googlesql.tm:8288 a grouping item: (), ROLLUP, CUBE, GROUPING SETS or an expression
+with_clause_entry	(every alternative)	googlesql.tm:8677 a WITH entry: a query or a group-rows alias
+execute_using_argument	(every alternative)	googlesql.tm:12691 an EXECUTE IMMEDIATE argument, named or not
+generic_entity_body	(every alternative)	googlesql.tm:3221 a JSON or string body
+new_constructor_arg	(every alternative)	googlesql.tm:10453 a NEW argument, aliased or not
+graph_return_item	(every alternative)	googlesql.tm:6908 a RETURN item, aliased, or *
+parenthesized_identifier_list	(every alternative)	googlesql.tm:7162 (a, ...) or ()
+function_call_argument	(every alternative)	googlesql.tm:10873 a function argument: expression, named, lambda, sequence or query
+properties_clause	(every alternative)	googlesql.tm:2786 NO PROPERTIES, PROPERTIES ALL COLUMNS or a list
+
+# Optional clauses of BigQuery's second pass, tried at every site.
+opt_natural	(every site)	googlesql.tm:6056 NATURAL
+opt_constraint_enforcement	(every site)	googlesql.tm:4053 ENFORCED or NOT ENFORCED
+opt_repeatable_clause	(every site)	googlesql.tm:6128 REPEATABLE (n)
+opt_table_element_list	(every site)	googlesql.tm:3278 a table element list
+opt_field_attributes	(every site)	googlesql.tm:3784 NOT NULL on a field
+opt_foreign_key_on_delete	(every site)	googlesql.tm:4001 ON DELETE
+opt_per_clause	(every site)	googlesql.tm:7173 PER (a, ...)
+opt_int_literal_or_parameter	(every site)	googlesql.tm:6067 a count
+#
+# Keyword choices and list forms of BigQuery's third pass, each written in
+# every form at each site that names it.
+maybe_dashed_generalized_path_expression	(every alternative)	googlesql.tm:12254 a generalized path, dashed or not
+dashed_identifier	(every alternative)	googlesql.tm:9710 a-b, a-b-c, a-1 and the other dashed name parts
+unnest_expression	(every alternative)	googlesql.tm:8934 UNNEST(a [, mode => b]) or UNNEST(SELECT ...)
+pivot_or_unpivot_clause	(every alternative)	googlesql.tm:6367 PIVOT, UNPIVOT or a nonreserved QUALIFY after a table
+query_set_operation_prefix	(every alternative)	googlesql.tm:5601 a set operation, chained or before FROM
+opt_corresponding_outer_mode	(every alternative)	googlesql.tm:5525 FULL [OUTER], OUTER, INNER, LEFT [OUTER] or nothing
+window_clause	(every alternative)	googlesql.tm:8421 WINDOW with one or more definitions
+statement_list	(every alternative)	googlesql.tm:12749 statements ending in ;, or none
+alter_action_list	(every alternative)	googlesql.tm:1637 one or more ALTER actions
+opt_with_modifier	(every alternative)	googlesql.tm:5733 SELECT WITH a [OPTIONS(...)] or nothing
+partition_by_clause_prefix_no_hint	(every alternative)	googlesql.tm:11056 PARTITION BY one or more expressions
+from_clause_contents	(every alternative)	googlesql.tm:8026 a table, a comma join or a JOIN
+expression_maybe_parenthesized_not_a_query	(every alternative)	googlesql.tm:9227 a parenthesized expression, or one with or without AND and OR
+subpipeline	(every alternative)	googlesql.tm:4899 a parenthesized subpipeline, or one with no parentheses
+row_pattern_expr	(every alternative)	googlesql.tm:6435 a row pattern, with | or || alternation

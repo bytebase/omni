@@ -410,8 +410,17 @@ func (p *Parser) parseWhereClauseBody() (nodes.ExprNode, error) {
 			p.advance() // consume OF
 
 			// CURRENT OF [ GLOBAL ] cursor_name | @cursor_variable; the
-			// cursor is required (cursorId, TSql160.g:14652).
-			global := p.matchIdentCI("GLOBAL")
+			// cursor is required (cursorId, TSql160.g:14652). cursorId is
+			// GLOBAL identifier | identifierOrVariable, so GLOBAL with no
+			// name after it is a cursor named GLOBAL, as SQL Server reads
+			// DELETE a WHERE CURRENT OF GLOBAL.
+			global := false
+			if p.cur.Type == kwGLOBAL {
+				if next := p.peekNext(); next.Type == tokIDENT || isContextKeyword(next.Type) {
+					p.advance() // consume GLOBAL
+					global = true
+				}
+			}
 			var cursorName string
 			if p.cur.Type == tokVARIABLE && !global {
 				cursorName = p.cur.Str

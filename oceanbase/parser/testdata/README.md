@@ -21,6 +21,11 @@ regenerates the rows from the grammar and fails if the file holds others.
   and the rest) `(every site)`, so each alternative naming one gets a row
   labelled `<alternative>+<rule>` with the clause written out, and near-misses
   dropping each of its words.
+- **Keyword choices are tried in every form at every site.** A rule marked
+  `(every alternative)` (`table_or_tables`, `collation_name`, `opt_limit`
+  and the rest) gets a row per form, labelled `<alternative>+<rule>/<form>`.
+- **`suite:` rows are hand-added** for forms no generated row writes, such as
+  a decimal string length or `COLLATE BINARY`.
 - **52 alternatives have no row,** because they need a token the lexer never
   produces: dead grammar, or `||` and `NOT` under a non-default `sql_mode`.
 

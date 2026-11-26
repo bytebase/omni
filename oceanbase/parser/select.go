@@ -2243,6 +2243,19 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 	}
 	col.TypeName = typeName
 
+	// column_name data_type opt_collation (sql_parser_mysql_mode.y:24807 and
+	// 24820): a COLLATE after any type, one only, since a character type
+	// reads its own COLLATE (parseCharsetCollate) and the grammar's data_type
+	// takes none. OceanBase 4.3.5 parses TINYINT COLLATE utf8mb4_bin PATH '$'
+	// and answers 1064 for VARCHAR(1) COLLATE a COLLATE a PATH '$'.
+	if p.cur.Type == kwCOLLATE && typeName.Collate == "" {
+		p.advance()
+		if typeName.Collate, err = p.parseCollationName(); err != nil {
+			return nil, err
+		}
+		typeName.Loc.End = p.prev.End
+	}
+
 	// EXISTS PATH
 	if p.cur.Type == kwEXISTS_KW {
 		p.advance()

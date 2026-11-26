@@ -668,6 +668,47 @@ func (p *Parser) parseProcConstantOrIdentifier() (nodes.ExprNode, error) {
 	return nil, p.syntaxErrorAtCur()
 }
 
+// parsePossibleNegativeConstant parses possibleNegativeConstant
+// (TSql160.g:25160): a literal (TSql160.g:33382) or a minus sign before a
+// number or money constant (negativeConstant, TSql160.g:25165). SQL Server
+// refuses what the grammar's literal names beside them, an @@ name (Msg 102),
+// and refuses a local variable too where variable is false: OPTIMIZE FOR's
+// value must be a literal (Msg 320). It fails at the current token when no
+// constant starts there.
+func (p *Parser) parsePossibleNegativeConstant(variable bool) (nodes.ExprNode, error) {
+	switch p.cur.Type {
+	case tokICONST, tokFCONST, tokSCONST, tokNSCONST, tokMONEY, kwNULL:
+		return p.parsePrimary()
+	case tokVARIABLE:
+		if variable {
+			return p.parsePrimary()
+		}
+	case '{':
+		// odbcLiteral, { d|t|ts 'text' }; an ODBC function is no literal.
+		loc := p.cur.Loc
+		e, err := p.parseOdbcEscape()
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := e.(*nodes.OdbcLiteralExpr); !ok {
+			return nil, p.newParseError(loc, "syntax error at or near \"{\"")
+		}
+		return e, nil
+	case '-':
+		loc := p.pos()
+		p.advance() // consume '-'
+		if (p.cur.Type != tokICONST && p.cur.Type != tokFCONST && p.cur.Type != tokMONEY) || procIsBinary(p.cur) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		operand, err := p.parsePrimary()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.UnaryExpr{Op: nodes.UnaryMinus, Operand: operand, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+	}
+	return nil, p.syntaxErrorAtCur()
+}
+
 // parseProcCursorRef parses cursorId (TSql160.g:14652): GLOBAL and a name, a
 // name, or a cursor variable, one of them required.
 func (p *Parser) parseProcCursorRef() (string, bool, error) {

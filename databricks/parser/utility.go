@@ -893,13 +893,24 @@ func (p *Parser) parseRefresh() (Statement, error) {
 	if _, err := p.expect(kwREFRESH); err != nil {
 		return nil, err
 	}
+	// SqlBaseParser.g4:323-325: REFRESH TABLE identifierReference, REFRESH
+	// FUNCTION identifierReference, or REFRESH (stringLit | .*?). Text after
+	// TABLE or FUNCTION that is no identifierReference to the end, as in
+	// REFRESH TABLE(a), is the .*? resource path Spark falls back to.
 	if (p.cur().Kind == kwTABLE || p.cur().Kind == kwFUNCTION) && !p.isStatementEndAt(1) {
+		cp := p.save()
 		p.advance()
 		target, err := p.parseIdentifierReference()
-		if err != nil {
+		if err == nil && p.isStatementEnd() {
+			return &ParsedStmt{Kind: StmtRefresh, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+		}
+		p.restore(cp)
+		if p.inCompound {
+			if err == nil {
+				err = p.errorf("unexpected token after REFRESH target")
+			}
 			return nil, err
 		}
-		return &ParsedStmt{Kind: StmtRefresh, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 	}
 	if p.isStringLit() {
 		p.advance()

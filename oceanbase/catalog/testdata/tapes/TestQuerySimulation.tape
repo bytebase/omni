@@ -5521,6 +5521,20 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a) OVER a
+< error
+| 5929 HY000 Window name 'a' is not defined.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT GROUP_CONCAT(a SEPARATOR 's') OVER a
+< error
+| 5929 HY000 Window name 'a' is not defined.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT GROUP_CONCAT(DISTINCT a) OVER a
 < error
 | 5929 HY000 Window name 'a' is not defined.
@@ -5543,6 +5557,20 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT LISTAGG(a) OVER a zzz
+< error
+| 5929 HY000 Window name 'a' is not defined.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT LISTAGG(a ORDER BY a) OVER a
+< error
+| 5929 HY000 Window name 'a' is not defined.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT LISTAGG(a SEPARATOR 's') OVER a
 < error
 | 5929 HY000 Window name 'a' is not defined.
 > exec
@@ -6036,6 +6064,13 @@
 | CREATE VIEW _v AS SELECT RANK() OVER(zzz)
 < error
 | 5929 HY000 Window name 'zzz' is not defined.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT RANK() OVER(ORDER BY a)
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -7461,6 +7496,13 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT GROUP_CONCAT(a) zzz
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a)
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -11299,6 +11341,112 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT CURRENT_TIME(1)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE VIEW `_v` AS select curtime() AS `CURRENT_TIME(1)`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CURRENT_TIME()
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE VIEW `_v` AS select curtime() AS `CURRENT_TIME()`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT CURRENT_USER()
 < ok 0 0
 > query
@@ -11607,59 +11755,6 @@
 | _v
 : bytes
 | CREATE VIEW `_v` AS select curdate() AS `zzz`
-: bytes
-| utf8mb4
-: bytes
-| utf8mb4_general_ci
-> query
-| SHOW CREATE TABLE `a`
-< result
-< column "Table" "VARCHAR" "string"
-< column "Create Table" "TEXT" "string"
-< row
-: bytes
-| a
-: bytes
-| CREATE TABLE `a` (
-|   `b` int(11) NOT NULL,
-|   `a` int(11) DEFAULT NULL,
-|   `d` int(11) DEFAULT NULL,
-|   PRIMARY KEY (`b`),
-|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
-| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
-| CREATE VIEW _v AS SELECT CURRENT_TIME()
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
-< column "Table_type" "VARCHAR" "string"
-< row
-: bytes
-| _v
-: bytes
-| VIEW
-< row
-: bytes
-| a
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE VIEW `_v`
-< result
-< column "View" "VARCHAR" "string"
-< column "Create View" "TEXT" "string"
-< column "character_set_client" "VARCHAR" "string"
-< column "collation_connection" "VARCHAR" "string"
-< row
-: bytes
-| _v
-: bytes
-| CREATE VIEW `_v` AS select curtime() AS `CURRENT_TIME()`
 : bytes
 | utf8mb4
 : bytes
@@ -12351,7 +12446,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT CAST(a AS BINARY(1))
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT CAST(a AS CHARACTER)
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(a AS CHARACTER(1))
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -12366,6 +12475,13 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT CAST(a AS CHARACTER CHARSET a)
+< error
+| 1115 42000 Unknown character set
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(a AS CHARACTER(1) CHARSET a)
 < error
 | 1115 42000 Unknown character set
 > exec
@@ -12407,7 +12523,28 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT CAST(a AS DATETIME(1))
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT CAST(a AS NUMBER)
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(a AS NUMBER(1, 1))
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(a AS NUMBER(1))
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -12421,7 +12558,35 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT CAST(a AS DECIMAL(1, 1))
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(a AS DECIMAL(1))
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT CAST(a AS FIXED)
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(a AS FIXED(1, 1))
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(a AS FIXED(1))
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -12443,6 +12608,13 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT CAST(a AS UNSIGNED)
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(a AS UNSIGNED INTEGER)
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -12547,7 +12719,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT CAST(a AS NCHAR(1))
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT CAST(a AS NATIONAL CHARACTER)
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(a AS NATIONAL CHARACTER(1))
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -12883,6 +13069,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT a FROM DUAL WHERE a
+< error
+| 1054 42S22 Unknown column 'a' in 'where clause'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT a LIMIT 1
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -13070,6 +13263,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT a UNION SELECT a ORDER BY a LIMIT 1
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT a UNION SELECT a UNION SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -13210,62 +13410,16 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
-| CREATE VIEW _v AS SELECT a FROM a ORDER BY a APPROX LIMIT 1
+| CREATE VIEW _v AS SELECT a ORDER BY a LIMIT 1
 < error
-| 1235 0A000 Using vector index without vector_sort_expr is not supported
+| 1054 42S22 Unknown column 'a' in 'field list'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
-| CREATE VIEW _v AS SELECT a FROM a ORDER BY a LIMIT 1
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
-< column "Table_type" "VARCHAR" "string"
-< row
-: bytes
-| _v
-: bytes
-| VIEW
-< row
-: bytes
-| a
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE VIEW `_v`
-< result
-< column "View" "VARCHAR" "string"
-< column "Create View" "TEXT" "string"
-< column "character_set_client" "VARCHAR" "string"
-< column "collation_connection" "VARCHAR" "string"
-< row
-: bytes
-| _v
-: bytes
-| CREATE VIEW `_v` AS select `omni_t_simulation`.`a`.`a` AS `a` from `omni_t_simulation`.`a` order by 1 limit 1
-: bytes
-| utf8mb4
-: bytes
-| utf8mb4_general_ci
-> query
-| SHOW CREATE TABLE `a`
-< result
-< column "Table" "VARCHAR" "string"
-< column "Create Table" "TEXT" "string"
-< row
-: bytes
-| a
-: bytes
-| CREATE TABLE `a` (
-|   `b` int(11) NOT NULL,
-|   `a` int(11) DEFAULT NULL,
-|   `d` int(11) DEFAULT NULL,
-|   PRIMARY KEY (`b`),
-|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
-| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+| CREATE VIEW _v AS SELECT a FROM a ORDER BY a APPROX LIMIT 1
+< error
+| 1235 0A000 Using vector index without vector_sort_expr is not supported
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -13344,6 +13498,59 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT a FROM a ORDER BY a LIMIT 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE VIEW `_v` AS select `omni_t_simulation`.`a`.`a` AS `a` from `omni_t_simulation`.`a` order by 1 limit 1
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT a FROM a ORDER BY APPROX LIMIT 1
 < error
 | 1054 42S22 Unknown column 'APPROX' in 'order clause'
@@ -13368,6 +13575,112 @@
 | CREATE VIEW _v AS SELECT /*+ */ zzz a
 < error
 | 1054 42S22 Unknown column 'zzz' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT a FROM a WHERE a
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE VIEW `_v` AS select `omni_t_simulation`.`a`.`a` AS `a` from `omni_t_simulation`.`a` where `omni_t_simulation`.`a`.`a`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT a FROM a a
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE VIEW `_v` AS select `a`.`a` AS `a` from `omni_t_simulation`.`a` `a`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -13590,6 +13903,13 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT a INTO OUTFILE 's' BUFFER_SIZE = 1
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT a INTO OUTFILE 's' BUFFER_SIZE 's'
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -14591,6 +14911,27 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT /*+ OPT_PARAM('s', 's') */ a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT /*+ OPT_PARAM('s' 1) */ a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT /*+ OPT_PARAM('s' - 1) */ a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT /*+ OPT_PARAM('s' -) */ a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -17467,6 +17808,27 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT /*+ INDEX_ASC(a a 1) */ a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT /*+ INDEX_ASC(a a - 1) */ a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT /*+ INDEX_ASC(a a -) */ a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a a) */ a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -17503,6 +17865,27 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a, a) */ a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a a 1) */ a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a a - 1) */ a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a a -) */ a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -20855,59 +21238,6 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
-| CREATE VIEW _v AS SELECT a FROM a a
-< ok 0 0
-> query
-| SHOW FULL TABLES
-< result
-< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
-< column "Table_type" "VARCHAR" "string"
-< row
-: bytes
-| _v
-: bytes
-| VIEW
-< row
-: bytes
-| a
-: bytes
-| BASE TABLE
-> query
-| SHOW CREATE VIEW `_v`
-< result
-< column "View" "VARCHAR" "string"
-< column "Create View" "TEXT" "string"
-< column "character_set_client" "VARCHAR" "string"
-< column "collation_connection" "VARCHAR" "string"
-< row
-: bytes
-| _v
-: bytes
-| CREATE VIEW `_v` AS select `a`.`a` AS `a` from `omni_t_simulation`.`a` `a`
-: bytes
-| utf8mb4
-: bytes
-| utf8mb4_general_ci
-> query
-| SHOW CREATE TABLE `a`
-< result
-< column "Table" "VARCHAR" "string"
-< column "Create Table" "TEXT" "string"
-< row
-: bytes
-| a
-: bytes
-| CREATE TABLE `a` (
-|   `b` int(11) NOT NULL,
-|   `a` int(11) DEFAULT NULL,
-|   `d` int(11) DEFAULT NULL,
-|   PRIMARY KEY (`b`),
-|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
-| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
-> exec
-| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
-< ok 0 0
-> exec
 | CREATE VIEW _v AS SELECT a FROM a, a zzz
 < error
 | 1052 23000 Column 'a' in field list is ambiguous
@@ -21365,6 +21695,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY((a, a)) */ a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT /*+ STAT(1, 1) */ a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -21415,6 +21752,13 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT /*+ MV_REWRITE(a a zzz) */ a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT /*+ MV_REWRITE(a, a) */ a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -21582,6 +21926,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT /*+ LEADING(a, a) */ a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT /*+ LEADING(a(a)) */ a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -21611,6 +21962,13 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT /*+ LEADING(a(a) zzz) */ a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT /*+ LEADING(a,(a)) */ a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -21652,6 +22010,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY(a, a) */ a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY(a(a)) */ a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -21681,6 +22046,13 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY(a(a) zzz) */ a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT /*+ PLACE_GROUP_BY(a,(a)) */ a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -21772,6 +22144,27 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT a FROM a JOIN a USING(a)
+< error
+| 1066 42000 Not unique table/alias: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT a FROM a INNER JOIN a ON a
+< error
+| 1066 42000 Not unique table/alias: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT a FROM a CROSS JOIN a ON a
+< error
+| 1066 42000 Not unique table/alias: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT a FROM a STRAIGHT_JOIN a ON a
 < error
 | 1066 42000 Not unique table/alias: 'a'
 > exec
@@ -21968,6 +22361,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT a FROM a NATURAL FULL OUTER JOIN a
+< error
+| 1066 42000 Not unique table/alias: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT a FROM a NATURAL JOIN zzz a
 < error
 | 1146 42S02 Table 'omni_t_simulation.zzz' doesn't exist
@@ -22073,6 +22473,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT a FROM a NATURAL RIGHT OUTER JOIN a
+< error
+| 1066 42000 Not unique table/alias: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT a FROM a NATURAL LEFT OUTER JOIN a
 < error
 | 1066 42000 Not unique table/alias: 'a'
@@ -22130,6 +22537,13 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS VALUES ROW() ORDER BY a
+< error
+| 3942 HY000 Each row of a VALUES clause must have at least one column, unless when used as source in an INSERT statement.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS VALUES ROW() ORDER BY a LIMIT 1
 < error
 | 3942 HY000 Each row of a VALUES clause must have at least one column, unless when used as source in an INSERT statement.
 > exec
@@ -23011,9 +23425,37 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT COLLATE a EXISTS PATH 's'))
+< error
+| 1054 42S22 Unknown column 'a' in 'from clause'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT COLLATE a PATH 's'))
+< error
+| 1054 42S22 Unknown column 'a' in 'from clause'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED PATH 's' COLUMNS(a FOR ORDINALITY)))
 < error
 | 1054 42S22 Unknown column 'a' in 'from clause'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' TRUNCATE)
+< error
+| 5454 42000 JSON path expression syntax error ('s')
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ASCII)
+< error
+| 5454 42000 JSON path expression syntax error ('s')
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -23130,7 +23572,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' NULL ON MISMATCH)
+< error
+| 5454 42000 JSON path expression syntax error ('s')
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' DOT ON MISMATCH)
+< error
+| 5454 42000 JSON path expression syntax error ('s')
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' NULL ON ERROR)
 < error
 | 5454 42000 JSON path expression syntax error ('s')
 > exec

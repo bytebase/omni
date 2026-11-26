@@ -1485,6 +1485,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -1528,6 +1548,25 @@
 | ALTER INDEX a ON a FOR(REMOVE a)
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM DOUBLE PRECISION
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM PRECISION
+< error
+| 222 1 16 1 The base type "PRECISION" is not a valid base type for the alias data type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -1695,6 +1734,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 < error
 | 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
@@ -1778,6 +1827,27 @@
 | CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -2768,6 +2838,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | SELECT * INTO a
 < error
 | 263 1 16 1 Must specify table to select from.
@@ -2919,6 +3009,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| INSERT @a DEFAULT VALUES
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | INSERT INTO a DEFAULT VALUES
 < error
 | 208 1 16 1 Invalid object name 'a'.
@@ -3011,6 +3111,17 @@
 > exec
 | UPDATE a SET @a = 1 FROM @a
 < error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE @a SET @a = 1
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
 | 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -3149,6 +3260,86 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a = a += 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = DEFAULT
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -3159,7 +3350,167 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET a += 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a -= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a *= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a /= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a %= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a &= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a |= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a ^= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET a = DEFAULT
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY += 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY -= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY *= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY /= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY %= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY &= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY |= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY ^= 1
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -3329,6 +3680,36 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a WHERE CURRENT OF GLOBAL a
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF a
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 < ok 0 -
 > exec
@@ -3400,6 +3781,26 @@
 | ALTER SEQUENCE a MINVALUE 1
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -3607,6 +4008,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE VIEW.a AS SELECT *
+< error
+| 263 1 16 1 proc=a Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE VIEW a(a) AS SELECT *
 < error
 | 263 1 16 1 proc=a Must specify table to select from.
@@ -3740,6 +4151,25 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
@@ -3792,6 +4222,96 @@
 > exec
 | CREATE PROC a @a CURSOR VARYING OUT AS
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -4091,6 +4611,26 @@
 | ALTER TABLE a ALTER COLUMN a a COLLATE a
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -4508,6 +5048,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -4872,6 +5432,15 @@
 | CREATE SPATIAL INDEX a ON a(a) ON a
 < error
 | 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE.a
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -6417,6 +6986,203 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+< error
+| 2714 5 16 1 There is already an object named 'a' in the database.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+< error
+| 2714 5 16 1 There is already an object named 'a' in the database.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a AS TABLE(UNIQUE(a), a INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'sim'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL OPTION(MAXDOP 1)
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL [a]
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -7909,6 +8675,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -7952,6 +8738,26 @@
 | ALTER INDEX a ON a FOR(REMOVE a)
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM DOUBLE PRECISION
+< error
+| 219 1 16 1 The type 'a' already exists, or you do not have permission to create it.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM PRECISION
+< error
+| 222 1 16 1 The base type "PRECISION" is not a valid base type for the alias data type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -8119,6 +8925,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 < error
 | 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
@@ -8204,6 +9020,27 @@
 < error
 | 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
 | 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -9198,6 +10035,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | SELECT * INTO a
 < error
 | 263 1 16 1 Must specify table to select from.
@@ -9349,6 +10206,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| INSERT @a DEFAULT VALUES
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | INSERT INTO a DEFAULT VALUES
 < error
 | 208 1 16 1 Invalid object name 'a'.
@@ -9441,6 +10308,17 @@
 > exec
 | UPDATE a SET @a = 1 FROM @a
 < error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE @a SET @a = 1
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
 | 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -9579,6 +10457,86 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a = a += 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = DEFAULT
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -9589,7 +10547,167 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET a += 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a -= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a *= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a /= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a %= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a &= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a |= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a ^= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET a = DEFAULT
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY += 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY -= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY *= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY /= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY %= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY &= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY |= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY ^= 1
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -9759,6 +10877,36 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a WHERE CURRENT OF GLOBAL a
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF a
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 < ok 0 -
 > exec
@@ -9829,6 +10977,26 @@
 | ALTER SEQUENCE a MINVALUE 1
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -10036,6 +11204,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE VIEW.a AS SELECT *
+< error
+| 263 1 16 1 proc=a Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE VIEW a(a) AS SELECT *
 < error
 | 263 1 16 1 proc=a Must specify table to select from.
@@ -10166,6 +11344,25 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 < ok 0 -
 > exec
@@ -10213,6 +11410,87 @@
 < ok 0 -
 > exec
 | CREATE PROC a @a CURSOR VARYING OUT AS
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -10510,6 +11788,26 @@
 | ALTER TABLE a ALTER COLUMN a a COLLATE a
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -10927,6 +12225,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -11291,6 +12609,15 @@
 | CREATE SPATIAL INDEX a ON a(a) ON a
 < error
 | 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE.a
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -12837,6 +14164,204 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+< error
+| 2714 5 16 1 There is already an object named 'a' in the database.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+< error
+| 2714 5 16 1 There is already an object named 'a' in the database.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a AS TABLE(UNIQUE(a), a INT)
+< error
+| 219 1 16 1 The type 'a' already exists, or you do not have permission to create it.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'sim'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL OPTION(MAXDOP 1)
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL [a]
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -14264,6 +15789,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 < error
 | 2727 1 11 1 Cannot find index 'a'.
@@ -14307,6 +15852,26 @@
 | ALTER INDEX a ON a FOR(REMOVE a)
 < error
 | 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM DOUBLE PRECISION
+< error
+| 219 1 16 1 The type 'a' already exists, or you do not have permission to create it.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM PRECISION
+< error
+| 222 1 16 1 The base type "PRECISION" is not a valid base type for the alias data type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -14472,6 +16037,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 < error
 | 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
@@ -14557,6 +16132,27 @@
 < error
 | 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
 | 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -15568,6 +17164,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | SELECT * INTO a
 < error
 | 263 1 16 1 Must specify table to select from.
@@ -15708,6 +17324,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| INSERT @a DEFAULT VALUES
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | INSERT INTO a DEFAULT VALUES
 < ok 1 -
 > exec
@@ -15800,6 +17426,17 @@
 > exec
 | UPDATE a SET @a = 1 FROM @a
 < error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE @a SET @a = 1
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
 | 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -15938,6 +17575,86 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a = a += 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = DEFAULT
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -15948,9 +17665,169 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET a += 1
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a -= 1
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a *= 1
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a /= 1
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a %= 1
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a &= 1
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a |= 1
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a ^= 1
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET a = DEFAULT
 < error
 | 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY += 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY -= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY *= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY /= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY %= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY &= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY |= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY ^= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -16118,6 +17995,36 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a WHERE CURRENT OF GLOBAL a
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF a
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 < error
 | 2714 8 16 1 There is already an object named 'a' in the database.
@@ -16191,6 +18098,26 @@
 | ALTER SEQUENCE a MINVALUE 1
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -16398,6 +18325,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE VIEW.a AS SELECT *
+< error
+| 263 1 16 1 proc=a Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE VIEW a(a) AS SELECT *
 < error
 | 263 1 16 1 proc=a Must specify table to select from.
@@ -16539,6 +18476,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
@@ -16590,6 +18547,96 @@
 < ok 0 -
 > exec
 | CREATE PROC a @a CURSOR VARYING OUT AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
 > exec
@@ -16891,6 +18938,26 @@
 | ALTER TABLE a ALTER COLUMN a a COLLATE a
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+< error
+| 4924 1 16 1 ALTER TABLE ALTER COLUMN failed because column 'a' does not exist in table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+< error
+| 4924 1 16 1 ALTER TABLE ALTER COLUMN failed because column 'a' does not exist in table 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -17328,6 +19395,25 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+< error
+| 2715 6 16 1 Column, parameter, or variable #4: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 < error
 | 16006 0 16 1 Invalid data masking format for function 'a' in column 'a'.
@@ -17702,6 +19788,16 @@
 | CREATE SPATIAL INDEX a ON a(a) ON a
 < error
 | 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE.a
+< error
+| 2714 8 16 1 There is already an object named '.a' in the database.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -19266,6 +21362,209 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a AS TABLE(UNIQUE(a), a INT)
+< error
+| 219 1 16 1 The type 'a' already exists, or you do not have permission to create it.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'sim'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL OPTION(MAXDOP 1)
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL;
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL [a]
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -20756,6 +23055,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 < error
 | 2727 1 11 1 Cannot find index 'a'.
@@ -20799,6 +23118,26 @@
 | ALTER INDEX a ON a FOR(REMOVE a)
 < error
 | 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM DOUBLE PRECISION
+< error
+| 219 1 16 1 The type 'a' already exists, or you do not have permission to create it.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM PRECISION
+< error
+| 222 1 16 1 The base type "PRECISION" is not a valid base type for the alias data type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -20964,6 +23303,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 < error
 | 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
@@ -21049,6 +23398,27 @@
 < error
 | 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
 | 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -22052,6 +24422,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | SELECT * INTO a
 < error
 | 263 1 16 1 Must specify table to select from.
@@ -22192,6 +24582,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| INSERT @a DEFAULT VALUES
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | INSERT INTO a DEFAULT VALUES
 < ok 1 -
 > exec
@@ -22281,6 +24681,17 @@
 > exec
 | UPDATE a SET @a = 1 FROM @a
 < error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE @a SET @a = 1
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
 | 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -22418,6 +24829,86 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a = a += 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = DEFAULT
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -22428,8 +24919,160 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET a += 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a -= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a *= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a /= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a %= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a &= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a |= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a ^= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET a = DEFAULT
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY += 1
+< error
+| 8102 1 16 1 Cannot update identity column 'b'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY -= 1
+< error
+| 8102 1 16 1 Cannot update identity column 'b'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY *= 1
+< error
+| 8102 1 16 1 Cannot update identity column 'b'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY /= 1
+< error
+| 8102 1 16 1 Cannot update identity column 'b'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY %= 1
+< error
+| 8102 1 16 1 Cannot update identity column 'b'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY &= 1
+< error
+| 8102 1 16 1 Cannot update identity column 'b'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY |= 1
+< error
+| 8102 1 16 1 Cannot update identity column 'b'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY ^= 1
+< error
+| 8102 1 16 1 Cannot update identity column 'b'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -22597,6 +25240,36 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a WHERE CURRENT OF GLOBAL a
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF a
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 < error
 | 2714 8 16 1 There is already an object named 'a' in the database.
@@ -22670,6 +25343,26 @@
 | ALTER SEQUENCE a MINVALUE 1
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -22877,6 +25570,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE VIEW.a AS SELECT *
+< error
+| 263 1 16 1 proc=a Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE VIEW a(a) AS SELECT *
 < error
 | 263 1 16 1 proc=a Must specify table to select from.
@@ -23018,6 +25721,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
@@ -23069,6 +25792,96 @@
 < ok 0 -
 > exec
 | CREATE PROC a @a CURSOR VARYING OUT AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
 > exec
@@ -23369,6 +26182,25 @@
 | ALTER TABLE a ALTER COLUMN a a COLLATE a
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+< error
+| 2715 6 16 1 Column, parameter, or variable #3: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -23802,6 +26634,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 < error
 | 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
@@ -24166,6 +27018,16 @@
 | CREATE SPATIAL INDEX a ON a(a) ON a
 < error
 | 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE.a
+< error
+| 2714 8 16 1 There is already an object named '.a' in the database.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -25705,6 +28567,209 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a AS TABLE(UNIQUE(a), a INT)
+< error
+| 219 1 16 1 The type 'a' already exists, or you do not have permission to create it.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'sim'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL OPTION(MAXDOP 1)
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL;
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL [a]
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -27189,6 +30254,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+< error
+| 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+< error
+| 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 < error
 | 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
@@ -27232,6 +30317,25 @@
 | ALTER INDEX a ON a FOR(REMOVE a)
 < error
 | 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM DOUBLE PRECISION
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM PRECISION
+< error
+| 222 1 16 1 The base type "PRECISION" is not a valid base type for the alias data type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -27396,6 +30500,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 < error
 | 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
@@ -27479,6 +30593,27 @@
 | CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -28483,6 +31618,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+< error
+| 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+< error
+| 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | SELECT * INTO a
 < error
 | 263 1 16 1 Must specify table to select from.
@@ -28624,6 +31779,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| INSERT @a DEFAULT VALUES
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | INSERT INTO a DEFAULT VALUES
 < error
 | 515 2 16 1 Cannot insert the value NULL into column 'b', table 'sim.dbo.a'; column does not allow nulls. INSERT fails.
@@ -28717,6 +31882,17 @@
 > exec
 | UPDATE a SET @a = 1 FROM @a
 < error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE @a SET @a = 1
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
 | 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -28854,6 +32030,86 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a = a += 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = DEFAULT
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -28864,8 +32120,160 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET a += 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a -= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a *= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a /= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a %= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a &= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a |= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a ^= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET a = DEFAULT
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY += 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY -= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY *= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY /= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY %= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY &= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY |= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY ^= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -29033,6 +32441,36 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a WHERE CURRENT OF GLOBAL a
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF a
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 < error
 | 2714 8 16 1 There is already an object named 'a' in the database.
@@ -29106,6 +32544,26 @@
 | ALTER SEQUENCE a MINVALUE 1
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -29313,6 +32771,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE VIEW.a AS SELECT *
+< error
+| 263 1 16 1 proc=a Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE VIEW a(a) AS SELECT *
 < error
 | 263 1 16 1 proc=a Must specify table to select from.
@@ -29452,6 +32920,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
@@ -29505,6 +32993,96 @@
 | CREATE PROC a @a CURSOR VARYING OUT AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -29804,6 +33382,27 @@
 | ALTER TABLE a ALTER COLUMN a a COLLATE a
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+< error
+| 5074 1 16 1 The index 'a' is dependent on column 'a'.
+| 4922 9 16 1 ALTER TABLE ALTER COLUMN a failed because one or more objects access this column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+< error
+| 2715 6 16 1 Column, parameter, or variable #3: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -30247,6 +33846,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 < error
 | 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
@@ -30619,6 +34238,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SEQUENCE.a
+< error
+| 2714 8 16 1 There is already an object named '.a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -30926,7 +34555,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin10' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin20' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -32143,6 +35772,208 @@
 > exec
 | MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a AS TABLE(UNIQUE(a), a INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'sim'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL OPTION(MAXDOP 1)
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL;
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL [a]
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -33626,6 +37457,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 < error
 | 2727 1 11 1 Cannot find index 'a'.
@@ -33669,6 +37520,25 @@
 | ALTER INDEX a ON a FOR(REMOVE a)
 < error
 | 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM DOUBLE PRECISION
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM PRECISION
+< error
+| 222 1 16 1 The base type "PRECISION" is not a valid base type for the alias data type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -33835,6 +37705,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 < error
 | 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
@@ -33918,6 +37798,27 @@
 | CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -34912,6 +38813,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | SELECT * INTO a
 < error
 | 263 1 16 1 Must specify table to select from.
@@ -35053,6 +38974,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| INSERT @a DEFAULT VALUES
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | INSERT INTO a DEFAULT VALUES
 < error
 | 515 2 16 1 Cannot insert the value NULL into column 'b', table 'sim.dbo.t'; column does not allow nulls. INSERT fails.
@@ -35146,6 +39077,17 @@
 > exec
 | UPDATE a SET @a = 1 FROM @a
 < error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE @a SET @a = 1
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
 | 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -35283,6 +39225,86 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a = a += 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = DEFAULT
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -35293,8 +39315,160 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET a += 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a -= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a *= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a /= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a %= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a &= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a |= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a ^= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET a = DEFAULT
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY += 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY -= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY *= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY /= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY %= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY &= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY |= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY ^= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -35462,6 +39636,36 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a WHERE CURRENT OF GLOBAL a
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF a
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 < error
 | 2714 8 16 1 There is already an object named 'a' in the database.
@@ -35535,6 +39739,26 @@
 | ALTER SEQUENCE a MINVALUE 1
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -35742,6 +39966,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE VIEW.a AS SELECT *
+< error
+| 263 1 16 1 proc=a Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE VIEW a(a) AS SELECT *
 < error
 | 263 1 16 1 proc=a Must specify table to select from.
@@ -35882,6 +40116,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
@@ -35935,6 +40189,96 @@
 | CREATE PROC a @a CURSOR VARYING OUT AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -36235,6 +40579,26 @@
 | ALTER TABLE a ALTER COLUMN a a COLLATE a
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -36652,6 +41016,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -37023,6 +41407,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SEQUENCE.a
+< error
+| 2714 8 16 1 There is already an object named '.a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -37314,7 +41708,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin20' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin21' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -37325,7 +41719,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin21' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin22' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -37336,7 +41730,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin22' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin23' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -38549,6 +42943,208 @@
 > exec
 | MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a AS TABLE(UNIQUE(a), a INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'sim'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL OPTION(MAXDOP 1)
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL;
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL [a]
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -40032,6 +44628,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -40075,6 +44691,25 @@
 | ALTER INDEX a ON a FOR(REMOVE a)
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM DOUBLE PRECISION
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM PRECISION
+< error
+| 222 1 16 1 The base type "PRECISION" is not a valid base type for the alias data type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -40242,6 +44877,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 < error
 | 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
@@ -40324,6 +44969,27 @@
 | CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -41319,6 +45985,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | SELECT * INTO a
 < error
 | 263 1 16 1 Must specify table to select from.
@@ -41470,6 +46156,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| INSERT @a DEFAULT VALUES
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | INSERT INTO a DEFAULT VALUES
 < error
 | 208 3 16 1 Invalid object name 'a'.
@@ -41562,6 +46258,17 @@
 > exec
 | UPDATE a SET @a = 1 FROM @a
 < error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE @a SET @a = 1
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
 | 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -41700,6 +46407,86 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a = a += 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = DEFAULT
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -41710,7 +46497,167 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET a += 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a -= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a *= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a /= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a %= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a &= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a |= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a ^= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET a = DEFAULT
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY += 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY -= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY *= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY /= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY %= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY &= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY |= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY ^= 1
 < error
 | 208 3 16 1 Invalid object name 'a'.
 > exec
@@ -41880,6 +46827,36 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a WHERE CURRENT OF GLOBAL a
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF a
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 < error
 | 2714 8 16 1 There is already an object named 'a' in the database.
@@ -41949,6 +46926,26 @@
 | ALTER SEQUENCE a MINVALUE 1
 < error
 | 11704 1 16 1 The current value '-9223372036854775808' for sequence object 'a' must be between the minimum and maximum value of the sequence object.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -42155,6 +47152,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE VIEW.a AS SELECT *
+< error
+| 263 1 16 1 proc=a Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE VIEW a(a) AS SELECT *
 < error
 | 263 1 16 1 proc=a Must specify table to select from.
@@ -42295,6 +47302,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
@@ -42348,6 +47375,96 @@
 | CREATE PROC a @a CURSOR VARYING OUT AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -42648,6 +47765,26 @@
 | ALTER TABLE a ALTER COLUMN a a COLLATE a
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -43065,6 +48202,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -43435,6 +48592,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SEQUENCE.a
+< error
+| 2714 8 16 1 There is already an object named '.a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -43721,7 +48888,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin23' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin24' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -44967,6 +50134,208 @@
 | MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 < error
 | 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a AS TABLE(UNIQUE(a), a INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'sim'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL OPTION(MAXDOP 1)
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL [a]
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -46451,6 +51820,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -46494,6 +51883,25 @@
 | ALTER INDEX a ON a FOR(REMOVE a)
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM DOUBLE PRECISION
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM PRECISION
+< error
+| 222 1 16 1 The base type "PRECISION" is not a valid base type for the alias data type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -46661,6 +52069,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 < error
 | 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
@@ -46744,6 +52162,27 @@
 | CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -47737,6 +53176,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | SELECT * INTO a
 < error
 | 263 1 16 1 Must specify table to select from.
@@ -47888,6 +53347,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| INSERT @a DEFAULT VALUES
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | INSERT INTO a DEFAULT VALUES
 < error
 | 208 3 16 1 Invalid object name 'a'.
@@ -47980,6 +53449,17 @@
 > exec
 | UPDATE a SET @a = 1 FROM @a
 < error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE @a SET @a = 1
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
 | 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -48118,6 +53598,86 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a = a += 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = DEFAULT
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -48128,7 +53688,167 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET a += 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a -= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a *= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a /= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a %= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a &= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a |= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a ^= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET a = DEFAULT
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY += 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY -= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY *= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY /= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY %= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY &= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY |= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY ^= 1
 < error
 | 208 3 16 1 Invalid object name 'a'.
 > exec
@@ -48298,6 +54018,36 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a WHERE CURRENT OF GLOBAL a
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF a
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 < error
 | 2714 8 16 1 There is already an object named 'a' in the database.
@@ -48371,6 +54121,26 @@
 | ALTER SEQUENCE a MINVALUE 1
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -48578,6 +54348,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE VIEW.a AS SELECT *
+< error
+| 263 1 16 1 proc=a Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE VIEW a(a) AS SELECT *
 < error
 | 263 1 16 1 proc=a Must specify table to select from.
@@ -48718,6 +54498,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
@@ -48771,6 +54571,96 @@
 | CREATE PROC a @a CURSOR VARYING OUT AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -49071,6 +54961,26 @@
 | ALTER TABLE a ALTER COLUMN a a COLLATE a
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -49488,6 +55398,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -49859,6 +55789,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SEQUENCE.a
+< error
+| 2714 8 16 1 There is already an object named '.a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -50149,7 +56089,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin23' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin24' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -51395,6 +57335,208 @@
 | MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 < error
 | 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a AS TABLE(UNIQUE(a), a INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'sim'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL OPTION(MAXDOP 1)
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL [a]
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -52891,6 +59033,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -52934,6 +59096,26 @@
 | ALTER INDEX a ON a FOR(REMOVE a)
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM DOUBLE PRECISION
+< error
+| 219 1 16 1 The type 'a' already exists, or you do not have permission to create it.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM PRECISION
+< error
+| 222 1 16 1 The base type "PRECISION" is not a valid base type for the alias data type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -53101,6 +59283,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 < error
 | 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
@@ -53186,6 +59378,27 @@
 < error
 | 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
 | 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -54184,6 +60397,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | SELECT * INTO a
 < error
 | 263 1 16 1 Must specify table to select from.
@@ -54335,6 +60568,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| INSERT @a DEFAULT VALUES
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | INSERT INTO a DEFAULT VALUES
 < error
 | 208 3 16 1 Invalid object name 'a'.
@@ -54427,6 +60670,17 @@
 > exec
 | UPDATE a SET @a = 1 FROM @a
 < error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE @a SET @a = 1
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
 | 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -54565,6 +60819,86 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a = a += 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = DEFAULT
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -54575,7 +60909,167 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET a += 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a -= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a *= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a /= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a %= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a &= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a |= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a ^= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET a = DEFAULT
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY += 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY -= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY *= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY /= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY %= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY &= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY |= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY ^= 1
 < error
 | 208 3 16 1 Invalid object name 'a'.
 > exec
@@ -54745,6 +61239,36 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a WHERE CURRENT OF GLOBAL a
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF a
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 < error
 | 2714 8 16 1 There is already an object named 'a' in the database.
@@ -54818,6 +61342,26 @@
 | ALTER SEQUENCE a MINVALUE 1
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -55025,6 +61569,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE VIEW.a AS SELECT *
+< error
+| 263 1 16 1 proc=a Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE VIEW a(a) AS SELECT *
 < error
 | 263 1 16 1 proc=a Must specify table to select from.
@@ -55165,6 +61719,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
@@ -55216,6 +61790,96 @@
 < ok 0 -
 > exec
 | CREATE PROC a @a CURSOR VARYING OUT AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
 > exec
@@ -55518,6 +62182,26 @@
 | ALTER TABLE a ALTER COLUMN a a COLLATE a
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -55935,6 +62619,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -56306,6 +63010,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SEQUENCE.a
+< error
+| 2714 8 16 1 There is already an object named '.a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
@@ -56598,7 +63312,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin24' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin20' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -57844,6 +64558,209 @@
 | MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 < error
 | 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a AS TABLE(UNIQUE(a), a INT)
+< error
+| 219 1 16 1 The type 'a' already exists, or you do not have permission to create it.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'sim'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL OPTION(MAXDOP 1)
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL [a]
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -59326,6 +66243,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -59369,6 +66306,25 @@
 | ALTER INDEX a ON a FOR(REMOVE a)
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM DOUBLE PRECISION
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM PRECISION
+< error
+| 222 1 16 1 The base type "PRECISION" is not a valid base type for the alias data type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -59536,6 +66492,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 < error
 | 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
@@ -59619,6 +66585,27 @@
 | CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -60614,6 +67601,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | SELECT * INTO a
 < error
 | 263 1 16 1 Must specify table to select from.
@@ -60755,6 +67762,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| INSERT @a DEFAULT VALUES
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | INSERT INTO a DEFAULT VALUES
 < error
 | 515 2 16 1 Cannot insert the value NULL into column 'b', table 'sim.dbo.t'; column does not allow nulls. INSERT fails.
@@ -60848,6 +67865,17 @@
 > exec
 | UPDATE a SET @a = 1 FROM @a
 < error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE @a SET @a = 1
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
 | 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -60985,6 +68013,86 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a = a += 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = DEFAULT
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -60995,8 +68103,160 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET a += 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a -= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a *= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a /= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a %= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a &= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a |= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a ^= 1
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET a = DEFAULT
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY += 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY -= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY *= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY /= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY %= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY &= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY |= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY ^= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -61164,6 +68424,36 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a WHERE CURRENT OF GLOBAL a
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF a
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 < error
 | 2714 8 16 1 There is already an object named 'a' in the database.
@@ -61237,6 +68527,26 @@
 | ALTER SEQUENCE a MINVALUE 1
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -61444,6 +68754,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE VIEW.a AS SELECT *
+< error
+| 263 1 16 1 proc=a Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE VIEW a(a) AS SELECT *
 < error
 | 263 1 16 1 proc=a Must specify table to select from.
@@ -61584,6 +68904,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
@@ -61637,6 +68977,96 @@
 | CREATE PROC a @a CURSOR VARYING OUT AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -61937,6 +69367,26 @@
 | ALTER TABLE a ALTER COLUMN a a COLLATE a
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -62354,6 +69804,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -62725,6 +70195,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SEQUENCE.a
+< error
+| 2714 8 16 1 There is already an object named '.a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -63015,7 +70495,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin23' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin24' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -64250,6 +71730,208 @@
 > exec
 | MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a AS TABLE(UNIQUE(a), a INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'sim'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL OPTION(MAXDOP 1)
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL;
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL [a]
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -65725,6 +73407,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -65768,6 +73470,25 @@
 | ALTER INDEX a ON a FOR(REMOVE a)
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM DOUBLE PRECISION
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM PRECISION
+< error
+| 222 1 16 1 The base type "PRECISION" is not a valid base type for the alias data type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -65935,6 +73656,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+< error
+| 15151 1 16 1 Cannot find the object 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 < error
 | 15151 1 16 1 Cannot find the object 'a', because it does not exist or you do not have permission.
@@ -66018,6 +73749,27 @@
 | CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -67007,6 +74759,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | SELECT * INTO a
 < error
 | 263 1 16 1 Must specify table to select from.
@@ -67158,6 +74930,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| INSERT @a DEFAULT VALUES
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | INSERT INTO a DEFAULT VALUES
 < error
 | 208 1 16 1 Invalid object name 'a'.
@@ -67250,6 +75032,17 @@
 > exec
 | UPDATE a SET @a = 1 FROM @a
 < error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE @a SET @a = 1
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
 | 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -67388,6 +75181,86 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a = a += 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = DEFAULT
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -67398,7 +75271,167 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET a += 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a -= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a *= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a /= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a %= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a &= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a |= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a ^= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET a = DEFAULT
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY += 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY -= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY *= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY /= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY %= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY &= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY |= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY ^= 1
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -67568,6 +75601,36 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a WHERE CURRENT OF GLOBAL a
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF a
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 < ok 0 -
 > exec
@@ -67639,6 +75702,26 @@
 | ALTER SEQUENCE a MINVALUE 1
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -67846,6 +75929,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE VIEW.a AS SELECT *
+< error
+| 263 1 16 1 proc=a Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE VIEW a(a) AS SELECT *
 < error
 | 263 1 16 1 proc=a Must specify table to select from.
@@ -67979,6 +76072,25 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
@@ -68031,6 +76143,96 @@
 > exec
 | CREATE PROC a @a CURSOR VARYING OUT AS
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -68330,6 +76532,26 @@
 | ALTER TABLE a ALTER COLUMN a a COLLATE a
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -68747,6 +76969,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -69111,6 +77353,15 @@
 | CREATE SPATIAL INDEX a ON a(a) ON a
 < error
 | 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE.a
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -70656,6 +78907,203 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+< error
+| 2714 5 16 1 There is already an object named 'a' in the database.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+< error
+| 2714 5 16 1 There is already an object named 'a' in the database.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a AS TABLE(UNIQUE(a), a INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'sim'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL OPTION(MAXDOP 1)
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL [a]
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+< error
+| 15151 1 16 1 Cannot find the object 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+< error
+| 15151 1 16 1 Cannot find the xml schema collection 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -72048,6 +80496,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -72091,6 +80559,25 @@
 | ALTER INDEX a ON a FOR(REMOVE a)
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM DOUBLE PRECISION
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM PRECISION
+< error
+| 222 1 16 1 The base type "PRECISION" is not a valid base type for the alias data type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -72258,6 +80745,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+< error
+| 15151 1 16 1 Cannot find the object 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 < error
 | 15151 1 16 1 Cannot find the object 'a', because it does not exist or you do not have permission.
@@ -72341,6 +80838,27 @@
 | CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -73332,6 +81850,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | SELECT * INTO a
 < error
 | 263 1 16 1 Must specify table to select from.
@@ -73483,6 +82021,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| INSERT @a DEFAULT VALUES
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | INSERT INTO a DEFAULT VALUES
 < error
 | 208 1 16 1 Invalid object name 'a'.
@@ -73575,6 +82123,17 @@
 > exec
 | UPDATE a SET @a = 1 FROM @a
 < error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE @a SET @a = 1
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
 | 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -73713,6 +82272,86 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a = a += 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = DEFAULT
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -73723,7 +82362,167 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET a += 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a -= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a *= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a /= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a %= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a &= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a |= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a ^= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET a = DEFAULT
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY += 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY -= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY *= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY /= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY %= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY &= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY |= 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY ^= 1
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -73893,6 +82692,36 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a WHERE CURRENT OF GLOBAL a
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF a
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 < ok 0 -
 > exec
@@ -73964,6 +82793,26 @@
 | ALTER SEQUENCE a MINVALUE 1
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -74171,6 +83020,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE VIEW.a AS SELECT *
+< error
+| 263 1 16 1 proc=a Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE VIEW a(a) AS SELECT *
 < error
 | 263 1 16 1 proc=a Must specify table to select from.
@@ -74304,6 +83163,25 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
@@ -74356,6 +83234,96 @@
 > exec
 | CREATE PROC a @a CURSOR VARYING OUT AS
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -74655,6 +83623,26 @@
 | ALTER TABLE a ALTER COLUMN a a COLLATE a
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -75072,6 +84060,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -75443,6 +84451,15 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SEQUENCE.a
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -75731,7 +84748,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin20' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin21' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -75742,7 +84759,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin21' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin22' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -75753,7 +84770,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin22' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin23' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -76981,6 +85998,203 @@
 | MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+< error
+| 2714 5 16 1 There is already an object named 'a' in the database.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+< error
+| 2714 5 16 1 There is already an object named 'a' in the database.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a AS TABLE(UNIQUE(a), a INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'sim'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL OPTION(MAXDOP 1)
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL [a]
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+< error
+| 15151 1 16 1 Cannot find the object 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+< error
+| 15151 1 16 1 Cannot find the xml schema collection 'a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -78432,6 +87646,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -78475,6 +87709,25 @@
 | ALTER INDEX a ON a FOR(REMOVE a)
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM DOUBLE PRECISION
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM PRECISION
+< error
+| 222 1 16 1 The base type "PRECISION" is not a valid base type for the alias data type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -78642,6 +87895,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 < error
 | 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
@@ -78725,6 +87988,27 @@
 | CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -79721,6 +89005,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | SELECT * INTO a
 < error
 | 263 1 16 1 Must specify table to select from.
@@ -79872,6 +89176,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| INSERT @a DEFAULT VALUES
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | INSERT INTO a DEFAULT VALUES
 < error
 | 208 3 16 1 Invalid object name 'a'.
@@ -79964,6 +89278,17 @@
 > exec
 | UPDATE a SET @a = 1 FROM @a
 < error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE @a SET @a = 1
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
 | 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -80102,6 +89427,86 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a = a += 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = DEFAULT
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -80112,7 +89517,167 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET a += 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a -= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a *= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a /= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a %= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a &= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a |= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a ^= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET a = DEFAULT
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY += 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY -= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY *= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY /= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY %= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY &= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY |= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY ^= 1
 < error
 | 208 3 16 1 Invalid object name 'a'.
 > exec
@@ -80282,6 +89847,36 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a WHERE CURRENT OF GLOBAL a
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF a
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 < error
 | 2714 8 16 1 There is already an object named 'a' in the database.
@@ -80355,6 +89950,26 @@
 | ALTER SEQUENCE a MINVALUE 1
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -80562,6 +90177,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE VIEW.a AS SELECT *
+< error
+| 263 1 16 1 proc=a Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE VIEW a(a) AS SELECT *
 < error
 | 263 1 16 1 proc=a Must specify table to select from.
@@ -80702,6 +90327,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
@@ -80755,6 +90400,96 @@
 | CREATE PROC a @a CURSOR VARYING OUT AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -81055,6 +90790,26 @@
 | ALTER TABLE a ALTER COLUMN a a COLLATE a
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -81472,6 +91227,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -81843,6 +91618,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SEQUENCE.a
+< error
+| 2714 8 16 1 There is already an object named '.a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -82145,7 +91930,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin20' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin21' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -82156,7 +91941,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin21' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin22' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -83380,6 +93165,208 @@
 | MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 < error
 | 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a AS TABLE(UNIQUE(a), a INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'sim'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL OPTION(MAXDOP 1)
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL [a]
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -84850,6 +94837,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -84893,6 +94900,25 @@
 | ALTER INDEX a ON a FOR(REMOVE a)
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM DOUBLE PRECISION
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM PRECISION
+< error
+| 222 1 16 1 The base type "PRECISION" is not a valid base type for the alias data type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -85060,6 +95086,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 < error
 | 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
@@ -85143,6 +95179,27 @@
 | CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -86137,6 +96194,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | SELECT * INTO a
 < error
 | 263 1 16 1 Must specify table to select from.
@@ -86288,6 +96365,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| INSERT @a DEFAULT VALUES
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | INSERT INTO a DEFAULT VALUES
 < error
 | 208 3 16 1 Invalid object name 'a'.
@@ -86380,6 +96467,17 @@
 > exec
 | UPDATE a SET @a = 1 FROM @a
 < error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE @a SET @a = 1
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
 | 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -86518,6 +96616,86 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a = a += 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = DEFAULT
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -86528,7 +96706,167 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET a += 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a -= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a *= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a /= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a %= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a &= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a |= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a ^= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET a = DEFAULT
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY += 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY -= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY *= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY /= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY %= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY &= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY |= 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY ^= 1
 < error
 | 208 3 16 1 Invalid object name 'a'.
 > exec
@@ -86698,6 +97036,36 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a WHERE CURRENT OF GLOBAL a
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF a
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 < error
 | 2714 8 16 1 There is already an object named 'a' in the database.
@@ -86771,6 +97139,26 @@
 | ALTER SEQUENCE a MINVALUE 1
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -86978,6 +97366,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE VIEW.a AS SELECT *
+< error
+| 263 1 16 1 proc=a Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE VIEW a(a) AS SELECT *
 < error
 | 263 1 16 1 proc=a Must specify table to select from.
@@ -87118,6 +97516,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
@@ -87171,6 +97589,96 @@
 | CREATE PROC a @a CURSOR VARYING OUT AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -87471,6 +97979,26 @@
 | ALTER TABLE a ALTER COLUMN a a COLLATE a
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -87888,6 +98416,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -88259,6 +98807,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SEQUENCE.a
+< error
+| 2714 8 16 1 There is already an object named '.a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -88550,7 +99108,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin23' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin24' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -89796,6 +100354,208 @@
 | MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 < error
 | 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a AS TABLE(UNIQUE(a), a INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'sim'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL OPTION(MAXDOP 1)
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL [a]
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -91240,6 +102000,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 < error
 | 2727 1 11 1 Cannot find index 'a'.
@@ -91283,6 +102063,25 @@
 | ALTER INDEX a ON a FOR(REMOVE a)
 < error
 | 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM DOUBLE PRECISION
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM PRECISION
+< error
+| 222 1 16 1 The base type "PRECISION" is not a valid base type for the alias data type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -91448,6 +102247,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 < error
 | 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
@@ -91531,6 +102340,27 @@
 | CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -92539,6 +103369,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | SELECT * INTO a
 < error
 | 263 1 16 1 Must specify table to select from.
@@ -92680,6 +103530,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| INSERT @a DEFAULT VALUES
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | INSERT INTO a DEFAULT VALUES
 < error
 | 515 2 16 1 Cannot insert the value NULL into column 'b', table 'sim.dbo.a'; column does not allow nulls. INSERT fails.
@@ -92773,6 +103633,17 @@
 > exec
 | UPDATE a SET @a = 1 FROM @a
 < error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE @a SET @a = 1
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
 | 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -92911,6 +103782,86 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a = a += 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = DEFAULT
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -92921,8 +103872,168 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET a += 1
+< error
+| 206 2 16 1 Operand type clash: xml is incompatible with int
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a -= 1
+< error
+| 206 2 16 1 Operand type clash: xml is incompatible with int
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a *= 1
+< error
+| 206 2 16 1 Operand type clash: xml is incompatible with int
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a /= 1
+< error
+| 206 2 16 1 Operand type clash: xml is incompatible with int
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a %= 1
+< error
+| 402 1 16 1 The data types xml and int are incompatible in the modulo operator.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a &= 1
+< error
+| 402 1 16 1 The data types xml and int are incompatible in the '&' operator.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a |= 1
+< error
+| 402 1 16 1 The data types xml and int are incompatible in the '|' operator.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a ^= 1
+< error
+| 402 1 16 1 The data types xml and int are incompatible in the '^' operator.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET a = DEFAULT
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY += 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY -= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY *= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY /= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY %= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY &= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY |= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY ^= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -93090,6 +104201,36 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a WHERE CURRENT OF GLOBAL a
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF a
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 < error
 | 2714 8 16 1 There is already an object named 'a' in the database.
@@ -93163,6 +104304,26 @@
 | ALTER SEQUENCE a MINVALUE 1
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -93370,6 +104531,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE VIEW.a AS SELECT *
+< error
+| 263 1 16 1 proc=a Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE VIEW a(a) AS SELECT *
 < error
 | 263 1 16 1 proc=a Must specify table to select from.
@@ -93511,6 +104682,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
@@ -93564,6 +104755,96 @@
 | CREATE PROC a @a CURSOR VARYING OUT AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -93863,6 +105144,26 @@
 | ALTER TABLE a ALTER COLUMN a a COLLATE a
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+< error
+| 206 2 16 1 Operand type clash: xml is incompatible with float
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+< error
+| 2715 6 16 1 Column, parameter, or variable #2: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -94305,6 +105606,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 < error
 | 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
@@ -94683,6 +106004,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SEQUENCE.a
+< error
+| 2714 8 16 1 There is already an object named '.a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -94968,7 +106299,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin6' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin28' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -94979,7 +106310,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin7' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin29' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -94990,7 +106321,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin28' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin30' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -96229,6 +107560,208 @@
 | MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 < error
 | 209 1 16 1 Ambiguous column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a AS TABLE(UNIQUE(a), a INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'sim'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL OPTION(MAXDOP 1)
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL;
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL [a]
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -97674,6 +109207,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 < error
 | 2727 1 11 1 Cannot find index 'a'.
@@ -97717,6 +109270,25 @@
 | ALTER INDEX a ON a FOR(REMOVE a)
 < error
 | 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM DOUBLE PRECISION
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a FROM PRECISION
+< error
+| 222 1 16 1 The base type "PRECISION" is not a valid base type for the alias data type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -97882,6 +109454,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 < error
 | 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
@@ -97965,6 +109547,27 @@
 | CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -98973,6 +110576,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | SELECT * INTO a
 < error
 | 263 1 16 1 Must specify table to select from.
@@ -99114,6 +110737,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| INSERT @a DEFAULT VALUES
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | INSERT INTO a DEFAULT VALUES
 < error
 | 515 2 16 1 Cannot insert the value NULL into column 'b', table 'sim.dbo.a'; column does not allow nulls. INSERT fails.
@@ -99207,6 +110840,17 @@
 > exec
 | UPDATE a SET @a = 1 FROM @a
 < error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE @a SET @a = 1
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
 | 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -99345,6 +110989,86 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a = a += 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = DEFAULT
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -99355,8 +111079,168 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET a += 1
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals add, type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a -= 1
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals subtract, type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a *= 1
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals multiply, type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a /= 1
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals divide, type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a %= 1
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals modulo, type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a &= 1
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals '&', type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a |= 1
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals '|', type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a ^= 1
+< error
+| 403 1 16 1 Invalid operator for data type. Operator equals '^', type equals geography.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET a = DEFAULT
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY += 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY -= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY *= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY /= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY %= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY &= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY |= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY ^= 1
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -99524,6 +111408,36 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a WHERE CURRENT OF GLOBAL a
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF a
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 < error
 | 2714 8 16 1 There is already an object named 'a' in the database.
@@ -99597,6 +111511,26 @@
 | ALTER SEQUENCE a MINVALUE 1
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -99801,6 +111735,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE VIEW.a AS SELECT *
+< error
+| 263 1 16 1 proc=a Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE VIEW a(a) AS SELECT *
 < error
 | 263 1 16 1 proc=a Must specify table to select from.
@@ -99942,6 +111886,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
@@ -99995,6 +111959,96 @@
 | CREATE PROC a @a CURSOR VARYING OUT AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -100294,6 +112348,26 @@
 | ALTER TABLE a ALTER COLUMN a a COLLATE a
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+< error
+| 206 2 16 1 Operand type clash: geography is incompatible with float
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+< error
+| 2715 6 16 1 Column, parameter, or variable #2: Cannot find data type PRECISION.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -100736,6 +112810,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 < error
 | 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
@@ -100859,7 +112953,7 @@
 > exec
 | ALTER TABLE a ADD FOREIGN KEY REFERENCES a
 < error
-| 1774 0 16 1 The number of columns in the referencing column list for foreign key 'FK__a__standin29' does not match those of the primary key in the referenced table 'a'.
+| 1774 0 16 1 The number of columns in the referencing column list for foreign key 'FK__a__standin31' does not match those of the primary key in the referenced table 'a'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -100987,7 +113081,7 @@
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 < error
-| 1778 0 16 1 Column 'a.b' is not the same data type as referencing column 'a.a' in foreign key 'FK__a__a__standin30'.
+| 1778 0 16 1 Column 'a.b' is not the same data type as referencing column 'a.a' in foreign key 'FK__a__a__standin32'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -101109,6 +113203,16 @@
 | CREATE SPATIAL INDEX a ON a(a) ON a
 < error
 | 1921 9 16 1 Invalid filegroup 'a' specified.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SEQUENCE.a
+< error
+| 2714 8 16 1 There is already an object named '.a' in the database.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -101401,7 +113505,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin6' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin28' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -101412,7 +113516,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin7' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin29' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -101423,7 +113527,7 @@
 > exec
 | CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
 < error
-| 1767 0 16 1 Foreign key 'FK__child__id__standin28' references invalid table 'dbo.parent'.
+| 1767 0 16 1 Foreign key 'FK__child__id__standin30' references invalid table 'dbo.parent'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -102661,6 +114765,208 @@
 | MERGE a USING a b ON a.a = b.a WHEN NOT MATCHED BY SOURCE AND a.a BETWEEN 1 AND 2 THEN DELETE;
 < error
 | 209 1 16 1 Ambiguous column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE a AS TABLE(UNIQUE(a), a INT)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'sim'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL OPTION(MAXDOP 1)
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL;
+< error
+| 16916 1 16 1 A cursor with the name 'GLOBAL' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a WHERE CURRENT OF GLOBAL [a]
+< error
+| 16916 1 16 1 A cursor with the name 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -

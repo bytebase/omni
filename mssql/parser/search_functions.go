@@ -23,8 +23,6 @@
 package parser
 
 import (
-	"strings"
-
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
@@ -497,55 +495,10 @@ func (p *Parser) parseSemanticTableRef() (nodes.TableExpr, error) {
 	return result, nil
 }
 
-// parseSemanticKey parses a "possibleNegativeConstant"-style value used for
-// source_key / matched_key arguments in semantic table functions. In practice
-// this is a signed integer literal or a variable reference.
+// parseSemanticKey parses the source_key and matched_key arguments of the
+// semantic table functions, a possibleNegativeConstant
+// (semanticKeyPhraseTableReference, TSql160.g:20414): any literal or a
+// negative number, not a name or an expression (Msg 102, measured).
 func (p *Parser) parseSemanticKey() (nodes.ExprNode, error) {
-	loc := p.pos()
-	neg := false
-	if p.cur.Type == '-' {
-		neg = true
-		p.advance()
-	} else if p.cur.Type == '+' {
-		p.advance()
-	}
-	switch p.cur.Type {
-	case tokICONST:
-		tok := p.advance()
-		ival := tok.Ival
-		str := tok.Str
-		if neg {
-			ival = -ival
-			if !strings.HasPrefix(str, "-") {
-				str = "-" + str
-			}
-		}
-		return &nodes.Literal{
-			Type: nodes.LitInteger,
-			Ival: ival,
-			Str:  str,
-			Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
-		}, nil
-	case tokVARIABLE:
-		if neg {
-			return nil, p.unexpectedToken()
-		}
-		tok := p.advance()
-		return &nodes.VariableRef{
-			Name: tok.Str,
-			Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
-		}, nil
-	case tokIDENT:
-		if neg {
-			return nil, p.unexpectedToken()
-		}
-		return p.parseIdentExpr()
-	}
-	if isContextKeyword(p.cur.Type) {
-		if neg {
-			return nil, p.unexpectedToken()
-		}
-		return p.parseIdentExpr()
-	}
-	return nil, p.unexpectedToken()
+	return p.parsePossibleNegativeConstant(true)
 }

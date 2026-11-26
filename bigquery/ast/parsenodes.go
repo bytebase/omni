@@ -783,8 +783,9 @@ type FuncCall struct {
 	Clamped       *ClampedModifier // CLAMPED BETWEEN low AND high; nil if absent
 	WithReport    bool             // WITH REPORT (...) present
 	OrderBy       []*OrderItem     // trailing ORDER BY inside the call (aggregate ordering)
-	Limit         Node             // trailing LIMIT expr; nil if absent
-	LimitOffset   Node             // trailing OFFSET expr (only with Limit); nil if absent
+	Limit         Node             // trailing LIMIT expr; nil if absent or LIMIT ALL
+	LimitAll      bool             // trailing LIMIT ALL (Limit nil)
+	LimitOffset   Node             // trailing OFFSET expr (only with LIMIT); nil if absent
 	WithGroupRows bool             // WITH GROUP ROWS present
 	Over          *WindowSpec      // OVER window; nil if not a window call
 	Loc           Loc
@@ -1189,8 +1190,9 @@ type QueryStmt struct {
 	With      *WithClause  // leading WITH clause; nil if absent
 	Body      Node         // *SelectStmt | *SetOperation | *QueryStmt
 	OrderBy   []*OrderItem // trailing query-level ORDER BY; nil if absent
-	Limit     Node         // trailing LIMIT count; nil if absent
-	Offset    Node         // trailing OFFSET (only with Limit); nil if absent
+	Limit     Node         // trailing LIMIT count; nil if absent or LIMIT ALL
+	LimitAll  bool         // trailing LIMIT ALL (Limit nil)
+	Offset    Node         // trailing OFFSET (only with LIMIT); nil if absent
 	ForUpdate bool         // trailing FOR UPDATE (Spanner)
 	Parens    bool         // true if this query was wrapped in `( … )` as a query_primary
 	// Pipe is the query's trailing pipe suffix (`query pipe_and_pipe_operator`,
@@ -2608,15 +2610,16 @@ type CreateIndexStmt struct {
 	NullFiltered bool   // NULL_FILTERED (Spanner)
 	IndexType    string // "SEARCH" | "VECTOR" | "" (plain) — index_type
 	IfNotExists  bool
-	Name         *PathExpr  // index name
-	Table        *PathExpr  // ON <table> (a Node; walked)
-	TableAlias   string     // optional table alias after ON <table>
-	Keys         []*KeyPart // index key list (index_order_by_and_options)
-	AllColumns   bool       // ( ALL COLUMNS ) form (BigQuery SEARCH index)
-	Storing      []Node     // STORING ( expr, … ); nil if absent
-	PartitionBy  []Node     // PARTITION BY ( … ) suffix (BigQuery); nil if absent
-	Interleave   *PathExpr  // , INTERLEAVE IN <table> (Spanner); nil if absent
-	Where        Node       // WHERE filter (Spanner partial index); nil if absent
+	Name         *PathExpr     // index name
+	Table        *PathExpr     // ON <table> (a Node; walked)
+	TableAlias   string        // optional table alias after ON <table>
+	Unnest       []*UnnestExpr // index_unnest_expression_list: UNNEST(...) [alias] [WITH OFFSET [alias]], …; nil if absent
+	Keys         []*KeyPart    // index key list (index_order_by_and_options)
+	AllColumns   bool          // ( ALL COLUMNS ) form (BigQuery SEARCH index)
+	Storing      []Node        // STORING ( expr, … ); nil if absent
+	PartitionBy  []Node        // PARTITION BY ( … ) suffix (BigQuery); nil if absent
+	Interleave   *PathExpr     // , INTERLEAVE IN <table> (Spanner); nil if absent
+	Where        Node          // WHERE filter (Spanner partial index); nil if absent
 	Options      []*OptionsEntry
 	Loc          Loc
 }
@@ -3082,12 +3085,14 @@ type SearchVectorIndexStmt struct {
 	IsVector    bool // VECTOR (vs SEARCH)
 	OrReplace   bool // OR REPLACE (vector)
 	IfNotExists bool
-	Name        *PathExpr  // index name
-	Table       *PathExpr  // ON <table>
-	Keys        []*KeyPart // column list (index_order_by_and_options); nil for ALL COLUMNS
-	AllColumns  bool       // ( ALL COLUMNS [WITH COLUMN OPTIONS(…)] ) — SEARCH index
-	Storing     []Node     // STORING ( col, … ) — vector index; nil if absent
-	PartitionBy []Node     // PARTITION BY expr — vector index; nil if absent
+	Name        *PathExpr     // index name
+	Table       *PathExpr     // ON <table>
+	TableAlias  string        // optional table alias after ON <table>
+	Unnest      []*UnnestExpr // index_unnest_expression_list; nil if absent
+	Keys        []*KeyPart    // column list (index_order_by_and_options); nil for ALL COLUMNS
+	AllColumns  bool          // ( ALL COLUMNS [WITH COLUMN OPTIONS(…)] ) — SEARCH index
+	Storing     []Node        // STORING ( col, … ) — vector index; nil if absent
+	PartitionBy []Node        // PARTITION BY expr — vector index; nil if absent
 	Options     []*OptionsEntry
 	Loc         Loc
 }

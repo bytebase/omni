@@ -863,6 +863,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT *, 1
+|
+< error
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * INTO a
 |
 < error
@@ -1276,6 +1288,102 @@
 |
 < error
 | 207 1 16 1 proc=_v Invalid column name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT @a += 1
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT @a -= 1
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT @a *= 1
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT @a /= 1
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT @a %= 1
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT @a &= 1
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT @a |= 1
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT @a ^= 1
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -2004,6 +2112,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * FROM((@a CROSS JOIN @a) JOIN @a ON 1 = 1)
+|
+< error
+| 1087 2 15 1 proc=_v Must declare the table variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM(@a JOIN @a ON 1 = 1)
+|
+< error
+| 1087 2 15 1 proc=_v Must declare the table variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * FROM(@a CROSS JOIN @a CROSS JOIN @a)
 |
 < error
@@ -2017,6 +2149,18 @@
 < ok 0 -
 > exec
 | CREATE VIEW _v AS SELECT * FROM(@a CROSS JOIN @a CROSS JOIN @a zzz)
+|
+< error
+| 1087 2 15 1 proc=_v Must declare the table variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM(@a JOIN @a ON 1 = 1 CROSS JOIN @a)
 |
 < error
 | 1087 2 15 1 proc=_v Must declare the table variable "@a".
@@ -3086,6 +3230,114 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, 1.5)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, 1E1)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, $1)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, 0x00)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, 'a')
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, N'a')
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, NULL)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, @a)
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, - 1)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, 1) a
 |
 < error
@@ -3098,7 +3350,331 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, 1.5)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, 1E1)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, $1)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, 0x00)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, 'a')
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, N'a')
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, NULL)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, @a)
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, - 1)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, 1) a
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1.5, a, 1)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1E1, a, 1)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, $1, a, 1)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 0x00, a, 1)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 'a', a, 1)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, N'a', a, 1)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, NULL, a, 1)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, @a, a, 1)
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, - 1, a, 1)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, 1.5)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, 1E1)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, $1)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, 0x00)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, 'a')
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, N'a')
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, NULL)
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, @a)
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, - 1)
 |
 < error
 | 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
@@ -3518,6 +4094,84 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * GROUP BY 1, CUBE(1)
+|
+< error
+| 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * GROUP BY 1,(1)
+|
+< error
+| 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * GROUP BY 1, ROLLUP(1)
+|
+< error
+| 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * GROUP BY 1, GROUPING SETS(1)
+|
+< error
+| 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * GROUP BY 1, GROUPING(1)
+|
+< error
+| 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * GROUP BY 1,()
+|
+< error
+| 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * GROUP BY CUBE(1)
 |
 < error
@@ -3620,7 +4274,85 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS((CUBE(1)))
+|
+< error
+| 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS(((1)))
+|
+< error
+| 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS((ROLLUP(1)))
+|
+< error
+| 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS((1, 1))
+|
+< error
+| 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS((1, CUBE(1)))
+|
+< error
+| 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS((1,(1)))
+|
+< error
+| 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS((1, ROLLUP(1)))
 |
 < error
 | 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
@@ -3882,6 +4614,102 @@
 < ok 0 -
 > exec
 | CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = 1))
+|
+< error
+| 156 1 15 1 proc=_v Incorrect syntax near the keyword 'OPTION'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = 1.5))
+|
+< error
+| 156 1 15 1 proc=_v Incorrect syntax near the keyword 'OPTION'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = 1E1))
+|
+< error
+| 156 1 15 1 proc=_v Incorrect syntax near the keyword 'OPTION'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = $1))
+|
+< error
+| 156 1 15 1 proc=_v Incorrect syntax near the keyword 'OPTION'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = 0x00))
+|
+< error
+| 156 1 15 1 proc=_v Incorrect syntax near the keyword 'OPTION'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = 'a'))
+|
+< error
+| 156 1 15 1 proc=_v Incorrect syntax near the keyword 'OPTION'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = N'a'))
+|
+< error
+| 156 1 15 1 proc=_v Incorrect syntax near the keyword 'OPTION'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = NULL))
+|
+< error
+| 156 1 15 1 proc=_v Incorrect syntax near the keyword 'OPTION'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = - 1))
 |
 < error
 | 156 1 15 1 proc=_v Incorrect syntax near the keyword 'OPTION'.
@@ -4229,6 +5057,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT 1 * + 1
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT 1 / 1
 |
 < error
@@ -4269,6 +5109,18 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT 1 / + 1
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -4325,6 +5177,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT 1 % + 1
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT 1 << 1
 |
 < error
@@ -4365,6 +5229,18 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT 1 << + 1
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -4421,6 +5297,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT 1 >> + 1
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT + 1
 |
 < error
@@ -4461,6 +5349,18 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT + + 1
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -4569,6 +5469,102 @@
 |
 < error
 | 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT 1.5
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT 1E1
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT $1
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT 0x00
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT 'a'
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT N'a'
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT NULL
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT @a
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -5225,6 +6221,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT.a :: a
+|
+< error
+| 243 4 16 1 proc=_v Type .a is not a defined system type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT a :: a COLLATE a
 |
 < error
@@ -5249,10 +6257,58 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT CONVERT(DOUBLE PRECISION, 1)
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT CONVERT(PRECISION, 1)
+|
+< error
+| 243 1 16 1 proc=_v Type PRECISION is not a defined system type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT CONVERT(a, 1, 1)
 |
 < error
 | 243 1 16 1 proc=_v Type a is not a defined system type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT TRY_CONVERT(DOUBLE PRECISION, 1)
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT TRY_CONVERT(PRECISION, 1)
+|
+< error
+| 243 1 16 1 proc=_v Type PRECISION is not a defined system type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -5982,6 +7038,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) SELECT *
+|
+< error
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS WITH CHANGE_TRACKING_CONTEXT(@a) SELECT *
 |
 < error
@@ -6043,10 +7111,158 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS(1,())
+|
+< error
+| 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS(1,(1))
+|
+< error
+| 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS(1, CUBE(1))
+|
+< error
+| 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS(1, ROLLUP(1))
+|
+< error
+| 164 1 15 1 proc=_v Each GROUP BY expression must contain at least one column that is not an outer reference.
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT CAST(1 AS DOUBLE PRECISION)
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT CAST(1 AS PRECISION)
+|
+< error
+| 243 1 16 1 proc=_v Type PRECISION is not a defined system type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT TRY_CAST(1 AS DOUBLE PRECISION)
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT TRY_CAST(1 AS PRECISION)
+|
+< error
+| 243 1 16 1 proc=_v Type PRECISION is not a defined system type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT PARSE(1 AS DOUBLE PRECISION)
+|
+< error
+| 8116 1 16 1 proc=_v Argument data type int is invalid for argument 1 of parse function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT PARSE(1 AS PRECISION)
+|
+< error
+| 10761 2 15 1 proc=_v Invalid data type PRECISION in function PARSE.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT PARSE(1 AS a USING 1)
 |
 < error
 | 10761 2 15 1 proc=_v Invalid data type a in function PARSE.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT TRY_PARSE(1 AS DOUBLE PRECISION)
+|
+< error
+| 8116 1 16 1 proc=_v Argument data type int is invalid for argument 1 of parse function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT TRY_PARSE(1 AS PRECISION)
+|
+< error
+| 10761 2 15 1 proc=_v Invalid data type PRECISION in function TRY_PARSE.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -

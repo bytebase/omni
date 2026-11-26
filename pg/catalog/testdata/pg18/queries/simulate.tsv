@@ -16,8 +16,9 @@ ok:b2d578149ef2	ok:b2d578149ef2	engine	one_table@column	select_clause/simple_sel
 42703	42703	engine	one_table@column	select_clause/simple_select!insert	CREATE VIEW _v AS SELECT zzz UNION SELECT
 42703	42703	engine	one_table@column	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause	CREATE VIEW _v AS SELECT DISTINCT a
 42703	42703	engine	one_table@column	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause!insert	CREATE VIEW _v AS SELECT DISTINCT a zzz
+0A000	42703	engine	one_table@column	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause+into_clause	CREATE VIEW _v AS SELECT DISTINCT a INTO a
+42703	42703	engine	one_table@column	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause+into_clause!drop-4	CREATE VIEW _v AS SELECT DISTINCT a a
 42703	42703	engine	one_table@column	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause+where_clause	CREATE VIEW _v AS SELECT DISTINCT a WHERE a
-42703	42703	engine	one_table@column	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause+where_clause!drop-4	CREATE VIEW _v AS SELECT DISTINCT a a
 42703	42703	engine	one_table@column	simple_select/select_clause_UNION_set_quantifier_select_clause!insert	CREATE VIEW _v AS SELECT UNION SELECT zzz
 ok:53b28818f0bf	ok:53b28818f0bf	engine	one_table@column	simple_select/select_clause_INTERSECT_set_quantifier_select_clause	CREATE VIEW _v AS SELECT INTERSECT SELECT
 42703	42703	engine	one_table@column	simple_select/select_clause_INTERSECT_set_quantifier_select_clause!insert	CREATE VIEW _v AS SELECT INTERSECT SELECT zzz
@@ -127,6 +128,7 @@ ok:098c5a5ce79c	ok:098c5a5ce79c	engine	one_table@column	from_clause/FROM_from_li
 42712	42712	engine	one_table@column	from_list/from_list_,_table_ref	CREATE VIEW _v AS SELECT FROM a, a
 ok:6fadd2b7ed65	ok:6fadd2b7ed65	engine	one_table@column	from_list/from_list_,_table_ref!insert	CREATE VIEW _v AS SELECT FROM a, a zzz
 42704	42704	engine	one_table@column	table_ref/relation_expr_opt_alias_clause_tablesample_clause	CREATE VIEW _v AS SELECT FROM a TABLESAMPLE a(a)
+42704	42704	engine	one_table@column	table_ref/relation_expr_opt_alias_clause_tablesample_clause+opt_alias_clause	CREATE VIEW _v AS SELECT FROM a a TABLESAMPLE a(a)
 ok:6f273d2907bc	ok:6f273d2907bc	engine	one_table@column	table_ref/func_table_func_alias_clause	CREATE VIEW _v AS SELECT FROM CURRENT_DATE
 ok:cd51762edf1d	ok:cd51762edf1d	engine	one_table@column	table_ref/func_table_func_alias_clause!insert	CREATE VIEW _v AS SELECT FROM CURRENT_DATE zzz
 ok:d97e4e93905d	ok:d97e4e93905d	engine	one_table@column	table_ref/func_table_func_alias_clause!swap	CREATE VIEW _v AS SELECT FROM CURRENT_ROLE
@@ -134,12 +136,16 @@ ok:d92c67f58a9e	ok:d92c67f58a9e	engine	one_table@column	table_ref/LATERAL_P_func
 ok:fe4111f06c00	ok:fe4111f06c00	engine	one_table@column	table_ref/LATERAL_P_func_table_func_alias_clause!insert	CREATE VIEW _v AS SELECT FROM LATERAL CURRENT_DATE zzz
 42703	42703	engine	one_table@column	table_ref/xmltable_opt_alias_clause	CREATE VIEW _v AS SELECT FROM XMLTABLE(a PASSING a COLUMNS a a)
 42703	42703	engine	one_table@column	table_ref/xmltable_opt_alias_clause!insert	CREATE VIEW _v AS SELECT FROM XMLTABLE(a PASSING a COLUMNS a a) zzz
+42703	42703	engine	one_table@column	table_ref/xmltable_opt_alias_clause+opt_alias_clause	CREATE VIEW _v AS SELECT FROM XMLTABLE(a PASSING a COLUMNS a a) a
 42703	42703	engine	one_table@column	table_ref/LATERAL_P_xmltable_opt_alias_clause	CREATE VIEW _v AS SELECT FROM LATERAL XMLTABLE(a PASSING a COLUMNS a a)
 42703	42703	engine	one_table@column	table_ref/LATERAL_P_xmltable_opt_alias_clause!insert	CREATE VIEW _v AS SELECT FROM LATERAL XMLTABLE(a PASSING a COLUMNS a a) zzz
+42703	42703	engine	one_table@column	table_ref/LATERAL_P_xmltable_opt_alias_clause+opt_alias_clause	CREATE VIEW _v AS SELECT FROM LATERAL XMLTABLE(a PASSING a COLUMNS a a) a
 ok:c88be7d86aef	ok:c88be7d86aef	engine	one_table@column	table_ref/select_with_parens_opt_alias_clause	CREATE VIEW _v AS SELECT FROM(SELECT)
 ok:e5ba2941f81c	ok:e5ba2941f81c	engine	one_table@column	table_ref/select_with_parens_opt_alias_clause!insert	CREATE VIEW _v AS SELECT FROM(SELECT) zzz
+ok:45eb0655d9dc	ok:45eb0655d9dc	engine	one_table@column	table_ref/select_with_parens_opt_alias_clause+opt_alias_clause	CREATE VIEW _v AS SELECT FROM(SELECT) a
 ok:bc76f5032ccb	ok:bc76f5032ccb	engine	one_table@column	table_ref/LATERAL_P_select_with_parens_opt_alias_clause	CREATE VIEW _v AS SELECT FROM LATERAL(SELECT)
 ok:3e26f3cc8891	ok:3e26f3cc8891	engine	one_table@column	table_ref/LATERAL_P_select_with_parens_opt_alias_clause!insert	CREATE VIEW _v AS SELECT FROM LATERAL(SELECT) zzz
+ok:270678e4be5c	ok:270678e4be5c	engine	one_table@column	table_ref/LATERAL_P_select_with_parens_opt_alias_clause+opt_alias_clause	CREATE VIEW _v AS SELECT FROM LATERAL(SELECT) a
 42712	42712	engine	one_table@column	table_ref/joined_table	CREATE VIEW _v AS SELECT FROM a CROSS JOIN a
 ok:c0bc8b76234e	ok:c0bc8b76234e	engine	one_table@column	table_ref/joined_table!insert	CREATE VIEW _v AS SELECT FROM a CROSS JOIN a zzz
 42712	42712	engine	one_table@column	table_ref/(_joined_table_)_alias_clause	CREATE VIEW _v AS SELECT FROM(a CROSS JOIN a) a
@@ -329,6 +335,7 @@ ok:e7cfadb70ce6	ok:e7cfadb70ce6	engine	one_table@column	a_expr/a_expr_IS_DISTINC
 42703	42703	engine	one_table@column	a_expr/a_expr_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!insert	CREATE VIEW _v AS SELECT a BETWEEN a AND a zzz
 42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr	CREATE VIEW _v AS SELECT a NOT BETWEEN a AND a
 42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr!insert	CREATE VIEW _v AS SELECT a NOT BETWEEN a AND a zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_BETWEEN_opt_asymmetric_b_expr_AND_a_expr+opt_asymmetric	CREATE VIEW _v AS SELECT a NOT BETWEEN ASYMMETRIC a AND a
 42703	42703	engine	one_table@column	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr	CREATE VIEW _v AS SELECT a BETWEEN SYMMETRIC a AND a
 42703	42703	engine	one_table@column	a_expr/a_expr_BETWEEN_SYMMETRIC_b_expr_AND_a_expr!insert	CREATE VIEW _v AS SELECT a BETWEEN SYMMETRIC a AND a zzz
 42703	42703	engine	one_table@column	a_expr/a_expr_NOT_LA_BETWEEN_SYMMETRIC_b_expr_AND_a_expr	CREATE VIEW _v AS SELECT a NOT BETWEEN SYMMETRIC a AND a
@@ -360,11 +367,18 @@ ok:e7cfadb70ce6	ok:e7cfadb70ce6	engine	one_table@column	a_expr/a_expr_IS_DISTINC
 42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_NORMALIZED!insert	CREATE VIEW _v AS SELECT a IS NOT NORMALIZED zzz
 42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED	CREATE VIEW _v AS SELECT a IS NOT NFC NORMALIZED
 42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED!insert	CREATE VIEW _v AS SELECT a IS NOT NFC NORMALIZED zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED+unicode_normal_form/NFD	CREATE VIEW _v AS SELECT a IS NOT NFD NORMALIZED
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED+unicode_normal_form/NFKC	CREATE VIEW _v AS SELECT a IS NOT NFKC NORMALIZED
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_unicode_normal_form_NORMALIZED+unicode_normal_form/NFKD	CREATE VIEW _v AS SELECT a IS NOT NFKD NORMALIZED
 42703	42703	engine	one_table@column	a_expr/a_expr_IS_json_predicate_type_constraint_json_key_uniqueness_constraint_opt	CREATE VIEW _v AS SELECT a IS JSON
 42703	42703	engine	one_table@column	a_expr/a_expr_IS_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!insert	CREATE VIEW _v AS SELECT a IS JSON zzz
 42703	42703	engine	one_table@column	a_expr/a_expr_IS_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!swap	CREATE VIEW _v AS SELECT a ISNULL JSON
 42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt	CREATE VIEW _v AS SELECT a IS NOT JSON
 42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt!insert	CREATE VIEW _v AS SELECT a IS NOT JSON zzz
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt+json_predicate_type_constraint/JSON_VALUE_P	CREATE VIEW _v AS SELECT a IS NOT JSON VALUE
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt+json_predicate_type_constraint/JSON_ARRAY	CREATE VIEW _v AS SELECT a IS NOT JSON ARRAY
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt+json_predicate_type_constraint/JSON_OBJECT_P	CREATE VIEW _v AS SELECT a IS NOT JSON OBJECT
+42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt+json_predicate_type_constraint/JSON_SCALAR	CREATE VIEW _v AS SELECT a IS NOT JSON SCALAR
 42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt+json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS	CREATE VIEW _v AS SELECT a IS NOT JSON WITH UNIQUE KEYS
 42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt+json_key_uniqueness_constraint_opt/WITH_UNIQUE	CREATE VIEW _v AS SELECT a IS NOT JSON WITH UNIQUE
 42703	42703	engine	one_table@column	a_expr/a_expr_IS_NOT_json_predicate_type_constraint_json_key_uniqueness_constraint_opt+json_key_uniqueness_constraint_opt/WITH_UNIQUE!drop-5	CREATE VIEW _v AS SELECT a IS NOT JSON UNIQUE
@@ -397,6 +411,10 @@ ok:bd4e3ba0a7ec	ok:bd4e3ba0a7ec	engine	one_table@column	c_expr/EXISTS_select_wit
 42883	42883	engine	one_table@column	func_expr/func_application_within_group_clause_filter_clause_over_clause!insert	CREATE VIEW _v AS SELECT a() zzz
 42703	42703	engine	one_table@column	func_expr/json_aggregate_func_filter_clause_over_clause	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a)
 42703	42703	engine	one_table@column	func_expr/json_aggregate_func_filter_clause_over_clause!insert	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) zzz
+42703	42703	engine	one_table@column	func_expr/json_aggregate_func_filter_clause_over_clause+filter_clause	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) FILTER(WHERE a)
+42703	42703	engine	one_table@column	func_expr/json_aggregate_func_filter_clause_over_clause+over_clause/OVER_window_specification	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) OVER()
+42703	42703	engine	one_table@column	func_expr/json_aggregate_func_filter_clause_over_clause+over_clause/OVER_ColId	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) OVER a
+42703	42703	engine	one_table@column	func_expr/json_aggregate_func_filter_clause_over_clause+over_clause/OVER_ColId!drop-5	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) a
 42883	42883	engine	one_table@column	func_expr_windowless/func_application	CREATE VIEW _v AS SELECT FROM a()
 42883	42883	engine	one_table@column	func_expr_windowless/func_application!insert	CREATE VIEW _v AS SELECT FROM a() zzz
 42703	42703	engine	one_table@column	func_expr_windowless/json_aggregate_func	CREATE VIEW _v AS SELECT FROM JSON_ARRAYAGG(a)
@@ -448,6 +466,9 @@ ok:b5295eac4b58	ok:b5295eac4b58	engine	one_table@column	func_expr_common_subexpr
 42703	42703	engine	one_table@column	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)	CREATE VIEW _v AS SELECT NORMALIZE(a, NFC)
 42703	42703	engine	one_table@column	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)!insert	CREATE VIEW _v AS SELECT NORMALIZE(a, NFC) zzz
 42703	42703	engine	one_table@column	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)!swap	CREATE VIEW _v AS SELECT NORMALIZED(a, NFC)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)+unicode_normal_form/NFD	CREATE VIEW _v AS SELECT NORMALIZE(a, NFD)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)+unicode_normal_form/NFKC	CREATE VIEW _v AS SELECT NORMALIZE(a, NFKC)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/NORMALIZE_(_a_expr_,_unicode_normal_form_)+unicode_normal_form/NFKD	CREATE VIEW _v AS SELECT NORMALIZE(a, NFKD)
 42703	42703	engine	one_table@column	func_expr_common_subexpr/OVERLAY_(_overlay_list_)	CREATE VIEW _v AS SELECT OVERLAY(a PLACING a FROM a)
 42703	42703	engine	one_table@column	func_expr_common_subexpr/OVERLAY_(_overlay_list_)!insert	CREATE VIEW _v AS SELECT OVERLAY(a PLACING a FROM a) zzz
 42883	42883	engine	one_table@column	func_expr_common_subexpr/OVERLAY_(_func_arg_list_opt_)	CREATE VIEW _v AS SELECT OVERLAY()
@@ -512,6 +533,9 @@ ok:49704a607f99	ok:49704a607f99	engine	one_table@column	func_expr_common_subexpr
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_OBJECT_(_func_arg_list_)!insert	CREATE VIEW _v AS SELECT JSON_OBJECT(a) zzz
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)	CREATE VIEW _v AS SELECT JSON_OBJECT(a VALUE a)
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_OBJECT(a VALUE a) zzz
+42846	42703	engine	one_table@column	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)+json_returning_clause_opt	CREATE VIEW _v AS SELECT JSON_OBJECT(a VALUE a RETURNING a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)+json_object_constructor_null_clause_opt/NULL_P_ON_NULL_P	CREATE VIEW _v AS SELECT JSON_OBJECT(a VALUE a NULL ON NULL)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)+json_object_constructor_null_clause_opt/ABSENT_ON_NULL_P	CREATE VIEW _v AS SELECT JSON_OBJECT(a VALUE a ABSENT ON NULL)
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)+json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS	CREATE VIEW _v AS SELECT JSON_OBJECT(a VALUE a WITH UNIQUE KEYS)
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)+json_key_uniqueness_constraint_opt/WITH_UNIQUE	CREATE VIEW _v AS SELECT JSON_OBJECT(a VALUE a WITH UNIQUE)
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_OBJECT_(_json_name_and_value_list_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)+json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE_KEYS	CREATE VIEW _v AS SELECT JSON_OBJECT(a VALUE a WITHOUT UNIQUE KEYS)
@@ -520,10 +544,19 @@ ok:3139ca3ffb56	ok:3139ca3ffb56	engine	one_table@column	func_expr_common_subexpr
 ok:eb91dce5d3cb	ok:eb91dce5d3cb	engine	one_table@column	func_expr_common_subexpr/JSON_OBJECT_(_json_returning_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_OBJECT() zzz
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_json_value_expr_list_json_array_constructor_null_clause_opt_json_returning_clause_opt_)	CREATE VIEW _v AS SELECT JSON_ARRAY(a)
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_json_value_expr_list_json_array_constructor_null_clause_opt_json_returning_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_ARRAY(a) zzz
+42846	42703	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_json_value_expr_list_json_array_constructor_null_clause_opt_json_returning_clause_opt_)+json_returning_clause_opt	CREATE VIEW _v AS SELECT JSON_ARRAY(a RETURNING a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_json_value_expr_list_json_array_constructor_null_clause_opt_json_returning_clause_opt_)+json_array_constructor_null_clause_opt/NULL_P_ON_NULL_P	CREATE VIEW _v AS SELECT JSON_ARRAY(a NULL ON NULL)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_json_value_expr_list_json_array_constructor_null_clause_opt_json_returning_clause_opt_)+json_array_constructor_null_clause_opt/ABSENT_ON_NULL_P	CREATE VIEW _v AS SELECT JSON_ARRAY(a ABSENT ON NULL)
 42601	42601	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_select_no_parens_json_format_clause_opt_json_returning_clause_opt_)	CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT)
 42601	42601	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_select_no_parens_json_format_clause_opt_json_returning_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT) zzz
+42703	42601	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_select_no_parens_json_format_clause_opt_json_returning_clause_opt_)+json_format_clause_opt	CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT FORMAT JSON)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_select_no_parens_json_format_clause_opt_json_returning_clause_opt_)+json_format_clause_opt!drop-4	CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT JSON)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_select_no_parens_json_format_clause_opt_json_returning_clause_opt_)+json_format_clause_opt!drop-5	CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT FORMAT)
+42846	42601	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_select_no_parens_json_format_clause_opt_json_returning_clause_opt_)+json_returning_clause_opt	CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT RETURNING a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_select_no_parens_json_format_clause_opt_json_returning_clause_opt_)+json_returning_clause_opt!drop-4	CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT a)
 ok:68722c215031	ok:68722c215031	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_json_returning_clause_opt_)	CREATE VIEW _v AS SELECT JSON_ARRAY()
 ok:ca1bd8038723	ok:ca1bd8038723	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_json_returning_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_ARRAY() zzz
+42846	42846	engine	one_table@column	func_expr_common_subexpr/JSON_ARRAY_(_json_returning_clause_opt_)+json_returning_clause_opt	CREATE VIEW _v AS SELECT JSON_ARRAY(RETURNING a)
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)	CREATE VIEW _v AS SELECT JSON(a)
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)!insert	CREATE VIEW _v AS SELECT JSON(a) zzz
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_(_json_value_expr_json_key_uniqueness_constraint_opt_)+json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS	CREATE VIEW _v AS SELECT JSON(a WITH UNIQUE KEYS)
@@ -534,17 +567,22 @@ ok:ca1bd8038723	ok:ca1bd8038723	engine	one_table@column	func_expr_common_subexpr
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_SCALAR_(_a_expr_)!insert	CREATE VIEW _v AS SELECT JSON_SCALAR(a) zzz
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)	CREATE VIEW _v AS SELECT JSON_SERIALIZE(a)
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_SERIALIZE(a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_SERIALIZE_(_json_value_expr_json_returning_clause_opt_)+json_returning_clause_opt	CREATE VIEW _v AS SELECT JSON_SERIALIZE(a RETURNING a)
 42601	42601	engine	one_table@column	func_expr_common_subexpr/MERGE_ACTION_(_)	CREATE VIEW _v AS SELECT MERGE_ACTION()
 42601	42601	engine	one_table@column	func_expr_common_subexpr/MERGE_ACTION_(_)!insert	CREATE VIEW _v AS SELECT MERGE_ACTION() zzz
 42883	42883	engine	one_table@column	func_expr_common_subexpr/MERGE_ACTION_(_)!swap	CREATE VIEW _v AS SELECT METHOD()
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)	CREATE VIEW _v AS SELECT JSON_QUERY(a, a)
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_QUERY(a, a) zzz
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_QUERY_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_wrapper_behavior_json_quotes_clause_opt_json_behavior_clause_opt_)+json_returning_clause_opt	CREATE VIEW _v AS SELECT JSON_QUERY(a, a RETURNING a)
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)	CREATE VIEW _v AS SELECT JSON_EXISTS(a, a)
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_EXISTS(a, a) zzz
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)!swap	CREATE VIEW _v AS SELECT JSON_OBJECT(a, a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_EXISTS_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_on_error_clause_opt_)+json_passing_clause_opt	CREATE VIEW _v AS SELECT JSON_EXISTS(a, a PASSING a AS a)
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)	CREATE VIEW _v AS SELECT JSON_VALUE(a, a)
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_VALUE(a, a) zzz
 42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)!swap	CREATE VIEW _v AS SELECT KEEP(a, a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)+json_passing_clause_opt	CREATE VIEW _v AS SELECT JSON_VALUE(a, a PASSING a AS a)
+42703	42703	engine	one_table@column	func_expr_common_subexpr/JSON_VALUE_(_json_value_expr_,_a_expr_json_passing_clause_opt_json_returning_clause_opt_json_behavior_clause_opt_)+json_returning_clause_opt	CREATE VIEW _v AS SELECT JSON_VALUE(a, a RETURNING a)
 42703	42703	engine	one_table@column	xml_root_version/VERSION_P_NO_VALUE_P	CREATE VIEW _v AS SELECT XMLROOT(a, VERSION NO VALUE)
 42703	42703	engine	one_table@column	xml_root_version/VERSION_P_NO_VALUE_P!drop-2	CREATE VIEW _v AS SELECT XMLROOT(a, VERSION VALUE)
 42703	42703	engine	one_table@column	xml_root_version/VERSION_P_NO_VALUE_P!drop-3	CREATE VIEW _v AS SELECT XMLROOT(a, VERSION NO)
@@ -668,14 +706,19 @@ ok:9c067d3748d7	ok:9c067d3748d7	engine	one_table@column	opt_window_exclusion_cla
 42703	42703	engine	one_table@column	json_behavior_type/EMPTY_P_OBJECT_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, a EMPTY OBJECT ON EMPTY)
 42703	42703	engine	one_table@column	json_behavior_type/EMPTY_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, a EMPTY ON EMPTY)
 42703	42703	engine	one_table@column	json_behavior_clause_opt/json_behavior_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, a ERROR ON ERROR)
+42703	42703	engine	one_table@column	json_behavior_clause_opt/json_behavior_ON_ERROR_P+json_behavior/DEFAULT_a_expr	CREATE VIEW _v AS SELECT JSON_QUERY(a, a DEFAULT a ON ERROR)
 42703	42703	engine	one_table@column	json_behavior_clause_opt/json_behavior_ON_EMPTY_P_json_behavior_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, a ERROR ON EMPTY ERROR ON ERROR)
+42703	42703	engine	one_table@column	json_behavior_clause_opt/json_behavior_ON_EMPTY_P_json_behavior_ON_ERROR_P+json_behavior/DEFAULT_a_expr	CREATE VIEW _v AS SELECT JSON_QUERY(a, a DEFAULT a ON EMPTY ERROR ON ERROR)
+42703	42703	engine	one_table@column	json_behavior_clause_opt/json_behavior_ON_EMPTY_P_json_behavior_ON_ERROR_P+json_behavior/DEFAULT_a_expr#2	CREATE VIEW _v AS SELECT JSON_QUERY(a, a ERROR ON EMPTY DEFAULT a ON ERROR)
 42703	42703	engine	one_table@column	json_on_error_clause_opt/json_behavior_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_EXISTS(a, a ERROR ON ERROR)
+42703	42601	engine	one_table@column	json_on_error_clause_opt/json_behavior_ON_ERROR_P+json_behavior/DEFAULT_a_expr	CREATE VIEW _v AS SELECT JSON_EXISTS(a, a DEFAULT a ON ERROR)
 42703	42703	engine	one_table@column	json_format_clause/FORMAT_LA_JSON	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a FORMAT JSON)
 42703	42703	engine	one_table@column	json_quotes_clause_opt/KEEP_QUOTES_ON_SCALAR_STRING_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, a KEEP QUOTES ON SCALAR STRING)
 42703	42703	engine	one_table@column	json_quotes_clause_opt/KEEP_QUOTES	CREATE VIEW _v AS SELECT JSON_QUERY(a, a KEEP QUOTES)
 42703	42703	engine	one_table@column	json_quotes_clause_opt/OMIT_QUOTES_ON_SCALAR_STRING_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, a OMIT QUOTES ON SCALAR STRING)
 42703	42703	engine	one_table@column	json_quotes_clause_opt/OMIT_QUOTES	CREATE VIEW _v AS SELECT JSON_QUERY(a, a OMIT QUOTES)
 42846	42846	engine	one_table@column	json_returning_clause_opt/RETURNING_Typename_json_format_clause_opt	CREATE VIEW _v AS SELECT JSON_OBJECT(RETURNING a)
+42846	42846	engine	one_table@column	json_returning_clause_opt/RETURNING_Typename_json_format_clause_opt+json_format_clause_opt	CREATE VIEW _v AS SELECT JSON_OBJECT(RETURNING a FORMAT JSON)
 42703	42703	engine	one_table@column	json_returning_clause_opt/%empty!insert	CREATE VIEW _v AS SELECT JSON_OBJECT(zzz)
 42703	42703	engine	one_table@column	json_predicate_type_constraint/JSON_VALUE_P	CREATE VIEW _v AS SELECT a IS JSON VALUE
 42703	42703	engine	one_table@column	json_predicate_type_constraint/JSON_VALUE_P!insert	CREATE VIEW _v AS SELECT a IS JSON VALUE zzz
@@ -703,10 +746,12 @@ ok:9c067d3748d7	ok:9c067d3748d7	engine	one_table@column	opt_window_exclusion_cla
 42703	42703	engine	one_table@column	json_array_constructor_null_clause_opt/ABSENT_ON_NULL_P	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a ABSENT ON NULL)
 42703	42703	engine	one_table@column	json_value_expr_list/json_value_expr_list_,_json_value_expr	CREATE VIEW _v AS SELECT JSON_ARRAY(a, a)
 42703	42703	engine	one_table@column	json_aggregate_func/JSON_OBJECTAGG_(_json_name_and_value_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)!insert	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a VALUE a) zzz
+42703	42703	engine	one_table@column	json_aggregate_func/JSON_OBJECTAGG_(_json_name_and_value_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)+json_returning_clause_opt	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a VALUE a RETURNING a)
 42703	42703	engine	one_table@column	json_aggregate_func/JSON_OBJECTAGG_(_json_name_and_value_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)+json_key_uniqueness_constraint_opt/WITH_UNIQUE_KEYS	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a VALUE a WITH UNIQUE KEYS)
 42703	42703	engine	one_table@column	json_aggregate_func/JSON_OBJECTAGG_(_json_name_and_value_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)+json_key_uniqueness_constraint_opt/WITH_UNIQUE	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a VALUE a WITH UNIQUE)
 42703	42703	engine	one_table@column	json_aggregate_func/JSON_OBJECTAGG_(_json_name_and_value_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)+json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE_KEYS	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a VALUE a WITHOUT UNIQUE KEYS)
 42703	42703	engine	one_table@column	json_aggregate_func/JSON_OBJECTAGG_(_json_name_and_value_json_object_constructor_null_clause_opt_json_key_uniqueness_constraint_opt_json_returning_clause_opt_)+json_key_uniqueness_constraint_opt/WITHOUT_UNIQUE	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a VALUE a WITHOUT UNIQUE)
+42703	42703	engine	one_table@column	json_aggregate_func/JSON_ARRAYAGG_(_json_value_expr_json_array_aggregate_order_by_clause_opt_json_array_constructor_null_clause_opt_json_returning_clause_opt_)+json_returning_clause_opt	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a RETURNING a)
 42703	42703	engine	one_table@column	json_array_aggregate_order_by_clause_opt/ORDER_BY_sortby_list	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a ORDER BY a)
 42703	42703	engine	one_table@column	target_list/target_list_,_target_el	CREATE VIEW _v AS SELECT a, a
 42703	42703	engine	one_table@column	target_list/target_list_,_target_el!insert	CREATE VIEW _v AS SELECT a, a zzz

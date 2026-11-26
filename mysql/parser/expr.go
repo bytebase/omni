@@ -1938,17 +1938,19 @@ func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, e
 		fc.OrderBy = orderBy
 	}
 
-	// SEPARATOR
+	// SEPARATOR text_string: one string, hex or bit literal, never an
+	// expression or adjacent strings, and the hex and bit forms decoded to the
+	// bytes they stand for, which is what the server stores.
+	//
+	// Ref: opt_gconcat_separator in sql_yacc.yy:11563.
 	if p.cur.Type == kwSEPARATOR {
 		p.advance()
-		sep, err := p.parseExpr()
+		start := p.cur.Loc
+		sep, err := p.parseFieldTerminator()
 		if err != nil {
 			return nil, err
 		}
-		if sep == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-		fc.Separator = sep
+		fc.Separator = &nodes.StringLit{Loc: nodes.Loc{Start: start, End: p.prev.End}, Value: sep}
 	}
 
 	if _, err := p.expect(')'); err != nil {
