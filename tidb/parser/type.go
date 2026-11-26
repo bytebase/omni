@@ -7,6 +7,18 @@ import (
 	nodes "github.com/bytebase/omni/tidb/ast"
 )
 
+// parseRoutineDataType reads the type of a stored procedure's parameter or local
+// variable, or a function's RETURNS. TiDB's Type takes no COLLATE: its string types
+// end at OptBinary (parser.y:13525), and COLLATE is a column option
+// (ColumnOption), so SpPdparam's and ProcedureDecl's `Type` refuse `CHAR(1) COLLATE
+// utf8mb4_bin`, which a column definition takes.
+func (p *Parser) parseRoutineDataType() (*nodes.DataType, error) {
+	outer := p.typeNoCollate
+	p.typeNoCollate = true
+	defer func() { p.typeNoCollate = outer }()
+	return p.parseDataType()
+}
+
 // parseDataType parses a MySQL data type specification.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/data-types.html
@@ -717,6 +729,9 @@ func (p *Parser) parseTextCharsetOpt(dt *nodes.DataType) error {
 	}
 	p.advance()
 	dt.Charset = cs
+	if p.typeNoCollate {
+		return nil
+	}
 	if _, ok := p.match(kwCOLLATE); ok {
 		name, err := p.parseCollationName()
 		if err != nil {
@@ -793,6 +808,9 @@ charsetBinary:
 	}
 
 	// COLLATE collation_name — must come after any CHARACTER SET / BINARY.
+	if p.typeNoCollate {
+		return nil
+	}
 	if _, ok := p.match(kwCOLLATE); ok {
 		name, err := p.parseCollationName()
 		if err != nil {

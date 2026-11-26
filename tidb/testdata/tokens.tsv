@@ -10,6 +10,27 @@ IfNotExists	(every site)	IF NOT EXISTS
 IfExists	(every site)	IF EXISTS
 OrReplace	(every alternative)	parser.y:5125 OR REPLACE
 OptTemporary	(every alternative)	parser.y:5363 TEMPORARY or GLOBAL TEMPORARY
+EqOpt	(every site)	parser.y:5450 = before an option's value
+IgnoreOptional	(every site)	parser.y:6585 IGNORE
+ColumnKeywordOpt	(every site)	parser.y:2897 COLUMN
+DefaultKwdOpt	(every site)	parser.y:4578 DEFAULT
+OptFull	(every site)	parser.y:12119 FULL
+OuterOpt	(every site)	parser.y:10096 OUTER
+QuickOptional	(every site)	parser.y:9123 QUICK
+IntoOpt	(every site)	parser.y:7409 INTO
+LinearOpt	(every site)	parser.y:4800 LINEAR
+ForceOpt	(every site)	parser.y:12788 FORCE
+KeyOrIndexOpt	(every site)	parser.y:2893 KEY or INDEX
+ShowDatabaseNameOpt	(every site)	parser.y:12128 FROM or IN a database
+PrimaryOpt	(every site)	parser.y:3609 PRIMARY
+OptCollate	(every site)	parser.y:13561 COLLATE
+OptBinMod	(every site)	parser.y:13497 BINARY
+OptCharset	(every site)	parser.y:13547 CHARACTER SET
+LowPriorityOpt	(every site)	parser.y:14858 LOW_PRIORITY
+PriorityOpt	(every alternative)	parser.y:9060 LOW_PRIORITY, HIGH_PRIORITY or DELAYED, or none
+ConstraintKeywordOpt	(every alternative)	parser.y:2945 CONSTRAINT [name]
+ColumnPosition	(every alternative)	parser.y:2902 FIRST or AFTER a column
+IndexLockAndAlgorithmOpt	(every alternative)	parser.y:4334 LOCK =, ALGORITHM = or both
 
 # Keyword choices tried at every site that names them, and not only where
 # their own alternatives' rows reach (see grammar.EveryAlternative).

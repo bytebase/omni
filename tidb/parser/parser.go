@@ -25,6 +25,10 @@ type Parser struct {
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
 
+	// typeNoCollate is set while a stored procedure's parameter or variable type is
+	// read, where TiDB takes no COLLATE (see parseRoutineDataType).
+	typeNoCollate bool
+
 	newlines []int // offsets of the input's newlines, found on first use (see lineCol)
 
 	// Completion mode fields.
