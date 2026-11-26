@@ -92,3 +92,54 @@ func TestEverySiteFormsTree(t *testing.T) {
 		t.Fatalf("query = %+v, want LIMIT ALL with an OFFSET", stmts.Stmts[0])
 	}
 }
+
+// TestIndexUnnestList holds the table alias and UNNEST list BigQuery dry-run
+// parses in CREATE [SEARCH|VECTOR] INDEX (googlesql.tm:2577, 4476, 8949),
+// which the third every-alternative pass reached; its analyzer refuses them
+// later.
+func TestIndexUnnestList(t *testing.T) {
+	accept := []string{
+		"CREATE INDEX a ON a UNNEST(NULL)(NULL)",
+		"CREATE INDEX a ON a b UNNEST(b.c) x UNNEST(x.d) WITH OFFSET (x)",
+		"CREATE INDEX a ON a UNNEST(a) a WITH OFFSET b UNNEST(c) d (a) OPTIONS()",
+		"CREATE INDEX a ON a UNNEST(a, mode => b)(a)",
+		"CREATE INDEX a ON a UNNEST(a) (ALL COLUMNS)",
+		"CREATE INDEX a ON a PIVOT (a)",
+		"CREATE INDEX a ON a AS PIVOT UNNEST(a) AS UNPIVOT WITH OFFSET AS PIVOT (a)",
+		"CREATE SEARCH INDEX a ON a b UNNEST(a) WITH OFFSET (ALL COLUMNS)",
+		"CREATE VECTOR INDEX a ON a AS b UNNEST(b.c) c (c) STORING(a) OPTIONS()",
+	}
+	for _, sql := range accept {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q) = %v, want accept", sql, err)
+		}
+	}
+	reject := []string{
+		"CREATE INDEX a ON a UNNEST(SELECT 1)(a)",
+		"CREATE INDEX a ON a UNNEST(a)",
+		"CREATE INDEX a ON a UNNEST()(a)",
+		"CREATE INDEX a ON a UNNEST(a), UNNEST(b) (a)",
+		"CREATE INDEX a ON a AS UNNEST(a) (a)",
+		"CREATE INDEX a ON a UNNEST(a) AS (a)",
+		"CREATE INDEX a ON a UNNEST(a) WITH (a)",
+		"CREATE INDEX a ON a QUALIFY (a)",
+		"CREATE SEARCH INDEX a ON a b",
+	}
+	for _, sql := range reject {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) accepted, want reject", sql)
+		}
+	}
+
+	stmts, err := Parse("CREATE INDEX a ON a b UNNEST(b.c) x WITH OFFSET o (x)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ci, ok := stmts.Stmts[0].(*ast.CreateIndexStmt)
+	if !ok || ci.TableAlias != "b" || len(ci.Unnest) != 1 {
+		t.Fatalf("stmt = %+v, want alias b and one UNNEST", stmts.Stmts[0])
+	}
+	if u := ci.Unnest[0]; u.Alias != "x" || !u.WithOffset || u.WithOffsetAlias != "o" {
+		t.Fatalf("unnest = %+v, want x WITH OFFSET o", u)
+	}
+}
