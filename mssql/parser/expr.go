@@ -526,6 +526,14 @@ func (p *Parser) splitComparisonOp() (nodes.BinaryOp, bool) {
 	if !p.inSearchCondition() {
 		return 0, false
 	}
+	return p.splitComparisonTokens()
+}
+
+// splitComparisonTokens reads the two-token comparison operators of
+// splitComparisonOp anywhere: comparisonOperator (TSql160.g:31264) writes
+// each as two tokens, Bang ( EqualsSign | LessThan | GreaterThan ),
+// LessThan ( EqualsSign | GreaterThan )? and GreaterThan ( EqualsSign )?.
+func (p *Parser) splitComparisonTokens() (nodes.BinaryOp, bool) {
 	first, second := p.cur.Type, p.peekNext().Type
 	var op nodes.BinaryOp
 	switch first {

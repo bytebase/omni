@@ -972,6 +972,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FIRST 1 ROWS ONLY
+|
+< error
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * ORDER BY 1 OFFSET 1 ROW FETCH NEXT 1 ROW ONLY
 |
 < error
@@ -1080,6 +1092,78 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT N'a' = 1
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| VIEW
+: string
+| dbo._v
+: string
+| CREATE VIEW _v AS SELECT N'a' = 1
+|
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT a = 1
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| VIEW
+: string
+| dbo._v
+: string
+| CREATE VIEW _v AS SELECT a = 1
+|
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT 1 'a'
 |
 < ok 0 -
@@ -1096,6 +1180,42 @@
 | dbo._v
 : string
 | CREATE VIEW _v AS SELECT 1 'a'
+|
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT 1 N'a'
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| VIEW
+: string
+| dbo._v
+: string
+| CREATE VIEW _v AS SELECT 1 N'a'
 |
 |
 < row
@@ -1428,6 +1548,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME AS OF N'a'
+|
+< error
+| 13544 2 16 1 proc=_v Temporal FOR SYSTEM_TIME clause can only be used with system-versioned tables. 'omni_TestQuerySimulation.dbo.a' is not a system-versioned table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME FROM 'a' TO 'a'
 |
 < error
@@ -1444,6 +1576,54 @@
 |
 < error
 | 13544 2 16 1 proc=_v Temporal FOR SYSTEM_TIME clause can only be used with system-versioned tables. 'omni_TestQuerySimulation.dbo.a' is not a system-versioned table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME FROM N'a' TO 'a'
+|
+< error
+| 13544 2 16 1 proc=_v Temporal FOR SYSTEM_TIME clause can only be used with system-versioned tables. 'omni_TestQuerySimulation.dbo.a' is not a system-versioned table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME FROM @a TO 'a'
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME FROM 'a' TO N'a'
+|
+< error
+| 13544 2 16 1 proc=_v Temporal FOR SYSTEM_TIME clause can only be used with system-versioned tables. 'omni_TestQuerySimulation.dbo.a' is not a system-versioned table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME FROM 'a' TO @a
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -1476,6 +1656,54 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME BETWEEN N'a' AND 'a'
+|
+< error
+| 13544 2 16 1 proc=_v Temporal FOR SYSTEM_TIME clause can only be used with system-versioned tables. 'omni_TestQuerySimulation.dbo.a' is not a system-versioned table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME BETWEEN @a AND 'a'
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME BETWEEN 'a' AND N'a'
+|
+< error
+| 13544 2 16 1 proc=_v Temporal FOR SYSTEM_TIME clause can only be used with system-versioned tables. 'omni_TestQuerySimulation.dbo.a' is not a system-versioned table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME BETWEEN 'a' AND @a
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME CONTAINED IN('a', 'a')
 |
 < error
@@ -1492,6 +1720,54 @@
 |
 < error
 | 13544 2 16 1 proc=_v Temporal FOR SYSTEM_TIME clause can only be used with system-versioned tables. 'omni_TestQuerySimulation.dbo.a' is not a system-versioned table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME CONTAINED IN(N'a', 'a')
+|
+< error
+| 13544 2 16 1 proc=_v Temporal FOR SYSTEM_TIME clause can only be used with system-versioned tables. 'omni_TestQuerySimulation.dbo.a' is not a system-versioned table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME CONTAINED IN(@a, 'a')
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME CONTAINED IN('a', N'a')
+|
+< error
+| 13544 2 16 1 proc=_v Temporal FOR SYSTEM_TIME clause can only be used with system-versioned tables. 'omni_TestQuerySimulation.dbo.a' is not a system-versioned table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME CONTAINED IN('a', @a)
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -2293,7 +2569,31 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * FROM a(DEFAULT)
+|
+< error
+| 215 1 16 1 proc=_v Parameters supplied for object 'a' which is not a function. If the parameters are intended as a table hint, a WITH keyword is required.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * FROM a(1, 1)
+|
+< error
+| 215 1 16 1 proc=_v Parameters supplied for object 'a' which is not a function. If the parameters are intended as a table hint, a WITH keyword is required.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM a(1, DEFAULT)
 |
 < error
 | 215 1 16 1 proc=_v Parameters supplied for object 'a' which is not a function. If the parameters are intended as a table hint, a WITH keyword is required.
@@ -2534,6 +2834,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * FROM CONTAINSTABLE(a, a, N'a')
+|
+< error
+| 7601 2 16 1 proc=_v Cannot use a CONTAINS or FREETEXT predicate on table or indexed view 'a' because it is not full-text indexed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM CONTAINSTABLE(a, a, @a)
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * FROM CONTAINSTABLE(a, a, 'a', 1)
 |
 < error
@@ -2642,10 +2966,34 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * FROM CONTAINSTABLE(a, a, 'a', @a)
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * FROM CONTAINSTABLE(a, a, 'a', LANGUAGE 0x00, 1)
 |
 < error
 | 7601 2 16 1 proc=_v Cannot use a CONTAINS or FREETEXT predicate on table or indexed view 'a' because it is not full-text indexed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM CONTAINSTABLE(a, a, 'a', LANGUAGE 0x00, @a)
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -2826,7 +3174,43 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * FROM OPENXML(@a, N'a')
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM OPENXML(@a, @a)
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * FROM OPENXML(@a, 'a', 1)
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM OPENXML(@a, 'a', @a)
 |
 < error
 | 137 2 15 1 proc=_v Must declare the scalar variable "@a".
@@ -2852,6 +3236,32 @@
 < ok 0 -
 > exec
 | CREATE VIEW _v AS SELECT * FROM OPENXML(@a, 'a') WITH(a a 'a')
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+| 319 1 15 1 proc=_v Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM OPENXML(@a, 'a') WITH(a a N'a')
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+| 319 1 15 1 proc=_v Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM OPENXML(@a, 'a') WITH(a a @a)
 |
 < error
 | 137 2 15 1 proc=_v Must declare the scalar variable "@a".
@@ -3026,6 +3436,42 @@
 | dbo._v
 : string
 | CREATE VIEW _v AS SELECT * FROM a WITH(FORCESEEK)
+|
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM a(HOLDLOCK)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| VIEW
+: string
+| dbo._v
+: string
+| CREATE VIEW _v AS SELECT * FROM a(HOLDLOCK)
 |
 |
 < row
@@ -5188,6 +5634,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT JSON_ARRAY(ABSENT ON NULL)
+|
+< error
+| 4511 1 16 1 proc=_v Create View or Function failed because no column name was specified for column 1.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT TRIM(1 FROM 1)
 |
 < error
@@ -5392,6 +5850,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT a.ROWGUIDCOL
+|
+< error
+| 107 1 15 1 proc=_v The column prefix 'a' does not match with a table name or alias name used in the query.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT a.$IDENTITY
+|
+< error
+| 107 1 15 1 proc=_v The column prefix 'a' does not match with a table name or alias name used in the query.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT a.*
 |
 < error
@@ -5440,42 +5922,6 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
-| CREATE VIEW _v AS SELECT 1 N'a'
-|
-< ok 0 -
-> query
-| EXEC [dbo].[_sim_forms]
-< result
-< column "kind" "NVARCHAR"
-< column "name" "NVARCHAR"
-< column "text" "NVARCHAR"
-< row
-: string
-| VIEW
-: string
-| dbo._v
-: string
-| CREATE VIEW _v AS SELECT 1 N'a'
-|
-|
-< row
-: string
-| TABLE
-: string
-| dbo.a
-: string
-| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
-| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
-| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
-|
-> exec
-| EXEC [dbo].[_sim_reset]
-< ok 0 -
-> exec
-| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
-| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
-< ok 0 -
-> exec
 | CREATE VIEW _v AS SELECT 1 a
 |
 < ok 0 -
@@ -5504,18 +5950,6 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
 |
-> exec
-| EXEC [dbo].[_sim_reset]
-< ok 0 -
-> exec
-| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
-| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
-< ok 0 -
-> exec
-| CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME AS OF N'a'
-|
-< error
-| 13544 2 16 1 proc=_v Temporal FOR SYSTEM_TIME clause can only be used with system-versioned tables. 'omni_TestQuerySimulation.dbo.a' is not a system-versioned table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -5537,6 +5971,18 @@
 < ok 0 -
 > exec
 | CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME AS OF @a zzz
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS WITH CHANGE_TRACKING_CONTEXT(@a) SELECT *
 |
 < error
 | 137 2 15 1 proc=_v Must declare the scalar variable "@a".

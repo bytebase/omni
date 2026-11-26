@@ -2374,12 +2374,15 @@ func (n *AdHocTableRef) tableExpr() {}
 //	column_name data_type [ COLLATE collation_name ] [ NULL | NOT NULL ]   -- PREDICT
 //
 // Path is the JSON path of OPENJSON or the XPath pattern of OPENXML, a
-// string literal. AsJSON is OPENJSON only, Nullable PREDICT only.
+// string literal. PathVar is OPENXML's pattern given as a variable
+// (openXmlSchemaItem, TSql160.g:20564, takes stringOrVariable). AsJSON is
+// OPENJSON only, Nullable PREDICT only.
 type RowsetColumnDef struct {
 	Name      string
 	DataType  *DataType
 	Collation string
 	Path      *Literal
+	PathVar   *VariableRef
 	AsJSON    bool
 	Nullable  *NullableSpec
 	Loc       Loc
