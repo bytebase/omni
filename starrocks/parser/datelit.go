@@ -59,7 +59,7 @@ func validDateLiteral(s string) bool {
 			return false
 		}
 		rest, off, ok := isoOffset(rest)
-		return ok && rest == "" && t.inRangeAt(off)
+		return ok && rest == "" && t.inRangeAfter(-off)
 	case strings.Contains(s, ":"):
 		// DATETIME_FORMATTERS[isTwoDigit][withMs][withSplitT][withSec]:
 		// %Y-%m-%e or %y-%m-%e, ' ' or 'T', %H:%i, then :%s, then .%f, each
@@ -209,7 +209,7 @@ func isoZonedDateTime(s string) bool {
 		return false
 	}
 	rest, off, ok := isoOffset(rest)
-	if !ok || !t.inRangeAt(off) {
+	if !ok || !t.inRangeAfter(-off) {
 		return false
 	}
 	if rest == "" {
@@ -218,53 +218,68 @@ func isoZonedDateTime(s string) bool {
 	if len(rest) < 3 || rest[0] != '[' || rest[len(rest)-1] != ']' {
 		return false
 	}
-	return zoneID(rest[1 : len(rest)-1])
+	zoneOff, fixed, ok := zoneID(rest[1 : len(rest)-1])
+	// ZonedDateTime resolves the instant into the bracket's zone first. A
+	// region's offset at year ±999,999,999 is its tz rules', which omni
+	// does not hold, so only a fixed offset is checked there.
+	return ok && (!fixed || t.inRangeAfter(zoneOff-off))
 }
 
 // zoneID reports whether ISO_ZONED_DATE_TIME's bracket takes id, as Java
 // 11's ZoneIdPrinterParser reads it (case-sensitively): GMT0, or UT, UTC or
 // GMT alone or with a strict offset; then a strict offset alone; then a
-// region the pinned server's JRE knows (javaZoneIDs); then Z.
-func zoneID(id string) bool {
-	if id == "GMT0" {
-		return true
+// region the pinned server's JRE knows (javaZoneIDs); then Z. For all but a
+// region it returns the fixed offset in seconds.
+func zoneID(id string) (off int, fixed, ok bool) {
+	if id == "GMT0" || id == "Z" {
+		return 0, true, true
 	}
 	for _, prefix := range []string{"UTC", "GMT", "UT"} {
-		if rest, ok := strings.CutPrefix(id, prefix); ok {
-			return rest == "" || strictOffset(rest)
+		if rest, found := strings.CutPrefix(id, prefix); found {
+			if rest == "" {
+				return 0, true, true
+			}
+			off, ok = strictOffset(rest)
+			return off, true, ok
 		}
 	}
 	if id[0] == '+' || id[0] == '-' {
-		return strictOffset(id)
+		off, ok = strictOffset(id)
+		return off, true, ok
 	}
-	return javaZoneIDs[id] || id == "Z"
+	return 0, false, javaZoneIDs[id]
 }
 
-// strictOffset reports whether s is all one offset as the pattern
-// +HH:MM:ss reads it strictly: a sign, HH:MM and an optional :SS, no more
-// than 18 hours.
-func strictOffset(s string) bool {
+// strictOffset reads s as one offset as the pattern +HH:MM:ss reads it
+// strictly: a sign, HH:MM and an optional :SS, no more than 18 hours. It
+// returns the offset in seconds.
+func strictOffset(s string) (int, bool) {
 	if len(s) != 6 && len(s) != 9 || s[0] != '+' && s[0] != '-' || strings.Count(s, ":") != len(s)/3-1 {
-		return false
+		return 0, false
 	}
-	rest, _, ok := isoOffset(s)
-	return ok && rest == ""
+	rest, off, ok := isoOffset(s)
+	return off, ok && rest == ""
 }
 
 // An isoTime is the date and the whole seconds of the day an ISO local
 // date-time names.
 type isoTime struct{ y, m, d, secs int }
 
-// inRangeAt reports whether t at offset off seconds is still a LocalDateTime
-// once DateUtils converts it to the server's zone, UTC on the pinned image:
-// java.time's years end at ±999,999,999, and an offset of at most 18 hours
-// can only cross that on the last or first day.
-func (t isoTime) inRangeAt(off int) bool {
+// inRangeAfter reports whether t moved by shift seconds, as a change of
+// zone moves it, is still a LocalDateTime: java.time's years end at
+// ±999,999,999, and a shift of at most 36 hours crosses that only from the
+// last or first day. DateUtils converts to the server's zone, UTC on the
+// pinned image, which is a shift of minus the parsed offset.
+func (t isoTime) inRangeAfter(shift int) bool {
 	switch {
-	case t.y == 999999999 && t.m == 12 && t.d == 31 && off < 0:
-		return t.secs-off < 86400
-	case t.y == -999999999 && t.m == 1 && t.d == 1 && off > 0:
-		return t.secs >= off
+	case t.y == 999999999 && t.m == 12 && t.d == 31:
+		return t.secs+shift < 86400
+	case t.y == 999999999 && t.m == 12 && t.d == 30:
+		return t.secs+shift < 2*86400
+	case t.y == -999999999 && t.m == 1 && t.d == 1:
+		return t.secs+shift >= 0
+	case t.y == -999999999 && t.m == 1 && t.d == 2:
+		return t.secs+shift >= -86400
 	}
 	return true
 }
