@@ -552,8 +552,12 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			if expr == nil {
 				return false, p.syntaxErrorAtCur()
 			}
-			if err := refuseColumnValue(expr, exprStart); err != nil {
-				return false, err
+			// ON UPDATE cur_timestamp_func (sql_parser_mysql_mode.y:7589): NOW(),
+			// CURRENT_TIMESTAMP, LOCALTIME or LOCALTIMESTAMP, nothing around it.
+			// 4.3.5.6 answers 1064 for ON UPDATE 1, ON UPDATE(1), ON UPDATE
+			// (NOW()) and ON UPDATE CURRENT_TIMESTAMP + 1.
+			if !isCurTimestampFunc(expr) {
+				return false, &ParseError{Message: "syntax error", Position: exprStart}
 			}
 			col.OnUpdate = expr
 			return true, nil
@@ -819,6 +823,21 @@ func refuseColumnValue(expr nodes.ExprNode, start int) error {
 		}
 	}
 	return nil
+}
+
+// isCurTimestampFunc reports whether expr is a cur_timestamp_func: a call to NOW
+// or one of its synonyms, which the expression reader has already held to an
+// integer precision or none.
+func isCurTimestampFunc(expr nodes.ExprNode) bool {
+	fc, ok := expr.(*nodes.FuncCallExpr)
+	if !ok {
+		return false
+	}
+	switch strings.ToUpper(fc.Name) {
+	case "NOW", "CURRENT_TIMESTAMP", "LOCALTIME", "LOCALTIMESTAMP":
+		return true
+	}
+	return false
 }
 
 // parseDefaultValue parses a DEFAULT value expression.

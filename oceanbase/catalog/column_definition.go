@@ -170,6 +170,16 @@ func literalDefaultFits(dt *nodes.DataType, expr nodes.ExprNode) bool {
 		return typeName == "datetime" || typeName == "timestamp"
 	}
 	text, isString, ok := literalText(expr)
+	if t, isDate := expr.(*nodes.TemporalLit); isDate && isIntegerType(typeName) {
+		// A DATE literal is its number to an integer column, which must hold
+		// it: 4.3.5.6 answers 1067 for TINYINT DEFAULT DATE '2020-01-01',
+		// before a duplicate column name, and stores INT's as '20200101'.
+		n, isNumber := integerDefaultText(t)
+		if !isNumber {
+			return false
+		}
+		text, isString, ok = n, false, true
+	}
 	if !ok {
 		return true
 	}

@@ -190,31 +190,27 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		stmt.Compression = name
 	}
 
-	// [CHARACTER SET charset_name]. The name is a charset_name, which carries
-	// the reserved word BINARY beside ident_or_text, so `CHARACTER SET BINARY`
-	// and a quoted name parse where a plain identifier would turn them away.
+	// [CHARACTER SET charset_name_or_default] (sql_parser_mysql_mode.y:7483).
+	// The name is a charset_name, which carries the reserved word BINARY beside
+	// ident_or_text, so `CHARACTER SET BINARY` and a quoted name parse where a
+	// plain identifier would turn them away, and DEFAULT stands for one.
 	// Unlike MySQL 8.0 and MariaDB, OceanBase CE 4.3.5.6 takes only the two-
 	// word CHARACTER SET here and answers 1064 for the short CHARSET on LOAD
-	// DATA (both measured 2026-11-07), so that arm stays a plain identifier.
-	//
-	// Ref: charset and charset_name in OceanBase's MySQL-mode grammar.
+	// DATA, CHARSET utf8mb4 included (measured 2026-11-07 and 2026-11-26).
 	if p.cur.Type == kwCHARACTER {
 		p.advance()
 		if _, err := p.expect(kwSET); err != nil {
 			return nil, err
 		}
-		name, err := p.parseCharsetName()
-		if err != nil {
-			return nil, err
+		if p.cur.Type == kwDEFAULT {
+			stmt.CharacterSet = p.advance().Str
+		} else {
+			name, err := p.parseCharsetName()
+			if err != nil {
+				return nil, err
+			}
+			stmt.CharacterSet = name
 		}
-		stmt.CharacterSet = name
-	} else if p.cur.Type == kwCHARSET {
-		p.advance()
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.CharacterSet = name
 	}
 
 	// [ROWS IDENTIFIED BY '<tagname>']

@@ -72,6 +72,18 @@ opt_backup_to	(every site)	sql_parser_mysql_mode.y:24053 TO and a destination st
 opt_tenant_list_v2	(every site)	sql_parser_mysql_mode.y:21800 TENANT and a list of names
 opt_zone_desc	(every site)	sql_parser_mysql_mode.y:22304 ZONE and a name
 opt_backup_backup_dest	(every site)	sql_parser_mysql_mode.y:22218 BACKUP_BACKUP_DEST and a string
+opt_respect_or_ignore_nulls	(every site)	sql_parser_mysql_mode.y:2428 RESPECT or IGNORE NULLS
+opt_having	(every site)	sql_parser_mysql_mode.y:13712 HAVING
+opt_groupby	(every site)	sql_parser_mysql_mode.y:13491 GROUP BY
+opt_named_windows	(every site)	sql_parser_mysql_mode.y:2495 WINDOW
+into_opt	(every site)	sql_parser_mysql_mode.y:11961 an INTO clause
+opt_part_id	(every site)	sql_parser_mysql_mode.y:9112 ID n after a partition
+opt_use_partition	(every site)	sql_parser_mysql_mode.y:14685 PARTITION after a table
+opt_paxos_replica_num	(every site)	sql_parser_mysql_mode.y:21648 PAXOS_REPLICA_NUM
+opt_for_user	(every site)	sql_parser_mysql_mode.y:17359 FOR a user
+opt_attribute	(every site)	sql_parser_mysql_mode.y:22465 ATTRIBUTE and a string
+opt_access_info	(every site)	sql_parser_mysql_mode.y:22452 ACCESS_INFO and a string
+outline_type	(every site)	sql_parser_mysql_mode.y:15706 FORMAT
 # Keyword choices tried in each of their forms at every site that names
 # them, and not only where the rule's own alternatives are reached (see
 # grammar.EveryAlternative).
@@ -157,6 +169,28 @@ mlog_with_special_column	(every alternative)	sql_parser_mysql_mode.y:10804 PRIMA
 audit_whenever_option	(every alternative)	sql_parser_mysql_mode.y:19025 WHENEVER [NOT] SUCCESSFUL
 opt_auth_plugin	(every alternative)	sql_parser_mysql_mode.y:16926 WITH a string or a name
 opt_ignore_or_replace	(every alternative)	sql_parser_mysql_mode.y:5797 IGNORE or REPLACE
+user	(every alternative)	sql_parser_mysql_mode.y:17133 a string, a name or an unreserved word
+user_with_host_name	(every alternative)	sql_parser_mysql_mode.y:17177 a user or CURRENT_USER
+literal	(every alternative)	sql_parser_mysql_mode.y:1382 a literal
+on_error_query	(every alternative)	sql_parser_mysql_mode.y:25174 a JSON function's ON ERROR
+on_empty_query	(every alternative)	sql_parser_mysql_mode.y:25201 a JSON function's ON EMPTY
+on_mismatch_query	(every alternative)	sql_parser_mysql_mode.y:25160 a JSON function's ON MISMATCH
+expr_const	(every alternative)	sql_parser_mysql_mode.y:1408 a constant
+var_name	(every alternative)	sql_parser_mysql_mode.y:24308 a variable's name
+limit_clause	(every alternative)	sql_parser_mysql_mode.y:11914 LIMIT n, LIMIT n, n or LIMIT n OFFSET n
+parallel_option	(every alternative)	sql_parser_mysql_mode.y:8348 PARALLEL n or NOPARALLEL
+priv_level	(every alternative)	sql_parser_mysql_mode.y:18395 a privilege's object
+compression_name	(every alternative)	sql_parser_mysql_mode.y:5340 a name, a string or an unreserved word
+alter_or_change_or_modify	(every alternative)	sql_parser_mysql_mode.y:22428 ALTER, CHANGE or MODIFY
+opt_lock_type	(every alternative)	sql_parser_mysql_mode.y:11526 FOR UPDATE or LOCK IN SHARE MODE
+signed_literal	(every alternative)	sql_parser_mysql_mode.y:7692 a literal or a signed number
+cur_timestamp_func	(every alternative)	sql_parser_mysql_mode.y:3782 NOW or a synonym
+charset_name_or_default	(every alternative)	sql_parser_mysql_mode.y:7483 a character set or DEFAULT
+size_clause	(every alternative)	sql_parser_mysql_mode.y:23868 SIZE AUTO, REPEAT, SKEWONLY or n
+default_set_role_clause	(every alternative)	sql_parser_mysql_mode.y:18738 roles, NONE or ALL
+audit_operation_clause	(every alternative)	sql_parser_mysql_mode.y:18912 an audited operation
+opt_position_column	(every alternative)	sql_parser_mysql_mode.y:20078 FIRST, BEFORE or AFTER a column
+mview_refresh_opt	(every alternative)	sql_parser_mysql_mode.y:9856 REFRESH or NEVER REFRESH
 # Literals, operators and the tokens the lexer forms from other text.
 NAME_OB	a
 .	(spaced)	the lexer reads a word, a dot and a word as one token ({start_identifier}"."{identifier}), so a dot that is a token of its own stands apart
