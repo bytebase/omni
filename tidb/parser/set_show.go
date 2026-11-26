@@ -353,10 +353,13 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 		}
 	} else {
 		// SetPwdStmt (parser.y:10750,10754) spells the separator EqOrAssignmentEq,
-		// so `= 'auth_string'` requires the `=`; a missing one is a 1064. (The `:=`
-		// spelling never reaches here: the heuristic at the call site routes
-		// `SET PASSWORD := ...` to a variable assignment instead.)
-		if _, err := p.expect('='); err != nil {
+		// so `= 'auth_string'` requires the `=` or, after FOR user, `:=`; a
+		// missing one is a 1064. (A bare `SET PASSWORD := ...` never reaches
+		// here: the heuristic at the call site routes it to a variable
+		// assignment instead.)
+		if p.cur.Type == tokAssign && stmt.User != nil {
+			p.advance()
+		} else if _, err := p.expect('='); err != nil {
 			return nil, err
 		}
 

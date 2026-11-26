@@ -33,10 +33,11 @@ func TestWalkSimulation(t *testing.T) {
 		// CREATE TABLE gets wrong (1480, 1484, 1492, 1504), a column moved
 		// AFTER itself (1054), CREATE TEMPORARY TABLE LIKE a partitioned
 		// table (1562), and an HNSW key on a column that isn't a vector
-		// (8200). The queries misses are rows omni's parser refuses (1064).
+		// (8200). The queries misses are rows omni's parser refuses (1064)
+		// and INSERT called with one argument where it takes four (1582).
 		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 97.8},
 		{"sequences", filepath.Join("..", "catalog", "testdata", "sequences", "simulate.tsv"), 100.0},
-		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 96.5},
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 97.4},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{
