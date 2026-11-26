@@ -1900,7 +1900,12 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 			return err
 		}
 		columns[string(def.Name)] = true
-		if err := c.checkTableDef(table.Name, columns, def); err != nil {
+		// The foreign key the column declares checks the column's type.
+		typ, _ := sdlType(def.Type)
+		c.pending = &metadatapb.TableMetadata{Name: table.Name, Columns: append(slices.Clone(table.Columns), &metadatapb.ColumnMetadata{Name: string(def.Name), Type: typ})}
+		err := c.checkTableDef(table.Name, columns, def)
+		c.pending = table
+		if err != nil {
 			return err
 		}
 		return c.l.addColumn(schema, table, def)
@@ -2248,6 +2253,20 @@ func (c *Catalog) dropColumn(schema string, table *metadatapb.TableMetadata, nam
 	table.Indexes = slices.DeleteFunc(table.Indexes, func(index *metadatapb.IndexMetadata) bool {
 		return !index.Primary && indexReadsColumn(index, name)
 	})
+	// A foreign key that relied on an index the column took along needs
+	// CASCADE, which takes it.
+	var orphans []*metadatapb.ForeignKeyMetadata
+	for _, fk := range c.referencing(schema, table.Name, "") {
+		if !slices.ContainsFunc(table.Indexes, func(i *metadatapb.IndexMetadata) bool {
+			return i.Unique && sameSet(i.Expressions, fk.ReferencedColumns)
+		}) {
+			orphans = append(orphans, fk)
+		}
+	}
+	if len(orphans) > 0 && !cascade {
+		return &Error{Message: fmt.Sprintf("dropping column %q drops an index foreign key %q relies on", name, orphans[0].Name)}
+	}
+	c.dropForeignKeys(orphans)
 	table.CheckConstraints = slices.DeleteFunc(table.CheckConstraints, func(check *metadatapb.CheckConstraintMetadata) bool {
 		expr, err := parser.ParseExpr(check.Expression)
 		return err == nil && checkColumns(map[string]bool{}, expr) != nil && exprReads(expr, name)
