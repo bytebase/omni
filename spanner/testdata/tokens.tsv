@@ -62,8 +62,6 @@ opt_limit_offset_clause	(every site)	googlesql.tm:8512 LIMIT [OFFSET]
 opt_lock_mode_clause	(every site)	googlesql.tm:8531 FOR UPDATE
 opt_asc_or_desc	(every site)	googlesql.tm:8737 ASC or DESC
 opt_null_order	(every site)	googlesql.tm:8759 NULLS FIRST or NULLS LAST
-opt_all_or_distinct	(every site)	googlesql.tm:5853 ALL or DISTINCT
-opt_select_as_clause	(every site)	googlesql.tm:5750 AS STRUCT, AS VALUE or AS a type
 opt_int_literal_or_parameter	(every site)	googlesql.tm:6067 a count or a parameter
 
 # Keyword choices written in each of their forms at every site that names
@@ -97,3 +95,56 @@ possibly_empty_grantee_list	(every alternative)	googlesql.tm:4543 a grantee list
 possibly_unbounded_int_literal_or_parameter	(every alternative)	googlesql.tm:8578 a count or UNBOUNDED
 on_or_using_clause	(every alternative)	googlesql.tm:7930 ON or USING
 dynamic_label_or_properties	(every alternative)	googlesql.tm:2835 DYNAMIC LABEL or DYNAMIC PROPERTIES
+
+# Second pass: choices named at several sites, each written in every form
+# at each of them (opt_all_or_distinct and opt_select_as_clause moved here
+# from (every site), which this form supersedes).
+create_scope	(every alternative)	googlesql.tm:11856 TEMP, TEMPORARY, PUBLIC or PRIVATE
+opt_all_or_distinct	(every alternative)	googlesql.tm:5853 ALL, DISTINCT or nothing in a SELECT
+join_type_base	(every alternative)	googlesql.tm:7943 CROSS, FULL, INNER, LEFT or RIGHT JOIN
+join_hint_base	(every alternative)	googlesql.tm:7974 HASH or LOOKUP JOIN
+int_literal_or_parameter	(every alternative)	googlesql.tm:6075 a count, a parameter or a system variable
+possibly_cast_int_literal_or_parameter	(every alternative)	googlesql.tm:6090 a count or a CAST of one
+string_literal_or_parameter	(every alternative)	googlesql.tm:8766 a string, a parameter or a system variable
+parameter_expression	(every alternative)	googlesql.tm:10192 @name or ?
+identifier_or_integer	(every alternative)	googlesql.tm:9887 a name or a number in a path
+type_name	(every alternative)	googlesql.tm:10214 a type name or INTERVAL
+transaction_mode	(every alternative)	googlesql.tm:1985 READ ONLY, READ WRITE or ISOLATION LEVEL
+remote_with_connection_clause	(every alternative)	googlesql.tm:2309 REMOTE [WITH CONNECTION] or WITH CONNECTION
+window_frame_bound	(every alternative)	googlesql.tm:11128 UNBOUNDED, CURRENT ROW or an expression
+opt_select_as_clause	(every alternative)	googlesql.tm:5750 SELECT AS STRUCT or AS a type
+as_sql_function_body_or_string	(every alternative)	googlesql.tm:2352 AS (body) or AS 'string'
+insert_mode	(every alternative)	googlesql.tm:12026 INSERT [OR] IGNORE, OR REPLACE or OR UPDATE
+signed_numerical_literal	(every alternative)	googlesql.tm:3508 a number, signed or not
+table_element	(every alternative)	googlesql.tm:3348 a column or a constraint
+struct_field	(every alternative)	googlesql.tm:10255 a STRUCT field, named or not
+tvf_schema_column	(every alternative)	googlesql.tm:4085 a TABLE<...> column, named or not
+type_parameter	(every alternative)	googlesql.tm:10341 a type parameter: a literal or MAX
+grouping_set	(every alternative)	googlesql.tm:8206 (), an expression, ROLLUP or CUBE
+maybe_dashed_path_expression	(every alternative)	googlesql.tm:9823 a path, dashed or not
+maybe_slashed_or_dashed_path_expression	(every alternative)	googlesql.tm:9851 a path, slashed, dashed or not
+string_literal	(every alternative)	googlesql.tm:11369 a string, or adjacent strings
+bytes_literal	(every alternative)	googlesql.tm:11431 bytes, or adjacent bytes
+select_list	(every alternative)	googlesql.tm:5879 a select list, with or without a trailing comma
+table_element_list	(every alternative)	googlesql.tm:3286 a table element list, or ()
+table_constraint_spec	(every alternative)	googlesql.tm:3833 CHECK or FOREIGN KEY
+returning_clause	(every alternative)	googlesql.tm:11983 THEN RETURN [WITH ACTION [AS a]]
+named_argument	(every alternative)	googlesql.tm:10907 a => argument: expression, lambda or table
+type_or_tvf_schema	(every alternative)	googlesql.tm:10440 a type, templated type or TABLE<...>
+update_item	(every alternative)	googlesql.tm:12315 a SET item or a nested DML statement
+query	(every alternative)	googlesql.tm:4818 a query, with or without pipe operators
+column_attribute	(every alternative)	googlesql.tm:3723 PRIMARY KEY, REFERENCES, HIDDEN or NOT NULL
+limit_offset_clause	(every alternative)	googlesql.tm:8477 LIMIT [ALL] [OFFSET]
+grouping_item	(every alternative)	googlesql.tm:8288 a grouping item: (), ROLLUP, CUBE, GROUPING SETS or an expression
+with_clause_entry	(every alternative)	googlesql.tm:8677 a WITH entry: a query or a group-rows alias
+execute_using_argument	(every alternative)	googlesql.tm:12691 an EXECUTE IMMEDIATE argument, named or not
+generic_entity_body	(every alternative)	googlesql.tm:3221 a JSON or string body
+new_constructor_arg	(every alternative)	googlesql.tm:10453 a NEW argument, aliased or not
+graph_return_item	(every alternative)	googlesql.tm:6908 a RETURN item, aliased, or *
+parenthesized_identifier_list	(every alternative)	googlesql.tm:7162 (a, ...) or ()
+function_call_argument	(every alternative)	googlesql.tm:10873 a function argument: expression, named, lambda, sequence or query
+properties_clause	(every alternative)	googlesql.tm:2786 NO PROPERTIES, PROPERTIES ALL COLUMNS or a list
+
+# Optional clauses of the second pass, tried at every site.
+opt_natural	(every site)	googlesql.tm:6056 NATURAL
+opt_per_clause	(every site)	googlesql.tm:7173 PER (a, ...)

@@ -129,16 +129,22 @@ func (p *Parser) parseQuery() (*ast.QueryStmt, error) {
 	return q, nil
 }
 
-// parseQueryLimitOffset parses the query-level `LIMIT count [OFFSET skip]`
-// (limit_offset_clause) into q. LIMIT is the current token.
+// parseQueryLimitOffset parses the query-level `LIMIT { count | ALL } [OFFSET
+// skip]` (limit_offset_clause, googlesql.tm:8477; limit_all is `LIMIT ALL`,
+// 8504) into q. LIMIT is the current token.
 func (p *Parser) parseQueryLimitOffset(q *ast.QueryStmt) error {
 	p.advance() // LIMIT
-	lim, err := p.parseExpr()
-	if err != nil {
-		return err
+	if p.cur.Type == kwALL {
+		q.LimitAll = true
+		q.Loc.End = p.advance().Loc.End
+	} else {
+		lim, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		q.Limit = lim
+		q.Loc.End = nodeLoc(lim).End
 	}
-	q.Limit = lim
-	q.Loc.End = nodeLoc(lim).End
 	if p.cur.Type == kwOFFSET {
 		p.advance()
 		off, err := p.parseExpr()
