@@ -68,10 +68,10 @@ that hold the text.
   its columns and no definition.
 - Table functions: BigQuery reports the tables a table function reads. The
   sync stores no routines, so omni lists none of them.
-- Pipe syntax: omni fails closed on a pipe operator that changes the
-  projection (`|> SELECT`, `EXTEND`, `AGGREGATE`, `SET`, `DROP`, `RENAME`,
-  `JOIN`, `PIVOT`, `WINDOW`, a set operation, `CALL`). Pipes that keep it
-  (`WHERE`, `ORDER BY`, `LIMIT`, `DISTINCT`, `TABLESAMPLE`) agree.
+- Pipe syntax: omni fails closed on `PIVOT`, `UNPIVOT`, `CALL`,
+  `MATCH_RECOGNIZE` and a recursive union, and on any operator that changes
+  the projection of an input it cannot list column by column (a wildcard
+  table, a table without metadata). The other operators agree.
 - Stars omni does not expand: a struct column's fields (`Ship.*`, and
   `UNNEST` of an array of structs under `*`), a wildcard table's columns
   (`` `events_*` ``, whose schema BigQuery takes from the newest matching

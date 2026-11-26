@@ -946,6 +946,178 @@
 < raw
 | {"error":"invalidQuery","message":"Table-valued function not found: OrdersOf at [1:24]"}
 > raw
+| {"op":"query","sql":"FROM Customers c |\u003e SET Name = Email |\u003e SELECT c.Name, Name"}
+< raw
+| {"columns":["Name","Name_1"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers c |\u003e DROP Email |\u003e SELECT c.Email, *"}
+< raw
+| {"columns":["Email","CustomerId","Name","Region"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers c |\u003e RENAME Name AS n |\u003e SELECT c.Name, n"}
+< raw
+| {"columns":["Name","n"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers c |\u003e EXTEND UPPER(Name) AS u |\u003e SELECT c.Email, u"}
+< raw
+| {"columns":["Email","u"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers c |\u003e WHERE Region = 'eu' |\u003e SELECT c.*"}
+< raw
+| {"columns":["CustomerId","Name","Email","Region"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e SELECT Customers.Name"}
+< raw
+| {"columns":["Name"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers, Targets |\u003e SELECT Customers.Name, Targets.Goal"}
+< raw
+| {"columns":["Name","Goal"],"tables":["omni_span.Customers","omni_span.Targets"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e SET Name = Email, Email = Name"}
+< raw
+| {"columns":["CustomerId","Name","Email","Region"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e EXTEND Email AS Contact |\u003e DROP Email |\u003e RENAME Contact AS Email"}
+< raw
+| {"columns":["CustomerId","Name","Region","Email"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e DROP email, region"}
+< raw
+| {"columns":["CustomerId","Name"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM MixedCase |\u003e RENAME camelcol AS Renamed"}
+< raw
+| {"columns":["Id","Renamed","lower_col"],"tables":["omni_span.MixedCase"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e SET Name = Email |\u003e AS c |\u003e SELECT c.Name"}
+< raw
+| {"columns":["Name"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e JOIN Orders USING (CustomerId)"}
+< raw
+| {"columns":["CustomerId","Name","Email","Region","OrderId","Amount","Status","Items","Ship","Placed"],"tables":["omni_span.Customers","omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"FROM Customers c |\u003e JOIN Orders o ON c.CustomerId = o.CustomerId"}
+< raw
+| {"columns":["CustomerId","Name","Email","Region","CustomerId_1","OrderId","Amount","Status","Items","Ship","Placed"],"tables":["omni_span.Customers","omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"FROM Customers c |\u003e JOIN Orders o USING (CustomerId) |\u003e SELECT c.CustomerId, o.CustomerId, CustomerId"}
+< raw
+| {"columns":["CustomerId","CustomerId_1","CustomerId_2"],"tables":["omni_span.Customers","omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e AS c |\u003e JOIN Orders AS o ON c.CustomerId = o.CustomerId |\u003e SELECT c.Name, o.OrderId"}
+< raw
+| {"columns":["Name","OrderId"],"tables":["omni_span.Customers","omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"FROM Orders o |\u003e CROSS JOIN UNNEST(o.Items) AS item WITH OFFSET |\u003e SELECT item, offset"}
+< raw
+| {"columns":["item","offset"],"tables":["omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"FROM Products |\u003e JOIN UNNEST(Tags) AS tag |\u003e SELECT Name, tag.k"}
+< raw
+| {"columns":["Name","k"],"tables":["omni_span.Products"]}
+> raw
+| {"op":"query","sql":"FROM Orders |\u003e AGGREGATE SUM(Amount) AS total, COUNT(*) GROUP BY ROLLUP(CustomerId, Status)"}
+< raw
+| {"columns":["CustomerId","Status","total","f0_"],"tables":["omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"FROM Orders |\u003e AGGREGATE COUNT(*) GROUP BY GROUPING SETS ((Status), (Status, CustomerId))"}
+< raw
+| {"columns":["Status","CustomerId","f0_"],"tables":["omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"FROM Orders |\u003e AGGREGATE MAX(Amount) AS top GROUP AND ORDER BY Status DESC, CustomerId"}
+< raw
+| {"columns":["Status","CustomerId","top"],"tables":["omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"FROM Orders |\u003e AGGREGATE SUM(Amount) AS total GROUP BY CustomerId AS cid |\u003e JOIN Customers ON cid = Customers.CustomerId |\u003e SELECT Name, total"}
+< raw
+| {"columns":["Name","total"],"tables":["omni_span.Customers","omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"FROM Orders |\u003e EXTEND Ship.City AS city |\u003e AGGREGATE COUNT(*) AS n GROUP BY city"}
+< raw
+| {"columns":["city","n"],"tables":["omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e AGGREGATE COUNT(DISTINCT Region) AS regions"}
+< raw
+| {"columns":["regions"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e SELECT Name, Region |\u003e UNION ALL BY NAME (SELECT Region, Name FROM Customers)"}
+< raw
+| {"columns":["Name","Region"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e SELECT Name |\u003e UNION DISTINCT (SELECT Name FROM Products), (SELECT Name FROM Employees)"}
+< raw
+| {"columns":["Name"],"tables":["omni_span.Customers","omni_span.Employees","omni_span.Products"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e SELECT CustomerId |\u003e INTERSECT DISTINCT (SELECT CustomerId FROM Orders)"}
+< raw
+| {"columns":["CustomerId"],"tables":["omni_span.Customers","omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e SELECT * |\u003e SELECT Name"}
+< raw
+| {"columns":["Name"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e SELECT * REPLACE (Email AS Name) |\u003e SELECT Name"}
+< raw
+| {"columns":["Name"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e SELECT * EXCEPT (Email) |\u003e EXTEND 1 AS one"}
+< raw
+| {"columns":["CustomerId","Name","Region","one"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e EXTEND Name AS Name2 |\u003e SELECT * EXCEPT (Name)"}
+< raw
+| {"columns":["CustomerId","Email","Region","Name2"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"SELECT * FROM Customers |\u003e DROP Email |\u003e SET Name = LOWER(Name)"}
+< raw
+| {"columns":["CustomerId","Name","Region"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"SELECT c.Name, o.Amount FROM Customers c JOIN Orders o USING (CustomerId) |\u003e EXTEND Amount * 2 AS twice"}
+< raw
+| {"columns":["Name","Amount","twice"],"tables":["omni_span.Customers","omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"WITH big AS (FROM Orders |\u003e WHERE Amount \u003e 10 |\u003e SELECT CustomerId, Amount) SELECT c.Name, big.Amount FROM big JOIN Customers c USING (CustomerId)"}
+< raw
+| {"columns":["Name","Amount"],"tables":["omni_span.Customers","omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"SELECT * FROM (FROM Customers |\u003e RENAME Email AS mail |\u003e DROP Name)"}
+< raw
+| {"columns":["CustomerId","mail","Region"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e EXTEND (SELECT MAX(Amount) FROM Orders o WHERE o.CustomerId = Customers.CustomerId) AS top"}
+< raw
+| {"columns":["CustomerId","Name","Email","Region","top"],"tables":["omni_span.Customers","omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"FROM CustomerOrders |\u003e RENAME Amount AS total"}
+< raw
+| {"columns":["CustomerId","Name","OrderId","total"],"tables":["omni_span.CustomerOrders","omni_span.Customers","omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e SELECT Name |\u003e UNION ALL (SELECT Name FROM Products) |\u003e SELECT Name"}
+< raw
+| {"columns":["Name"],"tables":["omni_span.Customers","omni_span.Products"]}
+> raw
+| {"op":"query","sql":"SELECT c.Name FROM (FROM Customers AS c)"}
+< raw
+| {"columns":["Name"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"(FROM Customers AS c |\u003e WHERE Region = 'eu') |\u003e SELECT c.Email"}
+< raw
+| {"columns":["Email"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"(FROM Customers |\u003e AS c) |\u003e SELECT c.Name"}
+< raw
+| {"columns":["Name"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM (FROM Customers AS c |\u003e SET Name = Email) |\u003e SELECT c.Name, Name"}
+< raw
+| {"columns":["Name","Name_1"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"SELECT c.Name FROM (FROM Customers AS c) AS s"}
+< raw
+| {"error":"invalidQuery","message":"Unrecognized name: c at [1:8]"}
+> raw
 | {"op":"query","sql":"SELECT table_name FROM omni_span.INFORMATION_SCHEMA.TABLES"}
 < raw
 | {"columns":["table_name"],"tables":["omni_span.INFORMATION_SCHEMA.TABLES"]}

@@ -50,7 +50,10 @@ func (q *querySpanResolver) getQuerySpan(statement string) (*ResolvedQuerySpan, 
 		return nil, fmt.Errorf("expecting only one statement to get query span, but got %d", count)
 	}
 
-	rawSpan, err := GetQuerySpan(single)
+	rawSpan, err := getQuerySpan(single, func(ref ColumnRef) ([]string, bool) {
+		_, columns, err := q.tableColumns(ref.Database, ref.Schema, ref.Table)
+		return columns, err == nil && len(columns) > 0
+	})
 	if err != nil {
 		return nil, err
 	}
