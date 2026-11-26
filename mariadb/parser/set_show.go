@@ -858,6 +858,14 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		} else if p.cur.Type == kwPROCESSLIST {
 			stmt.Type = "FULL PROCESSLIST"
 			p.advance()
+		} else if p.cur.Type == kwTRIGGERS {
+			// show_param: opt_full TRIGGERS_SYM opt_db wild_and_where
+			// (sql_yacc.yy:14327).
+			stmt.Type = "FULL TRIGGERS"
+			p.advance()
+			if err := p.parseShowFromLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
 		} else {
 			return nil, p.syntaxErrorAtCur()
 		}

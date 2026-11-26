@@ -67,6 +67,10 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 		return nil, err
 	}
 	stmt.Table = ref
+	// alter: ... table_ident opt_lock_wait_timeout alter_commands (sql_yacc.yy:7448).
+	if stmt.NoWait, stmt.HasWait, stmt.WaitSeconds, err = p.parseIndexLockWait(); err != nil {
+		return nil, err
+	}
 	outer := p.ddlTable
 	outerFieldDBs := p.ddlFieldDBs
 	p.ddlTable = ref

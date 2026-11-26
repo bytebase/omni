@@ -190,6 +190,9 @@ func (p *Parser) parseDataTypeNames() (*nodes.DataType, error) {
 			if err := p.parseRequiredLength(dt); err != nil {
 				return nil, err
 			}
+			if err := p.parseCompressed(dt); err != nil {
+				return nil, err
+			}
 		} else {
 			if err := p.parseOptionalLength(dt); err != nil {
 				return nil, err
@@ -205,6 +208,9 @@ func (p *Parser) parseDataTypeNames() (*nodes.DataType, error) {
 		if err := p.parseRequiredLength(dt); err != nil {
 			return nil, err
 		}
+		if err := p.parseCompressed(dt); err != nil {
+			return nil, err
+		}
 		if err := p.parseCharsetCollate(dt); err != nil {
 			return nil, err
 		}
@@ -215,6 +221,9 @@ func (p *Parser) parseDataTypeNames() (*nodes.DataType, error) {
 		if err := p.parseOptionalLength(dt); err != nil {
 			return nil, err
 		}
+		if err := p.parseCompressed(dt); err != nil {
+			return nil, err
+		}
 		if err := p.parseCharsetCollate(dt); err != nil {
 			return nil, err
 		}
@@ -222,6 +231,9 @@ func (p *Parser) parseDataTypeNames() (*nodes.DataType, error) {
 	case kwTINYTEXT:
 		dt.Name = "TINYTEXT"
 		p.advance()
+		if err := p.parseCompressed(dt); err != nil {
+			return nil, err
+		}
 		if err := p.parseCharsetCollate(dt); err != nil {
 			return nil, err
 		}
@@ -229,6 +241,9 @@ func (p *Parser) parseDataTypeNames() (*nodes.DataType, error) {
 	case kwMEDIUMTEXT:
 		dt.Name = "MEDIUMTEXT"
 		p.advance()
+		if err := p.parseCompressed(dt); err != nil {
+			return nil, err
+		}
 		if err := p.parseCharsetCollate(dt); err != nil {
 			return nil, err
 		}
@@ -236,6 +251,9 @@ func (p *Parser) parseDataTypeNames() (*nodes.DataType, error) {
 	case kwLONGTEXT:
 		dt.Name = "LONGTEXT"
 		p.advance()
+		if err := p.parseCompressed(dt); err != nil {
+			return nil, err
+		}
 		if err := p.parseCharsetCollate(dt); err != nil {
 			return nil, err
 		}
@@ -287,18 +305,30 @@ func (p *Parser) parseDataTypeNames() (*nodes.DataType, error) {
 		if err := p.parseOptionalLength(dt); err != nil {
 			return nil, err
 		}
+		if err := p.parseCompressed(dt); err != nil {
+			return nil, err
+		}
 
 	case kwTINYBLOB:
 		dt.Name = "TINYBLOB"
 		p.advance()
+		if err := p.parseCompressed(dt); err != nil {
+			return nil, err
+		}
 
 	case kwMEDIUMBLOB:
 		dt.Name = "MEDIUMBLOB"
 		p.advance()
+		if err := p.parseCompressed(dt); err != nil {
+			return nil, err
+		}
 
 	case kwLONGBLOB:
 		dt.Name = "LONGBLOB"
 		p.advance()
+		if err := p.parseCompressed(dt); err != nil {
+			return nil, err
+		}
 
 	// Binary types
 	case kwBINARY:
@@ -312,6 +342,9 @@ func (p *Parser) parseDataTypeNames() (*nodes.DataType, error) {
 		dt.Name = "VARBINARY"
 		p.advance()
 		if err := p.parseRequiredLength(dt); err != nil {
+			return nil, err
+		}
+		if err := p.parseCompressed(dt); err != nil {
 			return nil, err
 		}
 
@@ -361,6 +394,9 @@ func (p *Parser) parseDataTypeNames() (*nodes.DataType, error) {
 	case kwJSON:
 		dt.Name = "JSON"
 		p.advance()
+		if err := p.parseCompressed(dt); err != nil {
+			return nil, err
+		}
 
 	// Spatial types
 	case kwGEOMETRY, kwPOINT, kwLINESTRING, kwPOLYGON,
@@ -435,6 +471,9 @@ func (p *Parser) parseDataTypeNames() (*nodes.DataType, error) {
 			if err := p.parseRequiredLength(dt); err != nil {
 				return nil, err
 			}
+			if err := p.parseCompressed(dt); err != nil {
+				return nil, err
+			}
 		} else {
 			dt.Name = "CHAR"
 			if err := p.parseOptionalLength(dt); err != nil {
@@ -451,6 +490,9 @@ func (p *Parser) parseDataTypeNames() (*nodes.DataType, error) {
 		dt.Charset = "utf8mb3"
 		p.advance()
 		if err := p.parseRequiredLength(dt); err != nil {
+			return nil, err
+		}
+		if err := p.parseCompressed(dt); err != nil {
 			return nil, err
 		}
 		if err := p.parseNationalModifiers(dt); err != nil {
@@ -525,6 +567,9 @@ func (p *Parser) parseDataTypeNames() (*nodes.DataType, error) {
 		case p.cur.Type == kwVARCHAR || p.cur.Type == kwVARCHARACTER:
 			p.advance()
 			dt.Name = "MEDIUMTEXT"
+			if err := p.parseCompressed(dt); err != nil {
+				return nil, err
+			}
 			if err := p.parseCharsetCollate(dt); err != nil {
 				return nil, err
 			}
@@ -532,14 +577,23 @@ func (p *Parser) parseDataTypeNames() (*nodes.DataType, error) {
 			p.advance()
 			p.advance()
 			dt.Name = "MEDIUMTEXT"
+			if err := p.parseCompressed(dt); err != nil {
+				return nil, err
+			}
 			if err := p.parseCharsetCollate(dt); err != nil {
 				return nil, err
 			}
 		case p.cur.Type == kwVARBINARY:
 			p.advance()
 			dt.Name = "MEDIUMBLOB"
+			if err := p.parseCompressed(dt); err != nil {
+				return nil, err
+			}
 		default:
 			dt.Name = "MEDIUMTEXT"
+			if err := p.parseCompressed(dt); err != nil {
+				return nil, err
+			}
 			if err := p.parseCharsetCollate(dt); err != nil {
 				return nil, err
 			}
@@ -913,6 +967,33 @@ func collationCharsetRefusal(charset, collation string, pos int) *ParseError {
 		Message:  "COLLATION '" + strings.ToLower(collation) + "' is not valid for CHARACTER SET '" + settled + "'",
 		Position: pos,
 	}
+}
+
+// parseCompressed reads MariaDB's column compression, `COMPRESSED [= method]`,
+// where a type takes opt_compressed or opt_binary_and_compression: VARCHAR,
+// VARBINARY, the TEXT and BLOB types, LONG and JSON, before any character set.
+// The action takes zlib, the one method, and answers
+// ER_UNKNOWN_COMPRESSION_METHOD for any other name while parsing.
+//
+// Ref: compressed, opt_compression_method, opt_compressed and
+// opt_binary_and_compression in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseCompressed(dt *nodes.DataType) error {
+	if p.cur.Type != kwCOMPRESSED {
+		return nil
+	}
+	p.advance() // consume COMPRESSED
+	if p.matchEqual() {
+		at := p.cur.Loc
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return err
+		}
+		if name != "zlib" {
+			return &ParseError{Message: "Unknown compression method: " + name, Position: at}
+		}
+	}
+	dt.Compressed = true
+	return nil
 }
 
 // parseNationalModifiers parses what a national type takes after it: BINARY and then a

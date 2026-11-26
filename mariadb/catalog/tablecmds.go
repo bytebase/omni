@@ -351,7 +351,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, source string) error 
 				col.AutoIncrement = true
 				col.Nullable = false
 			} else if typeName == "json" {
-				applyJSONColumn(col)
+				applyJSONColumn(col, colDef.TypeName.Compressed)
 			} else if typeName == "boolean" || typeName == "bool" {
 				col.DataType = "tinyint"
 				col.ColumnType = formatColumnType(colDef.TypeName)
@@ -359,6 +359,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, source string) error 
 				col.DataType = typeName
 				col.ColumnType = formatColumnType(colDef.TypeName)
 			}
+			col.ColumnType = releaseColumnType(db.version, col.ColumnType)
 			if isStringType(col.DataType) {
 				if isNationalStringType(colDef.TypeName.Name) {
 					col.Charset = "utf8mb3"
@@ -584,6 +585,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, source string) error 
 			})
 		}
 
+		applyCompressedNotNullDefault(col, colDef)
 		tbl.Columns = append(tbl.Columns, col)
 		tbl.colByName[colKey] = i
 	}
@@ -3282,6 +3284,11 @@ func isStringType(dt string) bool {
 // convertToBinaryType converts a string-type column with CHARACTER SET binary
 // to the equivalent binary type (char->binary, varchar->varbinary, text->blob, etc.).
 func convertToBinaryType(col *Column, dt *nodes.DataType) *Column {
+	// A compressed column keeps its comment through the conversion: measured on
+	// mariadb:11.8.8, `TEXT COMPRESSED CHARACTER SET binary` is
+	// blob /*M!100301 COMPRESSED*/.
+	_, suffix := splitColumnTypeComment(col.ColumnType)
+	defer func() { col.ColumnType += suffix }()
 	switch col.DataType {
 	case "char":
 		col.DataType = "binary"
@@ -3696,7 +3703,57 @@ func formatColumnType(dt *nodes.DataType) string {
 			buf.WriteString(" zerofill")
 		}
 	}
+	if dt.Compressed {
+		buf.WriteString(compressedSuffix)
+	}
 	return buf.String()
+}
+
+// applyCompressedNotNullDefault gives a compressed NOT NULL column with no DEFAULT
+// the empty string, which is what MariaDB stores for it: measured on mariadb:11.8.8,
+// `a VARCHAR(5) COMPRESSED NOT NULL` reads back with the empty string as its default, for TEXT, BLOB,
+// VARBINARY, LONG and JSON alike, from CREATE TABLE and ALTER TABLE MODIFY, and an
+// uncompressed column keeps no default.
+func applyCompressedNotNullDefault(col *Column, def *nodes.ColumnDef) {
+	if def == nil || def.TypeName == nil || !def.TypeName.Compressed || def.Generated != nil {
+		return
+	}
+	if col.Nullable || col.Default != nil {
+		return
+	}
+	// A TEXT or BLOB default is kept as its literal, quotes and all.
+	empty := ""
+	if isTextBlobType(col.DataType) {
+		empty = "''"
+	}
+	col.Default = &empty
+	col.DefaultKind = ColumnDefaultConstant
+}
+
+// compressedSuffix is how MariaDB writes a compressed column's type, in SHOW
+// CREATE TABLE and information_schema.COLUMNS.COLUMN_TYPE alike. Measured on
+// mariadb:11.8.8, 11.4.13 and 10.11.19: `a TEXT COMPRESSED` → text
+// /*M!100301 COMPRESSED*/. mariadb:10.7.8 writes the comment without the M
+// (releaseColumnType).
+const compressedSuffix = " /*M!100301 COMPRESSED*/"
+
+// splitColumnTypeComment splits a column type from the versioned comment a
+// compressed column carries after it (compressedSuffix), which a conversion to
+// another type keeps.
+func splitColumnTypeComment(columnType string) (typ, comment string) {
+	if i := strings.Index(columnType, " /*"); i >= 0 {
+		return columnType[:i], columnType[i:]
+	}
+	return columnType, ""
+}
+
+// releaseColumnType is a column type as v writes it: 10.7 writes a compressed
+// column's comment as /*!100301 COMPRESSED*/.
+func releaseColumnType(v Version, columnType string) string {
+	if v.release() < 1011 {
+		return strings.Replace(columnType, compressedSuffix, " /*!100301 COMPRESSED*/", 1)
+	}
+	return columnType
 }
 
 // applyJSONColumn gives a column declared JSON the shape MariaDB keeps it in.
@@ -3710,9 +3767,12 @@ func formatColumnType(dt *nodes.DataType) string {
 //
 // MySQL 8.0 has a JSON type of its own and reports it as one. The check lands
 // through jsonValidConstraint, so that a table built in either order holds it.
-func applyJSONColumn(col *Column) {
+func applyJSONColumn(col *Column, compressed bool) {
 	col.DataType = "longtext"
 	col.ColumnType = "longtext"
+	if compressed {
+		col.ColumnType += compressedSuffix
+	}
 	col.Charset = "utf8mb4"
 	col.Collation = "utf8mb4_bin"
 	col.IsJSON = true
@@ -3884,14 +3944,11 @@ func defaultIntDisplayWidth(typeName string, unsigned bool) int {
 	return 11
 }
 
-// isTextBlobLengthStripped returns true for types where MySQL strips the length
-// in SHOW CREATE TABLE output (TEXT(n) → text, BLOB(n) → blob).
+// isTextBlobLengthStripped returns true for types where MariaDB strips the length
+// in SHOW CREATE TABLE output (TEXT(n) → text, BLOB(n) → blob), and for the type a
+// length promotes TEXT or BLOB to: measured on mariadb:11.8.8, BLOB(10) is tinyblob.
 func isTextBlobLengthStripped(dt string) bool {
-	switch dt {
-	case "text", "blob":
-		return true
-	}
-	return false
+	return isTextBlobType(dt)
 }
 
 // escapeEnumValue escapes single quotes in ENUM/SET values for SHOW CREATE TABLE.
