@@ -252,15 +252,17 @@ func strictOffset(s string) bool {
 
 // isoLocalDateTime reads ISO_LOCAL_DATE_TIME, uuuu-MM-dd'T'HH:mm[:ss[.n]],
 // and returns what follows it. The year here takes four digits, or a sign
-// and more.
+// and four to nine.
 func isoLocalDateTime(s string) (string, bool) {
 	var y int
 	var ok bool
 	rest := s
 	if rest != "" && (rest[0] == '+' || rest[0] == '-') {
+		// SignStyle.EXCEEDS_PAD: a minus with four digits or more, a plus
+		// only with more than four, and YEAR's range of ±999,999,999.
 		neg := rest[0] == '-'
 		n := leadingDigits(rest[1:], 10)
-		if n <= 4 {
+		if n < 4 || !neg && n == 4 || n > 9 {
 			return "", false
 		}
 		y = atoiDigits(rest[1 : 1+n])
