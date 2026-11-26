@@ -9,18 +9,15 @@ import (
 type Statement = analysis.Statement
 
 // SplitStatements splits a script into statements with parser.Split, keeping
-// each statement's trailing ';' in its text and range. It returns nil when the
-// script holds no statement.
+// each statement's trailing ';' in its text and range. It returns nil for an
+// empty script.
 //
-// A segment holding no statement (a lone ';', a comment) is skipped, so every
-// Statement it returns has Empty false: its callers (the driver, explain,
-// ValidateQuery) execute or classify statements and never counted delimiters.
+// A segment holding no statement (a lone ';', a comment) is returned with Empty
+// set, so a caller that accounts for every delimiter sees one entry per ';'; a
+// caller that executes or classifies statements skips it.
 func SplitStatements(statement string) []Statement {
 	var stmts []Statement
 	for _, seg := range parser.Split(statement) {
-		if seg.Empty() {
-			continue
-		}
 		// parser.Split excludes the ';' from the segment and points ByteEnd at it.
 		text := seg.Text
 		end := seg.ByteEnd
@@ -30,6 +27,7 @@ func SplitStatements(statement string) []Statement {
 		}
 		stmts = append(stmts, Statement{
 			Text:  text,
+			Empty: seg.Empty(),
 			Start: seg.ByteStart,
 			End:   end,
 		})
