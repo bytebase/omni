@@ -996,6 +996,24 @@
 | CREATE INDEX a_d_idx ON a (d);]'); END;
 < ok 1 0
 > exec
+| CREATE VIEW v AS SELECT * ORDER BY 1, 1 ASC
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| CREATE VIEW v AS SELECT * ORDER BY 1, 1 NULLS FIRST
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
 | CREATE VIEW v AS SELECT * OFFSET 1 ROW
 < error
 | 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause

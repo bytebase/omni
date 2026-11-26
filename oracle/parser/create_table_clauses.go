@@ -422,12 +422,19 @@ func (p *Parser) parseMviewInmemoryColumnKeyword() error {
 // The list holds at least one parameter. A logging_clause stands only
 // after CACHE, NOCACHE or CACHE READS: Oracle 23ai refuses STORE
 // AS(LOGGING) and STORE AS(TABLESPACE t LOGGING) with ORA-22853 at the
-// LOGGING.
+// LOGGING. It takes one parameter of each lobParameterGroup.
 func (p *Parser) parseCreateTableLobStorageParameters() error {
 	if err := p.expectCreateTableToken('('); err != nil {
 		return err
 	}
+	seen := map[string]bool{}
 	for first := true; first || p.cur.Type != ')'; first = false {
+		if key := p.lobParameterGroup(); key != "" {
+			if seen[key] {
+				return p.syntaxErrorAtCur()
+			}
+			seen[key] = true
+		}
 		switch {
 		case p.cur.Type == kwTABLESPACE:
 			p.advance() // consume TABLESPACE

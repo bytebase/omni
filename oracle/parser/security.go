@@ -468,9 +468,12 @@ func (p *Parser) parseAlterResourceCostStmt(start int) (nodes.StmtNode, error) {
 				if seen[name] {
 					return nil, p.syntaxErrorAtTok(valTok)
 				}
-			} else if len(stmt.Costs) == 0 {
-				// The first cost takes its value (ORA-00923 at the end).
-				// Oracle 23ai takes a name without one after it.
+			} else if len(stmt.Costs) == 0 || !seen[name] || (p.cur.Type != ';' && p.cur.Type != tokEOF) {
+				// A cost takes its value (ORA-00923 at the end of the first,
+				// ORA-02383 after another). Oracle 23ai takes a name without
+				// one only as the statement's last word, repeating a cost it
+				// has set (ALTER RESOURCE COST CPU_PER_SESSION 1
+				// CPU_PER_SESSION).
 				return nil, p.syntaxErrorAtCur()
 			}
 			seen[name] = true
