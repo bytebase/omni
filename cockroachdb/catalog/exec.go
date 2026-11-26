@@ -3138,7 +3138,8 @@ func renameSequenceIn(def string, from, to [2]string) string {
 		if sequence, err := parser.ParseQualifiedTableName(str.RawString()); err == nil && schemaOf(sequence) == from[0] && string(sequence.ObjectName) == from[1] {
 			renamed := *call
 			renamed.Exprs = append(tree.Exprs{tree.NewStrVal(tree.NameString(to[0]) + "." + tree.NameString(to[1]))}, call.Exprs[1:]...)
-			return false, &renamed, nil
+			// Its other arguments may call the sequence too.
+			return true, &renamed, nil
 		}
 		return true, e, nil
 	})

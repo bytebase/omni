@@ -564,3 +564,9 @@ func TestExecRound36(t *testing.T) {
 	_, err := execLast(t, "CREATE TABLE t (a INT8); CREATE SEQUENCE sq OWNED BY t.a; CREATE VIEW v AS SELECT a, nextval('sq') AS n FROM t; DROP TABLE t CASCADE")
 	require.NoError(t, err)
 }
+
+func TestExecRound37(t *testing.T) {
+	c, err := execLast(t, "CREATE SCHEMA s; CREATE SEQUENCE s.sq; CREATE TABLE t (a INT8 DEFAULT setval('s.sq', nextval('s.sq'))); ALTER SCHEMA s RENAME TO s2")
+	require.NoError(t, err)
+	require.Equal(t, "setval('s2.sq', nextval('s2.sq'))", c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
+}
