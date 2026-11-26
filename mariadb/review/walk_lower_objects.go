@@ -257,7 +257,7 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 		b.Set(tk, walk.Present, v.Name)
 	}
 	rel := relKey(r.db, r.name)
-	b.Session(func() { b.w.triggered[rel] = true })
+	b.Session(func() { b.w.triggered[rel] = true; b.w.triggersMade[tk] = true })
 	return true
 }
 
@@ -280,8 +280,22 @@ func (b *builder) triggerChecks(v *ast.CreateTriggerStmt, r tableRef) {
 	if o.Follows {
 		clause = "FOLLOWS"
 	}
-	b.need(objKey(spaceTrigger, r.db, k), walk.Present, nil, rangeOf(o.Loc),
+	ordered := objKey(spaceTrigger, r.db, k)
+	b.need(ordered, walk.Present, nil, rangeOf(o.Loc),
 		review.Code(clause)+" names trigger "+review.Code(ident(o.TriggerName))+", which doesn't exist.", "") // 4031
+	// One the sync lists on the table, which the change has not dropped or
+	// made since, answers 4031 too when its time or event is another.
+	st := b.syncedOf(r)
+	if st == nil || b.w.triggersMade[ordered] {
+		return
+	}
+	when := strings.ToUpper(v.Timing + " " + v.Event)
+	if tr := st.triggers[k]; tr.name == o.TriggerName && tr.when != "" && tr.when != when {
+		if f, spelling := b.l.Lookup(ordered); f == walk.Present && spelling == o.TriggerName {
+			b.fail(rangeOf(o.Loc), []walk.Key{ordered}, review.ObjectNotFound,
+				review.Code(clause)+" names trigger "+review.Code(ident(o.TriggerName))+", which is a "+review.Code(tr.when)+" trigger, not "+review.Code(when)+".") // 4031
+		}
+	}
 }
 
 // triggerRowColumns checks that each NEW or OLD column a trigger's body
@@ -323,6 +337,7 @@ func (b *builder) dropTrigger(v *ast.DropTriggerStmt) bool {
 	if !v.IfExists {
 		b.need(tk, walk.Present, nil, b.anchor(), notFound("trigger", table(v.Name), ""), "") // 1360
 	}
+	b.Session(func() { b.w.triggersMade[tk] = true })
 	if f, spelling := b.l.Lookup(tk); f == walk.Present && spelling == v.Name.Name || f == walk.Absent {
 		b.Set(tk, walk.Absent, "")
 	} else {
