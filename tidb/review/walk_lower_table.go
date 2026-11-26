@@ -307,6 +307,10 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		if !ok {
 			return false
 		}
+		if k == primaryIndex && b.intHandle(r) {
+			b.fail(rng, nil, review.ObjectNotFound, "Index "+review.Code("PRIMARY")+" of "+review.Code(r.written)+" is its integer row handle, which TiDB keeps no index for.")
+			return true
+		}
 		b.need(idxKey(r.db, r.name, k), walk.Present, nil, rng, notFound("index", ident(c.Name), r.written), "")
 	case ast.ATTableOption:
 		if b.checkTableOption(c.Option, rng, true) {

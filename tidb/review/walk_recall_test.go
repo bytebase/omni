@@ -115,6 +115,7 @@ func TestWalkThroughTiDBTableFacts(t *testing.T) {
 		{"ALTER TABLE t CONVERT TO CHARSET latin1;", "TiDB can't change the character set of `t` from `utf8mb4` to `latin1`."},
 		{"ALTER TABLE t CHARSET utf8mb3;", "TiDB can't change the character set of `t` from `utf8mb4` to `utf8`."},
 		{"ALTER TABLE latin CHARSET binary;", "TiDB can't change the character set of `latin` from `latin1` to `binary`."},
+		{"ALTER TABLE latin CHARSET utf8;", "TiDB can't change the character set of `latin` from `latin1` to `utf8`."},
 		{"CREATE TABLE n (a int) CHARSET latin1;\nALTER TABLE n CHARSET binary;", "TiDB can't change the character set of `n` from `latin1` to `binary`."},
 		{"ALTER TABLE t AUTO_RANDOM_BASE = 100;", "Table `t` has no `AUTO_RANDOM` column to rebase."},
 		{"ALTER TABLE t TTL = nosuch + INTERVAL 1 DAY;", "Column `nosuch` doesn't exist in `t`."},
@@ -135,7 +136,6 @@ func TestWalkThroughTiDBTableFacts(t *testing.T) {
 	for _, sql := range []string{
 		"ALTER TABLE t CHARSET utf8mb4 COLLATE utf8mb4_general_ci;",
 		"ALTER TABLE latin CONVERT TO CHARSET utf8mb4;",
-		"ALTER TABLE latin CHARSET utf8;",
 		"ALTER TABLE t CHARSET utf8mb4;\nALTER TABLE t CHARSET utf8mb4;",
 		// A table created without a character set takes the database's,
 		// which the walk does not read.
@@ -433,6 +433,61 @@ func TestWalkThroughTiDBCheckColumns(t *testing.T) {
 		{sql: "ALTER TABLE bookings CHANGE COLUMN starts begins DATE;\nALTER TABLE bookings DROP COLUMN ends;"},
 		{sql: "DROP TABLE bookings;\nCREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE);\nALTER TABLE bookings DROP COLUMN starts;"},
 		{sql: "RENAME TABLE bookings TO b2;\nALTER TABLE b2 DROP COLUMN starts;", statement: 1, want: "Check constraint `chk_dates` uses column `starts`, which can't be dropped or renamed."},
+	} {
+		t.Run(tc.sql, func(t *testing.T) {
+			if tc.want == "" {
+				noFinding(t, tc.sql, target)
+				return
+			}
+			oneFinding(t, tc.sql, tc.statement, tc.want, target)
+		})
+	}
+}
+
+// TestWalkThroughTiDBColumnSet pins the checks a table's synced columns
+// settle (walk_column_set.go): character set moves, generated columns, the
+// integer row handle, and invisible primary keys. Each refusal was
+// verified on v8.5.5 in tidb/catalog's simulate.tsv.
+func TestWalkThroughTiDBColumnSet(t *testing.T) {
+	c, err := tidbcatalog.LoadSQL("CREATE DATABASE shop;\nUSE shop;\n" +
+		"CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1;\n" +
+		"CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, age INT, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))));\n" +
+		"CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));")
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := review.Target{Schema: c.DatabaseMetadata("shop"), ForeignKeyChecks: review.SwitchOn}
+	for _, tc := range []shapeCase{
+		{sql: "ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4;", want: "TiDB can't change the character set of column `code` of `notes` from `ascii` to `utf8mb4`."},
+		{sql: "ALTER TABLE notes CONVERT TO CHARACTER SET latin1;", want: "TiDB can't change the character set of column `code` of `notes` from `ascii` to `latin1`."},
+		{sql: "ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb3;", want: "TiDB can't change the character set of `notes` from `latin1` to `utf8`."},
+		{sql: "ALTER TABLE notes MODIFY tag VARCHAR(20);", want: "TiDB can't change the character set of column `tag` of `notes` from `utf8mb4` to `latin1`."},
+		{sql: "ALTER TABLE notes MODIFY title VARCHAR(100) CHARACTER SET utf8mb4;"},
+		{sql: "ALTER TABLE notes MODIFY body TEXT CHARACTER SET utf8mb4;"},
+		{sql: "ALTER TABLE notes DEFAULT CHARSET = utf8mb4;"},
+		// The walk follows a table's columns no further than the sync.
+		{sql: "ALTER TABLE notes DROP COLUMN code;\nALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4;"},
+		{sql: "ALTER TABLE people MODIFY full_name VARCHAR(101);", want: "TiDB can't change whether generated column `full_name` is stored."},
+		{sql: "ALTER TABLE people MODIFY age INT AS (id + 1) VIRTUAL;", want: "TiDB can't change whether generated column `age` is stored."},
+		{sql: "ALTER TABLE people MODIFY full_name VARCHAR(200) AS (CONCAT(last_name, ', ', first_name)) VIRTUAL;", want: "TiDB can't change the expression of generated column `full_name`, which an index holds."},
+		{sql: "ALTER TABLE people CHANGE first_name given_name VARCHAR(50) NOT NULL;", want: "Column `first_name` is read by generated column `full_name`, and can't be renamed."},
+		{sql: "ALTER TABLE people MODIFY name_len INT;"},
+		// The walk follows which columns an index holds no further than the sync.
+		{sql: "DROP INDEX idx_full ON people;\nALTER TABLE people MODIFY full_name VARCHAR(200) AS (CONCAT(last_name, ', ', first_name)) VIRTUAL;"},
+		{sql: "CREATE INDEX idx_low2 ON people ((LOWER(first_name)));\nALTER TABLE people CHANGE age years INT;"},
+		{sql: "ALTER TABLE people CHANGE age years INT;"},
+		// TiDB answers 3108 here, but the walk can't tell when the column
+		// of an expression index reading last_name comes first (3837).
+		{sql: "ALTER TABLE people CHANGE last_name surname VARCHAR(50) NOT NULL;"},
+		{sql: "ALTER TABLE people MODIFY name_len INT AS (CHAR_LENGTH(first_name)) VIRTUAL;", want: "TiDB can't change whether generated column `name_len` is stored."},
+		{sql: "CREATE TABLE inv (a INT NOT NULL, b INT NOT NULL UNIQUE, UNIQUE KEY u (a) INVISIBLE);", want: "Unique key `u`, the primary key of `inv`, can't be invisible."},
+		{sql: "ALTER TABLE people ALTER INDEX `PRIMARY` INVISIBLE;", want: "Index `PRIMARY` of `people` is its integer row handle, which TiDB keeps no index for."},
+		{sql: "CREATE TABLE refunds (id INT PRIMARY KEY, email VARCHAR(50) CHARACTER SET latin1, FOREIGN KEY (email) REFERENCES customers (email));", want: "A foreign key would pair `email` (`varchar` in `latin1`) with `customers`.`email` (`varchar` in `utf8mb4`), types that don't match."},
+		{sql: "CREATE TABLE refunds (id INT PRIMARY KEY, email VARCHAR(50) CHARACTER SET utf8mb4, FOREIGN KEY (email) REFERENCES customers (email));"},
+		{sql: "CREATE TABLE inv (a INT NOT NULL, UNIQUE KEY u (a) INVISIBLE);", want: "Unique key `u`, the primary key of `inv`, can't be invisible."},
+		{sql: "CREATE TABLE inv (a INT, PRIMARY KEY (a) INVISIBLE);", want: "The primary key of `inv` can't be invisible."},
+		{sql: "CREATE TABLE inv (a INT, UNIQUE KEY u (a) INVISIBLE);"},
+		{sql: "CREATE TABLE inv (a INT, PRIMARY KEY (a) INVISIBLE VISIBLE);"},
 	} {
 		t.Run(tc.sql, func(t *testing.T) {
 			if tc.want == "" {

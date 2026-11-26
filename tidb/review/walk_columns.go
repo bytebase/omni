@@ -32,7 +32,7 @@ func (b *builder) alterShapeFails(v *ast.AlterTableStmt, r tableRef) bool {
 			if c.Column == nil || col == "" {
 				continue
 			}
-			if b.typeChangeFKFails(r, col, c.Column, rng) || b.rewriteFails(r, col, c.Column, rng) {
+			if b.typeChangeFKFails(r, col, c.Column, rng) || b.modifyCharsetFails(r, col, c.Column, rng) || b.rewriteFails(r, col, c.Column, rng) || b.generatedModifyFails(r, c, col, rng) {
 				return true
 			}
 		case ast.ATDropIndex:
@@ -48,7 +48,7 @@ func (b *builder) alterShapeFails(v *ast.AlterTableStmt, r tableRef) bool {
 					return columnType{}, false
 				}
 				return b.typeOf(r.db, r.name, col)
-			}, rng) {
+			}, nil, rng) {
 				return true
 			}
 		case ast.ATTableOption:
@@ -316,11 +316,6 @@ func (b *builder) alterPartitionKeysFail(r tableRef, pc *ast.PartitionClause, rn
 	// TiDB checks the unique keys after the partitions: an INTERVAL
 	// clause fails first on its own (8200 or 1054, verified).
 	if pc == nil || len(pc.UpdateIndexes) > 0 || pc.Interval != nil {
-		return false
-	}
-	// A partitioned table may hold a GLOBAL key; one that is not
-	// partitioned holds none.
-	if b.partitioning(r) != partNone {
 		return false
 	}
 	parts, ok := partitionColumns(pc)
@@ -763,9 +758,81 @@ func (b *builder) createShapeFails(v *ast.CreateTableStmt, r tableRef) bool {
 			}
 			t, ok := types[k]
 			return t, ok
-		}, rangeOf(c.Loc)) {
+		}, func(col string) (string, bool) { return createdColumnCharset(v, col) }, rangeOf(c.Loc)) {
 			return true
 		}
 	}
-	return false
+	return b.invisiblePrimaryFails(v, r)
+}
+
+// invisiblePrimaryFails fails a CREATE TABLE whose primary key is
+// invisible (3522, verified on v8.5.5). With no PRIMARY KEY, TiDB takes
+// the first UNIQUE key whose columns are all NOT NULL, the table's keys
+// before the ones a column declares, and those are always visible
+// (tidb/catalog's checkImplicitPrimaryKeyVisible).
+func (b *builder) invisiblePrimaryFails(v *ast.CreateTableStmt, r tableRef) bool {
+	notNull := make(map[string]bool)
+	for _, c := range v.Columns {
+		if c.TypeName != nil && strings.EqualFold(c.TypeName.Name, "serial") {
+			notNull[strings.ToLower(c.Name)] = true
+		}
+		for _, cc := range c.Constraints {
+			switch cc.Type {
+			case ast.ColConstrPrimaryKey:
+				return false
+			case ast.ColConstrNotNull:
+				notNull[strings.ToLower(c.Name)] = true
+			case ast.ColConstrNull:
+				notNull[strings.ToLower(c.Name)] = false
+			}
+		}
+	}
+	var key *ast.Constraint
+	for _, c := range v.Constraints {
+		if c.Type == ast.ConstrPrimaryKey {
+			key = c
+			break
+		}
+	}
+	if key == nil {
+		for _, c := range v.Constraints {
+			if c.Type != ast.ConstrUnique {
+				continue
+			}
+			cols, ok := plainKeyParts(c)
+			all := ok
+			for _, col := range cols {
+				all = all && notNull[strings.ToLower(col)]
+			}
+			if all {
+				key = c
+				break
+			}
+		}
+	}
+	if key == nil || !invisibleKey(key) {
+		return false
+	}
+	what := "The primary key of " + review.Code(r.written)
+	if key.Type != ast.ConstrPrimaryKey {
+		what = keyWords(key) + ", the primary key of " + review.Code(r.written) + ","
+		what = strings.ToUpper(what[:1]) + what[1:]
+	}
+	b.fail(rangeOf(key.Loc), nil, review.UnsupportedForm, what+" can't be invisible.")
+	return true
+}
+
+// invisibleKey reports whether a key's last visibility option is
+// INVISIBLE.
+func invisibleKey(c *ast.Constraint) bool {
+	invisible := false
+	for _, o := range c.IndexOptions {
+		switch strings.ToUpper(o.Name) {
+		case "INVISIBLE":
+			invisible = true
+		case "VISIBLE":
+			invisible = false
+		}
+	}
+	return invisible
 }
