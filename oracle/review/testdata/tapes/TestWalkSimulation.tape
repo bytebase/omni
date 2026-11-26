@@ -3304,6 +3304,16 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's')
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -4844,7 +4854,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a,(1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS(1) TO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -4889,7 +4929,22 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a,(1)
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS(1) TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO(1)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -6823,6 +6878,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, PRIMARY KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, UNIQUE) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, FOREIGN KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a NO LOG)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -6848,7 +6918,32 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(PRIMARY KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(UNIQUE) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(FOREIGN KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ALLOCATE EXTENT(SIZE 1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -6956,6 +7051,16 @@
 | ALTER TABLE a ANNOTATIONS(ADD a, a)
 < error
 | 11562 ORA-11562: Duplicate annotation 'A' in the ANNOTATIONS clause.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, DROP a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, REPLACE a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
 |
 > exec
 | ALTER TABLE a ADD(a OBJECT)
@@ -8218,7 +8323,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a,(1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a TO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS(1) TO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -8909,6 +9044,46 @@
 |
 > exec
 | ALTER TABLE a MODIFY COLUMN a NOT SUBSTITUTABLE AT ALL LEVELS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(FREEPOOLS 1 RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(REBUILD FREEPOOLS RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEDUPLICATE RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(COMPRESS RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ENCRYPT RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ALLOCATE EXTENT RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEALLOCATE UNUSED RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -11131,7 +11306,52 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -11658,6 +11878,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON INDEXTYPE a IS 's'
 < error
 | 29833 ORA-29833: The indextype does not exist.
@@ -11668,7 +11893,17 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| COMMENT ON MATERIALIZED VIEW a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON MINING MODEL a IS 's'
+< error
+| 40284 ORA-40284: model does not exist
+|
+> exec
+| COMMENT ON MINING MODEL a.a IS 's'
 < error
 | 40284 ORA-40284: model does not exist
 |
@@ -11678,7 +11913,17 @@
 | 29807 ORA-29807: operator does not exist
 |
 > exec
+| COMMENT ON OPERATOR a.a IS 's'
+< error
+| 29807 ORA-29807: operator does not exist
+|
+> exec
 | COMMENT ON PROPERTY GRAPH a IS 's'
+< error
+| 42421 ORA-42421: property graph does not exist
+|
+> exec
+| COMMENT ON PROPERTY GRAPH a.a IS 's'
 < error
 | 42421 ORA-42421: property graph does not exist
 |
@@ -11686,6 +11931,11 @@
 | COMMENT ON TABLE a IS 's'
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
 |
 > exec
 | COMMENT ON INDEXTYPE a.a IS 's'
@@ -11832,6 +12082,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -16622,6 +16877,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
 < error
 | 902 ORA-00902: invalid datatype
@@ -18279,6 +18539,21 @@
 |
 > exec
 | UPDATE a SET a = 1 RETURN 1, 1 INTO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, OLD a INTO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, a INTO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, NEW a INTO a
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -21194,6 +21469,16 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's')
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -22734,7 +23019,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a,(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS(1) TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO(1)
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -22779,7 +23094,22 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a,(1)
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS(1) TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO(1)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -25389,6 +25719,51 @@
 | CREATE INDEX a_c_idx ON a (c)
 < ok 0 0
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, PRIMARY KEY) COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, UNIQUE) COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, FOREIGN KEY) COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a NO LOG)
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -25414,7 +25789,42 @@
 | 32587 ORA-32587: Cannot drop nonexistent all column supplemental logging
 |
 > exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(PRIMARY KEY) COLUMNS
+< error
+| 32587 ORA-32587: Cannot drop nonexistent primary key supplemental logging
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(UNIQUE) COLUMNS
+< error
+| 32587 ORA-32587: Cannot drop nonexistent unique key supplemental logging
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(FOREIGN KEY) COLUMNS
+< error
+| 32587 ORA-32587: Cannot drop nonexistent foreign key supplemental logging
+|
+> exec
 | ALTER TABLE a ALLOCATE EXTENT(SIZE 1)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 3283 ORA-03283: specified datafile s does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -25642,6 +26052,16 @@
 | ALTER TABLE a ANNOTATIONS(ADD a, a)
 < error
 | 11562 ORA-11562: Duplicate annotation 'A' in the ANNOTATIONS clause.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, DROP a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, REPLACE a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
 |
 > exec
 | ALTER TABLE a ADD(a OBJECT)
@@ -27004,7 +27424,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a,(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS(1) TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO(1)
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -28175,6 +28625,46 @@
 |
 > exec
 | ALTER TABLE a MODIFY COLUMN a NOT SUBSTITUTABLE AT ALL LEVELS
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(FREEPOOLS 1 RETENTION)
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(REBUILD FREEPOOLS RETENTION)
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEDUPLICATE RETENTION)
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(COMPRESS RETENTION)
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ENCRYPT RETENTION)
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE RETENTION)
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ALLOCATE EXTENT RETENTION)
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEALLOCATE UNUSED RETENTION)
 < error
 | 904 ORA-00904: "A": invalid identifier
 |
@@ -30759,7 +31249,52 @@
 | CREATE INDEX a_c_idx ON a (c)
 < ok 0 0
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 < error
 | 904 ORA-00904: "A": invalid identifier
 |
@@ -31304,6 +31839,11 @@
 | 904 ORA-00904: "A": invalid identifier
 |
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON INDEXTYPE a IS 's'
 < error
 | 29833 ORA-29833: The indextype does not exist.
@@ -31324,7 +31864,17 @@
 | CREATE INDEX a_c_idx ON a (c)
 < ok 0 0
 > exec
+| COMMENT ON MATERIALIZED VIEW a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON MINING MODEL a IS 's'
+< error
+| 40284 ORA-40284: model does not exist
+|
+> exec
+| COMMENT ON MINING MODEL a.a IS 's'
 < error
 | 40284 ORA-40284: model does not exist
 |
@@ -31334,7 +31884,17 @@
 | 29807 ORA-29807: operator does not exist
 |
 > exec
+| COMMENT ON OPERATOR a.a IS 's'
+< error
+| 29807 ORA-29807: operator does not exist
+|
+> exec
 | COMMENT ON PROPERTY GRAPH a IS 's'
+< error
+| 42421 ORA-42421: property graph does not exist
+|
+> exec
+| COMMENT ON PROPERTY GRAPH a.a IS 's'
 < error
 | 42421 ORA-42421: property graph does not exist
 |
@@ -31353,6 +31913,11 @@
 > exec
 | CREATE INDEX a_c_idx ON a (c)
 < ok 0 0
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
 > exec
 | COMMENT ON INDEXTYPE a.a IS 's'
 < error
@@ -31480,6 +32045,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -35894,6 +36464,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
 < error
 | 902 ORA-00902: invalid datatype
@@ -37729,6 +38304,21 @@
 |
 > exec
 | UPDATE a SET a = 1 RETURN 1, 1 INTO a
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, OLD a INTO a
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, a INTO a
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, NEW a INTO a
 < error
 | 904 ORA-00904: "A": invalid identifier
 |
@@ -41588,6 +42178,16 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's')
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -43128,7 +43728,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a,(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS(1) TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO(1)
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -43173,7 +43803,22 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a,(1)
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS(1) TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO(1)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -45572,6 +46217,42 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, PRIMARY KEY) COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, UNIQUE) COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, FOREIGN KEY) COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a NO LOG)
 < error
 | 32592 ORA-32592: all columns in log group can not be no log columns
@@ -45597,7 +46278,39 @@
 | 32587 ORA-32587: Cannot drop nonexistent all column supplemental logging
 |
 > exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(PRIMARY KEY) COLUMNS
+< error
+| 32587 ORA-32587: Cannot drop nonexistent primary key supplemental logging
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(UNIQUE) COLUMNS
+< error
+| 32587 ORA-32587: Cannot drop nonexistent unique key supplemental logging
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(FOREIGN KEY) COLUMNS
+< error
+| 32587 ORA-32587: Cannot drop nonexistent foreign key supplemental logging
+|
+> exec
 | ALTER TABLE a ALLOCATE EXTENT(SIZE 1)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 3283 ORA-03283: specified datafile s does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -45789,6 +46502,16 @@
 | ALTER TABLE a ANNOTATIONS(ADD a, a)
 < error
 | 11562 ORA-11562: Duplicate annotation 'A' in the ANNOTATIONS clause.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, DROP a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, REPLACE a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
 |
 > exec
 | ALTER TABLE a ADD(a OBJECT)
@@ -47170,7 +47893,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a,(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS(1) TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO(1)
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -48185,6 +48938,46 @@
 | ALTER TABLE a MODIFY COLUMN a NOT SUBSTITUTABLE AT ALL LEVELS
 < error
 | 904 ORA-00904: A: invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(FREEPOOLS 1 RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(REBUILD FREEPOOLS RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEDUPLICATE RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(COMPRESS RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ENCRYPT RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ALLOCATE EXTENT RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEALLOCATE UNUSED RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
 | ALTER TABLE a MODIFY VARRAY a(PCTVERSION 1)
@@ -50810,7 +51603,52 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 < error
 | 30673 ORA-30673: column to be modified is not an identity column
 |
@@ -51360,6 +52198,11 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON INDEXTYPE a IS 's'
 < error
 | 29833 ORA-29833: The indextype does not exist.
@@ -51377,7 +52220,17 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
 > exec
+| COMMENT ON MATERIALIZED VIEW a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON MINING MODEL a IS 's'
+< error
+| 40284 ORA-40284: model does not exist
+|
+> exec
+| COMMENT ON MINING MODEL a.a IS 's'
 < error
 | 40284 ORA-40284: model does not exist
 |
@@ -51387,7 +52240,17 @@
 | 29807 ORA-29807: operator does not exist
 |
 > exec
+| COMMENT ON OPERATOR a.a IS 's'
+< error
+| 29807 ORA-29807: operator does not exist
+|
+> exec
 | COMMENT ON PROPERTY GRAPH a IS 's'
+< error
+| 42421 ORA-42421: property graph does not exist
+|
+> exec
+| COMMENT ON PROPERTY GRAPH a.a IS 's'
 < error
 | 42421 ORA-42421: property graph does not exist
 |
@@ -51403,6 +52266,11 @@
 > exec
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
 > exec
 | COMMENT ON INDEXTYPE a.a IS 's'
 < error
@@ -51562,6 +52430,11 @@
 < ok 0 0
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -56023,6 +56896,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
 < error
 | 902 ORA-00902: invalid datatype
@@ -57815,6 +58693,21 @@
 |
 > exec
 | UPDATE a SET a = 1 RETURN 1, 1 INTO a
+< error
+| 905 ORA-00905: missing keyword
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, OLD a INTO a
+< error
+| 905 ORA-00905: missing keyword
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, a INTO a
+< error
+| 905 ORA-00905: missing keyword
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, NEW a INTO a
 < error
 | 905 ORA-00905: missing keyword
 |
@@ -61227,6 +62120,16 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's')
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -62858,9 +63761,39 @@
 | 14251 ORA-14251: Specified subpartition does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a,(1)
+< error
+| 2149 ORA-02149: Specified partition does not exist 
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO a
 < error
 | 14315 ORA-14315: cannot merge a partition with itself
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS(1) TO a
+< error
+| 14108 ORA-14108: illegal partition-extended table name syntax
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO(1)
+< error
+| 2149 ORA-02149: Specified partition does not exist 
 |
 > exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a INTO PARTITION
@@ -62903,7 +63836,22 @@
 | 14315 ORA-14315: cannot merge a partition with itself
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a,(1)
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS(1) TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO(1)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -65358,6 +66306,42 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, PRIMARY KEY) COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, UNIQUE) COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, FOREIGN KEY) COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a NO LOG)
 < error
 | 32592 ORA-32592: all columns in log group can not be no log columns
@@ -65390,7 +66374,32 @@
 | 32587 ORA-32587: Cannot drop nonexistent all column supplemental logging
 |
 > exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(PRIMARY KEY) COLUMNS
+< error
+| 32587 ORA-32587: Cannot drop nonexistent primary key supplemental logging
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(UNIQUE) COLUMNS
+< error
+| 32587 ORA-32587: Cannot drop nonexistent unique key supplemental logging
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(FOREIGN KEY) COLUMNS
+< error
+| 32587 ORA-32587: Cannot drop nonexistent foreign key supplemental logging
+|
+> exec
 | ALTER TABLE a ALLOCATE EXTENT(SIZE 1)
+< error
+| 14254 ORA-14254: cannot specify ALLOCATE STORAGE for a (Composite) Range or List partitioned table
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 14254 ORA-14254: cannot specify ALLOCATE STORAGE for a (Composite) Range or List partitioned table
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
 < error
 | 14254 ORA-14254: cannot specify ALLOCATE STORAGE for a (Composite) Range or List partitioned table
 |
@@ -65568,6 +66577,16 @@
 | ALTER TABLE a ANNOTATIONS(ADD a, a)
 < error
 | 11562 ORA-11562: Duplicate annotation 'A' in the ANNOTATIONS clause.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, DROP a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, REPLACE a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
 |
 > exec
 | ALTER TABLE a ADD(a OBJECT)
@@ -67187,7 +68206,37 @@
 | 14315 ORA-14315: cannot merge a partition with itself
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a,(1)
+< error
+| 14251 ORA-14251: Specified subpartition does not exist
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a TO a
+< error
+| 14251 ORA-14251: Specified subpartition does not exist
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS(1) TO a
+< error
+| 14108 ORA-14108: illegal partition-extended table name syntax
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO(1)
 < error
 | 14251 ORA-14251: Specified subpartition does not exist
 |
@@ -68202,6 +69251,46 @@
 | ALTER TABLE a MODIFY COLUMN a NOT SUBSTITUTABLE AT ALL LEVELS
 < error
 | 904 ORA-00904: A: invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(FREEPOOLS 1 RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(REBUILD FREEPOOLS RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEDUPLICATE RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(COMPRESS RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ENCRYPT RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ALLOCATE EXTENT RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEALLOCATE UNUSED RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
 | ALTER TABLE a MODIFY VARRAY a(PCTVERSION 1)
@@ -70925,7 +72014,52 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 < error
 | 30673 ORA-30673: column to be modified is not an identity column
 |
@@ -71475,6 +72609,11 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON INDEXTYPE a IS 's'
 < error
 | 29833 ORA-29833: The indextype does not exist.
@@ -71492,7 +72631,17 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| COMMENT ON MATERIALIZED VIEW a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON MINING MODEL a IS 's'
+< error
+| 40284 ORA-40284: model does not exist
+|
+> exec
+| COMMENT ON MINING MODEL a.a IS 's'
 < error
 | 40284 ORA-40284: model does not exist
 |
@@ -71502,7 +72651,17 @@
 | 29807 ORA-29807: operator does not exist
 |
 > exec
+| COMMENT ON OPERATOR a.a IS 's'
+< error
+| 29807 ORA-29807: operator does not exist
+|
+> exec
 | COMMENT ON PROPERTY GRAPH a IS 's'
+< error
+| 42421 ORA-42421: property graph does not exist
+|
+> exec
+| COMMENT ON PROPERTY GRAPH a.a IS 's'
 < error
 | 42421 ORA-42421: property graph does not exist
 |
@@ -71518,6 +72677,11 @@
 > exec
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
 > exec
 | COMMENT ON INDEXTYPE a.a IS 's'
 < error
@@ -71677,6 +72841,11 @@
 < ok 0 0
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -76162,6 +77331,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
 < error
 | 902 ORA-00902: invalid datatype
@@ -77960,6 +79134,21 @@
 |
 > exec
 | UPDATE a SET a = 1 RETURN 1, 1 INTO a
+< error
+| 905 ORA-00905: missing keyword
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, OLD a INTO a
+< error
+| 905 ORA-00905: missing keyword
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, a INTO a
+< error
+| 905 ORA-00905: missing keyword
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, NEW a INTO a
 < error
 | 905 ORA-00905: missing keyword
 |
@@ -81611,6 +82800,16 @@
 | 14220 ORA-14220: Invalid operation for object without a segment
 |
 > exec
+| ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 14220 ORA-14220: Invalid operation for object without a segment
+|
+> exec
+| ALTER INDEX a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
+< error
+| 14220 ORA-14220: Invalid operation for object without a segment
+|
+> exec
 | ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's')
 < error
 | 14220 ORA-14220: Invalid operation for object without a segment
@@ -83431,7 +84630,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a,(1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS(1) TO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -83476,7 +84705,22 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a,(1)
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS(1) TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO(1)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -85416,6 +86660,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, PRIMARY KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, UNIQUE) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, FOREIGN KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a NO LOG)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -85441,7 +86700,32 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(PRIMARY KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(UNIQUE) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(FOREIGN KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ALLOCATE EXTENT(SIZE 1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -85549,6 +86833,16 @@
 | ALTER TABLE a ANNOTATIONS(ADD a, a)
 < error
 | 11562 ORA-11562: Duplicate annotation 'A' in the ANNOTATIONS clause.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, DROP a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, REPLACE a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
 |
 > exec
 | ALTER TABLE a ADD(a OBJECT)
@@ -86811,7 +88105,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a,(1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a TO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS(1) TO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -87502,6 +88826,46 @@
 |
 > exec
 | ALTER TABLE a MODIFY COLUMN a NOT SUBSTITUTABLE AT ALL LEVELS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(FREEPOOLS 1 RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(REBUILD FREEPOOLS RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEDUPLICATE RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(COMPRESS RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ENCRYPT RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ALLOCATE EXTENT RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEALLOCATE UNUSED RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -89736,7 +91100,52 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -90341,6 +91750,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON INDEXTYPE a IS 's'
 < error
 | 29833 ORA-29833: The indextype does not exist.
@@ -90351,7 +91765,17 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| COMMENT ON MATERIALIZED VIEW a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON MINING MODEL a IS 's'
+< error
+| 40284 ORA-40284: model does not exist
+|
+> exec
+| COMMENT ON MINING MODEL a.a IS 's'
 < error
 | 40284 ORA-40284: model does not exist
 |
@@ -90361,7 +91785,17 @@
 | 29807 ORA-29807: operator does not exist
 |
 > exec
+| COMMENT ON OPERATOR a.a IS 's'
+< error
+| 29807 ORA-29807: operator does not exist
+|
+> exec
 | COMMENT ON PROPERTY GRAPH a IS 's'
+< error
+| 42421 ORA-42421: property graph does not exist
+|
+> exec
+| COMMENT ON PROPERTY GRAPH a.a IS 's'
 < error
 | 42421 ORA-42421: property graph does not exist
 |
@@ -90369,6 +91803,11 @@
 | COMMENT ON TABLE a IS 's'
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
 |
 > exec
 | COMMENT ON INDEXTYPE a.a IS 's'
@@ -90557,6 +91996,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -96023,6 +97467,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
 < error
 | 902 ORA-00902: invalid datatype
@@ -97794,6 +99243,21 @@
 |
 > exec
 | UPDATE a SET a = 1 RETURN 1, 1 INTO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, OLD a INTO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, a INTO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, NEW a INTO a
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -101766,6 +103230,16 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's')
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -103306,7 +104780,37 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a,(1)
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO a
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS(1) TO a
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO(1)
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -103351,7 +104855,22 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a,(1)
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS(1) TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO(1)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -105288,6 +106807,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, PRIMARY KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, UNIQUE) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, FOREIGN KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a NO LOG)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -105313,7 +106847,32 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(PRIMARY KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(UNIQUE) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(FOREIGN KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ALLOCATE EXTENT(SIZE 1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -105421,6 +106980,16 @@
 | ALTER TABLE a ANNOTATIONS(ADD a, a)
 < error
 | 11562 ORA-11562: Duplicate annotation 'A' in the ANNOTATIONS clause.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, DROP a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, REPLACE a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
 |
 > exec
 | ALTER TABLE a ADD(a OBJECT)
@@ -106683,7 +108252,37 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a,(1)
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a TO a
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS(1) TO a
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO(1)
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -107374,6 +108973,46 @@
 |
 > exec
 | ALTER TABLE a MODIFY COLUMN a NOT SUBSTITUTABLE AT ALL LEVELS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(FREEPOOLS 1 RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(REBUILD FREEPOOLS RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEDUPLICATE RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(COMPRESS RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ENCRYPT RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ALLOCATE EXTENT RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEALLOCATE UNUSED RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -109602,7 +111241,52 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -110166,6 +111850,11 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON INDEXTYPE a IS 's'
 < error
 | 29833 ORA-29833: The indextype does not exist.
@@ -110183,7 +111872,17 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| COMMENT ON MATERIALIZED VIEW a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON MINING MODEL a IS 's'
+< error
+| 40284 ORA-40284: model does not exist
+|
+> exec
+| COMMENT ON MINING MODEL a.a IS 's'
 < error
 | 40284 ORA-40284: model does not exist
 |
@@ -110193,7 +111892,17 @@
 | 29807 ORA-29807: operator does not exist
 |
 > exec
+| COMMENT ON OPERATOR a.a IS 's'
+< error
+| 29807 ORA-29807: operator does not exist
+|
+> exec
 | COMMENT ON PROPERTY GRAPH a IS 's'
+< error
+| 42421 ORA-42421: property graph does not exist
+|
+> exec
+| COMMENT ON PROPERTY GRAPH a.a IS 's'
 < error
 | 42421 ORA-42421: property graph does not exist
 |
@@ -110209,6 +111918,11 @@
 > exec
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
 > exec
 | COMMENT ON INDEXTYPE a.a IS 's'
 < error
@@ -110333,6 +112047,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -114714,6 +116433,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
 < error
 | 902 ORA-00902: invalid datatype
@@ -116449,6 +118173,21 @@
 |
 > exec
 | UPDATE a SET a = 1 RETURN 1, 1 INTO a
+< error
+| 905 ORA-00905: missing keyword
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, OLD a INTO a
+< error
+| 905 ORA-00905: missing keyword
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, a INTO a
+< error
+| 905 ORA-00905: missing keyword
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, NEW a INTO a
 < error
 | 905 ORA-00905: missing keyword
 |
@@ -119964,6 +121703,16 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's')
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -121914,7 +123663,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a,(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS(1) TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO(1)
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -121959,7 +123738,22 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a,(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS(1) TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO(1)
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -124729,6 +126523,51 @@
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, PRIMARY KEY) COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, UNIQUE) COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, FOREIGN KEY) COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a NO LOG)
 < error
 | 32592 ORA-32592: all columns in log group can not be no log columns
@@ -124764,7 +126603,42 @@
 | 32587 ORA-32587: Cannot drop nonexistent all column supplemental logging
 |
 > exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(PRIMARY KEY) COLUMNS
+< error
+| 32587 ORA-32587: Cannot drop nonexistent primary key supplemental logging
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(UNIQUE) COLUMNS
+< error
+| 32587 ORA-32587: Cannot drop nonexistent unique key supplemental logging
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(FOREIGN KEY) COLUMNS
+< error
+| 32587 ORA-32587: Cannot drop nonexistent foreign key supplemental logging
+|
+> exec
 | ALTER TABLE a ALLOCATE EXTENT(SIZE 1)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 3283 ORA-03283: specified datafile s does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -124992,6 +126866,16 @@
 | ALTER TABLE a ANNOTATIONS(ADD a, a)
 < error
 | 11562 ORA-11562: Duplicate annotation 'A' in the ANNOTATIONS clause.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, DROP a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, REPLACE a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
 |
 > exec
 | ALTER TABLE a ADD(a OBJECT)
@@ -126464,7 +128348,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a,(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS(1) TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO(1)
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -127547,6 +129461,46 @@
 | ALTER TABLE a MODIFY COLUMN a NOT SUBSTITUTABLE AT ALL LEVELS
 < error
 | 904 ORA-00904: A: invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(FREEPOOLS 1 RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(REBUILD FREEPOOLS RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEDUPLICATE RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(COMPRESS RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ENCRYPT RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ALLOCATE EXTENT RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEALLOCATE UNUSED RETENTION)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
 | ALTER TABLE a MODIFY VARRAY a(PCTVERSION 1)
@@ -130099,7 +132053,52 @@
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 30673 ORA-30673: column to be modified is not an identity column
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 < error
 | 30673 ORA-30673: column to be modified is not an identity column
 |
@@ -130654,6 +132653,11 @@
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON INDEXTYPE a IS 's'
 < error
 | 29833 ORA-29833: The indextype does not exist.
@@ -130674,7 +132678,17 @@
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
 > exec
+| COMMENT ON MATERIALIZED VIEW a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON MINING MODEL a IS 's'
+< error
+| 40284 ORA-40284: model does not exist
+|
+> exec
+| COMMENT ON MINING MODEL a.a IS 's'
 < error
 | 40284 ORA-40284: model does not exist
 |
@@ -130684,7 +132698,17 @@
 | 29807 ORA-29807: operator does not exist
 |
 > exec
+| COMMENT ON OPERATOR a.a IS 's'
+< error
+| 29807 ORA-29807: operator does not exist
+|
+> exec
 | COMMENT ON PROPERTY GRAPH a IS 's'
+< error
+| 42421 ORA-42421: property graph does not exist
+|
+> exec
+| COMMENT ON PROPERTY GRAPH a.a IS 's'
 < error
 | 42421 ORA-42421: property graph does not exist
 |
@@ -130692,6 +132716,11 @@
 | COMMENT ON TABLE a IS 's'
 < error
 | 12098 ORA-12098: cannot comment on the materialized view
+|
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
 |
 > exec
 | COMMENT ON INDEXTYPE a.a IS 's'
@@ -130870,6 +132899,11 @@
 < ok 0 0
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -135388,6 +137422,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
 < error
 | 902 ORA-00902: invalid datatype
@@ -137169,6 +139208,21 @@
 |
 > exec
 | UPDATE a SET a = 1 RETURN 1, 1 INTO a
+< error
+| 905 ORA-00905: missing keyword
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, OLD a INTO a
+< error
+| 905 ORA-00905: missing keyword
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, a INTO a
+< error
+| 905 ORA-00905: missing keyword
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, NEW a INTO a
 < error
 | 905 ORA-00905: missing keyword
 |
@@ -141067,6 +143121,16 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's')
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -142607,7 +144671,37 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a,(1)
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO a
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS(1) TO a
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO(1)
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -142652,7 +144746,22 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a,(1)
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS(1) TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO(1)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -144687,6 +146796,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, PRIMARY KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, UNIQUE) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, FOREIGN KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a NO LOG)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -144712,7 +146836,32 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(PRIMARY KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(UNIQUE) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(FOREIGN KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ALLOCATE EXTENT(SIZE 1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -144820,6 +146969,16 @@
 | ALTER TABLE a ANNOTATIONS(ADD a, a)
 < error
 | 11562 ORA-11562: Duplicate annotation 'A' in the ANNOTATIONS clause.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, DROP a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, REPLACE a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
 |
 > exec
 | ALTER TABLE a ADD(a OBJECT)
@@ -146082,7 +148241,37 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a,(1)
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a TO a
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS(1) TO a
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO(1)
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -146773,6 +148962,46 @@
 |
 > exec
 | ALTER TABLE a MODIFY COLUMN a NOT SUBSTITUTABLE AT ALL LEVELS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(FREEPOOLS 1 RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(REBUILD FREEPOOLS RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEDUPLICATE RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(COMPRESS RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ENCRYPT RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ALLOCATE EXTENT RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEALLOCATE UNUSED RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -149001,7 +151230,52 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -149537,6 +151811,11 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON INDEXTYPE a IS 's'
 < error
 | 29833 ORA-29833: The indextype does not exist.
@@ -149547,7 +151826,17 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| COMMENT ON MATERIALIZED VIEW a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON MINING MODEL a IS 's'
+< error
+| 40284 ORA-40284: model does not exist
+|
+> exec
+| COMMENT ON MINING MODEL a.a IS 's'
 < error
 | 40284 ORA-40284: model does not exist
 |
@@ -149557,7 +151846,17 @@
 | 29807 ORA-29807: operator does not exist
 |
 > exec
+| COMMENT ON OPERATOR a.a IS 's'
+< error
+| 29807 ORA-29807: operator does not exist
+|
+> exec
 | COMMENT ON PROPERTY GRAPH a IS 's'
+< error
+| 42421 ORA-42421: property graph does not exist
+|
+> exec
+| COMMENT ON PROPERTY GRAPH a.a IS 's'
 < error
 | 42421 ORA-42421: property graph does not exist
 |
@@ -149565,6 +151864,11 @@
 | COMMENT ON TABLE a IS 's'
 < error
 | 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
 |
 > exec
 | COMMENT ON INDEXTYPE a.a IS 's'
@@ -149690,6 +151994,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -154070,6 +156379,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
 < error
 | 902 ORA-00902: invalid datatype
@@ -155755,6 +158069,21 @@
 |
 > exec
 | UPDATE a SET a = 1 RETURN 1, 1 INTO a
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, OLD a INTO a
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, a INTO a
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, NEW a INTO a
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -159092,6 +161421,16 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's')
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -160632,7 +162971,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a,(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS(1) TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO(1)
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -160677,7 +163046,22 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a,(1)
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS(1) TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO(1)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -162719,6 +165103,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, PRIMARY KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, UNIQUE) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, FOREIGN KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a NO LOG)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -162744,7 +165143,32 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(PRIMARY KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(UNIQUE) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(FOREIGN KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ALLOCATE EXTENT(SIZE 1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -162852,6 +165276,16 @@
 | ALTER TABLE a ANNOTATIONS(ADD a, a)
 < error
 | 11562 ORA-11562: Duplicate annotation 'A' in the ANNOTATIONS clause.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, DROP a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, REPLACE a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
 |
 > exec
 | ALTER TABLE a ADD(a OBJECT)
@@ -164114,7 +166548,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a,(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS(1) TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO(1)
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -164861,6 +167325,46 @@
 |
 > exec
 | ALTER TABLE a MODIFY COLUMN a NOT SUBSTITUTABLE AT ALL LEVELS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(FREEPOOLS 1 RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(REBUILD FREEPOOLS RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEDUPLICATE RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(COMPRESS RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ENCRYPT RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ALLOCATE EXTENT RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEALLOCATE UNUSED RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -167278,7 +169782,52 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -167828,6 +170377,11 @@
 | CREATE SYNONYM a FOR t
 < ok 0 0
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON INDEXTYPE a IS 's'
 < error
 | 29833 ORA-29833: The indextype does not exist.
@@ -167845,7 +170399,17 @@
 | CREATE SYNONYM a FOR t
 < ok 0 0
 > exec
+| COMMENT ON MATERIALIZED VIEW a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON MINING MODEL a IS 's'
+< error
+| 40284 ORA-40284: model does not exist
+|
+> exec
+| COMMENT ON MINING MODEL a.a IS 's'
 < error
 | 40284 ORA-40284: model does not exist
 |
@@ -167855,7 +170419,17 @@
 | 29807 ORA-29807: operator does not exist
 |
 > exec
+| COMMENT ON OPERATOR a.a IS 's'
+< error
+| 29807 ORA-29807: operator does not exist
+|
+> exec
 | COMMENT ON PROPERTY GRAPH a IS 's'
+< error
+| 42421 ORA-42421: property graph does not exist
+|
+> exec
+| COMMENT ON PROPERTY GRAPH a.a IS 's'
 < error
 | 42421 ORA-42421: property graph does not exist
 |
@@ -167871,6 +170445,11 @@
 > exec
 | CREATE SYNONYM a FOR t
 < ok 0 0
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
 > exec
 | COMMENT ON INDEXTYPE a.a IS 's'
 < error
@@ -168030,6 +170609,11 @@
 < ok 0 0
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -172491,6 +175075,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
 < error
 | 902 ORA-00902: invalid datatype
@@ -174227,6 +176816,21 @@
 |
 > exec
 | UPDATE a SET a = 1 RETURN 1, 1 INTO a
+< error
+| 905 ORA-00905: missing keyword
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, OLD a INTO a
+< error
+| 905 ORA-00905: missing keyword
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, a INTO a
+< error
+| 905 ORA-00905: missing keyword
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, NEW a INTO a
 < error
 | 905 ORA-00905: missing keyword
 |
@@ -177625,6 +180229,16 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's')
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -179165,7 +181779,37 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a,(1)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS(1) TO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO(1)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -179210,7 +181854,22 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a,(1)
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS(1) TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO(1)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -181147,6 +183806,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, PRIMARY KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, UNIQUE) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, FOREIGN KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a NO LOG)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -181172,7 +183846,32 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(PRIMARY KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(UNIQUE) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(FOREIGN KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ALLOCATE EXTENT(SIZE 1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -181280,6 +183979,16 @@
 | ALTER TABLE a ANNOTATIONS(ADD a, a)
 < error
 | 11562 ORA-11562: Duplicate annotation 'A' in the ANNOTATIONS clause.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, DROP a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, REPLACE a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
 |
 > exec
 | ALTER TABLE a ADD(a OBJECT)
@@ -182542,7 +185251,37 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a,(1)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a TO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS(1) TO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO(1)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -183233,6 +185972,46 @@
 |
 > exec
 | ALTER TABLE a MODIFY COLUMN a NOT SUBSTITUTABLE AT ALL LEVELS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(FREEPOOLS 1 RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(REBUILD FREEPOOLS RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEDUPLICATE RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(COMPRESS RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ENCRYPT RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ALLOCATE EXTENT RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEALLOCATE UNUSED RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -185461,7 +188240,52 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -185997,6 +188821,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON INDEXTYPE a IS 's'
 < error
 | 29833 ORA-29833: The indextype does not exist.
@@ -186007,7 +188836,17 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| COMMENT ON MATERIALIZED VIEW a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON MINING MODEL a IS 's'
+< error
+| 40284 ORA-40284: model does not exist
+|
+> exec
+| COMMENT ON MINING MODEL a.a IS 's'
 < error
 | 40284 ORA-40284: model does not exist
 |
@@ -186017,7 +188856,17 @@
 | 29807 ORA-29807: operator does not exist
 |
 > exec
+| COMMENT ON OPERATOR a.a IS 's'
+< error
+| 29807 ORA-29807: operator does not exist
+|
+> exec
 | COMMENT ON PROPERTY GRAPH a IS 's'
+< error
+| 42421 ORA-42421: property graph does not exist
+|
+> exec
+| COMMENT ON PROPERTY GRAPH a.a IS 's'
 < error
 | 42421 ORA-42421: property graph does not exist
 |
@@ -186025,6 +188874,11 @@
 | COMMENT ON TABLE a IS 's'
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
 |
 > exec
 | COMMENT ON INDEXTYPE a.a IS 's'
@@ -186157,6 +189011,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -190537,6 +193396,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
 < error
 | 902 ORA-00902: invalid datatype
@@ -192222,6 +195086,21 @@
 |
 > exec
 | UPDATE a SET a = 1 RETURN 1, 1 INTO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, OLD a INTO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, a INTO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, NEW a INTO a
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -195538,6 +198417,16 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ALLOCATE EXTENT(DATAFILE 's')
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -197078,7 +199967,37 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a,(1)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS(1) TO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a TO(1)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -197123,7 +200042,22 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a,(1)
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS(1) TO a
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a TO(1)
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -199060,6 +201994,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, PRIMARY KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, UNIQUE) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL, FOREIGN KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a NO LOG)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -199085,7 +202034,32 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(PRIMARY KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(UNIQUE) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUPPLEMENTAL LOG DATA(FOREIGN KEY) COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ALLOCATE EXTENT(SIZE 1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(DATAFILE 's' SIZE 1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ALLOCATE EXTENT(INSTANCE 1 SIZE 1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -199193,6 +202167,16 @@
 | ALTER TABLE a ANNOTATIONS(ADD a, a)
 < error
 | 11562 ORA-11562: Duplicate annotation 'A' in the ANNOTATIONS clause.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, DROP a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
+|
+> exec
+| ALTER TABLE a ANNOTATIONS(ADD a, REPLACE a)
+< error
+| 11602 ORA-11602: Cannot combine ADD, DROP, REPLACE operations for the same annotation 'A'.
 |
 > exec
 | ALTER TABLE a ADD(a OBJECT)
@@ -200455,7 +203439,37 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a,(1)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a TO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS(1) TO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a TO(1)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -201146,6 +204160,46 @@
 |
 > exec
 | ALTER TABLE a MODIFY COLUMN a NOT SUBSTITUTABLE AT ALL LEVELS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(FREEPOOLS 1 RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(REBUILD FREEPOOLS RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEDUPLICATE RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(COMPRESS RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ENCRYPT RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(ALLOCATE EXTENT RETENTION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY VARRAY a(DEALLOCATE UNUSED RETENTION)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -203374,7 +206428,52 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -204003,6 +207102,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| COMMENT ON COLUMN a.a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON INDEXTYPE a IS 's'
 < error
 | 29833 ORA-29833: The indextype does not exist.
@@ -204013,7 +207117,17 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| COMMENT ON MATERIALIZED VIEW a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
 | COMMENT ON MINING MODEL a IS 's'
+< error
+| 40284 ORA-40284: model does not exist
+|
+> exec
+| COMMENT ON MINING MODEL a.a IS 's'
 < error
 | 40284 ORA-40284: model does not exist
 |
@@ -204023,7 +207137,17 @@
 | 29807 ORA-29807: operator does not exist
 |
 > exec
+| COMMENT ON OPERATOR a.a IS 's'
+< error
+| 29807 ORA-29807: operator does not exist
+|
+> exec
 | COMMENT ON PROPERTY GRAPH a IS 's'
+< error
+| 42421 ORA-42421: property graph does not exist
+|
+> exec
+| COMMENT ON PROPERTY GRAPH a.a IS 's'
 < error
 | 42421 ORA-42421: property graph does not exist
 |
@@ -204031,6 +207155,11 @@
 | COMMENT ON TABLE a IS 's'
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| COMMENT ON TABLE a.a IS 's'
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
 |
 > exec
 | COMMENT ON INDEXTYPE a.a IS 's'
@@ -204156,6 +207285,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a, a)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE INDEX a ON a(a, a ASC)
 < error
 | 957 ORA-00957: duplicate column name
 |
@@ -208543,6 +211677,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | CREATE VIEW a OF a UNDER a AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -210242,6 +213381,21 @@
 |
 > exec
 | UPDATE a SET a = 1 RETURN 1, 1 INTO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, OLD a INTO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, a INTO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| UPDATE a SET a = 1 RETURN 1, NEW a INTO a
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -213411,6 +216565,16 @@
 |
 > exec
 | CREATE VIEW v AS SELECT * ORDER BY 1, 1
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * ORDER BY 1, 1 ASC
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * ORDER BY 1, 1 NULLS FIRST
 < error
 | 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
 |
