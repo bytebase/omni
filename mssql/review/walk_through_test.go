@@ -368,6 +368,25 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"delete undeclared table variable", "DELETE @tv;", 0, "Table variable `@tv` is not declared."},
 		{"delete declared table variable", "DECLARE @tv TABLE (a int);\nDELETE @tv;", -1, ""},
 		{"delete table variable across GO", "DECLARE @tv TABLE (a int);\nGO\nDELETE @tv;", 2, "Table variable `@tv` is not declared."},
+		{"delete from an undeclared table variable", "DELETE dbo.t FROM @tv;", 0, "Table variable `@tv` is not declared."},
+		{"select from an undeclared table variable", "SELECT * FROM @tv;", 0, "Table variable `@tv` is not declared."},
+		{"select from a declared table variable", "DECLARE @tv TABLE (a int);\nSELECT * FROM @tv;", -1, ""},
+		{"delete a one-part ad hoc name", "DELETE OPENDATASOURCE('p', 's').t;", 0, "`t` doesn't exist."},
+		{"delete a four-part ad hoc name valid", "DELETE OPENDATASOURCE('p', 's').db.dbo.t;", -1, ""},
+		{"rebuild a partition a name gives", "ALTER TABLE dbo.t REBUILD PARTITION = nope;", 0, "Column `nope` doesn't exist in `dbo.t`."},
+		{"rebuild a numbered partition valid", "ALTER TABLE dbo.t REBUILD PARTITION = 1;", -1, ""},
+		{"filtered index on IDENTITYCOL", "CREATE INDEX ix9 ON dbo.t (a) WHERE IDENTITYCOL IS NULL;", 0, "Column `IDENTITYCOL` doesn't exist."},
+		{"filtered index on a column named IDENTITYCOL valid", "CREATE INDEX ix9 ON dbo.t (a) WHERE [IDENTITYCOL] IS NULL;", -1, ""},
+		{"FILESTREAM_ON a table without varbinary", "CREATE INDEX ix9 ON dbo.typed (i) FILESTREAM_ON fs;", 0, "Table `dbo.typed` has no FILESTREAM column for `FILESTREAM_ON`."},
+		{"integer to an xml column", "UPDATE dbo.typed SET x = 1;", 0, "SQL Server doesn't convert an integer to column `x` of type `xml`."},
+		{"integer default for a geography column", "ALTER TABLE dbo.typed ADD DEFAULT (1) FOR g;", 0, "SQL Server doesn't convert an integer to column `g` of type `geography`."},
+		{"integer to an int column valid", "UPDATE dbo.typed SET i = 1;", -1, ""},
+		{"spatial index option it does not take", "CREATE SPATIAL INDEX sx ON dbo.typed (g) WITH (CERTIFICATE = 1);", 0, "SQL Server doesn't accept option `CERTIFICATE` on a spatial index of a `geography` column."},
+		{"bounding box of a geography index", "CREATE SPATIAL INDEX sx ON dbo.typed (g) WITH (BOUNDING_BOX = (0, 0, 1, 1));", 0, "SQL Server doesn't accept option `BOUNDING_BOX` on a spatial index of a `geography` column."},
+		{"insert too few values", "INSERT dbo.ints VALUES (1);", 0, "SQL Server doesn't accept an `INSERT` of 1 value into `dbo.ints`, which takes 2 or 3 values."},
+		{"insert too many values", "INSERT dbo.ints VALUES (1, 2, 3, 4);", 0, "SQL Server doesn't accept an `INSERT` of 4 values into `dbo.ints`, which takes 2 or 3 values."},
+		{"insert a value for each column valid", "INSERT dbo.ints VALUES (1, 2, 3);", -1, ""},
+		{"insert a value for an identity column", "INSERT dbo.ints VALUES (1, 2, 3);", 0, "SQL Server doesn't accept an `INSERT` of 3 values into `dbo.ints`, which takes 2 values."},
 		{"update undeclared scalar variable", "UPDATE dbo.t SET @v = 1;", 0, "Variable `@v` is not declared."},
 		{"update declared scalar variable", "DECLARE @v int;\nUPDATE dbo.t SET @v = 1;", -1, ""},
 		{"delete where current of undeclared cursor var", "DELETE dbo.t WHERE CURRENT OF @c;", 0, "Variable `@c` is not declared."},
@@ -573,6 +592,11 @@ func TestWalkThroughFindings(t *testing.T) {
 					cdc.Tables = append(cdc.Tables, &metadata.TableMetadata{Name: "change_tables"})
 				}
 				target.Schema.Schemas = append(target.Schema.Schemas, cdc)
+			case "insert too few values", "insert too many values", "insert a value for each column valid", "insert a value for an identity column":
+				target.Schema.Schemas[0].Tables = append(target.Schema.Schemas[0].Tables, &metadata.TableMetadata{
+					Name:    "ints",
+					Columns: []*metadata.ColumnMetadata{{Name: "a", Type: "int"}, {Name: "b", Type: "int"}, {Name: "c", Type: "int", IsIdentity: tt.name == "insert a value for an identity column"}},
+				})
 			case "no default schema":
 				target.DefaultSchema = ""
 			case "altered procedure binds in the schema it resolves to":
@@ -586,7 +610,9 @@ func TestWalkThroughFindings(t *testing.T) {
 				"create index on xml key column", "create index include xml column valid",
 				"create index on geography key column", "alter column invalidates synced column type",
 				"ROWGUIDCOL on an int column", "HIDDEN on an xml column", "PERSISTED on a column that is not computed",
-				"TRIM of an int column", "COLLATE on an int column":
+				"TRIM of an int column", "COLLATE on an int column", "FILESTREAM_ON a table without varbinary",
+				"integer to an xml column", "integer default for a geography column", "integer to an int column valid",
+				"spatial index option it does not take", "bounding box of a geography index":
 				target.Schema.Schemas[0].Tables = append(target.Schema.Schemas[0].Tables, &metadata.TableMetadata{
 					Name: "typed",
 					Columns: []*metadata.ColumnMetadata{

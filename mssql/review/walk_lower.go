@@ -77,15 +77,15 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.ExecStmt:
 		return b.exec(v)
 	case *ast.InsertStmt:
-		return b.insertStmt(v)
+		return b.undeclaredTableVar(v) || b.insertStmt(v)
 	case *ast.UpdateStmt:
-		return b.updateStmt(v)
+		return b.undeclaredTableVar(v) || b.updateStmt(v)
 	case *ast.DeleteStmt:
-		return b.deleteStmt(v)
+		return b.undeclaredTableVar(v) || b.deleteStmt(v)
 	case *ast.MergeStmt:
-		return b.dml(v.Target, v.WithClause, nil, true)
+		return b.undeclaredTableVar(v) || b.dml(v.Target, v.WithClause, nil, true)
 	case *ast.SelectStmt:
-		return b.selectStmt(v)
+		return b.undeclaredTableVar(v) || b.selectStmt(v)
 	case *ast.IfStmt:
 		return b.ifStmt(v)
 	case *ast.EnableDisableTriggerStmt:
@@ -899,11 +899,39 @@ func (b *builder) updateStmt(v *ast.UpdateStmt) bool {
 					if cn, ok := keyed(se.Column.Column); ok {
 						b.needs(spaceColumn, r.tablePath(), cn, nil, note(rangeOf(se.Column.Loc), msgMissingIn("column", ident(se.Column.Column), r.written), nil))
 					}
+					if (se.Operator == "" || se.Operator == "=") && !se.WriteMethod && b.intClash(r, se.Column.Column, se.Value) {
+						return true
+					}
 				}
 			}
 		}
 	}
 	b.checkCurrentOfVar(v.WhereClause, v.Relation, v.WithClause, v.FromClause)
+	return true
+}
+
+// intClashTypes are the system types an integer does not convert to (206).
+var intClashTypes = map[string]bool{"xml": true, "geography": true}
+
+// intClash fails an integer literal given to a synced column of a type it
+// does not convert to (206). The column is named as the sync spells it.
+func (b *builder) intClash(r objRef, col string, e ast.ExprNode) bool {
+	for {
+		p, ok := e.(*ast.ParenExpr)
+		if !ok {
+			break
+		}
+		e = p.Expr
+	}
+	lit, ok := e.(*ast.Literal)
+	if !ok || lit.Type != ast.LitInteger {
+		return false
+	}
+	st := b.syncedTable(r)
+	if st == nil || !intClashTypes[st.colTypes[col]] {
+		return false
+	}
+	b.fail(rangeOf(lit.Loc), review.UnsupportedForm, "SQL Server doesn't convert an integer to column "+review.Code(ident(col))+" of type "+review.Code(st.colTypes[col])+".")
 	return true
 }
 
@@ -993,6 +1021,17 @@ func (b *builder) dml(target ast.TableExpr, with *ast.WithClause, from *ast.List
 			b.Last = true
 		}
 		return true
+	case *ast.AdHocTableRef:
+		// SQL Server binds no one-part name on an ad hoc data source
+		// (208, on every fixture).
+		if o := tv.Object; o != nil && o.Server == "" && o.Database == "" && o.Schema == "" {
+			b.fail(rangeOf(tv.Loc), review.ObjectNotFound, msgMissing("", object(o)))
+			return true
+		}
+		if b.w.triggers {
+			b.Last = true
+		}
+		return true
 	case *ast.FuncCallExpr:
 		if tv.Name != nil {
 			if r, ok := b.ref(tv.Name, false); ok && r.where == placed && !r.temp {
@@ -1049,6 +1088,24 @@ func (b *builder) dml(target ast.TableExpr, with *ast.WithClause, from *ast.List
 	if b.w.triggers || reaches || cascades && !r.temp {
 		b.Last = true
 	}
+	return true
+}
+
+// undeclaredTableVar fails a statement that reads or writes a table
+// variable no DECLARE before it in the batch declares (1087): the batch
+// does not compile.
+func (b *builder) undeclaredTableVar(n ast.Node) bool {
+	var bad *ast.TableVarRef
+	ast.Inspect(n, func(m ast.Node) bool {
+		if tv, ok := m.(*ast.TableVarRef); ok && bad == nil && !b.varDeclared(tv.Name) {
+			bad = tv
+		}
+		return bad == nil
+	})
+	if bad == nil {
+		return false
+	}
+	b.fail(rangeOf(bad.Loc), review.ObjectNotFound, "Table variable "+review.Code(bad.Name)+" is not declared.")
 	return true
 }
 

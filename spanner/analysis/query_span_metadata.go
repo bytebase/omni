@@ -689,10 +689,12 @@ func (q *querySpanResolver) resultName(r ColumnInfo) string {
 // addMatchingColumns adds every column in fullSourceColumns whose name matches
 // refColumn (case-insensitively — GoogleSQL column names are case-insensitive —
 // and whose table matches refTable when refTable is non-empty) to dst. refTable
-// may be a relation alias; see tableMatches.
+// may be a relation alias; see tableMatches. A refColumn of "*" on a table
+// matches every column of it: a subquery's star (subquerySources).
 func addMatchingColumns(dst, fullSourceColumns ColumnSet, refColumn, refTable string, aliasMap map[string][]string) {
+	star := refColumn == "*" && refTable != ""
 	for sc := range fullSourceColumns {
-		if !strings.EqualFold(sc.Column, refColumn) {
+		if !star && !strings.EqualFold(sc.Column, refColumn) {
 			continue
 		}
 		if refTable == "" || tableMatches(sc.Table, refTable, aliasMap) {

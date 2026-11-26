@@ -245,6 +245,9 @@ type walker struct {
 	// a statement that may change a table's definition takes it out, as
 	// it does from fkTables.
 	synced map[walk.Key]*syncedTable
+	// triggersMade lists the triggers a statement of the change may have
+	// dropped or made, whose synced time and event no longer hold.
+	triggersMade map[walk.Key]bool
 	// sqlModeSet is set once the session assigns sql_mode, which may take
 	// NO_ENGINE_SUBSTITUTION or STRICT_TRANS_TABLES out of it.
 	sqlModeSet bool
@@ -269,6 +272,7 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 		sequences:      make(map[walk.Key]sequenceValues),
 		fkTables:       make(map[walk.Key]*fkTable),
 		synced:         make(map[walk.Key]*syncedTable),
+		triggersMade:   make(map[walk.Key]bool),
 	}
 	for name, st := range snap.tables {
 		w.synced[relKey(snap.db, name)] = st
