@@ -685,8 +685,12 @@ func (p *Parser) parseRequiredLength(dt *nodes.DataType) error {
 	if p.cur.Type == tokFCONST && !p.cur.isWideDigits() {
 		// string_length_i takes a number_literal, a decimal included
 		// (sql_parser_mysql_mode.y:7322): OceanBase 4.3.5 parses CHAR(1.5) and
-		// reads CHAR(1e5) as 100000, past CHAR's limit (1074).
-		if f, err := strconv.ParseFloat(p.cur.Str, 64); err == nil && f < math.MaxInt32 {
+		// reads CHAR(1e5) as 100000, past CHAR's limit (1074). A value past
+		// int's range is kept as the largest length, as a run of digits too
+		// wide for an integer is, so CHAR(1e10) is still too long.
+		if f, err := strconv.ParseFloat(p.cur.Str, 64); err != nil || f >= math.MaxInt {
+			dt.Length = math.MaxInt
+		} else {
 			dt.Length = int(f)
 		}
 	}
