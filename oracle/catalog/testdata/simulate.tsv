@@ -137,6 +137,16 @@ ok:f07dbe4edd7c	ok:f07dbe4edd7c	engine	one_table@missing	statement/createSequenc
 942	942	engine	one_table@missing	alterTable_unusable_editions_clause(UNUSABLE_BEGINNING_WITH_(CURRENT_EDI~52e9e96f)?/UNUSABLE_BEGINNING_WITH_(CURRENT_EDITION|EDITION_ID|NUL~024cfe45	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH CURRENT EDITION)
 942	942	engine	one_table@missing	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/EDITION_ID	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH EDITION a)
 942	942	engine	one_table@missing	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/NULL_EDITION	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH NULL EDITION)
+942	942	engine	one_table@missing	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+942	942	engine	one_table@missing	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+942	942	engine	one_table@missing	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MINVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+942	942	engine	one_table@missing	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOMINVALUE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+942	942	engine	one_table@missing	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/CYCLE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+942	942	engine	one_table@missing	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOCYCLE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+942	942	engine	one_table@missing	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/CACHE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+942	942	engine	one_table@missing	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOCACHE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+942	942	engine	one_table@missing	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/ORDER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+942	942	engine	one_table@missing	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOORDER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 942	942	engine	one_table@missing	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 942	942	engine	one_table@missing	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1))
 942	942	engine	one_table@missing	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MAXVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MAXVALUE 1))
@@ -160,13 +170,16 @@ ok:8281d3c6dc70	ok:8281d3c6dc70	engine	one_table@missing	alterView(IF_EXISTS)?/I
 942	942	engine	one_table@missing	alterView(EDITIONABLE|NONEDITIONABLE)/NONEDITIONABLE	ALTER VIEW a NONEDITIONABLE
 942	942	engine	one_table@missing	alterView_constraint_state(ENABLE|DISABLE)/DISABLE	ALTER VIEW a ADD UNIQUE(a) DISABLE
 942	942	engine	one_table@missing	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/COLUMN_(ID_.)?_ID_._ID	COMMENT ON COLUMN a.a IS 's'
+942	942	engine	one_table@missing	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/COLUMN_(ID_.)?_ID_._ID+comment(ID_.)?	COMMENT ON COLUMN a.a.a IS 's'
 942	942	engine	one_table@missing	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/TABLE_(ID_.)?_ID	COMMENT ON TABLE a IS 's'
+942	942	engine	one_table@missing	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/TABLE_(ID_.)?_ID+comment(ID_.)?	COMMENT ON TABLE a.a IS 's'
 942	942	engine	one_table@missing	createIndex(createIndex_cluster_index_clause|cre~4058924b)/createIndex_table_index_clause	CREATE INDEX a ON a(a)
 942	942	engine	one_table@missing	createIndex_table_index_clause(ID_.)?/ID_.	CREATE INDEX a ON a.a(a)
 942	942	engine	one_table@missing	createIndex_table_index_clause(ID)?/ID	CREATE INDEX a ON a a(a)
 942	942	engine	one_table@missing	createIndex_table_index_clause(ASC|DESC)?/ASC	CREATE INDEX a ON a(a ASC)
 942	942	engine	one_table@missing	createIndex_table_index_clause(ASC|DESC)?/DESC	CREATE INDEX a ON a(a DESC)
 957	957	engine	one_table@missing	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
+957	957	engine	one_table@missing	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1+createIndex_table_index_clause(ASC|DESC)?	CREATE INDEX a ON a(a, a ASC)
 942	942	engine	one_table@missing	createIndex_index_expr(ID|EXPR)/EXPR	CREATE INDEX a ON a(1)
 1031	1031	engine	one_table@missing	createSequence(ID_.)?/ID_.	CREATE SEQUENCE a.a
 65021	65021	engine	one_table@missing	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
@@ -275,6 +288,7 @@ ok:1c6895cfd667	ok:1c6895cfd667	engine	one_table@missing	createView((_ID_(VISIBL
 ok:1c6895cfd667	ok:1c6895cfd667	engine	one_table@missing	createView(VISIBLE|INVISIBLE)?/VISIBLE	CREATE VIEW a(a VISIBLE) AS SELECT 1 FROM dual
 54039	54039	engine	one_table@missing	createView(VISIBLE|INVISIBLE)?/INVISIBLE	CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 957	957	engine	one_table@missing	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e	CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+957	957	engine	one_table@missing	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e+createView(VISIBLE|INVISIBLE)?	CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
 998	998	engine	one_table@missing	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
 43929	43929	engine	one_table@missing	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 998	998	engine	one_table@missing	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/BEQUEATH_(CURRENT_USER|DEFINER)	CREATE VIEW a BEQUEATH CURRENT_USER AS SELECT 1 FROM dual
@@ -450,6 +464,16 @@ ok:a0a27c8c4650	ok:a0a27c8c4650	engine	one_table@table	alterTable_unusable_editi
 ok:a0a27c8c4650	ok:a0a27c8c4650	engine	one_table@table	alterTable_unusable_editions_clause(UNUSABLE_BEGINNING_WITH_(CURRENT_EDI~52e9e96f)?/UNUSABLE_BEGINNING_WITH_(CURRENT_EDITION|EDITION_ID|NUL~024cfe45	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH CURRENT EDITION)
 38802	38802	engine	one_table@table	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/EDITION_ID	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH EDITION a)
 ok:a0a27c8c4650	ok:a0a27c8c4650	engine	one_table@table	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/NULL_EDITION	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH NULL EDITION)
+904	904	engine	one_table@table	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+904	904	engine	one_table@table	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+904	904	engine	one_table@table	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MINVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+904	904	engine	one_table@table	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOMINVALUE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+904	904	engine	one_table@table	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/CYCLE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+904	904	engine	one_table@table	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOCYCLE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+904	904	engine	one_table@table	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/CACHE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+904	904	engine	one_table@table	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOCACHE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+904	904	engine	one_table@table	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/ORDER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+904	904	engine	one_table@table	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOORDER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 904	904	engine	one_table@table	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 904	904	engine	one_table@table	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1))
 904	904	engine	one_table@table	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MAXVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MAXVALUE 1))
@@ -473,13 +497,16 @@ ok:78fd52bc93ec	ok:78fd52bc93ec	engine	one_table@table	alterView(IF_EXISTS)?/IF_
 942	942	engine	one_table@table	alterView(EDITIONABLE|NONEDITIONABLE)/NONEDITIONABLE	ALTER VIEW a NONEDITIONABLE
 942	942	engine	one_table@table	alterView_constraint_state(ENABLE|DISABLE)/DISABLE	ALTER VIEW a ADD UNIQUE(a) DISABLE
 904	904	engine	one_table@table	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/COLUMN_(ID_.)?_ID_._ID	COMMENT ON COLUMN a.a IS 's'
+942	942	engine	one_table@table	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/COLUMN_(ID_.)?_ID_._ID+comment(ID_.)?	COMMENT ON COLUMN a.a.a IS 's'
 ok:7bb2dc259b80	ok:7bb2dc259b80	engine	one_table@table	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/TABLE_(ID_.)?_ID	COMMENT ON TABLE a IS 's'
+942	942	engine	one_table@table	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/TABLE_(ID_.)?_ID+comment(ID_.)?	COMMENT ON TABLE a.a IS 's'
 904	904	engine	one_table@table	createIndex(createIndex_cluster_index_clause|cre~4058924b)/createIndex_table_index_clause	CREATE INDEX a ON a(a)
 942	942	engine	one_table@table	createIndex_table_index_clause(ID_.)?/ID_.	CREATE INDEX a ON a.a(a)
 904	904	engine	one_table@table	createIndex_table_index_clause(ID)?/ID	CREATE INDEX a ON a a(a)
 904	904	engine	one_table@table	createIndex_table_index_clause(ASC|DESC)?/ASC	CREATE INDEX a ON a(a ASC)
 904	904	engine	one_table@table	createIndex_table_index_clause(ASC|DESC)?/DESC	CREATE INDEX a ON a(a DESC)
 957	957	engine	one_table@table	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
+957	957	engine	one_table@table	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1+createIndex_table_index_clause(ASC|DESC)?	CREATE INDEX a ON a(a, a ASC)
 ok:0007aad273b2	ok:0007aad273b2	engine	one_table@table	createIndex_index_expr(ID|EXPR)/EXPR	CREATE INDEX a ON a(1)
 1031	1031	engine	one_table@table	createSequence(ID_.)?/ID_.	CREATE SEQUENCE a.a
 65021	65021	engine	one_table@table	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
@@ -588,6 +615,7 @@ ok:9f584ab93c67	ok:9f584ab93c67	engine	one_table@table	createSynonym(PUBLIC)?/PU
 955	955	engine	one_table@table	createView(VISIBLE|INVISIBLE)?/VISIBLE	CREATE VIEW a(a VISIBLE) AS SELECT 1 FROM dual
 955	955	engine	one_table@table	createView(VISIBLE|INVISIBLE)?/INVISIBLE	CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 957	957	engine	one_table@table	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e	CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+957	957	engine	one_table@table	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e+createView(VISIBLE|INVISIBLE)?	CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
 955	955	engine	one_table@table	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
 43929	43929	engine	one_table@table	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 955	955	engine	one_table@table	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/BEQUEATH_(CURRENT_USER|DEFINER)	CREATE VIEW a BEQUEATH CURRENT_USER AS SELECT 1 FROM dual
@@ -763,6 +791,16 @@ ok:34f917308b10	ok:34f917308b10	engine	one_table@column	alterTable_inline_constr
 1430	1430	engine	one_table@column	alterTable_unusable_editions_clause(UNUSABLE_BEGINNING_WITH_(CURRENT_EDI~52e9e96f)?/UNUSABLE_BEGINNING_WITH_(CURRENT_EDITION|EDITION_ID|NUL~024cfe45	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH CURRENT EDITION)
 1430	1430	engine	one_table@column	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/EDITION_ID	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH EDITION a)
 1430	1430	engine	one_table@column	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/NULL_EDITION	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH NULL EDITION)
+30673	30673	engine	one_table@column	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+30673	30673	engine	one_table@column	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+30673	30673	engine	one_table@column	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MINVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+30673	30673	engine	one_table@column	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOMINVALUE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+30673	30673	engine	one_table@column	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/CYCLE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+30673	30673	engine	one_table@column	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOCYCLE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+30673	30673	engine	one_table@column	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/CACHE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+30673	30673	engine	one_table@column	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOCACHE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+30673	30673	engine	one_table@column	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/ORDER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+30673	30673	engine	one_table@column	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOORDER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 30673	30673	engine	one_table@column	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 30673	30673	engine	one_table@column	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1))
 30673	30673	engine	one_table@column	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MAXVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MAXVALUE 1))
@@ -786,13 +824,16 @@ ok:c35748ae0d07	ok:c35748ae0d07	engine	one_table@column	alterView(IF_EXISTS)?/IF
 942	942	engine	one_table@column	alterView(EDITIONABLE|NONEDITIONABLE)/NONEDITIONABLE	ALTER VIEW a NONEDITIONABLE
 942	942	engine	one_table@column	alterView_constraint_state(ENABLE|DISABLE)/DISABLE	ALTER VIEW a ADD UNIQUE(a) DISABLE
 ok:59e08ae0861e	ok:59e08ae0861e	engine	one_table@column	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/COLUMN_(ID_.)?_ID_._ID	COMMENT ON COLUMN a.a IS 's'
+942	942	engine	one_table@column	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/COLUMN_(ID_.)?_ID_._ID+comment(ID_.)?	COMMENT ON COLUMN a.a.a IS 's'
 ok:b2d80cfe721a	ok:b2d80cfe721a	engine	one_table@column	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/TABLE_(ID_.)?_ID	COMMENT ON TABLE a IS 's'
+942	942	engine	one_table@column	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/TABLE_(ID_.)?_ID+comment(ID_.)?	COMMENT ON TABLE a.a IS 's'
 ok:91633236132b	ok:91633236132b	engine	one_table@column	createIndex(createIndex_cluster_index_clause|cre~4058924b)/createIndex_table_index_clause	CREATE INDEX a ON a(a)
 942	942	engine	one_table@column	createIndex_table_index_clause(ID_.)?/ID_.	CREATE INDEX a ON a.a(a)
 ok:91633236132b	ok:91633236132b	engine	one_table@column	createIndex_table_index_clause(ID)?/ID	CREATE INDEX a ON a a(a)
 ok:91633236132b	ok:91633236132b	engine	one_table@column	createIndex_table_index_clause(ASC|DESC)?/ASC	CREATE INDEX a ON a(a ASC)
 ok:11bc23e43d74	ok:11bc23e43d74	engine	one_table@column	createIndex_table_index_clause(ASC|DESC)?/DESC	CREATE INDEX a ON a(a DESC)
 957	957	engine	one_table@column	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
+957	957	engine	one_table@column	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1+createIndex_table_index_clause(ASC|DESC)?	CREATE INDEX a ON a(a, a ASC)
 ok:16bf2193ec75	ok:16bf2193ec75	engine	one_table@column	createIndex_index_expr(ID|EXPR)/EXPR	CREATE INDEX a ON a(1)
 1031	1031	engine	one_table@column	createSequence(ID_.)?/ID_.	CREATE SEQUENCE a.a
 65021	65021	engine	one_table@column	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
@@ -901,6 +942,7 @@ ok:3a8306b918a0	ok:3a8306b918a0	engine	one_table@column	createSynonym(PUBLIC)?/P
 955	955	engine	one_table@column	createView(VISIBLE|INVISIBLE)?/VISIBLE	CREATE VIEW a(a VISIBLE) AS SELECT 1 FROM dual
 955	955	engine	one_table@column	createView(VISIBLE|INVISIBLE)?/INVISIBLE	CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 957	957	engine	one_table@column	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e	CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+957	957	engine	one_table@column	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e+createView(VISIBLE|INVISIBLE)?	CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
 955	955	engine	one_table@column	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
 43929	43929	engine	one_table@column	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 955	955	engine	one_table@column	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/BEQUEATH_(CURRENT_USER|DEFINER)	CREATE VIEW a BEQUEATH CURRENT_USER AS SELECT 1 FROM dual
@@ -1076,6 +1118,16 @@ ok:171984386b25	ok:171984386b25	engine	one_table@index	statement/dropIndex	DROP 
 942	942	engine	one_table@index	alterTable_unusable_editions_clause(UNUSABLE_BEGINNING_WITH_(CURRENT_EDI~52e9e96f)?/UNUSABLE_BEGINNING_WITH_(CURRENT_EDITION|EDITION_ID|NUL~024cfe45	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH CURRENT EDITION)
 942	942	engine	one_table@index	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/EDITION_ID	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH EDITION a)
 942	942	engine	one_table@index	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/NULL_EDITION	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH NULL EDITION)
+942	942	engine	one_table@index	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+942	942	engine	one_table@index	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+942	942	engine	one_table@index	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MINVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+942	942	engine	one_table@index	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOMINVALUE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+942	942	engine	one_table@index	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/CYCLE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+942	942	engine	one_table@index	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOCYCLE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+942	942	engine	one_table@index	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/CACHE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+942	942	engine	one_table@index	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOCACHE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+942	942	engine	one_table@index	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/ORDER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+942	942	engine	one_table@index	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOORDER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 942	942	engine	one_table@index	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 942	942	engine	one_table@index	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1))
 942	942	engine	one_table@index	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MAXVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MAXVALUE 1))
@@ -1099,13 +1151,16 @@ ok:1ed72bda2577	ok:1ed72bda2577	engine	one_table@index	alterView(IF_EXISTS)?/IF_
 942	942	engine	one_table@index	alterView(EDITIONABLE|NONEDITIONABLE)/NONEDITIONABLE	ALTER VIEW a NONEDITIONABLE
 942	942	engine	one_table@index	alterView_constraint_state(ENABLE|DISABLE)/DISABLE	ALTER VIEW a ADD UNIQUE(a) DISABLE
 942	942	engine	one_table@index	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/COLUMN_(ID_.)?_ID_._ID	COMMENT ON COLUMN a.a IS 's'
+942	942	engine	one_table@index	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/COLUMN_(ID_.)?_ID_._ID+comment(ID_.)?	COMMENT ON COLUMN a.a.a IS 's'
 942	942	engine	one_table@index	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/TABLE_(ID_.)?_ID	COMMENT ON TABLE a IS 's'
+942	942	engine	one_table@index	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/TABLE_(ID_.)?_ID+comment(ID_.)?	COMMENT ON TABLE a.a IS 's'
 942	942	engine	one_table@index	createIndex(createIndex_cluster_index_clause|cre~4058924b)/createIndex_table_index_clause	CREATE INDEX a ON a(a)
 942	942	engine	one_table@index	createIndex_table_index_clause(ID_.)?/ID_.	CREATE INDEX a ON a.a(a)
 942	942	engine	one_table@index	createIndex_table_index_clause(ID)?/ID	CREATE INDEX a ON a a(a)
 942	942	engine	one_table@index	createIndex_table_index_clause(ASC|DESC)?/ASC	CREATE INDEX a ON a(a ASC)
 942	942	engine	one_table@index	createIndex_table_index_clause(ASC|DESC)?/DESC	CREATE INDEX a ON a(a DESC)
 957	957	engine	one_table@index	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
+957	957	engine	one_table@index	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1+createIndex_table_index_clause(ASC|DESC)?	CREATE INDEX a ON a(a, a ASC)
 942	942	engine	one_table@index	createIndex_index_expr(ID|EXPR)/EXPR	CREATE INDEX a ON a(1)
 1031	1031	engine	one_table@index	createSequence(ID_.)?/ID_.	CREATE SEQUENCE a.a
 65021	65021	engine	one_table@index	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
@@ -1214,6 +1269,7 @@ ok:79aaf6a86645	ok:79aaf6a86645	engine	one_table@index	createView((_ID_(VISIBLE|
 ok:79aaf6a86645	ok:79aaf6a86645	engine	one_table@index	createView(VISIBLE|INVISIBLE)?/VISIBLE	CREATE VIEW a(a VISIBLE) AS SELECT 1 FROM dual
 54039	54039	engine	one_table@index	createView(VISIBLE|INVISIBLE)?/INVISIBLE	CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 957	957	engine	one_table@index	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e	CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+957	957	engine	one_table@index	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e+createView(VISIBLE|INVISIBLE)?	CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
 998	998	engine	one_table@index	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
 43929	43929	engine	one_table@index	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 998	998	engine	one_table@index	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/BEQUEATH_(CURRENT_USER|DEFINER)	CREATE VIEW a BEQUEATH CURRENT_USER AS SELECT 1 FROM dual
@@ -1389,6 +1445,16 @@ ok:171984386b25	ok:171984386b25	engine	objects@view	statement/dropView	DROP VIEW
 942	942	engine	objects@view	alterTable_unusable_editions_clause(UNUSABLE_BEGINNING_WITH_(CURRENT_EDI~52e9e96f)?/UNUSABLE_BEGINNING_WITH_(CURRENT_EDITION|EDITION_ID|NUL~024cfe45	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH CURRENT EDITION)
 942	942	engine	objects@view	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/EDITION_ID	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH EDITION a)
 942	942	engine	objects@view	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/NULL_EDITION	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH NULL EDITION)
+942	942	engine	objects@view	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+942	942	engine	objects@view	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+942	942	engine	objects@view	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MINVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+942	942	engine	objects@view	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOMINVALUE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+942	942	engine	objects@view	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/CYCLE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+942	942	engine	objects@view	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOCYCLE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+942	942	engine	objects@view	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/CACHE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+942	942	engine	objects@view	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOCACHE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+942	942	engine	objects@view	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/ORDER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+942	942	engine	objects@view	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOORDER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 942	942	engine	objects@view	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 942	942	engine	objects@view	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1))
 942	942	engine	objects@view	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MAXVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MAXVALUE 1))
@@ -1412,13 +1478,16 @@ ok:0d2aeb61b8ac	ok:0d2aeb61b8ac	engine	objects@view	alterView(COMPILE|(READ_ONLY
 ok:0d2aeb61b8ac	ok:0d2aeb61b8ac	engine	objects@view	alterView(EDITIONABLE|NONEDITIONABLE)/NONEDITIONABLE	ALTER VIEW a NONEDITIONABLE
 ok:0d2aeb61b8ac	ok:0d2aeb61b8ac	engine	objects@view	alterView_constraint_state(ENABLE|DISABLE)/DISABLE	ALTER VIEW a ADD UNIQUE(a) DISABLE
 ok:0d2aeb61b8ac	ok:0d2aeb61b8ac	engine	objects@view	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/COLUMN_(ID_.)?_ID_._ID	COMMENT ON COLUMN a.a IS 's'
+942	942	engine	objects@view	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/COLUMN_(ID_.)?_ID_._ID+comment(ID_.)?	COMMENT ON COLUMN a.a.a IS 's'
 ok:53ff77332c5a	ok:53ff77332c5a	engine	objects@view	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/TABLE_(ID_.)?_ID	COMMENT ON TABLE a IS 's'
+942	942	engine	objects@view	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/TABLE_(ID_.)?_ID+comment(ID_.)?	COMMENT ON TABLE a.a IS 's'
 1702	1702	engine	objects@view	createIndex(createIndex_cluster_index_clause|cre~4058924b)/createIndex_table_index_clause	CREATE INDEX a ON a(a)
 942	942	engine	objects@view	createIndex_table_index_clause(ID_.)?/ID_.	CREATE INDEX a ON a.a(a)
 1702	1702	engine	objects@view	createIndex_table_index_clause(ID)?/ID	CREATE INDEX a ON a a(a)
 1702	1702	engine	objects@view	createIndex_table_index_clause(ASC|DESC)?/ASC	CREATE INDEX a ON a(a ASC)
 1702	1702	engine	objects@view	createIndex_table_index_clause(ASC|DESC)?/DESC	CREATE INDEX a ON a(a DESC)
 957	957	engine	objects@view	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
+957	957	engine	objects@view	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1+createIndex_table_index_clause(ASC|DESC)?	CREATE INDEX a ON a(a, a ASC)
 1702	1702	engine	objects@view	createIndex_index_expr(ID|EXPR)/EXPR	CREATE INDEX a ON a(1)
 1031	1031	engine	objects@view	createSequence(ID_.)?/ID_.	CREATE SEQUENCE a.a
 65021	65021	engine	objects@view	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
@@ -1527,6 +1596,7 @@ ok:3820237041cf	ok:3820237041cf	engine	objects@view	createSynonym(PUBLIC)?/PUBLI
 955	955	engine	objects@view	createView(VISIBLE|INVISIBLE)?/VISIBLE	CREATE VIEW a(a VISIBLE) AS SELECT 1 FROM dual
 54039	54039	engine	objects@view	createView(VISIBLE|INVISIBLE)?/INVISIBLE	CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 957	957	engine	objects@view	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e	CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+957	957	engine	objects@view	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e+createView(VISIBLE|INVISIBLE)?	CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
 998	998	engine	objects@view	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
 43929	43929	engine	objects@view	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 998	998	engine	objects@view	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/BEQUEATH_(CURRENT_USER|DEFINER)	CREATE VIEW a BEQUEATH CURRENT_USER AS SELECT 1 FROM dual
@@ -1702,6 +1772,16 @@ ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence(RESTART_(W
 942	942	engine	objects@sequence	alterTable_unusable_editions_clause(UNUSABLE_BEGINNING_WITH_(CURRENT_EDI~52e9e96f)?/UNUSABLE_BEGINNING_WITH_(CURRENT_EDITION|EDITION_ID|NUL~024cfe45	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH CURRENT EDITION)
 942	942	engine	objects@sequence	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/EDITION_ID	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH EDITION a)
 942	942	engine	objects@sequence	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/NULL_EDITION	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH NULL EDITION)
+942	942	engine	objects@sequence	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+942	942	engine	objects@sequence	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+942	942	engine	objects@sequence	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MINVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+942	942	engine	objects@sequence	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOMINVALUE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+942	942	engine	objects@sequence	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/CYCLE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+942	942	engine	objects@sequence	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOCYCLE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+942	942	engine	objects@sequence	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/CACHE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+942	942	engine	objects@sequence	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOCACHE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+942	942	engine	objects@sequence	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/ORDER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+942	942	engine	objects@sequence	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOORDER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 942	942	engine	objects@sequence	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 942	942	engine	objects@sequence	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1))
 942	942	engine	objects@sequence	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MAXVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MAXVALUE 1))
@@ -1725,13 +1805,16 @@ ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterView(IF_EXISTS)?/IF
 942	942	engine	objects@sequence	alterView(EDITIONABLE|NONEDITIONABLE)/NONEDITIONABLE	ALTER VIEW a NONEDITIONABLE
 942	942	engine	objects@sequence	alterView_constraint_state(ENABLE|DISABLE)/DISABLE	ALTER VIEW a ADD UNIQUE(a) DISABLE
 2201	2201	engine	objects@sequence	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/COLUMN_(ID_.)?_ID_._ID	COMMENT ON COLUMN a.a IS 's'
+942	942	engine	objects@sequence	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/COLUMN_(ID_.)?_ID_._ID+comment(ID_.)?	COMMENT ON COLUMN a.a.a IS 's'
 2201	2201	engine	objects@sequence	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/TABLE_(ID_.)?_ID	COMMENT ON TABLE a IS 's'
+942	942	engine	objects@sequence	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/TABLE_(ID_.)?_ID+comment(ID_.)?	COMMENT ON TABLE a.a IS 's'
 2201	2201	engine	objects@sequence	createIndex(createIndex_cluster_index_clause|cre~4058924b)/createIndex_table_index_clause	CREATE INDEX a ON a(a)
 942	942	engine	objects@sequence	createIndex_table_index_clause(ID_.)?/ID_.	CREATE INDEX a ON a.a(a)
 2201	2201	engine	objects@sequence	createIndex_table_index_clause(ID)?/ID	CREATE INDEX a ON a a(a)
 2201	2201	engine	objects@sequence	createIndex_table_index_clause(ASC|DESC)?/ASC	CREATE INDEX a ON a(a ASC)
 2201	2201	engine	objects@sequence	createIndex_table_index_clause(ASC|DESC)?/DESC	CREATE INDEX a ON a(a DESC)
 957	957	engine	objects@sequence	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
+957	957	engine	objects@sequence	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1+createIndex_table_index_clause(ASC|DESC)?	CREATE INDEX a ON a(a, a ASC)
 2201	2201	engine	objects@sequence	createIndex_index_expr(ID|EXPR)/EXPR	CREATE INDEX a ON a(1)
 1031	1031	engine	objects@sequence	createSequence(ID_.)?/ID_.	CREATE SEQUENCE a.a
 65021	65021	engine	objects@sequence	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
@@ -1840,6 +1923,7 @@ ok:43a49ffb79fb	ok:43a49ffb79fb	engine	objects@sequence	createSynonym(PUBLIC)?/P
 955	955	engine	objects@sequence	createView(VISIBLE|INVISIBLE)?/VISIBLE	CREATE VIEW a(a VISIBLE) AS SELECT 1 FROM dual
 955	955	engine	objects@sequence	createView(VISIBLE|INVISIBLE)?/INVISIBLE	CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 957	957	engine	objects@sequence	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e	CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+957	957	engine	objects@sequence	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e+createView(VISIBLE|INVISIBLE)?	CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
 955	955	engine	objects@sequence	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
 43929	43929	engine	objects@sequence	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 955	955	engine	objects@sequence	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/BEQUEATH_(CURRENT_USER|DEFINER)	CREATE VIEW a BEQUEATH CURRENT_USER AS SELECT 1 FROM dual
@@ -2015,6 +2099,16 @@ ok:6d15d5cb0b97	ok:6d15d5cb0b97	engine	objects@synonym	statement/dropSynonym	DRO
 942	942	engine	objects@synonym	alterTable_unusable_editions_clause(UNUSABLE_BEGINNING_WITH_(CURRENT_EDI~52e9e96f)?/UNUSABLE_BEGINNING_WITH_(CURRENT_EDITION|EDITION_ID|NUL~024cfe45	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH CURRENT EDITION)
 942	942	engine	objects@synonym	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/EDITION_ID	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH EDITION a)
 942	942	engine	objects@synonym	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/NULL_EDITION	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH NULL EDITION)
+942	942	engine	objects@synonym	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+942	942	engine	objects@synonym	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+942	942	engine	objects@synonym	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MINVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+942	942	engine	objects@synonym	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOMINVALUE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+942	942	engine	objects@synonym	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/CYCLE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+942	942	engine	objects@synonym	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOCYCLE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+942	942	engine	objects@synonym	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/CACHE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+942	942	engine	objects@synonym	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOCACHE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+942	942	engine	objects@synonym	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/ORDER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+942	942	engine	objects@synonym	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOORDER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 942	942	engine	objects@synonym	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 942	942	engine	objects@synonym	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1))
 942	942	engine	objects@synonym	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MAXVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MAXVALUE 1))
@@ -2038,13 +2132,16 @@ ok:594b954e7596	ok:594b954e7596	engine	objects@synonym	alterView(IF_EXISTS)?/IF_
 942	942	engine	objects@synonym	alterView(EDITIONABLE|NONEDITIONABLE)/NONEDITIONABLE	ALTER VIEW a NONEDITIONABLE
 942	942	engine	objects@synonym	alterView_constraint_state(ENABLE|DISABLE)/DISABLE	ALTER VIEW a ADD UNIQUE(a) DISABLE
 904	904	engine	objects@synonym	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/COLUMN_(ID_.)?_ID_._ID	COMMENT ON COLUMN a.a IS 's'
+942	942	engine	objects@synonym	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/COLUMN_(ID_.)?_ID_._ID+comment(ID_.)?	COMMENT ON COLUMN a.a.a IS 's'
 ok:9e7d1aa03905	ok:9e7d1aa03905	engine	objects@synonym	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/TABLE_(ID_.)?_ID	COMMENT ON TABLE a IS 's'
+942	942	engine	objects@synonym	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/TABLE_(ID_.)?_ID+comment(ID_.)?	COMMENT ON TABLE a.a IS 's'
 904	904	engine	objects@synonym	createIndex(createIndex_cluster_index_clause|cre~4058924b)/createIndex_table_index_clause	CREATE INDEX a ON a(a)
 942	942	engine	objects@synonym	createIndex_table_index_clause(ID_.)?/ID_.	CREATE INDEX a ON a.a(a)
 904	904	engine	objects@synonym	createIndex_table_index_clause(ID)?/ID	CREATE INDEX a ON a a(a)
 904	904	engine	objects@synonym	createIndex_table_index_clause(ASC|DESC)?/ASC	CREATE INDEX a ON a(a ASC)
 904	904	engine	objects@synonym	createIndex_table_index_clause(ASC|DESC)?/DESC	CREATE INDEX a ON a(a DESC)
 957	957	engine	objects@synonym	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
+957	957	engine	objects@synonym	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1+createIndex_table_index_clause(ASC|DESC)?	CREATE INDEX a ON a(a, a ASC)
 ok:c854d0556f15	ok:c854d0556f15	engine	objects@synonym	createIndex_index_expr(ID|EXPR)/EXPR	CREATE INDEX a ON a(1)
 1031	1031	engine	objects@synonym	createSequence(ID_.)?/ID_.	CREATE SEQUENCE a.a
 65021	65021	engine	objects@synonym	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
@@ -2153,6 +2250,7 @@ ok:46baa5e1c2f0	ok:46baa5e1c2f0	engine	objects@synonym	createSynonym(PUBLIC)?/PU
 955	955	engine	objects@synonym	createView(VISIBLE|INVISIBLE)?/VISIBLE	CREATE VIEW a(a VISIBLE) AS SELECT 1 FROM dual
 955	955	engine	objects@synonym	createView(VISIBLE|INVISIBLE)?/INVISIBLE	CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 957	957	engine	objects@synonym	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e	CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+957	957	engine	objects@synonym	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e+createView(VISIBLE|INVISIBLE)?	CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
 955	955	engine	objects@synonym	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
 43929	43929	engine	objects@synonym	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 955	955	engine	objects@synonym	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/BEQUEATH_(CURRENT_USER|DEFINER)	CREATE VIEW a BEQUEATH CURRENT_USER AS SELECT 1 FROM dual
@@ -2328,6 +2426,16 @@ ok:114e2d9e48e2	ok:114e2d9e48e2	engine	objects@fk	alterTable_inline_constraint(C
 1430	1430	engine	objects@fk	alterTable_unusable_editions_clause(UNUSABLE_BEGINNING_WITH_(CURRENT_EDI~52e9e96f)?/UNUSABLE_BEGINNING_WITH_(CURRENT_EDITION|EDITION_ID|NUL~024cfe45	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH CURRENT EDITION)
 1430	1430	engine	objects@fk	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/EDITION_ID	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH EDITION a)
 1430	1430	engine	objects@fk	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/NULL_EDITION	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH NULL EDITION)
+30673	30673	engine	objects@fk	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1 NOMAXVALUE))
+30673	30673	engine	objects@fk	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1 NOMAXVALUE))
+30673	30673	engine	objects@fk	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MINVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MINVALUE 1 NOMAXVALUE))
+30673	30673	engine	objects@fk	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOMINVALUE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMINVALUE NOMAXVALUE))
+30673	30673	engine	objects@fk	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/CYCLE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CYCLE NOMAXVALUE))
+30673	30673	engine	objects@fk	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOCYCLE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCYCLE NOMAXVALUE))
+30673	30673	engine	objects@fk	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/CACHE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(CACHE 1 NOMAXVALUE))
+30673	30673	engine	objects@fk	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOCACHE	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOCACHE NOMAXVALUE))
+30673	30673	engine	objects@fk	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/ORDER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(ORDER NOMAXVALUE))
+30673	30673	engine	objects@fk	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)+/(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)_(START_~6fe1fa2c+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/NOORDER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOORDER NOMAXVALUE))
 30673	30673	engine	objects@fk	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 30673	30673	engine	objects@fk	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1))
 30673	30673	engine	objects@fk	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MAXVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MAXVALUE 1))
@@ -2351,13 +2459,16 @@ ok:25361af3f6f1	ok:25361af3f6f1	engine	objects@fk	alterView(IF_EXISTS)?/IF_EXIST
 942	942	engine	objects@fk	alterView(EDITIONABLE|NONEDITIONABLE)/NONEDITIONABLE	ALTER VIEW a NONEDITIONABLE
 942	942	engine	objects@fk	alterView_constraint_state(ENABLE|DISABLE)/DISABLE	ALTER VIEW a ADD UNIQUE(a) DISABLE
 ok:1c563be1ffb1	ok:1c563be1ffb1	engine	objects@fk	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/COLUMN_(ID_.)?_ID_._ID	COMMENT ON COLUMN a.a IS 's'
+942	942	engine	objects@fk	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/COLUMN_(ID_.)?_ID_._ID+comment(ID_.)?	COMMENT ON COLUMN a.a.a IS 's'
 ok:fa7e0b8142b1	ok:fa7e0b8142b1	engine	objects@fk	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/TABLE_(ID_.)?_ID	COMMENT ON TABLE a IS 's'
+942	942	engine	objects@fk	comment(AUDIT_POLICY_ID|COLUMN_(ID_.)?_ID_._~a3a5738d)/TABLE_(ID_.)?_ID+comment(ID_.)?	COMMENT ON TABLE a.a IS 's'
 ok:0374056f8b53	ok:0374056f8b53	engine	objects@fk	createIndex(createIndex_cluster_index_clause|cre~4058924b)/createIndex_table_index_clause	CREATE INDEX a ON a(a)
 942	942	engine	objects@fk	createIndex_table_index_clause(ID_.)?/ID_.	CREATE INDEX a ON a.a(a)
 ok:0374056f8b53	ok:0374056f8b53	engine	objects@fk	createIndex_table_index_clause(ID)?/ID	CREATE INDEX a ON a a(a)
 ok:0374056f8b53	ok:0374056f8b53	engine	objects@fk	createIndex_table_index_clause(ASC|DESC)?/ASC	CREATE INDEX a ON a(a ASC)
 ok:0a4cd0b068a8	ok:0a4cd0b068a8	engine	objects@fk	createIndex_table_index_clause(ASC|DESC)?/DESC	CREATE INDEX a ON a(a DESC)
 957	957	engine	objects@fk	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
+957	957	engine	objects@fk	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1+createIndex_table_index_clause(ASC|DESC)?	CREATE INDEX a ON a(a, a ASC)
 ok:114627c7e777	ok:114627c7e777	engine	objects@fk	createIndex_index_expr(ID|EXPR)/EXPR	CREATE INDEX a ON a(1)
 1031	1031	engine	objects@fk	createSequence(ID_.)?/ID_.	CREATE SEQUENCE a.a
 65021	65021	engine	objects@fk	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
@@ -2466,6 +2577,7 @@ ok:6de315b0a65e	ok:6de315b0a65e	engine	objects@fk	createSynonym(PUBLIC)?/PUBLIC	
 955	955	engine	objects@fk	createView(VISIBLE|INVISIBLE)?/VISIBLE	CREATE VIEW a(a VISIBLE) AS SELECT 1 FROM dual
 955	955	engine	objects@fk	createView(VISIBLE|INVISIBLE)?/INVISIBLE	CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 957	957	engine	objects@fk	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e	CREATE VIEW a(a, a) AS SELECT 1 FROM dual
+957	957	engine	objects@fk	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e+createView(VISIBLE|INVISIBLE)?	CREATE VIEW a(a, a VISIBLE) AS SELECT 1 FROM dual
 955	955	engine	objects@fk	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
 43929	43929	engine	objects@fk	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 955	955	engine	objects@fk	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/BEQUEATH_(CURRENT_USER|DEFINER)	CREATE VIEW a BEQUEATH CURRENT_USER AS SELECT 1 FROM dual

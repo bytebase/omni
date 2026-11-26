@@ -43,6 +43,8 @@ ok:b31f5ba3a7a7	ok:b31f5ba3a7a7	engine	one_table@column	select_query_block(FROM_
 54058	54058	engine	one_table@column	select_order_by_clause(NULLS_FIRST|NULLS_LAST)?/NULLS_FIRST	CREATE VIEW v AS SELECT * ORDER BY 1 NULLS FIRST
 54058	54058	engine	one_table@column	select_order_by_clause(NULLS_FIRST|NULLS_LAST)?/NULLS_LAST	CREATE VIEW v AS SELECT * ORDER BY 1 NULLS LAST
 54058	54058	engine	one_table@column	select_order_by_clause(,_(EXPR|NUMBER|ID)_(ASC|DESC)?_(NULL~9409409b)*/,_(EXPR|NUMBER|ID)_(ASC|DESC)?_(NULLS_FIRST|NULLS_LAST)~c78c564f	CREATE VIEW v AS SELECT * ORDER BY 1, 1
+54058	54058	engine	one_table@column	select_order_by_clause(,_(EXPR|NUMBER|ID)_(ASC|DESC)?_(NULL~9409409b)*/,_(EXPR|NUMBER|ID)_(ASC|DESC)?_(NULLS_FIRST|NULLS_LAST)~c78c564f+select_order_by_clause(ASC|DESC)?	CREATE VIEW v AS SELECT * ORDER BY 1, 1 ASC
+54058	54058	engine	one_table@column	select_order_by_clause(,_(EXPR|NUMBER|ID)_(ASC|DESC)?_(NULL~9409409b)*/,_(EXPR|NUMBER|ID)_(ASC|DESC)?_(NULLS_FIRST|NULLS_LAST)~c78c564f+select_order_by_clause(NULLS_FIRST|NULLS_LAST)?	CREATE VIEW v AS SELECT * ORDER BY 1, 1 NULLS FIRST
 54058	54058	engine	one_table@column	select_row_limiting_clause(OFFSET_NUMBER_(ROW|ROWS))?/OFFSET_NUMBER_(ROW|ROWS)	CREATE VIEW v AS SELECT * OFFSET 1 ROW
 54058	54058	engine	one_table@column	select_row_limiting_clause(ROW|ROWS)/ROWS	CREATE VIEW v AS SELECT * OFFSET 1 ROWS
 54058	54058	engine	one_table@column	select_row_limiting_clause(FETCH_(FIRST|NEXT)_((NUMBER|NUMBER_P~7b3d57fd)?/FETCH_(FIRST|NEXT)_((NUMBER|NUMBER_PERCENT))?_(ROW|ROWS~a2e9f4e6	CREATE VIEW v AS SELECT * FETCH FIRST ROW ONLY

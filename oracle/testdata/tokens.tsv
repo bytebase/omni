@@ -100,6 +100,22 @@ delete_row_pattern_clause(ASC|DESC)?	(every site)	OracleDocs.g4:4524 delete_row_
 purge(USER_ID)?	(every site)	OracleDocs.g4:5041 purge: USER ID
 select_row_pattern_clause(ASC|DESC)?	(every site)	OracleDocs.g4:5229 select_row_pattern_clause: ASC or DESC
 setRole(IDENTIFIED_BY_ID)?	(every site)	OracleDocs.g4:5396 setRole: IDENTIFIED BY ID
+comment(ID_.)?	(every site)	OracleDocs.g4:2637 comment: ID . before each object's name
+grant_on_object_clause(ID_.)?	(every site)	OracleDocs.g4:4925 grant_on_object_clause: ID . before each object's name
+revoke_on_object_clause(ID_.)?	(every site)	OracleDocs.g4:5069 revoke_on_object_clause: ID . before each object's name
+analyze(ID_.)?	(every site)	OracleDocs.g4:2584 analyze: ID . before a table, index or cluster name
+createIndextype(ID_.)?	(every site)	OracleDocs.g4:3070 createIndextype: ID . before each name
+associateStatistics_function_association(ID_.)?	(every site)	OracleDocs.g4:2604 associateStatistics_function_association: ID . before each name
+createIndex_bitmap_join_index_clause(ID_.)?	(every site)	OracleDocs.g4:2972 createIndex_bitmap_join_index_clause: ID . before each table name
+createView(VISIBLE|INVISIBLE)?	(every site)	OracleDocs.g4:4434 createView: VISIBLE or INVISIBLE
+select_order_by_clause(ASC|DESC)?	(every site)	OracleDocs.g4:5112 select_order_by_clause: ASC or DESC
+select_order_by_clause(NULLS_FIRST|NULLS_LAST)?	(every site)	OracleDocs.g4:5112 select_order_by_clause: NULLS FIRST or NULLS LAST
+select_search_clause(ASC|DESC)?	(every site)	OracleDocs.g4:5118 select_search_clause: ASC or DESC
+select_search_clause(NULLS_FIRST|NULLS_LAST)?	(every site)	OracleDocs.g4:5118 select_search_clause: NULLS FIRST or NULLS LAST
+createIndex_table_index_clause(ASC|DESC)?	(every site)	OracleDocs.g4:2969 createIndex_table_index_clause: ASC or DESC
+alterDiskgroup_drop_disk_clause(FORCE|NOFORCE)?	(every site)	OracleDocs.g4:537 alterDiskgroup_drop_disk_clause: FORCE or NOFORCE
+alterDiskgroup_disk_offline_clause(WAIT|NOWAIT)?	(every site)	OracleDocs.g4:556 alterDiskgroup_disk_offline_clause: WAIT or NOWAIT
+createTable_lob_storage_clause(SECUREFILE|BASICFILE)?	(every site)	OracleDocs.g4:4014 createTable_lob_storage_clause: SECUREFILE or BASICFILE
 # Keyword choices tried at every site that names them, and not only where
 # their own alternatives' rows reach (see grammar.EveryAlternative). A rule
 # whose body is one group names that group's rule, which is opted in too.
@@ -173,3 +189,38 @@ createTable_table_compression	(every alternative)	OracleDocs.g4:3902 createTable
 createTable_table_compression(NOCOMPRESS|ROW_STORE_COMPRESS_(BASIC~100c56ca)	(every alternative)	OracleDocs.g4:3902 createTable_table_compression's choice, which the rule names alone
 grant_grantee_clause	(every alternative)	OracleDocs.g4:4922 grant_grantee_clause: ID | PUBLIC
 grant_grantee_clause(ID|PUBLIC)	(every alternative)	OracleDocs.g4:4922 grant_grantee_clause's choice, which the rule names alone
+alterProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)	(every alternative)	OracleDocs.g4:1626 alterProfile_resource_parameters: NUMBER | UNLIMITED | DEFAULT after each limit
+alterProfile_password_parameters(NUMBER|UNLIMITED|DEFAULT)	(every alternative)	OracleDocs.g4:1629 alterProfile_password_parameters: NUMBER | UNLIMITED | DEFAULT after each limit
+createProfile_resource_parameters(NUMBER|UNLIMITED|DEFAULT)	(every alternative)	OracleDocs.g4:3766 createProfile_resource_parameters: NUMBER | UNLIMITED | DEFAULT after each limit
+createProfile_password_parameters(NUMBER|UNLIMITED|DEFAULT)	(every alternative)	OracleDocs.g4:3769 createProfile_password_parameters: NUMBER | UNLIMITED | DEFAULT after each count
+createProfile_password_parameters(EXPR|UNLIMITED|DEFAULT)	(every alternative)	OracleDocs.g4:3769 createProfile_password_parameters: EXPR | UNLIMITED | DEFAULT after each time
+alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)	(every alternative)	OracleDocs.g4:2249 alterTable_identity_options: START WITH | INCREMENT BY | MAXVALUE | ... | ORDER | NOORDER
+alterTable_modify_lob_parameters(PCTVERSION_NUMBER|FREEPOOLS_NUMBER|R~830223a6)	(every alternative)	OracleDocs.g4:1997 alterTable_modify_lob_parameters: PCTVERSION | FREEPOOLS | REBUILD FREEPOOLS | ... | ALLOCATE EXTENT
+alterTable_lob_storage_parameters((TABLESPACE_ID|alterTable_logging_cl~208e2099)	(every alternative)	OracleDocs.g4:2231 alterTable_lob_storage_parameters: TABLESPACE | logging | STORAGE IN ROW | CHUNK | PCTVERSION | ...
+createTable_lob_storage_parameters((TABLESPACE_ID|createTable_logging_c~00cac9df)	(every alternative)	OracleDocs.g4:3959 createTable_lob_storage_parameters: TABLESPACE | logging | STORAGE IN ROW | CHUNK | PCTVERSION | ...
+alterTable_index_attributes(alterTable_physical_attributes_claus~a6f08332)	(every alternative)	OracleDocs.g4:2143 alterTable_index_attributes: physical attributes | TABLESPACE | logging | compression | partial | SORT | ...
+alterTable_supplemental_table_logging(ALL|PRIMARY_KEY|UNIQUE|FOREIGN_KEY)	(every alternative)	OracleDocs.g4:1777 alterTable_supplemental_table_logging: ALL | PRIMARY KEY | UNIQUE | FOREIGN KEY
+createTable_supplemental_id_key_clause(ALL|PRIMARY_KEY|UNIQUE|FOREIGN_KEY)	(every alternative)	OracleDocs.g4:3984 createTable_supplemental_id_key_clause: ALL | PRIMARY KEY | UNIQUE | FOREIGN KEY
+createPluggableDatabase_user_tablespaces_clause	(every alternative)	OracleDocs.g4:3700 createPluggableDatabase_user_tablespaces_clause: ( ID, ... ) | ALL | ALL EXCEPT ( ID, ... ) | NONE
+createPluggableDatabase_standbys_clause	(every alternative)	OracleDocs.g4:3706 createPluggableDatabase_standbys_clause: ( ID, ... ) | ALL | ALL EXCEPT ( ID, ... ) | NONE
+alterSession(ENABLE|DISABLE)	(every alternative)	OracleDocs.g4:1661 alterSession: ENABLE or DISABLE before each feature
+alterSession(DML|DDL|QUERY)	(every alternative)	OracleDocs.g4:1661 alterSession: DML | DDL | QUERY after PARALLEL
+alterSession_alter_session_set_clause(TRUE|FALSE|ID)	(every alternative)	OracleDocs.g4:1664 alterSession_alter_session_set_clause: TRUE | FALSE | ID for the outline settings
+createAuditPolicyUnifiedAuditing_component_actions(ID|ALL)	(every alternative)	OracleDocs.g4:2780 createAuditPolicyUnifiedAuditing_component_actions: ID | ALL
+alterTable_subpartition_or_key_value	(every alternative)	OracleDocs.g4:2073 alterTable_subpartition_or_key_value: ID | FOR ( EXPR, ... )
+alterMaterializedView_partition_or_key_value	(every alternative)	OracleDocs.g4:1396 alterMaterializedView_partition_or_key_value: ID | FOR ( EXPR, ... )
+alterMaterializedView_subpartition_or_key_value	(every alternative)	OracleDocs.g4:1400 alterMaterializedView_subpartition_or_key_value: ID | FOR ( EXPR, ... )
+setTransaction((READ_ONLY|READ_WRITE)|ISOLATION_LEV~192161ef)	(every alternative)	OracleDocs.g4:5401 setTransaction: READ ONLY | READ WRITE | ISOLATION LEVEL | USE ROLLBACK SEGMENT | NAME
+alterResourceCost(CPU_PER_SESSION_NUMBER|CONNECT_TIME_~23bd4b84)	(every alternative)	OracleDocs.g4:1637 alterResourceCost: CPU_PER_SESSION | CONNECT_TIME | LOGICAL_READS_PER_SESSION | PRIVATE_SGA
+alterDiskgroup_rebalance_diskgroup_clause(RESTORE|BALANCE|PREPARE|COMPACT)	(every alternative)	OracleDocs.g4:560 alterDiskgroup_rebalance_diskgroup_clause: RESTORE | BALANCE | PREPARE | COMPACT
+alterDatabase_database_file_clauses(STRING|NUMBER)	(every alternative)	OracleDocs.g4:383 alterDatabase_database_file_clauses: a file by STRING or NUMBER
+alterPluggableDatabase_database_file_clauses(STRING|NUMBER)	(every alternative)	OracleDocs.g4:1541 alterPluggableDatabase_database_file_clauses: a file by STRING or NUMBER
+alterTablespace_datafile_tempfile_clauses(DATAFILE|TEMPFILE)	(every alternative)	OracleDocs.g4:2376 alterTablespace_datafile_tempfile_clauses: DATAFILE | TEMPFILE
+alterTablespaceSet_datafile_tempfile_clauses(DATAFILE|TEMPFILE)	(every alternative)	OracleDocs.g4:2283 alterTablespaceSet_datafile_tempfile_clauses: DATAFILE | TEMPFILE
+alterTable_annotations_clause(ADD|DROP|REPLACE)	(every alternative)	OracleDocs.g4:1812 alterTable_annotations_clause: ADD | DROP | REPLACE
+update_returning_clause(EXPR|OLD_ID|NEW_ID)	(every alternative)	OracleDocs.g4:5437 update_returning_clause: EXPR | OLD ID | NEW ID
+createCluster_cluster_range_partitions(EXPR|MAXVALUE)	(every alternative)	OracleDocs.g4:2798 createCluster_cluster_range_partitions: EXPR | MAXVALUE
+alterTable_allocate_extent_clause(SIZE_alterTable_size_clause|DATAFILE~8325eac9)	(every alternative)	OracleDocs.g4:1780 alterTable_allocate_extent_clause: SIZE | DATAFILE | INSTANCE
+alterCluster_allocate_extent_clause(SIZE_alterCluster_size_clause|DATAFI~5ac17a84)	(every alternative)	OracleDocs.g4:347 alterCluster_allocate_extent_clause: SIZE | DATAFILE | INSTANCE
+alterIndex_allocate_extent_clause(SIZE_alterIndex_size_clause|DATAFILE~ae38318c)	(every alternative)	OracleDocs.g4:737 alterIndex_allocate_extent_clause: SIZE | DATAFILE | INSTANCE
+alterPluggableDatabase_pdb_storage_clause(alterPluggableDatabase_size_clause|UNLIMITED)	(every alternative)	OracleDocs.g4:1547 alterPluggableDatabase_pdb_storage_clause: a size | UNLIMITED

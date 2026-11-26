@@ -985,21 +985,28 @@ func (p *Parser) parseATLobCacheLogging() error {
 //	  | { CACHE | NOCACHE | CACHE READS } [ logging_clause ]
 //	  | allocate_extent_clause | SHRINK SPACE [ CASCADE ]
 //	  | deallocate_unused_clause }... )
+//
+// Each parameter stands once, and one of each lobParameterGroup. SHRINK
+// SPACE comes last: Oracle 23ai answers a parameter after it with
+// ORA-10630.
 func (p *Parser) parseATModifyLobParameters() error {
 	if err := p.atExpect('('); err != nil {
 		return err
 	}
-	// Each parameter stands once (ORA-32600 for RETENTION RETENTION).
 	seen := map[string]bool{}
 	for n := 0; ; n++ {
 		if p.cur.Type == ')' && n > 0 {
 			p.advance()
 			return nil
 		}
-		if seen[p.cur.Str] {
+		key := p.lobParameterGroup()
+		if key == "" {
+			key = p.cur.Str
+		}
+		if seen[key] {
 			return p.syntaxErrorAtCur()
 		}
-		seen[p.cur.Str] = true
+		seen[key] = true
 		var err error
 		switch {
 		case p.atWord("STORAGE"):
@@ -1029,7 +1036,9 @@ func (p *Parser) parseATModifyLobParameters() error {
 		case p.isATAllocateExtentStart():
 			err = p.parseATAllocateExtent()
 		case p.isATShrinkStart():
-			err = p.parseATShrink()
+			if err = p.parseATShrink(); err == nil && p.cur.Type != ')' {
+				return p.syntaxErrorAtCur()
+			}
 		case p.isATDeallocateStart():
 			err = p.parseATDeallocateUnused()
 		default:
@@ -1039,6 +1048,38 @@ func (p *Parser) parseATModifyLobParameters() error {
 			return err
 		}
 	}
+}
+
+// lobParameterGroup names the group of LOB parameters the current word
+// starts, or "" for a word in none. A parameter list takes one of each
+// (LOB_storage_parameters and modify_LOB_parameters, OracleDocs.g4:3959 and
+// 1997). Oracle 23ai answers a second with ORA-22850 (CACHE then NOCACHE,
+// DEDUPLICATE then KEEP_DUPLICATES, COMPRESS then NOCOMPRESS, ENCRYPT then
+// DECRYPT, ENABLE then DISABLE STORAGE IN ROW, CHUNK twice), ORA-02215
+// (TABLESPACE twice), ORA-32602 (FREEPOOLS twice) and ORA-32600
+// (PCTVERSION with RETENTION, in either order).
+func (p *Parser) lobParameterGroup() string {
+	switch {
+	case p.cur.Type == kwCACHE, p.isKeywordStr("NOCACHE"):
+		return "CACHE"
+	case p.cur.Type == kwCOMPRESS, p.cur.Type == kwNOCOMPRESS:
+		return "COMPRESS"
+	case p.isKeywordStr("DEDUPLICATE"), p.isKeywordStr("KEEP_DUPLICATES"):
+		return "DEDUPLICATE"
+	case p.isKeywordStr("ENCRYPT"), p.isKeywordStr("DECRYPT"):
+		return "ENCRYPT"
+	case p.isKeywordStr("PCTVERSION"), p.isKeywordStr("RETENTION"):
+		return "RETENTION"
+	case p.cur.Type == kwENABLE, p.cur.Type == kwDISABLE:
+		return "STORAGE IN ROW"
+	case p.cur.Type == kwTABLESPACE:
+		return "TABLESPACE"
+	case p.isKeywordStr("CHUNK"):
+		return "CHUNK"
+	case p.isKeywordStr("FREEPOOLS"):
+		return "FREEPOOLS"
+	}
+	return ""
 }
 
 // parseATLobStorageParameters reads ( LOB_parameters ) of a STORE AS:
@@ -1053,14 +1094,22 @@ func (p *Parser) parseATModifyLobParameters() error {
 //
 // Oracle takes logging_clause only after CACHE or NOCACHE here: the page's
 // standalone logging_clause is refused (ORA-22853 for STORE AS (LOGGING)).
+// It takes one parameter of each lobParameterGroup.
 func (p *Parser) parseATLobStorageParameters() error {
 	if err := p.atExpect('('); err != nil {
 		return err
 	}
+	seen := map[string]bool{}
 	for n := 0; ; n++ {
 		if p.cur.Type == ')' && n > 0 {
 			p.advance()
 			return nil
+		}
+		if key := p.lobParameterGroup(); key != "" {
+			if seen[key] {
+				return p.syntaxErrorAtCur()
+			}
+			seen[key] = true
 		}
 		var err error
 		switch {
