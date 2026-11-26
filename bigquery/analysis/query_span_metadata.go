@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/bigquery/ast"
@@ -145,11 +146,22 @@ func nameResults(results []ResolvedQuerySpanResult) []ResolvedQuerySpanResult {
 		taken[strings.ToLower(r.Name)] = true
 	}
 	seen := map[string]bool{}
-	next := func(format string, k int) string {
+	// Each stem's counter only moves forward: every suffix below it is taken,
+	// by a written name or by one this pass gave out.
+	counters := map[string]int{}
+	next := func(stem, key string, first int) string {
+		k, ok := counters[key]
+		if !ok {
+			k = first
+		}
 		for ; ; k++ {
-			name := fmt.Sprintf(format, k)
+			name := stem + strconv.Itoa(k)
+			if key == "" {
+				name += "_"
+			}
 			if !taken[strings.ToLower(name)] {
 				taken[strings.ToLower(name)] = true
+				counters[key] = k + 1
 				return name
 			}
 		}
@@ -158,9 +170,9 @@ func nameResults(results []ResolvedQuerySpanResult) []ResolvedQuerySpanResult {
 		key := strings.ToLower(r.Name)
 		switch {
 		case r.Name == "":
-			results[i].Name = next("f%d_", 0)
+			results[i].Name = next("f", "", 0)
 		case seen[key]:
-			results[i].Name = next(strings.ReplaceAll(r.Name, "%", "%%")+"_%d", 1)
+			results[i].Name = next(r.Name+"_", key, 1)
 		default:
 			seen[key] = true
 		}
