@@ -426,6 +426,7 @@ func applySequenceOptions(sequence *metadatapb.SequenceMetadata, options tree.Se
 			if !maxStated && sequence.MaxValue == strconv.FormatInt(oldLimit, 10) {
 				sequence.MaxValue = strconv.FormatInt(limit, 10)
 			}
+			defaultBounds(sequence, limit)
 			return nil
 		}
 		if !minStated && sequence.MinValue == strconv.FormatInt(-limit-1, 10) {

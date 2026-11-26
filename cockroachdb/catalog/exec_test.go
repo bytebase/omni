@@ -194,3 +194,54 @@ func TestExecSelfReference(t *testing.T) {
 	_, err = execLast(t, "CREATE TABLE t (id INT8 PRIMARY KEY, parent INT8 REFERENCES t)")
 	require.NoError(t, err)
 }
+
+func TestExecRound12(t *testing.T) {
+	for _, script := range []string{
+		"CREATE TABLE p (id INT8 PRIMARY KEY); CREATE TABLE c (id INT8 REFERENCES p (id)); TRUNCATE p, c",
+		"CREATE TABLE a (x INT8); CREATE TABLE b (x INT8); CREATE INDEX i ON a (x); CREATE INDEX i ON b (x)",
+		"CREATE SCHEMA s; CREATE TABLE s.t (id INT8 PRIMARY KEY, parent INT8 REFERENCES s.t (id))",
+		"CREATE SEQUENCE sq; ALTER SEQUENCE sq AS INT4 NO MAXVALUE",
+	} {
+		_, err := execLast(t, script)
+		require.NoError(t, err, script)
+	}
+	for _, tc := range []struct{ script, code string }{
+		{"CREATE TABLE t (a INT8, INDEX dup (a), INDEX dup (a))", "42P07"},
+		{"CREATE TYPE mood AS ENUM ('a'); CREATE VIEW mood AS SELECT 1 AS x", "42P07"},
+		{"CREATE TYPE mood AS ENUM ('a'); CREATE SEQUENCE mood", "42P07"},
+		{"CREATE TABLE t (a INT8); ALTER SEQUENCE t INCREMENT BY 5", "42809"},
+		{"CREATE SCHEMA s; CREATE TABLE t (a INT8); ALTER VIEW t SET SCHEMA s", "42809"},
+		{"CREATE TABLE t (a INT8); CREATE VIEW v AS SELECT a FROM t; CREATE OR REPLACE VIEW v AS SELECT * FROM t WHERE missing > 0", "42703"},
+		{"CREATE TYPE mood AS ENUM ('sad'); CREATE TABLE t (a STRING DEFAULT ('sad'::mood)::STRING); DROP TYPE mood", "2BP01"},
+		{"CREATE SCHEMA s; CREATE TYPE s.m AS ENUM ('a'); CREATE TABLE s.t (x INT8); CREATE TABLE public.t (m s.m); DROP SCHEMA s CASCADE", "0A000"},
+		{"CREATE TABLE t (a INT8, b INT8); CREATE VIEW v AS SELECT x FROM t AS u (x, y); ALTER TABLE t DROP COLUMN a", "2BP01"},
+		{"ALTER TABLE missing OWNER TO root", "42P01"},
+		{"CREATE TABLE t (a INT8, INDEX i (a) STORING (missing))", "42703"},
+		{"CREATE TABLE t (a INT8, UNIQUE (a) WHERE missing > 0)", "42703"},
+		{"CREATE TABLE t (a INT8, CONSTRAINT ck CHECK (a > 0)); ALTER TABLE t ADD COLUMN b INT8 CONSTRAINT ck CHECK (b > 0)", "42710"},
+		{"CREATE TABLE t (a INT8 DEFAULT nextval(('missing')))", "42P01"},
+	} {
+		_, err := execLast(t, tc.script)
+		require.Equal(t, tc.code, code(err), "%s: %v", tc.script, err)
+	}
+	for _, script := range []string{
+		"SELECT set_config('search_path', 's', false)",
+		"CREATE SCHEMA s; CREATE TABLE t (a INT8); CREATE SEQUENCE sq OWNED BY t.a; ALTER SEQUENCE sq SET SCHEMA s",
+		"CREATE SCHEMA s; CREATE TABLE t (a INT8); CREATE SEQUENCE sq OWNED BY t.a; ALTER TABLE public.t RENAME TO s.t2",
+		"ALTER SCHEMA public RENAME TO p2",
+		"CREATE TABLE t (a INT8); ALTER TABLE t ADD COLUMN b INT8 CREATE FAMILY f2",
+	} {
+		_, err := execLast(t, script)
+		require.Error(t, err, script)
+		require.Empty(t, code(err), script)
+	}
+	results, err := catalog.New().Exec("/* a /* nested */ comment */\nALTER TABLE missing ADD COLUMN a INT8;")
+	require.NoError(t, err)
+	require.Equal(t, 2, results[0].Line)
+	c, err := execLast(t, `CREATE SCHEMA "Mixed Case"; CREATE SEQUENCE "Mixed Case"."My Seq"; CREATE TABLE t (a INT8 DEFAULT nextval('"Mixed Case"."My Seq"')); ALTER SEQUENCE "Mixed Case"."My Seq" RENAME TO "Mixed Case"."Other Seq"`)
+	require.NoError(t, err)
+	require.Equal(t, `nextval('"Mixed Case"."Other Seq"')`, c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
+	c, err = execLast(t, "CREATE TABLE t (a STRING); CREATE INDEX i ON t (lower(a)); ALTER TABLE t RENAME COLUMN a TO b")
+	require.NoError(t, err)
+	require.Equal(t, "lower(b)", c.Metadata().Schemas[0].Tables[0].Indexes[0].Expressions[0])
+}

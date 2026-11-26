@@ -69,10 +69,10 @@ func impliedAnnotation(literal tree.Expr, ref tree.ResolvableTypeReference) bool
 	case *tree.NumVal:
 		// An integer as INT or DECIMAL, or a number with a fraction as
 		// DECIMAL, holds its value exactly; FLOAT may round it.
-		switch t.Family() {
-		case types.IntFamily:
+		switch {
+		case t.Identical(types.Int):
 			return !strings.ContainsAny(l.OrigString(), ".eE")
-		case types.DecimalFamily:
+		case t.Identical(types.Decimal):
 			return true
 		}
 	case *tree.StrVal:

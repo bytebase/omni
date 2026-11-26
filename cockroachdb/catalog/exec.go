@@ -18,11 +18,12 @@ import (
 // Catalog is one database's schema, changed by DDL as CockroachDB changes it.
 // It starts with the schema public, as a new database does.
 //
-// Exec takes what CockroachDB takes. It refuses a statement with
-// CockroachDB's SQLSTATE where the object a statement names is missing, taken
-// or still needed by another, the cases TestSimulation pins against the
-// server; a form the catalog does not model is refused with an Error that
-// carries no code.
+// Exec accepts by default. It refuses a statement with CockroachDB's SQLSTATE
+// where TestSimulation's rows, or a check of the pinned server, show
+// CockroachDB refusing it: an object missing, taken or still needed by
+// another. A statement whose effect on other objects the metadata cannot
+// hold is refused with an Error that carries no code. It does not check what
+// a statement's expressions compute.
 type Catalog struct {
 	l *sdlLoader
 	// pending is the table ALTER TABLE is changing, whose columns a foreign
@@ -136,11 +137,20 @@ func leadLength(text string) int {
 			}
 			i += end + 1
 		case strings.HasPrefix(text[i:], "/*"):
-			end := strings.Index(text[i+2:], "*/")
-			if end < 0 {
-				return len(text)
+			// Block comments nest.
+			depth := 0
+			for i < len(text) {
+				if strings.HasPrefix(text[i:], "/*") {
+					depth, i = depth+1, i+2
+				} else if strings.HasPrefix(text[i:], "*/") {
+					depth, i = depth-1, i+2
+					if depth == 0 {
+						break
+					}
+				} else {
+					i++
+				}
 			}
-			i += end + 4
 		default:
 			return i
 		}
@@ -173,8 +183,17 @@ func (c *Catalog) exec(stmt tree.Statement) error {
 		return c.alterSchema(n)
 	case *tree.DropSchema:
 		return c.dropSchema(n)
+	case *tree.Select:
+		if strings.Contains(strings.ToLower(tree.AsString(n)), "search_path") {
+			return &Error{Message: "setting search_path is not supported"}
+		}
+	case *tree.AlterTableOwner:
+		// Owners are not held; the relation must exist.
+		if relation(c.l.schemas[objectSchema(n.Name)], n.Name.Object()) == relNone && !n.IfExists {
+			return refuse(codeUndefinedTable, "relation %q does not exist", n.Name.String())
+		}
 	case *tree.SetVar:
-		if strings.EqualFold(n.Name, "search_path") {
+		if strings.EqualFold(n.Name, "search_path") || strings.EqualFold(n.Name, "schema") {
 			// The catalog resolves every name in public.
 			return &Error{Message: "SET search_path is not supported"}
 		}
@@ -217,13 +236,19 @@ func (c *Catalog) exec(stmt tree.Statement) error {
 	case *tree.DropSequence:
 		return c.dropRelations(n.Names, n.IfExists, n.DropBehavior, relSequence, false)
 	case *tree.Truncate:
+		truncated := map[tableRef]bool{}
 		for i := range n.Tables {
 			table, err := c.table(&n.Tables[i])
 			if err != nil {
 				return err
 			}
-			if fks := c.referencing(schemaOf(&n.Tables[i]), table.Name, ""); len(fks) > 0 && n.DropBehavior != tree.DropCascade {
-				return refuse("XXUUU", "%q is referenced by foreign key %q", table.Name, fks[0].Name)
+			truncated[tableRef{schemaOf(&n.Tables[i]), table.Name}] = true
+		}
+		for i := range n.Tables {
+			for _, fk := range c.referencing(schemaOf(&n.Tables[i]), string(n.Tables[i].ObjectName), "") {
+				if owner := c.foreignKeyTable(fk); owner != nil && !truncated[*owner] && n.DropBehavior != tree.DropCascade {
+					return refuse("XXUUU", "%q is referenced by foreign key %q", n.Tables[i].ObjectName, fk.Name)
+				}
 			}
 		}
 		return nil
@@ -304,6 +329,8 @@ func uniqueConstraintNames(table string, defs tree.TableDefs) error {
 		case *tree.ForeignKeyConstraintTableDef:
 			err = add(d.Name, false)
 		case *tree.UniqueConstraintTableDef:
+			err = add(d.Name, true)
+		case *tree.IndexTableDef:
 			err = add(d.Name, true)
 		}
 		if err != nil {
@@ -420,6 +447,15 @@ func (c *Catalog) alterSchema(n *tree.AlterSchema) error {
 	if c.l.schemas[to] != nil {
 		return refuse(codeDuplicateSchema, "schema %q already exists", to)
 	}
+	if s.Name == "public" {
+		// Every unqualified name the catalog resolves is in public.
+		return &Error{Message: "renaming schema public is not supported"}
+	}
+	for _, typ := range append(enumNames(s), compositeNames(s)...) {
+		if err := c.routineTypeUser(s.Name, typ); err != nil {
+			return err
+		}
+	}
 	if len(s.Functions) > 0 {
 		// A routine's stored definition names its schema, which the
 		// catalog does not rewrite.
@@ -445,6 +481,12 @@ func (c *Catalog) alterSchema(n *tree.AlterSchema) error {
 			}
 		}
 	})
+	for _, table := range s.Tables {
+		reindex(table.Indexes, to, table.Name, "", "")
+	}
+	for _, view := range s.MaterializedViews {
+		reindex(view.Indexes, to, view.Name, "", "")
+	}
 	// CockroachDB holds a default's sequence and a column's type by ID, so
 	// they follow the schema.
 	c.eachTable(func(_ *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
@@ -482,8 +524,7 @@ func (c *Catalog) dropSchema(n *tree.DropSchema) error {
 		}
 		for _, typ := range append(slices.Clone(enumNames(s)), compositeNames(s)...) {
 			for _, user := range c.typeUsers(name, typ) {
-				if !slices.ContainsFunc(s.Tables, func(t *metadatapb.TableMetadata) bool { return t.Name == user }) &&
-					!slices.ContainsFunc(s.CompositeTypes, func(t *metadatapb.CompositeTypeMetadata) bool { return t.Name == user }) {
+				if !strings.HasPrefix(user, tree.NameString(name)+".") {
 					return refuse(codeFeatureNotSupport, "unimplemented: cannot drop type %q because other objects (%s) still depend on it", typ, user)
 				}
 			}
@@ -663,9 +704,9 @@ func (c *Catalog) checkTableDef(table string, columns map[string]bool, def tree.
 	case *tree.CheckConstraintTableDef:
 		return checkColumns(columns, d.Expr)
 	case *tree.UniqueConstraintTableDef:
-		return checkIndexColumns(columns, d.Columns)
+		return checkIndexDef(columns, &d.IndexTableDef)
 	case *tree.IndexTableDef:
-		return checkIndexColumns(columns, d.Columns)
+		return checkIndexDef(columns, d)
 	case *tree.ForeignKeyConstraintTableDef:
 		return c.checkForeignKey(table, columns, d)
 	}
@@ -701,6 +742,23 @@ func (c *Catalog) checkSequences(expr tree.Expr) error {
 		default:
 			return refuse(codeWrongObjectType, "%q is not a sequence", sequence)
 		}
+	}
+	return nil
+}
+
+// checkIndexDef refuses an index a table definition declares that keys,
+// stores or filters on a column the table does not have.
+func checkIndexDef(columns map[string]bool, d *tree.IndexTableDef) error {
+	if err := checkIndexColumns(columns, d.Columns); err != nil {
+		return err
+	}
+	for _, col := range d.Storing {
+		if !columns[string(col)] {
+			return refuse(codeUndefinedColumn, "column %q does not exist", col)
+		}
+	}
+	if d.Predicate != nil {
+		return checkColumns(columns, d.Predicate)
 	}
 	return nil
 }
@@ -851,6 +909,12 @@ func (c *Catalog) createView(n *tree.CreateView) error {
 	}
 	name := string(n.Name.ObjectName)
 	kind := relation(s, name)
+	if kind == relNone && typeTaken(s, name) {
+		return refuse(codeDuplicateRelation, "relation %q already exists", name)
+	}
+	if err := c.checkViewQuery(n.AsSource); err != nil {
+		return err
+	}
 	switch {
 	case kind == relNone:
 	case n.IfNotExists:
@@ -887,21 +951,6 @@ func (c *Catalog) createView(n *tree.CreateView) error {
 		return refuse(codeWrongObjectType, "%q is not a view", name)
 	default:
 		return refuse(codeDuplicateRelation, "relation %q already exists", name)
-	}
-	var missing error
-	storedRelations(n.AsSource, func(tn *tree.TableName) {
-		if missing != nil {
-			return
-		}
-		if relation(c.l.schemas[schemaOf(tn)], string(tn.ObjectName)) == relNone {
-			missing = refuse(codeUndefinedTable, "relation %q does not exist", tn.String())
-		}
-	})
-	if missing != nil {
-		return missing
-	}
-	if err := c.checkViewColumns(n.AsSource); err != nil {
-		return err
 	}
 	return c.l.load(n)
 }
@@ -948,6 +997,21 @@ func (c *Catalog) checkViewColumns(query *tree.Select) error {
 	return nil
 }
 
+// checkViewQuery refuses a view query that reads a relation the catalog does
+// not hold, or, on one table, a column the table does not have.
+func (c *Catalog) checkViewQuery(query *tree.Select) error {
+	var missing error
+	storedRelations(query, func(tn *tree.TableName) {
+		if missing == nil && relation(c.l.schemas[schemaOf(tn)], string(tn.ObjectName)) == relNone {
+			missing = refuse(codeUndefinedTable, "relation %q does not exist", tn.String())
+		}
+	})
+	if missing != nil {
+		return missing
+	}
+	return c.checkViewColumns(query)
+}
+
 // keepsColumns refuses a replacement view whose columns drop or rename the
 // old view's, as CockroachDB does. names is nil when they are not known.
 func keepsColumns(old []*metadatapb.ColumnMetadata, names []string) error {
@@ -971,7 +1035,7 @@ func (c *Catalog) createSequence(n *tree.CreateSequence) error {
 		return err
 	}
 	name := string(n.Name.ObjectName)
-	if relation(s, name) != relNone {
+	if relation(s, name) != relNone || typeTaken(s, name) {
 		if n.IfNotExists {
 			return nil
 		}
@@ -1033,11 +1097,15 @@ func (c *Catalog) checkSequenceOptions(schema string, options tree.SequenceOptio
 
 func (c *Catalog) alterSequence(n *tree.AlterSequence) error {
 	s := c.l.schemas[objectSchema(n.Name)]
-	if relation(s, n.Name.Object()) != relSequence {
+	switch relation(s, n.Name.Object()) {
+	case relSequence:
+	case relNone:
 		if n.IfExists {
 			return nil
 		}
 		return refuse(codeUndefinedTable, "relation %q does not exist", n.Name.String())
+	default:
+		return refuse(codeWrongObjectType, "%q is not a sequence", n.Name.Object())
 	}
 	if err := c.checkSequenceOptions(s.Name, n.Options); err != nil {
 		return err
@@ -1073,12 +1141,6 @@ func (c *Catalog) createIndex(n *tree.CreateIndex) error {
 		}
 		return refuse(codeDuplicateRelation, "index with name %q already exists", n.Name)
 	}
-	if n.Name != "" && c.indexNamed(s, string(n.Name)) != nil {
-		if n.IfNotExists {
-			return nil
-		}
-		return refuse(codeDuplicateRelation, "relation %q already exists", n.Name)
-	}
 	names := map[string]bool{}
 	for _, column := range columns {
 		names[column.Name] = true
@@ -1097,25 +1159,6 @@ func (c *Catalog) createIndex(n *tree.CreateIndex) error {
 		}
 	}
 	return c.l.load(n)
-}
-
-// indexNamed finds an index of any relation of a schema.
-func (c *Catalog) indexNamed(s *metadatapb.SchemaMetadata, name string) *metadatapb.IndexMetadata {
-	for _, table := range s.Tables {
-		for _, index := range table.Indexes {
-			if index.Name == name {
-				return index
-			}
-		}
-	}
-	for _, view := range s.MaterializedViews {
-		for _, index := range view.Indexes {
-			if index.Name == name {
-				return index
-			}
-		}
-	}
-	return nil
 }
 
 func (c *Catalog) createType(n *tree.CreateType) error {
@@ -1416,8 +1459,18 @@ func (c *Catalog) typeUsers(schema, name string) []string {
 	var users []string
 	c.eachTable(func(s *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
 		for _, column := range table.Columns {
-			if column.Type == typ || column.Type == typ+"[]" {
-				users = append(users, table.Name)
+			uses := column.Type == typ || column.Type == typ+"[]" || namesType(column.Default, typ)
+			if column.Generation != nil {
+				uses = uses || namesType(column.Generation.Expression, typ)
+			}
+			if uses {
+				users = append(users, typeName(s.Name, table.Name))
+				return
+			}
+		}
+		for _, check := range table.CheckConstraints {
+			if namesType(check.Expression, typ) {
+				users = append(users, typeName(s.Name, table.Name))
 				return
 			}
 		}
@@ -1425,19 +1478,24 @@ func (c *Catalog) typeUsers(schema, name string) []string {
 	for _, s := range c.l.meta.Schemas {
 		for _, composite := range s.CompositeTypes {
 			for _, attr := range composite.Attributes {
-				if attr.Type == typ {
-					users = append(users, composite.Name)
+				if attr.Type == typ || attr.Type == typ+"[]" {
+					users = append(users, typeName(s.Name, composite.Name))
 				}
 			}
 		}
 		// A routine names its parameter and result types by their schema.
 		for _, function := range s.Functions {
 			if slices.Contains(typeNamed.FindAllString(function.Definition, -1), typ) {
-				users = append(users, function.Name)
+				users = append(users, typeName(s.Name, function.Name))
 			}
 		}
 	}
 	return users
+}
+
+// namesType reports whether an expression casts or annotates to a type.
+func namesType(text, typ string) bool {
+	return text != "" && retypeIn(text, typ, typ+"_") != text
 }
 
 // routineTypeUser refuses renaming or moving a type a routine names, whose
@@ -1540,6 +1598,11 @@ func readsColumn(definition, column string) bool {
 	if err != nil {
 		return true
 	}
+	// A column alias list or a NATURAL join reads columns by position or
+	// by name without naming them.
+	if hasColumnAliases(stmt.AST) {
+		return true
+	}
 	found := false
 	tree.WalkStmt(&nameVisitor{visit: func(name *tree.UnresolvedName) {
 		if name.Star || name.Parts[0] == column {
@@ -1547,6 +1610,49 @@ func readsColumn(definition, column string) bool {
 		}
 	}}, stmt.AST)
 	return found
+}
+
+// hasColumnAliases reports whether a query renames a relation's columns
+// (FROM t AS u(x, y)) or joins NATURALly, reading columns it does not name.
+func hasColumnAliases(stmt tree.Statement) bool {
+	var selects func(tree.SelectStatement) bool
+	var tables func(tree.TableExpr) bool
+	tables = func(te tree.TableExpr) bool {
+		switch t := te.(type) {
+		case *tree.AliasedTableExpr:
+			if len(t.As.Cols) > 0 {
+				return true
+			}
+			if sub, ok := t.Expr.(*tree.Subquery); ok {
+				if sel, ok := sub.Select.(*tree.ParenSelect); ok {
+					return selects(sel.Select.Select)
+				}
+			}
+		case *tree.JoinTableExpr:
+			if _, natural := t.Cond.(tree.NaturalJoinCond); natural {
+				return true
+			}
+			return tables(t.Left) || tables(t.Right)
+		case *tree.ParenTableExpr:
+			return tables(t.Expr)
+		}
+		return false
+	}
+	selects = func(sel tree.SelectStatement) bool {
+		switch s := sel.(type) {
+		case *tree.SelectClause:
+			return slices.ContainsFunc(s.From.Tables, tables)
+		case *tree.UnionClause:
+			return selects(s.Left.Select) || selects(s.Right.Select)
+		case *tree.ParenSelect:
+			return selects(s.Select.Select)
+		}
+		return false
+	}
+	if n, ok := stmt.(*tree.Select); ok {
+		return selects(n.Select)
+	}
+	return false
 }
 
 type nameVisitor struct{ visit func(*tree.UnresolvedName) }
@@ -1578,6 +1684,12 @@ func (c *Catalog) referencing(schema, name, column string) []*metadatapb.Foreign
 		}
 	})
 	return out
+}
+
+// supportsKey reports whether a unique index, not partial, keys exactly a
+// foreign key's referenced columns.
+func supportsKey(index *metadatapb.IndexMetadata, fk *metadatapb.ForeignKeyMetadata) bool {
+	return index.Unique && !strings.Contains(index.Definition, " WHERE ") && sameSet(index.Expressions, fk.ReferencedColumns)
 }
 
 // keysOn returns every foreign key that references a table, its own
@@ -1761,6 +1873,9 @@ func (c *Catalog) renameRelation(n *tree.RenameTable) error {
 	if relation(target, to) != relNone || typeTaken(target, to) {
 		return refuse(codeDuplicateRelation, "relation %q already exists", to)
 	}
+	if err := ownedAcross(s, name, got, target); err != nil {
+		return err
+	}
 	c.moveRelation(s, name, got, target, to)
 	return nil
 }
@@ -1775,6 +1890,18 @@ func (c *Catalog) setRelationSchema(n *tree.AlterTableSetSchema) error {
 		}
 		return refuse(codeUndefinedTable, "relation %q does not exist", n.Name.String())
 	}
+	want := relTable
+	switch {
+	case n.IsMaterialized:
+		want = relMaterializedView
+	case n.IsView:
+		want = relView
+	case n.IsSequence:
+		want = relSequence
+	}
+	if want != relTable && got != want {
+		return refuse(codeWrongObjectType, "%q is not a %s", name, want)
+	}
 	target, err := c.schemaFor(string(n.Schema))
 	if err != nil {
 		return err
@@ -1785,12 +1912,26 @@ func (c *Catalog) setRelationSchema(n *tree.AlterTableSetSchema) error {
 	if deps := c.dependents(s.Name, name, ""); len(deps) > 0 {
 		return refuse(codeDependentObjects, "cannot set schema on relation %q because view %q depends on it", name, deps[0].name)
 	}
-	if got == relTable && slices.ContainsFunc(s.Sequences, func(x *metadatapb.SequenceMetadata) bool { return x.OwnerTable == name }) {
-		// CockroachDB leaves the sequence where it is, owned across
-		// schemas, which the metadata cannot state.
-		return &Error{Message: fmt.Sprintf("moving table %q, which owns a sequence, to another schema is not supported", name)}
+	if err := ownedAcross(s, name, got, target); err != nil {
+		return err
 	}
 	c.moveRelation(s, name, got, target, name)
+	return nil
+}
+
+// ownedAcross refuses moving a table that owns a sequence, or a sequence a
+// table owns, to another schema: CockroachDB leaves the other where it is,
+// owned across schemas, which the metadata cannot state.
+func ownedAcross(s *metadatapb.SchemaMetadata, name string, kind relKind, target *metadatapb.SchemaMetadata) error {
+	if target == s {
+		return nil
+	}
+	if kind == relTable && slices.ContainsFunc(s.Sequences, func(x *metadatapb.SequenceMetadata) bool { return x.OwnerTable == name }) {
+		return &Error{Message: fmt.Sprintf("moving table %q, which owns a sequence, to another schema is not supported", name)}
+	}
+	if sequence := findSequence(s, name); kind == relSequence && sequence.OwnerTable != "" {
+		return &Error{Message: fmt.Sprintf("moving sequence %q, which a table owns, to another schema is not supported", name)}
+	}
 	return nil
 }
 
@@ -1861,6 +2002,9 @@ func reindex(indexes []*metadatapb.IndexMetadata, schema, table, from, to string
 				}
 				if n.Columns[i].Expr != nil {
 					n.Columns[i].Expr = renameColumnIn(n.Columns[i].Expr, from, to)
+					if i < len(index.Expressions) {
+						index.Expressions[i] = sdlExpr(n.Columns[i].Expr)
+					}
 				}
 			}
 			for i := range n.Storing {
@@ -1902,13 +2046,17 @@ func renameSequenceIn(def, from, to string) string {
 		if cast, ok := arg.(*tree.CastExpr); ok {
 			arg = unparen(cast.Expr)
 		}
+		if annotation, ok := arg.(*tree.AnnotateTypeExpr); ok {
+			arg = unparen(annotation.Expr)
+		}
 		str, ok := arg.(*tree.StrVal)
 		if !ok {
 			return true, e, nil
 		}
 		if sequence, err := parser.ParseQualifiedTableName(str.RawString()); err == nil && schemaOf(sequence)+"."+string(sequence.ObjectName) == from {
 			renamed := *call
-			renamed.Exprs = append(tree.Exprs{tree.NewStrVal(to)}, call.Exprs[1:]...)
+			schema, name, _ := strings.Cut(to, ".")
+			renamed.Exprs = append(tree.Exprs{tree.NewStrVal(tree.NameString(schema) + "." + tree.NameString(name))}, call.Exprs[1:]...)
 			return false, &renamed, nil
 		}
 		return true, e, nil
@@ -1975,6 +2123,24 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 		}
 		if def.PrimaryKey.IsPrimaryKey {
 			return refuse("42611", "multiple primary keys for table %q are not allowed", table.Name)
+		}
+		if def.Family.Create {
+			return &Error{Message: fmt.Sprintf("column %s: CREATE FAMILY is not supported", def.Name)}
+		}
+		var names []tree.Name
+		for _, check := range def.CheckExprs {
+			names = append(names, check.ConstraintName)
+		}
+		if def.Unique.IsUnique {
+			names = append(names, def.Unique.ConstraintName)
+		}
+		if def.References.Table != nil {
+			names = append(names, def.References.ConstraintName)
+		}
+		for _, name := range names {
+			if name != "" && (constraintNamed(table, string(name)) || slices.ContainsFunc(table.Indexes, func(i *metadatapb.IndexMetadata) bool { return i.Name == string(name) })) {
+				return refuse(codeDuplicateObject, "duplicate constraint name: %q", name)
+			}
 		}
 		if err := c.checkType(def.Type); err != nil {
 			return err
@@ -2344,12 +2510,13 @@ func (c *Catalog) dropColumn(schema string, table *metadatapb.TableMetadata, nam
 	table.Indexes = slices.DeleteFunc(table.Indexes, func(index *metadatapb.IndexMetadata) bool {
 		return !index.Primary && indexReadsColumn(index, name)
 	})
+	table.ForeignKeys = slices.DeleteFunc(table.ForeignKeys, func(fk *metadatapb.ForeignKeyMetadata) bool { return slices.Contains(fk.Columns, name) })
 	// A foreign key that relied on an index the column took along needs
 	// CASCADE, which takes it.
 	var orphans []*metadatapb.ForeignKeyMetadata
 	for _, fk := range c.keysOn(schema, table.Name) {
 		if !slices.ContainsFunc(table.Indexes, func(i *metadatapb.IndexMetadata) bool {
-			return i.Unique && sameSet(i.Expressions, fk.ReferencedColumns)
+			return supportsKey(i, fk)
 		}) {
 			orphans = append(orphans, fk)
 		}
@@ -2498,7 +2665,7 @@ func (c *Catalog) dropIndex(n *tree.DropIndex) error {
 			}
 			for _, fk := range c.keysOn(s.Name, table.Name) {
 				if !slices.ContainsFunc(table.Indexes, func(i *metadatapb.IndexMetadata) bool {
-					return i.Unique && sameSet(i.Expressions, fk.ReferencedColumns)
+					return supportsKey(i, fk)
 				}) {
 					orphans = append(orphans, fk)
 				}
