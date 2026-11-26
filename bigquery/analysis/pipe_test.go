@@ -299,6 +299,8 @@ func TestResolveQuerySpanRangeVariableLineage(t *testing.T) {
 		"FROM (SELECT (SELECT secret FROM t LIMIT 1) AS s) AS a |> SELECT TO_JSON_STRING(a) AS j",
 		"SELECT a FROM (SELECT s FROM (SELECT ARRAY(SELECT secret FROM t) AS s)) AS a",
 		"WITH c AS (SELECT (SELECT MAX(secret) FROM t) AS s) SELECT c FROM c",
+		"FROM (SELECT WITH(x AS 1, (SELECT secret FROM t LIMIT 1)) AS s) AS a |> SELECT TO_JSON_STRING(a) AS j",
+		"SELECT a FROM (SELECT ARRAY_TRANSFORM([1], e -> (SELECT MAX(secret) FROM t)) AS s) AS a",
 	} {
 		opts := bigqueryResolveOptions()
 		opts.DefaultDatabase = "ds1"

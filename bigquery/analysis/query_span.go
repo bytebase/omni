@@ -2564,7 +2564,7 @@ func (ew *exprWalk) followSubquery(query ast.Node) {
 // (TestGetQuerySpan_GQLEmptySpan) — the patterns and the graph name contribute
 // no access table.
 func (ew *exprWalk) walkGraph(node ast.Node) {
-	inner := &exprWalk{w: ew.w, followSub: true}
+	inner := &exprWalk{w: ew.w, followSub: true, onSubquery: ew.onSubquery}
 	inner.walkGraphNode(node)
 }
 
@@ -2880,7 +2880,7 @@ func (ew *exprWalk) walkBoundBody(bound []string, body ast.Node) {
 			names[strings.ToLower(b)] = true
 		}
 	}
-	inner := &exprWalk{w: ew.w, followSub: ew.followSub}
+	inner := &exprWalk{w: ew.w, followSub: ew.followSub, onSubquery: ew.onSubquery}
 	if ew.onColumn != nil {
 		outer := ew.onColumn
 		inner.onColumn = func(ref ColumnRef) {
