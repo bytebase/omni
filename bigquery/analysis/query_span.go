@@ -244,6 +244,13 @@ type ColumnRef struct {
 // error, never a silently smaller span. On empty input it returns a zero-valued
 // span with Type=Unknown.
 func GetQuerySpan(statement string) (*QuerySpan, error) {
+	return getQuerySpan(statement, nil)
+}
+
+// getQuerySpan is GetQuerySpan with a metadata lookup of base-table columns,
+// which a pipe operator that changes the projection needs (see
+// spanWalker.columnsOf).
+func getQuerySpan(statement string, columnsOf func(ColumnRef) ([]string, bool)) (*QuerySpan, error) {
 	file, err := parseFile(statement)
 	if err != nil {
 		return nil, parser.FirstError(err)
@@ -254,6 +261,7 @@ func GetQuerySpan(statement string) (*QuerySpan, error) {
 	}
 
 	w := newSpanWalker(span)
+	w.columnsOf = columnsOf
 	w.analyzeStmt(file.Stmts[0])
 	// Fail closed (structural rule): a shape the walker accepted but could not
 	// resolve to CORRECT lineage (NATURAL JOIN, a USING join over a deferred
@@ -361,6 +369,23 @@ type spanWalker struct {
 	// for some shapes it is superlinear in the statement's size (a USING chain
 	// whose keys change gives every star a growing except list).
 	tablesOnly bool
+	// columnsOf lists a base table's columns from metadata, so a pipe operator
+	// that renames, drops or replaces a column can place it among the input's
+	// columns. nil when the span is resolved without metadata; such a pipe
+	// operator then fails closed.
+	columnsOf func(ColumnRef) ([]string, bool)
+	// outRanges is the range variables of the table the last query body
+	// visited returns: a FROM-first query's FROM leaves, kept through a pipe
+	// that keeps them and through parentheses. BigQuery lets the next pipe
+	// operator, and the FROM clause an unaliased subquery of it sits in, read
+	// them. A reader takes it right after visitBody.
+	outRanges []*relation
+	// pipeRowNames holds, folded, the range variables a pipe operator's
+	// expressions see that stand for a whole row (not an UNNEST element).
+	pipeRowNames map[string]bool
+	// pipeColumns holds, folded, the names of the columns a pipe operator's
+	// expressions read (see requirePipeColumn); nil outside a pipe operator.
+	pipeColumns map[string]bool
 	// fixpoints counts the recursive-CTE fixpoints started, so
 	// recursiveFixpoint can tell whether a recursive arm holds another one.
 	fixpoints int
@@ -453,12 +478,21 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 // ASSERT, IF conditions, MATCH_RECOGNIZE …) are walked for predicate-column
 // references and embedded subqueries.
 func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
+	w.walkPipeline(p, nil)
+}
+
+// walkPipeline walks a pipe suffix's operators in order. With a nil input it
+// only records what each operator names (visitPipeOp). With the pipe's input
+// table it also resolves each operator's output (pipeOperator) and returns the
+// last operator's table, or nil once an operator fails closed.
+func (w *spanWalker) walkPipeline(p *ast.Subpipeline, in *pipeTable) *pipeTable {
 	if p == nil {
-		return
+		return in
 	}
 	// A pipe WITH makes its CTEs visible to the operators after it, so they
 	// enter scope progressively as the pipeline is walked.
 	var scope *cteScope
+	cur := in
 	for _, op := range p.Ops {
 		if n, ok := op.(*ast.PipeWith); ok {
 			if n.With == nil {
@@ -468,102 +502,118 @@ func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
 				scope = &cteScope{names: make(map[string]bool), columns: make(map[string][]projColumn), parent: w.scope}
 				w.scope = scope
 			}
-			recursive := n.With.Recursive
-			for _, cte := range n.With.CTEs {
-				if cte == nil || cte.Name == "" {
-					continue
-				}
-				w.span.CTEs = append(w.span.CTEs, cte.Name)
-				lower := strings.ToLower(cte.Name)
-				if recursive {
-					scope.names[lower] = true
-				}
-				var cols []projColumn
-				if cte.Query != nil {
-					cols = w.resolveCTEColumns(cte, recursive, scope, lower)
-				}
-				cols = applyCTEColumnAliases(cols, cte.Columns)
-				scope.names[lower] = true
-				scope.columns[lower] = cols
-			}
+			w.enterPipeWith(scope, n.With)
 			continue
 		}
-		switch n := op.(type) {
-		case *ast.PipeWhere:
-			w.walkPredicate(n.Expr)
-		case *ast.PipeSelect:
-			w.walkPipeSelect(n.Select)
-		case *ast.PipeExtend:
-			w.walkPipeSelect(n.Select)
-		case *ast.PipeAggregate:
-			w.walkPipeSelect(n.Select)
-		case *ast.PipeWindow:
-			w.walkPipeItems(n.Items)
-		case *ast.PipeOrderBy:
-			for _, item := range n.Items {
-				if item != nil {
-					w.walkPredicate(item.Expr)
-				}
-			}
-		case *ast.PipeLimitOffset:
-			w.walkPredicate(n.Limit)
-			w.walkPredicate(n.Offset)
-		case *ast.PipeAssert:
-			for _, cond := range n.Conditions {
-				w.walkPredicate(cond)
-			}
-		case *ast.PipeSet:
-			for _, item := range n.Items {
-				if item != nil {
-					w.walkSubqueriesOnly(item.Value)
-				}
-			}
-		case *ast.PipeTablesample:
-			w.walkSampleExpressions(n.Sample)
-		case *ast.PipePivot:
-			w.walkPivotExpressions(n.Pivot)
-		case *ast.PipeUnpivot:
-			w.walkUnpivotExpressions(n.Unpivot)
-		case *ast.PipeJoin:
-			if n.Join != nil {
-				w.buildFromItem(n.Join.Right)
-				w.recordSourceTVFArgs(n.Join.Right)
-				w.walkPredicate(n.Join.On)
-			}
-		case *ast.PipeCall:
-			w.visitPipeCall(n.Call)
-		case *ast.PipeSetOperation:
-			for _, rhs := range n.Right {
-				w.visitPipeOperand(rhs)
-			}
-		case *ast.PipeRecursiveUnion:
-			w.visitPipeOperand(n.RHS)
-		case *ast.PipeInsert:
-			w.discoverTables(n.Insert)
-		case *ast.PipeCreateTable:
-			w.discoverTables(n.Create)
-		case *ast.PipeLog:
-			w.visitPipe(n.Pipeline)
-		case *ast.PipeIf:
-			for _, c := range n.Cases {
-				w.walkPredicate(c.Condition)
-				w.visitPipe(c.Then)
-			}
-			w.visitPipe(n.Else)
-		case *ast.PipeFork:
-			for _, branch := range n.Pipelines {
-				w.visitPipe(branch)
-			}
-		case *ast.PipeTee:
-			for _, branch := range n.Pipelines {
-				w.visitPipe(branch)
-			}
-		case *ast.PipeMatchRecognize:
-			w.walkMatchRecognize(n.Clause)
+		if cur != nil {
+			cur = w.pipeOperator(op, cur)
+			continue
 		}
+		w.visitPipeOp(op)
 	}
 	if scope != nil {
 		w.scope = scope.parent
+	}
+	return cur
+}
+
+// enterPipeWith resolves a pipe WITH's CTEs into scope, in declaration order.
+func (w *spanWalker) enterPipeWith(scope *cteScope, with *ast.WithClause) {
+	recursive := with.Recursive
+	for _, cte := range with.CTEs {
+		if cte == nil || cte.Name == "" {
+			continue
+		}
+		w.span.CTEs = append(w.span.CTEs, cte.Name)
+		lower := strings.ToLower(cte.Name)
+		if recursive {
+			scope.names[lower] = true
+		}
+		var cols []projColumn
+		if cte.Query != nil {
+			cols = w.resolveCTEColumns(cte, recursive, scope, lower)
+		}
+		cols = applyCTEColumnAliases(cols, cte.Columns)
+		scope.names[lower] = true
+		scope.columns[lower] = cols
+	}
+}
+
+// visitPipeOp records the tables one pipe operator names and walks its
+// expressions (see visitPipe). It resolves no output columns.
+func (w *spanWalker) visitPipeOp(op ast.Node) {
+	switch n := op.(type) {
+	case *ast.PipeWhere:
+		w.walkPredicate(n.Expr)
+	case *ast.PipeSelect:
+		w.walkPipeSelect(n.Select)
+	case *ast.PipeExtend:
+		w.walkPipeSelect(n.Select)
+	case *ast.PipeAggregate:
+		w.walkPipeSelect(n.Select)
+	case *ast.PipeWindow:
+		w.walkPipeItems(n.Items)
+	case *ast.PipeOrderBy:
+		for _, item := range n.Items {
+			if item != nil {
+				w.walkPredicate(item.Expr)
+			}
+		}
+	case *ast.PipeLimitOffset:
+		w.walkPredicate(n.Limit)
+		w.walkPredicate(n.Offset)
+	case *ast.PipeAssert:
+		for _, cond := range n.Conditions {
+			w.walkPredicate(cond)
+		}
+	case *ast.PipeSet:
+		for _, item := range n.Items {
+			if item != nil {
+				w.walkSubqueriesOnly(item.Value)
+			}
+		}
+	case *ast.PipeTablesample:
+		w.walkSampleExpressions(n.Sample)
+	case *ast.PipePivot:
+		w.walkPivotExpressions(n.Pivot)
+	case *ast.PipeUnpivot:
+		w.walkUnpivotExpressions(n.Unpivot)
+	case *ast.PipeJoin:
+		if n.Join != nil {
+			w.buildFromItem(n.Join.Right)
+			w.recordSourceTVFArgs(n.Join.Right)
+			w.walkPredicate(n.Join.On)
+		}
+	case *ast.PipeCall:
+		w.visitPipeCall(n.Call)
+	case *ast.PipeSetOperation:
+		for _, rhs := range n.Right {
+			w.visitPipeOperand(rhs)
+		}
+	case *ast.PipeRecursiveUnion:
+		w.visitPipeOperand(n.RHS)
+	case *ast.PipeInsert:
+		w.discoverTables(n.Insert)
+	case *ast.PipeCreateTable:
+		w.discoverTables(n.Create)
+	case *ast.PipeLog:
+		w.visitPipe(n.Pipeline)
+	case *ast.PipeIf:
+		for _, c := range n.Cases {
+			w.walkPredicate(c.Condition)
+			w.visitPipe(c.Then)
+		}
+		w.visitPipe(n.Else)
+	case *ast.PipeFork:
+		for _, branch := range n.Pipelines {
+			w.visitPipe(branch)
+		}
+	case *ast.PipeTee:
+		for _, branch := range n.Pipelines {
+			w.visitPipe(branch)
+		}
+	case *ast.PipeMatchRecognize:
+		w.walkMatchRecognize(n.Clause)
 	}
 }
 
@@ -696,8 +746,8 @@ func (w *spanWalker) walkPipeSelect(sel *ast.SelectStmt) {
 // pipeKeepsProjection reports whether every operator in a pipe suffix leaves
 // the input's output columns alone. Filtering and ordering change rows, not
 // columns; SELECT, EXTEND, AGGREGATE, RENAME, DROP, SET, JOIN, CALL, PIVOT,
-// UNPIVOT and the set operations change them, so a span carrying the input's
-// projection is not the statement's projection.
+// UNPIVOT and the set operations change them, and a suffix holding one is
+// resolved operator by operator (walkPipeline).
 func pipeKeepsProjection(p *ast.Subpipeline) bool {
 	if p == nil {
 		return true
@@ -705,7 +755,7 @@ func pipeKeepsProjection(p *ast.Subpipeline) bool {
 	for _, op := range p.Ops {
 		switch n := op.(type) {
 		case *ast.PipeWhere, *ast.PipeOrderBy, *ast.PipeLimitOffset, *ast.PipeDistinct,
-			*ast.PipeTablesample, *ast.PipeAssert, *ast.PipeWith, *ast.PipeAs:
+			*ast.PipeTablesample, *ast.PipeAssert, *ast.PipeWith:
 		case *ast.PipeLog:
 			if !pipeKeepsProjection(n.Pipeline) {
 				return false
@@ -860,16 +910,41 @@ func (w *spanWalker) visitQueryStmt(q *ast.QueryStmt) []projColumn {
 		}
 	}
 
+	// A pipe suffix that changes the projection reads the head query's output
+	// table. After a FROM-first head (`FROM t AS x |> ...`) the FROM's range
+	// variables stay visible to the operators; after any other head they do
+	// not, as in BigQuery.
+	resolvePipe := q.Pipe != nil && !w.tablesOnly && !pipeKeepsProjection(q.Pipe)
 	results := w.visitBody(q.Body)
+	ranges := w.outRanges
+	if resolvePipe && isValueTableQuery(q.Body) {
+		w.failClosed(fmt.Errorf("a pipe operator over a SELECT AS STRUCT or AS VALUE query, whose single value column this walker does not represent (fail closed)"))
+	}
+	if sel, ok := q.Body.(*ast.SelectStmt); ok && resolvePipe {
+		for _, src := range sel.From {
+			if sourceReshapes(src) {
+				w.failClosed(fmt.Errorf("a pipe operator over a PIVOT or UNPIVOT source, whose output columns this walker does not derive (fail closed)"))
+			}
+		}
+	}
 
-	// A query's pipe suffix transforms the query's output. The head query's
-	// projection is kept (a superset of the columns a `|> SELECT`/`|> DROP`
-	// leaves, and the base of what `|> EXTEND`/`|> AGGREGATE` add), and the
-	// tables the operators name are recorded.
+	// A pipe suffix transforms the query's output. One that keeps the
+	// projection (WHERE, ORDER BY, LIMIT ...) leaves the head's results; one
+	// that changes it is resolved operator by operator (see pipeOperator).
 	if q.Pipe != nil {
-		w.visitPipe(q.Pipe)
-		if !pipeKeepsProjection(q.Pipe) {
-			w.failClosed(fmt.Errorf("a pipe operator after a query changes the query's projection, which this walker does not resolve (fail closed)"))
+		if resolvePipe {
+			var out *pipeTable
+			if w.failure == nil {
+				out = w.walkPipeline(q.Pipe, &pipeTable{cols: results, ranges: ranges})
+			} else {
+				w.visitPipe(q.Pipe)
+			}
+			results, ranges = nil, nil
+			if out != nil {
+				results, ranges = out.cols, out.ranges
+			}
+		} else {
+			w.visitPipe(q.Pipe)
 		}
 	}
 
@@ -883,6 +958,7 @@ func (w *spanWalker) visitQueryStmt(q *ast.QueryStmt) []projColumn {
 	w.walkPredicate(q.Offset)
 
 	w.scope = scope.parent
+	w.outRanges = ranges
 	return results
 }
 
@@ -1045,8 +1121,11 @@ func (w *spanWalker) visitBody(node ast.Node) []projColumn {
 	case *ast.SelectStmt:
 		return w.visitSelect(n)
 	case *ast.SetOperation:
-		return w.visitSetOp(n)
+		cols := w.visitSetOp(n)
+		w.outRanges = nil
+		return cols
 	case *ast.TableClause:
+		defer func() { w.outRanges = nil }()
 		// The `TABLE t` query primary (table_clause_reserved) is `SELECT * FROM t`:
 		// build the clause's source relation (which records the table / TVF
 		// arguments and walks pivot/sample expressions) and project it as a bare
@@ -1195,10 +1274,13 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 	w.leaves = &leafSet{}
 	prevUnresolved := w.fromUnresolved
 	w.fromUnresolved = false
+	prevRows, prevCols := w.pipeRowNames, w.pipeColumns
+	w.pipeRowNames, w.pipeColumns = nil, nil
 	defer func() {
 		w.fromAliases = prevFrom
 		w.leaves = prevLeaves
 		w.fromUnresolved = prevUnresolved
+		w.pipeRowNames, w.pipeColumns = prevRows, prevCols
 	}()
 
 	// Resolve the FROM clause into the comma-item relations (a join collapses into
@@ -1248,6 +1330,15 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 			}
 		}
 	}
+	var ranges []*relation
+	if len(stmt.Items) == 0 && len(stmt.From) > 0 {
+		for _, rel := range w.leaves.rels {
+			if rel.name != "" {
+				ranges = append(ranges, rel)
+			}
+		}
+	}
+	w.outRanges = ranges
 	return results
 }
 
@@ -1500,6 +1591,7 @@ func (w *spanWalker) buildTableExpr(n *ast.TableExpr) *relation {
 		// visitSelect's fresh scope does not carry; walk its body for table discovery
 		// (Classify) and fail closed for span lineage.
 		cols := w.visitBody(n.Subquery)
+		ranges := w.outRanges
 		w.registerFromAlias(n.Alias)
 		if n.Lateral {
 			w.fromUnresolved = true
@@ -1508,6 +1600,14 @@ func (w *spanWalker) buildTableExpr(n *ast.TableExpr) *relation {
 		} else {
 			rel = &relation{name: strings.ToLower(n.Alias), columns: cols}
 			w.addLeaf(rel)
+			// An unaliased FROM-first subquery's range variables stay visible
+			// (`SELECT t.x FROM (FROM T AS t)`), as BigQuery resolves them.
+			if n.Alias == "" {
+				for _, r := range ranges {
+					w.addLeaf(r)
+					w.registerFromAlias(r.name)
+				}
+			}
 		}
 	case n.Func != nil:
 		// Table-valued function: its arguments may reference columns and
@@ -1616,6 +1716,9 @@ func (w *spanWalker) unnestElementColumns(array ast.Node) []projColumn {
 func (w *spanWalker) finishUnnestRelation(cols []projColumn, alias string, withOffset bool, offsetAlias string) *relation {
 	if alias != "" && len(cols) == 1 {
 		cols[0].name = alias
+	}
+	for i := range cols {
+		cols[i].valueElem = true
 	}
 	if withOffset {
 		name := offsetAlias
@@ -2241,6 +2344,9 @@ type exprWalk struct {
 	onColumn  func(ColumnRef)
 	onParts   func([]string) // raw dotted-name parts of a column reference (for relation-aware resolution); nil to ignore
 	followSub bool
+	// onSubquery, when set, is called for each subquery or graph subquery the
+	// expression holds, followed or not.
+	onSubquery func()
 }
 
 // walk is the shared expression traversal over the googlesql expression AST. It
@@ -2388,6 +2494,9 @@ func (ew *exprWalk) walk(node ast.Node) {
 	// --- Graph subqueries and graph expressions (parser-gql) ---
 	case *ast.GraphSubqueryExpr, *ast.GraphExistsExpr, *ast.GraphCallOp:
 		// A graph subquery is a boundary: the names it invents are not columns.
+		if ew.onSubquery != nil {
+			ew.onSubquery()
+		}
 		ew.walkGraph(node)
 	case *ast.GraphPredicate:
 		// A standalone graph predicate is an ordinary relational comparison —
@@ -2431,6 +2540,9 @@ func (ew *exprWalk) emitParts(parts []string) {
 // subqueries. The body is a *QueryStmt (or set-op / select) the parser already
 // filled, so the walk reaches it directly.
 func (ew *exprWalk) followSubquery(query ast.Node) {
+	if ew.onSubquery != nil {
+		ew.onSubquery()
+	}
 	if !ew.followSub || query == nil {
 		return
 	}
