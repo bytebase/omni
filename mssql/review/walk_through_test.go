@@ -381,6 +381,9 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"integer to an xml column", "UPDATE dbo.typed SET x = 1;", 0, "SQL Server doesn't convert an integer to column `x` of type `xml`."},
 		{"integer default for a geography column", "ALTER TABLE dbo.typed ADD DEFAULT (1) FOR g;", 0, "SQL Server doesn't convert an integer to column `g` of type `geography`."},
 		{"integer to an int column valid", "UPDATE dbo.typed SET i = 1;", -1, ""},
+		{"integer to an xml column beside a variable", "DECLARE @v int; UPDATE dbo.typed SET @v = x = 1;", 1, "SQL Server doesn't convert an integer to column `x` of type `xml`."},
+		{"integer to an int column beside a variable valid", "DECLARE @v int; UPDATE dbo.typed SET @v = i = 1;", -1, ""},
+		{"update sets a variable and a column with =", "DECLARE @v int; UPDATE dbo.t SET @v = a = 1;", -1, ""},
 		{"spatial index option it does not take", "CREATE SPATIAL INDEX sx ON dbo.typed (g) WITH (CERTIFICATE = 1);", 0, "SQL Server doesn't accept option `CERTIFICATE` on a spatial index of a `geography` column."},
 		{"bounding box of a geography index", "CREATE SPATIAL INDEX sx ON dbo.typed (g) WITH (BOUNDING_BOX = (0, 0, 1, 1));", 0, "SQL Server doesn't accept option `BOUNDING_BOX` on a spatial index of a `geography` column."},
 		{"insert too few values", "INSERT dbo.ints VALUES (1);", 0, "SQL Server doesn't accept an `INSERT` of 1 value into `dbo.ints`, which takes 2 or 3 values."},
@@ -617,6 +620,7 @@ func TestWalkThroughFindings(t *testing.T) {
 				"ROWGUIDCOL on an int column", "HIDDEN on an xml column", "PERSISTED on a column that is not computed",
 				"TRIM of an int column", "COLLATE on an int column", "FILESTREAM_ON a table without varbinary",
 				"integer to an xml column", "integer default for a geography column", "integer to an int column valid",
+				"integer to an xml column beside a variable", "integer to an int column beside a variable valid",
 				"spatial index option it does not take", "bounding box of a geography index":
 				target.Schema.Schemas[0].Tables = append(target.Schema.Schemas[0].Tables, &metadata.TableMetadata{
 					Name: "typed",

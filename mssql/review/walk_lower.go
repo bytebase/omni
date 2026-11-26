@@ -903,7 +903,7 @@ func (b *builder) updateStmt(v *ast.UpdateStmt) bool {
 					if cn, ok := keyed(col.Column); ok {
 						b.needs(spaceColumn, r.tablePath(), cn, nil, note(rangeOf(col.Loc), msgMissingIn("column", ident(col.Column), r.written), nil))
 					}
-					if (se.Operator == "" || se.Operator == "=") && !se.WriteMethod && b.intClash(r, se.Column.Column, se.Value) {
+					if (se.Operator == "" || se.Operator == "=") && !se.WriteMethod && !se.Mutator && b.intClash(r, col.Column, se.Value) {
 						return true
 					}
 				}
