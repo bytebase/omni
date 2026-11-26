@@ -1125,6 +1125,8 @@ func walkStates(msg string) []string {
 		return []string{"42804", "42704"}
 	case strings.HasPrefix(msg, "PostgreSQL doesn't accept foreign key column count mismatch with primary key of "):
 		return []string{"42830"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept foreign key column ") && strings.Contains(msg, " of a type incompatible with the primary key of "):
+		return []string{"42804"}
 	case strings.HasPrefix(msg, "PostgreSQL doesn't accept invalid type modifier for "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept non-integer value ") && !strings.Contains(msg, "for identity option"):
 		return []string{"22P02"}

@@ -756,6 +756,11 @@ func (b *builder) constraint(t walk.Key, rv *ast.RangeVar, con *ast.Constraint, 
 			}
 		}
 	}
+	if alter && con.Contype == ast.CONSTR_EXCLUSION {
+		if col, ok := bareColumnRef(con.WhereClause); ok && b.colTouch[col] == 0 && b.nonBoolPredicate(t, con.WhereClause, rng) {
+			return
+		}
+	}
 	if alter && con.Contype == ast.CONSTR_FOREIGN && con.Pktable != nil && fkTarget.fact == walk.Present &&
 		(con.PkAttrs == nil || len(con.PkAttrs.Items) == 0) && con.FkAttrs != nil &&
 		!b.w.isTableDirty(fkTarget.key) && !(fkTarget.key == t && b.pkChanged) {
@@ -763,6 +768,22 @@ func (b *builder) constraint(t walk.Key, rv *ast.RangeVar, con *ast.Constraint, 
 			if len(con.FkAttrs.Items) != len(pkCols) {
 				b.failAt(rng, []walk.Key{fkTarget.key}, review.UnsupportedForm, unsupported("foreign key column count mismatch with primary key of "+review.Code(relation(con.Pktable)))) // 42830
 				return
+			}
+			for i, item := range con.FkAttrs.Items {
+				name, ok := item.(*ast.String)
+				if !ok {
+					continue
+				}
+				col, ok := storedKey(name.Str)
+				if !ok || b.colTouch[col] > 0 {
+					continue
+				}
+				fc, ok := b.w.syncedCol(t, col)
+				pc, pok := b.w.syncedCol(fkTarget.key, pkCols[i])
+				if ok && pok && incompatibleKeyTypes(fc.typ, pc.typ) {
+					b.failAt(rng, []walk.Key{t, fkTarget.key}, review.UnsupportedForm, unsupported("foreign key column "+review.Code(ident(name.Str))+" of a type incompatible with the primary key of "+review.Code(relation(con.Pktable)))) // 42804
+					return
+				}
 			}
 		}
 	}
@@ -922,6 +943,9 @@ func (b *builder) createIndex(v *ast.IndexStmt) bool {
 		if b.w.anyPartitioned {
 			b.mayAdd(walk.Scope{Space: spaceRelation, Deep: true})
 		}
+		return true
+	}
+	if b.nonBoolPredicate(r.key, v.WhereClause, rangeOf(v.Relation.Loc)) {
 		return true
 	}
 	s := walk.Path(schemaOfKey(r.key))
@@ -6113,6 +6137,17 @@ func isPinnedNonBoolType(typ string) bool {
 	return typ == "integer" || typ == "int4"
 }
 
+// incompatibleKeyTypes reports whether a foreign key column of type fk can
+// never reference a key column of type pk: boolean and integer, between
+// which no operator family holds an equality and the only casts are pinned
+// explicit ones (42804, verified on PostgreSQL 17 and 18).
+//
+// pg: src/backend/commands/tablecmds.c — ATAddForeignKeyConstraint
+func incompatibleKeyTypes(fk, pk string) bool {
+	isBool := func(typ string) bool { return typ == "boolean" || typ == "bool" }
+	return isBool(fk) && isPinnedNonBoolType(pk) || isPinnedNonBoolType(fk) && isBool(pk)
+}
+
 // isKnownNonIntegerBuiltinType reports whether typ is a standard PostgreSQL
 // built-in data type that is definitely not smallint/integer/bigint (so it
 // cannot be made an identity column, 22023).
@@ -6131,6 +6166,24 @@ func isKnownNonIntegerBuiltinType(typ string) bool {
 		"inet", "cidr", "macaddr", "macaddr8", "bit", "bit varying", "varbit",
 		"time", "time without time zone", "time with time zone", "timetz",
 		"timestamp", "timestamp without time zone", "timestamp with time zone", "timestamptz":
+		return true
+	}
+	return false
+}
+
+// nonBoolPredicate fails a partial index's predicate that is a bare
+// column of t whose synced type is integer (42804, verified on PostgreSQL
+// 17 and 18). transformIndexStmt reads the predicate before DefineIndex
+// checks the relation's kind or its columns.
+//
+// pg: src/backend/parser/parse_utilcmd.c — transformIndexStmt
+func (b *builder) nonBoolPredicate(t walk.Key, where ast.Node, rng review.Range) bool {
+	col, ok := bareColumnRef(where)
+	if !ok {
+		return false
+	}
+	if sc, ok := b.w.syncedCol(t, col); ok && isPinnedNonBoolType(sc.typ) {
+		b.failAt(rng, []walk.Key{t}, review.UnsupportedForm, unsupported("non-boolean expression in index predicate")) // 42804
 		return true
 	}
 	return false

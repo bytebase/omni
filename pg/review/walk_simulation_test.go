@@ -38,8 +38,8 @@ func TestWalkSimulation(t *testing.T) {
 		// (42804) and what the catalog raises 0A000 for.
 		// parser/testdata/compat.tsv repeats each statement once per
 		// optional clause, so these are most of the misses.
-		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.9125},
-		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.9106},
+		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.9142},
+		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.9122},
 		// The view queries the walk misses are what pg/catalog refuses with a
 		// code catalogCodes leaves out: a missing type, function, tablesample
 		// method or schema, and a coercion a cast could allow.
@@ -431,6 +431,9 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog, definitions map[[2]string][]strin
 					Name:       rel.Name,
 					Definition: viewDefinition(c, s.Name, rel.Name, true),
 					Indexes:    indexMeta(rel),
+				}
+				for i, col := range rel.Columns {
+					mv.Columns = append(mv.Columns, colMeta(col, int32(i+1)))
 				}
 				sm.MaterializedViews = append(sm.MaterializedViews, mv)
 			case 'f':
