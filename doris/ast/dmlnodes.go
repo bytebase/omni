@@ -494,6 +494,7 @@ var _ Node = (*ShowRoutineLoadStmt)(nil)
 type ShowRoutineLoadTaskStmt struct {
 	Name  *ObjectName // optional job name
 	From  string      // optional FROM db
+	Like  string      // optional LIKE 'pattern'
 	Where Node        // optional WHERE condition
 	Loc   Loc
 }

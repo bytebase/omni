@@ -460,6 +460,22 @@ func TestShowRoutineLoadTask_FromDB(t *testing.T) {
 	}
 }
 
+// TestShowRoutineLoadTask_Like reads wildWhere's LIKE form
+// (DorisParser.g4:392), which Doris 3.1.4 accepts.
+func TestShowRoutineLoadTask_Like(t *testing.T) {
+	file, errs := parseForTest(`SHOW ROUTINE LOAD TASK IN mydb LIKE 'job%'`)
+	if len(errs) != 0 {
+		t.Fatalf("Parse errors: %v", errs)
+	}
+	stmt, ok := file.Stmts[0].(*ast.ShowRoutineLoadTaskStmt)
+	if !ok {
+		t.Fatalf("expected *ast.ShowRoutineLoadTaskStmt, got %T", file.Stmts[0])
+	}
+	if stmt.From != "mydb" || stmt.Like != "job%" || stmt.Where != nil {
+		t.Errorf("From, Like, Where = %q, %q, %v; want mydb, job%%, nil", stmt.From, stmt.Like, stmt.Where)
+	}
+}
+
 func TestShowRoutineLoadTask_Tag(t *testing.T) {
 	sql := `SHOW ROUTINE LOAD TASK FROM mydb WHERE JobName = "job1"`
 	file, errs := parseForTest(sql)
