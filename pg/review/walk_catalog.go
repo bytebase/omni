@@ -418,13 +418,12 @@ func sqlFunctionBody(fn *ast.CreateFunctionStmt) ([]ast.Node, bool) {
 	return list.Items, true
 }
 
-// namesSystemRelation reports whether node names a relation in a system
-// schema, or one a schema's pg_ prefix may mark as a system catalog, which
-// the sync does not list.
+// namesSystemRelation reports whether node names a relation in a schema
+// the sync leaves out, or by a name the sync leaves out (trustedRelationName).
 func namesSystemRelation(node ast.Node) bool {
 	found := false
 	ast.Inspect(node, func(n ast.Node) bool {
-		if rv, ok := n.(*ast.RangeVar); ok && (rv.Schemaname != "" && !trustedSchemaName(rv.Schemaname) || strings.HasPrefix(rv.Relname, "pg_")) {
+		if rv, ok := n.(*ast.RangeVar); ok && (rv.Schemaname != "" && !trustedSchemaName(rv.Schemaname) || !trustedRelationName(rv.Relname)) {
 			found = true
 		}
 		return !found

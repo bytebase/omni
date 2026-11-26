@@ -97,6 +97,10 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		"CREATE FUNCTION g() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x t.ctid%TYPE; BEGIN RETURN 1; END $$;",
 		// A SQL body may read a system catalog, which the sync does not list.
 		"CREATE FUNCTION f() RETURNS bigint LANGUAGE sql AS 'SELECT count(*) FROM pg_catalog.nope';",
+		"CREATE FUNCTION f() RETURNS bigint LANGUAGE sql AS 'SELECT count(*) FROM hypopg_list_indexes';",
+		// A body may read a table's system columns.
+		"CREATE FUNCTION f() RETURNS tid LANGUAGE sql AS 'SELECT ctid FROM t';",
+		"CREATE FUNCTION f() RETURNS oid LANGUAGE sql BEGIN ATOMIC SELECT x.tableoid FROM t x; END;",
 		// A qualified column in a SQL body may be a function called in
 		// attribute notation.
 		"CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT t.nope FROM t';",
