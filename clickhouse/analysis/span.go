@@ -138,7 +138,7 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedSpan, err
 // long as the query is resolved: a subquery's own SETTINGS hold inside it.
 // The returned function restores the enclosing query's.
 func (r *spanResolver) settings(q *parser.SelectUnionStmt) func() {
-	saved := [3]bool{r.preferColumns, r.starAlias, r.starMaterialized}
+	saved := [4]bool{r.preferColumns, r.starAlias, r.starMaterialized, r.localWith}
 	for name, flag := range map[string]*bool{
 		"prefer_column_name_to_alias":           &r.preferColumns,
 		"asterisk_include_alias_columns":        &r.starAlias,
@@ -148,7 +148,12 @@ func (r *spanResolver) settings(q *parser.SelectUnionStmt) func() {
 			*flag = v
 		}
 	}
-	return func() { r.preferColumns, r.starAlias, r.starMaterialized = saved[0], saved[1], saved[2] }
+	if v, ok := setting(q, "enable_global_with_statement"); ok {
+		r.localWith = !v
+	}
+	return func() {
+		r.preferColumns, r.starAlias, r.starMaterialized, r.localWith = saved[0], saved[1], saved[2], saved[3]
+	}
 }
 
 // setting is a boolean setting's value in a query's SETTINGS, and whether
@@ -301,6 +306,9 @@ type spanResolver struct {
 	// asterisk_include_alias_columns and
 	// asterisk_include_materialized_columns: * expands to those columns too.
 	starAlias, starMaterialized bool
+	// localWith is enable_global_with_statement = 0: a set operation's
+	// first query's WITH clause is its own, not the later queries'.
+	localWith bool
 	// aliasMemo holds what an alias read where it was used; skips are the
 	// aliases and ALIAS columns passed over because they were being
 	// resolved.
@@ -363,9 +371,12 @@ func (r *spanResolver) queryWith(q *parser.SelectUnionStmt, outer *spanScope, ct
 	for i, item := range q.Items {
 		cols, w, c := r.selectStmt(item, outer, ctes, with)
 		if i == 0 {
-			out, ctes = cols, c
-			if w != nil {
-				with = w
+			out = cols
+			if !r.localWith {
+				ctes = c
+				if w != nil {
+					with = w
+				}
 			}
 			continue
 		}
@@ -429,6 +440,7 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 	for _, o := range s.OrderBy {
 		collectAliases(o.Expr, sc.aliases)
 	}
+	collectJoinAliases(s.From, sc.aliases)
 	if s.From != nil {
 		// A FROM subquery sees the WITH clause's aliases, not this
 		// SELECT's columns.
@@ -445,7 +457,7 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 				rel.columns = append(rel.columns, spanColumn{name: a.Alias, sources: r.expr(a.Expr, sc, ctes)})
 				continue
 			}
-			if parts, ok := identParts(e); ok && !r.resolvesAsName(parts, sc) && nestedGroup(sc, strings.Join(parts, ".")) {
+			if parts, ok := identParts(e); ok && !r.definiteName(parts, sc) && nestedGroup(sc, strings.Join(parts, ".")) {
 				continue
 			}
 			r.expr(e, sc, ctes)
@@ -525,7 +537,7 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 func (r *spanResolver) exprs(list []parser.Expr, sc *spanScope, ctes *cteBinding) SourceColumnSet {
 	out := SourceColumnSet{}
 	for _, e := range list {
-		addAll(out, r.expr(e, sc, ctes))
+		r.exprInto(out, e, sc, ctes)
 	}
 	return out
 }
@@ -565,6 +577,19 @@ func collectAliases(e parser.Expr, into map[string]parser.Expr) {
 		}
 		return true
 	})
+}
+
+// collectJoinAliases records the aliases a FROM clause's ON conditions
+// define, which ClickHouse makes visible to the whole SELECT too.
+func collectJoinAliases(j *parser.JoinExpr, into map[string]parser.Expr) {
+	if j == nil {
+		return
+	}
+	for _, e := range j.On {
+		collectAliases(e, into)
+	}
+	collectJoinAliases(j.Left, into)
+	collectJoinAliases(j.Right, into)
 }
 
 // from adds the relations of a FROM clause to sc, left to right. ON and
@@ -675,6 +700,9 @@ func (r *spanResolver) tableExpr(t *parser.TableExpr, outer *spanScope, ctes *ct
 			}
 			return rel
 		}
+		if rel := r.parameterizedView(t, name); rel != nil {
+			return rel
+		}
 		if strings.EqualFold(t.Func.Name, "dictionary") {
 			dict, ok := dictionaryName(t.Func)
 			if !ok {
@@ -735,6 +763,29 @@ var virtualColumns = map[string]bool{
 	"_part_granule_offset": true, "_part_uuid": true, "_part_data_version": true,
 	"_partition_id": true, "_partition_value": true, "_sample_factor": true,
 	"_row_exists": true, "_block_number": true, "_block_offset": true, "_disk_name": true,
+}
+
+// parameterizedView resolves v(id = 1), a call of a parameterized view the
+// catalog has in the session's database, through its stored query.
+func (r *spanResolver) parameterizedView(t *parser.TableExpr, name string) *relation {
+	if r.opts.Catalog.GetDatabase == nil {
+		return nil
+	}
+	db, err := r.opts.Catalog.GetDatabase(r.database)
+	if err != nil {
+		r.err = errors.Join(r.err, err)
+		return nil
+	}
+	if db == nil || db.GetView(t.Func.Name) == nil {
+		return nil
+	}
+	// The arguments set the view's parameters (id = 1); they name no
+	// column, and a subquery among them was read above.
+	cols, open, ok := r.relation(r.database, t.Func.Name)
+	if !ok {
+		return nil
+	}
+	return &relation{database: r.database, table: t.Func.Name, name: name, columns: renamed(cols, t.ColumnAliases), open: open}
 }
 
 // dictionaryName is the dictionary a dictionary('db.d') call reads.
@@ -1379,34 +1430,46 @@ func (r *spanResolver) matching(re *regexp.Regexp, sc *spanScope) []spanColumn {
 // its subqueries read.
 func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) SourceColumnSet {
 	out := SourceColumnSet{}
+	r.exprInto(out, e, sc, ctes)
+	return out
+}
+
+// exprInto adds what an expression reads to dst, which the caller owns:
+// every subexpression adds to the one set, so a long chain (a + b + ...)
+// stays linear.
+func (r *spanResolver) exprInto(dst SourceColumnSet, e parser.Expr, sc *spanScope, ctes *cteBinding) {
 	if e == nil {
-		return out
+		return
 	}
 	switch n := e.(type) {
 	case *parser.IdentExpr:
-		return r.ident(n.Parts, sc, ctes)
+		addAll(dst, r.ident(n.Parts, sc, ctes))
+		return
 	case *parser.TupleAccessExpr:
 		if parts, ok := identParts(n); ok {
-			return r.ident(parts, sc, ctes)
+			addAll(dst, r.ident(parts, sc, ctes))
+			return
 		}
-		return r.expr(n.Expr, sc, ctes)
+		r.exprInto(dst, n.Expr, sc, ctes)
+		return
 	case *parser.SubqueryExpr:
 		for _, c := range r.query(n.Query, sc, ctes) {
-			addAll(out, c.sources)
+			addAll(dst, c.sources)
 		}
-		return out
+		return
 	case *parser.LambdaExpr:
 		inner := &spanScope{lambda: map[string]bool{}, parent: sc}
 		for _, p := range n.Params {
 			inner.lambda[p] = true
 		}
-		return r.expr(n.Body, inner, ctes)
+		r.exprInto(dst, n.Body, inner, ctes)
+		return
 	case *parser.StarExpr:
 		// A star in an expression is every column it expands to.
 		for _, c := range r.star(n, sc, ctes) {
-			addAll(out, c.sources)
+			addAll(dst, c.sources)
 		}
-		return out
+		return
 	case *parser.FuncCallExpr:
 		args := n.Args
 		if countStar(n) {
@@ -1419,7 +1482,7 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 			// alias is.
 			key := aliasUse{lambda, sc}
 			if memo, ok := r.aliasMemo[key]; ok {
-				addAll(out, memo)
+				addAll(dst, memo)
 			} else if r.spend() {
 				mark := len(r.skips)
 				r.resolving[lambda] = true
@@ -1428,23 +1491,27 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 				if r.whole(mark) {
 					r.aliasMemo[key] = body
 				}
-				addAll(out, body)
+				addAll(dst, body)
 			}
 		}
 		if lookupFunction(n.Name) {
 			// joinGet('db.t', 'c', key) and dictGet('db.d', 'c', key) read
 			// column c of table or dictionary t.
-			addAll(out, r.lookupSources(n))
+			addAll(dst, r.lookupSources(n))
 		}
 		if re, ok := columnsMatcher(n); ok {
 			// COLUMNS('re') in an expression is the columns it matches.
 			for _, c := range r.matching(re, sc) {
-				addAll(out, c.sources)
+				addAll(dst, c.sources)
 			}
-			return out
+			return
 		}
-		addAll(out, r.exprs(n.Params, sc, ctes))
-		addAll(out, r.exprs(args, sc, ctes))
+		for _, a := range n.Params {
+			r.exprInto(dst, a, sc, ctes)
+		}
+		for _, a := range args {
+			r.exprInto(dst, a, sc, ctes)
+		}
 		over := n.Over
 		if n.OverName != "" {
 			over = sc.window(n.OverName)
@@ -1454,21 +1521,35 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 		seen := map[*parser.WindowSpec]bool{}
 		for ; over != nil && !seen[over]; over = sc.window(over.BaseWindow) {
 			seen[over] = true
-			addAll(out, r.window(over, sc, ctes))
+			addAll(dst, r.window(over, sc, ctes))
 		}
-		return out
+		return
 	case *parser.InExpr:
-		out = r.expr(n.Left, sc, ctes)
-		if parts, ok := identParts(n.Right); ok && len(parts) <= 2 && !r.resolvesAsName(parts, sc) {
-			// x IN t reads table t, as x IN (SELECT * FROM t) does.
-			return union(out, r.inTable(parts, sc, ctes))
+		r.exprInto(dst, n.Left, sc, ctes)
+		parts, ok := identParts(n.Right)
+		if !ok || len(parts) > 2 {
+			r.exprInto(dst, n.Right, sc, ctes)
+			return
 		}
-		return union(out, r.expr(n.Right, sc, ctes))
+		switch definite, guessed := r.nameKind(parts, sc); {
+		case definite:
+			r.exprInto(dst, n.Right, sc, ctes)
+		case guessed:
+			// A name only a relation without metadata may hold: it may as
+			// well be the table x IN t reads, so it reads both.
+			r.exprInto(dst, n.Right, sc, ctes)
+			if r.inTableExists(parts, ctes) {
+				addAll(dst, r.inTable(parts, sc, ctes))
+			}
+		default:
+			// x IN t reads table t, as x IN (SELECT * FROM t) does.
+			addAll(dst, r.inTable(parts, sc, ctes))
+		}
+		return
 	}
 	for _, c := range children(e) {
-		addAll(out, r.expr(c, sc, ctes))
+		r.exprInto(dst, c, sc, ctes)
 	}
-	return out
 }
 
 // window is a named window of the innermost SELECT that defines it.
@@ -1703,22 +1784,41 @@ func (r *spanResolver) alias(name string, scopes []*spanScope, sc *spanScope, ct
 	return nil, false
 }
 
-// resolvesAsName reports whether parts name a lambda parameter, an alias or
-// a column in scope, without reporting anything.
-func (r *spanResolver) resolvesAsName(parts []string, sc *spanScope) bool {
+// nameKind reports whether parts name a lambda parameter, an alias or a
+// column in scope (definite), or only a column a relation without
+// metadata might have (guessed), without reporting anything.
+func (r *spanResolver) nameKind(parts []string, sc *spanScope) (definite, guessed bool) {
 	for s := sc; s != nil; s = s.parent {
 		if s.lambda[parts[0]] {
-			return true
+			return true, false
 		}
 		if _, ok := s.aliases[parts[0]]; ok {
 			// An alias, or a member of an alias's tuple.
-			return true
+			return true, false
 		}
-		if _, found := lookup(parts, s); found != foundNone {
-			return true
+		if c, found := lookup(parts, s); found != foundNone {
+			if c.rel == nil || !c.rel.open || slices.ContainsFunc(c.rel.columns, func(o spanColumn) bool { return o.name == c.name && !o.star }) {
+				return true, false
+			}
+			guessed = true
 		}
 	}
-	return false
+	return false, guessed
+}
+
+// definiteName reports whether parts certainly name something in scope.
+func (r *spanResolver) definiteName(parts []string, sc *spanScope) bool {
+	definite, _ := r.nameKind(parts, sc)
+	return definite
+}
+
+// inTableExists reports whether x IN t's t names a CTE or a table the
+// catalog has (or cannot rule out), without reporting anything.
+func (r *spanResolver) inTableExists(parts []string, ctes *cteBinding) bool {
+	if len(parts) == 1 {
+		return ctes.find(parts[0]) != nil || r.tableExists(r.database, parts[0])
+	}
+	return r.tableExists(parts[0], parts[1])
 }
 
 // inTable resolves the table of x IN t: a CTE, or a table or view of the

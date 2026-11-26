@@ -555,3 +555,88 @@ func TestResolveQuerySpanMergeAsteriskSettings(t *testing.T) {
 		}
 	}
 }
+
+// A left-deep chain collects its sources in linear time.
+func TestResolveQuerySpanLongChain(t *testing.T) {
+	cols := make([]string, 8000)
+	for i := range cols {
+		cols[i] = fmt.Sprintf("c%d", i)
+	}
+	start := time.Now()
+	got, err := ResolveQuerySpan("SELECT "+strings.Join(cols, " + ")+" AS s FROM shop.t", ResolveOptions{DefaultDatabase: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := len(got.Results[0].SourceColumns); n != len(cols) {
+		t.Errorf("%d sources, want %d", n, len(cols))
+	}
+	if d := time.Since(start); d > 5*time.Second {
+		t.Errorf("took %v", d)
+	}
+}
+
+// Without a catalog, x IN db.t over a relation of unknown columns reads the
+// table t as well as any column the name might be.
+func TestResolveQuerySpanInGuessedName(t *testing.T) {
+	got, err := ResolveQuerySpan("SELECT id IN shop.allowed_ids FROM shop.customers", ResolveOptions{DefaultDatabase: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.SourceColumns[ColumnResource{Database: "shop", Table: "allowed_ids"}] {
+		t.Errorf("tables %v, want shop.allowed_ids among them", names(got.SourceColumns))
+	}
+}
+
+// An alias defined in a JOIN condition is visible to the select list.
+func TestResolveQuerySpanJoinConditionAlias(t *testing.T) {
+	db := tableDatabase{table: &metadata.TableMetadata{Name: "customers", Columns: []*metadata.ColumnMetadata{{Name: "id"}}}}
+	got, err := ResolveQuerySpan("SELECT x FROM customers c JOIN customers o ON (c.id AS x) = o.id", ResolveOptions{
+		DefaultDatabase: "shop",
+		Catalog:         Catalog{GetDatabase: func(string) (Database, error) { return db, nil }},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.NotFoundError != nil || !got.Results[0].SourceColumns[ColumnResource{Database: "shop", Table: "customers", Column: "id"}] {
+		t.Fatalf("%+v", got)
+	}
+}
+
+// enable_global_with_statement = 0 keeps the first query's WITH its own.
+func TestResolveQuerySpanLocalWith(t *testing.T) {
+	got, err := ResolveQuerySpan("WITH 'public' AS email SELECT email FROM customers UNION ALL SELECT email FROM customers SETTINGS enable_global_with_statement = 0", ResolveOptions{DefaultDatabase: "shop", Catalog: customersCatalog()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Results[0].SourceColumns[ColumnResource{Database: "shop", Table: "customers", Column: "email"}] {
+		t.Errorf("reads %v, want shop.customers.email among them", names(got.Results[0].SourceColumns))
+	}
+}
+
+type viewDatabase struct {
+	tableDatabase
+	view *metadata.ViewMetadata
+}
+
+func (d viewDatabase) GetView(name string) *metadata.ViewMetadata {
+	if name == d.view.Name {
+		return d.view
+	}
+	return nil
+}
+
+// A parameterized view called as a table function reads what its query
+// reads.
+func TestResolveQuerySpanParameterizedView(t *testing.T) {
+	db := viewDatabase{
+		tableDatabase: tableDatabase{table: &metadata.TableMetadata{Name: "customers", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "email"}}}},
+		view:          &metadata.ViewMetadata{Name: "v", Definition: "CREATE VIEW shop.v AS SELECT email FROM shop.customers WHERE id = {id:UInt32}", Columns: []*metadata.ColumnMetadata{{Name: "email"}}},
+	}
+	got, err := ResolveQuerySpan("SELECT email FROM v(id = 1)", ResolveOptions{DefaultDatabase: "shop", Catalog: Catalog{GetDatabase: func(string) (Database, error) { return db, nil }}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"shop.customers.email", "shop.v.email"}; !slices.Equal(names(got.Results[0].SourceColumns), want) {
+		t.Errorf("reads %v, want %v", names(got.Results[0].SourceColumns), want)
+	}
+}
