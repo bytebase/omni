@@ -10491,10 +10491,10 @@ func TestParseCreateTableInlineIndex(t *testing.T) {
 func TestParseGraphTables(t *testing.T) {
 	// AS NODE
 	t.Run("create_table_as_node", func(t *testing.T) {
-		sql := `CREATE TABLE Person AS NODE (
+		sql := `CREATE TABLE Person (
 			ID INT PRIMARY KEY,
 			Name NVARCHAR(100)
-		)`
+		) AS NODE`
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTableStmt)
 		if !stmt.IsNode {
@@ -10510,9 +10510,9 @@ func TestParseGraphTables(t *testing.T) {
 
 	// AS EDGE
 	t.Run("create_table_as_edge", func(t *testing.T) {
-		sql := `CREATE TABLE Likes AS EDGE (
+		sql := `CREATE TABLE Likes (
 			CreatedDate DATETIME DEFAULT GETDATE()
-		)`
+		) AS EDGE`
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTableStmt)
 		if !stmt.IsEdge {
@@ -10525,15 +10525,15 @@ func TestParseGraphTables(t *testing.T) {
 
 	// Edge table with $from_id and $to_id pseudo-columns
 	t.Run("create_table_edge_pseudo_columns", func(t *testing.T) {
-		sql := `CREATE TABLE FriendOf AS EDGE (
+		sql := `CREATE TABLE FriendOf (
 			Since DATE
-		)`
+		) AS EDGE`
 		ParseAndCheck(t, sql)
 	})
 
 	// Node table without columns
 	t.Run("create_table_node_minimal", func(t *testing.T) {
-		sql := "CREATE TABLE dbo.Entity AS NODE (ID INT)"
+		sql := "CREATE TABLE dbo.Entity (ID INT) AS NODE"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTableStmt)
 		if !stmt.IsNode {
@@ -18729,12 +18729,13 @@ func TestParseDmlBnfReview(t *testing.T) {
 
 // TestParseCreateTableBnfReview tests CREATE TABLE BNF review gaps (batch 157).
 func TestParseCreateTableBnfReview(t *testing.T) {
-	// AS FILETABLE
+	// AS FILETABLE, which takes no column list (createTableStatement,
+	// TSql160.g:26543; SQL Server refuses one with Msg 102, measured).
 	t.Run("as_filetable", func(t *testing.T) {
-		sql := `CREATE TABLE dbo.MyFiles AS FILETABLE (
-			col1 int,
-			col2 varchar(100)
-		)`
+		if _, err := Parse("CREATE TABLE dbo.MyFiles AS FILETABLE (col1 int)"); err == nil {
+			t.Error("AS FILETABLE with a column list: want a syntax error")
+		}
+		sql := `CREATE TABLE dbo.MyFiles AS FILETABLE`
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTableStmt)
 		if !stmt.IsFileTable {
@@ -19077,10 +19078,10 @@ func TestParseCreateTableBnfReview(t *testing.T) {
 
 	// Graph table AS NODE
 	t.Run("graph_as_node", func(t *testing.T) {
-		sql := `CREATE TABLE dbo.Person AS NODE (
+		sql := `CREATE TABLE dbo.Person (
 			id int,
 			name varchar(100)
-		)`
+		) AS NODE`
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTableStmt)
 		if !stmt.IsNode {
@@ -19090,9 +19091,9 @@ func TestParseCreateTableBnfReview(t *testing.T) {
 
 	// Graph table AS EDGE
 	t.Run("graph_as_edge", func(t *testing.T) {
-		sql := `CREATE TABLE dbo.Likes AS EDGE (
+		sql := `CREATE TABLE dbo.Likes (
 			since datetime
-		)`
+		) AS EDGE`
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.CreateTableStmt)
 		if !stmt.IsEdge {
