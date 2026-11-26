@@ -385,6 +385,23 @@ func (p *Parser) expectSQLData() error {
 	return err
 }
 
+// parseTypeCollate reads the opt_collate that follows a type where a column's
+// attributes do not: `type opt_collate` in sp_fdparam, sp_pdparam, sp_decl,
+// sf_tail's RETURNS and jt_column (sql_yacc.yy:7646). A character type has
+// read its COLLATE already, and a second one is a 1064.
+func (p *Parser) parseTypeCollate(dt *nodes.DataType) error {
+	if dt.Collate != "" || p.cur.Type != kwCOLLATE {
+		return nil
+	}
+	p.advance() // consume COLLATE
+	name, err := p.parseCollationName()
+	if err != nil {
+		return err
+	}
+	dt.Collate = name
+	return nil
+}
+
 // parseRoutineDataType reads the type of a routine's parameter, return value or local
 // variable. A collation there needs a character set beside it: the action answers 1235,
 // ER_NOT_SUPPORTED_YET, for `a CHAR(5) COLLATE ascii_bin` and runs it with CHARSET ascii.
@@ -394,6 +411,9 @@ func (p *Parser) parseRoutineDataType() (*nodes.DataType, error) {
 	start := p.pos()
 	dt, err := p.parseDataType()
 	if err != nil {
+		return nil, err
+	}
+	if err := p.parseTypeCollate(dt); err != nil {
 		return nil, err
 	}
 	if dt.Collate != "" && dt.Charset == "" {
