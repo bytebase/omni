@@ -273,7 +273,7 @@ func (p *Parser) parseAlterTableAdd(withCheck string) ([]nodes.Node, error) {
 			action.Type = nodes.ATAddConstraint
 			action.WithCheck = withCheck
 			var err error
-			action.Constraint, err = p.parseTableConstraint()
+			action.Constraint, err = p.parseAlterTableAddConstraint()
 			if err != nil {
 				return nil, err
 			}
@@ -286,7 +286,7 @@ func (p *Parser) parseAlterTableAdd(withCheck string) ([]nodes.Node, error) {
 			action.Type = nodes.ATAddConstraint
 			action.WithCheck = withCheck
 			var err error
-			action.Constraint, err = p.parseTableConstraint()
+			action.Constraint, err = p.parseAlterTableAddConstraint()
 			if err != nil {
 				return nil, err
 			}

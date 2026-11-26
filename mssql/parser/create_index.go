@@ -685,16 +685,21 @@ var indexOnOffOptions = indexNameSet("PAD_INDEX", "SORT_IN_TEMPDB", "STATISTICS_
 // CREATE COLUMNSTORE INDEX's for a columnstore, without DROP_EXISTING, which
 // the pinned server refuses there ("'DROP_EXISTING' is not a recognized ALTER
 // TABLE option").
-func inlineIndexOptionRule(columnstore bool) indexOptionRule {
+func inlineIndexOptionRule(columnstore, hash bool) indexOptionRule {
 	rule := indexOptionRules[indexOptCreate]
 	if columnstore {
 		rule = indexOptionRules[indexOptColumnstore]
 	}
-	names := make(map[string]bool, len(rule.names))
+	names := make(map[string]bool, len(rule.names)+1)
 	for n := range rule.names {
 		if n != "DROP_EXISTING" {
 			names[n] = true
 		}
+	}
+	// A HASH index takes BUCKET_COUNT beside the others: INDEX ix HASH (a)
+	// WITH (BUCKET_COUNT = 8, FILLFACTOR = 80) parses (measured, compat.tsv).
+	if hash {
+		names["BUCKET_COUNT"] = true
 	}
 	rule.names = names
 	return rule

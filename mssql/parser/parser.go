@@ -41,7 +41,11 @@ type Parser struct {
 	// dmlTrigger is set while the body of a DML trigger is parsed, where a
 	// search condition may test UPDATE ( column ) (updateCall, TSql160.g).
 	dmlTrigger bool
-	depth      int // nesting depth of the productions being parsed (see enterNesting)
+	// tableTypeBody is set while the body of a table variable, a table type
+	// or a function's returned table is parsed, which take no FOREIGN KEY or
+	// REFERENCES (ThrowSyntaxErrorIfNotCreateAlterTable, TSql160.g:29933).
+	tableTypeBody bool
+	depth         int // nesting depth of the productions being parsed (see enterNesting)
 
 	// procWhileDepth, procCatchDepth and procRoutineDepth count the WHILE
 	// bodies, CATCH blocks and procedure or function bodies being parsed:

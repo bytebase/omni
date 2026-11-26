@@ -145,6 +145,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.Nullable != nil {
 			Walk(v, n.Nullable)
 		}
+		walkList(v, n.Indexes)
 		if n.EncryptedWith != nil {
 			Walk(v, n.EncryptedWith)
 		}

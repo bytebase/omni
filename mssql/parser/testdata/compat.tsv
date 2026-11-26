@@ -18478,3 +18478,359 @@ reject	reject	engine	suite:optional-clauses	DROP TABLE a CASCADE
 reject	reject	engine	suite:optional-clauses	DROP TABLE a RESTRICT
 reject	reject	engine	suite:optional-clauses	DROP VIEW a CASCADE
 reject	reject	engine	suite:optional-clauses	TRUNCATE TABLE a CASCADE
+accept	accept	engine	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+accept	accept	engine	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+accept	accept	engine	issue:BYT-10538	SELECT CAST(N'<a>1</a>' AS XML).value('(/a)[1]', 'int');
+accept	accept	engine	issue:BYT-10538	SELECT (SELECT 'x' AS a FOR XML PATH(''), TYPE).value('.', 'varchar(10)');
+accept	accept	engine	issue:BYT-10538	SELECT (SELECT 'x' AS a FOR XML PATH(''), TYPE).query('.');
+accept	accept	engine	issue:BYT-10538	SELECT (SELECT 'x' AS a FOR XML PATH(''), TYPE).exist('.');
+accept	accept	engine	issue:BYT-10538	SELECT (CAST(N'<a/>' AS XML)).value('.', 'int');
+accept	accept	engine	issue:BYT-10538	SELECT (1).value('.', 'int');
+accept	accept	engine	issue:BYT-10538	SELECT (SELECT 1).value('.', 'int') + 1;
+accept	accept	engine	issue:BYT-10538	SELECT (SELECT 1).value;
+accept	accept	engine	issue:BYT-10538	SELECT (SELECT 1).value();
+accept	accept	engine	issue:BYT-10538	SELECT (SELECT 1).a.value('.', 'int');
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.value('.', 'int');
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.query('.');
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.exist('.');
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.query('.').value('.', 'int');
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.value;
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SET @x.modify('delete /a');
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT 1 WHERE @x.exist('/a') = 1;
+accept	accept	engine	issue:BYT-10538	SELECT STUFF((SELECT ',' + name FROM sys.objects FOR XML PATH(N'')), 1, 2, N'');
+accept	accept	engine	issue:BYT-10538	SELECT 1 FOR XML RAW(N'r'), ROOT(N'x');
+accept	accept	engine	issue:BYT-10538	SELECT 1 FOR XML PATH(N'');
+reject	reject	engine	issue:BYT-10538	SELECT 1 FOR XML PATH(1);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a CLUSTERED, b INT);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a NONCLUSTERED, b INT);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT NOT NULL INDEX ix_a UNIQUE);
+reject	reject	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+reject	reject	engine	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY);
+accept	accept	engine	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+accept	accept	engine	issue:BYT-10538	SELECT 1, 2;
+accept	accept	engine	issue:BYT-10538	SELECT 1;
+accept	accept	engine	issue:BYT-10538	SELECT 1 WHERE 1 > = 0;
+accept	accept	engine	issue:BYT-10538	SELECT 1 WHERE 1 < = 0;
+accept	accept	engine	issue:BYT-10538	SELECT x FROM .dbo.t;
+accept	accept	engine	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE t SET t.c = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+reject	reject	engine	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c.WRITE(N'x', 0, 1);
+accept	accept	engine	issue:BYT-10538	SELECT { fn UCASE('a') };
+accept	accept	engine	issue:BYT-10538	DECLARE @h UNIQUEIDENTIFIER; IF 1 = 1 BEGIN SELECT 1; END CONVERSATION @h; END
+accept	accept	engine	issue:BYT-10538	DECLARE @h UNIQUEIDENTIFIER; BEGIN END CONVERSATION @h WITH CLEANUP; END
+accept	accept	engine	issue:BYT-10538	DECLARE @h UNIQUEIDENTIFIER; BEGIN END CONVERSATION @h; END CONVERSATION @h END
+accept	accept	engine	issue:BYT-10538	DECLARE @h UNIQUEIDENTIFIER; WHILE 1 = 1 BEGIN END CONVERSATION @h END
+accept	accept	engine	issue:BYT-10538	SELECT 1 AS a UNION ALL (SELECT 2);
+accept	accept	engine	issue:BYT-10538	DECLARE @c NVARCHAR(MAX) = N''; SELECT @c += N'x' FROM sys.objects;
+accept	accept	engine	issue:BYT-10538	DECLARE @c INT = 0; SELECT @c -= 1, @c *= 2, @c /= 2, @c %= 2, @c &= 1, @c |= 1, @c ^= 1;
+reject	reject	engine	issue:BYT-10538	DECLARE @c INT = 0; SELECT @c + = 1;
+reject	reject	engine	issue:BYT-10538	DECLARE @c INT = 0; SELECT @c += 1, 2;
+reject	reject	engine	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, CONSTRAINT df_demo DEFAULT (0) FOR a);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, DEFAULT (0) FOR a);
+accept	accept	engine	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+accept	accept	engine	issue:BYT-10538	SELECT 'a'+'b';
+accept	accept	engine	issue:BYT-10538	SELECT 'a'+'b';
+accept	accept	engine	issue:BYT-10538	SELECT 'a'+'b';
+accept	accept	engine	issue:BYT-10538	SELECT 'a'+'b';
+accept	accept	engine	issue:BYT-10538	SELECT 'a'+'b';
+accept	accept	engine	issue:BYT-10538	SELECT 'a'+'b';
+accept	accept	engine	issue:BYT-10538	SELECT 'a' + 'b';
+accept	accept	engine	issue:BYT-10538	SELECT 'a' + 'b';
+accept	accept	engine	issue:BYT-10538	SELECT 'a' + 'b';
+accept	accept	engine	issue:BYT-10538	SELECT 'a' + 'b';
+accept	accept	engine	issue:BYT-10538	SELECT 'a'​+​'b';
+accept	accept	engine	issue:BYT-10538	SELECT 'a' + 'b';
+accept	accept	engine	issue:BYT-10538	SELECT 'a' + 'b';
+accept	accept	engine	issue:BYT-10538	SELECT 'a' + 'b';
+accept	accept	engine	issue:BYT-10538	SELECT 'a' + 'b';
+accept	accept	engine	issue:BYT-10538	SELECT 'a'　+　'b';
+reject	reject	engine	issue:BYT-10538	SELECT 'a'+'b';
+reject	reject	engine	issue:BYT-10538	SELECT 'a'᠎+᠎'b';
+reject	reject	engine	issue:BYT-10538	SELECT 'a'‌+‌'b';
+reject	reject	engine	issue:BYT-10538	SELECT 'a'﻿+﻿'b';
+reject	reject	engine	issue:BYT-10538	SELECT 1 AS a b;
+accept	accept	engine	issue:BYT-10538	SELECT a FROM a;
+accept	accept	engine	issue:BYT-10538	SELECT 'a'.value('.', 'int');
+accept	accept	engine	issue:BYT-10538	SELECT N'a'.value('.', 'int');
+reject	reject	engine	issue:BYT-10538	SELECT 1.value('.', 'int');
+accept	accept	engine	issue:BYT-10538	SELECT NULL.value('.', 'int');
+accept	accept	engine	issue:BYT-10538	SELECT @@ROWCOUNT.value('.', 'int');
+accept	accept	engine	issue:BYT-10538	SELECT CASE WHEN 1 = 1 THEN 1 END.value('.', 'int');
+accept	accept	engine	issue:BYT-10538	SELECT COALESCE(1, 2).value('.', 'int');
+accept	accept	engine	issue:BYT-10538	SELECT (SELECT 1).value('.', 'int') COLLATE Latin1_General_CI_AS;
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.value('.', 'int') COLLATE Latin1_General_CI_AS;
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x .value('.', 'int');
+reject	reject	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.;
+reject	reject	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.value('.', 'int').;
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.[value]('.', 'int');
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.a.b.c;
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT * FROM a WHERE @x.exist('/a') = 1 AND (SELECT 1).a = 1;
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SET @x = @x.query('.');
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.value('.', 'int') AS v;
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.value('.', 'int') v;
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT v = @x.value('.', 'int');
+accept	accept	engine	issue:BYT-10538	DECLARE @c INT; SELECT @c += 1;
+accept	accept	engine	issue:BYT-10538	DECLARE @c INT; SELECT @c += 1, @c = 2;
+accept	accept	engine	issue:BYT-10538	DECLARE @c INT; SELECT @c = 1, @c += 2;
+accept	accept	engine	issue:BYT-10538	DECLARE @c INT; SELECT @c += 1 FROM a WHERE a = 1;
+reject	reject	engine	issue:BYT-10538	DECLARE @c INT; SELECT @c +=;
+reject	reject	engine	issue:BYT-10538	DECLARE @c INT; SELECT @c ||= 1;
+reject	reject	engine	issue:BYT-10538	DECLARE @c INT; SELECT a, @c += 1 FROM a;
+reject	reject	engine	issue:BYT-10538	DECLARE @c INT; SELECT @@ROWCOUNT += 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET .a.a = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+accept	accept	engine	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+accept	accept	engine	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a CLUSTERED (a));
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a CLUSTERED, b INT INDEX ix_b);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT PRIMARY KEY INDEX ix_a);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a NOT NULL);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a WITH (FILLFACTOR = 80));
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a ON [PRIMARY]);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a UNIQUE CLUSTERED);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a HASH WITH (BUCKET_COUNT = 8));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+accept	accept	engine	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+accept	accept	engine	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY FOREIGN KEY REFERENCES b);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN REFERENCES b);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY () REFERENCES b);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+reject	reject	engine	issue:BYT-10538	DECLARE @t TABLE (a INT FOREIGN KEY REFERENCES b);
+reject	reject	engine	issue:BYT-10538	ALTER TABLE a ALTER COLUMN a INT FOREIGN KEY REFERENCES b;
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL, CONSTRAINT df DEFAULT 0 FOR a);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL, CONSTRAINT df DEFAULT (0));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0) FOR a);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL, CONSTRAINT df DEFAULT (0) FOR a WITH VALUES);
+reject	reject	engine	issue:BYT-10538	DECLARE @t TABLE (a INT NOT NULL, CONSTRAINT df DEFAULT (0) FOR a);
+reject	reject	engine	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT NOT NULL, CONSTRAINT df DEFAULT (0) FOR a);
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+accept	accept	engine	issue:BYT-10538	DECLARE @h UNIQUEIDENTIFIER; BEGIN END CONVERSATION @h WITH ERROR = 1 DESCRIPTION = 'x' END
+accept	accept	engine	issue:BYT-10538	DECLARE @h UNIQUEIDENTIFIER; BEGIN TRY END CONVERSATION @h END TRY BEGIN CATCH END CATCH
+accept	accept	engine	issue:BYT-10538	DECLARE @h UNIQUEIDENTIFIER; BEGIN TRY SELECT 1 END TRY BEGIN CATCH END CONVERSATION @h END CATCH
+reject	reject	engine	issue:BYT-10538	DECLARE @h UNIQUEIDENTIFIER; BEGIN END CONVERSATION END
+reject	reject	engine	issue:BYT-10538	DECLARE @h UNIQUEIDENTIFIER; BEGIN END CONVERSATION; END
+reject	reject	engine	issue:BYT-10538	BEGIN SELECT 1 END CONVERSATION
+reject	reject	engine	issue:BYT-10538	BEGIN SELECT 1 END CONVERSATION @h
+accept	accept	engine	issue:BYT-10538	DECLARE @h UNIQUEIDENTIFIER; BEGIN SELECT 1 END CONVERSATION @h END
+accept	accept	engine	issue:BYT-10538	DECLARE @h UNIQUEIDENTIFIER; IF 1 = 1 BEGIN SELECT 1 END ELSE END CONVERSATION @h;
+reject	reject	engine	issue:BYT-10538	BEGIN END
+accept	accept	engine	issue:BYT-10538	DECLARE @conversation INT; BEGIN SELECT 1 END
+accept	accept	engine	issue:BYT-10538	DECLARE @h UNIQUEIDENTIFIER; BEGIN TRANSACTION END CONVERSATION @h COMMIT
+accept	accept	engine	issue:BYT-10538	SELECT 1 FOR XML RAW(N'r'), ELEMENTS, ROOT(N'x');
+accept	accept	engine	issue:BYT-10538	SELECT 1 FOR XML AUTO, XMLSCHEMA(N'urn:x');
+accept	accept	engine	issue:BYT-10538	SELECT 1 FOR XML EXPLICIT, ROOT(N'r');
+accept	accept	engine	issue:BYT-10538	SELECT 1 FOR XML RAW(N'');
+reject	reject	engine	issue:BYT-10538	SELECT 1 FOR XML RAW(@a);
+accept	accept	engine	issue:BYT-10538	SELECT 1 FOR XML RAW('');
+reject	reject	engine	issue:BYT-10538	SELECT 1 FOR XML RAW();
+accept	accept	engine	issue:BYT-10538	SELECT 1 FOR JSON PATH, ROOT(N'r');
+accept	accept	engine	issue:BYT-10538	SELECT 1 FOR JSON PATH, ROOT('r');
+reject	reject	engine	issue:BYT-10538	SELECT 1 FOR JSON PATH, ROOT();
+accept	accept	engine	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET a..a = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET ..a = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET a...a = 1;
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.a. = 1;
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.a.WRITE(N'x', 0, 1);
+accept	accept	engine	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+accept	accept	engine	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.$identity = 1;
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.a.a.m(1);
+accept	accept	engine	issue:BYT-10538	UPDATE a SET a.m(1);
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.a.a.m();
+reject	reject	engine	issue:BYT-10538	SELECT a, @c = 1 FROM a;
+reject	reject	engine	issue:BYT-10538	SELECT @c = 1, a FROM a;
+accept	accept	engine	issue:BYT-10538	SELECT @c = 1, @d += 2;
+reject	reject	engine	issue:BYT-10538	SELECT a = 1, @c = 1;
+accept	accept	engine	issue:BYT-10538	DECLARE @c INT; SELECT TOP 1 @c += a FROM a ORDER BY a;
+accept	accept	engine	issue:BYT-10538	DECLARE @c INT; SELECT DISTINCT @c += a FROM a;
+accept	accept	engine	issue:BYT-10538	DECLARE @c INT; SELECT @c += a FROM a GROUP BY a;
+accept	accept	engine	issue:BYT-10538	DECLARE @c INT; SELECT @c+=1;
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a CLUSTERED INDEX ix_b);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a INDEX ix_b);
+reject	reject	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a NONCLUSTERED HASH);
+reject	reject	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a HASH);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+reject	reject	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a CLUSTERED COLUMNSTORE);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a WHERE a > 1);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a CLUSTERED DEFAULT 1);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT DEFAULT 1 INDEX ix_a);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX [ix a]);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a UNIQUE NONCLUSTERED);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a FILESTREAM_ON a);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a ON a);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a ON a (a));
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a WITH (DATA_COMPRESSION = PAGE));
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix_a, INDEX ix_b (a));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+reject	reject	engine	issue:BYT-10538	ALTER TABLE a ALTER COLUMN a INT INDEX ix_a;
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a) (b) REFERENCES c);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a AS 1 FOREIGN KEY REFERENCES b);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a AS 1 PERSISTED FOREIGN KEY REFERENCES b);
+reject	reject	engine	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT FOREIGN KEY REFERENCES b);
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df DEFAULT (0) FOR a, b INT);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df DEFAULT);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT, DEFAULT 0);
+accept	accept	engine	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+accept	accept	engine	issue:BYT-10538	DECLARE @h UNIQUEIDENTIFIER; BEGIN END CONVERSATION @h END
+accept	accept	engine	issue:BYT-10538	DECLARE @h UNIQUEIDENTIFIER; BEGIN END CONVERSATION @h WITH ERROR = 1 DESCRIPTION = N'x'; END
+reject	reject	engine	issue:BYT-10538	BEGIN END CONVERSATION END
+accept	accept	engine	issue:BYT-10538	DECLARE @h UNIQUEIDENTIFIER; BEGIN END CONVERSATION (@h) END
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.value('.', 'int').value('.', 'int').query('.');
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.value.value;
+reject	reject	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.value('.', 'int')('.');
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.value('.', 'int') + @x.value('.', 'int');
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT -@x.value('.', 'int');
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.value(DEFAULT);
+reject	reject	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.1;
+reject	reject	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.*;
+reject	reject	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.$identity;
+reject	reject	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x..value('.', 'int');
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.value ('.', 'int');
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT * FROM a ORDER BY @x.value('.', 'int');
+reject	reject	engine	issue:BYT-10538	DECLARE @x XML; EXEC p @x.value('.', 'int');
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; INSERT a VALUES (@x.value('.', 'int'));
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; IF @x.exist('/a') = 1 SELECT 1;
+accept	accept	engine	issue:BYT-10538	DECLARE @x XML; SELECT @x.query('.') .exist('.');
+accept	accept	engine	issue:BYT-10538	SELECT @@ROWCOUNT.a;
+reject	reject	engine	issue:BYT-10538	SELECT DEFAULT.value('.', 'int');
+reject	reject	engine	issue:BYT-10538	SELECT $1.value('.', 'int');
+accept	accept	engine	issue:BYT-10538	SELECT 0x01.value('.', 'int');
+accept	accept	engine	issue:BYT-10538	SELECT 1e1.value('.', 'int');
+accept	accept	engine	issue:BYT-10538	SELECT NULLIF(1, 2).value('.', 'int');
+accept	accept	engine	issue:BYT-10538	SELECT IIF(1 = 1, 1, 2).value('.', 'int');
+accept	accept	engine	issue:BYT-10538	SELECT CONVERT(XML, N'<a/>').value('.', 'int');
+accept	accept	engine	issue:BYT-10538	SELECT a.value('.', 'int') FROM a;
+accept	accept	engine	issue:BYT-10538	SELECT a.a.value('.', 'int') FROM a;
+reject	reject	engine	issue:BYT-10538	SELECT EXISTS(SELECT 1).value('.', 'int');
+accept	accept	engine	issue:BYT-10538	SELECT (SELECT 1) .a;
+reject	reject	engine	issue:BYT-10538	SELECT * FROM (SELECT 1 AS a) .b;
+reject	reject	engine	issue:BYT-10538	SELECT * FROM (SELECT 1 AS a).b;
+reject	reject	engine	issue:BYT-10538	SELECT $action.a;
+accept	accept	engine	issue:BYT-10538	SELECT 'a' . value('.', 'int');
+reject	reject	engine	issue:BYT-10538	DECLARE @t TABLE (a INT REFERENCES b);
+reject	reject	engine	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT REFERENCES b);
+reject	reject	engine	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT REFERENCES b) AS BEGIN RETURN END
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT, INDEX ix_a NONCLUSTERED HASH (a) WITH (BUCKET_COUNT = 8));
+reject	reject	engine	issue:BYT-10538	DECLARE @t TABLE (a INT, INDEX ix_a CLUSTERED HASH (a));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED HASH);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a COLUMNSTORE);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED COLUMNSTORE);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a INCLUDE (b));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED WHERE a > 1);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a AS 1 INDEX ix_a);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.a.a.WRITE(N'x', 0, 1);
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.WRITE;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET WRITE = 1;
+accept	accept	engine	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+accept	accept	engine	issue:BYT-10538	SELECT 1 FOR XML PATH(N'a'), ROOT(N'b'), TYPE;
+accept	accept	engine	issue:BYT-10538	SELECT 1 FOR XML PATH, ELEMENTS XSINIL, ROOT(N'r');
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = @n));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH COLUMNSTORE (a) WITH (BUCKET_COUNT = 8));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+accept	accept	engine	issue:BYT-10538	DECLARE @t TABLE (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix NONCLUSTERED WITH (BUCKET_COUNT = 8));
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix (a) WITH (BUCKET_COUNT = 8));
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+reject	reject	engine	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a AS 1 CONSTRAINT c FOREIGN KEY REFERENCES b);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a AS 1 REFERENCES b);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a AS 1 CONSTRAINT c REFERENCES b);
+reject	reject	engine	issue:BYT-10538	CREATE TABLE a (a AS 1 PERSISTED REFERENCES b);
+accept	accept	engine	issue:BYT-10538	SELECT v.w.x.dbo.a.a FROM a;
+accept	accept	engine	issue:BYT-10538	SELECT x.dbo.a.a FROM a;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET [a].m(1);
+accept	accept	engine	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.m;
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.m() = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+accept	accept	engine	issue:BYT-10538	UPDATE a SET .m(1);
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.m(1).n(2);
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1).m(1);
+accept	accept	engine	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET @v = a += 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET @v += 1;
+reject	reject	engine	issue:BYT-10538	UPDATE a SET @v = a.a.a.a.a.a = 1;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+accept	accept	engine	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.m(DISTINCT 1);
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.m(1) OVER ();
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.m(ALL 1);
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.m(*);
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.m(1,);
+accept	accept	engine	issue:BYT-10538	UPDATE a SET a.m();
+accept	accept	engine	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.LEFT(1);
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.m(1) WITHIN GROUP (ORDER BY a);
+accept	accept	engine	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.WRITE(DISTINCT N'x', 0, 1);
+reject	reject	engine	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1) OVER ();
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX a;
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX A_D_IDX;
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX PK_a;
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, y INT INDEX ix_x;
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
+accept	accept	engine	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);

@@ -1573,10 +1573,10 @@ func (l *Lexer) lexDollar() Token {
 		l.pos = end
 		return tok
 	}
-	if l.pos+1 < len(l.input) && isIdentStart(l.input[l.pos+1]) {
+	if l.pos+1 < len(l.input) && isIdentStart(l.input[l.pos+1]) && spaceLen(l.input, l.pos+1) == 0 {
 		start := l.pos
 		l.pos++ // consume $
-		for l.pos < len(l.input) && isIdentCont(l.input[l.pos]) {
+		for l.pos < len(l.input) && identContAt(l.input, l.pos) {
 			l.pos++
 		}
 		return Token{Type: tokPSEUDOCOL, Str: l.input[start:l.pos], Loc: l.start}
@@ -1655,13 +1655,41 @@ func (l *Lexer) moneyAmountEnd(i int) (int, bool) {
 
 func (l *Lexer) skipWhitespace() {
 	for l.pos < len(l.input) {
-		ch := l.input[l.pos]
-		if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\f' {
-			l.pos++
-		} else {
+		n := spaceLen(l.input, l.pos)
+		if n == 0 {
 			break
 		}
+		l.pos += n
 	}
+}
+
+// spaceLen returns the byte length of the whitespace character at s[i], or 0
+// when there is none. SQL Server's whitespace is every control character up
+// to the space and the Unicode spaces WS_CHAR_WO_NEWLINE lists
+// (TSql160.g:34076): SELECT 'a'<c>+<c>'b' parses for each, NBSP included, and
+// is Msg 102 for U+007F, U+180E, U+200C and U+FEFF (measured, compat.tsv).
+func spaceLen(s string, i int) int {
+	ch := s[i]
+	if ch < utf8.RuneSelf {
+		if ch <= ' ' {
+			return 1
+		}
+		return 0
+	}
+	r, size := utf8.DecodeRuneInString(s[i:])
+	switch {
+	case r == 0x0085, r == 0x00a0, r == 0x1680,
+		r >= 0x2000 && r <= 0x200b,
+		r == 0x2028, r == 0x2029, r == 0x202f, r == 0x205f, r == 0x3000:
+		return size
+	}
+	return 0
+}
+
+// identContAt reports whether s[i] continues a name: a whitespace character
+// above ASCII ends one, as a space does (SELECT 1 AS a<NBSP>b is Msg 102).
+func identContAt(s string, i int) bool {
+	return isIdentCont(s[i]) && (s[i] < utf8.RuneSelf || spaceLen(s, i) == 0)
 }
 
 func (l *Lexer) skipLineComment() {
@@ -1776,7 +1804,7 @@ func (l *Lexer) lexVariable() Token {
 		// @@sysvariable
 		l.pos++
 		start := l.pos
-		for l.pos < len(l.input) && isIdentCont(l.input[l.pos]) {
+		for l.pos < len(l.input) && identContAt(l.input, l.pos) {
 			l.pos++
 		}
 		name := "@@" + l.input[start:l.pos]
@@ -1784,7 +1812,7 @@ func (l *Lexer) lexVariable() Token {
 	}
 	// @variable
 	start := l.pos
-	for l.pos < len(l.input) && isIdentCont(l.input[l.pos]) {
+	for l.pos < len(l.input) && identContAt(l.input, l.pos) {
 		l.pos++
 	}
 	name := "@" + l.input[start:l.pos]
@@ -1855,7 +1883,7 @@ func (l *Lexer) lexNumber() Token {
 
 func (l *Lexer) lexIdent() Token {
 	start := l.pos
-	for l.pos < len(l.input) && isIdentCont(l.input[l.pos]) {
+	for l.pos < len(l.input) && identContAt(l.input, l.pos) {
 		l.pos++
 	}
 	ident := l.input[start:l.pos]

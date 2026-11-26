@@ -544,11 +544,14 @@ func procIsCondition(e nodes.ExprNode) bool {
 
 // parseProcStatementList parses the statements of a BEGIN...END, TRY or CATCH
 // block up to the END that closes it, with semicolons between them. It
-// reports whether it skipped a semicolon.
+// reports whether it skipped a semicolon. END CONVERSATION is a statement,
+// not the END: ScriptDOM reads End and the word Conversation as
+// endConversationStatement (TSql160.g:25475), and SQL Server parses
+// BEGIN SELECT 1 END CONVERSATION @h END (measured, compat.tsv).
 func (p *Parser) parseProcStatementList() ([]nodes.Node, bool, error) {
 	var stmts []nodes.Node
 	semicolon := false
-	for p.cur.Type != kwEND && p.cur.Type != tokEOF {
+	for p.cur.Type != tokEOF && (p.cur.Type != kwEND || p.peekNext().Type == kwCONVERSATION) {
 		if p.cur.Type == ';' {
 			semicolon = true
 			p.advance()

@@ -687,6 +687,9 @@ func (p *Parser) routineParseTableDefinition() (*nodes.List, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
+	saved := p.tableTypeBody
+	p.tableTypeBody = true
+	defer func() { p.tableTypeBody = saved }()
 	var items []nodes.Node
 	for {
 		var item nodes.Node

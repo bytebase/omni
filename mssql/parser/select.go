@@ -927,8 +927,12 @@ func (p *Parser) parseTopClause() (*nodes.TopClause, error) {
 }
 
 // parseTargetList parses a comma-separated list of result columns.
+//
+// A list that assigns a variable assigns in every item: SELECT a, @c = 1 and
+// SELECT @c += 1, 2 are Msg 141 (measured, compat.tsv).
 func (p *Parser) parseTargetList() (*nodes.List, error) {
 	var targets []nodes.Node
+	assigns, others := 0, 0
 	for {
 		// Completion: at start of each target list item → columnref, func_name
 		if p.collectMode() {
@@ -944,11 +948,15 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 		// at the head of a select list item can only be the assignment form
 		// (a bare expression that starts with `ident =` would be a top-level
 		// comparison, which is not a valid select-list element shape).
-		if p.peekNext().Type == '=' {
+		// selectSetVariable takes a compound operator too
+		// (assignmentWithOptOp, TSql160.g:18500): SELECT @c += N'x' parses
+		// (measured, compat.tsv).
+		op := compoundAssignOp(p.peekNext().Type)
+		if p.peekNext().Type == '=' || op != "" && p.cur.Type == tokVARIABLE {
 			if p.cur.Type == tokVARIABLE {
 				name := p.cur.Str
 				p.advance() // consume @var
-				p.advance() // consume =
+				p.advance() // consume = or the compound operator
 				rhs, err := p.parseExpr()
 				if err != nil {
 					return nil, err
@@ -960,6 +968,7 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 				}
 				assign := &nodes.SelectAssign{
 					Variable: name,
+					Operator: op,
 					Value:    rhs,
 					Loc:      nodes.Loc{Start: targetLoc, End: p.prevEnd()},
 				}
@@ -967,6 +976,7 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 					Val: assign,
 					Loc: nodes.Loc{Start: targetLoc, End: p.prevEnd()},
 				})
+				assigns++
 				if _, ok := p.match(','); !ok {
 					break
 				}
@@ -991,6 +1001,7 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 					Val:  rhs,
 					Loc:  nodes.Loc{Start: targetLoc, End: p.prevEnd()},
 				})
+				others++
 				if p.completing {
 					p.addSelectAliasPosition(aliasLoc)
 				}
@@ -1049,6 +1060,7 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 		}
 		target.Loc.End = p.prevEnd()
 		targets = append(targets, target)
+		others++
 		if _, ok := p.match(','); !ok {
 			break
 		}
@@ -1059,6 +1071,9 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 			p.addTokenCandidate('*')
 			return nil, errCollecting
 		}
+	}
+	if assigns > 0 && others > 0 {
+		return nil, p.newParseError(nodes.NodeLoc(targets[len(targets)-1]).Start, "a SELECT statement that assigns a value to a variable must not be combined with data-retrieval operations")
 	}
 	return &nodes.List{Items: targets}, nil
 }
@@ -2347,10 +2362,11 @@ func (p *Parser) parseForClause() (*nodes.ForClause, error) {
 			// RAW('ElementName') or PATH('ElementName')
 			if p.cur.Type == '(' {
 				p.advance()
-				if p.cur.Type == tokSCONST {
-					fc.ElementName = p.cur.Str
-					p.advance()
+				str, err := p.forClauseString()
+				if err != nil {
+					return nil, err
 				}
+				fc.ElementName = str
 				if _, err := p.expect(')'); err != nil {
 					return nil, err
 				}
@@ -2393,6 +2409,19 @@ var forXmlOptions = newOptionSet(
 	kwBINARY, kwTYPE, kwROOT, kwXMLDATA, kwXMLSCHEMA, kwELEMENTS,
 )
 
+// forClauseString reads the string FOR XML and FOR JSON take in parentheses,
+// a stringLiteral (TSql160.g:21574, 33464): plain or N'...', and required.
+// FOR XML PATH(N”) parses, and FOR XML RAW() is Msg 102 (measured,
+// compat.tsv).
+func (p *Parser) forClauseString() (string, error) {
+	if p.cur.Type != tokSCONST && p.cur.Type != tokNSCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	str := p.cur.Str
+	p.advance()
+	return str, nil
+}
+
 // parseForXmlOptions parses the comma-separated options after FOR XML {RAW|AUTO|EXPLICIT|PATH}.
 //
 //	[ , BINARY BASE64 ]
@@ -2423,10 +2452,11 @@ func (p *Parser) parseForXmlOptions(fc *nodes.ForClause) error {
 			fc.Root = true
 			if p.cur.Type == '(' {
 				p.advance()
-				if p.cur.Type == tokSCONST {
-					fc.RootName = p.cur.Str
-					p.advance()
+				str, err := p.forClauseString()
+				if err != nil {
+					return err
 				}
+				fc.RootName = str
 				if _, err := p.expect(')'); err != nil {
 					return err
 				}
@@ -2437,10 +2467,11 @@ func (p *Parser) parseForXmlOptions(fc *nodes.ForClause) error {
 			fc.XmlSchema = true
 			if p.cur.Type == '(' {
 				p.advance()
-				if p.cur.Type == tokSCONST {
-					fc.XmlSchemaURI = p.cur.Str
-					p.advance()
+				str, err := p.forClauseString()
+				if err != nil {
+					return err
 				}
+				fc.XmlSchemaURI = str
 				if _, err := p.expect(')'); err != nil {
 					return err
 				}
@@ -2486,10 +2517,11 @@ func (p *Parser) parseForJsonOptions(fc *nodes.ForClause) error {
 			fc.Root = true
 			if p.cur.Type == '(' {
 				p.advance()
-				if p.cur.Type == tokSCONST {
-					fc.RootName = p.cur.Str
-					p.advance()
+				str, err := p.forClauseString()
+				if err != nil {
+					return err
 				}
+				fc.RootName = str
 				if _, err := p.expect(')'); err != nil {
 					return err
 				}

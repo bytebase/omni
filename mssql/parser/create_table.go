@@ -540,12 +540,18 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 			NotNull:   notNull,
 			Loc:       nodes.Loc{Start: compLoc, End: p.prevEnd()},
 		}
-		// Computed columns can also have column constraints (PK, UNIQUE, etc.)
+		// Computed columns can also have column constraints (PK, UNIQUE,
+		// CHECK), but no foreign key: SQL Server refuses a AS 1 REFERENCES b
+		// and a AS 1 CONSTRAINT c FOREIGN KEY REFERENCES b, PERSISTED or not
+		// (measured, compat.tsv).
 		for p.cur.Type == kwCONSTRAINT || p.cur.Type == kwPRIMARY || p.cur.Type == kwUNIQUE ||
-			p.cur.Type == kwCHECK || p.cur.Type == kwFOREIGN || p.cur.Type == kwREFERENCES {
+			p.cur.Type == kwCHECK {
 			var constraint *nodes.ConstraintDef
 			var cErr error
 			if p.cur.Type == kwCONSTRAINT {
+				if kind := p.peekSecond(); kind.Type == kwFOREIGN || kind.Type == kwREFERENCES {
+					return nil, p.newParseError(kind.Loc, "a computed column takes no foreign key")
+				}
 				constraint, cErr = p.parseColumnConstraint()
 			} else {
 				constraint, cErr = p.parseInlineConstraint("")
@@ -706,7 +712,19 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 			}
 			col.DefaultExpr = defExpr
 			continue
-		case kwCONSTRAINT, kwPRIMARY, kwUNIQUE, kwCHECK, kwREFERENCES:
+		case kwINDEX:
+			idx, err := p.parseInlineColumnIndex()
+			if err != nil {
+				return nil, err
+			}
+			// A column may declare several: INDEX ix_a INDEX ix_b parses
+			// (measured, compat.tsv).
+			if col.Indexes == nil {
+				col.Indexes = &nodes.List{}
+			}
+			col.Indexes.Items = append(col.Indexes.Items, idx)
+			continue
+		case kwCONSTRAINT, kwPRIMARY, kwUNIQUE, kwCHECK, kwFOREIGN, kwREFERENCES:
 			// CONSTRAINT name, then the constraint, or a constraint without
 			// a name (PRIMARY KEY, UNIQUE, CHECK, inline REFERENCES).
 			var constraint *nodes.ConstraintDef
@@ -1044,14 +1062,38 @@ func (p *Parser) parseInlineConstraint(name string) (*nodes.ConstraintDef, error
 		if cd.Expr == nil {
 			return nil, p.unexpectedToken()
 		}
-	case kwREFERENCES:
-		p.advance()
+	case kwFOREIGN, kwREFERENCES:
+		// foreignKeyColumnConstraint (TSql160.g:29998): [ FOREIGN KEY
+		// [ ( column [ ,...n ] ) ] ] REFERENCES ..., in CREATE and ALTER TABLE
+		// only (ThrowSyntaxErrorIfNotCreateAlterTable): a table variable's,
+		// a table type's and a function's table refuse it (measured,
+		// compat.tsv).
+		if p.tableTypeBody {
+			return nil, p.syntaxErrorAtCur()
+		}
+		cd.Type = nodes.ConstraintForeignKey
+		if p.cur.Type == kwFOREIGN {
+			p.advance() // FOREIGN
+			if _, err := p.expect(kwKEY); err != nil {
+				return nil, err
+			}
+			if p.cur.Type == '(' {
+				var err error
+				cd.Columns, err = p.parseParenIdentList()
+				if err != nil {
+					return nil, err
+				}
+			}
+			if p.cur.Type != kwREFERENCES {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+		p.advance() // REFERENCES
 		// Completion: after REFERENCES → table_ref
 		if p.collectMode() {
 			p.addRuleCandidate("table_ref")
 			return nil, errCollecting
 		}
-		cd.Type = nodes.ConstraintForeignKey
 		var refErr error
 		cd.RefTable, refErr = p.parseTableRef()
 		if refErr != nil {
@@ -1179,6 +1221,18 @@ func (p *Parser) parseColumnConstraintColumnList(cd *nodes.ConstraintDef) error 
 //	    | CHECK [ NOT FOR REPLICATION ] ( logical_expression )
 //	}
 func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
+	return p.parseTableConstraintFor(false)
+}
+
+// parseAlterTableAddConstraint parses a table constraint of ALTER TABLE's ADD
+// list, the one place a DEFAULT ... FOR column constraint is taken
+// (defaultTableConstraint, TSql160.g:29670): CREATE TABLE refuses it (Msg
+// 102, measured, compat.tsv).
+func (p *Parser) parseAlterTableAddConstraint() (*nodes.ConstraintDef, error) {
+	return p.parseTableConstraintFor(true)
+}
+
+func (p *Parser) parseTableConstraintFor(alterTableAdd bool) (*nodes.ConstraintDef, error) {
 	loc := p.pos()
 	var name string
 
@@ -1307,6 +1361,9 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 			cd.NotForReplication = true
 		}
 	case kwDEFAULT:
+		if !alterTableAdd {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		cd.Type = nodes.ConstraintDefault
 		var exprErr error
@@ -1508,6 +1565,22 @@ func (p *Parser) parseRefAction() nodes.ReferentialAction {
 // (TSql160.g:28739's action), INCLUDE follows a key list, ON a filegroup, and
 // a clustered index takes no filter (TSql160.g:17072's filterProhibited).
 func (p *Parser) parseInlineTableIndex() (*nodes.InlineIndexDef, error) {
+	return p.parseInlineIndex(false)
+}
+
+// parseInlineColumnIndex parses the INDEX a column definition may carry
+// (inlineIndexColumnDefinition, TSql160.g:28800): the table index's form with
+// the key list left out or given, and no COLUMNSTORE. DECLARE @t TABLE (a INT
+// INDEX ix CLUSTERED) and CREATE TABLE a (a INT INDEX ix) parse (measured,
+// compat.tsv).
+func (p *Parser) parseInlineColumnIndex() (*nodes.InlineIndexDef, error) {
+	return p.parseInlineIndex(true)
+}
+
+// parseInlineIndex parses a table's or, with column set, a column's INDEX.
+// Either may name a HASH index, which is nonclustered (inlineIndexType,
+// TSql160.g:28624): INDEX ix CLUSTERED HASH is refused.
+func (p *Parser) parseInlineIndex(column bool) (*nodes.InlineIndexDef, error) {
 	loc := p.pos()
 	p.advance() // consume INDEX
 
@@ -1534,7 +1607,7 @@ func (p *Parser) parseInlineTableIndex() (*nodes.InlineIndexDef, error) {
 		idx.Clustered = &v
 		p.advance()
 		// CLUSTERED COLUMNSTORE [ ORDER ( col [,...n] ) ]
-		if p.cur.Type == kwCOLUMNSTORE {
+		if p.cur.Type == kwCOLUMNSTORE && !column {
 			p.advance()
 			idx.Columnstore = true
 			if p.cur.Type == kwORDER {
@@ -1556,8 +1629,21 @@ func (p *Parser) parseInlineTableIndex() (*nodes.InlineIndexDef, error) {
 		p.advance()
 	}
 
-	// [ NONCLUSTERED ] COLUMNSTORE ( column_name [,...n] )
-	if p.cur.Type == kwCOLUMNSTORE {
+	// [ NONCLUSTERED ] HASH
+	if p.cur.Type == kwHASH {
+		if idx.Clustered != nil && *idx.Clustered {
+			return nil, p.syntaxErrorAtCur()
+		}
+		idx.Hash = true
+		p.advance()
+	}
+
+	// [ NONCLUSTERED ] COLUMNSTORE ( column_name [,...n] ), which a column's
+	// index refuses.
+	if p.cur.Type == kwCOLUMNSTORE && column {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == kwCOLUMNSTORE && !idx.Hash {
 		p.advance()
 		idx.Columnstore = true
 		if p.cur.Type != '(' {
@@ -1617,10 +1703,15 @@ trailingOptions:
 			return nil, p.unexpectedToken()
 		}
 		var err error
-		idx.Options, err = p.indexOptionListRule(inlineIndexOptionRule(idx.Columnstore))
+		idx.Options, err = p.indexOptionListRule(inlineIndexOptionRule(idx.Columnstore, idx.Hash))
 		if err != nil {
 			return nil, err
 		}
+	}
+	// A HASH index takes a WITH list: INDEX ix HASH (a) is refused, and
+	// INDEX ix HASH (a) WITH (FILLFACTOR = 80) parses (measured, compat.tsv).
+	if idx.Hash && idx.Options == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// [ ON { partition_scheme_name ( column_name ) | filegroup_name | default } ]

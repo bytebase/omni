@@ -94,6 +94,9 @@ func (p *Parser) parseCreateTypeStmt() (*nodes.CreateTypeStmt, error) {
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
+		saved := p.tableTypeBody
+		p.tableTypeBody = true
+		defer func() { p.tableTypeBody = saved }()
 		var elements []nodes.Node
 		for {
 			switch p.cur.Type {

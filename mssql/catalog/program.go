@@ -718,8 +718,12 @@ func (pb *programBinder) setClause(list *ast.List, target *qrel, sc *qscope) err
 		if !ok {
 			continue
 		}
-		if set.Column != nil {
-			if err := targetColumn(target, set.Column.Column); err != nil {
+		// The column of SET @v = column = ... is a target too.
+		for _, col := range []*ast.ColumnRef{set.Column, set.VarColumn} {
+			if col == nil {
+				continue
+			}
+			if err := targetColumn(target, col.Column); err != nil {
 				return err
 			}
 		}

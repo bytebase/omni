@@ -1067,6 +1067,9 @@ func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) error {
 			return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", tableName)
 		}
 	}
+	if dup := dupCreateTableIndexName(n); dup != "" {
+		return mssqlErr(ErrDupTargetInAlter, "Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named '%s' in this context.", dup)
+	}
 	if !c.lenientMetadataLoad && n.IsFileTable {
 		return mssqlErr(ErrFileTableNotSupported, "Default FILESTREAM filegroup is not available.")
 	}
@@ -1141,6 +1144,60 @@ func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) error {
 		}
 	}
 	return nil
+}
+
+// dupCreateTableIndexName returns a name CREATE TABLE gives two of its
+// indexes, or "": its columns' and the table's INDEX clauses and its PRIMARY
+// KEY and UNIQUE constraints, whose indexes share the name. SQL Server
+// refuses a INT INDEX ix, b INT INDEX ix and a INT CONSTRAINT ix PRIMARY KEY
+// INDEX ix with 8168 (measured, simulate.tsv). Names compare without case.
+func dupCreateTableIndexName(n *ast.CreateTableStmt) string {
+	seen := map[string]bool{}
+	add := func(name string) bool {
+		if name == "" {
+			return false
+		}
+		key := strings.ToLower(name)
+		if seen[key] {
+			return true
+		}
+		seen[key] = true
+		return false
+	}
+	check := func(list *ast.List) string {
+		if list == nil {
+			return ""
+		}
+		for _, item := range list.Items {
+			switch v := item.(type) {
+			case *ast.InlineIndexDef:
+				if add(v.Name) {
+					return v.Name
+				}
+			case *ast.ConstraintDef:
+				if (v.Type == ast.ConstraintPrimaryKey || v.Type == ast.ConstraintUnique) && add(v.Name) {
+					return v.Name
+				}
+			}
+		}
+		return ""
+	}
+	if n.Columns != nil {
+		for _, item := range n.Columns.Items {
+			if col, ok := item.(*ast.ColumnDef); ok {
+				if dup := check(col.Constraints); dup != "" {
+					return dup
+				}
+				if dup := check(col.Indexes); dup != "" {
+					return dup
+				}
+			}
+		}
+	}
+	if dup := check(n.Constraints); dup != "" {
+		return dup
+	}
+	return check(n.Indexes)
 }
 
 // --- CREATE / ALTER INDEX ---
@@ -2421,15 +2478,62 @@ func (c *Catalog) execAlterTableInCatalog(n *ast.AlterTableStmt, source string) 
 
 func checkAlterTablePreLookup(n *ast.AlterTableStmt) error {
 	seenDrop := make(map[string]bool)
+	// One ADD list names its indexes, and the PRIMARY KEY and UNIQUE
+	// constraints whose indexes share the name, once each: ADD x INT INDEX
+	// ix, y INT INDEX ix is 8168 before the table is looked up (measured,
+	// simulate.tsv).
+	seenAdd := make(map[string]bool)
+	addName := func(name string) error {
+		if name == "" {
+			return nil
+		}
+		low := strings.ToLower(name)
+		if seenAdd[low] {
+			return mssqlErr(ErrDupTargetInAlter, "Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named '%s' in this context.", name)
+		}
+		seenAdd[low] = true
+		return nil
+	}
+	addKeyName := func(cd *ast.ConstraintDef) error {
+		if cd == nil || cd.Type != ast.ConstraintPrimaryKey && cd.Type != ast.ConstraintUnique {
+			return nil
+		}
+		return addName(cd.Name)
+	}
 	for _, item := range n.Actions.Items {
 		action, ok := item.(*ast.AlterTableAction)
 		if !ok {
 			continue
 		}
 		switch action.Type {
+		case ast.ATAddColumn:
+			if action.Column == nil {
+				break
+			}
+			if action.Column.Constraints != nil {
+				for _, ci := range action.Column.Constraints.Items {
+					if err := addKeyName(ci.(*ast.ConstraintDef)); err != nil {
+						return err
+					}
+				}
+			}
+			if action.Column.Indexes != nil {
+				for _, ii := range action.Column.Indexes.Items {
+					if err := addName(ii.(*ast.InlineIndexDef).Name); err != nil {
+						return err
+					}
+				}
+			}
+		case ast.ATAddConstraint:
+			if err := addKeyName(action.Constraint); err != nil {
+				return err
+			}
 		case ast.ATAddIndex:
 			if action.Index == nil || action.Index.Columns == nil || len(action.Index.Columns.Items) == 0 {
 				return mssqlErr(ErrAlterTableAddIndexSyntax, "Table level constraint or index does not specify column list.")
+			}
+			if err := addName(action.Index.Name); err != nil {
+				return err
 			}
 		case ast.ATDropConstraint, ast.ATDropColumn:
 			// One DROP list names a column and a constraint alike: DROP
@@ -2476,6 +2580,12 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 		if columnByName(table, action.Column.Name) != nil {
 			return mssqlErr(ErrDupColumn, "Column names in each table must be unique. Column name '%s' in table '%s' is specified more than once.", action.Column.Name, table.Name)
 		}
+		// A column's INDEX is an ADD INDEX, which only a memory-optimized
+		// table takes: ALTER TABLE a ADD x INT INDEX ix is 10785 (measured,
+		// simulate.tsv).
+		if action.Column.Indexes != nil && len(action.Column.Indexes.Items) > 0 {
+			return mssqlErr(ErrAlterTableIndexDiskTable, "The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.")
+		}
 		if !c.lenientMetadataLoad && action.Column.Computed == nil && !isValidDataType(action.Column.DataType, false) {
 			typeName := ""
 			if action.Column.DataType != nil {
@@ -2512,9 +2622,24 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 					}
 					addingClustered = true
 				}
-				if !c.lenientMetadataLoad && cd.Type == ast.ConstraintForeignKey {
-					if err := c.validateForeignKeyTarget(table, []string{action.Column.Name}, cd); err != nil {
-						return err
+				if cd.Type == ast.ConstraintForeignKey {
+					// FOREIGN KEY (x, y) beside a column keys the columns it
+					// names, as extractColumn records them: each is the
+					// table's or the one being added, as ADD FOREIGN KEY
+					// checks.
+					srcCols := []string{action.Column.Name}
+					if cd.Columns != nil {
+						srcCols = stringNodeList(cd.Columns)
+					}
+					for _, colName := range srcCols {
+						if !strings.EqualFold(colName, action.Column.Name) && columnByName(table, colName) == nil {
+							return mssqlErr(ErrFKColumnNotFound, "Foreign key references invalid column '%s' in referencing table '%s'.", colName, table.Name)
+						}
+					}
+					if !c.lenientMetadataLoad {
+						if err := c.validateForeignKeyTarget(table, srcCols, cd); err != nil {
+							return err
+						}
 					}
 				}
 			}
