@@ -10,7 +10,6 @@ import (
 	"unicode"
 
 	"github.com/bytebase/omni/analysis"
-	"github.com/bytebase/omni/databricks/parser"
 )
 
 // Statement is one segment of a split SQL script.
@@ -24,20 +23,7 @@ type Statement = analysis.Statement
 // contiguous with script[Start:End]. Empty segments (lone semicolons,
 // whitespace, or comment-only chunks) are retained with Empty set to true.
 func Split(script string) ([]Statement, error) {
-	segments := parser.Split(script)
-	if len(segments) == 0 {
-		return nil, nil
-	}
-	statements := make([]Statement, 0, len(segments))
-	for _, seg := range segments {
-		statements = append(statements, Statement{
-			Text:  seg.Text,
-			Empty: seg.Empty(),
-			Start: seg.ByteStart,
-			End:   seg.ByteEnd,
-		})
-	}
-	return statements, nil
+	return Engine.Split(script), nil
 }
 
 // TrimStatement drops surrounding whitespace and trailing semicolons from
