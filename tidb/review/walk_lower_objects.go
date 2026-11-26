@@ -103,6 +103,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	}
 	b.Set(ik, walk.Present, "")
 	b.Set(indexSetKey(r.db, r.name), walk.Unknown, "")
+	b.Set(columnSetKey(r.db, r.name), walk.Unknown, "")
 	return true
 }
 
@@ -124,6 +125,7 @@ func (b *builder) dropIndex(v *ast.DropIndexStmt) bool {
 		return true
 	}
 	b.Set(indexSetKey(r.db, r.name), walk.Unknown, "")
+	b.Set(columnSetKey(r.db, r.name), walk.Unknown, "")
 	return b.dropIndexName(r, v.Name, b.anchor(), v.IfExists)
 }
 

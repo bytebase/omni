@@ -472,6 +472,9 @@ func TestWalkThroughTiDBColumnSet(t *testing.T) {
 		{sql: "ALTER TABLE people MODIFY full_name VARCHAR(200) AS (CONCAT(last_name, ', ', first_name)) VIRTUAL;", want: "TiDB can't change the expression of generated column `full_name`, which an index holds."},
 		{sql: "ALTER TABLE people CHANGE first_name given_name VARCHAR(50) NOT NULL;", want: "Column `first_name` is read by generated column `full_name`, and can't be renamed."},
 		{sql: "ALTER TABLE people MODIFY name_len INT;"},
+		// The walk follows which columns an index holds no further than the sync.
+		{sql: "DROP INDEX idx_full ON people;\nALTER TABLE people MODIFY full_name VARCHAR(200) AS (CONCAT(last_name, ', ', first_name)) VIRTUAL;"},
+		{sql: "CREATE INDEX idx_low2 ON people ((LOWER(first_name)));\nALTER TABLE people CHANGE age years INT;"},
 		{sql: "ALTER TABLE people CHANGE age years INT;"},
 		// TiDB answers 3108 here, but the walk can't tell when the column
 		// of an expression index reading last_name comes first (3837).

@@ -15,8 +15,8 @@ import (
 // only when Present: each column in order, with its type, its character
 // set, whether it is generated and which columns it then reads, and
 // whether an index holds it. The sync gives it; any ALTER TABLE of the
-// table leaves it Unknown, and a cleared table path Absent, which says
-// nothing. It settles what TiDB v8.5.5 judges against a column's
+// table, and CREATE INDEX or DROP INDEX on it, leaves it Unknown, and a
+// cleared table path Absent, which says nothing. It settles what TiDB v8.5.5 judges against a column's
 // character set (checkModifyCharsetAndCollation in pkg/ddl) and its
 // generation (checkModifyGeneratedColumn and
 // checkModifyColumnWithGeneratedColumnsConstraint).
