@@ -236,9 +236,10 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
-			// The body holds an element (declareTableBodyMain): SQL Server
-			// refuses TABLE () (Msg 102).
-			if len(cols) == 0 {
+			// The body holds an element (declareTableBodyMain), and a typed
+			// column among them (tableDefHasColumn): SQL Server refuses
+			// TABLE () and TABLE (UNIQUE (a)) (Msg 102).
+			if !tableDefHasColumn(cols, false) {
 				return nil, p.transSyntaxErrorAtPrev()
 			}
 			vd.TableDef = &nodes.List{Items: cols}

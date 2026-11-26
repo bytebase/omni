@@ -119,7 +119,11 @@ func (p *Parser) parseCommitStmt() (*nodes.CommitTransStmt, error) {
 	stmt := &nodes.CommitTransStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
-	stmt.Name = p.parseTransEnd()
+	name, err := p.parseTransEnd()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
 
 	// WITH ( DELAYED_DURABILITY = { OFF | ON } )
 	if _, ok := p.match(kwWITH); ok {
@@ -167,7 +171,11 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackTransStmt, error) {
 	stmt := &nodes.RollbackTransStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
-	stmt.Name = p.parseTransEnd()
+	name, err := p.parseTransEnd()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -179,7 +187,9 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackTransStmt, error) {
 //
 //	SAVE { TRAN | TRANSACTION } { savepoint_name | @savepoint_variable }
 //
-// saveTransactionStatement (TSql160.g:15873): both parts are required.
+// saveTransactionStatement (TSql160.g:15873): both parts are required, and
+// the name is a transactionName (TSql160.g:16007), which may be the old form
+// [-]n : name.name.
 func (p *Parser) parseSaveTransStmt() (*nodes.SaveTransStmt, error) {
 	loc := p.pos()
 	p.advance() // consume SAVE
@@ -198,11 +208,19 @@ func (p *Parser) parseSaveTransStmt() (*nodes.SaveTransStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	if !p.isIdentLike() && p.cur.Type != tokVARIABLE {
+	switch {
+	case p.cur.Type == '-' || procIsInteger(p.cur):
+		name, err := p.parseTransWeirdName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Name = name
+	case p.isIdentLike() || p.cur.Type == tokVARIABLE:
+		stmt.Name = p.cur.Str
+		p.advance()
+	default:
 		return nil, p.syntaxErrorAtCur()
 	}
-	stmt.Name = p.cur.Str
-	p.advance()
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -241,21 +259,25 @@ func (p *Parser) parseTransWeirdName() (string, error) {
 // TRANSACTION and an optional name (commitTransactionStatement,
 // TSql160.g:15917; rollbackTransactionStatement, TSql160.g:15883). A name
 // needs TRAN or TRANSACTION before it: SQL Server refuses COMMIT a and
-// COMMIT WORK a (Msg 102).
-func (p *Parser) parseTransEnd() string {
+// COMMIT WORK a (Msg 102). The name is a transactionName (TSql160.g:16007),
+// which may be the old form [-]n : name.name.
+func (p *Parser) parseTransEnd() (string, error) {
 	if p.procIsWord("WORK") {
 		p.advance()
-		return ""
+		return "", nil
 	}
 	if _, ok := p.match(kwTRAN, kwTRANSACTION); !ok {
-		return ""
+		return "", nil
+	}
+	if p.cur.Type == '-' || procIsInteger(p.cur) {
+		return p.parseTransWeirdName()
 	}
 	// GO ends the batch rather than naming the transaction: ROLLBACK
 	// TRANSACTION on a line before GO names none.
 	if p.cur.Type == tokVARIABLE || (p.isIdentLike() && p.cur.Type != kwWITH && p.cur.Type != kwGO) {
 		name := p.cur.Str
 		p.advance()
-		return name
+		return name, nil
 	}
-	return ""
+	return "", nil
 }

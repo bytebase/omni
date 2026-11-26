@@ -760,6 +760,30 @@
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+|
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+|
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 |
 < error
@@ -988,6 +1012,18 @@
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 |
 < error
@@ -1104,6 +1140,31 @@
 |
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+|
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -2103,6 +2164,30 @@
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+|
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+|
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 |
 < ok 0 -
@@ -2237,6 +2322,30 @@
 |
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+|
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+|
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -2809,6 +2918,54 @@
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| PROCEDURE
+: string
+| dbo.a
+: string
+| CREATE PROC a @a DOUBLE PRECISION AS
+|
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 |
 < error
@@ -2897,6 +3054,114 @@
 | ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -3232,6 +3497,30 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -3724,6 +4013,30 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -5621,6 +5934,366 @@
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
 > exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([a] int NULL);
+| ALTER TABLE [dbo].[a] ADD UNIQUE NONCLUSTERED ([a] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([a] AS ((1)), [b] int NULL);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NULL, [a] AS ((1)));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([timestamp] timestamp NOT NULL);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([a] int NULL);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+|
+< error
+| 2714 5 16 1 There is already an object named 'a' in the database.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+|
+< error
+| 2714 5 16 1 There is already an object named 'a' in the database.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([a] int NULL);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+|
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| FUNCTION
+: string
+| dbo.a
+: string
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+|
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+|
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'omni_TestSimulation'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
@@ -5979,6 +6652,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 |
 < error
@@ -6237,6 +6934,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 |
 < error
@@ -6353,6 +7062,31 @@
 |
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+|
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -7502,6 +8236,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 |
 < error
@@ -7590,6 +8348,30 @@
 |
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+|
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+|
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -7994,6 +8776,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 |
 < error
@@ -8058,6 +8864,114 @@
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -8401,6 +9315,30 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+|
+< error
+| 4924 1 16 1 ALTER TABLE ALTER COLUMN failed because column 'a' does not exist in table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+|
+< error
+| 4924 1 16 1 ALTER TABLE ALTER COLUMN failed because column 'a' does not exist in table 'a'.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -8979,6 +9917,45 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL, [a] float NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+|
+< error
+| 2715 6 16 1 Column, parameter, or variable #4: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -10775,6 +11752,201 @@
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
 > exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+|
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+|
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'omni_TestSimulation'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
@@ -11133,6 +12305,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 |
 < error
@@ -11391,6 +12587,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 |
 < error
@@ -11507,6 +12715,31 @@
 |
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+|
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -12720,6 +13953,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 |
 < error
@@ -12808,6 +14065,30 @@
 |
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+|
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+|
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -13212,6 +14493,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 |
 < error
@@ -13276,6 +14581,114 @@
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -13619,6 +15032,45 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] float NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+|
+< error
+| 2715 6 16 1 Column, parameter, or variable #3: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -14212,6 +15664,30 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+|
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+|
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -16191,6 +17667,201 @@
 < ok 0 -
 > exec
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+|
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+|
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'omni_TestSimulation'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
@@ -16548,6 +18219,30 @@
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+|
+< error
+| 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+|
+< error
+| 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 |
 < error
@@ -16821,6 +18516,18 @@
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 |
 < error
@@ -16937,6 +18644,31 @@
 |
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+|
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -18114,6 +19846,30 @@
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+|
+< error
+| 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+|
+< error
+| 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 |
 < error
@@ -18202,6 +19958,30 @@
 |
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+|
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+|
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -18606,6 +20386,30 @@
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 |
 < error
@@ -18670,6 +20474,114 @@
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -19013,6 +20925,45 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] float NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+|
+< error
+| 2715 6 16 1 Column, parameter, or variable #3: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -19606,6 +21557,30 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+|
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+|
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -21584,6 +23559,201 @@
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
 > exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+|
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+|
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'omni_TestSimulation'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
 | CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
@@ -21971,6 +24141,34 @@
 | CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 |
 < error
@@ -22259,6 +24457,20 @@
 | CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 |
 < error
@@ -22398,6 +24610,35 @@
 |
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+|
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -23509,6 +25750,34 @@
 | CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 |
 < error
@@ -23611,6 +25880,34 @@
 |
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+|
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+|
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -24083,6 +26380,34 @@
 | CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 |
 < error
@@ -24157,6 +26482,132 @@
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -24521,6 +26972,34 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -25095,6 +27574,34 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -27086,6 +29593,233 @@
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
 > exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+|
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+|
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'omni_TestSimulation'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
 | CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
 | CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
@@ -27495,6 +30229,32 @@
 | CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 |
 < error
@@ -27812,6 +30572,19 @@
 | CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 |
 < error
@@ -27956,6 +30729,33 @@
 |
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+|
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -29576,6 +32376,32 @@
 | CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 |
 < error
@@ -29671,6 +32497,32 @@
 |
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+|
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+|
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -30109,6 +32961,32 @@
 | CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 |
 < error
@@ -30178,6 +33056,123 @@
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -30587,6 +33582,33 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+|
+< error
+| 5074 1 16 1 The object 'FK_a_p' is dependent on column 'a'.
+| 4922 9 16 1 ALTER TABLE ALTER COLUMN a failed because one or more objects access this column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+|
+< error
+| 2715 6 16 1 Column, parameter, or variable #3: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -31253,6 +34275,32 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+|
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+|
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -33792,6 +36840,217 @@
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
 > exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+|
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+|
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'omni_TestSimulation'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
 | CREATE SCHEMA [a];
 < ok 0 -
 > exec
@@ -34194,6 +37453,34 @@
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 |
 < error
@@ -34526,6 +37813,42 @@
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SCHEMA
+: string
+| a
+: string
+| CREATE SCHEMA [a];
+|
+< row
+: string
+| TABLE
+: string
+| a.a
+: string
+| CREATE TABLE [a].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [a].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 |
 < ok 0 -
@@ -34687,6 +38010,35 @@
 |
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+|
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -36101,6 +39453,34 @@
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 |
 < error
@@ -36203,6 +39583,34 @@
 |
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+|
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+|
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -36675,6 +40083,34 @@
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 |
 < error
@@ -36749,6 +40185,132 @@
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -37158,6 +40720,34 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+|
+< error
+| 4924 1 16 1 ALTER TABLE ALTER COLUMN failed because column 'a' does not exist in table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+|
+< error
+| 4924 1 16 1 ALTER TABLE ALTER COLUMN failed because column 'a' does not exist in table 'a'.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -37846,6 +41436,56 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SCHEMA
+: string
+| a
+: string
+| CREATE SCHEMA [a];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL, [a] float NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+|
+< error
+| 2715 6 16 1 Column, parameter, or variable #4: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -39976,6 +43616,255 @@
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
 > exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+|
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+|
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'omni_TestSimulation'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SCHEMA
+: string
+| a
+: string
+| CREATE SCHEMA [a];
+|
+< row
+: string
+| TABLE
+: string
+| a.a
+: string
+| CREATE TABLE [a].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [a].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+|
+< error
+| 15151 1 16 1 Cannot find the xml schema collection 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
 | CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
@@ -40311,6 +44200,30 @@
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 |
 < error
@@ -40539,6 +44452,18 @@
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 |
 < error
@@ -40684,6 +44609,31 @@
 |
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+|
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -41629,6 +45579,30 @@
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 |
 < error
@@ -41827,6 +45801,30 @@
 | CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
 | ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+|
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+|
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -42253,6 +46251,30 @@
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 |
 < error
@@ -42317,6 +46339,114 @@
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -42629,6 +46759,30 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -43121,6 +47275,30 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -44987,6 +49165,201 @@
 < ok 0 -
 > exec
 | CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+|
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+|
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'omni_TestSimulation'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
@@ -45321,6 +49694,30 @@
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 |
 < error
@@ -45549,6 +49946,18 @@
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 |
 < error
@@ -45672,6 +50081,31 @@
 |
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+|
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -46617,6 +51051,30 @@
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 |
 < error
@@ -46705,6 +51163,30 @@
 |
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+|
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+|
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -47109,6 +51591,30 @@
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 |
 < error
@@ -47173,6 +51679,114 @@
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -47485,6 +52099,30 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -47977,6 +52615,30 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -49733,6 +54395,201 @@
 < ok 0 -
 > exec
 | CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+|
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+|
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'omni_TestSimulation'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
 | CREATE PROCEDURE [dbo].[a] AS SELECT 1;
@@ -50188,6 +55045,34 @@
 | CREATE PROCEDURE [dbo].[a] AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 |
 < error
@@ -50454,6 +55339,20 @@
 | CREATE PROCEDURE [dbo].[a] AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 |
 < error
@@ -50593,6 +55492,35 @@
 |
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+|
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -51718,6 +56646,34 @@
 | CREATE PROCEDURE [dbo].[a] AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 |
 < error
@@ -51820,6 +56776,34 @@
 |
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+|
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+|
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -52292,6 +57276,34 @@
 | CREATE PROCEDURE [dbo].[a] AS SELECT 1;
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 |
 < error
@@ -52366,6 +57378,132 @@
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -52730,6 +57868,34 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -53304,6 +58470,34 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -55321,6 +60515,233 @@
 | CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+|
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+|
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'omni_TestSimulation'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
@@ -55705,6 +61126,34 @@
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 |
 < error
@@ -55971,6 +61420,20 @@
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 |
 < error
@@ -56110,6 +61573,35 @@
 |
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+|
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -57221,6 +62713,34 @@
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 |
 < error
@@ -57323,6 +62843,34 @@
 |
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+|
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+|
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -57795,6 +63343,34 @@
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 |
 < error
@@ -57869,6 +63445,132 @@
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -58233,6 +63935,34 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -58807,6 +64537,34 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -60801,6 +66559,233 @@
 | CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+|
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+|
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'omni_TestSimulation'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
@@ -61179,6 +67164,34 @@
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 |
 < error
@@ -61445,6 +67458,20 @@
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER SCHEMA a TRANSFER.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER SCHEMA a TRANSFER OBJECT :: a
 |
 < error
@@ -61578,6 +67605,35 @@
 |
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+|
+< error
+| 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
+| 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type PRECISION.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -62683,6 +68739,34 @@
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
 | CREATE SEQUENCE a CACHE
 |
 < error
@@ -62785,6 +68869,34 @@
 |
 < error
 | 15151 1 16 1 Cannot alter the sequence 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS DOUBLE PRECISION
+|
+< error
+| 11702 2 16 1 The sequence object 'a' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, or any user-defined data type that is based on one of the above integer data types.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE SEQUENCE a AS PRECISION
+|
+< error
+| 243 1 16 1 Type PRECISION is not a defined system type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -63257,6 +69369,34 @@
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
+| CREATE PROC a @a DOUBLE PRECISION AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a PRECISION AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type PRECISION.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
 | CREATE PROC a @a a NULL AS
 |
 < error
@@ -63331,6 +69471,132 @@
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1.5 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 1E1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = $1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 0x00 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = 'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = N'a' AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = NULL AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = - 1 AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a @a a = a AS
+|
+< error
+| 2715 3 16 1 proc=a Column, parameter, or variable #1: Cannot find data type a.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -63695,6 +69961,34 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ALTER COLUMN a PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -64269,6 +70563,34 @@
 |
 < error
 | 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a DOUBLE PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a PRECISION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -66214,3 +72536,230 @@
 |
 < error
 | 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a), a INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, b INT)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(b INT, a AS 1)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(timestamp, UNIQUE(a))
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT,)
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(UNIQUE(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(INDEX a(a)) AS EDGE
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT) AS NODE
+|
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+|
+< error
+| 13504 1 16 1 Temporal 'GENERATED ALWAYS AS ROW START' column definition missing.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+|
+< error
+| 6528 1 16 1 proc=a Assembly 'a' was not found in the SQL catalog of database 'omni_TestSimulation'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER OBJECT::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
+|
+< error
+| 15151 1 16 1 Cannot alter the schema 'a', because it does not exist or you do not have permission.

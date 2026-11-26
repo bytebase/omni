@@ -13,14 +13,17 @@ on a fresh server confirmed every row.
 
 | Rows | Total | Agree | Only SQL Server accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 6,044 | 6,044 | 0 | 0 |
-| Near-misses | 12,268 | 12,268 | 0 | 0 |
+| One per alternative | 6,348 | 6,348 | 0 | 0 |
+| Near-misses | 12,594 | 12,594 | 0 | 0 |
 | `suite:lexer` | 66 | 66 | 0 | 0 |
 | `suite:optional-clauses` | 100 | 100 | 0 | 0 |
 | `issue:BYT-10538` | 356 | 356 | 0 | 0 |
 | `suite:search-condition` | 168 | 168 | 0 | 0 |
+| `suite:table-definition` | 36 | 36 | 0 | 0 |
+| `suite:constant-values` | 31 | 31 | 0 | 0 |
+| `suite:names` | 14 | 14 | 0 | 0 |
 
-6,044 alternatives include the rows `tokens.tsv` adds with an optional clause
+6,348 alternatives include the rows `tokens.tsv` adds with an optional clause
 written out at each site a rule names it (`(every site)`), such as
 `ALTER TABLE a DROP COLUMN IF EXISTS a`, and with each form of a keyword
 choice at each site that names it (`(every alternative)`), such as
@@ -31,6 +34,11 @@ choice at each site that names it (`(every alternative)`), such as
 `BETWEEN`, which SQL Server reads only in a search condition: in a select
 list, a SET, a value and an operand, where it refuses them, and in each place
 that takes a search condition, where it accepts them.
+`suite:table-definition`, `suite:constant-values` and `suite:names` hold the
+forms beside the `(every alternative)` gaps below that no grammar row
+reaches: a table of computed columns, constraints or indexes alone, `AS NODE`
+or `AS EDGE` before a list, an identifier or an expression where a constant
+goes, and `GLOBAL` or an empty schema as a name.
 
 The rev 3 judge accepts 3,208 of the 5,592 alternatives. Five more alternatives get
 no row: they name a token neither keyword table gives a text
@@ -144,7 +152,15 @@ go test ./mssql/parser/ -run '^TestCompatibility$' -update-compat
 
 ## The work list
 
-19,002 / 19,002 rows agree (**100.00%**). `issue:BYT-10538` holds the forms a
+19,713 / 19,713 rows agree (**100.00%**). The second `(every alternative)`
+pass (26 more rules, 18,312 → 18,942 generated rows) found 39 rows in 7
+gaps, closed: a table definition needs a typed column, or on an `AS EDGE`
+table a constraint or an index, which no grammar rule says (7 false
+acceptances); `OPTIMIZE FOR` takes a negative number and refuses a variable
+(Msg 320) (2); the semantic table functions' keys take any literal (24);
+`SAVE`, `COMMIT` and `ROLLBACK` take `[-]n : a.a` as a transaction name (3);
+`CURRENT OF GLOBAL` names a cursor `GLOBAL` (1); and `TRANSFER .a` and
+`.a::a` leave the schema empty (2). `issue:BYT-10538` holds the forms a
 T-SQL codebase failed on and the forms beside them, every one closed.
 `suite:search-condition` found 58 comparisons omni read outside a search
 condition (`SELECT 1 = 1`, `UPDATE a SET a = 1 = 1`, `WHERE a = (1 = 1)`),
@@ -182,9 +198,10 @@ closing all 30 parser gaps judge rev 3 exposed in `external.go` (27 CETAS
 STREAM` option-duplication row, 1 `COPY INTO ... WITH(IDENTITY_INSERT = a)`
 row, and 1 duplicate `FORMAT_OPTIONS(USE_TYPE_DEFAULT = ...)` row).
 
-0 rows disagree: all 6,044 alternatives, all 12,268 near-misses, all 66
-`suite:lexer`, all 100 `suite:optional-clauses`, all 356 `issue:BYT-10538`
-and all 168 `suite:search-condition` rows agree.
+0 rows disagree: all 6,348 alternatives, all 12,594 near-misses, all 66
+`suite:lexer`, all 100 `suite:optional-clauses`, all 356 `issue:BYT-10538`,
+all 168 `suite:search-condition` and all 81 rows of the table-definition,
+constant-values and names suites agree.
 
 ### Closed over-accepts (3)
 

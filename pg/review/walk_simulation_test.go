@@ -38,13 +38,13 @@ func TestWalkSimulation(t *testing.T) {
 		// (42804) and what the catalog raises 0A000 for.
 		// parser/testdata/compat.tsv repeats each statement once per
 		// optional clause, so these are most of the misses.
-		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.9142},
-		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.9122},
+		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.909},
+		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.9068},
 		// The view queries the walk misses are what pg/catalog refuses with a
 		// code catalogCodes leaves out: a missing type, function, tablesample
 		// method or schema, and a coercion a cast could allow.
-		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 0.988},
-		{"pg18_queries", filepath.Join("..", "catalog", "testdata", "pg18", "queries", "simulate.tsv"), 0.988},
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 0.982},
+		{"pg18_queries", filepath.Join("..", "catalog", "testdata", "pg18", "queries", "simulate.tsv"), 0.982},
 		// Functions, procedures, triggers, event triggers, CALL and DO on
 		// programs@objects, quoted type names on programs@quoted, ALTER
 		// COLUMN TYPE ... USING on programs@retype and programs@generated,

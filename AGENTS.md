@@ -51,12 +51,6 @@ Bytebase's adapters under `backend/plugin/parser/<engine>` and omni's own packag
 - DDL enters a catalog only through `catalog.Exec(sql, opts)`. It splits and parses itself and returns one `ExecResult` per statement with its line. A synced schema enters through `LoadMetadata`. Callers do not pre-split for `Exec`.
 - `<engine>/review.Review(ctx, sql, opts, targets)` splits and parses once inside, treats a syntax error as a finding at its position, and reports every position through `review.Index`. The contract is in [review/review.go](review/review.go).
 
-### Known deviations
-
-The rules above are the target. These places do not meet them yet; do not copy them into new code.
-
-- `snowflake/analysis.SplitStatements` drops empty segments, and Bytebase's Snowflake adapter splits through it; every other SQL adapter keeps them.
-
 ## Tests
 
 - Engine dialect and DDL fidelity tests live here, beside the package they cover. Bytebase tests its API and workflow against PostgreSQL only and trusts omni's result, so a behavior Bytebase depends on is pinned by an omni test.

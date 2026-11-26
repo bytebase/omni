@@ -204,8 +204,8 @@ type NotExpr struct {
 func (n *NotExpr) Span() ast.Loc { return n.Loc }
 func (*NotExpr) exprNode()       {}
 
-// AtTimeZoneExpr is `value AT TIME ZONE specifier` (atTimeZone). Zone is either
-// a string/interval/general expression value.
+// AtTimeZoneExpr is `value AT TIME ZONE specifier` (atTimeZone). Zone is a
+// string Literal or an IntervalLiteral (timeZoneSpecifier).
 type AtTimeZoneExpr struct {
 	Value Expr
 	Zone  Expr
@@ -629,9 +629,8 @@ func (p *Parser) parseUnary() (Expr, error) {
 
 // parseAtTimeZonePostfix parses a primaryExpression followed by zero or more
 // `AT TIME ZONE specifier` postfixes (atTimeZone). The specifier is
-// `TIME ZONE interval` or `TIME ZONE string` — both reduce to an expression
-// value here (an INTERVAL literal or a string), parsed by parsePrimary so the
-// interval form is captured as an IntervalLiteral.
+// `TIME ZONE interval` or `TIME ZONE string` (timeZoneSpecifier,
+// SqlBase.g4:765) and nothing else: `AT TIME ZONE a` is a syntax error.
 func (p *Parser) parseAtTimeZonePostfix() (Expr, error) {
 	expr, err := p.parsePrimary()
 	if err != nil {
@@ -663,7 +662,7 @@ func (p *Parser) parseAtTimeZonePostfix() (Expr, error) {
 		if p.cur.Kind == kwINTERVAL {
 			zone, err = p.parseIntervalLiteral()
 		} else {
-			zone, err = p.parsePrimary()
+			zone, err = p.parseStringLiteral()
 		}
 		if err != nil {
 			return nil, err

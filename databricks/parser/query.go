@@ -1283,6 +1283,12 @@ func (p *Parser) parseJoinRelation() error {
 	if natural && jt == joinCross {
 		return p.errorf("NATURAL cannot be combined with CROSS JOIN")
 	}
+	// joinRelation's NATURAL joinType JOIN (SqlBaseParser.g4:915) admits
+	// every join type, but Spark's NaturalJoin requires an inner or outer
+	// one ("Unsupported natural join type LeftSemi").
+	if natural && (jt == joinSemi || jt == joinAnti) {
+		return p.errorf("NATURAL cannot be combined with SEMI or ANTI JOIN")
+	}
 	if _, err := p.expect(kwJOIN); err != nil {
 		return err
 	}
@@ -2189,44 +2195,81 @@ func (p *Parser) canBeImplicitTableAlias() bool {
 			return false
 		}
 		// Allow as implicit alias when followed by an unmistakable clause boundary.
-		after := p.peek(2).Kind
-		isClauseExprArg := func() bool {
-			return !p.isClauseStartAt(2) && !isExprContinuationOp(after)
-		}
-		switch next {
-		case kwGROUP, kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
-			return after == kwBY
-		case kwWINDOW:
-			return after.isIdentifier() && p.peek(3).Kind == kwAS
-		case kwLATERAL:
-			return after == kwVIEW
-		case kwWHERE, kwHAVING, kwLIMIT, kwOFFSET, kwON:
-			return isClauseExprArg()
-		case kwSET:
-			return after.isIdentifier() && (p.peek(3).Kind == tokEq || p.peek(3).Kind == tokDot)
-		case kwUSING:
-			return after == tokLParen || isClauseExprArg()
-		case kwJOIN:
-			return isClauseExprArg()
-		case kwINNER, kwCROSS, kwNATURAL, kwSEMI, kwANTI:
-			return after == kwJOIN
-		case kwLEFT, kwRIGHT, kwFULL:
-			return after == kwJOIN || after == kwOUTER || after == kwSEMI || after == kwANTI
-		case kwPIVOT, kwTABLESAMPLE:
-			return after == tokLParen
-		case kwUNPIVOT:
-			return after == tokLParen || after == kwINCLUDE || after == kwEXCLUDE
-		case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
-			switch after {
-			case kwALL, kwDISTINCT, kwSELECT, kwFROM, kwTABLE, kwVALUES, kwMAP, kwREDUCE, tokLParen:
-				return true
-			}
-		case tokIdent:
-			return isWord(p.peek(1), "QUALIFY") && isClauseExprArg()
-		}
-		return false
+		return p.keywordAliasBoundaryNext()
 	}
 	return true
+}
+
+// keywordAliasBoundaryNext reports whether the token after the current one
+// starts an unmistakable clause boundary, so that the current keyword can be
+// read as an alias in front of it.
+func (p *Parser) keywordAliasBoundaryNext() bool {
+	next := p.peek(1).Kind
+	after := p.peek(2).Kind
+	isClauseExprArg := func() bool {
+		return !p.isClauseStartAt(2) && !isExprContinuationOp(after)
+	}
+	switch next {
+	case kwGROUP, kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
+		return after == kwBY
+	case kwWINDOW:
+		return after.isIdentifier() && p.peek(3).Kind == kwAS
+	case kwLATERAL:
+		return after == kwVIEW
+	case kwWHERE, kwHAVING, kwLIMIT, kwOFFSET, kwON:
+		return isClauseExprArg()
+	case kwSET:
+		return after.isIdentifier() && (p.peek(3).Kind == tokEq || p.peek(3).Kind == tokDot)
+	case kwUSING:
+		return after == tokLParen || isClauseExprArg()
+	case kwJOIN:
+		return isClauseExprArg()
+	case kwINNER, kwCROSS, kwNATURAL, kwSEMI, kwANTI:
+		return after == kwJOIN
+	case kwLEFT, kwRIGHT, kwFULL:
+		return after == kwJOIN || after == kwOUTER || after == kwSEMI || after == kwANTI
+	case kwPIVOT, kwTABLESAMPLE:
+		return after == tokLParen
+	case kwUNPIVOT:
+		return after == tokLParen || after == kwINCLUDE || after == kwEXCLUDE
+	case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+		switch after {
+		case kwALL, kwDISTINCT, kwSELECT, kwFROM, kwTABLE, kwVALUES, kwMAP, kwREDUCE, tokLParen:
+			return true
+		}
+	case tokIdent:
+		return isWord(p.peek(1), "QUALIFY") && isClauseExprArg()
+	}
+	return false
+}
+
+// canBeImplicitIdentifierAlias reports whether the current token can be read
+// as an AS-less name where SqlBaseParser.g4 takes an identifier rather than a
+// strictIdentifier: UNPIVOT's alias (`(AS? errorCapturingIdentifier)?`,
+// SqlBaseParser.g4:849) and LATERAL VIEW's column names (`(AS? colName+=
+// identifier ...)?`, SqlBaseParser.g4:895). identifier also takes a
+// strictNonReserved keyword (SqlBaseParser.g4:1491), so `UNPIVOT (...) ANTI`
+// names the result ANTI; Spark's prediction takes such a keyword as the name
+// whenever what follows it still parses, as at a statement or clause end, and
+// otherwise reads it as the join or set operation it starts.
+func (p *Parser) canBeImplicitIdentifierAlias() bool {
+	if p.canBeImplicitTableAlias() {
+		return true
+	}
+	if !p.cur().Kind.isStrictNonReservedOnly() {
+		return false
+	}
+	switch p.peek(1).Kind {
+	case tokEOF, tokSemicolon, tokComma, tokRParen, tokOperatorPipe:
+		return true
+	case kwSELECT, kwMAP, kwREDUCE:
+		// A FROM statement's body (SqlBaseParser.g4:688) follows its FROM.
+		return p.inFromStatement
+	case kwINSERT:
+		// So does a multi-insert body (SqlBaseParser.g4:624).
+		return p.inMultiInsertFrom
+	}
+	return p.keywordAliasBoundaryNext()
 }
 
 func (p *Parser) isClauseStartAt(offset int) bool {
@@ -2376,7 +2419,7 @@ func (p *Parser) parseLateralView() error {
 		return nil
 	}
 	// Optional colName without AS (careful not to steal clause keywords).
-	if p.canBeImplicitTableAlias() {
+	if p.canBeImplicitIdentifierAlias() {
 		if _, err := p.parseIdentifier(); err != nil {
 			return err
 		}
@@ -2541,7 +2584,7 @@ func (p *Parser) parseUnpivotClause() error {
 		_, err := p.parseErrorCapturingIdentifier()
 		return err
 	}
-	if p.canBeImplicitTableAlias() {
+	if p.canBeImplicitIdentifierAlias() {
 		_, err := p.parseErrorCapturingIdentifier()
 		return err
 	}

@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/bigquery/ast"
 )
 
@@ -421,12 +423,26 @@ func (p *Parser) parseTypeOrTVFSchema() (*ast.TypeRef, error) {
 		return &ast.TypeRef{Text: renderTVFSchema(cols), Loc: ast.Loc{Start: start.Start, End: p.prev.Loc.End}}, nil
 	}
 
-	// templated_parameter_type: ANY {PROTO|ENUM|STRUCT|ARRAY|identifier}.
+	// templated_parameter_type: ANY templated_parameter_kind
+	// (googlesql.tm:10400): PROTO, ENUM, STRUCT, ARRAY, or an identifier that
+	// names TABLE or TYPE in any case, quoted or not. Another identifier is the
+	// action's "unexpected ANY template type".
 	if p.cur.Type == kwANY {
 		anyTok := p.advance() // ANY
-		kindTok, err := p.expectIdentifier()
-		if err != nil {
-			return nil, err
+		var kindTok Token
+		switch p.cur.Type {
+		case kwPROTO, kwENUM, kwSTRUCT, kwARRAY:
+			kindTok = p.advance()
+		default:
+			at := p.cur
+			tok, err := p.expectIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			if !strings.EqualFold(tok.Str, "TABLE") && !strings.EqualFold(tok.Str, "TYPE") {
+				return nil, &ParseError{Message: "Syntax error: unexpected ANY template type", Position: at.Loc.Start, End: at.Loc.End}
+			}
+			kindTok = tok
 		}
 		kind := p.tokenSource(kindTok)
 		return &ast.TypeRef{
@@ -650,7 +666,10 @@ func (p *Parser) parseSQLFunctionBodyOrString(stmt *ast.CreateFunctionStmt) erro
 	}
 	// AS string_literal (not supported in Spanner).
 	if p.cur.Type == tokString {
-		strTok := p.advance()
+		strTok, err := p.literalRun(tokString)
+		if err != nil {
+			return err
+		}
 		stmt.BodyString = strTok.Str
 		stmt.HasBodyString = true
 		return nil
@@ -705,7 +724,10 @@ func (p *Parser) parseUnorderedLanguageOptions(stmt *ast.CreateFunctionStmt) err
 func (p *Parser) parseAsQueryOrString(stmt *ast.CreateFunctionStmt) error {
 	p.advance() // AS
 	if p.cur.Type == tokString {
-		strTok := p.advance()
+		strTok, err := p.literalRun(tokString)
+		if err != nil {
+			return err
+		}
 		stmt.BodyString = strTok.Str
 		stmt.HasBodyString = true
 		return nil
@@ -803,7 +825,7 @@ func (p *Parser) parseCreateProcedure(create Token, orReplace bool, scope string
 		// opt_as_code?: AS string_literal.
 		if p.cur.Type == kwAS {
 			p.advance() // AS
-			strTok, err := p.expect(tokString)
+			strTok, err := p.expectStringLiteral()
 			if err != nil {
 				return nil, err
 			}

@@ -48,7 +48,7 @@ import (
 //     v2 migration store and are the to-do list for a future grammar fix. Each is
 //     annotated with the oracle verdict that proves it is a real gap.
 //
-// Coverage: 161 of the 185 Spanner blocks parse clean, 24 skipped (see the
+// Coverage: 160 of the 185 Spanner blocks parse clean, 25 skipped (see the
 // counts on each bucket below). (The vector-array column-type block spanner/ddl.md#51 graduated
 // from the skip-list when googlesql/maint-vector-array-type wired the ARRAY
 // vector-length parameter; spanner/expressions.md#6 stays skipped as DOC-REJECTED
@@ -169,7 +169,7 @@ var officialCorpusSkips = map[string]string{
 	"spanner/datatypes.md#14": "FRAGMENT: DT-015 bare INTERVAL literal example, not a statement",
 	"spanner/datatypes.md#15": "FRAGMENT: DT-016 bare proto-enum `col1` column-def snippet, not a statement",
 
-	// ========================== DOC-REJECTED (7) ==========================
+	// ========================== DOC-REJECTED (8) ==========================
 	// One statement in the block is REJECTED by the live Spanner oracle too, so
 	// omni's reject matches the oracle (parity holds). The block is skipped only
 	// because that statement is not universally valid GoogleSQL.
@@ -179,6 +179,7 @@ var officialCorpusSkips = map[string]string{
 	"spanner/ddl.md#53":         "DOC-REJECTED: DDL-… `DEFAULT (NEXT VALUE FOR Seq)` in a column default rejected by Spanner oracle (Error parsing Spanner DDL statement); omni rejects too (parity).",
 	"spanner/expressions.md#36": "DOC-REJECTED: EXPR block — `VALUES (NEXT VALUE FOR Seq, …)` rejected by Spanner oracle (Syntax error: keyword VALUE); omni rejects too (parity). GET_NEXT_SEQUENCE_VALUE(SEQUENCE …) parses, but the block also has the rejected form.",
 	"spanner/expressions.md#38": "DOC-REJECTED: EXPR-… proto construction `NEW \\`pkg.Msg\\`(field: value)` rejected by Spanner oracle (Syntax error: got ':'); omni rejects too (parity).",
+	"spanner/lexical.md#2":      "DOC-REJECTED: LEX-003 `SELECT 'It''s a test'` — GoogleSQL has no '' escape, so these are two string components with no space between, which the Spanner oracle rejects (\"concatenated string literals must be separated by whitespace or comments\", googlesql.tm:11375); omni rejects too (parity).",
 	"spanner/expressions.md#34": "DOC-REJECTED: EXPR block — `SELECT TIMESTAMP '…' AT TIME ZONE '…'` (bare AT TIME ZONE select item) rejected by Spanner oracle (\"Expected end of input but got AT\"); omni rejects too (parity). The EXTRACT(… AT TIME ZONE …) form in the same block parses on both.",
 
 	// =========================== RESIDUAL GAP ==========================

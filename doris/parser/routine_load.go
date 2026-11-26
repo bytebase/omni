@@ -590,8 +590,9 @@ func (p *Parser) parseShowRoutineLoad(startLoc ast.Loc) (ast.Node, error) {
 	return stmt, nil
 }
 
-// parseShowRoutineLoadTask parses SHOW ROUTINE LOAD TASK ... statement.
-// On entry, SHOW ROUTINE LOAD TASK has been consumed; cur is at FROM or WHERE or EOF.
+// parseShowRoutineLoadTask parses SHOW ROUTINE LOAD TASK ((FROM | IN) db)?
+// wildWhere? (DorisParser.g4:392). On entry, SHOW ROUTINE LOAD TASK has been
+// consumed.
 func (p *Parser) parseShowRoutineLoadTask(startLoc ast.Loc) (ast.Node, error) {
 	stmt := &ast.ShowRoutineLoadTaskStmt{}
 
@@ -605,15 +606,12 @@ func (p *Parser) parseShowRoutineLoadTask(startLoc ast.Loc) (ast.Node, error) {
 		stmt.From = dbName
 	}
 
-	// Optional WHERE condition
-	if p.cur.Kind == kwWHERE {
-		p.advance() // consume WHERE
-		where, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Where = where
+	// Optional wildWhere: LIKE 'pattern' or WHERE expression.
+	like, where, err := p.parseJobWildWhere()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Like, stmt.Where = like, where
 
 	stmt.Loc = startLoc.Merge(p.prev.Loc)
 	return stmt, nil
