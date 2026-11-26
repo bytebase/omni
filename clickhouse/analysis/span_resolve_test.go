@@ -221,3 +221,38 @@ func TestResolveQuerySpanInAliasMember(t *testing.T) {
 		t.Errorf("reads %v, want %v", names(got.Results[0].SourceColumns), want)
 	}
 }
+
+// A chain of ALIAS columns, each reading the one before, resolves to the
+// column at its root in linear time.
+func TestResolveQuerySpanAliasColumnChain(t *testing.T) {
+	const n = 60
+	cols := []*metadata.ColumnMetadata{{Name: "email"}}
+	for i := 1; i <= n; i++ {
+		prev := "email"
+		if i > 1 {
+			prev = fmt.Sprintf("a%d", i-1)
+		}
+		cols = append(cols, &metadata.ColumnMetadata{Name: fmt.Sprintf("a%d", i), Generation: &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_VIRTUAL, Expression: "concat(" + prev + ", " + prev + ")"}})
+	}
+	db := tableDatabase{table: &metadata.TableMetadata{Name: "t", Columns: cols}}
+	got, err := ResolveQuerySpan(fmt.Sprintf("SELECT a%d FROM t", n), ResolveOptions{
+		DefaultDatabase: "shop",
+		Catalog:         Catalog{GetDatabase: func(string) (Database, error) { return db, nil }},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Results[0].SourceColumns[ColumnResource{Database: "shop", Table: "t", Column: "email"}] {
+		t.Errorf("a%d reads %v, want shop.t.email among them", n, names(got.Results[0].SourceColumns))
+	}
+}
+
+type tableDatabase struct{ table *metadata.TableMetadata }
+
+func (d tableDatabase) GetTable(name string) *metadata.TableMetadata {
+	if name == d.table.Name {
+		return d.table
+	}
+	return nil
+}
+func (tableDatabase) GetView(string) *metadata.ViewMetadata { return nil }

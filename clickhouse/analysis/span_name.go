@@ -317,7 +317,18 @@ func literalName(l *parser.LiteralExpr) string {
 	case "STRING":
 		return quote(l.Val)
 	case "INT":
-		if v, err := strconv.ParseUint(strings.ReplaceAll(l.Val, "_", ""), 0, 64); err == nil {
+		// Decimal, or hexadecimal and binary by their prefix: ClickHouse
+		// has no octal literals, so 010 is ten.
+		digits, base := strings.ReplaceAll(l.Val, "_", ""), 10
+		if len(digits) > 2 && digits[0] == '0' {
+			switch digits[1] {
+			case 'x', 'X':
+				digits, base = digits[2:], 16
+			case 'b', 'B':
+				digits, base = digits[2:], 2
+			}
+		}
+		if v, err := strconv.ParseUint(digits, base, 64); err == nil {
 			return strconv.FormatUint(v, 10)
 		}
 	case "FLOAT":

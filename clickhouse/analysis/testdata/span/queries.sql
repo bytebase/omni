@@ -61,6 +61,8 @@ SELECT created + INTERVAL 1 DAY FROM customers
 SELECT substring(name, 1, 3) FROM customers
 SELECT 1.5, 'it''s', NULL, true FROM customers
 SELECT -1, 0x1F, 1e3 FROM customers
+SELECT 010, 0b101
+SELECT `10` FROM (SELECT 010)
 SELECT coalesce(email, name) FROM customers
 SELECT multiIf(qty > 10, 'many', qty > 1, 'some', 'one') FROM items
 SELECT round(price * qty, 2) AS total FROM items
@@ -284,6 +286,8 @@ SELECT TOP 3 name FROM customers
 SELECT number FROM numbers(10)
 SELECT number * 2 AS n FROM numbers(3)
 SELECT * FROM numbers(2)
+SELECT email FROM view(SELECT email FROM customers)
+SELECT v.e FROM view(SELECT upper(email) AS e FROM customers) AS v
 SELECT c.name, n.number FROM customers AS c, numbers(2) AS n
 SELECT email FROM merge('shop', '^customers$')
 SELECT * FROM merge('^(orders|customers)$')
@@ -334,3 +338,4 @@ SELECT * FROM calc
 SELECT a, m FROM calc
 SELECT id, upper(a) FROM calc
 SELECT calc.* FROM calc
+SELECT b FROM calc

@@ -169,6 +169,8 @@ type spanColumn struct {
 	// omitted marks an ALIAS or MATERIALIZED column, which * skips and a
 	// name reads.
 	omitted bool
+	// alias is an ALIAS column's expression, which a read of it reads too.
+	alias string
 	// rel is the FROM relation the column was read from, if any.
 	rel *relation
 }
@@ -195,12 +197,17 @@ type relation struct {
 	// starTables are the tables an unexpanded * of a derived relation
 	// read, whose columns an unknown name of it reads.
 	starTables SourceColumnSet
+	// r resolves a catalog table's ALIAS columns when they are read.
+	r *spanResolver
 }
 
 func (rel *relation) column(name string) (spanColumn, bool) {
 	for _, c := range rel.columns {
 		if c.name == name && !c.star {
 			c.rel = rel
+			if c.alias != "" && rel.r != nil {
+				c.sources = union(c.sources, rel.r.aliasColumn(rel.database, rel.table, c.name, c.alias))
+			}
 			return c, true
 		}
 	}
@@ -274,6 +281,8 @@ type spanResolver struct {
 	// the aliases passed over because they were being resolved.
 	aliasMemo map[aliasUse]SourceColumnSet
 	skipped   int
+	// aliasCols holds what each ALIAS column of a table reads.
+	aliasCols map[ColumnResource]SourceColumnSet
 	// err is why a view's definition could not be read: the span fails
 	// rather than omit what the view reads.
 	err   error
@@ -292,6 +301,7 @@ type aliasUse struct {
 func newSpanResolver(opts ResolveOptions, text string) *spanResolver {
 	return &spanResolver{
 		aliasMemo: map[aliasUse]SourceColumnSet{},
+		aliasCols: map[ColumnResource]SourceColumnSet{},
 		opts:      opts,
 		database:  opts.DefaultDatabase,
 		text:      text,
@@ -585,14 +595,19 @@ func (r *spanResolver) tableExpr(t *parser.TableExpr, outer *spanScope, ctes *ct
 		cols := r.query(t.Subquery, outer, ctes)
 		return derived(t.Alias, renamed(cols, t.ColumnAliases))
 	case t.Func != nil:
+		var view []spanColumn
 		for _, a := range t.Func.Args {
 			if sub, ok := a.(*parser.SubqueryExpr); ok {
-				r.query(sub.Query, outer, ctes)
+				view = r.query(sub.Query, outer, ctes)
 			}
 		}
 		name := t.Alias
 		if name == "" {
 			name = t.Func.Name
+		}
+		if fn := strings.ToLower(t.Func.Name); (fn == "view" || fn == "viewifpermitted") && view != nil {
+			// view(SELECT ...) is its query's rows.
+			return derived(name, renamed(view, t.ColumnAliases))
 		}
 		if col, ok := tableFunctionColumns[strings.ToLower(t.Func.Name)]; ok {
 			return &relation{name: name, columns: []spanColumn{{name: col, sources: SourceColumnSet{}, plain: true}}}
@@ -635,7 +650,7 @@ func (r *spanResolver) tableExpr(t *parser.TableExpr, outer *spanScope, ctes *ct
 		name = t.Table
 	}
 	_, isView := r.views[ColumnResource{Database: database, Table: t.Table}]
-	return &relation{database: database, table: t.Table, name: name, columns: renamed(cols, t.ColumnAliases), open: open, virtual: !open && !isView}
+	return &relation{database: database, table: t.Table, name: name, columns: renamed(cols, t.ColumnAliases), open: open, virtual: !open && !isView, r: r}
 }
 
 // virtualColumns are the MergeTree family's virtual columns, which a
@@ -815,9 +830,9 @@ func (r *spanResolver) relation(database, table string) (cols []spanColumn, open
 				omitted: c.Generation != nil,
 			}
 			if g := c.Generation; g != nil && g.Type == metadata.GenerationMetadata_TYPE_VIRTUAL && g.Expression != "" {
-				// An ALIAS column is computed when it is read.
-				col.sources = union(col.sources, r.aliasColumn(database, table, g.Expression))
-				col.plain = false
+				// An ALIAS column is computed when it is read, so its
+				// expression is resolved then (relation.column).
+				col.alias, col.plain = g.Expression, false
 			}
 			cols = append(cols, col)
 		}
@@ -831,13 +846,19 @@ func (r *spanResolver) relation(database, table string) (cols []spanColumn, open
 }
 
 // aliasColumn resolves an ALIAS column's expression against its table.
-func (r *spanResolver) aliasColumn(database, table, expression string) SourceColumnSet {
-	key := ColumnResource{Database: database, Table: table, Column: "ALIAS"}
+// Each is resolved once, and an ALIAS column read by another's expression
+// is followed to the columns it reads in turn; one that reads itself, which
+// ClickHouse refuses, stops.
+func (r *spanResolver) aliasColumn(database, table, column, expression string) SourceColumnSet {
+	key := ColumnResource{Database: database, Table: table, Column: column}
+	if out, ok := r.aliasCols[key]; ok {
+		return out
+	}
 	if r.resolving[key] {
-		// The table's other ALIAS columns, read by this one, are resolved
-		// as its plain columns.
+		r.skipped++
 		return nil
 	}
+	skipped := r.skipped
 	quote := func(name string) string { return "`" + strings.ReplaceAll(name, "`", "``") + "`" }
 	text := "SELECT (" + expression + ") FROM " + quote(database) + "." + quote(table)
 	stmts, err := parser.Parse(text)
@@ -859,6 +880,11 @@ func (r *spanResolver) aliasColumn(database, table, expression string) SourceCol
 	out := SourceColumnSet{}
 	for _, c := range cols {
 		out = union(out, c.sources)
+	}
+	if r.skipped == skipped {
+		// One resolved while another column was being resolved may lack
+		// what that column reads, so only a whole answer is kept.
+		r.aliasCols[key] = out
 	}
 	return out
 }

@@ -288,6 +288,16 @@
 | {"columns":["-1","31","1000."],"lineage":[null,null,null],"tables":["shop.customers"]}
 > raw
 | span shop
+| SELECT 010, 0b101
+< raw
+| {"columns":["10","5"],"lineage":[null,null]}
+> raw
+| span shop
+| SELECT `10` FROM (SELECT 010)
+< raw
+| {"columns":["10"],"lineage":[null]}
+> raw
+| span shop
 | SELECT coalesce(email, name) FROM customers
 < raw
 | {"columns":["coalesce(email, name)"],"lineage":[["shop.customers.email","shop.customers.name"]],"tables":["shop.customers"]}
@@ -1273,6 +1283,16 @@
 | {"columns":["number"],"lineage":[["~"]],"tables":["~"]}
 > raw
 | span shop
+| SELECT email FROM view(SELECT email FROM customers)
+< raw
+| {"columns":["email"],"lineage":[["~"]],"tables":["~","shop.customers"]}
+> raw
+| span shop
+| SELECT v.e FROM view(SELECT upper(email) AS e FROM customers) AS v
+< raw
+| {"columns":["e"],"lineage":[["~"]],"tables":["~","shop.customers"]}
+> raw
+| span shop
 | SELECT c.name, n.number FROM customers AS c, numbers(2) AS n
 < raw
 | {"columns":["name","number"],"lineage":[["shop.customers.name"],["~"]],"tables":["~","shop.customers"]}
@@ -1435,9 +1455,9 @@
 | fixture
 | CREATE DATABASE lab
 | CREATE TABLE lab.events (id UInt32, attrs Nested(k String, v UInt32)) ENGINE = MergeTree ORDER BY id
-| CREATE TABLE lab.calc (id UInt32, secret String, a String ALIAS concat(secret, '!'), m UInt32 MATERIALIZED id * 2) ENGINE = MergeTree ORDER BY id
+| CREATE TABLE lab.calc (id UInt32, secret String, a String ALIAS concat(secret, '!'), b String ALIAS upper(a), m UInt32 MATERIALIZED id * 2) ENGINE = MergeTree ORDER BY id
 < raw
-| {"databases":[{"name":"lab","tables":[{"name":"calc","columns":["id","secret","a","m"],"computed":{"a":{"kind":"ALIAS","expression":"concat(secret, '!')"},"m":{"kind":"MATERIALIZED","expression":"id * 2"}}},{"name":"events","columns":["id","attrs.k","attrs.v"]}],"views":null}]}
+| {"databases":[{"name":"lab","tables":[{"name":"calc","columns":["id","secret","a","b","m"],"computed":{"a":{"kind":"ALIAS","expression":"concat(secret, '!')"},"b":{"kind":"ALIAS","expression":"upper(a)"},"m":{"kind":"MATERIALIZED","expression":"id * 2"}}},{"name":"events","columns":["id","attrs.k","attrs.v"]}],"views":null}]}
 > raw
 | span lab
 | SELECT attrs.k FROM events
@@ -1483,3 +1503,8 @@
 | SELECT calc.* FROM calc
 < raw
 | {"columns":["id","secret"],"lineage":[["lab.calc.id"],["lab.calc.secret"]],"tables":["lab.calc"]}
+> raw
+| span lab
+| SELECT b FROM calc
+< raw
+| {"columns":["b"],"lineage":[["lab.calc.a","lab.calc.b","lab.calc.secret"]],"tables":["lab.calc"]}
