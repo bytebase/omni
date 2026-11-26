@@ -115,14 +115,16 @@ func TestWalkSimulation(t *testing.T) {
 // table without a period, and the bodies of database triggers raised
 // queries to 85.8% and programs to 91.8%; what is left needs types,
 // full-text and change tracking, other databases, and objects the sync
-// skips, or is omni's syntax error.
+// skips, or is omni's syntax error. $ROWGUID of a table with no column
+// that can be the ROWGUIDCOL column, and a variable's method called in a
+// view, raised queries to 86.2%.
 var walkSimSuites = []struct {
 	name, path, database string
 	minPct               float64
 	minFound             int
 }{
 	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 95.2, 2925},
-	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 85.7, 392},
+	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 86.2, 394},
 	{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), "omni_TestProgramSimulation", 91.7, 67},
 }
 
