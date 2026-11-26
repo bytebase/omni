@@ -32,14 +32,12 @@ func TestEngineParse(t *testing.T) {
 	if _, ok := parsed[0].Node.(*ast.CreateTableStmt); !ok {
 		t.Fatalf("node = %T", parsed[0].Node)
 	}
-	parsed, err = Engine.Parse(";; -- c\n")
-	if err != nil || len(parsed) == 0 {
+	if parsed, err := Engine.Parse(";; -- c\n"); err != nil || parsed == nil || len(parsed) != 0 {
 		t.Fatalf("Parse of no statement = %#v, %v", parsed, err)
 	}
-	for _, p := range parsed {
-		if p.Node != nil {
-			t.Fatalf("an empty segment has node %T", p.Node)
-		}
+	parsed, err = Engine.Parse("-- c\nSELECT 1;;SELECT 2;")
+	if err != nil || len(parsed) != 2 {
+		t.Fatalf("Parse skipping an empty segment = %#v, %v", parsed, err)
 	}
 }
 
