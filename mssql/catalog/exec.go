@@ -2512,15 +2512,24 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 					}
 					addingClustered = true
 				}
-				if !c.lenientMetadataLoad && cd.Type == ast.ConstraintForeignKey {
+				if cd.Type == ast.ConstraintForeignKey {
 					// FOREIGN KEY (x, y) beside a column keys the columns it
-					// names, as extractColumn records them.
+					// names, as extractColumn records them: each is the
+					// table's or the one being added, as ADD FOREIGN KEY
+					// checks.
 					srcCols := []string{action.Column.Name}
 					if cd.Columns != nil {
 						srcCols = stringNodeList(cd.Columns)
 					}
-					if err := c.validateForeignKeyTarget(table, srcCols, cd); err != nil {
-						return err
+					for _, colName := range srcCols {
+						if !strings.EqualFold(colName, action.Column.Name) && columnByName(table, colName) == nil {
+							return mssqlErr(ErrFKColumnNotFound, "Foreign key references invalid column '%s' in referencing table '%s'.", colName, table.Name)
+						}
+					}
+					if !c.lenientMetadataLoad {
+						if err := c.validateForeignKeyTarget(table, srcCols, cd); err != nil {
+							return err
+						}
 					}
 				}
 			}

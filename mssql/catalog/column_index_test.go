@@ -40,4 +40,11 @@ CREATE TABLE dbo.c (x INT INDEX ix_x INDEX ix_x2 (x DESC), y INT NOT NULL CONSTR
 	table = c.GetTable("dbo", "c")
 	require.Len(t, table.ForeignKeys, 2)
 	require.Equal(t, []string{"x", "z"}, table.ForeignKeys[1].Columns)
+
+	// ... and refuses a column the table does not have.
+	results, err = c.Exec(`ALTER TABLE dbo.c ADD w INT FOREIGN KEY (missing, w) REFERENCES dbo.p (a, b);`, nil)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.ErrorContains(t, results[0].Error, "invalid column 'missing'")
+	require.Nil(t, columnByName(c.GetTable("dbo", "c"), "w"))
 }
