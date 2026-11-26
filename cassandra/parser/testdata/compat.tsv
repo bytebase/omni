@@ -376,6 +376,12 @@ reject	reject	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_
 accept	accept	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue+intValue/COLON_noncol_ident	SELECT a FROM a PER PARTITION LIMIT : a
 reject	reject	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue+intValue/COLON_noncol_ident!drop-4	SELECT a FROM a PER PARTITION LIMIT a
 reject	reject	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue+intValue/COLON_noncol_ident!drop-5	SELECT a FROM a PER PARTITION LIMIT :
+accept	accept	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue+noncol_ident/QUOTED_NAME	SELECT a FROM a PER PARTITION LIMIT : "a"
+reject	reject	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue+noncol_ident/QUOTED_NAME!drop-4	SELECT a FROM a PER PARTITION LIMIT "a"
+accept	accept	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue+noncol_ident/unreserved_keyword	SELECT a FROM a PER PARTITION LIMIT : KEYS
+reject	reject	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue+noncol_ident/unreserved_keyword!drop-4	SELECT a FROM a PER PARTITION LIMIT KEYS
+accept	accept	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	SELECT a FROM a PER PARTITION LIMIT : TTL
+reject	reject	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-4	SELECT a FROM a PER PARTITION LIMIT TTL
 accept	accept	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue+intValue/QMARK	SELECT a FROM a PER PARTITION LIMIT ?
 accept	accept	engine	selectStatement(K_LIMIT_intValue)?/%empty	SELECT a FROM a
 accept	accept	engine	selectStatement(K_LIMIT_intValue)?/K_LIMIT_intValue	SELECT a FROM a LIMIT 1
@@ -383,6 +389,13 @@ reject	reject	engine	selectStatement(K_LIMIT_intValue)?/K_LIMIT_intValue!drop-1	
 reject	reject	engine	selectStatement(K_LIMIT_intValue)?/K_LIMIT_intValue!drop-2	SELECT a FROM a LIMIT
 reject	reject	engine	selectStatement(K_LIMIT_intValue)?/K_LIMIT_intValue!insert	SELECT a FROM a LIMIT 1 zzz
 reject	reject	engine	selectStatement(K_LIMIT_intValue)?/K_LIMIT_intValue!swap	SELECT a FROM a LIST 1
+accept	accept	engine	selectStatement(K_LIMIT_intValue)?/K_LIMIT_intValue+noncol_ident/QUOTED_NAME	SELECT a FROM a LIMIT : "a"
+reject	reject	engine	selectStatement(K_LIMIT_intValue)?/K_LIMIT_intValue+noncol_ident/QUOTED_NAME!drop-2	SELECT a FROM a LIMIT "a"
+reject	reject	engine	selectStatement(K_LIMIT_intValue)?/K_LIMIT_intValue+noncol_ident/QUOTED_NAME!drop-3	SELECT a FROM a LIMIT :
+accept	accept	engine	selectStatement(K_LIMIT_intValue)?/K_LIMIT_intValue+noncol_ident/unreserved_keyword	SELECT a FROM a LIMIT : KEYS
+reject	reject	engine	selectStatement(K_LIMIT_intValue)?/K_LIMIT_intValue+noncol_ident/unreserved_keyword!drop-2	SELECT a FROM a LIMIT KEYS
+accept	accept	engine	selectStatement(K_LIMIT_intValue)?/K_LIMIT_intValue+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	SELECT a FROM a LIMIT : TTL
+reject	reject	engine	selectStatement(K_LIMIT_intValue)?/K_LIMIT_intValue+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-2	SELECT a FROM a LIMIT TTL
 accept	accept	engine	selectStatement(K_ALLOW_K_FILTERING)?/%empty	SELECT a FROM a
 accept	accept	engine	selectStatement(K_ALLOW_K_FILTERING)?/K_ALLOW_K_FILTERING	SELECT a FROM a ALLOW FILTERING
 reject	reject	engine	selectStatement(K_ALLOW_K_FILTERING)?/K_ALLOW_K_FILTERING!drop-1	SELECT a FROM a FILTERING
@@ -412,6 +425,9 @@ reject	reject	engine	selector(K_AS_noncol_ident)?/K_AS_noncol_ident!drop-2	SELEC
 reject	reject	engine	selector(K_AS_noncol_ident)?/K_AS_noncol_ident!truncate	SELECT a AS
 reject	reject	engine	selector(K_AS_noncol_ident)?/K_AS_noncol_ident!insert	SELECT a AS a zzz FROM a
 reject	reject	engine	selector(K_AS_noncol_ident)?/K_AS_noncol_ident!swap	SELECT a ASC a FROM a
+accept	accept	engine	selector(K_AS_noncol_ident)?/K_AS_noncol_ident+noncol_ident/QUOTED_NAME	SELECT a AS "a" FROM a
+accept	accept	engine	selector(K_AS_noncol_ident)?/K_AS_noncol_ident+noncol_ident/unreserved_keyword	SELECT a AS KEYS FROM a
+accept	accept	engine	selector(K_AS_noncol_ident)?/K_AS_noncol_ident+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	SELECT a AS TTL FROM a
 accept	accept	engine	unaliasedSelector/selectionAddition	SELECT a FROM a
 accept	accept	engine	selectionAddition/selectionMultiplication_(+_selectionMultiplication|-_se~91e585db	SELECT a FROM a
 accept	accept	engine	selectionAddition(+_selectionMultiplication|-_selectio~02b085ec)*/%empty	SELECT a FROM a
@@ -464,6 +480,7 @@ reject	reject	engine	selectorModifier/[_collectionSubSelection_]_selectorModifie
 reject	reject	engine	selectorModifier/[_collectionSubSelection_]_selectorModifier+selectorModifier!drop-5	SELECT a [ 'a' ].FROM a
 accept	accept	engine	selectorModifier/%empty	SELECT a FROM a
 accept	accept	engine	fieldSelectorModifier/._fident	SELECT a.a FROM a
+accept	accept	engine	fieldSelectorModifier/._fident+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	SELECT a.TTL FROM a
 accept	accept	engine	collectionSubSelection/(term_(RANGE_(term)?)?|RANGE_term)	SELECT a [ 'a' ] FROM a
 reject	reject	engine	collectionSubSelection/(term_(RANGE_(term)?)?|RANGE_term)!truncate	SELECT a [
 reject	reject	engine	collectionSubSelection/(term_(RANGE_(term)?)?|RANGE_term)!insert	SELECT a [ 'a' zzz ] FROM a
@@ -636,6 +653,7 @@ accept	accept	engine	selectionLiteral/COLON_noncol_ident	SELECT : a FROM a
 reject	reject	engine	selectionLiteral/COLON_noncol_ident!drop-2	SELECT : FROM a
 reject	reject	engine	selectionLiteral/COLON_noncol_ident!truncate	SELECT :
 reject	reject	engine	selectionLiteral/COLON_noncol_ident!insert	SELECT : a zzz FROM a
+accept	accept	engine	selectionLiteral/COLON_noncol_ident+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	SELECT : TTL FROM a
 accept	accept	engine	selectionLiteral/QMARK	SELECT ? FROM a
 reject	reject	engine	selectionLiteral/QMARK!insert	SELECT ? zzz FROM a
 accept	accept	engine	selectionFunctionArgs/(_(unaliasedSelector_(,_unaliasedSelector)*)?_)	SELECT a() FROM a
@@ -655,6 +673,7 @@ reject	reject	engine	sident/QUOTED_NAME!insert	SELECT "a" zzz FROM a
 accept	accept	engine	sident/unreserved_keyword	SELECT KEYS FROM a
 reject	reject	engine	sident/unreserved_keyword!insert	SELECT KEYS zzz FROM a
 reject	reject	engine	sident/unreserved_keyword!swap	SELECT KEYSPACE FROM a
+accept	accept	engine	sident/unreserved_keyword+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	SELECT TTL FROM a
 accept	accept	engine	whereClause/relationOrExpression_(K_AND_relationOrExpression)*	DELETE FROM a WHERE a = 'a'
 accept	accept	engine	whereClause(K_AND_relationOrExpression)*/%empty	DELETE FROM a WHERE a = 'a'
 accept	accept	engine	whereClause(K_AND_relationOrExpression)*/K_AND_relationOrExpression_(K_AND_relationOrExpression)*	DELETE FROM a WHERE a = 'a' AND a = 'a'
@@ -673,6 +692,9 @@ reject	reject	engine	relationOrExpression/customIndexExpression!drop-4	DELETE FR
 reject	reject	engine	relationOrExpression/customIndexExpression!drop-5	DELETE FROM a WHERE expr(a, 'a'
 reject	reject	engine	relationOrExpression/customIndexExpression!insert	DELETE FROM a WHERE expr(a, 'a') zzz
 accept	accept	engine	customIndexExpression/expr(_idxName_,_term_)	DELETE FROM a WHERE expr(a, 'a')
+accept	accept	engine	customIndexExpression/expr(_idxName_,_term_)+idxName/QUOTED_NAME	DELETE FROM a WHERE expr("a", 'a')
+accept	accept	engine	customIndexExpression/expr(_idxName_,_term_)+idxName/unreserved_keyword	DELETE FROM a WHERE expr(KEYS, 'a')
+accept	accept	engine	customIndexExpression/expr(_idxName_,_term_)+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	DELETE FROM a WHERE expr(TTL, 'a')
 accept	accept	engine	orderByClause/cident_(K_ANN_K_OF_term)?_(K_ASC|K_DESC)?	SELECT a FROM a ORDER BY a
 accept	accept	engine	orderByClause(K_ANN_K_OF_term)?/%empty	SELECT a FROM a ORDER BY a
 accept	accept	engine	orderByClause(K_ANN_K_OF_term)?/K_ANN_K_OF_term	SELECT a FROM a ORDER BY a ANN OF 'a'
@@ -762,6 +784,9 @@ accept	accept	engine	jsonValue/COLON_noncol_ident	INSERT INTO a JSON : a
 reject	reject	engine	jsonValue/COLON_noncol_ident!drop-1	INSERT INTO a JSON a
 reject	reject	engine	jsonValue/COLON_noncol_ident!drop-2	INSERT INTO a JSON :
 reject	reject	engine	jsonValue/COLON_noncol_ident!insert	INSERT INTO a JSON : a zzz
+accept	accept	engine	jsonValue/COLON_noncol_ident+noncol_ident/QUOTED_NAME	INSERT INTO a JSON : "a"
+accept	accept	engine	jsonValue/COLON_noncol_ident+noncol_ident/unreserved_keyword	INSERT INTO a JSON : KEYS
+accept	accept	engine	jsonValue/COLON_noncol_ident+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	INSERT INTO a JSON : TTL
 accept	accept	engine	jsonValue/QMARK	INSERT INTO a JSON ?
 reject	reject	engine	jsonValue/QMARK!insert	INSERT INTO a JSON ? zzz
 accept	accept	engine	usingClause/K_USING_usingClauseObjective_(K_AND_usingClauseObjective)*	BEGIN BATCH USING TIMESTAMP 1 APPLY BATCH
@@ -784,6 +809,12 @@ reject	reject	engine	usingClauseObjective/K_TIMESTAMP_intValue!swap	BEGIN BATCH 
 accept	accept	engine	usingClauseObjective/K_TIMESTAMP_intValue+intValue/COLON_noncol_ident	BEGIN BATCH USING TIMESTAMP : a APPLY BATCH
 reject	reject	engine	usingClauseObjective/K_TIMESTAMP_intValue+intValue/COLON_noncol_ident!drop-2	BEGIN BATCH USING TIMESTAMP a APPLY BATCH
 reject	reject	engine	usingClauseObjective/K_TIMESTAMP_intValue+intValue/COLON_noncol_ident!drop-3	BEGIN BATCH USING TIMESTAMP : APPLY BATCH
+accept	accept	engine	usingClauseObjective/K_TIMESTAMP_intValue+noncol_ident/QUOTED_NAME	BEGIN BATCH USING TIMESTAMP : "a" APPLY BATCH
+reject	reject	engine	usingClauseObjective/K_TIMESTAMP_intValue+noncol_ident/QUOTED_NAME!drop-2	BEGIN BATCH USING TIMESTAMP "a" APPLY BATCH
+accept	accept	engine	usingClauseObjective/K_TIMESTAMP_intValue+noncol_ident/unreserved_keyword	BEGIN BATCH USING TIMESTAMP : KEYS APPLY BATCH
+reject	reject	engine	usingClauseObjective/K_TIMESTAMP_intValue+noncol_ident/unreserved_keyword!drop-2	BEGIN BATCH USING TIMESTAMP KEYS APPLY BATCH
+accept	accept	engine	usingClauseObjective/K_TIMESTAMP_intValue+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	BEGIN BATCH USING TIMESTAMP : TTL APPLY BATCH
+reject	reject	engine	usingClauseObjective/K_TIMESTAMP_intValue+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-2	BEGIN BATCH USING TIMESTAMP TTL APPLY BATCH
 accept	accept	engine	usingClauseObjective/K_TIMESTAMP_intValue+intValue/QMARK	BEGIN BATCH USING TIMESTAMP ? APPLY BATCH
 accept	accept	engine	usingClauseObjective/K_TTL_intValue	BEGIN BATCH USING TTL 1 APPLY BATCH
 reject	reject	engine	usingClauseObjective/K_TTL_intValue!drop-2	BEGIN BATCH USING TTL APPLY BATCH
@@ -793,6 +824,12 @@ reject	reject	engine	usingClauseObjective/K_TTL_intValue!swap	BEGIN BATCH USING 
 accept	accept	engine	usingClauseObjective/K_TTL_intValue+intValue/COLON_noncol_ident	BEGIN BATCH USING TTL : a APPLY BATCH
 reject	reject	engine	usingClauseObjective/K_TTL_intValue+intValue/COLON_noncol_ident!drop-2	BEGIN BATCH USING TTL a APPLY BATCH
 reject	reject	engine	usingClauseObjective/K_TTL_intValue+intValue/COLON_noncol_ident!drop-3	BEGIN BATCH USING TTL : APPLY BATCH
+accept	accept	engine	usingClauseObjective/K_TTL_intValue+noncol_ident/QUOTED_NAME	BEGIN BATCH USING TTL : "a" APPLY BATCH
+reject	reject	engine	usingClauseObjective/K_TTL_intValue+noncol_ident/QUOTED_NAME!drop-2	BEGIN BATCH USING TTL "a" APPLY BATCH
+accept	accept	engine	usingClauseObjective/K_TTL_intValue+noncol_ident/unreserved_keyword	BEGIN BATCH USING TTL : KEYS APPLY BATCH
+reject	reject	engine	usingClauseObjective/K_TTL_intValue+noncol_ident/unreserved_keyword!drop-2	BEGIN BATCH USING TTL KEYS APPLY BATCH
+accept	accept	engine	usingClauseObjective/K_TTL_intValue+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	BEGIN BATCH USING TTL : TTL APPLY BATCH
+reject	reject	engine	usingClauseObjective/K_TTL_intValue+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-2	BEGIN BATCH USING TTL TTL APPLY BATCH
 accept	accept	engine	usingClauseObjective/K_TTL_intValue+intValue/QMARK	BEGIN BATCH USING TTL ? APPLY BATCH
 accept	accept	engine	updateStatement/K_UPDATE_columnFamilyName_(usingClause)?_K_SET_columnOp~ebbb70bb	UPDATE a SET a = 'a' WHERE a = 'a'
 accept	accept	engine	updateStatement(usingClause)?/%empty	UPDATE a SET a = 'a' WHERE a = 'a'
@@ -883,10 +920,19 @@ reject	reject	engine	deleteOp/cident_._fident!drop-1	DELETE.a FROM a WHERE a = '
 reject	reject	engine	deleteOp/cident_._fident!drop-3	DELETE a.FROM a WHERE a = 'a'
 reject	reject	engine	deleteOp/cident_._fident!truncate	DELETE a.
 reject	reject	engine	deleteOp/cident_._fident!insert	DELETE a.a zzz FROM a WHERE a = 'a'
+accept	accept	engine	deleteOp/cident_._fident+fident/QUOTED_NAME	DELETE a."a" FROM a WHERE a = 'a'
+accept	accept	engine	deleteOp/cident_._fident+fident/unreserved_keyword	DELETE a.KEYS FROM a WHERE a = 'a'
+accept	accept	engine	deleteOp/cident_._fident+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	DELETE a.TTL FROM a WHERE a = 'a'
 accept	accept	engine	usingClauseDelete/K_USING_K_TIMESTAMP_intValue	DELETE FROM a USING TIMESTAMP 1 WHERE a = 'a'
 accept	accept	engine	usingClauseDelete/K_USING_K_TIMESTAMP_intValue+intValue/COLON_noncol_ident	DELETE FROM a USING TIMESTAMP : a WHERE a = 'a'
 reject	reject	engine	usingClauseDelete/K_USING_K_TIMESTAMP_intValue+intValue/COLON_noncol_ident!drop-3	DELETE FROM a USING TIMESTAMP a WHERE a = 'a'
 reject	reject	engine	usingClauseDelete/K_USING_K_TIMESTAMP_intValue+intValue/COLON_noncol_ident!drop-4	DELETE FROM a USING TIMESTAMP : WHERE a = 'a'
+accept	accept	engine	usingClauseDelete/K_USING_K_TIMESTAMP_intValue+noncol_ident/QUOTED_NAME	DELETE FROM a USING TIMESTAMP : "a" WHERE a = 'a'
+reject	reject	engine	usingClauseDelete/K_USING_K_TIMESTAMP_intValue+noncol_ident/QUOTED_NAME!drop-3	DELETE FROM a USING TIMESTAMP "a" WHERE a = 'a'
+accept	accept	engine	usingClauseDelete/K_USING_K_TIMESTAMP_intValue+noncol_ident/unreserved_keyword	DELETE FROM a USING TIMESTAMP : KEYS WHERE a = 'a'
+reject	reject	engine	usingClauseDelete/K_USING_K_TIMESTAMP_intValue+noncol_ident/unreserved_keyword!drop-3	DELETE FROM a USING TIMESTAMP KEYS WHERE a = 'a'
+accept	accept	engine	usingClauseDelete/K_USING_K_TIMESTAMP_intValue+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	DELETE FROM a USING TIMESTAMP : TTL WHERE a = 'a'
+reject	reject	engine	usingClauseDelete/K_USING_K_TIMESTAMP_intValue+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-3	DELETE FROM a USING TIMESTAMP TTL WHERE a = 'a'
 accept	accept	engine	usingClauseDelete/K_USING_K_TIMESTAMP_intValue+intValue/QMARK	DELETE FROM a USING TIMESTAMP ? WHERE a = 'a'
 accept	accept	engine	batchStatement/K_BEGIN_(K_UNLOGGED|K_COUNTER)?_K_BATCH_(usingClause)?_~39afb54e	BEGIN BATCH APPLY BATCH
 accept	accept	engine	batchStatement(K_UNLOGGED|K_COUNTER)?/%empty	BEGIN BATCH APPLY BATCH
@@ -942,6 +988,10 @@ reject	reject	engine	batchStatementObjective/deleteStatement!truncate	BEGIN BATC
 reject	reject	engine	batchStatementObjective/deleteStatement!insert	BEGIN BATCH DELETE FROM a WHERE a = 'a' zzz APPLY BATCH
 reject	reject	engine	batchStatementObjective/deleteStatement!swap	BEGIN BATCH DESC FROM a WHERE a = 'a' APPLY BATCH
 accept	accept	engine	createAggregateStatement/K_CREATE_(K_OR_K_REPLACE)?_K_AGGREGATE_(K_IF_K_NOT_K_EX~dd56419f	CREATE AGGREGATE a() SFUNC a STYPE ASCII
+accept	accept	engine	createAggregateStatement/K_CREATE_(K_OR_K_REPLACE)?_K_AGGREGATE_(K_IF_K_NOT_K_EX~dd56419f+allowedFunctionName/QUOTED_NAME	CREATE AGGREGATE a() SFUNC "a" STYPE ASCII
+accept	accept	engine	createAggregateStatement/K_CREATE_(K_OR_K_REPLACE)?_K_AGGREGATE_(K_IF_K_NOT_K_EX~dd56419f+allowedFunctionName/unreserved_function_keyword	CREATE AGGREGATE a() SFUNC KEYS STYPE ASCII
+accept	accept	engine	createAggregateStatement/K_CREATE_(K_OR_K_REPLACE)?_K_AGGREGATE_(K_IF_K_NOT_K_EX~dd56419f+allowedFunctionName/K_TOKEN	CREATE AGGREGATE a() SFUNC TOKEN STYPE ASCII
+accept	accept	engine	createAggregateStatement/K_CREATE_(K_OR_K_REPLACE)?_K_AGGREGATE_(K_IF_K_NOT_K_EX~dd56419f+allowedFunctionName/K_COUNT	CREATE AGGREGATE a() SFUNC COUNT STYPE ASCII
 accept	accept	engine	createAggregateStatement(K_OR_K_REPLACE)?/%empty	CREATE AGGREGATE a() SFUNC a STYPE ASCII
 reject	reject	engine	createAggregateStatement(K_OR_K_REPLACE)?/%empty!insert	CREATE zzz AGGREGATE a() SFUNC a STYPE ASCII
 accept	accept	engine	createAggregateStatement(K_OR_K_REPLACE)?/K_OR_K_REPLACE	CREATE OR REPLACE AGGREGATE a() SFUNC a STYPE ASCII
@@ -978,6 +1028,10 @@ reject	reject	engine	createAggregateStatement(K_FINALFUNC_allowedFunctionName)?/
 reject	reject	engine	createAggregateStatement(K_FINALFUNC_allowedFunctionName)?/K_FINALFUNC_allowedFunctionName!drop-2	CREATE AGGREGATE a() SFUNC a STYPE ASCII FINALFUNC
 reject	reject	engine	createAggregateStatement(K_FINALFUNC_allowedFunctionName)?/K_FINALFUNC_allowedFunctionName!insert	CREATE AGGREGATE a() SFUNC a STYPE ASCII FINALFUNC a zzz
 reject	reject	engine	createAggregateStatement(K_FINALFUNC_allowedFunctionName)?/K_FINALFUNC_allowedFunctionName!swap	CREATE AGGREGATE a() SFUNC a STYPE ASCII FLOAT a
+accept	accept	engine	createAggregateStatement(K_FINALFUNC_allowedFunctionName)?/K_FINALFUNC_allowedFunctionName+allowedFunctionName/QUOTED_NAME	CREATE AGGREGATE a() SFUNC a STYPE ASCII FINALFUNC "a"
+accept	accept	engine	createAggregateStatement(K_FINALFUNC_allowedFunctionName)?/K_FINALFUNC_allowedFunctionName+allowedFunctionName/unreserved_function_keyword	CREATE AGGREGATE a() SFUNC a STYPE ASCII FINALFUNC KEYS
+accept	accept	engine	createAggregateStatement(K_FINALFUNC_allowedFunctionName)?/K_FINALFUNC_allowedFunctionName+allowedFunctionName/K_TOKEN	CREATE AGGREGATE a() SFUNC a STYPE ASCII FINALFUNC TOKEN
+accept	accept	engine	createAggregateStatement(K_FINALFUNC_allowedFunctionName)?/K_FINALFUNC_allowedFunctionName+allowedFunctionName/K_COUNT	CREATE AGGREGATE a() SFUNC a STYPE ASCII FINALFUNC COUNT
 accept	accept	engine	createAggregateStatement(K_INITCOND_term)?/%empty	CREATE AGGREGATE a() SFUNC a STYPE ASCII
 accept	accept	engine	createAggregateStatement(K_INITCOND_term)?/K_INITCOND_term	CREATE AGGREGATE a() SFUNC a STYPE ASCII INITCOND 'a'
 reject	reject	engine	createAggregateStatement(K_INITCOND_term)?/K_INITCOND_term!drop-1	CREATE AGGREGATE a() SFUNC a STYPE ASCII 'a'
@@ -1035,6 +1089,9 @@ reject	reject	engine	createFunctionStatement(noncol_ident_comparatorType_(,_nonc
 reject	reject	engine	createFunctionStatement(noncol_ident_comparatorType_(,_nonco~6b5cda1a)?/noncol_ident_comparatorType_(,_noncol_ident_comparatorType)*!truncate	CREATE FUNCTION a(a
 reject	reject	engine	createFunctionStatement(noncol_ident_comparatorType_(,_nonco~6b5cda1a)?/noncol_ident_comparatorType_(,_noncol_ident_comparatorType)*!insert	CREATE FUNCTION a(a ASCII zzz) CALLED ON NULL INPUT RETURNS ASCII LANGUAGE a AS 'a'
 reject	reject	engine	createFunctionStatement(noncol_ident_comparatorType_(,_nonco~6b5cda1a)?/noncol_ident_comparatorType_(,_noncol_ident_comparatorType)*!swap	CREATE FUNCTION a(a AUTHORIZE) CALLED ON NULL INPUT RETURNS ASCII LANGUAGE a AS 'a'
+accept	accept	engine	createFunctionStatement(noncol_ident_comparatorType_(,_nonco~6b5cda1a)?/noncol_ident_comparatorType_(,_noncol_ident_comparatorType)*+noncol_ident/QUOTED_NAME	CREATE FUNCTION a("a" ASCII) CALLED ON NULL INPUT RETURNS ASCII LANGUAGE a AS 'a'
+accept	accept	engine	createFunctionStatement(noncol_ident_comparatorType_(,_nonco~6b5cda1a)?/noncol_ident_comparatorType_(,_noncol_ident_comparatorType)*+noncol_ident/unreserved_keyword	CREATE FUNCTION a(KEYS ASCII) CALLED ON NULL INPUT RETURNS ASCII LANGUAGE a AS 'a'
+accept	accept	engine	createFunctionStatement(noncol_ident_comparatorType_(,_nonco~6b5cda1a)?/noncol_ident_comparatorType_(,_noncol_ident_comparatorType)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE FUNCTION a(TTL ASCII) CALLED ON NULL INPUT RETURNS ASCII LANGUAGE a AS 'a'
 accept	accept	engine	createFunctionStatement(,_noncol_ident_comparatorType)*/%empty	CREATE FUNCTION a(a ASCII) CALLED ON NULL INPUT RETURNS ASCII LANGUAGE a AS 'a'
 accept	accept	engine	createFunctionStatement(,_noncol_ident_comparatorType)*/,_noncol_ident_comparatorType_(,_noncol_ident_comparatorType)*	CREATE FUNCTION a(a ASCII, a ASCII) CALLED ON NULL INPUT RETURNS ASCII LANGUAGE a AS 'a'
 reject	reject	engine	createFunctionStatement(,_noncol_ident_comparatorType)*/,_noncol_ident_comparatorType_(,_noncol_ident_comparatorType)*!drop-1	CREATE FUNCTION a(a ASCII a ASCII) CALLED ON NULL INPUT RETURNS ASCII LANGUAGE a AS 'a'
@@ -1043,6 +1100,9 @@ reject	reject	engine	createFunctionStatement(,_noncol_ident_comparatorType)*/,_n
 reject	reject	engine	createFunctionStatement(,_noncol_ident_comparatorType)*/,_noncol_ident_comparatorType_(,_noncol_ident_comparatorType)*!truncate	CREATE FUNCTION a(a ASCII, a
 reject	reject	engine	createFunctionStatement(,_noncol_ident_comparatorType)*/,_noncol_ident_comparatorType_(,_noncol_ident_comparatorType)*!insert	CREATE FUNCTION a(a ASCII, a ASCII zzz) CALLED ON NULL INPUT RETURNS ASCII LANGUAGE a AS 'a'
 reject	reject	engine	createFunctionStatement(,_noncol_ident_comparatorType)*/,_noncol_ident_comparatorType_(,_noncol_ident_comparatorType)*!swap	CREATE FUNCTION a(a ASCII, a AUTHORIZE) CALLED ON NULL INPUT RETURNS ASCII LANGUAGE a AS 'a'
+accept	accept	engine	createFunctionStatement(,_noncol_ident_comparatorType)*/,_noncol_ident_comparatorType_(,_noncol_ident_comparatorType)*+noncol_ident/QUOTED_NAME	CREATE FUNCTION a(a ASCII, "a" ASCII) CALLED ON NULL INPUT RETURNS ASCII LANGUAGE a AS 'a'
+accept	accept	engine	createFunctionStatement(,_noncol_ident_comparatorType)*/,_noncol_ident_comparatorType_(,_noncol_ident_comparatorType)*+noncol_ident/unreserved_keyword	CREATE FUNCTION a(a ASCII, KEYS ASCII) CALLED ON NULL INPUT RETURNS ASCII LANGUAGE a AS 'a'
+accept	accept	engine	createFunctionStatement(,_noncol_ident_comparatorType)*/,_noncol_ident_comparatorType_(,_noncol_ident_comparatorType)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE FUNCTION a(a ASCII, TTL ASCII) CALLED ON NULL INPUT RETURNS ASCII LANGUAGE a AS 'a'
 accept	accept	engine	createFunctionStatement((K_RETURNS_K_NULL)|(K_CALLED))/K_RETURNS_K_NULL	CREATE FUNCTION a() RETURNS NULL ON NULL INPUT RETURNS ASCII LANGUAGE a AS 'a'
 reject	reject	engine	createFunctionStatement((K_RETURNS_K_NULL)|(K_CALLED))/K_RETURNS_K_NULL!drop-1	CREATE FUNCTION a() NULL ON NULL INPUT RETURNS ASCII LANGUAGE a AS 'a'
 reject	reject	engine	createFunctionStatement((K_RETURNS_K_NULL)|(K_CALLED))/K_RETURNS_K_NULL!drop-2	CREATE FUNCTION a() RETURNS ON NULL INPUT RETURNS ASCII LANGUAGE a AS 'a'
@@ -1128,6 +1188,9 @@ reject	reject	engine	tableDefinition(K_AND_tableProperty)*/K_AND_tableProperty_(
 reject	reject	engine	tableDefinition(K_AND_tableProperty)*/K_AND_tableProperty_(K_AND_tableProperty)*!swap	CREATE TABLE a(a ASCII) WITH COMPACT STORAGE ANN COMPACT STORAGE
 accept	accept	engine	tableColumns/ident_comparatorType_(K_STATIC)?_(columnMask)?_(K_PRIMA~e31b8dca	CREATE TABLE a(a ASCII)
 reject	reject	engine	tableColumns/ident_comparatorType_(K_STATIC)?_(columnMask)?_(K_PRIMA~e31b8dca!truncate	CREATE TABLE a(a
+accept	accept	engine	tableColumns/ident_comparatorType_(K_STATIC)?_(columnMask)?_(K_PRIMA~e31b8dca+ident/QUOTED_NAME	CREATE TABLE a("a" ASCII)
+accept	accept	engine	tableColumns/ident_comparatorType_(K_STATIC)?_(columnMask)?_(K_PRIMA~e31b8dca+ident/unreserved_keyword	CREATE TABLE a(KEYS ASCII)
+accept	accept	engine	tableColumns/ident_comparatorType_(K_STATIC)?_(columnMask)?_(K_PRIMA~e31b8dca+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE TABLE a(TTL ASCII)
 accept	accept	engine	tableColumns/K_PRIMARY_K_KEY_(_tablePartitionKey_(,_ident)*_)	CREATE TABLE a(PRIMARY KEY(a))
 reject	reject	engine	tableColumns/K_PRIMARY_K_KEY_(_tablePartitionKey_(,_ident)*_)!drop-1	CREATE TABLE a(KEY(a))
 reject	reject	engine	tableColumns/K_PRIMARY_K_KEY_(_tablePartitionKey_(,_ident)*_)!drop-2	CREATE TABLE a(PRIMARY(a))
@@ -1169,6 +1232,9 @@ reject	reject	engine	tableColumns(,_ident)*/,_ident_(,_ident)*!drop-1	CREATE TAB
 reject	reject	engine	tableColumns(,_ident)*/,_ident_(,_ident)*!drop-2	CREATE TABLE a(PRIMARY KEY(a,))
 reject	reject	engine	tableColumns(,_ident)*/,_ident_(,_ident)*!truncate	CREATE TABLE a(PRIMARY KEY(a,
 reject	reject	engine	tableColumns(,_ident)*/,_ident_(,_ident)*!insert	CREATE TABLE a(PRIMARY KEY(a, a zzz))
+accept	accept	engine	tableColumns(,_ident)*/,_ident_(,_ident)*+ident/QUOTED_NAME	CREATE TABLE a(PRIMARY KEY(a, "a"))
+accept	accept	engine	tableColumns(,_ident)*/,_ident_(,_ident)*+ident/unreserved_keyword	CREATE TABLE a(PRIMARY KEY(a, KEYS))
+accept	accept	engine	tableColumns(,_ident)*/,_ident_(,_ident)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE TABLE a(PRIMARY KEY(a, TTL))
 accept	accept	engine	columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments	ALTER TABLE a ALTER a MASKED WITH a()
 reject	reject	engine	columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!drop-1	ALTER TABLE a ALTER a WITH a()
 reject	reject	engine	columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!drop-2	ALTER TABLE a ALTER a MASKED a()
@@ -1197,12 +1263,18 @@ reject	reject	engine	columnMaskArguments(,_term)*/,_term_(,_term)*!truncate	ALTE
 reject	reject	engine	columnMaskArguments(,_term)*/,_term_(,_term)*!insert	ALTER TABLE a ALTER a MASKED WITH a('a', 'a' zzz)
 accept	accept	engine	tablePartitionKey/ident	CREATE TABLE a(PRIMARY KEY(a))
 reject	reject	engine	tablePartitionKey/ident!truncate	CREATE TABLE a(PRIMARY KEY(
+accept	accept	engine	tablePartitionKey/ident+ident/QUOTED_NAME	CREATE TABLE a(PRIMARY KEY("a"))
+accept	accept	engine	tablePartitionKey/ident+ident/unreserved_keyword	CREATE TABLE a(PRIMARY KEY(KEYS))
+accept	accept	engine	tablePartitionKey/ident+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE TABLE a(PRIMARY KEY(TTL))
 accept	accept	engine	tablePartitionKey/(_ident_(,_ident)*_)	CREATE TABLE a(PRIMARY KEY((a)))
 reject	reject	engine	tablePartitionKey/(_ident_(,_ident)*_)!drop-1	CREATE TABLE a(PRIMARY KEY(a)))
 reject	reject	engine	tablePartitionKey/(_ident_(,_ident)*_)!drop-2	CREATE TABLE a(PRIMARY KEY(()))
 reject	reject	engine	tablePartitionKey/(_ident_(,_ident)*_)!drop-3	CREATE TABLE a(PRIMARY KEY((a))
 reject	reject	engine	tablePartitionKey/(_ident_(,_ident)*_)!truncate	CREATE TABLE a(PRIMARY KEY((a
 reject	reject	engine	tablePartitionKey/(_ident_(,_ident)*_)!insert	CREATE TABLE a(PRIMARY KEY((a) zzz))
+accept	accept	engine	tablePartitionKey/(_ident_(,_ident)*_)+ident/QUOTED_NAME	CREATE TABLE a(PRIMARY KEY(("a")))
+accept	accept	engine	tablePartitionKey/(_ident_(,_ident)*_)+ident/unreserved_keyword	CREATE TABLE a(PRIMARY KEY((KEYS)))
+accept	accept	engine	tablePartitionKey/(_ident_(,_ident)*_)+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE TABLE a(PRIMARY KEY((TTL)))
 accept	accept	engine	tablePartitionKey(,_ident)*/%empty	CREATE TABLE a(PRIMARY KEY((a)))
 reject	reject	engine	tablePartitionKey(,_ident)*/%empty!insert	CREATE TABLE a(PRIMARY KEY((a zzz)))
 accept	accept	engine	tablePartitionKey(,_ident)*/,_ident_(,_ident)*	CREATE TABLE a(PRIMARY KEY((a, a)))
@@ -1210,11 +1282,40 @@ reject	reject	engine	tablePartitionKey(,_ident)*/,_ident_(,_ident)*!drop-1	CREAT
 reject	reject	engine	tablePartitionKey(,_ident)*/,_ident_(,_ident)*!drop-2	CREATE TABLE a(PRIMARY KEY((a,)))
 reject	reject	engine	tablePartitionKey(,_ident)*/,_ident_(,_ident)*!truncate	CREATE TABLE a(PRIMARY KEY((a,
 reject	reject	engine	tablePartitionKey(,_ident)*/,_ident_(,_ident)*!insert	CREATE TABLE a(PRIMARY KEY((a, a zzz)))
+accept	accept	engine	tablePartitionKey(,_ident)*/,_ident_(,_ident)*+ident/QUOTED_NAME	CREATE TABLE a(PRIMARY KEY((a, "a")))
+accept	accept	engine	tablePartitionKey(,_ident)*/,_ident_(,_ident)*+ident/unreserved_keyword	CREATE TABLE a(PRIMARY KEY((a, KEYS)))
+accept	accept	engine	tablePartitionKey(,_ident)*/,_ident_(,_ident)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE TABLE a(PRIMARY KEY((a, TTL)))
 accept	accept	engine	tableProperty/property	CREATE TABLE a(a ASCII) WITH a = 'a'
 reject	reject	engine	tableProperty/property!drop-1	CREATE TABLE a(a ASCII) WITH = 'a'
 reject	reject	engine	tableProperty/property!drop-2	CREATE TABLE a(a ASCII) WITH a 'a'
 reject	reject	engine	tableProperty/property!drop-3	CREATE TABLE a(a ASCII) WITH a =
 reject	reject	engine	tableProperty/property!insert	CREATE TABLE a(a ASCII) WITH a = 'a' zzz
+accept	accept	engine	tableProperty/property+noncol_ident/QUOTED_NAME	CREATE TABLE a(a ASCII) WITH "a" = 'a'
+reject	reject	engine	tableProperty/property+noncol_ident/QUOTED_NAME!drop-2	CREATE TABLE a(a ASCII) WITH "a" 'a'
+reject	reject	engine	tableProperty/property+noncol_ident/QUOTED_NAME!drop-3	CREATE TABLE a(a ASCII) WITH "a" =
+accept	accept	engine	tableProperty/property+noncol_ident/unreserved_keyword	CREATE TABLE a(a ASCII) WITH KEYS = 'a'
+reject	reject	engine	tableProperty/property+noncol_ident/unreserved_keyword!drop-2	CREATE TABLE a(a ASCII) WITH KEYS 'a'
+reject	reject	engine	tableProperty/property+noncol_ident/unreserved_keyword!drop-3	CREATE TABLE a(a ASCII) WITH KEYS =
+accept	accept	engine	tableProperty/property+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE TABLE a(a ASCII) WITH TTL = 'a'
+reject	reject	engine	tableProperty/property+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-2	CREATE TABLE a(a ASCII) WITH TTL 'a'
+reject	reject	engine	tableProperty/property+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-3	CREATE TABLE a(a ASCII) WITH TTL =
+accept	accept	engine	tableProperty/property+property/noncol_ident_=_fullMapLiteral	CREATE TABLE a(a ASCII) WITH a = { }
+reject	reject	engine	tableProperty/property+property/noncol_ident_=_fullMapLiteral!drop-1	CREATE TABLE a(a ASCII) WITH = { }
+reject	reject	engine	tableProperty/property+property/noncol_ident_=_fullMapLiteral!drop-2	CREATE TABLE a(a ASCII) WITH a { }
+reject	reject	engine	tableProperty/property+property/noncol_ident_=_fullMapLiteral!drop-3	CREATE TABLE a(a ASCII) WITH a = }
+reject	reject	engine	tableProperty/property+property/noncol_ident_=_fullMapLiteral!drop-4	CREATE TABLE a(a ASCII) WITH a = {
+accept	accept	engine	tableProperty/property+noncol_ident/QUOTED_NAME#2	CREATE TABLE a(a ASCII) WITH "a" = { }
+reject	reject	engine	tableProperty/property+noncol_ident/QUOTED_NAME#2!drop-2	CREATE TABLE a(a ASCII) WITH "a" { }
+reject	reject	engine	tableProperty/property+noncol_ident/QUOTED_NAME#2!drop-3	CREATE TABLE a(a ASCII) WITH "a" = }
+reject	reject	engine	tableProperty/property+noncol_ident/QUOTED_NAME#2!drop-4	CREATE TABLE a(a ASCII) WITH "a" = {
+accept	accept	engine	tableProperty/property+noncol_ident/unreserved_keyword#2	CREATE TABLE a(a ASCII) WITH KEYS = { }
+reject	reject	engine	tableProperty/property+noncol_ident/unreserved_keyword#2!drop-2	CREATE TABLE a(a ASCII) WITH KEYS { }
+reject	reject	engine	tableProperty/property+noncol_ident/unreserved_keyword#2!drop-3	CREATE TABLE a(a ASCII) WITH KEYS = }
+reject	reject	engine	tableProperty/property+noncol_ident/unreserved_keyword#2!drop-4	CREATE TABLE a(a ASCII) WITH KEYS = {
+accept	accept	engine	tableProperty/property+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2	CREATE TABLE a(a ASCII) WITH TTL = { }
+reject	reject	engine	tableProperty/property+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2!drop-2	CREATE TABLE a(a ASCII) WITH TTL { }
+reject	reject	engine	tableProperty/property+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2!drop-3	CREATE TABLE a(a ASCII) WITH TTL = }
+reject	reject	engine	tableProperty/property+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2!drop-4	CREATE TABLE a(a ASCII) WITH TTL = {
 accept	accept	engine	tableProperty/K_COMPACT_K_STORAGE	CREATE TABLE a(a ASCII) WITH COMPACT STORAGE
 reject	reject	engine	tableProperty/K_COMPACT_K_STORAGE!swap	CREATE TABLE a(a ASCII) WITH CONTAINS STORAGE
 accept	accept	engine	tableProperty/K_CLUSTERING_K_ORDER_K_BY_(_tableClusteringOrder_(,_tab~151fd45f	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC)
@@ -1239,6 +1340,9 @@ reject	reject	engine	tableProperty(,_tableClusteringOrder)*/,_tableClusteringOrd
 accept	accept	engine	tableClusteringOrder/ident_(K_ASC|K_DESC)	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC)
 reject	reject	engine	tableClusteringOrder/ident_(K_ASC|K_DESC)!truncate	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a
 reject	reject	engine	tableClusteringOrder/ident_(K_ASC|K_DESC)!swap	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASCII)
+accept	accept	engine	tableClusteringOrder/ident_(K_ASC|K_DESC)+ident/QUOTED_NAME	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY("a" ASC)
+accept	accept	engine	tableClusteringOrder/ident_(K_ASC|K_DESC)+ident/unreserved_keyword	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(KEYS ASC)
+accept	accept	engine	tableClusteringOrder/ident_(K_ASC|K_DESC)+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(TTL ASC)
 accept	accept	engine	tableClusteringOrder(K_ASC|K_DESC)/K_ASC	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a ASC)
 accept	accept	engine	tableClusteringOrder(K_ASC|K_DESC)/K_DESC	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a DESC)
 reject	reject	engine	tableClusteringOrder(K_ASC|K_DESC)/K_DESC!insert	CREATE TABLE a(a ASCII) WITH CLUSTERING ORDER BY(a DESC zzz)
@@ -1267,6 +1371,9 @@ reject	reject	engine	createTypeStatement(typeColumns)?/typeColumns!swap	CREATE T
 accept	accept	engine	typeColumns/fident_comparatorType	CREATE TYPE a(a ASCII)
 reject	reject	engine	typeColumns/fident_comparatorType!truncate	CREATE TYPE a(a
 reject	reject	engine	typeColumns/fident_comparatorType!swap	CREATE TYPE a(a AUTHORIZE)
+accept	accept	engine	typeColumns/fident_comparatorType+fident/QUOTED_NAME	CREATE TYPE a("a" ASCII)
+accept	accept	engine	typeColumns/fident_comparatorType+fident/unreserved_keyword	CREATE TYPE a(KEYS ASCII)
+accept	accept	engine	typeColumns/fident_comparatorType+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE TYPE a(TTL ASCII)
 accept	accept	engine	createIndexStatement/K_CREATE_(K_CUSTOM)?_K_INDEX_(K_IF_K_NOT_K_EXISTS)?_(id~7ee50236	CREATE INDEX ON a()
 accept	accept	engine	createIndexStatement(K_CUSTOM)?/%empty	CREATE INDEX ON a()
 reject	reject	engine	createIndexStatement(K_CUSTOM)?/%empty!insert	CREATE zzz INDEX ON a()
@@ -1287,6 +1394,9 @@ accept	accept	engine	createIndexStatement(idxName)?/%empty	CREATE INDEX ON a()
 accept	accept	engine	createIndexStatement(idxName)?/idxName	CREATE INDEX a ON a()
 reject	reject	engine	createIndexStatement(idxName)?/idxName!truncate	CREATE INDEX
 reject	reject	engine	createIndexStatement(idxName)?/idxName!insert	CREATE INDEX a zzz ON a()
+accept	accept	engine	createIndexStatement(idxName)?/idxName+idxName/QUOTED_NAME	CREATE INDEX "a" ON a()
+accept	accept	engine	createIndexStatement(idxName)?/idxName+idxName/unreserved_keyword	CREATE INDEX KEYS ON a()
+accept	accept	engine	createIndexStatement(idxName)?/idxName+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE INDEX TTL ON a()
 accept	accept	engine	createIndexStatement(indexIdent_(,_indexIdent)*)?/%empty	CREATE INDEX ON a()
 accept	accept	engine	createIndexStatement(indexIdent_(,_indexIdent)*)?/%empty!insert	CREATE INDEX ON a(zzz)
 accept	accept	engine	createIndexStatement(indexIdent_(,_indexIdent)*)?/indexIdent_(,_indexIdent)*	CREATE INDEX ON a(a)
@@ -1386,14 +1496,23 @@ reject	reject	engine	viewPrimaryKey(,_ident)*/,_ident_(,_ident)*!drop-1	CREATE M
 reject	reject	engine	viewPrimaryKey(,_ident)*/,_ident_(,_ident)*!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a,)
 reject	reject	engine	viewPrimaryKey(,_ident)*/,_ident_(,_ident)*!truncate	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a,
 reject	reject	engine	viewPrimaryKey(,_ident)*/,_ident_(,_ident)*!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a, a zzz)
+accept	accept	engine	viewPrimaryKey(,_ident)*/,_ident_(,_ident)*+ident/QUOTED_NAME	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a, "a")
+accept	accept	engine	viewPrimaryKey(,_ident)*/,_ident_(,_ident)*+ident/unreserved_keyword	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a, KEYS)
+accept	accept	engine	viewPrimaryKey(,_ident)*/,_ident_(,_ident)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a, TTL)
 accept	accept	engine	viewPartitionKey/ident	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a)
 reject	reject	engine	viewPartitionKey/ident!truncate	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(
+accept	accept	engine	viewPartitionKey/ident+ident/QUOTED_NAME	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY("a")
+accept	accept	engine	viewPartitionKey/ident+ident/unreserved_keyword	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(KEYS)
+accept	accept	engine	viewPartitionKey/ident+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(TTL)
 accept	accept	engine	viewPartitionKey/(_ident_(,_ident)*_)	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a))
 reject	reject	engine	viewPartitionKey/(_ident_(,_ident)*_)!drop-1	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a))
 reject	reject	engine	viewPartitionKey/(_ident_(,_ident)*_)!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(())
 reject	reject	engine	viewPartitionKey/(_ident_(,_ident)*_)!drop-3	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a)
 reject	reject	engine	viewPartitionKey/(_ident_(,_ident)*_)!truncate	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a
 reject	reject	engine	viewPartitionKey/(_ident_(,_ident)*_)!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a) zzz)
+accept	accept	engine	viewPartitionKey/(_ident_(,_ident)*_)+ident/QUOTED_NAME	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(("a"))
+accept	accept	engine	viewPartitionKey/(_ident_(,_ident)*_)+ident/unreserved_keyword	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((KEYS))
+accept	accept	engine	viewPartitionKey/(_ident_(,_ident)*_)+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((TTL))
 accept	accept	engine	viewPartitionKey(,_ident)*/%empty	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a))
 reject	reject	engine	viewPartitionKey(,_ident)*/%empty!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a zzz))
 accept	accept	engine	viewPartitionKey(,_ident)*/,_ident_(,_ident)*	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a, a))
@@ -1401,7 +1520,36 @@ reject	reject	engine	viewPartitionKey(,_ident)*/,_ident_(,_ident)*!drop-1	CREATE
 reject	reject	engine	viewPartitionKey(,_ident)*/,_ident_(,_ident)*!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a,))
 reject	reject	engine	viewPartitionKey(,_ident)*/,_ident_(,_ident)*!truncate	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a,
 reject	reject	engine	viewPartitionKey(,_ident)*/,_ident_(,_ident)*!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a, a zzz))
+accept	accept	engine	viewPartitionKey(,_ident)*/,_ident_(,_ident)*+ident/QUOTED_NAME	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a, "a"))
+accept	accept	engine	viewPartitionKey(,_ident)*/,_ident_(,_ident)*+ident/unreserved_keyword	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a, KEYS))
+accept	accept	engine	viewPartitionKey(,_ident)*/,_ident_(,_ident)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY((a, TTL))
 accept	accept	engine	viewProperty/property	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = 'a'
+accept	accept	engine	viewProperty/property+noncol_ident/QUOTED_NAME	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH "a" = 'a'
+reject	reject	engine	viewProperty/property+noncol_ident/QUOTED_NAME!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH "a" 'a'
+reject	reject	engine	viewProperty/property+noncol_ident/QUOTED_NAME!drop-3	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH "a" =
+accept	accept	engine	viewProperty/property+noncol_ident/unreserved_keyword	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH KEYS = 'a'
+reject	reject	engine	viewProperty/property+noncol_ident/unreserved_keyword!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH KEYS 'a'
+reject	reject	engine	viewProperty/property+noncol_ident/unreserved_keyword!drop-3	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH KEYS =
+accept	accept	engine	viewProperty/property+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH TTL = 'a'
+reject	reject	engine	viewProperty/property+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH TTL 'a'
+reject	reject	engine	viewProperty/property+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-3	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH TTL =
+accept	accept	engine	viewProperty/property+property/noncol_ident_=_fullMapLiteral	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = { }
+reject	reject	engine	viewProperty/property+property/noncol_ident_=_fullMapLiteral!drop-1	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH = { }
+reject	reject	engine	viewProperty/property+property/noncol_ident_=_fullMapLiteral!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a { }
+reject	reject	engine	viewProperty/property+property/noncol_ident_=_fullMapLiteral!drop-3	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = }
+reject	reject	engine	viewProperty/property+property/noncol_ident_=_fullMapLiteral!drop-4	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH a = {
+accept	accept	engine	viewProperty/property+noncol_ident/QUOTED_NAME#2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH "a" = { }
+reject	reject	engine	viewProperty/property+noncol_ident/QUOTED_NAME#2!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH "a" { }
+reject	reject	engine	viewProperty/property+noncol_ident/QUOTED_NAME#2!drop-3	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH "a" = }
+reject	reject	engine	viewProperty/property+noncol_ident/QUOTED_NAME#2!drop-4	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH "a" = {
+accept	accept	engine	viewProperty/property+noncol_ident/unreserved_keyword#2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH KEYS = { }
+reject	reject	engine	viewProperty/property+noncol_ident/unreserved_keyword#2!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH KEYS { }
+reject	reject	engine	viewProperty/property+noncol_ident/unreserved_keyword#2!drop-3	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH KEYS = }
+reject	reject	engine	viewProperty/property+noncol_ident/unreserved_keyword#2!drop-4	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH KEYS = {
+accept	accept	engine	viewProperty/property+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH TTL = { }
+reject	reject	engine	viewProperty/property+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH TTL { }
+reject	reject	engine	viewProperty/property+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2!drop-3	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH TTL = }
+reject	reject	engine	viewProperty/property+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2!drop-4	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH TTL = {
 accept	accept	engine	viewProperty/K_CLUSTERING_K_ORDER_K_BY_(_viewClusteringOrder_(,_view~75b9fb5d	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC)
 reject	reject	engine	viewProperty/K_CLUSTERING_K_ORDER_K_BY_(_viewClusteringOrder_(,_view~75b9fb5d!drop-1	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH ORDER BY(a ASC)
 reject	reject	engine	viewProperty/K_CLUSTERING_K_ORDER_K_BY_(_viewClusteringOrder_(,_view~75b9fb5d!drop-2	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING BY(a ASC)
@@ -1424,11 +1572,17 @@ reject	reject	engine	viewProperty(,_viewClusteringOrder)*/,_viewClusteringOrder_
 accept	accept	engine	viewClusteringOrder/ident_(K_ASC|K_DESC)	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC)
 reject	reject	engine	viewClusteringOrder/ident_(K_ASC|K_DESC)!truncate	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a
 reject	reject	engine	viewClusteringOrder/ident_(K_ASC|K_DESC)!swap	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASCII)
+accept	accept	engine	viewClusteringOrder/ident_(K_ASC|K_DESC)+ident/QUOTED_NAME	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY("a" ASC)
+accept	accept	engine	viewClusteringOrder/ident_(K_ASC|K_DESC)+ident/unreserved_keyword	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(KEYS ASC)
+accept	accept	engine	viewClusteringOrder/ident_(K_ASC|K_DESC)+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(TTL ASC)
 accept	accept	engine	viewClusteringOrder(K_ASC|K_DESC)/K_ASC	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a ASC)
 accept	accept	engine	viewClusteringOrder(K_ASC|K_DESC)/K_DESC	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a DESC)
 reject	reject	engine	viewClusteringOrder(K_ASC|K_DESC)/K_DESC!insert	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a DESC zzz)
 reject	reject	engine	viewClusteringOrder(K_ASC|K_DESC)/K_DESC!swap	CREATE MATERIALIZED VIEW a AS SELECT a FROM a PRIMARY KEY(a) WITH CLUSTERING ORDER BY(a DESCRIBE)
 accept	accept	engine	createTriggerStatement/K_CREATE_K_TRIGGER_(K_IF_K_NOT_K_EXISTS)?_ident_K_ON_co~eda430cb	CREATE TRIGGER a ON a USING 'a'
+accept	accept	engine	createTriggerStatement/K_CREATE_K_TRIGGER_(K_IF_K_NOT_K_EXISTS)?_ident_K_ON_co~eda430cb+ident/QUOTED_NAME	CREATE TRIGGER "a" ON a USING 'a'
+accept	accept	engine	createTriggerStatement/K_CREATE_K_TRIGGER_(K_IF_K_NOT_K_EXISTS)?_ident_K_ON_co~eda430cb+ident/unreserved_keyword	CREATE TRIGGER KEYS ON a USING 'a'
+accept	accept	engine	createTriggerStatement/K_CREATE_K_TRIGGER_(K_IF_K_NOT_K_EXISTS)?_ident_K_ON_co~eda430cb+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE TRIGGER TTL ON a USING 'a'
 accept	accept	engine	createTriggerStatement(K_IF_K_NOT_K_EXISTS)?/%empty	CREATE TRIGGER a ON a USING 'a'
 reject	reject	engine	createTriggerStatement(K_IF_K_NOT_K_EXISTS)?/%empty!insert	CREATE TRIGGER zzz a ON a USING 'a'
 accept	accept	engine	createTriggerStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS	CREATE TRIGGER IF NOT EXISTS a ON a USING 'a'
@@ -1439,6 +1593,9 @@ reject	reject	engine	createTriggerStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_E
 reject	reject	engine	createTriggerStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!insert	CREATE TRIGGER IF NOT EXISTS zzz a ON a USING 'a'
 reject	reject	engine	createTriggerStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!swap	CREATE TRIGGER IN NOT EXISTS a ON a USING 'a'
 accept	accept	engine	dropTriggerStatement/K_DROP_K_TRIGGER_(K_IF_K_EXISTS)?_ident_K_ON_columnFamilyName	DROP TRIGGER a ON a
+accept	accept	engine	dropTriggerStatement/K_DROP_K_TRIGGER_(K_IF_K_EXISTS)?_ident_K_ON_columnFamilyName+ident/QUOTED_NAME	DROP TRIGGER "a" ON a
+accept	accept	engine	dropTriggerStatement/K_DROP_K_TRIGGER_(K_IF_K_EXISTS)?_ident_K_ON_columnFamilyName+ident/unreserved_keyword	DROP TRIGGER KEYS ON a
+accept	accept	engine	dropTriggerStatement/K_DROP_K_TRIGGER_(K_IF_K_EXISTS)?_ident_K_ON_columnFamilyName+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	DROP TRIGGER TTL ON a
 accept	accept	engine	dropTriggerStatement(K_IF_K_EXISTS)?/%empty	DROP TRIGGER a ON a
 reject	reject	engine	dropTriggerStatement(K_IF_K_EXISTS)?/%empty!insert	DROP TRIGGER zzz a ON a
 accept	accept	engine	dropTriggerStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP TRIGGER IF EXISTS a ON a
@@ -1503,6 +1660,12 @@ reject	reject	engine	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b
 accept	accept	engine	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_RENAME_(K_IF_K_EXISTS)?_ident_K_TO_ident_(K_AND_ident~a486382f+alterTableStatement(K_IF_K_EXISTS)?	ALTER TABLE a RENAME IF EXISTS a TO a
 reject	reject	engine	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_RENAME_(K_IF_K_EXISTS)?_ident_K_TO_ident_(K_AND_ident~a486382f+alterTableStatement(K_IF_K_EXISTS)?!drop-2	ALTER TABLE a RENAME EXISTS a TO a
 reject	reject	engine	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_RENAME_(K_IF_K_EXISTS)?_ident_K_TO_ident_(K_AND_ident~a486382f+alterTableStatement(K_IF_K_EXISTS)?!drop-3	ALTER TABLE a RENAME IF a TO a
+accept	accept	engine	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_RENAME_(K_IF_K_EXISTS)?_ident_K_TO_ident_(K_AND_ident~a486382f+ident/QUOTED_NAME	ALTER TABLE a RENAME "a" TO a
+accept	accept	engine	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_RENAME_(K_IF_K_EXISTS)?_ident_K_TO_ident_(K_AND_ident~a486382f+ident/unreserved_keyword	ALTER TABLE a RENAME KEYS TO a
+accept	accept	engine	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_RENAME_(K_IF_K_EXISTS)?_ident_K_TO_ident_(K_AND_ident~a486382f+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	ALTER TABLE a RENAME TTL TO a
+accept	accept	engine	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_RENAME_(K_IF_K_EXISTS)?_ident_K_TO_ident_(K_AND_ident~a486382f+ident/QUOTED_NAME#2	ALTER TABLE a RENAME a TO "a"
+accept	accept	engine	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_RENAME_(K_IF_K_EXISTS)?_ident_K_TO_ident_(K_AND_ident~a486382f+ident/unreserved_keyword#2	ALTER TABLE a RENAME a TO KEYS
+accept	accept	engine	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_RENAME_(K_IF_K_EXISTS)?_ident_K_TO_ident_(K_AND_ident~a486382f+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2	ALTER TABLE a RENAME a TO TTL
 accept	accept	engine	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_DROP_K_COMPACT_K_STORAGE	ALTER TABLE a DROP COMPACT STORAGE
 reject	reject	engine	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_DROP_K_COMPACT_K_STORAGE!drop-1	ALTER TABLE a COMPACT STORAGE
 accept	accept	engine	alterTableStatement(K_ALTER_cident_K_TYPE_comparatorType~3b7fd1ef)/K_DROP_K_COMPACT_K_STORAGE!drop-2	ALTER TABLE a DROP STORAGE
@@ -1530,6 +1693,9 @@ reject	reject	engine	alterTableStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXIS
 reject	reject	engine	alterTableStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS!swap	ALTER TABLE a ADD IN NOT EXISTS a ASCII
 accept	accept	engine	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/ident_comparatorType_isStaticColumn_(columnMask)?	ALTER TABLE a ADD a ASCII
 reject	reject	engine	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/ident_comparatorType_isStaticColumn_(columnMask)?!swap	ALTER TABLE a ADD a AUTHORIZE
+accept	accept	engine	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/ident_comparatorType_isStaticColumn_(columnMask)?+ident/QUOTED_NAME	ALTER TABLE a ADD "a" ASCII
+accept	accept	engine	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/ident_comparatorType_isStaticColumn_(columnMask)?+ident/unreserved_keyword	ALTER TABLE a ADD KEYS ASCII
+accept	accept	engine	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/ident_comparatorType_isStaticColumn_(columnMask)?+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	ALTER TABLE a ADD TTL ASCII
 accept	accept	engine	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/(_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~dd0b4cd4	ALTER TABLE a ADD(a ASCII)
 reject	reject	engine	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/(_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~dd0b4cd4!drop-1	ALTER TABLE a ADD a ASCII)
 reject	reject	engine	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/(_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~dd0b4cd4!drop-2	ALTER TABLE a ADD(ASCII)
@@ -1542,6 +1708,9 @@ accept	accept	engine	alterTableStatement(ident_comparatorType_isStaticColumn_~9d
 reject	reject	engine	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/(_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~dd0b4cd4+alterTableStatement(columnMask)?!drop-4	ALTER TABLE a ADD(a ASCII WITH DEFAULT)
 reject	reject	engine	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/(_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~dd0b4cd4+alterTableStatement(columnMask)?!drop-5	ALTER TABLE a ADD(a ASCII MASKED DEFAULT)
 reject	reject	engine	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/(_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~dd0b4cd4+alterTableStatement(columnMask)?!drop-6	ALTER TABLE a ADD(a ASCII MASKED WITH)
+accept	accept	engine	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/(_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~dd0b4cd4+ident/QUOTED_NAME	ALTER TABLE a ADD("a" ASCII)
+accept	accept	engine	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/(_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~dd0b4cd4+ident/unreserved_keyword	ALTER TABLE a ADD(KEYS ASCII)
+accept	accept	engine	alterTableStatement(ident_comparatorType_isStaticColumn_~9d316703)/(_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~dd0b4cd4+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	ALTER TABLE a ADD(TTL ASCII)
 accept	accept	engine	alterTableStatement(columnMask)?/%empty	ALTER TABLE a ADD a ASCII
 accept	accept	engine	alterTableStatement(columnMask)?/columnMask	ALTER TABLE a ADD a ASCII MASKED WITH DEFAULT
 reject	reject	engine	alterTableStatement(columnMask)?/columnMask!drop-1	ALTER TABLE a ADD a ASCII WITH DEFAULT
@@ -1569,12 +1738,19 @@ accept	accept	engine	alterTableStatement(,_ident_comparatorType_isStaticColum~30
 reject	reject	engine	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/,_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~5dbab348+alterTableStatement(columnMask)?!drop-4	ALTER TABLE a ADD(a ASCII, a ASCII WITH DEFAULT)
 reject	reject	engine	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/,_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~5dbab348+alterTableStatement(columnMask)?!drop-5	ALTER TABLE a ADD(a ASCII, a ASCII MASKED DEFAULT)
 reject	reject	engine	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/,_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~5dbab348+alterTableStatement(columnMask)?!drop-6	ALTER TABLE a ADD(a ASCII, a ASCII MASKED WITH)
+accept	accept	engine	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/,_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~5dbab348+ident/QUOTED_NAME	ALTER TABLE a ADD(a ASCII, "a" ASCII)
+accept	accept	engine	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/,_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~5dbab348+ident/unreserved_keyword	ALTER TABLE a ADD(a ASCII, KEYS ASCII)
+accept	accept	engine	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/,_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~5dbab348+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	ALTER TABLE a ADD(a ASCII, TTL ASCII)
 accept	accept	engine	alterTableStatement(ident|((_ident_(,_ident)*_)))/ident	ALTER TABLE a DROP a
+accept	accept	engine	alterTableStatement(ident|((_ident_(,_ident)*_)))/ident+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	ALTER TABLE a DROP TTL
 accept	accept	engine	alterTableStatement(ident|((_ident_(,_ident)*_)))/(_ident_(,_ident)*_)	ALTER TABLE a DROP(a)
 reject	reject	engine	alterTableStatement(ident|((_ident_(,_ident)*_)))/(_ident_(,_ident)*_)!drop-1	ALTER TABLE a DROP a)
 reject	reject	engine	alterTableStatement(ident|((_ident_(,_ident)*_)))/(_ident_(,_ident)*_)!drop-2	ALTER TABLE a DROP()
 reject	reject	engine	alterTableStatement(ident|((_ident_(,_ident)*_)))/(_ident_(,_ident)*_)!drop-3	ALTER TABLE a DROP(a
 reject	reject	engine	alterTableStatement(ident|((_ident_(,_ident)*_)))/(_ident_(,_ident)*_)!insert	ALTER TABLE a DROP(a) zzz
+accept	accept	engine	alterTableStatement(ident|((_ident_(,_ident)*_)))/(_ident_(,_ident)*_)+ident/QUOTED_NAME	ALTER TABLE a DROP("a")
+accept	accept	engine	alterTableStatement(ident|((_ident_(,_ident)*_)))/(_ident_(,_ident)*_)+ident/unreserved_keyword	ALTER TABLE a DROP(KEYS)
+accept	accept	engine	alterTableStatement(ident|((_ident_(,_ident)*_)))/(_ident_(,_ident)*_)+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	ALTER TABLE a DROP(TTL)
 accept	accept	engine	alterTableStatement(,_ident)*/%empty	ALTER TABLE a DROP(a)
 reject	reject	engine	alterTableStatement(,_ident)*/%empty!insert	ALTER TABLE a DROP(a zzz)
 accept	accept	engine	alterTableStatement(,_ident)*/,_ident_(,_ident)*	ALTER TABLE a DROP(a, a)
@@ -1582,6 +1758,9 @@ reject	reject	engine	alterTableStatement(,_ident)*/,_ident_(,_ident)*!drop-1	ALT
 reject	reject	engine	alterTableStatement(,_ident)*/,_ident_(,_ident)*!drop-2	ALTER TABLE a DROP(a,)
 reject	reject	engine	alterTableStatement(,_ident)*/,_ident_(,_ident)*!truncate	ALTER TABLE a DROP(a,
 reject	reject	engine	alterTableStatement(,_ident)*/,_ident_(,_ident)*!insert	ALTER TABLE a DROP(a, a zzz)
+accept	accept	engine	alterTableStatement(,_ident)*/,_ident_(,_ident)*+ident/QUOTED_NAME	ALTER TABLE a DROP(a, "a")
+accept	accept	engine	alterTableStatement(,_ident)*/,_ident_(,_ident)*+ident/unreserved_keyword	ALTER TABLE a DROP(a, KEYS)
+accept	accept	engine	alterTableStatement(,_ident)*/,_ident_(,_ident)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	ALTER TABLE a DROP(a, TTL)
 accept	accept	engine	alterTableStatement(K_USING_K_TIMESTAMP_INTEGER)?/%empty	ALTER TABLE a DROP a
 accept	accept	engine	alterTableStatement(K_USING_K_TIMESTAMP_INTEGER)?/K_USING_K_TIMESTAMP_INTEGER	ALTER TABLE a DROP a USING TIMESTAMP 1
 reject	reject	engine	alterTableStatement(K_USING_K_TIMESTAMP_INTEGER)?/K_USING_K_TIMESTAMP_INTEGER!drop-1	ALTER TABLE a DROP a TIMESTAMP 1
@@ -1597,6 +1776,12 @@ reject	reject	engine	alterTableStatement(K_AND_ident_K_TO_ident)*/K_AND_ident_K_
 reject	reject	engine	alterTableStatement(K_AND_ident_K_TO_ident)*/K_AND_ident_K_TO_ident_(K_AND_ident_K_TO_ident)*!drop-4	ALTER TABLE a RENAME a TO a AND a TO
 reject	reject	engine	alterTableStatement(K_AND_ident_K_TO_ident)*/K_AND_ident_K_TO_ident_(K_AND_ident_K_TO_ident)*!insert	ALTER TABLE a RENAME a TO a AND a TO a zzz
 reject	reject	engine	alterTableStatement(K_AND_ident_K_TO_ident)*/K_AND_ident_K_TO_ident_(K_AND_ident_K_TO_ident)*!swap	ALTER TABLE a RENAME a TO a ANN a TO a
+accept	accept	engine	alterTableStatement(K_AND_ident_K_TO_ident)*/K_AND_ident_K_TO_ident_(K_AND_ident_K_TO_ident)*+ident/QUOTED_NAME	ALTER TABLE a RENAME a TO a AND "a" TO a
+accept	accept	engine	alterTableStatement(K_AND_ident_K_TO_ident)*/K_AND_ident_K_TO_ident_(K_AND_ident_K_TO_ident)*+ident/unreserved_keyword	ALTER TABLE a RENAME a TO a AND KEYS TO a
+accept	accept	engine	alterTableStatement(K_AND_ident_K_TO_ident)*/K_AND_ident_K_TO_ident_(K_AND_ident_K_TO_ident)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	ALTER TABLE a RENAME a TO a AND TTL TO a
+accept	accept	engine	alterTableStatement(K_AND_ident_K_TO_ident)*/K_AND_ident_K_TO_ident_(K_AND_ident_K_TO_ident)*+ident/QUOTED_NAME#2	ALTER TABLE a RENAME a TO a AND a TO "a"
+accept	accept	engine	alterTableStatement(K_AND_ident_K_TO_ident)*/K_AND_ident_K_TO_ident_(K_AND_ident_K_TO_ident)*+ident/unreserved_keyword#2	ALTER TABLE a RENAME a TO a AND a TO KEYS
+accept	accept	engine	alterTableStatement(K_AND_ident_K_TO_ident)*/K_AND_ident_K_TO_ident_(K_AND_ident_K_TO_ident)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2	ALTER TABLE a RENAME a TO a AND a TO TTL
 accept	accept	engine	isStaticColumn/(K_STATIC)?	ALTER TABLE a ADD a ASCII
 accept	accept	engine	isStaticColumn(K_STATIC)?/%empty	ALTER TABLE a ADD a ASCII
 accept	accept	engine	isStaticColumn(K_STATIC)?/K_STATIC	ALTER TABLE a ADD a ASCII STATIC
@@ -1627,8 +1812,14 @@ reject	reject	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e
 reject	reject	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_ALTER_fident_K_TYPE_comparatorType!drop-4	ALTER TYPE a ALTER a TYPE
 reject	reject	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_ALTER_fident_K_TYPE_comparatorType!insert	ALTER TYPE a ALTER a TYPE ASCII zzz
 reject	reject	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_ALTER_fident_K_TYPE_comparatorType!swap	ALTER TYPE a AND a TYPE ASCII
+accept	accept	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_ALTER_fident_K_TYPE_comparatorType+fident/QUOTED_NAME	ALTER TYPE a ALTER "a" TYPE ASCII
+accept	accept	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_ALTER_fident_K_TYPE_comparatorType+fident/unreserved_keyword	ALTER TYPE a ALTER KEYS TYPE ASCII
+accept	accept	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_ALTER_fident_K_TYPE_comparatorType+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	ALTER TYPE a ALTER TTL TYPE ASCII
 accept	accept	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_ADD_(K_IF_K_NOT_K_EXISTS)?_fident_comparatorType	ALTER TYPE a ADD a ASCII
 reject	reject	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_ADD_(K_IF_K_NOT_K_EXISTS)?_fident_comparatorType!swap	ALTER TYPE a AGGREGATE a ASCII
+accept	accept	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_ADD_(K_IF_K_NOT_K_EXISTS)?_fident_comparatorType+fident/QUOTED_NAME	ALTER TYPE a ADD "a" ASCII
+accept	accept	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_ADD_(K_IF_K_NOT_K_EXISTS)?_fident_comparatorType+fident/unreserved_keyword	ALTER TYPE a ADD KEYS ASCII
+accept	accept	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_ADD_(K_IF_K_NOT_K_EXISTS)?_fident_comparatorType+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	ALTER TYPE a ADD TTL ASCII
 accept	accept	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_RENAME_(K_IF_K_EXISTS)?_fident_K_TO_fident_(K_AND_fid~3a410721	ALTER TYPE a RENAME a TO a
 reject	reject	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_RENAME_(K_IF_K_EXISTS)?_fident_K_TO_fident_(K_AND_fid~3a410721!drop-1	ALTER TYPE a a TO a
 reject	reject	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_RENAME_(K_IF_K_EXISTS)?_fident_K_TO_fident_(K_AND_fid~3a410721!drop-2	ALTER TYPE a RENAME TO a
@@ -1639,6 +1830,12 @@ reject	reject	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e
 accept	accept	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_RENAME_(K_IF_K_EXISTS)?_fident_K_TO_fident_(K_AND_fid~3a410721+alterTypeStatement(K_IF_K_EXISTS)?	ALTER TYPE a RENAME IF EXISTS a TO a
 reject	reject	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_RENAME_(K_IF_K_EXISTS)?_fident_K_TO_fident_(K_AND_fid~3a410721+alterTypeStatement(K_IF_K_EXISTS)?!drop-2	ALTER TYPE a RENAME EXISTS a TO a
 reject	reject	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_RENAME_(K_IF_K_EXISTS)?_fident_K_TO_fident_(K_AND_fid~3a410721+alterTypeStatement(K_IF_K_EXISTS)?!drop-3	ALTER TYPE a RENAME IF a TO a
+accept	accept	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_RENAME_(K_IF_K_EXISTS)?_fident_K_TO_fident_(K_AND_fid~3a410721+fident/QUOTED_NAME	ALTER TYPE a RENAME "a" TO a
+accept	accept	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_RENAME_(K_IF_K_EXISTS)?_fident_K_TO_fident_(K_AND_fid~3a410721+fident/unreserved_keyword	ALTER TYPE a RENAME KEYS TO a
+accept	accept	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_RENAME_(K_IF_K_EXISTS)?_fident_K_TO_fident_(K_AND_fid~3a410721+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	ALTER TYPE a RENAME TTL TO a
+accept	accept	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_RENAME_(K_IF_K_EXISTS)?_fident_K_TO_fident_(K_AND_fid~3a410721+fident/QUOTED_NAME#2	ALTER TYPE a RENAME a TO "a"
+accept	accept	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_RENAME_(K_IF_K_EXISTS)?_fident_K_TO_fident_(K_AND_fid~3a410721+fident/unreserved_keyword#2	ALTER TYPE a RENAME a TO KEYS
+accept	accept	engine	alterTypeStatement(K_ALTER_fident_K_TYPE_comparatorType~b4e45588)/K_RENAME_(K_IF_K_EXISTS)?_fident_K_TO_fident_(K_AND_fid~3a410721+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2	ALTER TYPE a RENAME a TO TTL
 accept	accept	engine	alterTypeStatement(K_IF_K_NOT_K_EXISTS)?/%empty	ALTER TYPE a ADD a ASCII
 reject	reject	engine	alterTypeStatement(K_IF_K_NOT_K_EXISTS)?/%empty!insert	ALTER TYPE a ADD zzz a ASCII
 accept	accept	engine	alterTypeStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS	ALTER TYPE a ADD IF NOT EXISTS a ASCII
@@ -1656,6 +1853,12 @@ reject	reject	engine	alterTypeStatement(K_AND_fident_K_TO_fident)*/K_AND_fident_
 reject	reject	engine	alterTypeStatement(K_AND_fident_K_TO_fident)*/K_AND_fident_K_TO_fident_(K_AND_fident_K_TO_fident)*!drop-4	ALTER TYPE a RENAME a TO a AND a TO
 reject	reject	engine	alterTypeStatement(K_AND_fident_K_TO_fident)*/K_AND_fident_K_TO_fident_(K_AND_fident_K_TO_fident)*!insert	ALTER TYPE a RENAME a TO a AND a TO a zzz
 reject	reject	engine	alterTypeStatement(K_AND_fident_K_TO_fident)*/K_AND_fident_K_TO_fident_(K_AND_fident_K_TO_fident)*!swap	ALTER TYPE a RENAME a TO a ANN a TO a
+accept	accept	engine	alterTypeStatement(K_AND_fident_K_TO_fident)*/K_AND_fident_K_TO_fident_(K_AND_fident_K_TO_fident)*+fident/QUOTED_NAME	ALTER TYPE a RENAME a TO a AND "a" TO a
+accept	accept	engine	alterTypeStatement(K_AND_fident_K_TO_fident)*/K_AND_fident_K_TO_fident_(K_AND_fident_K_TO_fident)*+fident/unreserved_keyword	ALTER TYPE a RENAME a TO a AND KEYS TO a
+accept	accept	engine	alterTypeStatement(K_AND_fident_K_TO_fident)*/K_AND_fident_K_TO_fident_(K_AND_fident_K_TO_fident)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	ALTER TYPE a RENAME a TO a AND TTL TO a
+accept	accept	engine	alterTypeStatement(K_AND_fident_K_TO_fident)*/K_AND_fident_K_TO_fident_(K_AND_fident_K_TO_fident)*+fident/QUOTED_NAME#2	ALTER TYPE a RENAME a TO a AND a TO "a"
+accept	accept	engine	alterTypeStatement(K_AND_fident_K_TO_fident)*/K_AND_fident_K_TO_fident_(K_AND_fident_K_TO_fident)*+fident/unreserved_keyword#2	ALTER TYPE a RENAME a TO a AND a TO KEYS
+accept	accept	engine	alterTypeStatement(K_AND_fident_K_TO_fident)*/K_AND_fident_K_TO_fident_(K_AND_fident_K_TO_fident)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2	ALTER TYPE a RENAME a TO a AND a TO TTL
 accept	accept	engine	dropKeyspaceStatement/K_DROP_K_KEYSPACE_(K_IF_K_EXISTS)?_keyspaceName	DROP KEYSPACE a
 accept	accept	engine	dropKeyspaceStatement(K_IF_K_EXISTS)?/%empty	DROP KEYSPACE a
 reject	reject	engine	dropKeyspaceStatement(K_IF_K_EXISTS)?/%empty!insert	DROP KEYSPACE zzz a
@@ -1790,6 +1993,10 @@ accept	accept	engine	listPermissionsStatement(K_OF_roleName)?/%empty	LIST ALL
 accept	accept	engine	listPermissionsStatement(K_OF_roleName)?/K_OF_roleName	LIST ALL OF a
 reject	reject	engine	listPermissionsStatement(K_OF_roleName)?/K_OF_roleName!drop-2	LIST ALL OF
 reject	reject	engine	listPermissionsStatement(K_OF_roleName)?/K_OF_roleName!insert	LIST ALL OF a zzz
+accept	accept	engine	listPermissionsStatement(K_OF_roleName)?/K_OF_roleName+roleName/STRING_LITERAL	LIST ALL OF 'a'
+accept	accept	engine	listPermissionsStatement(K_OF_roleName)?/K_OF_roleName+roleName/QUOTED_NAME	LIST ALL OF "a"
+accept	accept	engine	listPermissionsStatement(K_OF_roleName)?/K_OF_roleName+roleName/unreserved_keyword	LIST ALL OF KEYS
+accept	accept	engine	listPermissionsStatement(K_OF_roleName)?/K_OF_roleName+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	LIST ALL OF TTL
 accept	accept	engine	listPermissionsStatement(K_NORECURSIVE)?/%empty	LIST ALL
 accept	accept	engine	listPermissionsStatement(K_NORECURSIVE)?/K_NORECURSIVE	LIST ALL NORECURSIVE
 reject	reject	engine	listPermissionsStatement(K_NORECURSIVE)?/K_NORECURSIVE!insert	LIST ALL NORECURSIVE zzz
@@ -1943,6 +2150,7 @@ accept	accept	engine	createUserStatement(K_SUPERUSER|K_NOSUPERUSER)?/K_NOSUPERUS
 reject	reject	engine	createUserStatement(K_SUPERUSER|K_NOSUPERUSER)?/K_NOSUPERUSER!insert	CREATE USER a NOSUPERUSER zzz
 reject	reject	engine	createUserStatement(K_SUPERUSER|K_NOSUPERUSER)?/K_NOSUPERUSER!swap	CREATE USER a NOT
 accept	accept	engine	alterUserStatement/K_ALTER_K_USER_(K_IF_K_EXISTS)?_username_(K_WITH_userPa~a318e698	ALTER USER a
+accept	accept	engine	alterUserStatement/K_ALTER_K_USER_(K_IF_K_EXISTS)?_username_(K_WITH_userPa~a318e698+username/STRING_LITERAL	ALTER USER 'a'
 accept	accept	engine	alterUserStatement(K_IF_K_EXISTS)?/%empty	ALTER USER a
 reject	reject	engine	alterUserStatement(K_IF_K_EXISTS)?/%empty!insert	ALTER USER zzz a
 accept	accept	engine	alterUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	ALTER USER IF EXISTS a
@@ -1969,6 +2177,7 @@ accept	accept	engine	alterUserStatement(K_SUPERUSER|K_NOSUPERUSER)?/K_NOSUPERUSE
 reject	reject	engine	alterUserStatement(K_SUPERUSER|K_NOSUPERUSER)?/K_NOSUPERUSER!insert	ALTER USER a NOSUPERUSER zzz
 reject	reject	engine	alterUserStatement(K_SUPERUSER|K_NOSUPERUSER)?/K_NOSUPERUSER!swap	ALTER USER a NOT
 accept	accept	engine	dropUserStatement/K_DROP_K_USER_(K_IF_K_EXISTS)?_username	DROP USER a
+accept	accept	engine	dropUserStatement/K_DROP_K_USER_(K_IF_K_EXISTS)?_username+username/STRING_LITERAL	DROP USER 'a'
 accept	accept	engine	dropUserStatement(K_IF_K_EXISTS)?/%empty	DROP USER a
 reject	reject	engine	dropUserStatement(K_IF_K_EXISTS)?/%empty!insert	DROP USER zzz a
 accept	accept	engine	dropUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS	DROP USER IF EXISTS a
@@ -1978,6 +2187,8 @@ reject	reject	engine	dropUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!truncate	DR
 reject	reject	engine	dropUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!insert	DROP USER IF EXISTS zzz a
 reject	reject	engine	dropUserStatement(K_IF_K_EXISTS)?/K_IF_K_EXISTS!swap	DROP USER IN EXISTS a
 accept	accept	engine	addIdentityStatement/K_ADD_K_IDENTITY_(K_IF_K_NOT_K_EXISTS)?_identity_K_TO_K~a5636e42	ADD IDENTITY a TO ROLE a
+accept	accept	engine	addIdentityStatement/K_ADD_K_IDENTITY_(K_IF_K_NOT_K_EXISTS)?_identity_K_TO_K~a5636e42+identity/STRING_LITERAL	ADD IDENTITY 'a' TO ROLE a
+accept	accept	engine	addIdentityStatement/K_ADD_K_IDENTITY_(K_IF_K_NOT_K_EXISTS)?_identity_K_TO_K~a5636e42+identity/STRING_LITERAL#2	ADD IDENTITY a TO ROLE 'a'
 accept	accept	engine	addIdentityStatement(K_IF_K_NOT_K_EXISTS)?/%empty	ADD IDENTITY a TO ROLE a
 reject	reject	engine	addIdentityStatement(K_IF_K_NOT_K_EXISTS)?/%empty!insert	ADD IDENTITY zzz a TO ROLE a
 accept	accept	engine	addIdentityStatement(K_IF_K_NOT_K_EXISTS)?/K_IF_K_NOT_K_EXISTS	ADD IDENTITY IF NOT EXISTS a TO ROLE a
@@ -2048,6 +2259,10 @@ reject	reject	engine	listRolesStatement(K_OF_roleName)?/K_OF_roleName!drop-1	LIS
 reject	reject	engine	listRolesStatement(K_OF_roleName)?/K_OF_roleName!drop-2	LIST ROLES OF
 reject	reject	engine	listRolesStatement(K_OF_roleName)?/K_OF_roleName!insert	LIST ROLES OF a zzz
 reject	reject	engine	listRolesStatement(K_OF_roleName)?/K_OF_roleName!swap	LIST ROLES ON a
+accept	accept	engine	listRolesStatement(K_OF_roleName)?/K_OF_roleName+roleName/STRING_LITERAL	LIST ROLES OF 'a'
+accept	accept	engine	listRolesStatement(K_OF_roleName)?/K_OF_roleName+roleName/QUOTED_NAME	LIST ROLES OF "a"
+accept	accept	engine	listRolesStatement(K_OF_roleName)?/K_OF_roleName+roleName/unreserved_keyword	LIST ROLES OF KEYS
+accept	accept	engine	listRolesStatement(K_OF_roleName)?/K_OF_roleName+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	LIST ROLES OF TTL
 accept	accept	engine	listRolesStatement(K_NORECURSIVE)?/%empty	LIST ROLES
 accept	accept	engine	listRolesStatement(K_NORECURSIVE)?/K_NORECURSIVE	LIST ROLES NORECURSIVE
 reject	reject	engine	listRolesStatement(K_NORECURSIVE)?/K_NORECURSIVE!insert	LIST ROLES NORECURSIVE zzz
@@ -2223,6 +2438,7 @@ accept	accept	engine	describeStatement(IDENT|QUOTED_NAME|unreserved_keyword)/QUO
 reject	reject	engine	describeStatement(IDENT|QUOTED_NAME|unreserved_keyword)/QUOTED_NAME!insert	DESCRIBE "a" zzz
 accept	accept	engine	describeStatement(IDENT|QUOTED_NAME|unreserved_keyword)/unreserved_keyword	DESCRIBE KEYS
 reject	reject	engine	describeStatement(IDENT|QUOTED_NAME|unreserved_keyword)/unreserved_keyword!insert	DESCRIBE KEYS zzz
+accept	accept	engine	describeStatement(IDENT|QUOTED_NAME|unreserved_keyword)/unreserved_keyword+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	DESCRIBE TTL
 accept	accept	engine	describeStatement(K_WITH_K_INTERNALS)?/%empty	DESCRIBE CLUSTER
 accept	accept	engine	describeStatement(K_WITH_K_INTERNALS)?/K_WITH_K_INTERNALS	DESCRIBE CLUSTER WITH INTERNALS
 reject	reject	engine	describeStatement(K_WITH_K_INTERNALS)?/K_WITH_K_INTERNALS!drop-1	DESCRIBE CLUSTER INTERNALS
@@ -2232,6 +2448,9 @@ reject	reject	engine	describeStatement(K_WITH_K_INTERNALS)?/K_WITH_K_INTERNALS!s
 accept	accept	engine	cident/EMPTY_QUOTED_NAME	SELECT a FROM a ORDER BY ""
 reject	reject	engine	cident/EMPTY_QUOTED_NAME!insert	SELECT a FROM a ORDER BY "" zzz
 accept	accept	engine	cident/ident	SELECT a FROM a ORDER BY a
+accept	accept	engine	cident/ident+ident/QUOTED_NAME	SELECT a FROM a ORDER BY "a"
+accept	accept	engine	cident/ident+ident/unreserved_keyword	SELECT a FROM a ORDER BY KEYS
+accept	accept	engine	cident/ident+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	SELECT a FROM a ORDER BY TTL
 accept	accept	engine	ident/IDENT	ALTER TABLE a DROP a
 accept	accept	engine	ident/QUOTED_NAME	ALTER TABLE a DROP "a"
 reject	reject	engine	ident/QUOTED_NAME!insert	ALTER TABLE a DROP "a" zzz
@@ -2252,24 +2471,36 @@ reject	reject	engine	noncol_ident/unreserved_keyword!insert	SELECT : KEYS zzz FR
 reject	reject	engine	noncol_ident/unreserved_keyword!swap	SELECT : KEYSPACE FROM a
 accept	accept	engine	keyspaceName/ksName	USE a
 accept	accept	engine	indexName/(ksName_.)?_idxName	DROP INDEX a
+accept	accept	engine	indexName/(ksName_.)?_idxName+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	DROP INDEX TTL
 accept	accept	engine	indexName(ksName_.)?/%empty	DROP INDEX a
 accept	accept	engine	indexName(ksName_.)?/ksName_.	DROP INDEX a.a
 reject	reject	engine	indexName(ksName_.)?/ksName_.!drop-1	DROP INDEX.a
 reject	reject	engine	indexName(ksName_.)?/ksName_.!drop-2	DROP INDEX a a
 reject	reject	engine	indexName(ksName_.)?/ksName_.!insert	DROP INDEX a.zzz a
+accept	accept	engine	indexName(ksName_.)?/ksName_.+ksName/QUOTED_NAME	DROP INDEX "a".a
+accept	accept	engine	indexName(ksName_.)?/ksName_.+ksName/unreserved_keyword	DROP INDEX KEYS.a
+accept	accept	engine	indexName(ksName_.)?/ksName_.+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	DROP INDEX TTL.a
 accept	accept	engine	columnFamilyName/(ksName_.)?_cfName	TRUNCATE a
+accept	accept	engine	columnFamilyName/(ksName_.)?_cfName+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	TRUNCATE TTL
 accept	accept	engine	columnFamilyName(ksName_.)?/%empty	TRUNCATE a
 accept	accept	engine	columnFamilyName(ksName_.)?/ksName_.	TRUNCATE a.a
 reject	reject	engine	columnFamilyName(ksName_.)?/ksName_.!drop-1	TRUNCATE.a
 reject	reject	engine	columnFamilyName(ksName_.)?/ksName_.!drop-2	TRUNCATE a a
 reject	reject	engine	columnFamilyName(ksName_.)?/ksName_.!insert	TRUNCATE a.zzz a
+accept	accept	engine	columnFamilyName(ksName_.)?/ksName_.+ksName/QUOTED_NAME	TRUNCATE "a".a
+accept	accept	engine	columnFamilyName(ksName_.)?/ksName_.+ksName/unreserved_keyword	TRUNCATE KEYS.a
+accept	accept	engine	columnFamilyName(ksName_.)?/ksName_.+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	TRUNCATE TTL.a
 accept	accept	engine	userTypeName/(noncol_ident_.)?_non_type_ident	DROP TYPE a
 accept	accept	engine	userTypeName(noncol_ident_.)?/%empty	DROP TYPE a
 accept	accept	engine	userTypeName(noncol_ident_.)?/noncol_ident_.	DROP TYPE a.a
 reject	reject	engine	userTypeName(noncol_ident_.)?/noncol_ident_.!drop-1	DROP TYPE.a
 reject	reject	engine	userTypeName(noncol_ident_.)?/noncol_ident_.!drop-2	DROP TYPE a a
 reject	reject	engine	userTypeName(noncol_ident_.)?/noncol_ident_.!insert	DROP TYPE a.zzz a
+accept	accept	engine	userTypeName(noncol_ident_.)?/noncol_ident_.+noncol_ident/QUOTED_NAME	DROP TYPE "a".a
+accept	accept	engine	userTypeName(noncol_ident_.)?/noncol_ident_.+noncol_ident/unreserved_keyword	DROP TYPE KEYS.a
+accept	accept	engine	userTypeName(noncol_ident_.)?/noncol_ident_.+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	DROP TYPE TTL.a
 accept	accept	engine	userOrRoleName/roleName	CREATE ROLE a
+accept	accept	engine	userOrRoleName/roleName+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE ROLE TTL
 accept	accept	engine	ksName/IDENT	USE a
 accept	accept	engine	ksName/QUOTED_NAME	USE "a"
 reject	reject	engine	ksName/QUOTED_NAME!insert	USE "a" zzz
@@ -2398,6 +2629,9 @@ reject	reject	engine	usertypeLiteral/{_fident_COLON_term_(,_fident_COLON_term)*_
 reject	reject	engine	usertypeLiteral/{_fident_COLON_term_(,_fident_COLON_term)*_}!drop-5	SELECT a [ { a : 'a' ] FROM a
 reject	reject	engine	usertypeLiteral/{_fident_COLON_term_(,_fident_COLON_term)*_}!truncate	SELECT a [ { a : 'a'
 reject	reject	engine	usertypeLiteral/{_fident_COLON_term_(,_fident_COLON_term)*_}!insert	SELECT a [ { a : 'a' } zzz ] FROM a
+accept	accept	engine	usertypeLiteral/{_fident_COLON_term_(,_fident_COLON_term)*_}+fident/QUOTED_NAME	SELECT a [ { "a" : 'a' } ] FROM a
+accept	accept	engine	usertypeLiteral/{_fident_COLON_term_(,_fident_COLON_term)*_}+fident/unreserved_keyword	SELECT a [ { KEYS : 'a' } ] FROM a
+accept	accept	engine	usertypeLiteral/{_fident_COLON_term_(,_fident_COLON_term)*_}+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	SELECT a [ { TTL : 'a' } ] FROM a
 accept	accept	engine	usertypeLiteral(,_fident_COLON_term)*/%empty	SELECT a [ { a : 'a' } ] FROM a
 reject	reject	engine	usertypeLiteral(,_fident_COLON_term)*/%empty!insert	SELECT a [ { a : 'a' zzz } ] FROM a
 accept	accept	engine	usertypeLiteral(,_fident_COLON_term)*/,_fident_COLON_term_(,_fident_COLON_term)*	SELECT a [ { a : 'a', a : 'a' } ] FROM a
@@ -2407,6 +2641,9 @@ reject	reject	engine	usertypeLiteral(,_fident_COLON_term)*/,_fident_COLON_term_(
 reject	reject	engine	usertypeLiteral(,_fident_COLON_term)*/,_fident_COLON_term_(,_fident_COLON_term)*!drop-4	SELECT a [ { a : 'a', a : } ] FROM a
 reject	reject	engine	usertypeLiteral(,_fident_COLON_term)*/,_fident_COLON_term_(,_fident_COLON_term)*!truncate	SELECT a [ { a : 'a', a :
 reject	reject	engine	usertypeLiteral(,_fident_COLON_term)*/,_fident_COLON_term_(,_fident_COLON_term)*!insert	SELECT a [ { a : 'a', a : 'a' zzz } ] FROM a
+accept	accept	engine	usertypeLiteral(,_fident_COLON_term)*/,_fident_COLON_term_(,_fident_COLON_term)*+fident/QUOTED_NAME	SELECT a [ { a : 'a', "a" : 'a' } ] FROM a
+accept	accept	engine	usertypeLiteral(,_fident_COLON_term)*/,_fident_COLON_term_(,_fident_COLON_term)*+fident/unreserved_keyword	SELECT a [ { a : 'a', KEYS : 'a' } ] FROM a
+accept	accept	engine	usertypeLiteral(,_fident_COLON_term)*/,_fident_COLON_term_(,_fident_COLON_term)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	SELECT a [ { a : 'a', TTL : 'a' } ] FROM a
 accept	accept	engine	tupleLiteral/(_term_(,_term)*_)	SELECT a [('a') ] FROM a
 reject	reject	engine	tupleLiteral/(_term_(,_term)*_)!drop-1	SELECT a [ 'a') ] FROM a
 reject	reject	engine	tupleLiteral/(_term_(,_term)*_)!drop-2	SELECT a [() ] FROM a
@@ -2439,12 +2676,14 @@ reject	reject	engine	value/COLON_noncol_ident!drop-1	SELECT a [ a ] FROM a
 reject	reject	engine	value/COLON_noncol_ident!drop-2	SELECT a [ : ] FROM a
 reject	reject	engine	value/COLON_noncol_ident!truncate	SELECT a [ :
 reject	reject	engine	value/COLON_noncol_ident!insert	SELECT a [ : a zzz ] FROM a
+accept	accept	engine	value/COLON_noncol_ident+noncol_ident/QUOTED_NAME	SELECT a [ : "a" ] FROM a
+accept	accept	engine	value/COLON_noncol_ident+noncol_ident/unreserved_keyword	SELECT a [ : KEYS ] FROM a
+accept	accept	engine	value/COLON_noncol_ident+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	SELECT a [ : TTL ] FROM a
 accept	accept	engine	value/QMARK	SELECT a [ ? ] FROM a
 reject	reject	engine	value/QMARK!insert	SELECT a [ ? zzz ] FROM a
 accept	accept	engine	intValue/INTEGER	SELECT a FROM a LIMIT 1
 accept	accept	engine	intValue/COLON_noncol_ident	SELECT a FROM a LIMIT : a
 reject	reject	engine	intValue/COLON_noncol_ident!drop-1	SELECT a FROM a LIMIT a
-reject	reject	engine	intValue/COLON_noncol_ident!drop-2	SELECT a FROM a LIMIT :
 reject	reject	engine	intValue/COLON_noncol_ident!insert	SELECT a FROM a LIMIT : a zzz
 accept	accept	engine	intValue/QMARK	SELECT a FROM a LIMIT ?
 reject	reject	engine	intValue/QMARK!insert	SELECT a FROM a LIMIT ? zzz
@@ -2579,6 +2818,9 @@ reject	reject	engine	columnOperationDifferentiator/._fident_udtColumnOperation!d
 reject	reject	engine	columnOperationDifferentiator/._fident_udtColumnOperation!drop-4	UPDATE a SET a.a = WHERE a = 'a'
 reject	reject	engine	columnOperationDifferentiator/._fident_udtColumnOperation!truncate	UPDATE a SET a.a =
 reject	reject	engine	columnOperationDifferentiator/._fident_udtColumnOperation!insert	UPDATE a SET a.a = 'a' zzz WHERE a = 'a'
+accept	accept	engine	columnOperationDifferentiator/._fident_udtColumnOperation+fident/QUOTED_NAME	UPDATE a SET a."a" = 'a' WHERE a = 'a'
+accept	accept	engine	columnOperationDifferentiator/._fident_udtColumnOperation+fident/unreserved_keyword	UPDATE a SET a.KEYS = 'a' WHERE a = 'a'
+accept	accept	engine	columnOperationDifferentiator/._fident_udtColumnOperation+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	UPDATE a SET a.TTL = 'a' WHERE a = 'a'
 accept	accept	engine	normalColumnOperation/term_(+_cident)?	UPDATE a SET a = 'a' WHERE a = 'a'
 accept	accept	engine	normalColumnOperation/cident_(+|-)_term	UPDATE a SET a = a + 'a' WHERE a = 'a'
 reject	reject	engine	normalColumnOperation/cident_(+|-)_term!drop-1	UPDATE a SET a = + 'a' WHERE a = 'a'
@@ -2638,6 +2880,9 @@ reject	reject	engine	columnCondition(relationType_term|containsOperator_t~c5ff73
 reject	reject	engine	columnCondition(relationType_term|containsOperator_t~c5ff737a)/._fident_(relationType_term|K_IN_(singleColumn~c69ba947)!drop-3	DELETE FROM a WHERE a = 'a' IF a.a 'a'
 reject	reject	engine	columnCondition(relationType_term|containsOperator_t~c5ff737a)/._fident_(relationType_term|K_IN_(singleColumn~c69ba947)!drop-4	DELETE FROM a WHERE a = 'a' IF a.a =
 reject	reject	engine	columnCondition(relationType_term|containsOperator_t~c5ff737a)/._fident_(relationType_term|K_IN_(singleColumn~c69ba947)!insert	DELETE FROM a WHERE a = 'a' IF a.a = 'a' zzz
+accept	accept	engine	columnCondition(relationType_term|containsOperator_t~c5ff737a)/._fident_(relationType_term|K_IN_(singleColumn~c69ba947)+fident/QUOTED_NAME	DELETE FROM a WHERE a = 'a' IF a."a" = 'a'
+accept	accept	engine	columnCondition(relationType_term|containsOperator_t~c5ff737a)/._fident_(relationType_term|K_IN_(singleColumn~c69ba947)+fident/unreserved_keyword	DELETE FROM a WHERE a = 'a' IF a.KEYS = 'a'
+accept	accept	engine	columnCondition(relationType_term|containsOperator_t~c5ff737a)/._fident_(relationType_term|K_IN_(singleColumn~c69ba947)+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	DELETE FROM a WHERE a = 'a' IF a.TTL = 'a'
 accept	accept	engine	columnCondition(singleColumnInValues|inMarker)/singleColumnInValues	DELETE FROM a WHERE a = 'a' IF a IN()
 reject	reject	engine	columnCondition(singleColumnInValues|inMarker)/singleColumnInValues!drop-1	DELETE FROM a WHERE a = 'a' IF a IN)
 reject	reject	engine	columnCondition(singleColumnInValues|inMarker)/singleColumnInValues!drop-2	DELETE FROM a WHERE a = 'a' IF a IN(
@@ -2646,6 +2891,12 @@ accept	accept	engine	columnCondition(singleColumnInValues|inMarker)/inMarker	DEL
 accept	accept	engine	columnCondition(singleColumnInValues|inMarker)/inMarker+inMarker/COLON_noncol_ident	DELETE FROM a WHERE a = 'a' IF a IN : a
 reject	reject	engine	columnCondition(singleColumnInValues|inMarker)/inMarker+inMarker/COLON_noncol_ident!drop-1	DELETE FROM a WHERE a = 'a' IF a IN a
 reject	reject	engine	columnCondition(singleColumnInValues|inMarker)/inMarker+inMarker/COLON_noncol_ident!drop-2	DELETE FROM a WHERE a = 'a' IF a IN :
+accept	accept	engine	columnCondition(singleColumnInValues|inMarker)/inMarker+noncol_ident/QUOTED_NAME	DELETE FROM a WHERE a = 'a' IF a IN : "a"
+reject	reject	engine	columnCondition(singleColumnInValues|inMarker)/inMarker+noncol_ident/QUOTED_NAME!drop-1	DELETE FROM a WHERE a = 'a' IF a IN "a"
+accept	accept	engine	columnCondition(singleColumnInValues|inMarker)/inMarker+noncol_ident/unreserved_keyword	DELETE FROM a WHERE a = 'a' IF a IN : KEYS
+reject	reject	engine	columnCondition(singleColumnInValues|inMarker)/inMarker+noncol_ident/unreserved_keyword!drop-1	DELETE FROM a WHERE a = 'a' IF a IN KEYS
+accept	accept	engine	columnCondition(singleColumnInValues|inMarker)/inMarker+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	DELETE FROM a WHERE a = 'a' IF a IN : TTL
+reject	reject	engine	columnCondition(singleColumnInValues|inMarker)/inMarker+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-1	DELETE FROM a WHERE a = 'a' IF a IN TTL
 accept	accept	engine	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/relationType_term	DELETE FROM a WHERE a = 'a' IF a.a = 'a'
 accept	accept	engine	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/relationType_term+relationType/<	DELETE FROM a WHERE a = 'a' IF a.a < 'a'
 accept	accept	engine	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/relationType_term+relationType/<=	DELETE FROM a WHERE a = 'a' IF a.a <= 'a'
@@ -2658,6 +2909,28 @@ reject	reject	engine	columnCondition(relationType_term|K_IN_(singleColumn~c69ba9
 reject	reject	engine	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/K_IN_(singleColumnInValues|inMarker)!insert	DELETE FROM a WHERE a = 'a' IF a.a IN ? zzz
 reject	reject	engine	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/K_IN_(singleColumnInValues|inMarker)!swap	DELETE FROM a WHERE a = 'a' IF a.a INDEX ?
 accept	accept	engine	properties/property_(K_AND_property)*	CREATE KEYSPACE a WITH a = 'a'
+accept	accept	engine	properties/property_(K_AND_property)*+noncol_ident/QUOTED_NAME	CREATE KEYSPACE a WITH "a" = 'a'
+reject	reject	engine	properties/property_(K_AND_property)*+noncol_ident/QUOTED_NAME!drop-2	CREATE KEYSPACE a WITH "a" 'a'
+reject	reject	engine	properties/property_(K_AND_property)*+noncol_ident/QUOTED_NAME!drop-3	CREATE KEYSPACE a WITH "a" =
+accept	accept	engine	properties/property_(K_AND_property)*+noncol_ident/unreserved_keyword	CREATE KEYSPACE a WITH KEYS = 'a'
+reject	reject	engine	properties/property_(K_AND_property)*+noncol_ident/unreserved_keyword!drop-2	CREATE KEYSPACE a WITH KEYS 'a'
+reject	reject	engine	properties/property_(K_AND_property)*+noncol_ident/unreserved_keyword!drop-3	CREATE KEYSPACE a WITH KEYS =
+accept	accept	engine	properties/property_(K_AND_property)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE KEYSPACE a WITH TTL = 'a'
+reject	reject	engine	properties/property_(K_AND_property)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-2	CREATE KEYSPACE a WITH TTL 'a'
+reject	reject	engine	properties/property_(K_AND_property)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-3	CREATE KEYSPACE a WITH TTL =
+accept	accept	engine	properties/property_(K_AND_property)*+noncol_ident/QUOTED_NAME#2	CREATE KEYSPACE a WITH "a" = { }
+reject	reject	engine	properties/property_(K_AND_property)*+noncol_ident/QUOTED_NAME#2!drop-1	CREATE KEYSPACE a WITH = { }
+reject	reject	engine	properties/property_(K_AND_property)*+noncol_ident/QUOTED_NAME#2!drop-2	CREATE KEYSPACE a WITH "a" { }
+reject	reject	engine	properties/property_(K_AND_property)*+noncol_ident/QUOTED_NAME#2!drop-3	CREATE KEYSPACE a WITH "a" = }
+reject	reject	engine	properties/property_(K_AND_property)*+noncol_ident/QUOTED_NAME#2!drop-4	CREATE KEYSPACE a WITH "a" = {
+accept	accept	engine	properties/property_(K_AND_property)*+noncol_ident/unreserved_keyword#2	CREATE KEYSPACE a WITH KEYS = { }
+reject	reject	engine	properties/property_(K_AND_property)*+noncol_ident/unreserved_keyword#2!drop-2	CREATE KEYSPACE a WITH KEYS { }
+reject	reject	engine	properties/property_(K_AND_property)*+noncol_ident/unreserved_keyword#2!drop-3	CREATE KEYSPACE a WITH KEYS = }
+reject	reject	engine	properties/property_(K_AND_property)*+noncol_ident/unreserved_keyword#2!drop-4	CREATE KEYSPACE a WITH KEYS = {
+accept	accept	engine	properties/property_(K_AND_property)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2	CREATE KEYSPACE a WITH TTL = { }
+reject	reject	engine	properties/property_(K_AND_property)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2!drop-2	CREATE KEYSPACE a WITH TTL { }
+reject	reject	engine	properties/property_(K_AND_property)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2!drop-3	CREATE KEYSPACE a WITH TTL = }
+reject	reject	engine	properties/property_(K_AND_property)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2!drop-4	CREATE KEYSPACE a WITH TTL = {
 accept	accept	engine	properties(K_AND_property)*/%empty	CREATE KEYSPACE a WITH a = 'a'
 reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*	CREATE KEYSPACE a WITH a = 'a' AND a = 'a'
 reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*!drop-1	CREATE KEYSPACE a WITH a = 'a' a = 'a'
@@ -2666,9 +2939,34 @@ reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)
 reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*!drop-4	CREATE KEYSPACE a WITH a = 'a' AND a =
 reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*!insert	CREATE KEYSPACE a WITH a = 'a' AND a = 'a' zzz
 reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*!swap	CREATE KEYSPACE a WITH a = 'a' ANN a = 'a'
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+noncol_ident/QUOTED_NAME	CREATE KEYSPACE a WITH a = 'a' AND "a" = 'a'
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+noncol_ident/QUOTED_NAME!drop-3	CREATE KEYSPACE a WITH a = 'a' AND "a" 'a'
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+noncol_ident/QUOTED_NAME!drop-4	CREATE KEYSPACE a WITH a = 'a' AND "a" =
+accept	accept	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+noncol_ident/unreserved_keyword	CREATE KEYSPACE a WITH a = 'a' AND KEYS = 'a'
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+noncol_ident/unreserved_keyword!drop-3	CREATE KEYSPACE a WITH a = 'a' AND KEYS 'a'
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+noncol_ident/unreserved_keyword!drop-4	CREATE KEYSPACE a WITH a = 'a' AND KEYS =
+accept	accept	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE KEYSPACE a WITH a = 'a' AND TTL = 'a'
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-3	CREATE KEYSPACE a WITH a = 'a' AND TTL 'a'
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-4	CREATE KEYSPACE a WITH a = 'a' AND TTL =
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+property/noncol_ident_=_fullMapLiteral	CREATE KEYSPACE a WITH a = 'a' AND a = { }
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+property/noncol_ident_=_fullMapLiteral!drop-2	CREATE KEYSPACE a WITH a = 'a' AND = { }
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+property/noncol_ident_=_fullMapLiteral!drop-3	CREATE KEYSPACE a WITH a = 'a' AND a { }
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+property/noncol_ident_=_fullMapLiteral!drop-4	CREATE KEYSPACE a WITH a = 'a' AND a = }
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+property/noncol_ident_=_fullMapLiteral!drop-5	CREATE KEYSPACE a WITH a = 'a' AND a = {
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+noncol_ident/QUOTED_NAME#2	CREATE KEYSPACE a WITH a = 'a' AND "a" = { }
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+noncol_ident/QUOTED_NAME#2!drop-3	CREATE KEYSPACE a WITH a = 'a' AND "a" { }
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+noncol_ident/QUOTED_NAME#2!drop-4	CREATE KEYSPACE a WITH a = 'a' AND "a" = }
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+noncol_ident/QUOTED_NAME#2!drop-5	CREATE KEYSPACE a WITH a = 'a' AND "a" = {
+accept	accept	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+noncol_ident/unreserved_keyword#2	CREATE KEYSPACE a WITH a = 'a' AND KEYS = { }
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+noncol_ident/unreserved_keyword#2!drop-3	CREATE KEYSPACE a WITH a = 'a' AND KEYS { }
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+noncol_ident/unreserved_keyword#2!drop-4	CREATE KEYSPACE a WITH a = 'a' AND KEYS = }
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+noncol_ident/unreserved_keyword#2!drop-5	CREATE KEYSPACE a WITH a = 'a' AND KEYS = {
+accept	accept	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2	CREATE KEYSPACE a WITH a = 'a' AND TTL = { }
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2!drop-3	CREATE KEYSPACE a WITH a = 'a' AND TTL { }
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2!drop-4	CREATE KEYSPACE a WITH a = 'a' AND TTL = }
+reject	reject	engine	properties(K_AND_property)*/K_AND_property_(K_AND_property)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)#2!drop-5	CREATE KEYSPACE a WITH a = 'a' AND TTL = {
 accept	accept	engine	property/noncol_ident_=_propertyValue	CREATE KEYSPACE a WITH a = 'a'
 accept	accept	engine	property/noncol_ident_=_fullMapLiteral	CREATE KEYSPACE a WITH a = { }
-reject	reject	engine	property/noncol_ident_=_fullMapLiteral!drop-1	CREATE KEYSPACE a WITH = { }
 reject	reject	engine	property/noncol_ident_=_fullMapLiteral!drop-2	CREATE KEYSPACE a WITH a { }
 accept	accept	engine	propertyValue/constant	CREATE KEYSPACE a WITH a = 'a'
 accept	accept	engine	propertyValue/constant+constant/INTEGER	CREATE KEYSPACE a WITH a = 1
@@ -2681,6 +2979,7 @@ accept	accept	engine	propertyValue/constant+constant/((K_POSITIVE_NAN|K_NEGATIVE
 accept	accept	engine	propertyValue/unreserved_keyword	CREATE KEYSPACE a WITH a = KEYS
 reject	reject	engine	propertyValue/unreserved_keyword!insert	CREATE KEYSPACE a WITH a = KEYS zzz
 reject	reject	engine	propertyValue/unreserved_keyword!swap	CREATE KEYSPACE a WITH a = KEYSPACE
+accept	accept	engine	propertyValue/unreserved_keyword+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	CREATE KEYSPACE a WITH a = TTL
 accept	accept	engine	relationType/=	DELETE FROM a WHERE a = 'a'
 reject	reject	engine	relationType/=!truncate	DELETE FROM a WHERE a
 reject	reject	engine	relationType/=!insert	DELETE FROM a WHERE a = zzz 'a'
@@ -2727,6 +3026,13 @@ reject	reject	engine	relation/cident_K_IN_inMarker!drop-2	DELETE FROM a WHERE a 
 reject	reject	engine	relation/cident_K_IN_inMarker!drop-3	DELETE FROM a WHERE a IN
 reject	reject	engine	relation/cident_K_IN_inMarker!insert	DELETE FROM a WHERE a IN ? zzz
 reject	reject	engine	relation/cident_K_IN_inMarker!swap	DELETE FROM a WHERE a INDEX ?
+accept	accept	engine	relation/cident_K_IN_inMarker+noncol_ident/QUOTED_NAME	DELETE FROM a WHERE a IN : "a"
+reject	reject	engine	relation/cident_K_IN_inMarker+noncol_ident/QUOTED_NAME!drop-3	DELETE FROM a WHERE a IN "a"
+reject	reject	engine	relation/cident_K_IN_inMarker+noncol_ident/QUOTED_NAME!drop-4	DELETE FROM a WHERE a IN :
+accept	accept	engine	relation/cident_K_IN_inMarker+noncol_ident/unreserved_keyword	DELETE FROM a WHERE a IN : KEYS
+reject	reject	engine	relation/cident_K_IN_inMarker+noncol_ident/unreserved_keyword!drop-3	DELETE FROM a WHERE a IN KEYS
+accept	accept	engine	relation/cident_K_IN_inMarker+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	DELETE FROM a WHERE a IN : TTL
+reject	reject	engine	relation/cident_K_IN_inMarker+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-3	DELETE FROM a WHERE a IN TTL
 accept	accept	engine	relation/cident_K_IN_singleColumnInValues	DELETE FROM a WHERE a IN()
 reject	reject	engine	relation/cident_K_IN_singleColumnInValues!drop-1	DELETE FROM a WHERE IN()
 reject	reject	engine	relation/cident_K_IN_singleColumnInValues!drop-2	DELETE FROM a WHERE a()
@@ -2787,6 +3093,13 @@ accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/rel
 accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple+relationType/>	DELETE FROM a WHERE(a) > ?
 accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple+relationType/>=	DELETE FROM a WHERE(a) >= ?
 accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple+relationType/!=	DELETE FROM a WHERE(a) != ?
+accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple+noncol_ident/QUOTED_NAME	DELETE FROM a WHERE(a) = : "a"
+reject	reject	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple+noncol_ident/QUOTED_NAME!drop-2	DELETE FROM a WHERE(a) = "a"
+reject	reject	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple+noncol_ident/QUOTED_NAME!drop-3	DELETE FROM a WHERE(a) = :
+accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple+noncol_ident/unreserved_keyword	DELETE FROM a WHERE(a) = : KEYS
+reject	reject	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple+noncol_ident/unreserved_keyword!drop-2	DELETE FROM a WHERE(a) = KEYS
+accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	DELETE FROM a WHERE(a) = : TTL
+reject	reject	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-2	DELETE FROM a WHERE(a) = TTL
 accept	accept	engine	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/(_)	DELETE FROM a WHERE(a) IN()
 reject	reject	engine	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/(_)!drop-1	DELETE FROM a WHERE(a) IN)
 reject	reject	engine	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/(_)!drop-2	DELETE FROM a WHERE(a) IN(
@@ -2810,7 +3123,6 @@ reject	reject	engine	containsOperator(K_KEY)?/K_KEY!swap	DELETE FROM a WHERE a C
 accept	accept	engine	inMarker/QMARK	DELETE FROM a WHERE a IN ?
 accept	accept	engine	inMarker/COLON_noncol_ident	DELETE FROM a WHERE a IN : a
 reject	reject	engine	inMarker/COLON_noncol_ident!drop-1	DELETE FROM a WHERE a IN a
-reject	reject	engine	inMarker/COLON_noncol_ident!drop-2	DELETE FROM a WHERE a IN :
 reject	reject	engine	inMarker/COLON_noncol_ident!insert	DELETE FROM a WHERE a IN : a zzz
 accept	accept	engine	tupleOfIdentifiers/(_cident_(,_cident)*_)	DELETE FROM a WHERE(a) IN ?
 reject	reject	engine	tupleOfIdentifiers/(_cident_(,_cident)*_)!truncate	DELETE FROM a WHERE(a
@@ -2846,9 +3158,17 @@ reject	reject	engine	tupleOfTupleLiterals(,_tupleLiteral)*/,_tupleLiteral_(,_tup
 accept	accept	engine	markerForTuple/QMARK	DELETE FROM a WHERE(a) = ?
 accept	accept	engine	markerForTuple/COLON_noncol_ident	DELETE FROM a WHERE(a) = : a
 reject	reject	engine	markerForTuple/COLON_noncol_ident!drop-1	DELETE FROM a WHERE(a) = a
-reject	reject	engine	markerForTuple/COLON_noncol_ident!drop-2	DELETE FROM a WHERE(a) = :
 reject	reject	engine	markerForTuple/COLON_noncol_ident!insert	DELETE FROM a WHERE(a) = : a zzz
 accept	accept	engine	tupleOfMarkersForTuples/(_markerForTuple_(,_markerForTuple)*_)	DELETE FROM a WHERE(a) IN(?)
+accept	accept	engine	tupleOfMarkersForTuples/(_markerForTuple_(,_markerForTuple)*_)+markerForTuple/COLON_noncol_ident	DELETE FROM a WHERE(a) IN(: a)
+reject	reject	engine	tupleOfMarkersForTuples/(_markerForTuple_(,_markerForTuple)*_)+markerForTuple/COLON_noncol_ident!drop-2	DELETE FROM a WHERE(a) IN(a)
+reject	reject	engine	tupleOfMarkersForTuples/(_markerForTuple_(,_markerForTuple)*_)+markerForTuple/COLON_noncol_ident!drop-3	DELETE FROM a WHERE(a) IN(:)
+accept	accept	engine	tupleOfMarkersForTuples/(_markerForTuple_(,_markerForTuple)*_)+noncol_ident/QUOTED_NAME	DELETE FROM a WHERE(a) IN(: "a")
+reject	reject	engine	tupleOfMarkersForTuples/(_markerForTuple_(,_markerForTuple)*_)+noncol_ident/QUOTED_NAME!drop-2	DELETE FROM a WHERE(a) IN("a")
+accept	accept	engine	tupleOfMarkersForTuples/(_markerForTuple_(,_markerForTuple)*_)+noncol_ident/unreserved_keyword	DELETE FROM a WHERE(a) IN(: KEYS)
+reject	reject	engine	tupleOfMarkersForTuples/(_markerForTuple_(,_markerForTuple)*_)+noncol_ident/unreserved_keyword!drop-2	DELETE FROM a WHERE(a) IN(KEYS)
+accept	accept	engine	tupleOfMarkersForTuples/(_markerForTuple_(,_markerForTuple)*_)+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	DELETE FROM a WHERE(a) IN(: TTL)
+reject	reject	engine	tupleOfMarkersForTuples/(_markerForTuple_(,_markerForTuple)*_)+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-2	DELETE FROM a WHERE(a) IN(TTL)
 accept	accept	engine	tupleOfMarkersForTuples(,_markerForTuple)*/%empty	DELETE FROM a WHERE(a) IN(?)
 reject	reject	engine	tupleOfMarkersForTuples(,_markerForTuple)*/%empty!insert	DELETE FROM a WHERE(a) IN(? zzz)
 accept	accept	engine	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*	DELETE FROM a WHERE(a) IN(?, ?)
@@ -2856,11 +3176,23 @@ reject	reject	engine	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple
 reject	reject	engine	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*!drop-2	DELETE FROM a WHERE(a) IN(?,)
 reject	reject	engine	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*!truncate	DELETE FROM a WHERE(a) IN(?,
 reject	reject	engine	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*!insert	DELETE FROM a WHERE(a) IN(?, ? zzz)
+accept	accept	engine	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*+markerForTuple/COLON_noncol_ident	DELETE FROM a WHERE(a) IN(?, : a)
+reject	reject	engine	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*+markerForTuple/COLON_noncol_ident!drop-2	DELETE FROM a WHERE(a) IN(?, a)
+reject	reject	engine	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*+markerForTuple/COLON_noncol_ident!drop-3	DELETE FROM a WHERE(a) IN(?, :)
+accept	accept	engine	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*+noncol_ident/QUOTED_NAME	DELETE FROM a WHERE(a) IN(?, : "a")
+reject	reject	engine	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*+noncol_ident/QUOTED_NAME!drop-2	DELETE FROM a WHERE(a) IN(?, "a")
+accept	accept	engine	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*+noncol_ident/unreserved_keyword	DELETE FROM a WHERE(a) IN(?, : KEYS)
+reject	reject	engine	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*+noncol_ident/unreserved_keyword!drop-2	DELETE FROM a WHERE(a) IN(?, KEYS)
+accept	accept	engine	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	DELETE FROM a WHERE(a) IN(?, : TTL)
+reject	reject	engine	tupleOfMarkersForTuples(,_markerForTuple)*/,_markerForTuple_(,_markerForTuple)*+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)!drop-2	DELETE FROM a WHERE(a) IN(?, TTL)
 accept	accept	engine	inMarkerForTuple/QMARK	DELETE FROM a WHERE(a) IN ?
 accept	accept	engine	inMarkerForTuple/COLON_noncol_ident	DELETE FROM a WHERE(a) IN : a
 reject	reject	engine	inMarkerForTuple/COLON_noncol_ident!drop-1	DELETE FROM a WHERE(a) IN a
 reject	reject	engine	inMarkerForTuple/COLON_noncol_ident!drop-2	DELETE FROM a WHERE(a) IN :
 reject	reject	engine	inMarkerForTuple/COLON_noncol_ident!insert	DELETE FROM a WHERE(a) IN : a zzz
+accept	accept	engine	inMarkerForTuple/COLON_noncol_ident+noncol_ident/QUOTED_NAME	DELETE FROM a WHERE(a) IN : "a"
+accept	accept	engine	inMarkerForTuple/COLON_noncol_ident+noncol_ident/unreserved_keyword	DELETE FROM a WHERE(a) IN : KEYS
+accept	accept	engine	inMarkerForTuple/COLON_noncol_ident+unreserved_keyword/(K_TTL|K_COUNT|K_WRITETIME|K_MAXWRITE~f6ba5fc2)	DELETE FROM a WHERE(a) IN : TTL
 accept	accept	engine	comparatorType/native_type	ALTER TABLE a ADD a ASCII
 accept	accept	engine	comparatorType/native_type+native_type/K_BIGINT	ALTER TABLE a ADD a BIGINT
 accept	accept	engine	comparatorType/native_type+native_type/K_BLOB	ALTER TABLE a ADD a BLOB
