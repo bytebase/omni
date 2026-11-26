@@ -399,6 +399,7 @@ func (p *Parser) parseTypeCollate(dt *nodes.DataType) error {
 		return err
 	}
 	dt.Collate = name
+	dt.Loc.End = p.prev.End
 	return nil
 }
 
