@@ -78,16 +78,16 @@ func isWalkSimStatement(stmt string) bool {
 
 var walkSimShowMissed = flag.Bool("walk-sim-missed", false, "log top missed refusal categories in TestWalkSimulation")
 
-const walkSimMinTotalRecallPct = 93.5
+const walkSimMinTotalRecallPct = 94.0
 
 var walkSimMinFixtureRecallPct = map[string]float64{
 	"one_table@missing":     93.0,
-	"one_table@table":       93.5,
-	"one_table@column":      93.0,
-	"objects@partitioned":   92.0,
+	"one_table@table":       94.5,
+	"one_table@column":      94.0,
+	"objects@partitioned":   92.5,
 	"objects@index_trigger": 91.5,
 	"objects@view":          96.0,
-	"objects@matview":       88.5,
+	"objects@matview":       90.5,
 	"objects@sequence":      97.0,
 	"objects@synonym":       95.5,
 	"objects@function":      97.5,
@@ -438,7 +438,7 @@ func TestWalkSimulation(t *testing.T) {
 const walkSimQueriesSuite = "../catalog/testdata/queries/simulate.tsv"
 
 // walkSimQueriesMinRecallPct is the queries subtest's recall floor.
-const walkSimQueriesMinRecallPct = 80.0
+const walkSimQueriesMinRecallPct = 87.5
 
 // walkSimProgramsSuite is oracle/catalog's stored-program suite: procedures,
 // functions, packages, triggers and types with bodies, and changes to the
