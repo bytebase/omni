@@ -508,14 +508,14 @@ func (b *builder) generatedChangeFails(r tableRef, v *ast.AlterTableStmt) bool {
 			return "", walk.Key{}, false
 		}
 		ck := colKey(r.db, r.name, k)
-		g, known := b.w.colGen[ck]
+		facts, known := b.w.colFacts[ck]
 		if !known {
 			return "", ck, false
 		}
 		if f, _ := b.l.Lookup(ck); f != walk.Present {
 			return "", ck, false
 		}
-		return g, ck, true
+		return facts.gen, ck, true
 	}
 	for _, c := range v.Commands {
 		if c == nil {
@@ -563,9 +563,9 @@ func (b *builder) generatedChangeFails(r tableRef, v *ast.AlterTableStmt) bool {
 func (b *builder) forgetGenerated(r tableRef) {
 	parent := tablePath(r.db, r.name)
 	b.Session(func() {
-		for ck := range b.w.colGen {
+		for ck := range b.w.colFacts {
 			if ck.Parent == parent {
-				delete(b.w.colGen, ck)
+				delete(b.w.colFacts, ck)
 			}
 		}
 	})

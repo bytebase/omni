@@ -428,6 +428,20 @@ var walkCodes = []struct {
 		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " is referenced by foreign key ")
 	}, []string{"1829"}},
 	{func(m, _ string) bool { return strings.HasSuffix(m, ", types that don't match.") }, []string{"3780"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, ", character sets that don't match.") }, []string{"3780"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Referenced table ") && strings.HasSuffix(m, " for the foreign key.")
+	}, []string{"1822", "6125"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.HasSuffix(m, " sets it `NULL`.")
+	}, []string{"1830"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Stored generated column ") && strings.HasSuffix(m, " can't take a foreign key that sets or cascades it.")
+	}, []string{"3104"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " of a `SPATIAL` index must be `NOT NULL`.") }, []string{"1252"}},
+	{func(m, _ string) bool {
+		return strings.HasSuffix(m, " can't change its SRID while a `SPATIAL` index holds it.")
+	}, []string{"3644"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "Referenced column ") }, []string{"3734"}},
 	{func(m, stmt string) bool {
 		return strings.Contains(m, " is referenced by foreign key ") && leads(stmt, "TRUNCATE")

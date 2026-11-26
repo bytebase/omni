@@ -46,6 +46,7 @@ func walkThrough(ctx context.Context, sql string, stmts []statement, t review.Ta
 		w.fkGeneratedIndexes = make(map[walk.Key]map[string]bool)
 		w.engines = make(map[walk.Key]string)
 		w.colTypes = make(map[walk.Key]string)
+		w.colFacts = make(map[walk.Key]colFact)
 		w.partitionState = make(map[walk.Key]*tablePartitionInfo)
 		w.tableIndexes = make(map[walk.Key]map[string]*indexMeta)
 		w.tableIndexesComplete = make(map[walk.Key]bool)
@@ -249,9 +250,9 @@ type walker struct {
 	engines map[walk.Key]string
 	// colTypes records known base data types keyed by colKey(db, tbl, col).
 	colTypes map[walk.Key]string
-	// colGen records, keyed by colKey, whether each column of a synced table
-	// is generated, until a statement changes the table.
-	colGen map[walk.Key]string
+	// colFacts records, keyed by colKey, what the sync states of each
+	// column of a synced table, until a statement changes the table.
+	colFacts map[walk.Key]colFact
 	// fkRefs records the foreign keys the sync lists, keyed by the child's
 	// relKey and the foreign key's key.
 	fkRefs map[walk.Key]map[string]fkRef
@@ -288,7 +289,7 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 		colTypes:             make(map[walk.Key]string),
 		checkCols:            make(map[walk.Key]map[string][]string),
 		fkRefs:               make(map[walk.Key]map[string]fkRef),
-		colGen:               make(map[walk.Key]string),
+		colFacts:             make(map[walk.Key]colFact),
 		partitionState:       make(map[walk.Key]*tablePartitionInfo),
 		tableIndexes:         make(map[walk.Key]map[string]*indexMeta),
 		tableIndexesComplete: make(map[walk.Key]bool),
@@ -309,15 +310,15 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 			w.colTypes[colKey(snap.db, tbl, col)] = bt
 		}
 	}
-	for tbl, cols := range snap.colGen {
-		for col, g := range cols {
-			w.colGen[colKey(snap.db, tbl, col)] = g
+	for tbl, cols := range snap.colFacts {
+		for col, f := range cols {
+			w.colFacts[colKey(snap.db, tbl, col)] = f
 		}
 	}
 	for tbl, fks := range snap.fkRefs {
 		m := make(map[string]fkRef, len(fks))
 		for name, fr := range fks {
-			m[name] = fkRef{parent: relKey(snap.db, fr.parent), cols: fr.cols, refCols: fr.refCols, refTable: fr.refTable}
+			m[name] = fkRef{parent: relKey(snap.db, fr.parent), cols: fr.cols, refCols: fr.refCols, refTable: fr.refTable, setsNull: fr.setsNull}
 		}
 		w.fkRefs[relKey(snap.db, tbl)] = m
 	}
@@ -804,9 +805,9 @@ func (b *builder) clearTableFKGenerated(db, name string) {
 		delete(b.w.tableFKs, rel)
 		delete(b.w.checkCols, rel)
 		delete(b.w.fkRefs, rel)
-		for ck := range b.w.colGen {
+		for ck := range b.w.colFacts {
 			if ck.Parent == parent {
-				delete(b.w.colGen, ck)
+				delete(b.w.colFacts, ck)
 			}
 		}
 		for ck := range b.w.colTypes {

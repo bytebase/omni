@@ -19,11 +19,9 @@ patternRestrictor	TRAIL	PartiQLParser.g4:399 an identifier; PartiQLParserDefault
 # at the one its own row reaches. Each is an inline (...)? group, which the
 # reader lowers to a rule named after the group. PartiQLParser.g4 has no IF
 # [NOT] EXISTS, OR REPLACE, TEMPORARY or CASCADE.
-exprPredicate(NOT)?	(every site)	PartiQLParser.g4:565 IS NOT, NOT IN, NOT LIKE, NOT BETWEEN
 exprBagOp(OUTER)?	(every site)	PartiQLParser.g4:528 OUTER EXCEPT, UNION, INTERSECT
 exprBagOp(DISTINCT|ALL)?	(every site)	PartiQLParser.g4:528 EXCEPT, UNION, INTERSECT DISTINCT or ALL
 joinType(OUTER)?	(every site)	PartiQLParser.g4:499 LEFT, RIGHT, FULL OUTER
-tableReference(joinType)?	(every site)	PartiQLParser.g4:468 a join type before CROSS JOIN or JOIN
 selectClause(setQuantifierStrategy)?	(every site)	PartiQLParser.g4:258 SELECT DISTINCT or ALL
 literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?	(every site)	PartiQLParser.g4:785 TIME or TIMESTAMP (precision)
 literal(WITH_TIME_ZONE)?	(every site)	PartiQLParser.g4:785 TIME or TIMESTAMP WITH TIME ZONE
@@ -47,3 +45,26 @@ type	(every alternative)	PartiQLParser.g4:789 each kind of type, in a column, IS
 literal	(every alternative)	PartiQLParser.g4:775 each kind of literal, as an expression and a path step
 dmlBaseCommand	(every alternative)	PartiQLParser.g4:128 each DML command, alone, after UPDATE and after FROM
 matchSelector	(every alternative)	PartiQLParser.g4:390 ANY or ALL SHORTEST, ANY k or SHORTEST k GROUP, before a MATCH pattern
+symbolPrimitive	(every alternative)	PartiQLParser.g4:42 a name, at every site that takes one
+symbolPrimitive(IDENTIFIER|IDENTIFIER_QUOTED)	(every alternative)	PartiQLParser.g4:43 symbolPrimitive's choice, a bare or a double-quoted name
+type(CHARACTER|CHAR|FLOAT|VARCHAR)	(every alternative)	PartiQLParser.g4:796 each type that takes one (length)
+type(DECIMAL|DEC|NUMERIC)	(every alternative)	PartiQLParser.g4:798 each type that takes (precision, scale)
+type(TIME|TIMESTAMP)	(every alternative)	PartiQLParser.g4:799 TIME or TIMESTAMP, with (precision) and WITH TIME ZONE
+pathStep	(every alternative)	PartiQLParser.g4:726 [expr], [*], .name or .*, after a primary and a variable
+excludeExprSteps	(every alternative)	PartiQLParser.g4:349 .name, ['s'], [1], [*] or .*, first and after it in EXCLUDE
+labelFactor	(every alternative)	PartiQLParser.g4:443 a label, negated with ! or not
+labelPrimary	(every alternative)	PartiQLParser.g4:448 a label name, % or (label), alone and after !
+graphPart	(every alternative)	PartiQLParser.g4:384 a node, an edge or a pattern, at each place a MATCH pattern takes one
+patternQuantifier	(every alternative)	PartiQLParser.g4:415 +, * or {m,n}, after an edge and a pattern
+patternQuantifier(PLUS|ASTERISK)	(every alternative)	PartiQLParser.g4:416 patternQuantifier's choice, + or *
+returningColumn	(every alternative)	PartiQLParser.g4:238 * or a column, first and after a comma in RETURNING
+returningColumn(MODIFIED|ALL)	(every alternative)	PartiQLParser.g4:239 MODIFIED or ALL
+returningColumn(OLD|NEW)	(every alternative)	PartiQLParser.g4:239 OLD or NEW
+orderSortSpec	(every alternative)	PartiQLParser.g4:294 a sort key, in ORDER BY and in a window, first and after a comma
+orderSortSpec(ASC|DESC)?	(every alternative)	PartiQLParser.g4:295 ASC, DESC or neither
+orderSortSpec(NULLS_(FIRST|LAST))?	(every alternative)	PartiQLParser.g4:295 NULLS FIRST, NULLS LAST or neither
+orderSortSpec(FIRST|LAST)	(every alternative)	PartiQLParser.g4:295 FIRST or LAST after NULLS
+joinRhs	(every alternative)	PartiQLParser.g4:489 a table or a (join), after JOIN, CROSS JOIN and a comma
+tableNonJoin	(every alternative)	PartiQLParser.g4:475 a table or an UNPIVOT, in FROM and after a join
+statement(COLON_SEMI)?	(every site)	PartiQLParser.g4:17 a closing semicolon after a query, DML, DDL and EXEC
+exprPrimary	(every alternative)	PartiQLParser.g4:695 each primary expression, alone and before a path step
