@@ -48,6 +48,9 @@ func TestExecRefusals(t *testing.T) {
 		{"CREATE TABLE p (id INT8 PRIMARY KEY); CREATE TABLE c (a INT8, b INT8, FOREIGN KEY (a, b) REFERENCES p)", "42601"},
 		{"CREATE TABLE t (a INT8, b INT8 AS (missing * 2) STORED)", "42703"},
 		{"CREATE TABLE t (a INT8); CREATE VIEW v AS SELECT a FROM t WHERE missing > 0", "42703"},
+		{"CREATE TABLE p (id INT8 PRIMARY KEY); CREATE TABLE c (id INT8 REFERENCES p (id)); ALTER TABLE c ALTER COLUMN id TYPE STRING", "0A000"},
+		{"CREATE TABLE p (id INT8 PRIMARY KEY); CREATE TABLE c (id INT8 REFERENCES p (id)); ALTER TABLE p ALTER COLUMN id TYPE STRING", "0A000"},
+		{"CREATE FUNCTION missing.f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$", "3F000"},
 	} {
 		_, err := execLast(t, tc.script)
 		require.Equal(t, tc.code, code(err), "%s: %v", tc.script, err)
@@ -118,4 +121,15 @@ func TestExecRetypesDefaultsAndDropsOwnedSequences(t *testing.T) {
 	c, err = execLast(t, "CREATE TABLE t (a INT8); CREATE SEQUENCE sq OWNED BY t.a; ALTER TABLE t ALTER COLUMN a SET DEFAULT nextval('sq'); DROP TABLE t")
 	require.NoError(t, err)
 	require.Empty(t, c.Metadata().Schemas[0].Sequences)
+}
+
+func TestExecFollowsLabelAndSchemaRenames(t *testing.T) {
+	c, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad'); CREATE TABLE t (m mood DEFAULT 'sad'::mood); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.NoError(t, err)
+	require.Equal(t, "'blue'::mood", c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
+	c, err = execLast(t, "CREATE SCHEMA s; CREATE SEQUENCE s.sq; CREATE TABLE t (a INT8 DEFAULT nextval('s.sq')); ALTER SCHEMA s RENAME TO s2")
+	require.NoError(t, err)
+	require.Equal(t, "nextval('s2.sq')", c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
+	_, err = execLast(t, "CREATE SCHEMA s; CREATE TABLE t (a INT8); CREATE SEQUENCE sq OWNED BY t.a; ALTER TABLE t SET SCHEMA s")
+	require.Error(t, err)
 }

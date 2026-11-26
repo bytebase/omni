@@ -147,6 +147,10 @@ func (c *Catalog) exec(stmt tree.Statement) error {
 			// The catalog resolves every name in public.
 			return &Error{Message: "SET search_path is not supported"}
 		}
+	case *tree.CreateRoutine:
+		if n.Name.ExplicitSchema && c.l.schemas[string(n.Name.SchemaName)] == nil {
+			return refuse(codeUndefinedSchema, "cannot create %q because the target database or schema does not exist", n.Name.String())
+		}
 	case *tree.CommentOnSchema:
 		if c.l.schemas[string(n.Name.SchemaName)] == nil {
 			return refuse(codeUndefinedSchema, "unknown schema %q", n.Name.SchemaName)
@@ -350,7 +354,15 @@ func (c *Catalog) alterSchema(n *tree.AlterSchema) error {
 			}
 		}
 	})
-	// CockroachDB holds a column's type by ID, so the column follows it.
+	// CockroachDB holds a default's sequence and a column's type by ID, so
+	// they follow the schema.
+	c.eachTable(func(_ *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
+		for _, column := range table.Columns {
+			for _, sequence := range s.Sequences {
+				column.Default = renameSequenceIn(column.Default, from+"."+sequence.Name, to+"."+sequence.Name)
+			}
+		}
+	})
 	for _, e := range s.EnumTypes {
 		c.retype(from, e.Name, to, e.Name)
 	}
@@ -1021,6 +1033,15 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 			return refuse(codeDuplicateObject, "enum value %q already exists", cmd.NewVal)
 		}
 		enum.Values[at] = string(cmd.NewVal)
+		// A default holds the label by its value, which follows the rename.
+		typ := typeName(s.Name, name)
+		c.eachTable(func(_ *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
+			for _, column := range table.Columns {
+				if column.Type == typ && column.Default != "" {
+					column.Default = relabelIn(column.Default, string(cmd.OldVal), string(cmd.NewVal))
+				}
+			}
+		})
 	case *tree.AlterTypeDropValue:
 		if enum == nil {
 			return refuse(codeWrongObjectType, "%q is not an enum", name)
@@ -1125,6 +1146,24 @@ func retypeIn(text, old, now string) string {
 		return true, e, nil
 	})
 	if err != nil || !changed {
+		return text
+	}
+	return tree.AsString(out)
+}
+
+// relabelIn returns a default with an enum label renamed.
+func relabelIn(text, from, to string) string {
+	expr, err := parser.ParseExpr(text)
+	if err != nil {
+		return text
+	}
+	out, err := tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
+		if str, ok := e.(*tree.StrVal); ok && str.RawString() == from {
+			return false, tree.NewStrVal(to), nil
+		}
+		return true, e, nil
+	})
+	if err != nil {
 		return text
 	}
 	return tree.AsString(out)
@@ -1495,6 +1534,11 @@ func (c *Catalog) setRelationSchema(n *tree.AlterTableSetSchema) error {
 	if deps := c.dependents(s.Name, name, ""); len(deps) > 0 {
 		return refuse(codeDependentObjects, "cannot set schema on relation %q because view %q depends on it", name, deps[0].name)
 	}
+	if got == relTable && slices.ContainsFunc(s.Sequences, func(x *metadatapb.SequenceMetadata) bool { return x.OwnerTable == name }) {
+		// CockroachDB leaves the sequence where it is, owned across
+		// schemas, which the metadata cannot state.
+		return &Error{Message: fmt.Sprintf("moving table %q, which owns a sequence, to another schema is not supported", name)}
+	}
 	c.moveRelation(s, name, got, target, name)
 	return nil
 }
@@ -1770,6 +1814,11 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 			return refuse(codeDependentObjects, "cannot alter type of column %q because view %q depends on it", col.Name, deps[0].name)
 		}
 		typ, collation := sdlType(cmd.ToType)
+		inForeignKey := len(c.referencing(schema, table.Name, col.Name)) > 0 ||
+			slices.ContainsFunc(table.ForeignKeys, func(fk *metadatapb.ForeignKeyMetadata) bool { return slices.Contains(fk.Columns, col.Name) })
+		if inForeignKey && family(typ) != family(col.Type) {
+			return refuse(codeFeatureNotSupport, "unimplemented: ALTER COLUMN TYPE requiring a rewrite of on-disk data is not supported for columns that have constraints")
+		}
 		col.Type, col.Collation = typ, collation
 		if cmd.Collation != "" {
 			col.Collation = cmd.Collation
