@@ -39,6 +39,7 @@
 | UNION ALL SELECT 'constraint', owner, table_name, log_group_name, owner FROM dba_log_groups WHERE owner IN ('SIMSHOP', 'SIMOTHER')
 | UNION ALL SELECT 'index', owner, table_name, index_name, table_owner FROM dba_indexes WHERE owner IN ('SIMSHOP', 'SIMOTHER')
 | UNION ALL SELECT 'trigger', owner, table_name, trigger_name, table_owner FROM dba_triggers WHERE owner IN ('SIMSHOP', 'SIMOTHER')
+| UNION ALL SELECT 'package body', owner, NULL, object_name, NULL FROM dba_objects WHERE owner IN ('SIMSHOP', 'SIMOTHER') AND object_type = 'PACKAGE BODY'
 | ) WHERE (n IS NULL OR NOT (n LIKE 'SYS\_%' ESCAPE '\' OR n LIKE 'ISEQ$$\_%' ESCAPE '\' OR n LIKE 'BIN$%' OR n LIKE 'ORA$%'))
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
@@ -2528,6 +2529,15 @@
 | VIEW
 < row
 : string
+| package body
+: string
+| SIMSHOP
+: null
+: string
+| PK
+: null
+< row
+: string
 | primary key
 : string
 | SIMSHOP
@@ -2862,7 +2872,7 @@
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -20740,7 +20750,7 @@
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -41148,7 +41158,7 @@
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -60787,7 +60797,7 @@
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -80879,7 +80889,7 @@
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -101326,7 +101336,7 @@
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -119512,7 +119522,7 @@
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -140637,7 +140647,7 @@
 : string
 | A
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -158644,7 +158654,7 @@
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -177169,7 +177179,7 @@
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -195102,7 +195112,7 @@
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -213149,7 +213159,7 @@
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -215184,7 +215194,7 @@
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -219400,7 +219410,7 @@
 : string
 | ORDER_SEQ
 > query
-| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE', 'PACKAGE BODY') ORDER BY 1, 2
 < result
 < column "NAME" "NCHAR" "string"
 < column "TYPE" "NCHAR" "string"
@@ -219414,6 +219424,11 @@
 | PK
 : string
 | PACKAGE
+< row
+: string
+| PK
+: string
+| PACKAGE BODY
 < row
 : string
 | P_CALLS

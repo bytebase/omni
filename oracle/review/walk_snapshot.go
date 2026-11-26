@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/oracle/catalog"
 	"github.com/bytebase/omni/review/walk"
 )
 
@@ -20,7 +21,9 @@ import (
 // primary key, and a constraint as DROP CONSTRAINT finds it on its table
 // are keys of the table's path; a constraint name, an index, and a trigger
 // are keys of the schema, each in a namespace of its own, of the kind of
-// the table path they are on. The
+// the table path they are on. A package body is a key of the schema in a
+// namespace of its own, Present where the sync gives the package's
+// definition its body. The
 // synonym space holds the synonyms a name resolves through, private ones
 // in their schema and public ones in PUBLIC; only DML reads it (spec §3).
 const (
@@ -36,6 +39,7 @@ const (
 	spaceConstraint      = "constraint"
 	spaceIndex           = "index"
 	spaceTrigger         = "trigger"
+	spacePackageBody     = "package body"
 )
 
 // routineKinds are the kinds the routine space holds.
@@ -112,6 +116,9 @@ type oracleSnapshot struct {
 	indexTypes        map[string]string
 	constraintIndexes map[string]bool
 	triggers          map[string]string
+	// packageBodies holds the packages whose synced definition holds a
+	// body.
+	packageBodies map[string]bool
 	// otherIndexes maps an index the schema owns on another schema's
 	// table, or on a cluster, to the path of what it is on.
 	// indexesListed is set when the sync lists every index the schema
@@ -222,6 +229,7 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 		indexTypes:           make(map[string]string),
 		constraintIndexes:    make(map[string]bool),
 		triggers:             make(map[string]string),
+		packageBodies:        make(map[string]bool),
 		otherIndexes:         make(map[string]string),
 		domainTables:         make(map[string]bool),
 		domainIndexes:        make(map[string]bool),
@@ -312,6 +320,9 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 		}
 		for _, p := range schema.GetPackages() {
 			s.objects[p.GetName()] = kindPackage
+			if catalog.PackageHasBody(p.GetDefinition()) {
+				s.packageBodies[p.GetName()] = true
+			}
 		}
 		for _, syn := range schema.GetSynonyms() {
 			s.objects[syn.GetName()] = kindSynonym
@@ -630,6 +641,10 @@ func (s *oracleSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 	case spaceTrigger:
 		if table, ok := s.triggers[k.Name]; ok {
 			return walk.Present, tablePath(s.schema, table)
+		}
+	case spacePackageBody:
+		if s.packageBodies[k.Name] {
+			return walk.Present, ""
 		}
 	}
 	return walk.Unknown, ""

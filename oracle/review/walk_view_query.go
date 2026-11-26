@@ -19,7 +19,8 @@ import (
 // object the sync does not list can cause or cure: a missing name (00942,
 // and 00904 unless namesNoRoutine), a user-defined aggregate or a
 // function's type (viewGroupCodes unless the query calls no user
-// function), a collection (22905), and periods, flashback and database
+// function), a collection (22905, unless every TABLE operator reads a
+// number), and periods, flashback and database
 // links.
 var viewQueryCodes = map[string]bool{
 	"00913": true, // too many values
@@ -138,11 +139,30 @@ func (b *builder) viewQueryFails(v *ast.CreateViewStmt, r objRef) bool {
 	}
 	err := viewCatalogRefusal(&metadata.DatabaseSchemaMetadata{Name: w.meta.GetName(), Schemas: []*metadata.SchemaMetadata{schema}}, v, w.sql)
 	var refusal *catalog.Error
-	if !errors.As(err, &refusal) || !viewQueryCodes[refusal.Code] && !(viewGroupCodes[refusal.Code] && b.callsNoUserFunction(v.Query)) && !(refusal.Code == "00904" && b.namesNoRoutine(refusal.Message)) {
+	if !errors.As(err, &refusal) || !viewQueryCodes[refusal.Code] && !(viewGroupCodes[refusal.Code] && b.callsNoUserFunction(v.Query)) && !(refusal.Code == "00904" && b.namesNoRoutine(refusal.Message)) && !(refusal.Code == "22905" && tableOfNumbers(v.Query)) {
 		return false
 	}
-	b.fail(r.rng, review.UnsupportedForm, "Oracle refuses the view's query: ORA-"+refusal.Code+": "+refusal.Message+".")
+	b.fail(r.rng, review.UnsupportedForm, "Oracle refuses the view's query: ORA-"+refusal.Code+": "+strings.TrimSuffix(refusal.Message, ".")+".")
 	return true
+}
+
+// tableOfNumbers reports whether q holds a TABLE operator and every one
+// it holds reads a number, which no collection type can be (22905,
+// verified).
+func tableOfNumbers(q ast.Node) bool {
+	found, ok := false, true
+	ast.Inspect(q, func(n ast.Node) bool {
+		if t, is := n.(*ast.TableCollectionExpr); is {
+			x := t.CollectionExpr
+			if x == nil {
+				x = t.Expr
+			}
+			_, num := x.(*ast.NumberLiteral)
+			found, ok = true, ok && num
+		}
+		return ok
+	})
+	return found && ok
 }
 
 // namesNoRoutine reports whether a 00904 message names, with no
