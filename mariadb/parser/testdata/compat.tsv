@@ -14555,4 +14555,4 @@ accept	accept	engine	suite:mysql-every-alt-ports	SELECT GROUP_CONCAT(a SEPARATOR
 reject	reject	engine	suite:mysql-every-alt-ports	SELECT GROUP_CONCAT(a SEPARATOR ('x')) FROM t;
 reject	reject	engine	suite:mysql-every-alt-ports	SELECT GROUP_CONCAT(a SEPARATOR 1) FROM t;
 accept	accept	engine	suite:mysql-every-alt-ports	SELECT GROUP_CONCAT(a SEPARATOR '') FROM t;
-reject	accept	engine	suite:mysql-every-alt-ports	SELECT GROUP_CONCAT(a SEPARATOR ',' LIMIT 1) FROM t;
+accept	accept	engine	suite:mysql-every-alt-ports	SELECT GROUP_CONCAT(a SEPARATOR ',' LIMIT 1) FROM t;
