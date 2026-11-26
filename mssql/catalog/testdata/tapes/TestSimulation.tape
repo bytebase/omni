@@ -5405,6 +5405,222 @@
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
 > exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a] IS NOT NULL);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CONSTRAINT [c] CHECK ([a]>=(1) AND [a]<=(2) AND [a] like (1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+|
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+|
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+|
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+|
+< error
+| 208 101 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
@@ -10338,6 +10554,223 @@
 | 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
 | 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
 | 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a] IS NOT NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CONSTRAINT [c] CHECK ([a]>=(1) AND [a]<=(2) AND [a] like (1));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+|
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+|
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+|
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+|
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+|
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+|
+< error
+| 207 1 16 1 Invalid column name 'a'.
+| 207 1 16 1 Invalid column name 'a'.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -15446,6 +15879,318 @@
 < ok 0 -
 > exec
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a] IS NOT NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CONSTRAINT [c] CHECK ([a]>=(1) AND [a]<=(2) AND [a] like (1));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CHECK ([a]>(0));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [c] CHECK ([a]<>(0));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+| CREATE NONCLUSTERED INDEX [i] ON [dbo].[a] ([a] ASC) WHERE ([a]=(1));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+| CREATE NONCLUSTERED INDEX [i] ON [dbo].[a] ([a] ASC) WHERE ([a] IS NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+| CREATE NONCLUSTERED INDEX [i] ON [dbo].[a] ([a] ASC) WHERE ([a]=(1));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+| CREATE NONCLUSTERED INDEX [i] ON [dbo].[a] ([a] ASC) WHERE ([a]<>(1) AND [a]>(0));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
@@ -20523,6 +21268,318 @@
 | 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
 | 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
 | 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a] IS NOT NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CONSTRAINT [c] CHECK ([a]>=(1) AND [a]<=(2) AND [a] like (1));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CHECK ([a]>(0));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [c] CHECK ([a]<>(0));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+| CREATE NONCLUSTERED INDEX [i] ON [dbo].[a] ([a] ASC) WHERE ([a]=(1));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+| CREATE NONCLUSTERED INDEX [i] ON [dbo].[a] ([a] ASC) WHERE ([a] IS NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+| CREATE NONCLUSTERED INDEX [i] ON [dbo].[a] ([a] ASC) WHERE ([a]=(1));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+| CREATE NONCLUSTERED INDEX [i] ON [dbo].[a] ([a] ASC) WHERE ([a]<>(1) AND [a]>(0));
+|
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -25761,6 +26818,270 @@
 |
 < error
 | 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| VIEW
+: string
+| dbo.a
+: string
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| VIEW
+: string
+| dbo.a
+: string
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a] IS NOT NULL);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| VIEW
+: string
+| dbo.a
+: string
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| VIEW
+: string
+| dbo.a
+: string
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CONSTRAINT [c] CHECK ([a]>=(1) AND [a]<=(2) AND [a] like (1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+|
+< error
+| 10610 1 16 1 Filtered index 'i' cannot be created on object 'a' because it is not a user table. Filtered indexes are only supported on tables. If you are trying to create a filtered index on a view, consider creating an indexed view with the filter expression incorporated in the view definition.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+|
+< error
+| 10610 1 16 1 Filtered index 'i' cannot be created on object 'a' because it is not a user table. Filtered indexes are only supported on tables. If you are trying to create a filtered index on a view, consider creating an indexed view with the filter expression incorporated in the view definition.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+|
+< error
+| 10610 1 16 1 Filtered index 'i' cannot be created on object 'a' because it is not a user table. Filtered indexes are only supported on tables. If you are trying to create a filtered index on a view, consider creating an indexed view with the filter expression incorporated in the view definition.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+|
+< error
+| 10610 1 16 1 Filtered index 'i' cannot be created on object 'a' because it is not a user table. Filtered indexes are only supported on tables. If you are trying to create a filtered index on a view, consider creating an indexed view with the filter expression incorporated in the view definition.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -31949,6 +33270,528 @@
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
 > exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.ch
+: string
+| CREATE TABLE [dbo].[ch] ([b] int NOT NULL, [a_b] int NULL);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.p
+: string
+| CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a] IS NOT NULL);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.ch
+: string
+| CREATE TABLE [dbo].[ch] ([b] int NOT NULL, [a_b] int NULL);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.p
+: string
+| CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.ch
+: string
+| CREATE TABLE [dbo].[ch] ([b] int NOT NULL, [a_b] int NULL);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.p
+: string
+| CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CONSTRAINT [c] CHECK ([a]>=(1) AND [a]<=(2) AND [a] like (1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.ch
+: string
+| CREATE TABLE [dbo].[ch] ([b] int NOT NULL, [a_b] int NULL);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.p
+: string
+| CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
+| ALTER TABLE [dbo].[a] ADD CHECK ([a]>(0));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.ch
+: string
+| CREATE TABLE [dbo].[ch] ([b] int NOT NULL, [a_b] int NULL);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.p
+: string
+| CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [c] CHECK ([a]<>(0));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.ch
+: string
+| CREATE TABLE [dbo].[ch] ([b] int NOT NULL, [a_b] int NULL);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.p
+: string
+| CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
+| CREATE NONCLUSTERED INDEX [i] ON [dbo].[a] ([a] ASC) WHERE ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.ch
+: string
+| CREATE TABLE [dbo].[ch] ([b] int NOT NULL, [a_b] int NULL);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.p
+: string
+| CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
+| CREATE NONCLUSTERED INDEX [i] ON [dbo].[a] ([a] ASC) WHERE ([a] IS NULL);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.ch
+: string
+| CREATE TABLE [dbo].[ch] ([b] int NOT NULL, [a_b] int NULL);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.p
+: string
+| CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
+| CREATE NONCLUSTERED INDEX [i] ON [dbo].[a] ([a] ASC) WHERE ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.ch
+: string
+| CREATE TABLE [dbo].[ch] ([b] int NOT NULL, [a_b] int NULL);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.p
+: string
+| CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
+| CREATE NONCLUSTERED INDEX [i] ON [dbo].[a] ([a] ASC) WHERE ([a]<>(1) AND [a]>(0));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.ch
+: string
+| CREATE TABLE [dbo].[ch] ([b] int NOT NULL, [a_b] int NULL);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.p
+: string
+| CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
 | CREATE SCHEMA [a];
 < ok 0 -
 > exec
@@ -37868,6 +39711,271 @@
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
 > exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SCHEMA
+: string
+| a
+: string
+| CREATE SCHEMA [a];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SCHEMA
+: string
+| a
+: string
+| CREATE SCHEMA [a];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a] IS NOT NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SCHEMA
+: string
+| a
+: string
+| CREATE SCHEMA [a];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SCHEMA
+: string
+| a
+: string
+| CREATE SCHEMA [a];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CONSTRAINT [c] CHECK ([a]>=(1) AND [a]<=(2) AND [a] like (1));
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+|
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+|
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+|
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+|
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+|
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+|
+< error
+| 207 1 16 1 Invalid column name 'a'.
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
 | CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
@@ -42635,6 +44743,250 @@
 < ok 0 -
 > exec
 | CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SEQUENCE
+: string
+| dbo.a
+: string
+| CREATE SEQUENCE [dbo].[a] AS bigint START WITH 1 INCREMENT BY 1 MINVALUE -9223372036854775808 MAXVALUE 9223372036854775807 NO CYCLE;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SEQUENCE
+: string
+| dbo.a
+: string
+| CREATE SEQUENCE [dbo].[a] AS bigint START WITH 1 INCREMENT BY 1 MINVALUE -9223372036854775808 MAXVALUE 9223372036854775807 NO CYCLE;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a] IS NOT NULL);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SEQUENCE
+: string
+| dbo.a
+: string
+| CREATE SEQUENCE [dbo].[a] AS bigint START WITH 1 INCREMENT BY 1 MINVALUE -9223372036854775808 MAXVALUE 9223372036854775807 NO CYCLE;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SEQUENCE
+: string
+| dbo.a
+: string
+| CREATE SEQUENCE [dbo].[a] AS bigint START WITH 1 INCREMENT BY 1 MINVALUE -9223372036854775808 MAXVALUE 9223372036854775807 NO CYCLE;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CONSTRAINT [c] CHECK ([a]>=(1) AND [a]<=(2) AND [a] like (1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
@@ -47132,6 +49484,250 @@
 |
 < error
 | 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SYNONYM
+: string
+| dbo.a
+: string
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SYNONYM
+: string
+| dbo.a
+: string
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a] IS NOT NULL);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SYNONYM
+: string
+| dbo.a
+: string
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SYNONYM
+: string
+| dbo.a
+: string
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CONSTRAINT [c] CHECK ([a]>=(1) AND [a]<=(2) AND [a] like (1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -52461,6 +55057,270 @@
 | CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| PROCEDURE
+: string
+| dbo.a
+: string
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| PROCEDURE
+: string
+| dbo.a
+: string
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a] IS NOT NULL);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| PROCEDURE
+: string
+| dbo.a
+: string
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| PROCEDURE
+: string
+| dbo.a
+: string
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CONSTRAINT [c] CHECK ([a]>=(1) AND [a]<=(2) AND [a] like (1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
@@ -57677,6 +60537,270 @@
 | CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| FUNCTION
+: string
+| dbo.a
+: string
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| FUNCTION
+: string
+| dbo.a
+: string
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a] IS NOT NULL);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| FUNCTION
+: string
+| dbo.a
+: string
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| FUNCTION
+: string
+| dbo.a
+: string
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CONSTRAINT [c] CHECK ([a]>=(1) AND [a]<=(2) AND [a] like (1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
@@ -62850,3 +65974,243 @@
 |
 < error
 | 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_x' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a = 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| GO
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a] IS NOT NULL);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| GO
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CHECK (a IN (1)))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CHECK ([a]=(1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| GO
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.b
+: string
+| CREATE TABLE [dbo].[b] ([a] int NULL);
+| ALTER TABLE [dbo].[b] ADD CONSTRAINT [c] CHECK ([a]>=(1) AND [a]<=(2) AND [a] like (1));
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| GO
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK (a > 0)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a = 1
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IS NULL
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a IN (1)
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+|
+< error
+| 208 103 16 1 Invalid object name 'a'.

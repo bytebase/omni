@@ -36,10 +36,28 @@ func exprLocStart(expr nodes.ExprNode, fallback int) int {
 // construct that opens value slots clears the depth for them, as
 // parseSelectStmtAfterWith does for a subquery's SELECT.
 func (p *Parser) parseScalarExpr() (nodes.ExprNode, error) {
+	return p.scalar(p.parseExpr)
+}
+
+// scalar runs parse with the search condition cleared: an operand of a
+// predicate or of an operator is a value, so WHERE a = (1 = 1),
+// WHERE a + (a = 1) = 2 and WHERE a IN (1 = 1) are refused (measured).
+func (p *Parser) scalar(parse func() (nodes.ExprNode, error)) (nodes.ExprNode, error) {
+	if p.searchCondDepth == 0 {
+		return parse()
+	}
 	saved := p.searchCondDepth
 	p.searchCondDepth = 0
 	defer func() { p.searchCondDepth = saved }()
-	return p.parseExpr()
+	return parse()
+}
+
+// isConditionParen reports whether e is a parenthesized search condition,
+// such as (a = 1) in WHERE (a = 1) AND a > 0. It is a predicate, not a
+// value, so no operator takes it: WHERE (a = 1) = 1 is refused (measured).
+func isConditionParen(e nodes.ExprNode) bool {
+	paren, ok := e.(*nodes.ParenExpr)
+	return ok && procIsCondition(paren.Expr)
 }
 
 // parseOr parses OR expressions (lowest precedence).
@@ -167,6 +185,13 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 	if left == nil {
 		return nil, nil
 	}
+	// SQL Server reads a comparison, IS NULL, BETWEEN, IN and LIKE only in a
+	// search condition (booleanExpression, TSql160.g): SELECT 1 = 1,
+	// SELECT 1 IS NULL and UPDATE a SET a = 1 = 1 are refused (measured).
+	// Elsewhere the operators end the expression.
+	if !p.inSearchCondition() || isConditionParen(left) {
+		return left, nil
+	}
 
 	// IS [NOT] NULL
 	if p.cur.Type == kwIS {
@@ -253,7 +278,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			}
 			// IS [NOT] DISTINCT FROM <expression>
 			// (booleanExpressionDistinctPredicate)
-			value, err := p.parseAddition()
+			value, err := p.scalar(p.parseAddition)
 			if err != nil {
 				return nil, err
 			}
@@ -284,7 +309,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			p.addRuleCandidate("func_name")
 			return nil, errCollecting
 		}
-		low, err := p.parseAddition()
+		low, err := p.scalar(p.parseAddition)
 		if err != nil {
 			return nil, err
 		}
@@ -300,7 +325,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			p.addRuleCandidate("func_name")
 			return nil, errCollecting
 		}
-		high, err := p.parseAddition()
+		high, err := p.scalar(p.parseAddition)
 		if err != nil {
 			return nil, err
 		}
@@ -358,7 +383,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 				p.addTokenCandidate(kwSELECT)
 				return nil, errCollecting
 			}
-			expr, err := p.parseExpr()
+			expr, err := p.parseScalarExpr()
 			if err != nil {
 				return nil, err
 			}
@@ -401,7 +426,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			p.addRuleCandidate("func_name")
 			return nil, errCollecting
 		}
-		pattern, err := p.parseAddition()
+		pattern, err := p.scalar(p.parseAddition)
 		if err != nil {
 			return nil, err
 		}
@@ -412,7 +437,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 		braced := false
 		if p.cur.Type == kwESCAPE {
 			p.advance()
-			escape, err = p.parseAddition()
+			escape, err = p.scalar(p.parseAddition)
 			if err != nil {
 				return nil, err
 			}
@@ -428,7 +453,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			if _, err := p.expect(kwESCAPE); err != nil {
 				return nil, err
 			}
-			escape, err = p.parseAddition()
+			escape, err = p.scalar(p.parseAddition)
 			if err != nil {
 				return nil, err
 			}
@@ -500,7 +525,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			}
 		}
 
-		right, err := p.parseAddition()
+		right, err := p.scalar(p.parseAddition)
 		if err != nil {
 			return nil, err
 		}
@@ -611,6 +636,9 @@ func (p *Parser) parseAddition() (nodes.ExprNode, error) {
 		return nil, err
 	}
 	for {
+		if isConditionParen(left) {
+			return left, nil
+		}
 		if p.cur.Type == kwAT {
 			if !p.atTimeZoneAhead() {
 				return left, nil
@@ -644,7 +672,7 @@ func (p *Parser) parseAddition() (nodes.ExprNode, error) {
 			p.addRuleCandidate("func_name")
 			return nil, errCollecting
 		}
-		right, err := p.parseMultiplication()
+		right, err := p.scalar(p.parseMultiplication)
 		if err != nil {
 			return nil, err
 		}
@@ -720,7 +748,7 @@ func (p *Parser) parseAtTimeZoneExpr(expr nodes.ExprNode) (nodes.ExprNode, error
 	p.advance() // consume AT
 	p.advance() // consume TIME
 	p.advance() // consume ZONE
-	tz, err := p.parseMultiplication()
+	tz, err := p.scalar(p.parseMultiplication)
 	if err != nil {
 		return nil, err
 	}
@@ -747,7 +775,7 @@ func (p *Parser) parseMultiplication() (nodes.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	for p.cur.Type == '*' || p.cur.Type == '/' || p.cur.Type == '%' || p.cur.Type == tokSHIFTLEFT || p.cur.Type == tokSHIFTRIGHT {
+	for !isConditionParen(left) && (p.cur.Type == '*' || p.cur.Type == '/' || p.cur.Type == '%' || p.cur.Type == tokSHIFTLEFT || p.cur.Type == tokSHIFTRIGHT) {
 		loc := p.pos()
 		var op nodes.BinaryOp
 		switch p.cur.Type {
@@ -768,7 +796,7 @@ func (p *Parser) parseMultiplication() (nodes.ExprNode, error) {
 			p.addRuleCandidate("func_name")
 			return nil, errCollecting
 		}
-		right, err := p.parseUnary()
+		right, err := p.scalar(p.parseUnary)
 		if err != nil {
 			return nil, err
 		}
@@ -805,7 +833,7 @@ func (p *Parser) parseUnary() (nodes.ExprNode, error) {
 			op = nodes.UnaryBitNot
 		}
 		p.advance()
-		operand, err := p.parseUnary()
+		operand, err := p.scalar(p.parseUnary)
 		if err != nil {
 			return nil, err
 		}
@@ -837,9 +865,15 @@ func (p *Parser) parseUnary() (nodes.ExprNode, error) {
 // new, parenthesized operand.
 func (p *Parser) parseCollatedPrimary() (nodes.ExprNode, error) {
 	expr, err := p.parsePrimary()
-	if err == nil && expr != nil {
-		expr, err = p.parseInstanceMethods(expr)
+	if err != nil || expr == nil || isConditionParen(expr) {
+		return expr, err
 	}
+	if p.searchCondDepth > 0 {
+		saved := p.searchCondDepth
+		p.searchCondDepth = 0
+		defer func() { p.searchCondDepth = saved }()
+	}
+	expr, err = p.parseInstanceMethods(expr)
 	if err != nil || expr == nil || p.cur.Type != kwCOLLATE {
 		return expr, err
 	}
@@ -870,6 +904,17 @@ func (p *Parser) parseCollatedPrimary() (nodes.ExprNode, error) {
 //	             | TRY_CONVERT '(' data_type ',' expr [',' style] ')'
 //	             | ident_expr
 func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
+	// A primary is a value, and the search condition around it does not
+	// reach inside: WHERE CASE WHEN a = 1 THEN a = 1 END = 1 and
+	// WHERE IIF(a = 1, a = 1, 0) = 1 are refused (measured). A parenthesis
+	// may hold a search condition of its own (WHERE (a = 1) AND a > 0), and
+	// UPDATE ( column ), TSEQUAL and MATCH are predicates that check the
+	// depth themselves.
+	if p.searchCondDepth > 0 && !p.searchConditionPrimaryAhead() {
+		saved := p.searchCondDepth
+		p.searchCondDepth = 0
+		defer func() { p.searchCondDepth = saved }()
+	}
 	// UPDATE ( column ) tests a column in a DML trigger's search condition
 	// (updateCall, TSql160.g). SQL Server refuses it elsewhere: IF UPDATE(a)
 	// SELECT 1 is rejected in compat.tsv, and accepted in a trigger's body
@@ -1123,6 +1168,18 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		}
 		return nil, nil
 	}
+}
+
+// searchConditionPrimaryAhead reports whether the primary at the current
+// token may read the search condition around it: a parenthesis, which may
+// hold one, and the predicates UPDATE ( column ), TSEQUAL ( ... ) and
+// MATCH ( ... ).
+func (p *Parser) searchConditionPrimaryAhead() bool {
+	switch p.cur.Type {
+	case '(', kwUPDATE, kwTSEQUAL:
+		return true
+	}
+	return p.peekNext().Type == '(' && p.isValidOptionToken(graphMatchWord, p.cur)
 }
 
 // parseNiladicKeywordFunc handles SQL-standard niladic functions that are

@@ -357,6 +357,16 @@ ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix
 8168	8168	engine	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	8168	engine	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	8168	engine	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+ok	ok:a5af3dd4bd18	engine	one_table@missing	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	ok:f70fb10e4178	engine	one_table@missing	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	ok:a5af3dd4bd18	engine	one_table@missing	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	ok:05842bb4d524	engine	one_table@missing	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4902	4902	engine	one_table@missing	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4902	4902	engine	one_table@missing	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+208	208	engine	one_table@missing	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+208	208	engine	one_table@missing	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+208	208	engine	one_table@missing	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+208	208	engine	one_table@missing	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
 ok:b08530f8a202	ok:b08530f8a202	engine	one_table@table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	one_table@table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	one_table@table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -714,6 +724,16 @@ ok:730f4651e371	ok:730f4651e371	engine	one_table@table	issue:BYT-10538	CREATE PR
 8168	8168	engine	one_table@table	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	8168	engine	one_table@table	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	8168	engine	one_table@table	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+ok	ok:7a6146b967e6	engine	one_table@table	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	ok:5e5fcce89b3c	engine	one_table@table	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	ok:7a6146b967e6	engine	one_table@table	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	ok:8c99019540ec	engine	one_table@table	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+ok	207	engine	one_table@table	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+ok	207	engine	one_table@table	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+1911	207	engine	one_table@table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+1911	207	engine	one_table@table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+1911	207	engine	one_table@table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+1911	207	engine	one_table@table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
 ok:700d834f3ec9	ok:700d834f3ec9	engine	one_table@column	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	one_table@column	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	one_table@column	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1071,6 +1091,16 @@ ok:5a3c7b96933c	ok:5a3c7b96933c	engine	one_table@column	issue:BYT-10538	CREATE P
 8168	8168	engine	one_table@column	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	8168	engine	one_table@column	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	8168	engine	one_table@column	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+ok	ok:531e11abb7df	engine	one_table@column	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	ok:2be1975ee3f4	engine	one_table@column	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	ok:531e11abb7df	engine	one_table@column	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	ok:5ca443a943a0	engine	one_table@column	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+ok	ok:2c56056a32e6	engine	one_table@column	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+ok	ok:6f7c156e4a5b	engine	one_table@column	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+ok	ok:9e62fdb8391b	engine	one_table@column	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+ok	ok:7b6cd725b87c	engine	one_table@column	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+ok	ok:9e62fdb8391b	engine	one_table@column	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+ok	ok:78c5726099f0	engine	one_table@column	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
 ok:5855584afb6a	ok:5855584afb6a	engine	one_table@index	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	one_table@index	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	one_table@index	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1428,6 +1458,16 @@ ok:4188ae53864e	ok:4188ae53864e	engine	one_table@index	issue:BYT-10538	CREATE PR
 8168	8168	engine	one_table@index	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	8168	engine	one_table@index	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	8168	engine	one_table@index	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+ok	ok:587b29c7993f	engine	one_table@index	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	ok:b7437ef3f085	engine	one_table@index	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	ok:587b29c7993f	engine	one_table@index	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	ok:be11fdbbbca7	engine	one_table@index	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+ok	ok:aca2ad0bb500	engine	one_table@index	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+ok	ok:e80870bcb470	engine	one_table@index	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+ok	ok:0c65539824f3	engine	one_table@index	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+ok	ok:f7459222436c	engine	one_table@index	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+ok	ok:0c65539824f3	engine	one_table@index	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+ok	ok:63d1e1cfe57e	engine	one_table@index	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
 ok:35bdc4532691	ok:35bdc4532691	engine	objects@view	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@view	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@view	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1785,6 +1825,16 @@ ok:7587435d20b6	ok:7587435d20b6	engine	objects@view	issue:BYT-10538	CREATE PROCE
 8168	8168	engine	objects@view	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	8168	engine	objects@view	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	8168	engine	objects@view	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+ok	ok:bad0bc7d0f40	engine	objects@view	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	ok:e9dbdaed1114	engine	objects@view	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	ok:bad0bc7d0f40	engine	objects@view	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	ok:9b84f16957c3	engine	objects@view	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4909	4909	engine	objects@view	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4909	4909	engine	objects@view	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+10610	10610	engine	objects@view	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+10610	10610	engine	objects@view	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+10610	10610	engine	objects@view	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+10610	10610	engine	objects@view	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
 ok:a39909444bda	ok:a39909444bda	engine	objects@fk	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@fk	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@fk	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2142,6 +2192,16 @@ ok:1f440221322f	ok:1f440221322f	engine	objects@fk	issue:BYT-10538	ALTER TABLE a 
 8168	8168	engine	objects@fk	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	8168	engine	objects@fk	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	8168	engine	objects@fk	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+ok	ok:f6856ad68445	engine	objects@fk	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	ok:ef1ba0ac1b3b	engine	objects@fk	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	ok:f6856ad68445	engine	objects@fk	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	ok:18acb5321e34	engine	objects@fk	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+ok	ok:777a02e6e49b	engine	objects@fk	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+ok	ok:b590e72e348e	engine	objects@fk	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+ok	ok:3b62ac82a2aa	engine	objects@fk	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+ok	ok:16b2f278c03f	engine	objects@fk	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+ok	ok:3b62ac82a2aa	engine	objects@fk	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+ok	ok:99d2032b93e0	engine	objects@fk	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
 2714	2714	engine	objects@schema	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@schema	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@schema	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2499,6 +2559,16 @@ ok:2ea4d31c8efa	ok:2ea4d31c8efa	engine	objects@schema	issue:BYT-10538	CREATE PRO
 8168	8168	engine	objects@schema	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	8168	engine	objects@schema	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	8168	engine	objects@schema	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+ok	ok:3f956e2956ff	engine	objects@schema	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	ok:423b56ed108c	engine	objects@schema	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	ok:3f956e2956ff	engine	objects@schema	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	ok:27b557892471	engine	objects@schema	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+ok	207	engine	objects@schema	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+ok	207	engine	objects@schema	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+1911	207	engine	objects@schema	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+1911	207	engine	objects@schema	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+1911	207	engine	objects@schema	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+1911	207	engine	objects@schema	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
 ok:ca6ffa04f178	ok:ca6ffa04f178	engine	objects@sequence	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@sequence	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@sequence	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2856,6 +2926,16 @@ ok:256e3a7a886a	ok:256e3a7a886a	engine	objects@sequence	issue:BYT-10538	CREATE P
 8168	8168	engine	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	8168	engine	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	8168	engine	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+ok	ok:cf9185066920	engine	objects@sequence	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	ok:69b6c7b6c69d	engine	objects@sequence	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	ok:cf9185066920	engine	objects@sequence	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	ok:5466a425aab3	engine	objects@sequence	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4909	4909	engine	objects@sequence	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4909	4909	engine	objects@sequence	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+208	208	engine	objects@sequence	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+208	208	engine	objects@sequence	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+208	208	engine	objects@sequence	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+208	208	engine	objects@sequence	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
 ok:9f5b0a656ba7	ok:9f5b0a656ba7	engine	objects@synonym	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@synonym	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@synonym	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3213,6 +3293,16 @@ ok:82bd413c8066	ok:82bd413c8066	engine	objects@synonym	issue:BYT-10538	CREATE PR
 8168	8168	engine	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	8168	engine	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	8168	engine	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+ok	ok:a2760e779e8f	engine	objects@synonym	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	ok:28650b70bb8a	engine	objects@synonym	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	ok:a2760e779e8f	engine	objects@synonym	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	ok:a84d6a45cbbc	engine	objects@synonym	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4909	4909	engine	objects@synonym	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4909	4909	engine	objects@synonym	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+208	208	engine	objects@synonym	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+208	208	engine	objects@synonym	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+208	208	engine	objects@synonym	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+208	208	engine	objects@synonym	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
 ok:2b3aebfef9a1	ok:2b3aebfef9a1	engine	objects@procedure	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@procedure	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@procedure	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3570,6 +3660,16 @@ ok:23074fe32789	ok:23074fe32789	engine	objects@procedure	issue:BYT-10538	CREATE 
 8168	8168	engine	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	8168	engine	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	8168	engine	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+ok	ok:96b031bd37d3	engine	objects@procedure	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	ok:81e843fd3851	engine	objects@procedure	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	ok:96b031bd37d3	engine	objects@procedure	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	ok:cba6b831387b	engine	objects@procedure	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4909	4909	engine	objects@procedure	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4909	4909	engine	objects@procedure	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+208	208	engine	objects@procedure	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+208	208	engine	objects@procedure	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+208	208	engine	objects@procedure	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+208	208	engine	objects@procedure	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
 ok:e8852332e164	ok:e8852332e164	engine	objects@function	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@function	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@function	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3927,6 +4027,16 @@ ok:6893604530d9	ok:6893604530d9	engine	objects@function	issue:BYT-10538	CREATE P
 8168	8168	engine	objects@function	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	8168	engine	objects@function	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	8168	engine	objects@function	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+ok	ok:e7902b57d5b0	engine	objects@function	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	ok:233a0028890c	engine	objects@function	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	ok:e7902b57d5b0	engine	objects@function	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	ok:e5ce0a09158a	engine	objects@function	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4909	4909	engine	objects@function	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4909	4909	engine	objects@function	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+208	208	engine	objects@function	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+208	208	engine	objects@function	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+208	208	engine	objects@function	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+208	208	engine	objects@function	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
 ok:67933fa12252	ok:67933fa12252	engine	objects@trigger	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@trigger	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@trigger	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -4284,3 +4394,13 @@ ok:a35aff99dd83	ok:a35aff99dd83	engine	objects@trigger	issue:BYT-10538	CREATE PR
 8168	8168	engine	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, INDEX ix_x (a);
 8168	8168	engine	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x INDEX ix_x;
 8168	8168	engine	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD x INT INDEX ix_x, CONSTRAINT ix_x UNIQUE (x);
+ok	ok:dadf64f9f5b3	engine	objects@trigger	suite:search-condition	CREATE TABLE b (a INT CHECK (a = 1))
+ok	ok:ec8106eb227e	engine	objects@trigger	suite:search-condition	CREATE TABLE b (a INT CHECK (a IS NOT NULL))
+ok	ok:dadf64f9f5b3	engine	objects@trigger	suite:search-condition	CREATE TABLE b (a INT, CHECK (a IN (1)))
+ok	ok:a5f1c2c9fc16	engine	objects@trigger	suite:search-condition	CREATE TABLE b (a INT, CONSTRAINT c CHECK (a BETWEEN 1 AND 2 AND a LIKE 1))
+4909	4909	engine	objects@trigger	suite:search-condition	ALTER TABLE a ADD CHECK (a > 0)
+4909	4909	engine	objects@trigger	suite:search-condition	ALTER TABLE a ADD CONSTRAINT c CHECK ((a <> 0))
+208	208	engine	objects@trigger	suite:search-condition	CREATE INDEX i ON a (a) WHERE a = 1
+208	208	engine	objects@trigger	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
+208	208	engine	objects@trigger	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
+208	208	engine	objects@trigger	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
