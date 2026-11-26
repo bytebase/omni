@@ -62,6 +62,10 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		{sql: "CREATE INDEX ON t (n) WITH (nope);", message: `PostgreSQL refuses this statement: unrecognized parameter "nope" (SQLSTATE 22023).`},
 		{sql: "ALTER TABLE t ADD UNIQUE (n) WITH (nope);", message: `PostgreSQL refuses this statement: unrecognized parameter "nope" (SQLSTATE 22023).`},
 		{sql: "ALTER TABLE t ADD FOREIGN KEY (n) REFERENCES t (n);", message: `PostgreSQL refuses this statement: there is no unique constraint matching given keys for referenced table "t" (SQLSTATE 42830).`},
+		{sql: "CREATE FUNCTION f() RETURNS bigint LANGUAGE sql AS 'SELECT count(*) FROM missing_t';", message: `PostgreSQL refuses this statement: relation "missing_t" does not exist (SQLSTATE 42P01).`},
+		{sql: "CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'UPDATE t SET nope = 1 RETURNING n';", message: `PostgreSQL refuses this statement: column "nope" does not exist (SQLSTATE 42703).`},
+		{sql: "CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RAISE nope_condition; END $$;", message: `PostgreSQL refuses this statement: unrecognized exception condition "nope_condition" (SQLSTATE 42704).`},
+		{sql: "DO LANGUAGE sql $$ SELECT 1 $$;", message: `PostgreSQL refuses this statement: language "sql" does not support inline code execution (SQLSTATE 0A000).`},
 		{sql: "CREATE TABLE u (a int);\nCREATE FUNCTION g() RETURNS void LANGUAGE plpgsql AS $$ BEGIN RETURN 1; END $$;", statement: 1, message: "PostgreSQL refuses this statement: RETURN cannot have a parameter in function returning void (SQLSTATE 42804)."},
 	} {
 		got := walkFindings(t, tc.sql, target)
@@ -71,7 +75,6 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 	}
 	for _, sql := range []string{
 		// A missing name may be an object the sync does not list.
-		"CREATE FUNCTION f() RETURNS bigint LANGUAGE sql AS 'SELECT count(*) FROM missing_t';",
 		"CREATE VIEW v AS SELECT nope_fn(n) FROM t;",
 		// A query may call an aggregate, which the sync does not list.
 		"CREATE TABLE u AS SELECT nope_agg(n) FROM t;",
@@ -92,6 +95,13 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		// ALTER ROUTINE also finds an aggregate.
 		"ALTER ROUTINE nope_agg(int) PARALLEL SAFE;",
 		"CREATE FUNCTION g() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x t.ctid%TYPE; BEGIN RETURN 1; END $$;",
+		// A SQL body may read a system catalog, which the sync does not list.
+		"CREATE FUNCTION f() RETURNS bigint LANGUAGE sql AS 'SELECT count(*) FROM pg_catalog.nope';",
+		// A qualified column in a SQL body may be a function called in
+		// attribute notation.
+		"CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT t.nope FROM t';",
+		// The sync lists no type a domain may supply.
+		"CREATE FUNCTION f(x nope_type) RETURNS int LANGUAGE sql AS 'SELECT 1';",
 		// The sync lists no operator.
 		"CREATE VIEW v AS SELECT 1 OPERATOR(public.##) 2 AS n;",
 		// The sync leaves out a routine named as a system one, which a body may call.

@@ -8,6 +8,7 @@ import (
 
 	"github.com/bytebase/omni/pg/ast"
 	pgcatalog "github.com/bytebase/omni/pg/catalog"
+	"github.com/bytebase/omni/pg/parser"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 )
@@ -16,10 +17,12 @@ import (
 // whatever else the database holds, once the synced schema is loaded in
 // full: each is pinned by pg/catalog's simulate suites on PostgreSQL 17 and
 // 18. Left out are the errors an object the sync does not list can cause
-// or cure (a missing schema, relation, type, role, language or event
-// trigger: 3F000, 42P01, 42704; a coercion a cast could allow, or a call
+// or cure (a missing schema, 3F000; a relation but in a SQL function's
+// body, 42P01; a type, role, language or event trigger, 42704, which only a
+// PL/pgSQL condition name escapes; a coercion a cast could allow, or a call
 // an aggregate or a domain could answer, curable), privileges (42501), and
-// 0A000, which the catalog also raises for what it does not model.
+// 0A000 but unsupportedEverywhere, which the catalog also raises for what
+// it does not model.
 var catalogCodes = map[string]review.FindingCode{
 	"22005": review.UnsupportedForm, // error in assignment
 	"22023": review.UnsupportedForm, // invalid parameter value: an unrecognized storage parameter
@@ -38,6 +41,9 @@ var catalogCodes = map[string]review.FindingCode{
 	"42809": review.WrongObjectKind, // wrong object type
 	"42883": review.ObjectNotFound,  // undefined function, by its signature
 	"42830": review.UnsupportedForm, // invalid foreign key: no unique key matches
+	"0A000": review.UnsupportedForm, // feature not supported, where unsupportedEverywhere names it
+	"42704": review.ObjectNotFound,  // undefined object: a PL/pgSQL condition name
+	"42P01": review.ObjectNotFound,  // undefined table, in a SQL function's body
 	"42P02": review.UnsupportedForm, // undefined parameter
 	"42P13": review.UnsupportedForm, // invalid function definition
 	"42P17": review.UnsupportedForm, // invalid object definition
@@ -206,11 +212,13 @@ func setsOwnSettings(node ast.Node) bool {
 // its procedure hold, when every argument is a quoted literal or NULL, which
 // no cast the sync leaves out can carry to another routine. Otherwise: a
 // column named by a qualified name, which may be a function called in
-// attribute notation (t.f for f(t)), or in a routine's body, for an
-// undefined column; a user routine named as a built-in aggregate or window
+// attribute notation (t.f for f(t)), or in a body but a SQL routine's that
+// calls no routine the sync may leave out, for an undefined column; a
+// relation named but in a SQL routine's body that names no system catalog; a user routine named as a built-in aggregate or window
 // function, found first where the path puts pg_catalog after its schema; an
 // invalid parameter value but an index's, a table's or a view's storage
-// parameter it does not recognize, which an extension may add; a refusal
+// parameter it does not recognize, which an extension may add, or an
+// identity column's type; a refusal
 // of an index or an added constraint but those, alone (addsKey); a cast, for
 // a coercion the catalog finds none for (a RETURN that does not
 // fit its routine's kind needs no cast); or, for a missing function,
@@ -219,6 +227,18 @@ func setsOwnSettings(node ast.Node) bool {
 // type's constructor: an aggregate, which ALTER, DROP or RENAME of a routine
 // and renaming a function find too.
 func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []string) bool {
+	switch err.Code {
+	case "0A000":
+		switch node.(type) {
+		case *ast.CallStmt:
+			return true
+		case *ast.DoStmt:
+			return !strings.HasSuffix(err.Message, " does not support inline code execution")
+		}
+		return !slices.Contains(unsupportedEverywhere, err.Message) && !strings.HasPrefix(err.Message, "event triggers are not supported for ")
+	case "42704":
+		return err.InCall || !strings.HasPrefix(err.Message, "unrecognized exception condition ")
+	}
 	switch v := node.(type) {
 	case *ast.DoStmt:
 		return err.Code != "P0001" && err.Code != "42601"
@@ -233,17 +253,33 @@ func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []strin
 	}
 	switch err.Code {
 	case "22023":
+		if _, ok := node.(*ast.AlterTableStmt); ok && err.Message == "identity column type must be smallint, integer, or bigint" {
+			return false
+		}
 		switch node.(type) {
 		case *ast.IndexStmt, *ast.AlterTableStmt, *ast.ViewStmt:
 			return !strings.HasPrefix(err.Message, "unrecognized parameter ") || snap.extensions
 		}
 		return true
 	case "42703":
-		switch node.(type) {
+		switch v := node.(type) {
 		case *ast.AlterTableStmt, *ast.CreateTrigStmt:
 			return namesQualifiedColumn(node)
+		case *ast.CreateFunctionStmt:
+			// A routine the sync leaves out may return the column.
+			body, ok := sqlFunctionBody(v)
+			return !ok || slices.ContainsFunc(body, namesQualifiedColumn) || slices.ContainsFunc(body, namesUntrustedRoutine)
 		}
 		return true
+	case "42P01":
+		// A SQL function's body reads what the sync lists, unless it names
+		// a system catalog.
+		fn, ok := node.(*ast.CreateFunctionStmt)
+		if !ok {
+			return true
+		}
+		body, ok := sqlFunctionBody(fn)
+		return !ok || slices.ContainsFunc(body, namesSystemRelation)
 	case "42803", "42P20":
 		return slices.Index(path, "pg_catalog") > 0
 	case "42846":
@@ -251,7 +287,9 @@ func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []strin
 	case "42804":
 		return !strings.Contains(err.Message, "RETURN")
 	case "42P13":
-		return strings.Contains(err.Message, " instead of ") || strings.Contains(err.Message, "Actual return type")
+		// No cast takes an unknown-typed literal, a pseudo-type, to the
+		// result.
+		return strings.Contains(err.Message, " instead of ") || strings.Contains(err.Message, "Actual return type") && !strings.HasSuffix(err.Message, "Actual return type is unknown.")
 	case "42883":
 		switch v := node.(type) {
 		case *ast.RenameStmt:
@@ -270,6 +308,14 @@ func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []strin
 		return snap.lostRoutines || !failsLookup(err.Message, node, snap)
 	}
 	return false
+}
+
+// unsupportedEverywhere are the refusals with 0A000 that hold on every
+// server: the catalog raises 0A000 for what it does not model too.
+var unsupportedEverywhere = []string{
+	"cannot alter type of a column used by a function or procedure",
+	"cannot use subquery in transform expression",
+	"set-returning functions are not allowed in transform expressions",
 }
 
 // addsKey reports whether node creates an index or adds a constraint, of
@@ -332,6 +378,58 @@ func failsLookup(message string, node ast.Node, snap *pgSnapshot) bool {
 		return found
 	}
 	return false
+}
+
+// sqlFunctionBody returns the statements of the body of fn, a SQL
+// function's or procedure's, which PostgreSQL analyzes at CREATE; false for
+// another language's or a body that does not parse.
+func sqlFunctionBody(fn *ast.CreateFunctionStmt) ([]ast.Node, bool) {
+	if fn.SqlBody != nil {
+		return []ast.Node{fn.SqlBody}, true
+	}
+	var language, body string
+	if fn.Options != nil {
+		for _, item := range fn.Options.Items {
+			de, ok := item.(*ast.DefElem)
+			if !ok {
+				continue
+			}
+			switch strings.ToLower(de.Defname) {
+			case "language":
+				if s, ok := de.Arg.(*ast.String); ok {
+					language = s.Str
+				}
+			case "as":
+				if list, ok := de.Arg.(*ast.List); ok && len(list.Items) == 1 {
+					if s, ok := list.Items[0].(*ast.String); ok {
+						body = s.Str
+					}
+				}
+			}
+		}
+	}
+	if !strings.EqualFold(language, "sql") {
+		return nil, false
+	}
+	list, err := parser.Parse(body)
+	if err != nil || list == nil {
+		return nil, false
+	}
+	return list.Items, true
+}
+
+// namesSystemRelation reports whether node names a relation in a system
+// schema, or one a schema's pg_ prefix may mark as a system catalog, which
+// the sync does not list.
+func namesSystemRelation(node ast.Node) bool {
+	found := false
+	ast.Inspect(node, func(n ast.Node) bool {
+		if rv, ok := n.(*ast.RangeVar); ok && (rv.Schemaname != "" && !trustedSchemaName(rv.Schemaname) || strings.HasPrefix(rv.Relname, "pg_")) {
+			found = true
+		}
+		return !found
+	})
+	return found
 }
 
 // namesQualifiedColumn reports whether node names a column by a qualified

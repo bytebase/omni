@@ -581,7 +581,11 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				return &Error{Code: CodeFeatureNotSupported, Message: "CALL is not yet supported in unquoted SQL function body"}
 			}
 		}
-		bodyBindings, err = c.bindSQLFunctionBody(sqlBodyStmts(stmt.SqlBody), fnParams)
+		err = c.bindStrictly(func() error {
+			var err error
+			bodyBindings, err = c.bindSQLFunctionBody(sqlBodyStmts(stmt.SqlBody), fnParams)
+			return err
+		})
 		if err != nil {
 			return err
 		}
@@ -649,7 +653,9 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 			return nil
 		}
 		if sqlStandardBody {
-			return c.checkSQLFunctionResult(bodyBindings, sqlBodyStmts(stmt.SqlBody), kind, retOID, outTypes)
+			return c.bindStrictly(func() error {
+				return c.checkSQLFunctionResult(bodyBindings, sqlBodyStmts(stmt.SqlBody), kind, retOID, outTypes)
+			})
 		}
 		return c.checkSQLFunctionBody(body, fnParams, kind, retOID, outTypes)
 	}

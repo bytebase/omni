@@ -50,19 +50,21 @@ func TestWalkSimulation(t *testing.T) {
 		// COLUMN TYPE ... USING on programs@retype and programs@generated,
 		// and identity columns' types on programs@identity. What the walk
 		// misses is what the sync does not list: a type, such as a quoted
-		// "integer", which a domain may supply (42704); a role, language or
-		// event trigger (42704, 42710, 2BP01, 0A000); a relation, column or
-		// function a body names, which a catalog loaded from a snapshot
-		// takes as present (42P01, 42703, 42883); a cast a retype, a
-		// return or a call may use (42804, 42846, 42P13, and a CALL's 42809
-		// on an argument of a known type); a function called in attribute
-		// notation (NEW.f for f(NEW)) or a domain in a schema named as a
-		// table (a.b%TYPE), for a qualified column (42703). Left too are a
-		// built-in name a user routine may shadow (42803, 42P20), PL/pgSQL
-		// condition names, which share 42704, and what the catalog raises
-		// 0A000 or 22023 for.
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.543},
-		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.543},
+		// "integer", which a domain may supply, a role or a language
+		// (42704); an event trigger, which the synced schema here leaves
+		// out (42704, 42710, 2BP01); a routine a body calls, which an
+		// aggregate may answer (42883); a relation
+		// a procedure's body or a DO block runs into, or one a PL/pgSQL
+		// declaration names (42P01); a cast a retype, a return or a call
+		// may use (42804, 42846, 42P13, and a CALL's 42809 on an argument
+		// of a known type); a function called in attribute notation (NEW.f
+		// for f(NEW)) or a domain in a schema named as a table (a.b%TYPE),
+		// for a qualified column (42703). Left too are a built-in name a
+		// user routine may shadow (42803, 42P20, and a set-returning
+		// function's 0A000), and a procedure's RETURNS clause, which the
+		// parser refuses (42601).
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.686},
+		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.686},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{
@@ -347,8 +349,10 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog, definitions map[[2]string][]strin
 		}
 		switch col.Identity {
 		case 'a':
+			cm.IsIdentity = true
 			cm.IdentityGeneration = metadata.ColumnMetadata_ALWAYS
 		case 'd':
+			cm.IsIdentity = true
 			cm.IdentityGeneration = metadata.ColumnMetadata_BY_DEFAULT
 		}
 		switch col.Generated {
@@ -452,7 +456,14 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog, definitions map[[2]string][]strin
 		}
 		slices.Sort(seqNames)
 		for _, name := range seqNames {
-			sm.Sequences = append(sm.Sequences, &metadata.SequenceMetadata{Name: name})
+			seq := &metadata.SequenceMetadata{Name: name}
+			// The sync names the column a sequence is owned by.
+			if owner := c.GetRelationByOID(s.Sequences[name].OwnerRelOID); owner != nil {
+				if cols := attNames(owner, []int16{s.Sequences[name].OwnerAttNum}); len(cols) == 1 {
+					seq.OwnerTable, seq.OwnerColumn = owner.Name, cols[0]
+				}
+			}
+			sm.Sequences = append(sm.Sequences, seq)
 		}
 		for _, typ := range c.QueryPgType(s.Name) {
 			switch typ.TypType {

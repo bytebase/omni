@@ -1,8 +1,11 @@
 package catalog
 
 import (
+	"context"
 	"errors"
 	"testing"
+
+	"github.com/bytebase/omni/metadata"
 )
 
 // TestSQLFunctionBodyAccepts holds the checks of a SQL function's body to
@@ -58,5 +61,49 @@ CREATE PROCEDURE outer_p() LANGUAGE sql BEGIN ATOMIC CALL helper(); END`, nil)
 	var ce *Error
 	if !errors.As(last, &ce) || ce.Code != CodeFeatureNotSupported {
 		t.Fatalf("CALL in BEGIN ATOMIC: got %v, want 0A000", last)
+	}
+}
+
+// TestSnapshotFunctionBodyChecked holds a catalog loaded from a snapshot to
+// checking a SQL function's body against what it holds once the session
+// turns check_function_bodies on, and to taking a name it does not hold as
+// present otherwise.
+func TestSnapshotFunctionBodyChecked(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadata.SchemaMetadata{{
+		Name:   "public",
+		Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "n", Type: "integer"}}}},
+	}}}
+	for _, tc := range []struct{ sql, code string }{
+		{"CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT nope FROM t'", CodeUndefinedColumn},
+		{"CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT n FROM missing_t'", CodeUndefinedTable},
+		{"CREATE FUNCTION f() RETURNS int LANGUAGE sql BEGIN ATOMIC SELECT nope FROM t; END", CodeUndefinedColumn},
+		{"CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT n FROM t'", ""},
+	} {
+		for _, check := range []bool{false, true} {
+			c := New()
+			if _, err := c.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true}); err != nil {
+				t.Fatal(err)
+			}
+			sql := tc.sql
+			if check {
+				sql = "SET check_function_bodies = on; " + sql
+			}
+			results, err := c.Exec(sql, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := ""
+			var e *Error
+			if errors.As(results[len(results)-1].Error, &e) {
+				got = e.Code
+			}
+			want := ""
+			if check {
+				want = tc.code
+			}
+			if got != want {
+				t.Errorf("%s (check %v): code = %q, want %q", tc.sql, check, got, want)
+			}
+		}
 	}
 }
