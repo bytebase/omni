@@ -2564,6 +2564,11 @@ func (b *binder) udfCall(f *ast.FuncCallExpr, sc *qscope, x ectx) (qtype, error)
 			return xmlMethods[strings.ToUpper(ref.Object)], b.children(f.Args, sc, x)
 		}
 	}
+	// A view's $PARTITION.pf names a partition function of the database
+	// it reads (208, measured). A synced snapshot records none.
+	if strings.EqualFold(ref.Schema, "$PARTITION") && b.inView && !b.c.fromMetadata && b.localObject(ref) && !b.c.partitionFunctions[strings.ToLower(ref.Object)] {
+		return qtUnknown, mssqlErr(ErrInvalidObjectName, "Invalid object name '$partition.%s'.", ref.Object)
+	}
 	if strings.EqualFold(ref.Schema, "$PARTITION") || !b.localObject(ref) || systemSchema(ref.Schema) {
 		return qtUnknown, b.children(f.Args, sc, x)
 	}
