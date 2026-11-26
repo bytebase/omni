@@ -336,7 +336,7 @@ func (b *builder) toSequenceFails(v *ast.AlterTableStmt, r tableRef) bool {
 // whatever the table holds (verified on mariadb:11.8.8):
 //
 //   - USING RTREE or TYPE RTREE on a key that is no SPATIAL key (1210), on
-//     every engine;
+//     every engine, unless it is added IF NOT EXISTS;
 //   - CHANGE or MODIFY of a column AFTER the column itself (1054), which
 //     the column list no longer holds by that name.
 func (b *builder) alterFormFails(v *ast.AlterTableStmt) bool {
@@ -344,7 +344,7 @@ func (b *builder) alterFormFails(v *ast.AlterTableStmt) bool {
 		if c == nil {
 			continue
 		}
-		if con := c.Constraint; con != nil && (con.Type == ast.ConstrIndex || con.Type == ast.ConstrUnique || con.Type == ast.ConstrPrimaryKey) && usesRTree(con.IndexType, con.IndexOptions) {
+		if con := c.Constraint; con != nil && !c.IfNotExists && !con.IfNotExists && (con.Type == ast.ConstrIndex || con.Type == ast.ConstrUnique || con.Type == ast.ConstrPrimaryKey) && usesRTree(con.IndexType, con.IndexOptions) {
 			b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, notRTree)
 			return true
 		}

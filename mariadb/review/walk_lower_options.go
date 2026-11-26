@@ -228,7 +228,7 @@ func unknownOption(engine, name string) string {
 //   - an engine-defined option, `name = value`, that InnoDB doesn't define
 //     for the table, or any of a column or of a key but a VECTOR key's M
 //     and DISTANCE (1911), which IGNORE_BAD_TABLE_OPTIONS would let
-//     through;
+//     through, unless the column or key is added IF NOT EXISTS;
 //   - ROW_FORMAT FIXED or PAGE (1478).
 func (b *builder) innoDBOptionsFail(v *ast.AlterTableStmt, r tableRef) bool {
 	st := b.syncedOf(r)
@@ -239,7 +239,7 @@ func (b *builder) innoDBOptionsFail(v *ast.AlterTableStmt, r tableRef) bool {
 		return false
 	}
 	keyOptionFails := func(con *ast.Constraint) bool {
-		if con == nil {
+		if con == nil || con.IfNotExists {
 			return false
 		}
 		for _, o := range con.IndexOptions {
@@ -257,6 +257,11 @@ func (b *builder) innoDBOptionsFail(v *ast.AlterTableStmt, r tableRef) bool {
 	rowFormat := ""
 	for _, c := range v.Commands {
 		if c == nil {
+			continue
+		}
+		// An addition IF NOT EXISTS skips when its name is there, and the
+		// walk leaves it alone.
+		if c.IfNotExists {
 			continue
 		}
 		cols := c.Columns
