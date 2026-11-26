@@ -544,3 +544,12 @@ func TestExecRound33(t *testing.T) {
 	_, err = execLast(t, "CREATE TABLE t (a INT8); CREATE VIEW v (x, y) AS SELECT * FROM t")
 	require.Equal(t, "42601", code(err))
 }
+
+func TestExecRound34(t *testing.T) {
+	_, err := execLast(t, "CREATE TABLE t (a INT8, b INT8); CREATE TABLE u (a INT8); CREATE VIEW v AS SELECT b FROM (WITH c AS (SELECT t.b FROM t JOIN u USING (a)) SELECT b FROM c) AS q; ALTER TABLE t DROP COLUMN a")
+	require.Equal(t, "2BP01", code(err))
+	_, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (m mood); CREATE INDEX ix ON t (m) WHERE m = 'sad'; ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.Error(t, err)
+	_, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (m mood); CREATE INDEX ix ON t (m) WHERE m = 'sad'; ALTER TYPE mood DROP VALUE 'sad'")
+	require.Equal(t, "2BP01", code(err))
+}

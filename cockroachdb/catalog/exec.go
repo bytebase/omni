@@ -1671,6 +1671,12 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 					check.Expression = relabelRead(check.Expression)
 				}
 			}
+			// An index's predicate or key expression is not rewritten.
+			for _, text := range indexExpressions(table.Indexes) {
+				if expr, err := parser.ParseExpr(text); err == nil && reads(text) && (readsLabel(expr, from) || arrayText(expr, from)) && stuck == nil {
+					stuck = &Error{Message: fmt.Sprintf("renaming enum value %q, which an index of table %q holds, is not supported", from, table.Name)}
+				}
+			}
 		})
 		if stuck != nil {
 			return stuck
@@ -2160,6 +2166,11 @@ func (c *Catalog) labelUser(typ, label string) string {
 				texts = append(texts, check.Expression)
 			}
 		}
+		for _, text := range indexExpressions(table.Indexes) {
+			if usesEnum(text) {
+				texts = append(texts, text)
+			}
+		}
 		for _, text := range texts {
 			if user == "" && text != "" {
 				expr, err := parser.ParseExpr(text)
@@ -2416,6 +2427,30 @@ func (c *Catalog) sequenceUserOutside(schema, name string, kind relKind, droppin
 	return nil
 }
 
+// indexExpressions returns indexes' key expressions and predicates as text.
+func indexExpressions(indexes []*metadatapb.IndexMetadata) []string {
+	var out []string
+	for _, index := range indexes {
+		stmt, err := parser.ParseOne(index.Definition)
+		if err != nil {
+			continue
+		}
+		n, ok := stmt.AST.(*tree.CreateIndex)
+		if !ok {
+			continue
+		}
+		for _, elem := range n.Columns {
+			if elem.Expr != nil {
+				out = append(out, tree.AsString(elem.Expr))
+			}
+		}
+		if n.Predicate != nil {
+			out = append(out, tree.AsString(n.Predicate))
+		}
+	}
+	return out
+}
+
 // indexNamesType reports whether an index's key expressions or predicate
 // cast or annotate to a type.
 func indexNamesType(definition, typ string) bool {
@@ -2600,7 +2635,8 @@ func hasColumnAliases(stmt tree.Statement) bool {
 			}
 			if sub, ok := t.Expr.(*tree.Subquery); ok {
 				if sel, ok := sub.Select.(*tree.ParenSelect); ok {
-					return selects(sel.Select.Select)
+					// The whole SELECT, its CTEs too.
+					return hasColumnAliases(sel.Select)
 				}
 			}
 		case *tree.JoinTableExpr:
