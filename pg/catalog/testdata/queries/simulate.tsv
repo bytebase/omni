@@ -16,6 +16,8 @@ ok:b2d578149ef2	ok:b2d578149ef2	engine	one_table@column	select_clause/simple_sel
 42703	42703	engine	one_table@column	select_clause/simple_select!insert	CREATE VIEW _v AS SELECT zzz UNION SELECT
 42703	42703	engine	one_table@column	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause	CREATE VIEW _v AS SELECT DISTINCT a
 42703	42703	engine	one_table@column	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause!insert	CREATE VIEW _v AS SELECT DISTINCT a zzz
+42703	42703	engine	one_table@column	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause+where_clause	CREATE VIEW _v AS SELECT DISTINCT a WHERE a
+42703	42703	engine	one_table@column	simple_select/SELECT_distinct_clause_target_list_into_clause_from_clause_where_clause_group_clause_having_clause_window_clause+where_clause!drop-4	CREATE VIEW _v AS SELECT DISTINCT a a
 42703	42703	engine	one_table@column	simple_select/select_clause_UNION_set_quantifier_select_clause!insert	CREATE VIEW _v AS SELECT UNION SELECT zzz
 ok:53b28818f0bf	ok:53b28818f0bf	engine	one_table@column	simple_select/select_clause_INTERSECT_set_quantifier_select_clause	CREATE VIEW _v AS SELECT INTERSECT SELECT
 42703	42703	engine	one_table@column	simple_select/select_clause_INTERSECT_set_quantifier_select_clause!insert	CREATE VIEW _v AS SELECT INTERSECT SELECT zzz
@@ -164,13 +166,17 @@ ok:50f70c992686	ok:50f70c992686	engine	one_table@column	func_alias_clause/AS_Col
 42601	42601	engine	one_table@column	func_alias_clause/ColId_(_TableFuncElementList_)	CREATE VIEW _v AS SELECT FROM CURRENT_DATE a(a a)
 ok:50f70c992686	ok:50f70c992686	engine	one_table@column	func_alias_clause/ColId_(_TableFuncElementList_)!drop-3	CREATE VIEW _v AS SELECT FROM CURRENT_DATE a(a)
 42712	42712	engine	one_table@column	join_type/LEFT_opt_outer	CREATE VIEW _v AS SELECT FROM a NATURAL LEFT JOIN a
+42712	42712	engine	one_table@column	join_type/LEFT_opt_outer+opt_outer	CREATE VIEW _v AS SELECT FROM a NATURAL LEFT OUTER JOIN a
 42712	42712	engine	one_table@column	join_type/RIGHT_opt_outer	CREATE VIEW _v AS SELECT FROM a NATURAL RIGHT JOIN a
+42712	42712	engine	one_table@column	join_type/RIGHT_opt_outer+opt_outer	CREATE VIEW _v AS SELECT FROM a NATURAL RIGHT OUTER JOIN a
 42712	42712	engine	one_table@column	join_type/INNER_P	CREATE VIEW _v AS SELECT FROM a NATURAL INNER JOIN a
 42712	42712	engine	one_table@column	opt_outer/OUTER_P	CREATE VIEW _v AS SELECT FROM a NATURAL FULL OUTER JOIN a
 42704	42704	engine	one_table@column	opt_repeatable_clause/REPEATABLE_(_a_expr_)	CREATE VIEW _v AS SELECT FROM a TABLESAMPLE a(a) REPEATABLE(a)
 ok:6f273d2907bc	ok:6f273d2907bc	engine	one_table@column	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality	CREATE VIEW _v AS SELECT FROM ROWS FROM(CURRENT_DATE)
 42883	42883	engine	one_table@column	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality!drop-2	CREATE VIEW _v AS SELECT FROM ROWS(CURRENT_DATE)
 ok:cd51762edf1d	ok:cd51762edf1d	engine	one_table@column	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality!insert	CREATE VIEW _v AS SELECT FROM ROWS FROM(CURRENT_DATE) zzz
+ok:876085238e7a	ok:876085238e7a	engine	one_table@column	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality+opt_ordinality	CREATE VIEW _v AS SELECT FROM ROWS FROM(CURRENT_DATE) WITH ORDINALITY
+ok:c8a99b435352	ok:c8a99b435352	engine	one_table@column	func_table/ROWS_FROM_(_rowsfrom_list_)_opt_ordinality+opt_ordinality!drop-6	CREATE VIEW _v AS SELECT FROM ROWS FROM(CURRENT_DATE) ORDINALITY
 ok:d97e4e93905d	ok:d97e4e93905d	engine	one_table@column	rowsfrom_item/func_expr_windowless_opt_col_def_list!swap	CREATE VIEW _v AS SELECT FROM ROWS FROM(CURRENT_ROLE)
 ok:6aae9c3a8ba0	ok:6aae9c3a8ba0	engine	one_table@column	rowsfrom_list/rowsfrom_list_,_rowsfrom_item	CREATE VIEW _v AS SELECT FROM ROWS FROM(CURRENT_DATE, CURRENT_DATE)
 ok:dc0ebfa8980a	ok:dc0ebfa8980a	engine	one_table@column	rowsfrom_list/rowsfrom_list_,_rowsfrom_item!swap	CREATE VIEW _v AS SELECT FROM ROWS FROM(CURRENT_ROLE, CURRENT_DATE)

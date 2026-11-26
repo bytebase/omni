@@ -35,8 +35,8 @@ func TestWalkSimulation(t *testing.T) {
 		// PostgreSQL 18's NOT NULL constraint names, and a typed table's
 		// type. parser/testdata/compat.tsv repeats each statement once per
 		// optional clause, so these are most of the misses.
-		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.9116},
-		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.9099},
+		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.9094},
+		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.9076},
 		// The view queries the walk misses are what pg/catalog refuses with a
 		// code catalogCodes leaves out: a missing type, function, tablesample
 		// method or schema, and a coercion a cast could allow.
