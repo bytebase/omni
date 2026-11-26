@@ -102,6 +102,7 @@ ok:46196032938c	ok:46196032938c	engine	programs@objects	program:function-plpgsql
 42P01	42P01	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE r missing_t%ROWTYPE; BEGIN RETURN 1; END $$
 ok:dd3b322552a6	ok:dd3b322552a6	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x orders.amount%TYPE; BEGIN RETURN 1; END $$
 42703	42703	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x orders.nope%TYPE; BEGIN RETURN 1; END $$
+ok:bd0dc68f557a	ok:bd0dc68f557a	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x orders.ctid%TYPE; BEGIN RETURN 1; END $$
 22005	22005	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE c CONSTANT int := 1; BEGIN c := 2; RETURN c; END $$
 42804	42804	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS void LANGUAGE plpgsql AS $$ BEGIN RETURN 1; END $$
 42804	42804	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN NEXT 1; END $$

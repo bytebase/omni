@@ -181,10 +181,11 @@ func setsOwnSettings(node ast.Node) bool {
 // curable reports whether an object the sync does not list could cure the
 // refusal of node: a cast, for a coercion the catalog finds none for (a
 // RETURN that does not fit its routine's kind needs no cast); or, for a
-// missing function, a routine the sync may have lost, an aggregate or a
-// domain (by a function-style cast) that a call in an expression names, or
-// an aggregate that DROP ROUTINE or renaming a function or routine finds by
-// its signature.
+// missing function, anything but a routine node names by its signature,
+// which the sync lists unless it may have lost routines. An operator, a
+// call in an expression (an aggregate, or a domain's function-style cast)
+// or in a body, and an aggregate that DROP ROUTINE or renaming a function
+// or routine finds by its signature may be what the sync leaves out.
 func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot) bool {
 	switch err.Code {
 	case "42846":
@@ -204,26 +205,47 @@ func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot) bool {
 				return true
 			}
 		}
-		return snap == nil || snap.lostRoutines || callsInExpression(node)
+		if snap == nil || snap.lostRoutines {
+			return true
+		}
+		for _, name := range signatureNames(node) {
+			if strings.Contains(err.Message, name+"(") || strings.Contains(err.Message, `"`+name+`"`) {
+				return false
+			}
+		}
+		return true
 	}
 	return false
 }
 
-// callsInExpression reports whether node calls a function in an
-// expression, apart from the procedure a CALL names.
-func callsInExpression(node ast.Node) bool {
-	var call *ast.FuncCall
-	if v, ok := node.(*ast.CallStmt); ok {
-		call = v.Funccall
-	}
-	found := false
-	ast.Inspect(node, func(n ast.Node) bool {
-		if fc, ok := n.(*ast.FuncCall); ok && fc != call {
-			found = true
+// signatureNames lists the routines node names by signature, which the
+// catalog looks up as such: the procedure a CALL names, a routine an ALTER,
+// DROP or RENAME names, and a trigger's or event trigger's function.
+func signatureNames(node ast.Node) []string {
+	var names []string
+	add := func(list *ast.List) {
+		if parts := nameParts(list); len(parts) > 0 {
+			names = append(names, parts[len(parts)-1])
 		}
-		return !found
-	})
-	return found
+	}
+	switch v := node.(type) {
+	case *ast.CallStmt:
+		if v.Funccall != nil {
+			add(v.Funccall.Funcname)
+		}
+	case *ast.CreateTrigStmt:
+		add(v.Funcname)
+	case *ast.CreateEventTrigStmt:
+		add(v.Funcname)
+	case *ast.AlterFunctionStmt, *ast.DropStmt, *ast.RenameStmt:
+		ast.Inspect(node, func(n ast.Node) bool {
+			if owa, ok := n.(*ast.ObjectWithArgs); ok {
+				add(owa.Objname)
+			}
+			return true
+		})
+	}
+	return names
 }
 
 // catalogJudges reports whether the catalog's refusal of node is reported:

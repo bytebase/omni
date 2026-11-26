@@ -211,6 +211,7 @@ var programFeatures = []struct{ kind, statement string }{
 	{"function-plpgsql", "CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE r missing_t%ROWTYPE; BEGIN RETURN 1; END $$"},
 	{"function-plpgsql", "CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x orders.amount%TYPE; BEGIN RETURN 1; END $$"},
 	{"function-plpgsql", "CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x orders.nope%TYPE; BEGIN RETURN 1; END $$"},
+	{"function-plpgsql", "CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x orders.ctid%TYPE; BEGIN RETURN 1; END $$"},
 	{"function-plpgsql", "CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE c CONSTANT int := 1; BEGIN c := 2; RETURN c; END $$"},
 	{"function-plpgsql", "CREATE FUNCTION f() RETURNS void LANGUAGE plpgsql AS $$ BEGIN RETURN 1; END $$"},
 	{"function-plpgsql", "CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN NEXT 1; END $$"},

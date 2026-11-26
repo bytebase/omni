@@ -49,6 +49,12 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		"CREATE VIEW v AS SELECT nope_fn(n) FROM t;",
 		// A query may call an aggregate, which the sync does not list.
 		"CREATE TABLE u AS SELECT nope_agg(n) FROM t;",
+		// PL/pgSQL's %TYPE takes a system column.
+		"CREATE FUNCTION g() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x t.ctid%TYPE; BEGIN RETURN 1; END $$;",
+		// The sync lists no operator.
+		"CREATE VIEW v AS SELECT 1 OPERATOR(public.##) 2 AS n;",
+		// The sync leaves out a routine named as a system one, which a body may call.
+		"DO $$ BEGIN CALL public.abs(); END $$;",
 		// DROP ROUTINE also drops an aggregate, which the sync does not list.
 		"DROP ROUTINE nope_agg(int);",
 		// A call may be a function-style cast to a domain the sync does not list.

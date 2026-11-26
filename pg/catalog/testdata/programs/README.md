@@ -18,7 +18,7 @@ alike. The readout adds the database's event triggers to `../simulate.tsv`'s.
 `pg/review`'s `TestWalkSimulation` checks WALK_THROUGH on these rows
 (`programs` subtest).
 
-**343 rows: all agree, on both pins.**
+**344 rows: all agree, on both pins.**
 
 The catalog checks what PostgreSQL checks at `CREATE` with
 `check_function_bodies` on: a SQL body is parsed and analyzed, and its last

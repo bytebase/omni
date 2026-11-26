@@ -54,8 +54,8 @@ func TestWalkSimulation(t *testing.T) {
 		// built-in name a user routine may shadow (42803, 42P20), PL/pgSQL
 		// condition names, which share 42704, and what the catalog raises
 		// 0A000 for.
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.577},
-		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.577},
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.566},
+		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.566},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{
