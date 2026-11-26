@@ -156,6 +156,10 @@ type snapTable struct {
 	// each is computed or of a built-in type other than datetime2, which
 	// a period column must be. Such a table is not system-versioned.
 	noPeriod bool
+	// noRowguid is set when no column can be the ROWGUIDCOL column, which
+	// is of type uniqueidentifier: each is computed or of another
+	// built-in type.
+	noRowguid bool
 	// fileTable is false when the table lacks path_locator, a column of
 	// FileTable's fixed schema.
 	fileTable bool
@@ -178,16 +182,17 @@ type fkSource struct {
 	path, written string
 }
 
-// tablePeriodless reports whether no column of t can be a period column.
-func tablePeriodless(t *metadata.TableMetadata) bool {
+// noColumnOf reports whether no column of t can be of type typ: each is
+// computed or of another built-in type.
+func noColumnOf(t *metadata.TableMetadata, typ string) bool {
 	for _, c := range t.GetColumns() {
-		typ := strings.ToLower(strings.TrimSpace(c.GetType()))
-		if strings.HasPrefix(typ, "as ") {
+		ct := strings.ToLower(strings.TrimSpace(c.GetType()))
+		if strings.HasPrefix(ct, "as ") {
 			continue
 		}
-		base, _, _ := strings.Cut(typ, "(")
+		base, _, _ := strings.Cut(ct, "(")
 		base = strings.TrimSpace(base)
-		if base == "" || base == "datetime2" || !isBuiltinSystemType(base) {
+		if base == "" || base == typ || !isBuiltinSystemType(base) {
 			return false
 		}
 	}
@@ -426,7 +431,7 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 			rels.add(t.GetName(), kindTable)
 			// A table on an ambiguous path keeps no children, but the
 			// names they hold in the schema count all the same.
-			st := &snapTable{ledger: ledgerTable(t), noPeriod: tablePeriodless(t), identity: make(map[string]bool), nonclustered: make(map[string]bool), fkColumns: make(map[string]string)}
+			st := &snapTable{ledger: ledgerTable(t), noPeriod: noColumnOf(t, "datetime2"), noRowguid: noColumnOf(t, "uniqueidentifier"), identity: make(map[string]bool), nonclustered: make(map[string]bool), fkColumns: make(map[string]string)}
 			if tn, ok := keyed(t.GetName()); ok {
 				path := walk.Path(sc, tn.class)
 				if _, seen := s.tables[path]; seen {
