@@ -570,3 +570,8 @@ func TestExecRound37(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "setval('s2.sq', nextval('s2.sq'))", c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
 }
+
+func TestExecRound38(t *testing.T) {
+	_, err := execLast(t, "CREATE TABLE t (a INT8, b INT8); CREATE TABLE u (a INT8); CREATE VIEW v AS SELECT b FROM t WHERE EXISTS (SELECT 1 FROM t JOIN u USING (a)); ALTER TABLE t DROP COLUMN a")
+	require.Equal(t, "2BP01", code(err))
+}

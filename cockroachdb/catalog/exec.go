@@ -2675,7 +2675,19 @@ func hasColumnAliases(stmt tree.Statement) bool {
 				}
 			}
 		}
-		return selects(n.Select)
+		if selects(n.Select) {
+			return true
+		}
+		// A subquery in an expression (WHERE EXISTS (...)) joins too.
+		found := false
+		tree.WalkStmt(&exprVisitor{visit: func(e tree.Expr) {
+			if sub, ok := e.(*tree.Subquery); ok && !found {
+				if sel, ok := sub.Select.(*tree.ParenSelect); ok {
+					found = hasColumnAliases(sel.Select)
+				}
+			}
+		}}, n)
+		return found
 	}
 	return false
 }
