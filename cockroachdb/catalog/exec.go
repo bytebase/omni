@@ -1568,6 +1568,9 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 				return relabelIn(text, typ, from, to, enumColumns)
 			}
 			for _, column := range table.Columns {
+				if arrayLiteral(column.Default, typ, from) && stuck == nil {
+					stuck = &Error{Message: fmt.Sprintf("renaming enum value %q, which an array literal in the default of column %q holds, is not supported", from, column.Name)}
+				}
 				if column.Type == typ || column.Type == typ+"[]" {
 					column.Default = relabel(column.Default)
 					if expr, err := parser.ParseExpr(column.Default); err == nil && column.Default != "" && uncastLabel(expr, from) && stuck == nil {
@@ -2101,6 +2104,38 @@ func (c *Catalog) labelUser(typ, label string) string {
 		}
 	})
 	return user
+}
+
+// arrayLiteral reports whether an expression casts or annotates a string to
+// an array of an enum ('{sad}'::mood[]) whose text may hold a label.
+func arrayLiteral(text, typ, label string) bool {
+	if text == "" || !strings.Contains(text, label) {
+		return false
+	}
+	expr, err := parser.ParseExpr(text)
+	if err != nil {
+		return false
+	}
+	found := false
+	_, _ = tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
+		var inner tree.Expr
+		var ref tree.ResolvableTypeReference
+		switch x := e.(type) {
+		case *tree.CastExpr:
+			inner, ref = x.Expr, x.Type
+		case *tree.AnnotateTypeExpr:
+			inner, ref = x.Expr, x.Type
+		default:
+			return true, e, nil
+		}
+		array, ok := ref.(*tree.ArrayTypeReference)
+		str, isStr := unparen(inner).(*tree.StrVal)
+		if ok && isStr && schemaQualified(array.ElementType).SQLString() == typ && strings.Contains(str.RawString(), label) {
+			found = true
+		}
+		return true, e, nil
+	})
+	return found
 }
 
 // uncastLabel reports whether an expression holds a label as a bare string
@@ -2802,6 +2837,9 @@ func (c *Catalog) moveRelation(s *metadatapb.SchemaMetadata, name string, kind r
 		target.Tables = append(target.Tables, table)
 		reindex(table.Indexes, target.Name, to, "", "")
 		// A stored expression names its table (t.a) by the new name.
+		for _, index := range table.Indexes {
+			requalifyIndex(index, name, to)
+		}
 		for _, check := range table.CheckConstraints {
 			check.Expression = requalifyIn(check.Expression, name, to)
 		}
@@ -2929,6 +2967,47 @@ func renameSequenceIn(def string, from, to [2]string) string {
 		return def
 	}
 	return tree.AsString(out)
+}
+
+// requalifyIndex renames the relation an index's key expressions and
+// predicate qualify their columns with.
+func requalifyIndex(index *metadatapb.IndexMetadata, from, to string) {
+	stmt, err := parser.ParseOne(index.Definition)
+	if err != nil {
+		return
+	}
+	n, ok := stmt.AST.(*tree.CreateIndex)
+	if !ok {
+		return
+	}
+	for i := range n.Columns {
+		if n.Columns[i].Expr != nil {
+			n.Columns[i].Expr = requalifyExpr(n.Columns[i].Expr, from, to)
+			if i < len(index.Expressions) {
+				index.Expressions[i] = sdlExpr(n.Columns[i].Expr)
+			}
+		}
+	}
+	if n.Predicate != nil {
+		n.Predicate = requalifyExpr(n.Predicate, from, to)
+	}
+	index.Definition = tree.AsString(n)
+}
+
+// requalifyExpr is requalifyIn on a parsed expression.
+func requalifyExpr(expr tree.Expr, from, to string) tree.Expr {
+	out, err := tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
+		if name, ok := e.(*tree.UnresolvedName); ok && name.NumParts == 2 && !name.Star && name.Parts[1] == from {
+			renamed := *name
+			renamed.Parts[1] = to
+			return false, &renamed, nil
+		}
+		return true, e, nil
+	})
+	if err != nil {
+		return expr
+	}
+	return out
 }
 
 // requalifyIn returns an expression with the relation its qualified column

@@ -487,3 +487,11 @@ func TestExecRound27(t *testing.T) {
 	_, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (s STRING CHECK (s <> 'sad')); ALTER TYPE mood DROP VALUE 'sad'")
 	require.NoError(t, err)
 }
+
+func TestExecRound28(t *testing.T) {
+	_, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad'); CREATE TABLE t (m mood[] DEFAULT '{sad}'::mood[]); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.Error(t, err)
+	c, err := execLast(t, "CREATE TABLE t (a INT8); CREATE INDEX ix ON t (a) WHERE t.a > 0; ALTER TABLE t RENAME TO u")
+	require.NoError(t, err)
+	require.Contains(t, c.Metadata().Schemas[0].Tables[0].Indexes[0].Definition, "u.a > 0")
+}
