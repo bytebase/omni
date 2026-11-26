@@ -3706,7 +3706,7 @@ func formatColumnType(dt *nodes.DataType) string {
 
 // applyCompressedNotNullDefault gives a compressed NOT NULL column with no DEFAULT
 // the empty string, which is what MariaDB stores for it: measured on mariadb:11.8.8,
-// `a VARCHAR(5) COMPRESSED NOT NULL` reads back `NOT NULL DEFAULT ''`, for TEXT, BLOB,
+// `a VARCHAR(5) COMPRESSED NOT NULL` reads back with the empty string as its default, for TEXT, BLOB,
 // VARBINARY, LONG and JSON alike, from CREATE TABLE and ALTER TABLE MODIFY, and an
 // uncompressed column keeps no default.
 func applyCompressedNotNullDefault(col *Column, def *nodes.ColumnDef) {
