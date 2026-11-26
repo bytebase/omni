@@ -1268,10 +1268,13 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 	w.leaves = &leafSet{}
 	prevUnresolved := w.fromUnresolved
 	w.fromUnresolved = false
+	prevRows := w.pipeRowNames
+	w.pipeRowNames = nil
 	defer func() {
 		w.fromAliases = prevFrom
 		w.leaves = prevLeaves
 		w.fromUnresolved = prevUnresolved
+		w.pipeRowNames = prevRows
 	}()
 
 	// Resolve the FROM clause into the comma-item relations (a join collapses into
@@ -2335,6 +2338,9 @@ type exprWalk struct {
 	onColumn  func(ColumnRef)
 	onParts   func([]string) // raw dotted-name parts of a column reference (for relation-aware resolution); nil to ignore
 	followSub bool
+	// onSubquery, when set, is called for each subquery or graph subquery the
+	// expression holds, followed or not.
+	onSubquery func()
 }
 
 // walk is the shared expression traversal over the googlesql expression AST. It
@@ -2482,6 +2488,9 @@ func (ew *exprWalk) walk(node ast.Node) {
 	// --- Graph subqueries and graph expressions (parser-gql) ---
 	case *ast.GraphSubqueryExpr, *ast.GraphExistsExpr, *ast.GraphCallOp:
 		// A graph subquery is a boundary: the names it invents are not columns.
+		if ew.onSubquery != nil {
+			ew.onSubquery()
+		}
 		ew.walkGraph(node)
 	case *ast.GraphPredicate:
 		// A standalone graph predicate is an ordinary relational comparison —
@@ -2525,6 +2534,9 @@ func (ew *exprWalk) emitParts(parts []string) {
 // subqueries. The body is a *QueryStmt (or set-op / select) the parser already
 // filled, so the walk reaches it directly.
 func (ew *exprWalk) followSubquery(query ast.Node) {
+	if ew.onSubquery != nil {
+		ew.onSubquery()
+	}
 	if !ew.followSub || query == nil {
 		return
 	}

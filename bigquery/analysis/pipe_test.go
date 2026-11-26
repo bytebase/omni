@@ -141,6 +141,11 @@ func TestGetQuerySpanPipe(t *testing.T) {
 			// A star expands a struct element's fields.
 			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> SELECT *",
 			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> AS z |> SELECT z.*",
+			// A subquery's lineage is not resolved.
+			"SELECT 0 AS p |> EXTEND (SELECT secret FROM t LIMIT 1) AS s",
+			"SELECT 0 AS p |> SELECT ARRAY(SELECT secret FROM t) AS s",
+			"SELECT x FROM t |> SET x = (SELECT MAX(secret) FROM t)",
+			"SELECT x FROM t |> AGGREGATE COUNT(*) GROUP BY (SELECT 1)",
 			// A range variable on its own is the whole row.
 			"SELECT public, secret FROM t |> AS a |> SELECT TO_JSON_STRING(a)",
 			"FROM (SELECT public, secret FROM t) AS a |> EXTEND TO_JSON_STRING(a) AS j",

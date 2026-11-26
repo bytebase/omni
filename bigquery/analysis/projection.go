@@ -1192,6 +1192,14 @@ func (w *spanWalker) collectColumnPaths(expr ast.Node) [][]string {
 		followSub: false,
 		onParts:   func(parts []string) { paths = append(paths, parts) },
 	}
+	if w.pipeRowNames != nil {
+		// A subquery's output is opaque to lineage here (the legacy corpus
+		// pins it empty in a SELECT list), and a pipe expression that used to
+		// fail closed must not resolve to that empty lineage.
+		ew.onSubquery = func() {
+			w.failClosed(fmt.Errorf("a pipe expression holds a subquery, whose lineage this walker does not resolve (fail closed)"))
+		}
+	}
 	ew.walk(expr)
 	return paths
 }

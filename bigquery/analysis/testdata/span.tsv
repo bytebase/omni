@@ -810,9 +810,9 @@ omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engi
 CustomerId, mail, Region	CustomerId, mail, Region	engine	shop	omni_span	results	SELECT * FROM (FROM Customers |> RENAME Email AS mail |> DROP Name)
 omni_span.Customers.CustomerId | omni_span.Customers.Email | omni_span.Customers.Region	~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM (FROM Customers |> RENAME Email AS mail |> DROP Name)
 omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT * FROM (FROM Customers |> RENAME Email AS mail |> DROP Name)
-CustomerId, Name, Email, Region, top	CustomerId, Name, Email, Region, top	engine	shop	omni_span	results	FROM Customers |> EXTEND (SELECT MAX(Amount) FROM Orders o WHERE o.CustomerId = Customers.CustomerId) AS top
-omni_span.Customers.CustomerId | omni_span.Customers.Name | omni_span.Customers.Email | omni_span.Customers.Region | -	~ | ~ | ~ | ~ | ~	engine	shop	omni_span	lineage	FROM Customers |> EXTEND (SELECT MAX(Amount) FROM Orders o WHERE o.CustomerId = Customers.CustomerId) AS top
-omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	FROM Customers |> EXTEND (SELECT MAX(Amount) FROM Orders o WHERE o.CustomerId = Customers.CustomerId) AS top
+error:omni	CustomerId, Name, Email, Region, top	engine	shop	omni_span	results	FROM Customers |> EXTEND (SELECT MAX(Amount) FROM Orders o WHERE o.CustomerId = Customers.CustomerId) AS top
+error:omni	~ | ~ | ~ | ~ | ~	engine	shop	omni_span	lineage	FROM Customers |> EXTEND (SELECT MAX(Amount) FROM Orders o WHERE o.CustomerId = Customers.CustomerId) AS top
+error:omni	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	FROM Customers |> EXTEND (SELECT MAX(Amount) FROM Orders o WHERE o.CustomerId = Customers.CustomerId) AS top
 CustomerId, Name, OrderId, total	CustomerId, Name, OrderId, total	engine	shop	omni_span	results	FROM CustomerOrders |> RENAME Amount AS total
 omni_span.CustomerOrders.CustomerId | omni_span.CustomerOrders.Name | omni_span.CustomerOrders.OrderId | omni_span.CustomerOrders.Amount	~ | ~ | ~ | ~	engine	shop	omni_span	lineage	FROM CustomerOrders |> RENAME Amount AS total
 omni_span.CustomerOrders	omni_span.CustomerOrders, omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	FROM CustomerOrders |> RENAME Amount AS total
