@@ -15,12 +15,13 @@ import (
 // tidb/catalog/testdata/queries/simulate.tsv):
 //
 //   - a user or system variable (1351) or a parameter marker (1149);
-//   - a builtin called with no argument where it takes one (1582);
+//   - a builtin called with no argument where it takes one, or USER()
+//     with one (1582);
 //   - a window name no WINDOW clause of the query block defines (3579), or
 //     one the clause defines twice (3591);
 //   - a frame TiDB cannot run: GROUPS (1235), a start of UNBOUNDED
-//     FOLLOWING (3584), an end before its start (3585), or an INTERVAL
-//     bound on ROWS (3596);
+//     FOLLOWING (3584), an end before its start (3585), an INTERVAL
+//     bound on ROWS (3596), or a float or decimal bound on ROWS (3586);
 //   - NTH_VALUE or NTILE reading a column where they take a constant (1210);
 //   - two columns of one name, with no column list to rename them (1060);
 //   - a sequence function on a relation that is no sequence (1347);
@@ -121,6 +122,9 @@ func funcCallFault(f *ast.FuncCallExpr) string {
 	}
 	if f.Schema == "" && f.HasParens && !f.Star && len(f.Args) == 0 && requiresArguments[name] {
 		return review.Code(strings.ToUpper(f.Name)+"()") + " needs at least one argument."
+	}
+	if f.Schema == "" && name == "user" && len(f.Args) > 0 {
+		return review.Code("USER()") + " takes no argument."
 	}
 	// NTH_VALUE's N and NTILE's N are constants (1210 for a column).
 	arg := -1
@@ -234,6 +238,9 @@ func windowFrameFault(f *ast.WindowFrame) string {
 			}
 			if _, ok := bound.Offset.(*ast.IntervalExpr); ok {
 				return "A " + review.Code("ROWS") + " window frame can't take an " + review.Code("INTERVAL") + " bound."
+			}
+			if _, ok := bound.Offset.(*ast.FloatLit); ok {
+				return "A " + review.Code("ROWS") + " window frame counts whole rows, not a fraction."
 			}
 		}
 	}
