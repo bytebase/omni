@@ -48,10 +48,11 @@ func (p *Parser) parseOceanBaseShow(stmt *nodes.ShowStmt) (bool, error) {
 			if _, err = p.expect('='); err != nil {
 				return true, err
 			}
-			if p.cur.Type != tokSCONST {
-				return true, p.syntaxErrorAtCur()
+			// STRING_VALUE (line 16229), which the lexer folds adjacent quoted
+			// strings into: `FORMAT = 'a' 'b'` is one format.
+			if _, err = p.parseIntoString(); err != nil {
+				return true, err
 			}
-			p.advance()
 		}
 		err = p.parseShowLikeOrWhere(stmt)
 	case words("ALL", "PARAMETERS"):

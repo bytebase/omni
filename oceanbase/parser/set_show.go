@@ -1348,7 +1348,9 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		if p.cur.Type == kwSTATUS {
 			stmt.Type = "PROCEDURE STATUS"
 			p.advance()
-			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+			// SHOW PROCEDURE STATUS opt_from_or_in_database_clause
+			// opt_show_condition (sql_parser_mysql_mode.y:16129).
+			if err := p.parseShowFromLikeOrWhere(stmt); err != nil {
 				return nil, err
 			}
 		} else if p.cur.Type == kwCODE {
@@ -1368,7 +1370,9 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		if p.cur.Type == kwSTATUS {
 			stmt.Type = "FUNCTION STATUS"
 			p.advance()
-			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+			// SHOW FUNCTION STATUS opt_from_or_in_database_clause
+			// opt_show_condition (sql_parser_mysql_mode.y:16131).
+			if err := p.parseShowFromLikeOrWhere(stmt); err != nil {
 				return nil, err
 			}
 		} else if p.cur.Type == kwCODE {

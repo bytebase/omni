@@ -9,8 +9,10 @@
 1054	1054	engine	one_table@column	expr_as_list/expr_as_list_,_expr_with_opt_alias	CREATE VIEW _v AS SELECT STATISTICS(a, a)
 1583	1583	engine	one_table@column	expr_as_list/expr_as_list_,_expr_with_opt_alias!insert	CREATE VIEW _v AS SELECT STATISTICS(a, a zzz)
 1583	1583	engine	one_table@column	expr_with_opt_alias/expr_opt_as_column_label	CREATE VIEW _v AS SELECT STATISTICS(a a)
+1583	1583	engine	one_table@column	expr_with_opt_alias/expr_opt_as_column_label+opt_as	CREATE VIEW _v AS SELECT STATISTICS(a AS a)
 1583	1583	engine	one_table@column	expr_with_opt_alias/expr_opt_as_STRING_VALUE	CREATE VIEW _v AS SELECT STATISTICS(a 's')
 1305	1305	engine	one_table@column	expr_with_opt_alias/expr_opt_as_STRING_VALUE!drop-1	CREATE VIEW _v AS SELECT STATISTICS('s')
+1583	1583	engine	one_table@column	expr_with_opt_alias/expr_opt_as_STRING_VALUE+opt_as	CREATE VIEW _v AS SELECT STATISTICS(a AS 's')
 1109	1109	engine	one_table@column	column_ref/relation_name_._column_name	CREATE VIEW _v AS SELECT a . a
 1109	1109	engine	one_table@column	column_ref/relation_name_._column_name!insert	CREATE VIEW _v AS SELECT a . a zzz
 1109	1109	engine	one_table@column	column_ref/relation_name_._mysql_reserved_keyword	CREATE VIEW _v AS SELECT a . ACCESSIBLE
@@ -337,9 +339,11 @@ ok:333f4f7d3d38	ok:333f4f7d3d38	engine	one_table@column	simple_expr/func_expr!in
 5929	5929	engine	one_table@column	window_function/COUNT_(_opt_all_*_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT COUNT(*) OVER a
 ok:05dfa2a7669b	ok:05dfa2a7669b	engine	one_table@column	window_function/COUNT_(_opt_all_*_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT COUNT(*) a
 5929	5929	engine	one_table@column	window_function/COUNT_(_opt_all_*_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT COUNT(*) OVER a zzz
+5929	5929	engine	one_table@column	window_function/COUNT_(_opt_all_*_)_OVER_new_generalized_window_clause+opt_all	CREATE VIEW _v AS SELECT COUNT(ALL *) OVER a
 5929	5929	engine	one_table@column	window_function/COUNT_(_opt_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT COUNT(a) OVER a
 1054	1054	engine	one_table@column	window_function/COUNT_(_opt_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT COUNT(a) a
 5929	5929	engine	one_table@column	window_function/COUNT_(_opt_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT COUNT(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/COUNT_(_opt_all_expr_)_OVER_new_generalized_window_clause+opt_all	CREATE VIEW _v AS SELECT COUNT(ALL a) OVER a
 5929	5929	engine	one_table@column	window_function/COUNT_(_DISTINCT_expr_list_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT COUNT(DISTINCT a) OVER a
 1054	1054	engine	one_table@column	window_function/COUNT_(_DISTINCT_expr_list_)_OVER_new_generalized_window_clause!drop-6	CREATE VIEW _v AS SELECT COUNT(DISTINCT a) a
 5929	5929	engine	one_table@column	window_function/COUNT_(_DISTINCT_expr_list_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT COUNT(DISTINCT a) OVER a zzz
@@ -388,24 +392,31 @@ ok:05dfa2a7669b	ok:05dfa2a7669b	engine	one_table@column	window_function/COUNT_(_
 5929	5929	engine	one_table@column	window_function/STD_(_opt_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT STD(a) OVER a
 1054	1054	engine	one_table@column	window_function/STD_(_opt_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT STD(a) a
 5929	5929	engine	one_table@column	window_function/STD_(_opt_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT STD(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/STD_(_opt_all_expr_)_OVER_new_generalized_window_clause+opt_all	CREATE VIEW _v AS SELECT STD(ALL a) OVER a
 5929	5929	engine	one_table@column	window_function/STDDEV_(_opt_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT STDDEV(a) OVER a
 1054	1054	engine	one_table@column	window_function/STDDEV_(_opt_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT STDDEV(a) a
 5929	5929	engine	one_table@column	window_function/STDDEV_(_opt_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT STDDEV(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/STDDEV_(_opt_all_expr_)_OVER_new_generalized_window_clause+opt_all	CREATE VIEW _v AS SELECT STDDEV(ALL a) OVER a
 5929	5929	engine	one_table@column	window_function/VARIANCE_(_opt_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT VARIANCE(a) OVER a
 1054	1054	engine	one_table@column	window_function/VARIANCE_(_opt_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT VARIANCE(a) a
 5929	5929	engine	one_table@column	window_function/VARIANCE_(_opt_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT VARIANCE(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/VARIANCE_(_opt_all_expr_)_OVER_new_generalized_window_clause+opt_all	CREATE VIEW _v AS SELECT VARIANCE(ALL a) OVER a
 5929	5929	engine	one_table@column	window_function/STDDEV_POP_(_opt_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT STDDEV_POP(a) OVER a
 1054	1054	engine	one_table@column	window_function/STDDEV_POP_(_opt_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT STDDEV_POP(a) a
 5929	5929	engine	one_table@column	window_function/STDDEV_POP_(_opt_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT STDDEV_POP(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/STDDEV_POP_(_opt_all_expr_)_OVER_new_generalized_window_clause+opt_all	CREATE VIEW _v AS SELECT STDDEV_POP(ALL a) OVER a
 5929	5929	engine	one_table@column	window_function/STDDEV_SAMP_(_opt_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT STDDEV_SAMP(a) OVER a
 1054	1054	engine	one_table@column	window_function/STDDEV_SAMP_(_opt_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT STDDEV_SAMP(a) a
 5929	5929	engine	one_table@column	window_function/STDDEV_SAMP_(_opt_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT STDDEV_SAMP(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/STDDEV_SAMP_(_opt_all_expr_)_OVER_new_generalized_window_clause+opt_all	CREATE VIEW _v AS SELECT STDDEV_SAMP(ALL a) OVER a
 5929	5929	engine	one_table@column	window_function/VAR_POP_(_opt_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT VAR_POP(a) OVER a
 1054	1054	engine	one_table@column	window_function/VAR_POP_(_opt_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT VAR_POP(a) a
 5929	5929	engine	one_table@column	window_function/VAR_POP_(_opt_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT VAR_POP(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/VAR_POP_(_opt_all_expr_)_OVER_new_generalized_window_clause+opt_all	CREATE VIEW _v AS SELECT VAR_POP(ALL a) OVER a
 5929	5929	engine	one_table@column	window_function/VAR_SAMP_(_opt_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT VAR_SAMP(a) OVER a
 1054	1054	engine	one_table@column	window_function/VAR_SAMP_(_opt_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT VAR_SAMP(a) a
 5929	5929	engine	one_table@column	window_function/VAR_SAMP_(_opt_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT VAR_SAMP(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/VAR_SAMP_(_opt_all_expr_)_OVER_new_generalized_window_clause+opt_all	CREATE VIEW _v AS SELECT VAR_SAMP(ALL a) OVER a
 5929	5929	engine	one_table@column	window_function/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT GROUP_CONCAT(a) OVER a
 1054	1054	engine	one_table@column	window_function/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT GROUP_CONCAT(a) a
 5929	5929	engine	one_table@column	window_function/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT GROUP_CONCAT(a) OVER a zzz
@@ -444,12 +455,15 @@ ok:05dfa2a7669b	ok:05dfa2a7669b	engine	one_table@column	window_function/COUNT_(_
 5929	5929	engine	one_table@column	window_function/BIT_AND_(_opt_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT BIT_AND(a) OVER a
 1054	1054	engine	one_table@column	window_function/BIT_AND_(_opt_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT BIT_AND(a) a
 5929	5929	engine	one_table@column	window_function/BIT_AND_(_opt_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT BIT_AND(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/BIT_AND_(_opt_all_expr_)_OVER_new_generalized_window_clause+opt_all	CREATE VIEW _v AS SELECT BIT_AND(ALL a) OVER a
 5929	5929	engine	one_table@column	window_function/BIT_OR_(_opt_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT BIT_OR(a) OVER a
 1054	1054	engine	one_table@column	window_function/BIT_OR_(_opt_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT BIT_OR(a) a
 5929	5929	engine	one_table@column	window_function/BIT_OR_(_opt_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT BIT_OR(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/BIT_OR_(_opt_all_expr_)_OVER_new_generalized_window_clause+opt_all	CREATE VIEW _v AS SELECT BIT_OR(ALL a) OVER a
 5929	5929	engine	one_table@column	window_function/BIT_XOR_(_opt_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT BIT_XOR(a) OVER a
 1054	1054	engine	one_table@column	window_function/BIT_XOR_(_opt_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT BIT_XOR(a) a
 5929	5929	engine	one_table@column	window_function/BIT_XOR_(_opt_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT BIT_XOR(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/BIT_XOR_(_opt_all_expr_)_OVER_new_generalized_window_clause+opt_all	CREATE VIEW _v AS SELECT BIT_XOR(ALL a) OVER a
 1210	1210	engine	one_table@column	first_or_last/FIRST	CREATE VIEW _v AS SELECT NTH_VALUE(a, a) FROM FIRST OVER a
 1210	1210	engine	one_table@column	first_or_last/LAST	CREATE VIEW _v AS SELECT NTH_VALUE(a, a) FROM LAST OVER a
 5929	5929	engine	one_table@column	respect_or_ignore/RESPECT	CREATE VIEW _v AS SELECT FIRST_VALUE(a RESPECT NULLS) OVER a
@@ -516,6 +530,7 @@ ok:8b3ee4b75227	ok:8b3ee4b75227	engine	one_table@column	func_expr/COUNT_(_opt_al
 1054	1054	engine	one_table@column	func_expr/COUNT_(_opt_all_expr_)	CREATE VIEW _v AS SELECT COUNT(a)
 1054	1054	engine	one_table@column	func_expr/COUNT_(_opt_all_expr_)!insert	CREATE VIEW _v AS SELECT COUNT(a) zzz
 1054	1054	engine	one_table@column	func_expr/COUNT_(_opt_all_expr_)!swap	CREATE VIEW _v AS SELECT COUNT_TO_EXISTS(a)
+1054	1054	engine	one_table@column	func_expr/COUNT_(_opt_all_expr_)+opt_all	CREATE VIEW _v AS SELECT COUNT(ALL a)
 1054	1054	engine	one_table@column	func_expr/COUNT_(_DISTINCT_expr_list_)	CREATE VIEW _v AS SELECT COUNT(DISTINCT a)
 1054	1054	engine	one_table@column	func_expr/COUNT_(_DISTINCT_expr_list_)!insert	CREATE VIEW _v AS SELECT COUNT(DISTINCT a) zzz
 1054	1054	engine	one_table@column	func_expr/COUNT_(_UNIQUE_expr_list_)	CREATE VIEW _v AS SELECT COUNT(UNIQUE a)
@@ -552,24 +567,34 @@ ok:8b3ee4b75227	ok:8b3ee4b75227	engine	one_table@column	func_expr/COUNT_(_opt_al
 1054	1054	engine	one_table@column	func_expr/JSON_OBJECTAGG_(_expr_,_expr_)!insert	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a, a) zzz
 1054	1054	engine	one_table@column	func_expr/STD_(_opt_all_expr_)	CREATE VIEW _v AS SELECT STD(a)
 1054	1054	engine	one_table@column	func_expr/STD_(_opt_all_expr_)!insert	CREATE VIEW _v AS SELECT STD(a) zzz
+1054	1054	engine	one_table@column	func_expr/STD_(_opt_all_expr_)+opt_all	CREATE VIEW _v AS SELECT STD(ALL a)
 1054	1054	engine	one_table@column	func_expr/STDDEV_(_opt_all_expr_)	CREATE VIEW _v AS SELECT STDDEV(a)
 1054	1054	engine	one_table@column	func_expr/STDDEV_(_opt_all_expr_)!insert	CREATE VIEW _v AS SELECT STDDEV(a) zzz
+1054	1054	engine	one_table@column	func_expr/STDDEV_(_opt_all_expr_)+opt_all	CREATE VIEW _v AS SELECT STDDEV(ALL a)
 1054	1054	engine	one_table@column	func_expr/VARIANCE_(_opt_all_expr_)	CREATE VIEW _v AS SELECT VARIANCE(a)
 1054	1054	engine	one_table@column	func_expr/VARIANCE_(_opt_all_expr_)!insert	CREATE VIEW _v AS SELECT VARIANCE(a) zzz
+1054	1054	engine	one_table@column	func_expr/VARIANCE_(_opt_all_expr_)+opt_all	CREATE VIEW _v AS SELECT VARIANCE(ALL a)
 1054	1054	engine	one_table@column	func_expr/STDDEV_POP_(_opt_all_expr_)	CREATE VIEW _v AS SELECT STDDEV_POP(a)
 1054	1054	engine	one_table@column	func_expr/STDDEV_POP_(_opt_all_expr_)!insert	CREATE VIEW _v AS SELECT STDDEV_POP(a) zzz
+1054	1054	engine	one_table@column	func_expr/STDDEV_POP_(_opt_all_expr_)+opt_all	CREATE VIEW _v AS SELECT STDDEV_POP(ALL a)
 1054	1054	engine	one_table@column	func_expr/STDDEV_SAMP_(_opt_all_expr_)	CREATE VIEW _v AS SELECT STDDEV_SAMP(a)
 1054	1054	engine	one_table@column	func_expr/STDDEV_SAMP_(_opt_all_expr_)!insert	CREATE VIEW _v AS SELECT STDDEV_SAMP(a) zzz
+1054	1054	engine	one_table@column	func_expr/STDDEV_SAMP_(_opt_all_expr_)+opt_all	CREATE VIEW _v AS SELECT STDDEV_SAMP(ALL a)
 1054	1054	engine	one_table@column	func_expr/VAR_POP_(_opt_all_expr_)	CREATE VIEW _v AS SELECT VAR_POP(a)
 1054	1054	engine	one_table@column	func_expr/VAR_POP_(_opt_all_expr_)!insert	CREATE VIEW _v AS SELECT VAR_POP(a) zzz
+1054	1054	engine	one_table@column	func_expr/VAR_POP_(_opt_all_expr_)+opt_all	CREATE VIEW _v AS SELECT VAR_POP(ALL a)
 1054	1054	engine	one_table@column	func_expr/VAR_SAMP_(_opt_all_expr_)	CREATE VIEW _v AS SELECT VAR_SAMP(a)
 1054	1054	engine	one_table@column	func_expr/VAR_SAMP_(_opt_all_expr_)!insert	CREATE VIEW _v AS SELECT VAR_SAMP(a) zzz
+1054	1054	engine	one_table@column	func_expr/VAR_SAMP_(_opt_all_expr_)+opt_all	CREATE VIEW _v AS SELECT VAR_SAMP(ALL a)
 1054	1054	engine	one_table@column	func_expr/BIT_AND_(_opt_all_expr_)	CREATE VIEW _v AS SELECT BIT_AND(a)
 1054	1054	engine	one_table@column	func_expr/BIT_AND_(_opt_all_expr_)!insert	CREATE VIEW _v AS SELECT BIT_AND(a) zzz
+1054	1054	engine	one_table@column	func_expr/BIT_AND_(_opt_all_expr_)+opt_all	CREATE VIEW _v AS SELECT BIT_AND(ALL a)
 1054	1054	engine	one_table@column	func_expr/BIT_OR_(_opt_all_expr_)	CREATE VIEW _v AS SELECT BIT_OR(a)
 1054	1054	engine	one_table@column	func_expr/BIT_OR_(_opt_all_expr_)!insert	CREATE VIEW _v AS SELECT BIT_OR(a) zzz
+1054	1054	engine	one_table@column	func_expr/BIT_OR_(_opt_all_expr_)+opt_all	CREATE VIEW _v AS SELECT BIT_OR(ALL a)
 1054	1054	engine	one_table@column	func_expr/BIT_XOR_(_opt_all_expr_)	CREATE VIEW _v AS SELECT BIT_XOR(a)
 1054	1054	engine	one_table@column	func_expr/BIT_XOR_(_opt_all_expr_)!insert	CREATE VIEW _v AS SELECT BIT_XOR(a) zzz
+1054	1054	engine	one_table@column	func_expr/BIT_XOR_(_opt_all_expr_)+opt_all	CREATE VIEW _v AS SELECT BIT_XOR(ALL a)
 1054	1054	engine	one_table@column	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr_list_)	CREATE VIEW _v AS SELECT PERCENTILE_CONT(a, a)
 1054	1054	engine	one_table@column	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr_list_)!insert	CREATE VIEW _v AS SELECT PERCENTILE_CONT(a, a) zzz
 1054	1054	engine	one_table@column	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr_list_)+opt_distinct_or_all/ALL	CREATE VIEW _v AS SELECT PERCENTILE_CONT(ALL a, a)
@@ -938,6 +963,7 @@ ok:333f4f7d3d38	ok:333f4f7d3d38	engine	one_table@column	opt_time_func_fsp_i/(_)!
 1109	1109	engine	one_table@column	column_definition_ref/id_dot_id	CREATE VIEW _v AS SELECT a.a ->> 's'
 1109	1109	engine	one_table@column	column_definition_ref/id_dot_id_dot_id	CREATE VIEW _v AS SELECT a.a.a ->> 's'
 1054	1054	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_opt_binary	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER)
+1054	1054	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_opt_binary+opt_binary	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER BINARY)
 1115	1115	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_charset_key_charset_name	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER CHARSET a)
 1115	1115	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_charset_key_charset_name+charset_key/CHARACTER_SET	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER CHARACTER SET a)
 1115	1115	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_charset_key_charset_name+charset_name/STRING_VALUE	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER CHARSET 's')
@@ -1053,6 +1079,7 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	limit_clause/LIMIT_limit_expr_OFFSET_limit_expr	CREATE VIEW _v AS SELECT a LIMIT 1 OFFSET 1
 1054	1054	engine	one_table@column	limit_clause/LIMIT_limit_expr_,_limit_expr	CREATE VIEW _v AS SELECT a LIMIT 1, 1
 1054	1054	engine	one_table@column	into_clause/INTO_OUTFILE_STRING_VALUE_file_partition_opt_FORMAT_opt_equal_mark_(_external_file_format_list_)_file_opt	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' FORMAT(TYPE = 's')
+1054	1054	engine	one_table@column	into_clause/INTO_OUTFILE_STRING_VALUE_file_partition_opt_FORMAT_opt_equal_mark_(_external_file_format_list_)_file_opt+opt_equal_mark	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' FORMAT =(TYPE = 's')
 1054	1054	engine	one_table@column	into_clause/INTO_DUMPFILE_STRING_VALUE	CREATE VIEW _v AS SELECT a INTO DUMPFILE 's'
 1054	1054	engine	one_table@column	into_clause/INTO_DUMPFILE_STRING_VALUE!drop-3	CREATE VIEW _v AS SELECT a INTO DUMPFILE
 1054	1054	engine	one_table@column	into_var_list/into_var_list_,_into_var	CREATE VIEW _v AS SELECT a INTO @v, @v
@@ -1075,8 +1102,11 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	field_term/ESCAPED_BY_text_string+text_string/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS ESCAPED BY b'1'
 1054	1054	engine	one_table@column	file_opt/file_option_list	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' SINGLE TRUE
 1054	1054	engine	one_table@column	file_option_list/file_option_list_file_option	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' SINGLE TRUE SINGLE TRUE
+1054	1054	engine	one_table@column	file_option/SINGLE_opt_equal_mark_BOOL_VALUE+opt_equal_mark	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' SINGLE = TRUE
 1054	1054	engine	one_table@column	file_option/MAX_FILE_SIZE_opt_equal_mark_file_size_const	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' MAX_FILE_SIZE 1
+1054	1054	engine	one_table@column	file_option/MAX_FILE_SIZE_opt_equal_mark_file_size_const+opt_equal_mark	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' MAX_FILE_SIZE = 1
 1054	1054	engine	one_table@column	file_option/BUFFER_SIZE_opt_equal_mark_file_size_const	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' BUFFER_SIZE 1
+1054	1054	engine	one_table@column	file_option/BUFFER_SIZE_opt_equal_mark_file_size_const+opt_equal_mark	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' BUFFER_SIZE = 1
 1054	1054	engine	one_table@column	file_partition_opt/PARTITION_BY_bit_expr	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' PARTITION BY a
 1054	1054	engine	one_table@column	file_size_const/STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' MAX_FILE_SIZE 's'
 1054	1054	engine	one_table@column	line_opt/LINES_line_term_list	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' LINES TERMINATED BY 's'
@@ -1212,12 +1242,14 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	global_hint/TRANS_PARAM_(_trans_param_name_opt_comma_trans_param_value_)!drop-5	CREATE VIEW _v AS SELECT /*+ TRANS_PARAM('s' 's' */ a
 1054	1054	engine	one_table@column	global_hint/TRANS_PARAM_(_trans_param_name_opt_comma_trans_param_value_)!insert	CREATE VIEW _v AS SELECT /*+ TRANS_PARAM('s' 's') zzz */ a
 1054	1054	engine	one_table@column	global_hint/TRANS_PARAM_(_trans_param_name_opt_comma_trans_param_value_)!swap	CREATE VIEW _v AS SELECT /*+ TRIGGER('s' 's') */ a
+1054	1054	engine	one_table@column	global_hint/TRANS_PARAM_(_trans_param_name_opt_comma_trans_param_value_)+opt_comma	CREATE VIEW _v AS SELECT /*+ TRANS_PARAM('s', 's') */ a
 1054	1054	engine	one_table@column	global_hint/OPT_PARAM_(_trans_param_name_opt_comma_trans_param_value_)	CREATE VIEW _v AS SELECT /*+ OPT_PARAM('s' 's') */ a
 1054	1054	engine	one_table@column	global_hint/OPT_PARAM_(_trans_param_name_opt_comma_trans_param_value_)!drop-2	CREATE VIEW _v AS SELECT /*+ OPT_PARAM 's' 's') */ a
 1054	1054	engine	one_table@column	global_hint/OPT_PARAM_(_trans_param_name_opt_comma_trans_param_value_)!drop-3	CREATE VIEW _v AS SELECT /*+ OPT_PARAM('s') */ a
 1054	1054	engine	one_table@column	global_hint/OPT_PARAM_(_trans_param_name_opt_comma_trans_param_value_)!drop-5	CREATE VIEW _v AS SELECT /*+ OPT_PARAM('s' 's' */ a
 1054	1054	engine	one_table@column	global_hint/OPT_PARAM_(_trans_param_name_opt_comma_trans_param_value_)!insert	CREATE VIEW _v AS SELECT /*+ OPT_PARAM('s' 's') zzz */ a
 1054	1054	engine	one_table@column	global_hint/OPT_PARAM_(_trans_param_name_opt_comma_trans_param_value_)!swap	CREATE VIEW _v AS SELECT /*+ OR('s' 's') */ a
+1054	1054	engine	one_table@column	global_hint/OPT_PARAM_(_trans_param_name_opt_comma_trans_param_value_)+opt_comma	CREATE VIEW _v AS SELECT /*+ OPT_PARAM('s', 's') */ a
 1054	1054	engine	one_table@column	global_hint/OB_DDL_SCHEMA_VERSION_(_relation_factor_in_hint_opt_comma_INTNUM_)	CREATE VIEW _v AS SELECT /*+ OB_DDL_SCHEMA_VERSION(a 1) */ a
 1054	1054	engine	one_table@column	global_hint/OB_DDL_SCHEMA_VERSION_(_relation_factor_in_hint_opt_comma_INTNUM_)!drop-1	CREATE VIEW _v AS SELECT /*+(a 1) */ a
 1054	1054	engine	one_table@column	global_hint/OB_DDL_SCHEMA_VERSION_(_relation_factor_in_hint_opt_comma_INTNUM_)!drop-2	CREATE VIEW _v AS SELECT /*+ OB_DDL_SCHEMA_VERSION a 1) */ a
@@ -1226,6 +1258,7 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	global_hint/OB_DDL_SCHEMA_VERSION_(_relation_factor_in_hint_opt_comma_INTNUM_)!drop-5	CREATE VIEW _v AS SELECT /*+ OB_DDL_SCHEMA_VERSION(a 1 */ a
 1054	1054	engine	one_table@column	global_hint/OB_DDL_SCHEMA_VERSION_(_relation_factor_in_hint_opt_comma_INTNUM_)!insert	CREATE VIEW _v AS SELECT /*+ OB_DDL_SCHEMA_VERSION(a 1) zzz */ a
 1054	1054	engine	one_table@column	global_hint/OB_DDL_SCHEMA_VERSION_(_relation_factor_in_hint_opt_comma_INTNUM_)!swap	CREATE VIEW _v AS SELECT /*+ OCCUR(a 1) */ a
+1054	1054	engine	one_table@column	global_hint/OB_DDL_SCHEMA_VERSION_(_relation_factor_in_hint_opt_comma_INTNUM_)+opt_comma	CREATE VIEW _v AS SELECT /*+ OB_DDL_SCHEMA_VERSION(a, 1) */ a
 1054	1054	engine	one_table@column	global_hint/FORCE_REFRESH_LOCATION_CACHE	CREATE VIEW _v AS SELECT /*+ FORCE_REFRESH_LOCATION_CACHE */ a
 1054	1054	engine	one_table@column	global_hint/FORCE_REFRESH_LOCATION_CACHE!insert	CREATE VIEW _v AS SELECT /*+ FORCE_REFRESH_LOCATION_CACHE zzz */ a
 1054	1054	engine	one_table@column	global_hint/FORCE_REFRESH_LOCATION_CACHE!swap	CREATE VIEW _v AS SELECT /*+ FOREIGN */ a
@@ -1612,6 +1645,7 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	union_merge_list/NAME_OB!insert	CREATE VIEW _v AS SELECT /*+ UNION_MERGE(a a zzz) */ a
 1054	1054	engine	one_table@column	union_merge_list/union_merge_list_opt_comma_NAME_OB	CREATE VIEW _v AS SELECT /*+ UNION_MERGE(a a a) */ a
 1054	1054	engine	one_table@column	union_merge_list/union_merge_list_opt_comma_NAME_OB!insert	CREATE VIEW _v AS SELECT /*+ UNION_MERGE(a a a zzz) */ a
+1054	1054	engine	one_table@column	union_merge_list/union_merge_list_opt_comma_NAME_OB+opt_comma	CREATE VIEW _v AS SELECT /*+ UNION_MERGE(a a, a) */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)	CREATE VIEW _v AS SELECT /*+ INDEX(a a) */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!drop-1	CREATE VIEW _v AS SELECT /*+(a a) */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!drop-2	CREATE VIEW _v AS SELECT /*+ INDEX a a) */ a
@@ -1619,22 +1653,26 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	optimize_hint/INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!drop-5	CREATE VIEW _v AS SELECT /*+ INDEX(a a */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!insert	CREATE VIEW _v AS SELECT /*+ INDEX(a a) zzz */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!swap	CREATE VIEW _v AS SELECT /*+ INDEXED(a a) */ a
+1054	1054	engine	one_table@column	optimize_hint/INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)+opt_comma	CREATE VIEW _v AS SELECT /*+ INDEX(a, a) */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_ASC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)	CREATE VIEW _v AS SELECT /*+ INDEX_ASC(a a) */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_ASC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!drop-2	CREATE VIEW _v AS SELECT /*+ INDEX_ASC a a) */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_ASC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!drop-3	CREATE VIEW _v AS SELECT /*+ INDEX_ASC(a) */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_ASC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!drop-5	CREATE VIEW _v AS SELECT /*+ INDEX_ASC(a a */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_ASC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!insert	CREATE VIEW _v AS SELECT /*+ INDEX_ASC(a a) zzz */ a
+1054	1054	engine	one_table@column	optimize_hint/INDEX_ASC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)+opt_comma	CREATE VIEW _v AS SELECT /*+ INDEX_ASC(a, a) */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_DESC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)	CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a a) */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_DESC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!drop-2	CREATE VIEW _v AS SELECT /*+ INDEX_DESC a a) */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_DESC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!drop-3	CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a) */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_DESC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!drop-5	CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a a */ a
 1054	1054	engine	one_table@column	optimize_hint/INDEX_DESC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)!insert	CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a a) zzz */ a
+1054	1054	engine	one_table@column	optimize_hint/INDEX_DESC_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_opt_index_prefix_)+opt_comma	CREATE VIEW _v AS SELECT /*+ INDEX_DESC(a, a) */ a
 1054	1054	engine	one_table@column	optimize_hint/NO_INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_)	CREATE VIEW _v AS SELECT /*+ NO_INDEX(a a) */ a
 1054	1054	engine	one_table@column	optimize_hint/NO_INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_)!drop-2	CREATE VIEW _v AS SELECT /*+ NO_INDEX a a) */ a
 1054	1054	engine	one_table@column	optimize_hint/NO_INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_)!drop-3	CREATE VIEW _v AS SELECT /*+ NO_INDEX(a) */ a
 1054	1054	engine	one_table@column	optimize_hint/NO_INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_)!drop-5	CREATE VIEW _v AS SELECT /*+ NO_INDEX(a a */ a
 1054	1054	engine	one_table@column	optimize_hint/NO_INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_)!insert	CREATE VIEW _v AS SELECT /*+ NO_INDEX(a a) zzz */ a
 1054	1054	engine	one_table@column	optimize_hint/NO_INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_)!swap	CREATE VIEW _v AS SELECT /*+ NO_JOIN_FIRST_UNNEST(a a) */ a
+1054	1054	engine	one_table@column	optimize_hint/NO_INDEX_HINT_(_qb_name_option_relation_factor_in_hint_opt_comma_NAME_OB_)+opt_comma	CREATE VIEW _v AS SELECT /*+ NO_INDEX(a, a) */ a
 1054	1054	engine	one_table@column	optimize_hint/UNION_MERGE_HINT_(_qb_name_option_relation_factor_in_hint_union_merge_list_)!drop-2	CREATE VIEW _v AS SELECT /*+ UNION_MERGE a a) */ a
 1054	1054	engine	one_table@column	optimize_hint/UNION_MERGE_HINT_(_qb_name_option_relation_factor_in_hint_union_merge_list_)!drop-5	CREATE VIEW _v AS SELECT /*+ UNION_MERGE(a a */ a
 1054	1054	engine	one_table@column	optimize_hint/UNION_MERGE_HINT_(_qb_name_option_relation_factor_in_hint_union_merge_list_)!insert	CREATE VIEW _v AS SELECT /*+ UNION_MERGE(a a) zzz */ a
@@ -1794,6 +1832,8 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_(_qb_name_option_relation_factor_in_pq_hint_opt_comma_distribute_method_opt_comma_distribute_method_)!drop-6	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE(a ALL ALL */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_(_qb_name_option_relation_factor_in_pq_hint_opt_comma_distribute_method_opt_comma_distribute_method_)!insert	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE(a ALL ALL) zzz */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_(_qb_name_option_relation_factor_in_pq_hint_opt_comma_distribute_method_opt_comma_distribute_method_)!swap	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE_WINDOW(a ALL ALL) */ a
+1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_(_qb_name_option_relation_factor_in_pq_hint_opt_comma_distribute_method_opt_comma_distribute_method_)+opt_comma	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE(a, ALL ALL) */ a
+1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_(_qb_name_option_relation_factor_in_pq_hint_opt_comma_distribute_method_opt_comma_distribute_method_)+opt_comma#2	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE(a ALL, ALL) */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_(_qb_name_option_relation_factor_in_pq_hint_)	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE(a) */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_(_qb_name_option_relation_factor_in_pq_hint_)!drop-2	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE a) */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_(_qb_name_option_relation_factor_in_pq_hint_)!drop-3	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE() */ a
@@ -1808,6 +1848,9 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_(_qb_name_option_relation_factor_in_pq_hint_opt_comma_distribute_method_opt_comma_distribute_method_opt_comma_INTNUM_)!drop-7	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE(a ALL ALL 1 */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_(_qb_name_option_relation_factor_in_pq_hint_opt_comma_distribute_method_opt_comma_distribute_method_opt_comma_INTNUM_)!insert	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE(a ALL ALL 1) zzz */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_(_qb_name_option_relation_factor_in_pq_hint_opt_comma_distribute_method_opt_comma_distribute_method_opt_comma_INTNUM_)!swap	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE_WINDOW(a ALL ALL 1) */ a
+1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_(_qb_name_option_relation_factor_in_pq_hint_opt_comma_distribute_method_opt_comma_distribute_method_opt_comma_INTNUM_)+opt_comma	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE(a, ALL ALL 1) */ a
+1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_(_qb_name_option_relation_factor_in_pq_hint_opt_comma_distribute_method_opt_comma_distribute_method_opt_comma_INTNUM_)+opt_comma#2	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE(a ALL, ALL 1) */ a
+1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_(_qb_name_option_relation_factor_in_pq_hint_opt_comma_distribute_method_opt_comma_distribute_method_opt_comma_INTNUM_)+opt_comma#3	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE(a ALL ALL, 1) */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_MAP_(_qb_name_option_relation_factor_in_pq_hint_)	CREATE VIEW _v AS SELECT /*+ PQ_MAP(a) */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_MAP_(_qb_name_option_relation_factor_in_pq_hint_)!drop-2	CREATE VIEW _v AS SELECT /*+ PQ_MAP a) */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_MAP_(_qb_name_option_relation_factor_in_pq_hint_)!drop-3	CREATE VIEW _v AS SELECT /*+ PQ_MAP() */ a
@@ -1820,6 +1863,7 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_WINDOW_(_qb_name_option_opt_comma_win_dist_list_)!drop-3	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE_WINDOW() */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_WINDOW_(_qb_name_option_opt_comma_win_dist_list_)!drop-4	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE_WINDOW(ALL */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_WINDOW_(_qb_name_option_opt_comma_win_dist_list_)!insert	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE_WINDOW(ALL) zzz */ a
+1054	1054	engine	one_table@column	optimize_hint/PQ_DISTRIBUTE_WINDOW_(_qb_name_option_opt_comma_win_dist_list_)+opt_comma	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE_WINDOW(, ALL) */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_SET_(_pq_set_hint_desc_)	CREATE VIEW _v AS SELECT /*+ PQ_SET(@a) */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_SET_(_pq_set_hint_desc_)!drop-1	CREATE VIEW _v AS SELECT /*+(@a) */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_SET_(_pq_set_hint_desc_)!drop-2	CREATE VIEW _v AS SELECT /*+ PQ_SET@a) */ a
@@ -1886,6 +1930,7 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	optimize_hint/PQ_GBY_(_qb_name_option_distribute_method_opt_comma_INTNUM_)!drop-5	CREATE VIEW _v AS SELECT /*+ PQ_GBY(ALL 1 */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_GBY_(_qb_name_option_distribute_method_opt_comma_INTNUM_)!insert	CREATE VIEW _v AS SELECT /*+ PQ_GBY(ALL 1) zzz */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_GBY_(_qb_name_option_distribute_method_opt_comma_INTNUM_)!swap	CREATE VIEW _v AS SELECT /*+ PQ_MAP(ALL 1) */ a
+1054	1054	engine	one_table@column	optimize_hint/PQ_GBY_(_qb_name_option_distribute_method_opt_comma_INTNUM_)+opt_comma	CREATE VIEW _v AS SELECT /*+ PQ_GBY(ALL, 1) */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_DISTINCT_(_qb_name_option_distribute_method_)	CREATE VIEW _v AS SELECT /*+ PQ_DISTINCT(ALL) */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_DISTINCT_(_qb_name_option_distribute_method_)!drop-2	CREATE VIEW _v AS SELECT /*+ PQ_DISTINCT ALL) */ a
 1054	1054	engine	one_table@column	optimize_hint/PQ_DISTINCT_(_qb_name_option_distribute_method_)!drop-3	CREATE VIEW _v AS SELECT /*+ PQ_DISTINCT() */ a
@@ -1903,6 +1948,7 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	win_dist_list/win_dist_list_opt_comma_win_dist_desc	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE_WINDOW(ALL ALL) */ a
 1054	1054	engine	one_table@column	win_dist_list/win_dist_list_opt_comma_win_dist_desc!insert	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE_WINDOW(ALL ALL zzz) */ a
 1054	1054	engine	one_table@column	win_dist_list/win_dist_list_opt_comma_win_dist_desc!swap	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE_WINDOW(ALLOW ALL) */ a
+1054	1054	engine	one_table@column	win_dist_list/win_dist_list_opt_comma_win_dist_desc+opt_comma	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE_WINDOW(ALL, ALL) */ a
 1054	1054	engine	one_table@column	win_dist_desc/(_intnum_list_)_distribute_method_opts_hash_sort_and_pushdown	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE_WINDOW((1) ALL) */ a
 1054	1054	engine	one_table@column	win_dist_desc/(_intnum_list_)_distribute_method_opts_hash_sort_and_pushdown!drop-1	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE_WINDOW(1) ALL) */ a
 1054	1054	engine	one_table@column	win_dist_desc/(_intnum_list_)_distribute_method_opts_hash_sort_and_pushdown!drop-2	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE_WINDOW(() ALL) */ a
@@ -1953,16 +1999,21 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	parallel_hint/@_qb_name_string_relation_factor_in_hint_opt_comma_INTNUM!drop-2	CREATE VIEW _v AS SELECT /*+ PARALLEL(@a 1) */ a
 1054	1054	engine	one_table@column	parallel_hint/@_qb_name_string_relation_factor_in_hint_opt_comma_INTNUM!drop-4	CREATE VIEW _v AS SELECT /*+ PARALLEL(@a a) */ a
 1054	1054	engine	one_table@column	parallel_hint/@_qb_name_string_relation_factor_in_hint_opt_comma_INTNUM!insert	CREATE VIEW _v AS SELECT /*+ PARALLEL(@a a 1 zzz) */ a
+1054	1054	engine	one_table@column	parallel_hint/@_qb_name_string_relation_factor_in_hint_opt_comma_INTNUM+opt_comma	CREATE VIEW _v AS SELECT /*+ PARALLEL(@a a, 1) */ a
 1054	1054	engine	one_table@column	parallel_hint/relation_factor_in_hint_opt_comma_INTNUM	CREATE VIEW _v AS SELECT /*+ PARALLEL(a 1) */ a
 1054	1054	engine	one_table@column	parallel_hint/relation_factor_in_hint_opt_comma_INTNUM!drop-2	CREATE VIEW _v AS SELECT /*+ PARALLEL(a) */ a
 1054	1054	engine	one_table@column	parallel_hint/relation_factor_in_hint_opt_comma_INTNUM!insert	CREATE VIEW _v AS SELECT /*+ PARALLEL(a 1 zzz) */ a
+1054	1054	engine	one_table@column	parallel_hint/relation_factor_in_hint_opt_comma_INTNUM+opt_comma	CREATE VIEW _v AS SELECT /*+ PARALLEL(a, 1) */ a
 1054	1054	engine	one_table@column	dynamic_sampling_hint/INTNUM!insert	CREATE VIEW _v AS SELECT /*+ DYNAMIC_SAMPLING(1 zzz) */ a
 1054	1054	engine	one_table@column	dynamic_sampling_hint/qb_name_option_relation_factor_in_hint_opt_comma_INTNUM	CREATE VIEW _v AS SELECT /*+ DYNAMIC_SAMPLING(a 1) */ a
 1054	1054	engine	one_table@column	dynamic_sampling_hint/qb_name_option_relation_factor_in_hint_opt_comma_INTNUM!drop-2	CREATE VIEW _v AS SELECT /*+ DYNAMIC_SAMPLING(a) */ a
 1054	1054	engine	one_table@column	dynamic_sampling_hint/qb_name_option_relation_factor_in_hint_opt_comma_INTNUM!insert	CREATE VIEW _v AS SELECT /*+ DYNAMIC_SAMPLING(a 1 zzz) */ a
+1054	1054	engine	one_table@column	dynamic_sampling_hint/qb_name_option_relation_factor_in_hint_opt_comma_INTNUM+opt_comma	CREATE VIEW _v AS SELECT /*+ DYNAMIC_SAMPLING(a, 1) */ a
 1054	1054	engine	one_table@column	dynamic_sampling_hint/qb_name_option_relation_factor_in_hint_opt_comma_INTNUM_opt_comma_INTNUM	CREATE VIEW _v AS SELECT /*+ DYNAMIC_SAMPLING(a 1 1) */ a
 1054	1054	engine	one_table@column	dynamic_sampling_hint/qb_name_option_relation_factor_in_hint_opt_comma_INTNUM_opt_comma_INTNUM!drop-1	CREATE VIEW _v AS SELECT /*+ DYNAMIC_SAMPLING(1 1) */ a
 1054	1054	engine	one_table@column	dynamic_sampling_hint/qb_name_option_relation_factor_in_hint_opt_comma_INTNUM_opt_comma_INTNUM!insert	CREATE VIEW _v AS SELECT /*+ DYNAMIC_SAMPLING(a 1 1 zzz) */ a
+1054	1054	engine	one_table@column	dynamic_sampling_hint/qb_name_option_relation_factor_in_hint_opt_comma_INTNUM_opt_comma_INTNUM+opt_comma	CREATE VIEW _v AS SELECT /*+ DYNAMIC_SAMPLING(a, 1 1) */ a
+1054	1054	engine	one_table@column	dynamic_sampling_hint/qb_name_option_relation_factor_in_hint_opt_comma_INTNUM_opt_comma_INTNUM+opt_comma#2	CREATE VIEW _v AS SELECT /*+ DYNAMIC_SAMPLING(a 1, 1) */ a
 1054	1054	engine	one_table@column	consistency_level/WEAK!insert	CREATE VIEW _v AS SELECT /*+ READ_CONSISTENCY(WEAK zzz) */ a
 1054	1054	engine	one_table@column	consistency_level/WEAK!swap	CREATE VIEW _v AS SELECT /*+ READ_CONSISTENCY(WEEK) */ a
 1054	1054	engine	one_table@column	consistency_level/STRONG	CREATE VIEW _v AS SELECT /*+ READ_CONSISTENCY(STRONG) */ a
@@ -1982,6 +2033,7 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	distribute_method_list/distribute_method_list_opt_comma_distribute_method	CREATE VIEW _v AS SELECT /*+ PQ_SUBQUERY(ALL ALL) */ a
 1054	1054	engine	one_table@column	distribute_method_list/distribute_method_list_opt_comma_distribute_method!insert	CREATE VIEW _v AS SELECT /*+ PQ_SUBQUERY(ALL ALL zzz) */ a
 1054	1054	engine	one_table@column	distribute_method_list/distribute_method_list_opt_comma_distribute_method!swap	CREATE VIEW _v AS SELECT /*+ PQ_SUBQUERY(ALLOW ALL) */ a
+1054	1054	engine	one_table@column	distribute_method_list/distribute_method_list_opt_comma_distribute_method+opt_comma	CREATE VIEW _v AS SELECT /*+ PQ_SUBQUERY(ALL, ALL) */ a
 1054	1054	engine	one_table@column	distribute_method/NONE	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE_WINDOW(NONE) */ a
 1054	1054	engine	one_table@column	distribute_method/NONE!insert	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE_WINDOW(NONE zzz) */ a
 1054	1054	engine	one_table@column	distribute_method/NONE!swap	CREATE VIEW _v AS SELECT /*+ PQ_DISTRIBUTE_WINDOW(NOORDER) */ a
