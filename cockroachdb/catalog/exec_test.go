@@ -465,3 +465,14 @@ func TestExecRound25(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, c.Metadata().Schemas[0].Tables[0].CheckConstraints[0].Expression, "t.c")
 }
+
+func TestExecRound26(t *testing.T) {
+	c, err := execLast(t, "CREATE TABLE t (a INT8, CHECK (t.a > 0)); ALTER TABLE t RENAME TO u")
+	require.NoError(t, err)
+	require.Equal(t, "((u.a > 0))", c.Metadata().Schemas[0].Tables[0].CheckConstraints[0].Expression)
+	c, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (m mood CHECK (m BETWEEN 'sad' AND 'happy')); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.NoError(t, err)
+	require.Contains(t, c.Metadata().Schemas[0].Tables[0].CheckConstraints[0].Expression, "'blue'")
+	_, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (m mood CHECK (COALESCE(m, 'sad') = m)); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.Error(t, err)
+}

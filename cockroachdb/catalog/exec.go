@@ -1574,14 +1574,23 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 				expr, err := parser.ParseExpr(text)
 				return err == nil && (namesType(text, typ) || slices.ContainsFunc(enumColumns, func(col string) bool { return exprReads(expr, col) }))
 			}
+			// What still holds the label bare, beside an enum column, is
+			// a form relabelIn does not know: refused.
+			relabelRead := func(text string) string {
+				out := relabel(text)
+				if expr, err := parser.ParseExpr(out); err == nil && uncastLabel(expr, from) && stuck == nil {
+					stuck = &Error{Message: fmt.Sprintf("renaming enum value %q, which an expression of table %q holds uncast, is not supported", from, table.Name)}
+				}
+				return out
+			}
 			for _, column := range table.Columns {
 				if column.Generation != nil && reads(column.Generation.Expression) {
-					column.Generation.Expression = relabel(column.Generation.Expression)
+					column.Generation.Expression = relabelRead(column.Generation.Expression)
 				}
 			}
 			for _, check := range table.CheckConstraints {
 				if reads(check.Expression) {
-					check.Expression = relabel(check.Expression)
+					check.Expression = relabelRead(check.Expression)
 				}
 			}
 		})
@@ -1805,6 +1814,18 @@ func relabelIn(text, typ, from, to string, enumColumns []string) string {
 	}
 	out, err := tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
 		switch x := e.(type) {
+		case *tree.RangeCond:
+			// m BETWEEN 'sad' AND 'happy': the bounds are the enum's.
+			if isEnumColumn(x.Left) {
+				out := *x
+				if bare(x.From) {
+					out.From = tree.NewStrVal(to)
+				}
+				if bare(x.To) {
+					out.To = tree.NewStrVal(to)
+				}
+				return true, &out, nil
+			}
 		case *tree.CaseExpr:
 			// CASE m WHEN 'sad' ...: the WHEN values are the enum's.
 			if x.Expr != nil && isEnumColumn(x.Expr) {
@@ -2751,6 +2772,15 @@ func (c *Catalog) moveRelation(s *metadatapb.SchemaMetadata, name string, kind r
 		table.Name = to
 		target.Tables = append(target.Tables, table)
 		reindex(table.Indexes, target.Name, to, "", "")
+		// A stored expression names its table (t.a) by the new name.
+		for _, check := range table.CheckConstraints {
+			check.Expression = requalifyIn(check.Expression, name, to)
+		}
+		for _, column := range table.Columns {
+			if column.Generation != nil {
+				column.Generation.Expression = requalifyIn(column.Generation.Expression, name, to)
+			}
+		}
 		c.eachTable(func(_ *metadatapb.SchemaMetadata, other *metadatapb.TableMetadata) {
 			for _, fk := range other.ForeignKeys {
 				if fk.ReferencedSchema == s.Name && fk.ReferencedTable == name {
@@ -2868,6 +2898,28 @@ func renameSequenceIn(def string, from, to [2]string) string {
 	})
 	if err != nil {
 		return def
+	}
+	return tree.AsString(out)
+}
+
+// requalifyIn returns an expression with the relation its qualified column
+// references name renamed.
+func requalifyIn(text, from, to string) string {
+	expr, err := parser.ParseExpr(text)
+	if err != nil {
+		return text
+	}
+	changed := false
+	out, err := tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
+		if name, ok := e.(*tree.UnresolvedName); ok && name.NumParts == 2 && !name.Star && name.Parts[1] == from {
+			renamed := *name
+			renamed.Parts[1], changed = to, true
+			return false, &renamed, nil
+		}
+		return true, e, nil
+	})
+	if err != nil || !changed {
+		return text
 	}
 	return tree.AsString(out)
 }
