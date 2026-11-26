@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -770,5 +771,22 @@ func TestProjection_DotStarQualifierTightening(t *testing.T) {
 	}
 	if len(span.Results) != 1 || len(span.Results[0].StarSegments) != 1 {
 		t.Fatalf("want one base-star segment over ds.t, got %+v", span.Results)
+	}
+}
+
+// TestGetQuerySpanValueStruct holds SELECT AS VALUE STRUCT(...) to the columns
+// BigQuery returns for it: the struct's fields, each reading its expression.
+func TestGetQuerySpanValueStruct(t *testing.T) {
+	span, err := GetQuerySpan("SELECT AS VALUE STRUCT(x AS a, t.y, 1 AS one) FROM t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got [][]string
+	for _, r := range span.Results {
+		got = append(got, append([]string{r.Name}, resultSourceColumns(r)...))
+	}
+	want := [][]string{{"a", "t.x"}, {"y", "t.y"}, {"one"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("results = %v, want %v", got, want)
 	}
 }
