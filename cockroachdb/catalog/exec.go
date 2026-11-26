@@ -416,6 +416,15 @@ func (c *Catalog) alterSchema(n *tree.AlterSchema) error {
 	if c.l.schemas[to] != nil {
 		return refuse(codeDuplicateSchema, "schema %q already exists", to)
 	}
+	for _, other := range c.l.meta.Schemas {
+		for _, deps := range viewDependencies(other) {
+			if slices.ContainsFunc(deps, func(d *metadatapb.DependencyColumn) bool { return d.Schema == s.Name }) {
+				// The view's query names the schema, which the catalog
+				// does not rewrite.
+				return &Error{Message: fmt.Sprintf("renaming schema %q, which a view reads, is not supported", s.Name)}
+			}
+		}
+	}
 	from := s.Name
 	delete(c.l.schemas, from)
 	s.Name = to
@@ -649,8 +658,12 @@ func (c *Catalog) checkSequences(expr tree.Expr) error {
 	}
 	for _, name := range usedSequences(tree.AsString(expr)) {
 		schema, sequence, _ := strings.Cut(name, ".")
-		if relation(c.l.schemas[schema], sequence) == relNone {
+		switch relation(c.l.schemas[schema], sequence) {
+		case relSequence:
+		case relNone:
 			return refuse(codeUndefinedTable, "relation %q does not exist", sequence)
+		default:
+			return refuse(codeWrongObjectType, "%q is not a sequence", sequence)
 		}
 	}
 	return nil
@@ -926,7 +939,7 @@ func (c *Catalog) createSequence(n *tree.CreateSequence) error {
 		}
 		return refuse(codeDuplicateRelation, "relation %q already exists", name)
 	}
-	if err := c.checkSequenceOptions(n.Options); err != nil {
+	if err := c.checkSequenceOptions(s.Name, n.Options); err != nil {
 		return err
 	}
 	if err := c.l.load(n); err != nil {
@@ -954,7 +967,7 @@ func checkBounds(sequence *metadatapb.SequenceMetadata) error {
 	return nil
 }
 
-func (c *Catalog) checkSequenceOptions(options tree.SequenceOptions) error {
+func (c *Catalog) checkSequenceOptions(schema string, options tree.SequenceOptions) error {
 	for _, option := range options {
 		if option.Name == tree.SeqOptCycle {
 			return refuse(codeFeatureNotSupport, "unimplemented: CYCLE option is not supported")
@@ -969,6 +982,11 @@ func (c *Catalog) checkSequenceOptions(options tree.SequenceOptions) error {
 		if findColumn(table, string(option.ColumnItemVal.ColumnName)) == nil {
 			return refuse(codeUndefinedColumn, "column %q does not exist", option.ColumnItemVal.ColumnName)
 		}
+		if owner := ptr(option.ColumnItemVal.TableName.ToTableName()); schemaOf(owner) != schema {
+			// The metadata names an owner by its table alone, in the
+			// sequence's schema.
+			return &Error{Message: fmt.Sprintf("a sequence owned by a table in another schema (%s) is not supported", owner)}
+		}
 	}
 	return nil
 }
@@ -981,7 +999,7 @@ func (c *Catalog) alterSequence(n *tree.AlterSequence) error {
 		}
 		return refuse(codeUndefinedTable, "relation %q does not exist", n.Name.String())
 	}
-	if err := c.checkSequenceOptions(n.Options); err != nil {
+	if err := c.checkSequenceOptions(s.Name, n.Options); err != nil {
 		return err
 	}
 	// RESTART moves the sequence's value, which the catalog does not hold.
@@ -1288,6 +1306,19 @@ func relabelIn(text, typ, from, to string) string {
 		return text
 	}
 	return tree.AsString(out)
+}
+
+// viewDependencies returns the relations each view and materialized view of
+// a schema reads.
+func viewDependencies(s *metadatapb.SchemaMetadata) [][]*metadatapb.DependencyColumn {
+	var out [][]*metadatapb.DependencyColumn
+	for _, v := range s.Views {
+		out = append(out, v.DependencyColumns)
+	}
+	for _, v := range s.MaterializedViews {
+		out = append(out, v.DependencyColumns)
+	}
+	return out
 }
 
 func enumNames(s *metadatapb.SchemaMetadata) []string {
@@ -1665,7 +1696,7 @@ func (c *Catalog) setRelationSchema(n *tree.AlterTableSetSchema) error {
 	if err != nil {
 		return err
 	}
-	if relation(target, name) != relNone {
+	if relation(target, name) != relNone || typeTaken(target, name) {
 		return refuse(codeDuplicateRelation, "relation %q already exists", name)
 	}
 	if deps := c.dependents(s.Name, name, ""); len(deps) > 0 {
@@ -1956,6 +1987,14 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 		typ, collation := sdlType(cmd.ToType)
 		inForeignKey := len(c.referencing(schema, table.Name, col.Name)) > 0 ||
 			slices.ContainsFunc(table.ForeignKeys, func(fk *metadatapb.ForeignKeyMetadata) bool { return slices.Contains(fk.Columns, col.Name) })
+		for _, other := range table.Columns {
+			if other.Generation == nil || other == col {
+				continue
+			}
+			if expr, err := parser.ParseExpr(other.Generation.Expression); err == nil && exprReads(expr, col.Name) {
+				return &Error{Message: fmt.Sprintf("changing the type of column %q, which computed column %q reads, is not supported", col.Name, other.Name)}
+			}
+		}
 		if inForeignKey && family(typ) != family(col.Type) {
 			return refuse(codeFeatureNotSupport, "unimplemented: ALTER COLUMN TYPE requiring a rewrite of on-disk data is not supported for columns that have constraints")
 		}

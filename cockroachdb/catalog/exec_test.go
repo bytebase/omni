@@ -56,6 +56,8 @@ func TestExecRefusals(t *testing.T) {
 		{"CREATE TABLE t (a INT8, CONSTRAINT ck CHECK (a > 0), CONSTRAINT ck CHECK (a < 10))", "42710"},
 		{"CREATE TABLE t (a INT8 CONSTRAINT ck CHECK (a > 0), b INT8 CONSTRAINT ck UNIQUE)", "42710"},
 		{"CREATE TABLE t (a INT8, CONSTRAINT ck UNIQUE (a), CONSTRAINT ck UNIQUE (a))", "42P07"},
+		{"CREATE TABLE t (a INT8); CREATE TABLE u (a INT8 DEFAULT nextval('t'))", "42809"},
+		{"CREATE SCHEMA s; CREATE TYPE s.t AS ENUM ('a'); CREATE TABLE public.t (a INT8); ALTER TABLE public.t SET SCHEMA s", "42P07"},
 		{"CREATE SCHEMA s; CREATE TYPE s.m AS ENUM ('a'); CREATE TABLE t (m s.m); DROP SCHEMA s CASCADE", "0A000"},
 	} {
 		_, err := execLast(t, tc.script)
@@ -155,4 +157,18 @@ func TestExecLineSkipsComments(t *testing.T) {
 	results, err := catalog.New().Exec("CREATE TABLE t (a INT8);\n-- migration\n/* two\nlines */\nALTER TABLE missing ADD COLUMN a INT8;")
 	require.NoError(t, err)
 	require.Equal(t, 5, results[len(results)-1].Line)
+}
+
+// TestExecRefusesUnmodeledForms refuses, with no code, what the metadata
+// cannot hold afterwards.
+func TestExecRefusesUnmodeledForms(t *testing.T) {
+	for _, script := range []string{
+		"CREATE SCHEMA s; CREATE TABLE s.t (a INT8); CREATE VIEW public.v AS SELECT a FROM s.t; ALTER SCHEMA s RENAME TO s2",
+		"CREATE SCHEMA s; CREATE TABLE public.t (a INT8); CREATE SEQUENCE s.sq OWNED BY public.t.a",
+		"CREATE TABLE t (a INT8, b INT8 AS (a * 2) STORED); ALTER TABLE t ALTER COLUMN a TYPE STRING USING a::STRING",
+	} {
+		_, err := execLast(t, script)
+		require.Error(t, err, script)
+		require.Empty(t, code(err), script)
+	}
 }
