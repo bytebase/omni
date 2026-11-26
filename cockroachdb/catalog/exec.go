@@ -948,6 +948,10 @@ func checkIndexColumns(columns map[string]bool, elems tree.IndexElemList) error 
 func checkColumns(columns map[string]bool, expr tree.Expr) error {
 	var missing string
 	_, _ = tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
+		// A subquery reads its own relations.
+		if _, ok := e.(*tree.Subquery); ok {
+			return false, e, nil
+		}
 		// A column named alone or under its relation (t.a).
 		if name, ok := e.(*tree.UnresolvedName); ok && !name.Star && name.NumParts <= 2 && missing == "" && !columns[name.Parts[0]] {
 			missing = name.Parts[0]
@@ -1324,14 +1328,30 @@ func (c *Catalog) reaches(schema, name, targetSchema, target string) bool {
 // over a join: CockroachDB fixes the star's columns at creation, which the
 // catalog would not hold.
 func (c *Catalog) unexpandedStar(s *metadatapb.SchemaMetadata, name string, n *tree.CreateView) error {
-	var columns []*metadatapb.ColumnMetadata
+	definition := ""
 	if v := findView(s, name); v != nil && !n.Materialized {
-		columns = v.Columns
+		definition = v.Definition
 	} else if v := findMaterializedView(s, name); v != nil {
-		columns = v.Columns
+		definition = v.Definition
 	}
-	if len(columns) == 0 && strings.Contains(tree.AsString(n.AsSource), "*") {
-		return &Error{Message: fmt.Sprintf("a star view %q reads cannot be expanded by the catalog", name)}
+	stmt, err := parser.ParseOne(definition)
+	if err != nil {
+		return nil
+	}
+	query, ok := stmt.AST.(*tree.Select)
+	if !ok {
+		return nil
+	}
+	sel, ok := query.Select.(*tree.SelectClause)
+	if !ok {
+		return nil
+	}
+	// The loader writes the columns a star stands for in place of it; a
+	// star left in the select list is one it could not expand.
+	for _, expr := range sel.Exprs {
+		if star(expr.Expr) {
+			return &Error{Message: fmt.Sprintf("a star view %q reads cannot be expanded by the catalog", name)}
+		}
 	}
 	return nil
 }

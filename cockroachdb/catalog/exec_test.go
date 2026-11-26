@@ -591,3 +591,10 @@ func TestExecRound40(t *testing.T) {
 	_, err = execLast(t, "CREATE TABLE t (a INT8); CREATE INDEX ix ON t (a); ALTER INDEX t@ix RENAME TO t")
 	require.NoError(t, err)
 }
+
+func TestExecRound41(t *testing.T) {
+	_, err := execLast(t, "CREATE TABLE t (a INT8); CREATE TABLE u (b INT8); CREATE VIEW v (x, y) AS SELECT * FROM t CROSS JOIN u")
+	require.Error(t, err)
+	_, err = execLast(t, "CREATE TABLE t (a INT8); CREATE TABLE u (b INT8); CREATE VIEW v AS SELECT (SELECT b FROM u LIMIT 1) AS x FROM t")
+	require.NoError(t, err)
+}
