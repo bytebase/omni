@@ -655,4 +655,9 @@ func TestWalkThroughMariaDBTriggerOrder(t *testing.T) {
 			oneFinding(t, tc.sql, tc.statement, tc.want, target)
 		})
 	}
+	// A sync that gives a trigger no time or event claims nothing of it.
+	for _, tr := range target.Schema.GetSchemas()[0].GetTables()[0].GetTriggers() {
+		tr.Timing, tr.Event = "", ""
+	}
+	noFinding(t, "CREATE TRIGGER tr AFTER UPDATE ON t FOR EACH ROW FOLLOWS trg SET @x = 1;", target)
 }
