@@ -122,16 +122,6 @@
       - server: ""
         database: ds1
         schema: ""
-        table: CTE_1
-        column: ""
-      - server: ""
-        database: ds1
-        schema: ""
-        table: CTE_2
-        column: ""
-      - server: ""
-        database: ds1
-        schema: ""
         table: address
         column: ""
       - server: ""
@@ -258,7 +248,7 @@
   querySpan:
     type: 1
     results:
-      - name: C1
+      - name: c1
         sourcecolumns:
           - server: ""
             database: ds1
@@ -273,7 +263,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: C2
+      - name: c2
         sourcecolumns:
           - server: ""
             database: ds1
@@ -288,7 +278,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: C3
+      - name: c3
         sourcecolumns:
           - server: ""
             database: ds1
@@ -308,17 +298,12 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: "N"
+      - name: "n"
         sourcecolumns: []
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: CTE_01
-        column: ""
       - server: ""
         database: ds1
         schema: ""
@@ -380,11 +365,6 @@
       - server: ""
         database: ds1
         schema: ""
-        table: CTE_1
-        column: ""
-      - server: ""
-        database: ds1
-        schema: ""
         table: people
         column: ""
     predicatecolumns: []
@@ -433,7 +413,7 @@
   querySpan:
     type: 1
     results:
-      - name: CITY
+      - name: city
         sourcecolumns:
           - server: ""
             database: ds1
@@ -443,7 +423,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: TOTAL_PAINTINGS
+      - name: total_paintings
         sourcecolumns: []
         isplainfield: false
         sourcefieldpaths: []
@@ -488,7 +468,7 @@
   querySpan:
     type: 1
     results:
-      - name: ""
+      - name: f0_
         sourcecolumns: []
         isplainfield: false
         sourcefieldpaths: []
@@ -551,7 +531,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: ID
+      - name: ID_1
         sourcecolumns:
           - server: ""
             database: ds1
@@ -582,11 +562,6 @@
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: A
-        column: ""
       - server: ""
         database: ds1
         schema: ""
@@ -731,7 +706,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: f0_
         sourcecolumns:
           - server: ""
             database: ds1
@@ -741,7 +716,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: ID
+      - name: f1_
         sourcecolumns:
           - server: ""
             database: ds1
@@ -756,7 +731,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: ID
+      - name: f2_
         sourcecolumns:
           - server: ""
             database: ds1
@@ -852,7 +827,7 @@
   querySpan:
     type: 1
     results:
-      - name: A
+      - name: a
         sourcecolumns:
           - server: ""
             database: ds1
@@ -867,7 +842,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: B
+      - name: b
         sourcecolumns:
           - server: ""
             database: ds1
@@ -914,7 +889,7 @@
   querySpan:
     type: 1
     results:
-      - name: A
+      - name: a
         sourcecolumns:
           - server: ""
             database: ds1
@@ -970,7 +945,7 @@
   querySpan:
     type: 1
     results:
-      - name: A
+      - name: a
         sourcecolumns:
           - server: ""
             database: ds1
@@ -985,7 +960,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: B
+      - name: b
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1031,7 +1006,7 @@
   querySpan:
     type: 1
     results:
-      - name: A
+      - name: a
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1046,7 +1021,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: B
+      - name: b
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1092,7 +1067,7 @@
   querySpan:
     type: 1
     results:
-      - name: A
+      - name: a
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1107,7 +1082,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: B
+      - name: b
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1153,7 +1128,7 @@
   querySpan:
     type: 1
     results:
-      - name: A
+      - name: a
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1168,7 +1143,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: B
+      - name: b
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1214,7 +1189,7 @@
   querySpan:
     type: 1
     results:
-      - name: UID
+      - name: uid
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1229,7 +1204,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1275,7 +1250,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1285,7 +1260,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: LBL
+      - name: lbl
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1391,7 +1366,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1401,7 +1376,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: PARENT_ID
+      - name: parent_id
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1438,7 +1413,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1448,7 +1423,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: LBL
+      - name: lbl
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1458,7 +1433,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: NT
+      - name: nt
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1503,7 +1478,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1513,7 +1488,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1524,11 +1499,6 @@
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: c
-        column: ""
       - server: ""
         database: ds1
         schema: ""
@@ -1553,7 +1523,7 @@
   querySpan:
     type: 1
     results:
-      - name: EMAIL
+      - name: email
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1564,11 +1534,6 @@
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: c
-        column: ""
       - server: ""
         database: ds1
         schema: ""
@@ -1599,7 +1564,7 @@
   querySpan:
     type: 1
     results:
-      - name: "N"
+      - name: "n"
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1610,11 +1575,6 @@
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: c
-        column: ""
       - server: ""
         database: ds1
         schema: ""
@@ -1639,7 +1599,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1649,7 +1609,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1660,16 +1620,6 @@
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: inner_cte
-        column: ""
-      - server: ""
-        database: ds1
-        schema: ""
-        table: outer_cte
-        column: ""
       - server: ""
         database: ds1
         schema: ""
@@ -1694,7 +1644,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1704,7 +1654,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: PARENT_ID
+      - name: parent_id
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1715,11 +1665,6 @@
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: c
-        column: ""
       - server: ""
         database: ds1
         schema: ""
@@ -1744,7 +1689,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1754,7 +1699,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1789,7 +1734,7 @@
   querySpan:
     type: 1
     results:
-      - name: COL
+      - name: col
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1824,7 +1769,7 @@
   querySpan:
     type: 1
     results:
-      - name: TOTAL
+      - name: total
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1865,7 +1810,7 @@
   querySpan:
     type: 1
     results:
-      - name: C
+      - name: c
         sourcecolumns: []
         isplainfield: false
         sourcefieldpaths: []
@@ -1900,7 +1845,7 @@
   querySpan:
     type: 1
     results:
-      - name: S
+      - name: field
         sourcecolumns:
           - server: ""
             database: ds1
@@ -1935,7 +1880,7 @@
   querySpan:
     type: 1
     results:
-      - name: S
+      - name: b
         sourcecolumns:
           - server: ""
             database: ds1
@@ -2015,7 +1960,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: ds1
@@ -2025,7 +1970,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: ds1
@@ -2162,7 +2107,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: ds1
@@ -2177,7 +2122,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: ds1
@@ -2196,17 +2141,7 @@
       - server: ""
         database: ds1
         schema: ""
-        table: cte
-        column: ""
-      - server: ""
-        database: ds1
-        schema: ""
         table: members
-        column: ""
-      - server: ""
-        database: ds1
-        schema: ""
-        table: othercte
         column: ""
       - server: ""
         database: ds1
@@ -2233,7 +2168,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: ds1
@@ -2243,7 +2178,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: LBL
+      - name: lbl
         sourcecolumns:
           - server: ""
             database: ds1
@@ -2284,7 +2219,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: ds1
@@ -2294,7 +2229,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: LBL
+      - name: lbl
         sourcecolumns:
           - server: ""
             database: ds1
@@ -2405,7 +2340,7 @@
   querySpan:
     type: 1
     results:
-      - name: A
+      - name: a
         sourcecolumns:
           - server: ""
             database: ds1
@@ -2440,7 +2375,7 @@
   querySpan:
     type: 1
     results:
-      - name: A
+      - name: a
         sourcecolumns:
           - server: ""
             database: ds1
@@ -2450,7 +2385,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: B
+      - name: b
         sourcecolumns:
           - server: ""
             database: ds1
@@ -2485,7 +2420,7 @@
   querySpan:
     type: 1
     results:
-      - name: A
+      - name: a
         sourcecolumns:
           - server: ""
             database: ds1
@@ -2495,7 +2430,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: A
+      - name: a_1
         sourcecolumns:
           - server: ""
             database: ds1
@@ -2505,7 +2440,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: B
+      - name: b
         sourcecolumns:
           - server: ""
             database: ds1
@@ -2516,11 +2451,6 @@
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: c
-        column: ""
       - server: ""
         database: ds1
         schema: ""
@@ -2654,7 +2584,7 @@
   querySpan:
     type: 1
     results:
-      - name: A
+      - name: a
         sourcecolumns:
           - server: ""
             database: ds1
@@ -2828,11 +2758,6 @@
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: r
-        column: ""
       - server: ""
         database: ds1
         schema: ""

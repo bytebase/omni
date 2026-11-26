@@ -40,10 +40,9 @@ type ResolveOptions struct {
 	// otherwise reject an allowed statement as an unknown query type.
 	SetStatementIsSelect bool
 
-	// UppercaseStarMergeName upper-cases a set-operation star-merge output name
-	// (the legacy BigQuery extractor's rendering). The legacy spanner extractor
-	// passed a LEFT-star-derived name through in the star column's metadata
-	// case instead.
+	// UppercaseStarMergeName is ignored. It upper-cased a set-operation
+	// star-merge output name (the legacy BigQuery extractor's rendering);
+	// results are now named as BigQuery names them (testdata/span.tsv).
 	UppercaseStarMergeName bool
 
 	// CanonicalBaseFieldName renders a base-table FIELD passthrough (the JOIN
