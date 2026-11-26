@@ -1289,6 +1289,15 @@ func columnDefaultValue(expr nodes.ExprNode) (string, ColumnDefaultKind) {
 					return s, ColumnDefaultConstant
 				}
 			}
+			// A signed decimal is a number too, which the column's type rounds:
+			// 4.3.5.6 stores TINYINT DEFAULT - 1.5 as '-2' (testdata/simulate.tsv,
+			// rule signed_literal+number_literal), where -(1.5) read as no number.
+			if lit, ok := e.Operand.(*nodes.FloatLit); ok && !strings.ContainsAny(lit.Value, "eE") {
+				if e.Op == nodes.UnaryMinus {
+					return "-" + lit.Value, ColumnDefaultConstant
+				}
+				return lit.Value, ColumnDefaultConstant
+			}
 		}
 		return nodeToSQL(expr), ColumnDefaultConstant
 	default:

@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"math"
 	"strconv"
 	"strings"
 
@@ -674,13 +675,21 @@ func (p *Parser) parseRequiredLength(dt *nodes.DataType) error {
 		}
 	}
 	p.advance()
-	if p.cur.Type != tokICONST && !(p.cur.isWideDigits() && stringLengthTypes[dt.Name]) {
+	if p.cur.Type != tokICONST && !(p.cur.Type == tokFCONST && stringLengthTypes[dt.Name]) {
 		return &ParseError{
 			Message:  "expected a length for " + dt.Name,
 			Position: p.cur.Loc,
 		}
 	}
 	dt.Length = int(p.cur.Ival)
+	if p.cur.Type == tokFCONST && !p.cur.isWideDigits() {
+		// string_length_i takes a number_literal, a decimal included
+		// (sql_parser_mysql_mode.y:7322): OceanBase 4.3.5 parses CHAR(1.5) and
+		// reads CHAR(1e5) as 100000, past CHAR's limit (1074).
+		if f, err := strconv.ParseFloat(p.cur.Str, 64); err == nil && f < math.MaxInt32 {
+			dt.Length = int(f)
+		}
+	}
 	dt.HasLength = true
 	p.advance()
 	if p.cur.Type != ')' {
@@ -810,7 +819,7 @@ func (p *Parser) parseCharsetCollate(dt *nodes.DataType) error {
 
 	// COLLATE collation_name
 	if _, ok := p.match(kwCOLLATE); ok {
-		if dt.Collate, err = p.parseTypeCharsetOrCollationName(); err != nil {
+		if dt.Collate, err = p.parseCollationName(); err != nil {
 			return err
 		}
 	}
@@ -818,14 +827,13 @@ func (p *Parser) parseCharsetCollate(dt *nodes.DataType) error {
 }
 
 // parseTypeCharsetOrCollationName reads the name a column type's CHARACTER SET
-// or COLLATE carries: an identifier, a string literal, or the reserved word
-// BINARY. OceanBase 4.3.5 parses `CHAR CHARSET 'binary'`, `CHAR CHARACTER SET
-// "utf8mb4"` and `TEXT COLLATE 'utf8mb4_bin'`. The name is required: opt_charset
-// is `charset_key charset_name`, so `VARCHAR(1) CHARSET` is a 1064.
+// carries: an identifier, a string literal, or the reserved word BINARY.
+// OceanBase 4.3.5 parses `CHAR CHARSET 'binary'` and `CHAR CHARACTER SET
+// "utf8mb4"`. The name is required: opt_charset is `charset_key charset_name`,
+// so `VARCHAR(1) CHARSET` is a 1064. A COLLATE's name is parseCollationName's.
 //
-// Ref: opt_charset (line 7494), charset_name (NAME_OB | STRING_VALUE | BINARY)
-// and collation_name (NAME_OB | STRING_VALUE) in OceanBase 4.3.5
-// sql_parser_mysql_mode.y.
+// Ref: opt_charset (line 7494) and charset_name (NAME_OB | STRING_VALUE |
+// BINARY) in OceanBase 4.3.5 sql_parser_mysql_mode.y.
 func (p *Parser) parseTypeCharsetOrCollationName() (string, error) {
 	if p.cur.Type == tokSCONST || p.isIdentToken() || p.cur.Type == kwBINARY {
 		return p.advance().Str, nil
