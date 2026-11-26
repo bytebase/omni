@@ -29,6 +29,15 @@ type syncedTable struct {
 	generated map[string]bool
 	// fks holds the table's own foreign keys by their keys.
 	fks map[string]fkRef
+	// triggers holds the table's triggers by their keys, each with its
+	// name and its time and event ("BEFORE INSERT"); a key two spellings
+	// share holds neither.
+	triggers map[string]syncedTrigger
+}
+
+// syncedTrigger is a synced trigger's name, time and event.
+type syncedTrigger struct {
+	name, when string
 }
 
 // fkRef is a synced foreign key: its columns, the table it references,
@@ -125,6 +134,18 @@ func newSyncedTable(db string, t *metadata.TableMetadata, foldTables bool) *sync
 		checks:    make(map[string][]string),
 		generated: make(map[string]bool),
 		fks:       make(map[string]fkRef),
+		triggers:  make(map[string]syncedTrigger),
+	}
+	for _, tr := range t.GetTriggers() {
+		k, ok := nameKey(spaceTrigger, tr.GetName(), foldTables)
+		if !ok {
+			continue
+		}
+		if seen, dup := st.triggers[k]; dup && seen.name != tr.GetName() {
+			st.triggers[k] = syncedTrigger{}
+			continue
+		}
+		st.triggers[k] = syncedTrigger{name: tr.GetName(), when: strings.ToUpper(tr.GetTiming() + " " + tr.GetEvent())}
 	}
 	for _, c := range t.GetCheckConstraints() {
 		k, ok := nameKey(spaceColumn, c.GetName(), foldTables)

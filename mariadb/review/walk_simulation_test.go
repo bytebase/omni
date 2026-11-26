@@ -31,17 +31,17 @@ func TestWalkSimulation(t *testing.T) {
 		// before them keep 4,208/4,340 (97.0%).
 		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 96.0, 4308},
 		// Of the 695 refusals, 180 are statements the parser refuses, which
-		// reach the review as a syntax finding. Of the other 67 the walk
+		// reach the review as a syntax finding. Of the other 66 the walk
 		// misses, 65 name a database other than the target's, whose objects
 		// the schema doesn't show, or DROP FUNCTION a name a loadable
-		// function may hold; one FOLLOWS a trigger of another time or event
-		// (4031); and one moves an event into the past (1589).
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 64.4, 448},
-		// Of the 209 refusals, 21 are statements the parser refuses. The 12
+		// function may hold; and one moves an event into the past (1589),
+		// which needs the event's ON COMPLETION and the server's clock.
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 64.6, 449},
+		// Of the 212 refusals, 21 are statements the parser refuses. The 12
 		// the walk misses call a function the target doesn't hold, which a
 		// loadable function may answer to unqualified (1305), or qualified
 		// by a database other than the target's (1305, 1630).
-		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 84.2, 176},
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 84.4, 179},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{
