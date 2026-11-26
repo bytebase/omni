@@ -12,8 +12,8 @@ every run.
 
 | Rows | Total | Agree | Only the judge accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 190 | 190 | 0 | 0 |
-| Near-misses | 303 | 303 | 0 | 0 |
+| One per alternative | 252 | 252 | 0 | 0 |
+| Near-misses | 458 | 458 | 0 | 0 |
 
 - **The grammar** is `../../testdata/sql.g4`: Microsoft's grammar of the query
   language, as the .NET SDK publishes it at release `3.64.0`
@@ -22,9 +22,13 @@ every run.
 - **Token forms** are in `../../testdata/tokens.tsv`, cited to its lexer rules.
   Rows of the form `(every alternative)` name choices each of whose forms
   gets a row at every site naming them: `ALL`, `FIRST` and `LAST` as a name,
-  `ASC` or `DESC`, and each kind of function call. They added 43 rows, all
-  agreeing. No optional clause is named at several sites, so no row takes
-  the form `(every site)`.
+  `ASC` or `DESC`, each kind of function call, each kind of logical
+  expression (`IN`, `LIKE`, `AND`, `OR`) and each kind of primary expression
+  (a parameter, a literal, an array, an object, a subquery, `EXISTS`, `ARRAY`
+  and the rest) at every site naming them. They added 260 rows, all agreeing
+  once the five whose last name is an alias written without `AS` (`SELECT c
+  AND c c`, `SELECT c ALL`) joined the docs overrides. No optional clause
+  is named at several sites, so no row takes the form `(every site)`.
 
 To judge new rows, or every row after a pin bump:
 
@@ -42,9 +46,9 @@ go test ./cosmosdb/parser/ -run '^TestCompatibility$' -update-compat
 
 Cosmos DB has no server CI can start, so no row is the engine's answer.
 
-- **`grammar`, 429 rows.** A recognizer over `sql.g4`: a statement the grammar
+- **`grammar`, 641 rows.** A recognizer over `sql.g4`: a statement the grammar
   derives is accepted, any other rejected.
-- **`docs`, 64 rows.** `sql.g4` is the SDK's grammar, not the service's parser,
+- **`docs`, 69 rows.** `sql.g4` is the SDK's grammar, not the service's parser,
   and Microsoft's query reference takes more. The SELECT page writes
   `<scalar_expression> [ [ AS ] property_alias ]`, where `sql.g4:22` requires
   `AS`. Each row the grammar rejects and derives once `AS` is written is in

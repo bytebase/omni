@@ -15,3 +15,5 @@ PARAMETER	@a	sql.g4:300 '@' and an identifier
 identifier	(every alternative)	sql.g4:201 a name, or ALL, FIRST or LAST as one, at each of its eight sites
 sort_order	(every alternative)	sql.g4:72 ASC or DESC, after an ORDER BY item and an ORDER BY RANK score
 function_call_scalar_expression	(every alternative)	sql.g4:189 a function, a udf. one, LEFT or RIGHT, as an expression and an ORDER BY RANK score
+logical_scalar_expression	(every alternative)	sql.g4:96 a binary expression, IN, LIKE, AND or OR, at each of its sites
+primary_expression	(every alternative)	sql.g4:171 each kind of primary expression, at each of its sites
