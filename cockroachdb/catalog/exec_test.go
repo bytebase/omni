@@ -52,6 +52,10 @@ func TestExecRefusals(t *testing.T) {
 		{"CREATE TABLE p (id INT8 PRIMARY KEY); CREATE TABLE c (id INT8 REFERENCES p (id)); ALTER TABLE p ALTER COLUMN id TYPE STRING", "0A000"},
 		{"CREATE FUNCTION missing.f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$", "3F000"},
 		{"CREATE TABLE t (a INT8 PRIMARY KEY, b INT8 PRIMARY KEY)", "XXUUU"},
+		{"CREATE TABLE t (a INT8 PRIMARY KEY); ALTER TABLE t ADD COLUMN b INT8 PRIMARY KEY", "42611"},
+		{"CREATE TABLE t (a INT8, CONSTRAINT ck CHECK (a > 0), CONSTRAINT ck CHECK (a < 10))", "42710"},
+		{"CREATE TABLE t (a INT8 CONSTRAINT ck CHECK (a > 0), b INT8 CONSTRAINT ck UNIQUE)", "42710"},
+		{"CREATE TABLE t (a INT8, CONSTRAINT ck UNIQUE (a), CONSTRAINT ck UNIQUE (a))", "42P07"},
 		{"CREATE SCHEMA s; CREATE TYPE s.m AS ENUM ('a'); CREATE TABLE t (m s.m); DROP SCHEMA s CASCADE", "0A000"},
 	} {
 		_, err := execLast(t, tc.script)
@@ -89,6 +93,11 @@ func TestSDLComputedAnnotations(t *testing.T) {
 		catalog.SDLMigrationOptions{})
 	require.NoError(t, err)
 	require.Nil(t, plan)
+	_, err = catalog.BuildSDLMigrationPlan(
+		"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL AS ((9007199254740993:::FLOAT8)::DECIMAL) STORED);",
+		"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL AS ((9007199254740993:::DECIMAL)::DECIMAL) STORED);",
+		catalog.SDLMigrationOptions{})
+	require.Error(t, err)
 }
 
 func TestExecRenamesFollowIDs(t *testing.T) {

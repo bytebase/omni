@@ -263,6 +263,52 @@ func (c *Catalog) exec(stmt tree.Statement) error {
 	return c.l.load(stmt)
 }
 
+// uniqueConstraintNames refuses a CREATE TABLE that names two constraints
+// alike: 42P07 when both are unique indexes, 42710 otherwise.
+func uniqueConstraintNames(table string, defs tree.TableDefs) error {
+	indexes := map[string]bool{}
+	add := func(name tree.Name, index bool) error {
+		if name == "" {
+			return nil
+		}
+		if wasIndex, ok := indexes[string(name)]; ok {
+			if wasIndex && index {
+				return refuse(codeDuplicateRelation, "duplicate index name: %q", name)
+			}
+			return refuse(codeDuplicateObject, "relation %q: duplicate constraint name: %q", table, name)
+		}
+		indexes[string(name)] = index
+		return nil
+	}
+	for _, def := range defs {
+		var err error
+		switch d := def.(type) {
+		case *tree.ColumnTableDef:
+			for _, check := range d.CheckExprs {
+				if err = add(check.ConstraintName, false); err != nil {
+					return err
+				}
+			}
+			if d.Unique.IsUnique || d.PrimaryKey.IsPrimaryKey {
+				err = add(d.Unique.ConstraintName, true)
+			}
+			if err == nil && d.References.Table != nil {
+				err = add(d.References.ConstraintName, false)
+			}
+		case *tree.CheckConstraintTableDef:
+			err = add(d.Name, false)
+		case *tree.ForeignKeyConstraintTableDef:
+			err = add(d.Name, false)
+		case *tree.UniqueConstraintTableDef:
+			err = add(d.Name, true)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // The kinds of relation a schema holds, which share its namespace.
 type relKind int
 
@@ -539,6 +585,9 @@ func (c *Catalog) createTable(n *tree.CreateTable) error {
 	}
 	if primaryKeys > 1 {
 		return refuse("XXUUU", "multiple primary keys for table %q are not allowed", name)
+	}
+	if err := uniqueConstraintNames(name, n.Defs); err != nil {
+		return err
 	}
 	// The new table's columns, for the foreign keys it declares.
 	pending := &metadatapb.TableMetadata{Name: name}
@@ -1809,6 +1858,9 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 				return nil
 			}
 			return refuse(codeDuplicateColumn, "column %q of relation %q already exists", def.Name, table.Name)
+		}
+		if def.PrimaryKey.IsPrimaryKey {
+			return refuse("42611", "multiple primary keys for table %q are not allowed", table.Name)
 		}
 		if err := c.checkType(def.Type); err != nil {
 			return err

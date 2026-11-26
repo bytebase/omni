@@ -36,10 +36,10 @@ func exprKey(expr string, columns map[string]string) string {
 
 // generationKey is exprKey for a computed column's expression, which
 // CockroachDB stores with each literal annotated with the type it resolved
-// it to (a * 2:::INT8, price * 100:::DECIMAL). A number annotated with a
-// numeric type, or a string with STRING, resolves the same way written bare,
-// so those annotations go; one that picks another overload ('é':::BYTES)
-// stays.
+// it to (a * 2:::INT8, price * 100:::DECIMAL). An annotation that holds the
+// literal exactly and that the literal resolves to bare goes
+// (impliedAnnotation); one that picks another overload ('é':::BYTES) or may
+// round (:::FLOAT8) stays.
 func generationKey(expr string) string {
 	parsed, err := crparser.ParseExpr(expr)
 	if err != nil {
@@ -58,16 +58,21 @@ func generationKey(expr string) string {
 }
 
 // impliedAnnotation reports whether an annotation names a type its literal
-// resolves to unannotated: a numeric type on a number, STRING on a string.
+// resolves to unannotated and holds it exactly: INT8 or DECIMAL on an
+// integer, DECIMAL on a fraction, STRING on a string.
 func impliedAnnotation(literal tree.Expr, ref tree.ResolvableTypeReference) bool {
 	t, ok := tree.GetStaticallyKnownType(ref)
 	if !ok {
 		return false
 	}
-	switch literal.(type) {
+	switch l := literal.(type) {
 	case *tree.NumVal:
+		// An integer as INT or DECIMAL, or a number with a fraction as
+		// DECIMAL, holds its value exactly; FLOAT may round it.
 		switch t.Family() {
-		case types.IntFamily, types.DecimalFamily, types.FloatFamily:
+		case types.IntFamily:
+			return !strings.ContainsAny(l.OrigString(), ".eE")
+		case types.DecimalFamily:
 			return true
 		}
 	case *tree.StrVal:
