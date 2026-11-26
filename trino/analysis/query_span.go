@@ -876,6 +876,7 @@ func (ew exprWalk) walk(expr parser.Expr) {
 			ew.walk(item.Expr)
 		}
 		ew.walk(e.Filter)
+		ew.walkWindowSpec(e.Over)
 	case *parser.GroupingExpr:
 		// GROUPING(col, …) references each named column.
 		if onColumn != nil {

@@ -133,6 +133,10 @@ var selectAcceptCorpus = []string{
 	"SELECT a FROM t WHERE a IN (SELECT b FROM u)",
 	"SELECT a FROM t WHERE EXISTS (SELECT 1 FROM u WHERE u.x = t.x)",
 	"SELECT a FROM t WHERE a > ALL (SELECT b FROM u)",
+
+	// --- RETURNING is non-reserved: a JSON_ARRAY element unless a type and ) follow ---
+	"SELECT JSON_ARRAY(RETURNING, 1) FROM t",
+	"SELECT JSON_ARRAY(RETURNING FORMAT JSON) FROM t",
 }
 
 // selectRejectCorpus is malformed querySpecification / queryNoWith input Trino

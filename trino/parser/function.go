@@ -198,15 +198,17 @@ func (n *GroupingExpr) Span() ast.Loc { return n.Loc }
 func (*GroupingExpr) exprNode()       {}
 
 // ListaggExpr is `LISTAGG([DISTINCT] arg [, sep] [ON OVERFLOW …]) WITHIN GROUP
-// (ORDER BY …) [FILTER (WHERE …)]` (listagg). Only the syntactic shape is
-// captured; semantics are downstream.
+// (ORDER BY …) [FILTER (WHERE …)] [OVER …]` (listagg). Only the syntactic shape
+// is captured; semantics are downstream.
 type ListaggExpr struct {
 	Distinct      bool
 	Arg           Expr
 	Separator     Expr   // nil when absent
 	OnOverflow    string // "", "ERROR", or "TRUNCATE"
 	WithinGroupBy []SortItem
-	Filter        Expr // FILTER (WHERE …), nil when absent
+	Filter        Expr            // FILTER (WHERE …), nil when absent
+	Over          *WindowSpec     // OVER ( windowSpecification ), nil when absent
+	OverName      *ast.Identifier // OVER windowName, nil otherwise
 	Loc           ast.Loc
 }
 
@@ -1552,8 +1554,8 @@ func (p *Parser) parseGrouping() (Expr, error) {
 
 // parseListagg parses `LISTAGG( [DISTINCT] arg (, sep)? (ON OVERFLOW
 // listAggOverflowBehavior)? ) WITHIN GROUP ( ORDER BY sortItem (, sortItem)* )
-// filter?` (listagg). The mandatory WITHIN GROUP (ORDER BY …) distinguishes
-// LISTAGG from an ordinary function call.
+// filter? over?` (listagg, SqlBase.g4:610). The mandatory WITHIN GROUP (ORDER
+// BY …) distinguishes LISTAGG from an ordinary function call.
 func (p *Parser) parseListagg() (Expr, error) {
 	listaggTok := p.advance() // consume LISTAGG
 	if _, err := p.expect(int('(')); err != nil {
@@ -1636,14 +1638,32 @@ func (p *Parser) parseListagg() (Expr, error) {
 	}
 	la.Loc.End = closeTok.Loc.End
 
-	// Optional FILTER.
-	if p.cur.Kind == kwFILTER {
+	// filter? over? (SqlBase.g4:613). FILTER and OVER are non-reserved, so
+	// each is a clause only when what follows can continue it, as in a
+	// function call; otherwise it is a select-item alias (`… WITHIN GROUP
+	// (ORDER BY a) over`).
+	if p.cur.Kind == kwFILTER && p.peekNext().Kind == int('(') {
 		filter, end, err := p.parseFilter()
 		if err != nil {
 			return nil, err
 		}
 		la.Filter = filter
 		la.Loc.End = end
+	}
+	if p.cur.Kind == kwOVER {
+		if nk := p.peekNext().Kind; isIdentifierStart(nk) || nk == int('(') {
+			over, overName, err := p.parseOver()
+			if err != nil {
+				return nil, err
+			}
+			la.Over = over
+			la.OverName = overName
+			if over != nil {
+				la.Loc.End = over.Loc.End
+			} else {
+				la.Loc.End = overName.Loc.End
+			}
+		}
 	}
 	return la, nil
 }
