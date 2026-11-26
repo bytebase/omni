@@ -571,7 +571,7 @@ func (c *Catalog) alterSchema(n *tree.AlterSchema) error {
 	c.eachTable(func(_ *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
 		for _, column := range table.Columns {
 			for _, sequence := range s.Sequences {
-				column.Default = renameSequenceIn(column.Default, from+"."+sequence.Name, to+"."+sequence.Name)
+				column.Default = renameSequenceIn(column.Default, [2]string{from, sequence.Name}, [2]string{to, sequence.Name})
 			}
 		}
 	})
@@ -1510,8 +1510,21 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 		enum.Values[at] = string(cmd.NewVal)
 		// An expression holds the label by its value, which follows the
 		// rename; one that holds it where the catalog cannot tell it is the
-		// enum's is refused.
+		// enum's is refused, as is a view's query, which the catalog does
+		// not rewrite.
 		typ := typeName(s.Name, name)
+		for _, other := range c.l.meta.Schemas {
+			for _, v := range other.Views {
+				if viewNamesType(v.Definition, typ) {
+					return &Error{Message: fmt.Sprintf("renaming a value of type %q, which view %q names, is not supported", typ, v.Name)}
+				}
+			}
+			for _, v := range other.MaterializedViews {
+				if viewNamesType(v.Definition, typ) {
+					return &Error{Message: fmt.Sprintf("renaming a value of type %q, which materialized view %q names, is not supported", typ, v.Name)}
+				}
+			}
+		}
 		from, to := string(cmd.OldVal), string(cmd.NewVal)
 		var stuck error
 		c.eachTable(func(_ *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
@@ -2580,7 +2593,7 @@ func (c *Catalog) moveRelation(s *metadatapb.SchemaMetadata, name string, kind r
 		// CockroachDB holds a default's sequence by ID, so the default
 		// follows it.
 		for _, column := range c.sequenceUsers(s.Name, name) {
-			column.Default = renameSequenceIn(column.Default, s.Name+"."+name, target.Name+"."+to)
+			column.Default = renameSequenceIn(column.Default, [2]string{s.Name, name}, [2]string{target.Name, to})
 		}
 	}
 }
@@ -2632,7 +2645,7 @@ func reindex(indexes []*metadatapb.IndexMetadata, schema, table, from, to string
 
 // renameSequenceIn returns a default with the sequence its nextval, currval
 // or setval names renamed.
-func renameSequenceIn(def, from, to string) string {
+func renameSequenceIn(def string, from, to [2]string) string {
 	expr, err := parser.ParseExpr(def)
 	if err != nil {
 		return def
@@ -2657,10 +2670,9 @@ func renameSequenceIn(def, from, to string) string {
 		if !ok {
 			return true, e, nil
 		}
-		if sequence, err := parser.ParseQualifiedTableName(str.RawString()); err == nil && schemaOf(sequence)+"."+string(sequence.ObjectName) == from {
+		if sequence, err := parser.ParseQualifiedTableName(str.RawString()); err == nil && schemaOf(sequence) == from[0] && string(sequence.ObjectName) == from[1] {
 			renamed := *call
-			schema, name, _ := strings.Cut(to, ".")
-			renamed.Exprs = append(tree.Exprs{tree.NewStrVal(tree.NameString(schema) + "." + tree.NameString(name))}, call.Exprs[1:]...)
+			renamed.Exprs = append(tree.Exprs{tree.NewStrVal(tree.NameString(to[0]) + "." + tree.NameString(to[1]))}, call.Exprs[1:]...)
 			return false, &renamed, nil
 		}
 		return true, e, nil

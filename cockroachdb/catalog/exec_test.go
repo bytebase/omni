@@ -357,3 +357,11 @@ func TestExecRound16(t *testing.T) {
 	_, err = execLast(t, "CREATE VIEW v AS SELECT 1 AS a; CREATE VIEW w AS SELECT a FROM v; CREATE OR REPLACE VIEW v AS SELECT a FROM w")
 	require.Equal(t, "42P17", code(err))
 }
+
+func TestExecRound17(t *testing.T) {
+	_, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad'); CREATE VIEW v AS SELECT 'sad'::mood AS m; ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.Error(t, err)
+	c, err := execLast(t, `CREATE SCHEMA "a.b"; CREATE SEQUENCE "a.b".sq; CREATE TABLE t (id INT8 DEFAULT nextval('"a.b".sq')); ALTER SEQUENCE "a.b".sq RENAME TO sq2`)
+	require.NoError(t, err)
+	require.Equal(t, `nextval('"a.b".sq2')`, c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
+}
