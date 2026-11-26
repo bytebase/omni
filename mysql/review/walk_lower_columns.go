@@ -155,19 +155,16 @@ func keyTextFault(c *ast.Constraint) string {
 			return "A primary key can't have a functional key part."
 		}
 	}
-	if c.Type == ast.ConstrPrimaryKey {
-		for _, o := range c.IndexOptions {
-			if o != nil && strings.EqualFold(o.Name, "INVISIBLE") {
-				return "A primary key can't be invisible."
-			}
-		}
+	if c.Type == ast.ConstrPrimaryKey && isInvisibleKey(c.IndexOptions) {
+		return "A primary key can't be invisible."
 	}
 	return ""
 }
 
 // implicitPrimaryKey returns the UNIQUE key of a CREATE TABLE with no
 // primary key that MySQL makes its primary key: the first one declared
-// whose parts are all NOT NULL columns. A column's own UNIQUE comes first
+// whose parts are all NOT NULL columns (AUTO_INCREMENT is NOT NULL too),
+// as mysql/catalog's checkImplicitPrimaryKeyVisible verifies. A column's own UNIQUE comes first
 // where the column stands and is visible, so it returns nil, as does a
 // key part the walk can't judge.
 func implicitPrimaryKey(v *ast.CreateTableStmt) *ast.Constraint {
@@ -181,19 +178,27 @@ func implicitPrimaryKey(v *ast.CreateTableStmt) *ast.Constraint {
 		if c == nil {
 			return nil
 		}
-		nn, unique := false, false
+		nn, null, autoInc, unique := false, false, false, false
 		for _, cc := range c.Constraints {
 			switch {
 			case cc == nil:
 			case cc.Type == ast.ColConstrNotNull:
-				nn = true
+				nn, null = true, false
 			case cc.Type == ast.ColConstrNull:
-				nn = false
+				nn, null = false, true
+			case cc.Type == ast.ColConstrAutoIncrement:
+				autoInc = true
 			case cc.Type == ast.ColConstrPrimaryKey:
 				return nil
 			case cc.Type == ast.ColConstrUnique:
 				unique = true
 			}
+		}
+		if autoInc {
+			if null {
+				return nil // NULL AUTO_INCREMENT: not judged
+			}
+			nn = true
 		}
 		if c.TypeName != nil && strings.EqualFold(c.TypeName.Name, "SERIAL") {
 			nn, unique = true, true
@@ -239,13 +244,20 @@ func implicitPrimaryKey(v *ast.CreateTableStmt) *ast.Constraint {
 	return nil
 }
 
-func hasIndexOption(opts []*ast.IndexOption, name string) bool {
+// isInvisibleKey reports whether a key's options leave it invisible: the
+// last of VISIBLE and INVISIBLE wins.
+func isInvisibleKey(opts []*ast.IndexOption) bool {
+	invisible := false
 	for _, o := range opts {
-		if o != nil && strings.EqualFold(o.Name, name) {
-			return true
+		switch {
+		case o == nil:
+		case strings.EqualFold(o.Name, "INVISIBLE"):
+			invisible = true
+		case strings.EqualFold(o.Name, "VISIBLE"):
+			invisible = false
 		}
 	}
-	return false
+	return invisible
 }
 
 // createColumnsFail fails a CREATE TABLE whose column list MySQL refuses
@@ -303,7 +315,7 @@ func (b *builder) createColumnsFail(v *ast.CreateTableStmt, r tableRef) bool {
 	if !visible {
 		return fail(r.rng, "Table "+review.Code(r.written)+" must have at least one visible column.")
 	}
-	if c := implicitPrimaryKey(v); c != nil && hasIndexOption(c.IndexOptions, "INVISIBLE") {
+	if c := implicitPrimaryKey(v); c != nil && isInvisibleKey(c.IndexOptions) {
 		return fail(rangeOf(c.Loc), "A primary key can't be invisible.") // 3522
 	}
 	if !v.Temporary {
