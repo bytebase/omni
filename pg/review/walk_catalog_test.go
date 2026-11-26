@@ -16,8 +16,12 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		Name:       "db",
 		SearchPath: `"$user", public`,
 		Schemas: []*metadata.SchemaMetadata{{
-			Name:   "public",
-			Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "n", Type: "integer", Nullable: true}}}},
+			Name: "public",
+			Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "n", Type: "integer", Nullable: true}}}, {
+				Name:    "k",
+				Columns: []*metadata.ColumnMetadata{{Name: "a", Type: "integer"}, {Name: "b", Type: "integer"}},
+				Indexes: []*metadata.IndexMetadata{{Name: "k_pkey", Expressions: []string{"a", "b"}, Primary: true, Unique: true, IsConstraint: true, Type: "btree", Definition: "CREATE UNIQUE INDEX k_pkey ON public.k USING btree (a, b)"}},
+			}},
 			Functions: []*metadata.FunctionMetadata{{
 				Name:       "f_double",
 				Definition: "CREATE OR REPLACE FUNCTION public.f_double(x integer)\n RETURNS integer\n LANGUAGE sql\nAS $function$SELECT x * 2$function$\n",
@@ -33,6 +37,9 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 			}, {
 				Name:       "w",
 				Definition: "CREATE OR REPLACE PROCEDURE public.w()\n LANGUAGE plpgsql\nAS $procedure$BEGIN CALL nope(); END$procedure$\n",
+			}, {
+				Name:       "f_stable",
+				Definition: "CREATE OR REPLACE FUNCTION public.f_stable(x integer)\n RETURNS integer\n LANGUAGE sql\n STABLE\nAS $function$SELECT x$function$\n",
 			}, {
 				Name:       "trg",
 				Definition: "CREATE OR REPLACE FUNCTION public.trg()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$BEGIN RETURN NEW; END$function$\n",
@@ -52,6 +59,9 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		{sql: "ALTER TABLE t ALTER n TYPE text USING missing::text;", message: `PostgreSQL refuses this statement: column "missing" does not exist (SQLSTATE 42703).`},
 		{sql: "ALTER TABLE t ALTER n TYPE json USING JSON_ARRAYAGG(n);", message: "PostgreSQL refuses this statement: aggregate functions are not allowed in transform expressions (SQLSTATE 42803)."},
 		{sql: "DO $$ BEGIN RAISE EXCEPTION 'boom'; END $$;", message: "PostgreSQL refuses this statement: boom (SQLSTATE P0001)."},
+		{sql: "CREATE INDEX ON t (n) WITH (nope);", message: `PostgreSQL refuses this statement: unrecognized parameter "nope" (SQLSTATE 22023).`},
+		{sql: "ALTER TABLE t ADD UNIQUE (n) WITH (nope);", message: `PostgreSQL refuses this statement: unrecognized parameter "nope" (SQLSTATE 22023).`},
+		{sql: "ALTER TABLE t ADD FOREIGN KEY (n) REFERENCES t (n);", message: `PostgreSQL refuses this statement: there is no unique constraint matching given keys for referenced table "t" (SQLSTATE 42830).`},
 		{sql: "CREATE TABLE u (a int);\nCREATE FUNCTION g() RETURNS void LANGUAGE plpgsql AS $$ BEGIN RETURN 1; END $$;", statement: 1, message: "PostgreSQL refuses this statement: RETURN cannot have a parameter in function returning void (SQLSTATE 42804)."},
 	} {
 		got := walkFindings(t, tc.sql, target)
@@ -105,6 +115,20 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		// A call may be a function-style cast to a domain the sync does not list.
 		"CALL f_double(nope_domain(1));",
 		"CREATE PROCEDURE q() LANGUAGE sql AS 'CALL f_double(nope_domain(1))';",
+		// An extension's access method takes its own storage parameters.
+		"CREATE INDEX ON t USING bloom (n) WITH (length = 80);",
+		// A foreign key may list a unique key's columns in any order.
+		"ALTER TABLE k ADD FOREIGN KEY (b, a) REFERENCES k (b, a);",
+		// PostgreSQL adds an ALTER TABLE's unique keys before its foreign keys.
+		"ALTER TABLE t ADD FOREIGN KEY (n) REFERENCES t (n), ADD UNIQUE (n);",
+		// PostgreSQL inlines a SQL function before it checks an index's volatility.
+		"CREATE INDEX ON t (f_stable(n));",
+		// A storage parameter's value is parsed as PostgreSQL's parse_int does.
+		"CREATE INDEX ON t (n) WITH (fillfactor = '0x50');",
+		// An enum's labels are not judged.
+		"CREATE TYPE e AS ENUM ('');\nALTER TYPE e RENAME VALUE '' TO 'x';\nALTER TYPE e ADD VALUE '';",
+		// A routine's options are not judged by their 22023.
+		"CREATE FUNCTION g() RETURNS int LANGUAGE sql COST -1 AS 'SELECT 1';",
 		// The catalog does not know which index a foreign key uses.
 		"ALTER TABLE t DROP CONSTRAINT t_pkey;",
 		// The change turns the body check off.
@@ -151,6 +175,14 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 	triggered.Schema.EventTriggers = []*metadata.EventTriggerMetadata{{Name: "e", Event: "ddl_command_end", Tags: []string{"CREATE TABLE"}, FunctionSchema: "public", FunctionName: "evt", Enabled: true}}
 	if got := walkFindings(t, "CREATE TABLE u (a int);\nCREATE FUNCTION f_double(y int) RETURNS int LANGUAGE sql AS 'SELECT y';", triggered); len(got) != 0 {
 		t.Errorf("event trigger: findings = %+v, want none", got)
+	}
+	// An extension may add an access method with storage parameters of its
+	// own.
+	extended := target
+	extended.Schema = proto.Clone(target.Schema).(*metadata.DatabaseSchemaMetadata)
+	extended.Schema.Extensions = []*metadata.ExtensionMetadata{{Name: "bloom", Schema: "public", Version: "1.0"}}
+	if got := walkFindings(t, "CREATE INDEX ON t USING bloom (n) WITH (length = 80);\nCREATE INDEX ON t (n) WITH (nope);", extended); len(got) != 0 {
+		t.Errorf("bloom: findings = %+v, want none", got)
 	}
 	// The sync does not list a range type's constructor.
 	ranged := target

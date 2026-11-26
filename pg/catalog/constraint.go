@@ -1562,21 +1562,28 @@ func (c *Catalog) lookupUniqueConstraint(relOID uint32, cols []int16) *Constrain
 		if con.Type != ConstraintPK && con.Type != ConstraintUnique {
 			continue
 		}
-		if len(con.Columns) != len(cols) {
-			continue
-		}
-		match := true
-		for i := range cols {
-			if con.Columns[i] != cols[i] {
-				match = false
-				break
-			}
-		}
-		if match {
+		if sameKeyColumns(con.Columns, cols) {
 			return con
 		}
 	}
 	return nil
+}
+
+// sameKeyColumns reports whether a unique key over key covers exactly cols,
+// in any order, as a foreign key's referenced columns may list them; a
+// column either repeats matches only the same columns.
+//
+// pg: src/backend/commands/tablecmds.c — transformFkeyCheckAttrs
+func sameKeyColumns(key, cols []int16) bool {
+	if len(key) != len(cols) {
+		return false
+	}
+	for i := range key {
+		if !slices.Contains(cols, key[i]) || !slices.Contains(key, cols[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 // lookupFKSupportingIndex finds an index suitable to back a foreign-key
@@ -1629,14 +1636,7 @@ func (c *Catalog) lookupFKSupportingIndex(relOID uint32, cols []int16) uint32 {
 		if hasExprKey {
 			continue
 		}
-		match := true
-		for i := 0; i < nKey; i++ {
-			if idx.Columns[i] != cols[i] {
-				match = false
-				break
-			}
-		}
-		if match {
+		if sameKeyColumns(idx.Columns[:nKey], cols) {
 			return idx.OID
 		}
 	}
