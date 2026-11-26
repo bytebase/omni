@@ -462,6 +462,7 @@ func TestShowStrictRejects(t *testing.T) {
 		"SHOW CATALOGS LIKE 'hi%'",                      // StarRocks.g4:773
 		"SHOW WORKLOAD GROUPS",                          // Doris only
 		"SHOW TABLETS FROM t PARTITION (p) LIMIT 1, ?x", // a cut limit
+		"SHOW PIPES FROM db ORDER BY a LIMIT ?",         // visitLimitElement refuses ?
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) = nil error, want a syntax error", sql)
@@ -493,7 +494,7 @@ func TestShowStrictRejects(t *testing.T) {
 		"SHOW GRANTS FOR 'u'@'%'",
 		"SHOW AUTHENTICATION FOR 'u'@['h']",
 		"SHOW ROUTINE LOAD TASK FROM db WHERE JobName = 'j'",
-		"SHOW PIPES FROM db ORDER BY a LIMIT ?",
+		"SHOW PIPES FROM db ORDER BY a LIMIT 1",
 	} {
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("Parse(%q): %v", sql, err)

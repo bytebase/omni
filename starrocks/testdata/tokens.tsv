@@ -68,6 +68,21 @@ windowFunction(ignoreNulls)?	(every site)	StarRocks.g4:2526 IGNORE NULLS
 backupRestoreObjectDesc(AS_identifier)?	(every site)	StarRocks.g4:2566 AS identifier
 distributionDesc(BUCKETS_INTEGER_VALUE)?	(every site)	StarRocks.g4:2682 BUCKETS n
 baseType(typeParameter)?	(every site)	StarRocks.g4:2818 a type's length
+relationPrimary(AS?_identifier_columnAliases?)?	(every site)	StarRocks.g4:2191 an alias and column aliases after a VALUES list, subquery or table function
+queryPeriod(FOR)?	(every site)	StarRocks.g4:2103 FOR before a period
+predicateOperations(NOT)?	(every site)	StarRocks.g4:2372 NOT before IN, BETWEEN or LIKE
+groupingElement(expressionList)?	(every site)	StarRocks.g4:2153 ROLLUP or CUBE's expressions
+functionCall(expression_(,_expression)*)?	(every site)	StarRocks.g4:2442 a function's arguments
+windowFunction(expression_ignoreNulls?_(,_expression)*)?	(every site)	StarRocks.g4:2526 LEAD, LAG, FIRST_VALUE or LAST_VALUE's arguments
+informationFunctionExpression((_))?	(every site)	StarRocks.g4:2482 () after CURRENT_USER or CURRENT_ROLE
+specialDateTimeExpression((_))?	(every site)	StarRocks.g4:2487 () after CURRENT_DATE and the like
+primaryExpression(ELSE_expression)?	(every site)	StarRocks.g4:2415 ELSE in a CASE
+primaryExpression(expressionList)?	(every site)	StarRocks.g4:2417 an array's or a lambda's expressions
+primaryExpression(mapExpressionList)?	(every site)	StarRocks.g4:2418 a map's entries
+primaryExpression(INTEGER_VALUE)?	(every site)	StarRocks.g4:2421 an array slice's bounds
+partitionDesc(LIST)?	(every site)	StarRocks.g4:2596 LIST
+baseType(INT)?	(every site)	StarRocks.g4:2820 INT after SIGNED or UNSIGNED
+baseType(INTEGER)?	(every site)	StarRocks.g4:2821 INTEGER after SIGNED or UNSIGNED
 # Keyword choices tried at every site that names them, and not only at the
 # one site the rule's own rows reach. Each is a named rule used at several
 # sites, or an inline group of one (keyDesc, charsetDesc, explainDesc), whose
@@ -113,3 +128,21 @@ type	(every alternative)	StarRocks.g4:2784 a base, decimal, array, struct or map
 identifierOrString	(every alternative)	StarRocks.g4:2877 a name or a string
 identifierOrStringOrStar	(every alternative)	StarRocks.g4:2886 *, a name or a string
 number	(every alternative)	StarRocks.g4:2906 a decimal, double or integer
+alterStorageVolumeClause	(every alternative)	StarRocks.g4:807 a storage volume COMMENT or SET clause
+subfieldName	(every alternative)	StarRocks.g4:1068 a name or [*]
+columnProperties(qualifiedName|assignment)	(every alternative)	StarRocks.g4:1250 a column name or an assignment
+privilegeType	(every alternative)	StarRocks.g4:1743 a privilege
+setVar(string|PASSWORD_(_string_))	(every alternative)	StarRocks.g4:1955 a password string or PASSWORD(string)
+fromClause	(every alternative)	StarRocks.g4:2147 FROM relations, FROM DUAL or none
+selectItem	(every alternative)	StarRocks.g4:2172 an expression, a.* or *
+limitElement(INTEGER_VALUE|PARAMETER)	(every alternative)	StarRocks.g4:2136 a number or ?
+bracketHint	(every alternative)	StarRocks.g4:2249 a join hint list or a skew hint
+partitionNames	(every alternative)	StarRocks.g4:2268 a partition list, one partition or key partitions
+predicate	(every alternative)	StarRocks.g4:2362 a predicate or a tuple IN a subquery
+literalExpression	(every alternative)	StarRocks.g4:2428 a literal
+backupRestoreObjectDesc	(every alternative)	StarRocks.g4:2564 a backup or restore object
+partitionExpr	(every alternative)	StarRocks.g4:2588 a column or a function call
+partitionDesc	(every alternative)	StarRocks.g4:2593 a PARTITION BY clause
+listPartitionDesc	(every alternative)	StarRocks.g4:2603 a single- or multi-item list partition
+listPartitionValue	(every alternative)	StarRocks.g4:2629 NULL or a string
+partitionValue	(every alternative)	StarRocks.g4:2672 MAXVALUE or a string
