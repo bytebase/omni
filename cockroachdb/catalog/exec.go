@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -957,6 +958,8 @@ func checkBounds(sequence *metadatapb.SequenceMetadata) error {
 		return nil
 	}
 	switch {
+	case sequence.Increment == "0":
+		return refuse(codeInvalidParameter, "INCREMENT must not be zero")
 	case minimum > maximum:
 		return refuse(codeInvalidParameter, "MINVALUE (%d) must be less than MAXVALUE (%d)", minimum, maximum)
 	case start > maximum:
@@ -1384,9 +1387,18 @@ func (c *Catalog) typeUsers(schema, name string) []string {
 				}
 			}
 		}
+		// A routine names its parameter and result types by their schema.
+		for _, function := range s.Functions {
+			if slices.Contains(typeNamed.FindAllString(function.Definition, -1), typ) {
+				users = append(users, function.Name)
+			}
+		}
 	}
 	return users
 }
+
+// typeNamed matches the schema-qualified names a routine's definition holds.
+var typeNamed = regexp.MustCompile(`[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*`)
 
 func (c *Catalog) dropType(n *tree.DropType) error {
 	type target struct {
@@ -2000,7 +2012,15 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 				return &Error{Message: fmt.Sprintf("changing the type of column %q, which computed column %q reads, is not supported", col.Name, other.Name)}
 			}
 		}
-		if inForeignKey && family(typ) != family(col.Type) {
+		inIndex := slices.ContainsFunc(table.Indexes, func(i *metadatapb.IndexMetadata) bool { return indexReadsColumn(i, col.Name) })
+		inCheck := slices.ContainsFunc(table.CheckConstraints, func(k *metadatapb.CheckConstraintMetadata) bool {
+			expr, err := parser.ParseExpr(k.Expression)
+			return err == nil && exprReads(expr, col.Name)
+		})
+		if inIndex && family(typ) != family(col.Type) {
+			return refuse(codeFeatureNotSupport, "unimplemented: ALTER COLUMN TYPE requiring rewrite of on-disk data is currently not supported for columns that are part of an index")
+		}
+		if (inForeignKey || inCheck) && family(typ) != family(col.Type) {
 			return refuse(codeFeatureNotSupport, "unimplemented: ALTER COLUMN TYPE requiring a rewrite of on-disk data is not supported for columns that have constraints")
 		}
 		col.Type, col.Collation = typ, collation
