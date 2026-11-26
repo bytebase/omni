@@ -387,4 +387,15 @@ func TestForeignKeyReferencesKeyInAnyOrder(t *testing.T) {
 		t.Errorf("reordered key: %v", results[0].Error)
 	}
 	assertErrorCode(t, results[1].Error, CodeInvalidFK)
+
+	// A unique index that repeats a column matches only those columns.
+	c, err = LoadSQL("CREATE TABLE p (a int, b int);\nCREATE UNIQUE INDEX ON p (a, a);")
+	if err != nil {
+		t.Fatal(err)
+	}
+	results, err = c.Exec("ALTER TABLE p ADD FOREIGN KEY (a, b) REFERENCES p (a, b);", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertErrorCode(t, results[0].Error, CodeInvalidFK)
 }

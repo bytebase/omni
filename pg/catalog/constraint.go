@@ -1570,15 +1570,16 @@ func (c *Catalog) lookupUniqueConstraint(relOID uint32, cols []int16) *Constrain
 }
 
 // sameKeyColumns reports whether a unique key over key covers exactly cols,
-// in any order, as a foreign key's referenced columns may list them.
+// in any order, as a foreign key's referenced columns may list them; a
+// column either repeats matches only the same columns.
 //
 // pg: src/backend/commands/tablecmds.c — transformFkeyCheckAttrs
 func sameKeyColumns(key, cols []int16) bool {
 	if len(key) != len(cols) {
 		return false
 	}
-	for _, attnum := range key {
-		if !slices.Contains(cols, attnum) {
+	for i := range key {
+		if !slices.Contains(cols, key[i]) || !slices.Contains(key, cols[i]) {
 			return false
 		}
 	}
