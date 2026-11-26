@@ -38,7 +38,7 @@ func TestWalkSimulation(t *testing.T) {
 		// (42804) and what the catalog raises 0A000 for.
 		// parser/testdata/compat.tsv repeats each statement once per
 		// optional clause, so these are most of the misses.
-		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.9127},
+		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.9125},
 		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.9106},
 		// The view queries the walk misses are what pg/catalog refuses with a
 		// code catalogCodes leaves out: a missing type, function, tablesample

@@ -22,7 +22,7 @@ import (
 // 0A000, which the catalog also raises for what it does not model.
 var catalogCodes = map[string]review.FindingCode{
 	"22005": review.UnsupportedForm, // error in assignment
-	"22023": review.UnsupportedForm, // invalid parameter value: a storage parameter, an enum label
+	"22023": review.UnsupportedForm, // invalid parameter value: an unrecognized storage parameter
 	"22007": review.UnsupportedForm, // invalid datetime format
 	"22P02": review.UnsupportedForm, // invalid text representation
 	"2BP01": review.UnsupportedForm, // dependent objects still exist
@@ -209,8 +209,9 @@ func setsOwnSettings(node ast.Node) bool {
 // attribute notation (t.f for f(t)), or in a routine's body, for an
 // undefined column; a user routine named as a built-in aggregate or window
 // function, found first where the path puts pg_catalog after its schema; an
-// invalid parameter value of anything but an index's, a table's or a view's
-// storage parameters or an enum's labels, which the suites pin; a cast, for
+// invalid parameter value but an index's, a table's or a view's storage
+// parameter it does not recognize, which an extension may add; a refusal
+// of an index or an added constraint but those (addsKey); a cast, for
 // a coercion the catalog finds none for (a RETURN that does not
 // fit its routine's kind needs no cast); or, for a missing function,
 // anything but the lookup of a routine node names by its signature, which
@@ -227,11 +228,14 @@ func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []strin
 		}
 		return err.InCall || err.Code != "42883" && err.Code != "42809" || v.Funccall == nil || !untypedArgs(v.Funccall.Args) || snap.lostRoutines
 	}
+	if addsKey(node) && err.Code != "22023" && err.Code != "42830" {
+		return true
+	}
 	switch err.Code {
 	case "22023":
 		switch node.(type) {
-		case *ast.IndexStmt, *ast.AlterTableStmt, *ast.ViewStmt, *ast.AlterEnumStmt:
-			return false
+		case *ast.IndexStmt, *ast.AlterTableStmt, *ast.ViewStmt:
+			return !strings.HasPrefix(err.Message, "unrecognized parameter ") || snap.extensions
 		}
 		return true
 	case "42703":
@@ -264,6 +268,26 @@ func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []strin
 			}
 		}
 		return snap.lostRoutines || !failsLookup(err.Message, node, snap)
+	}
+	return false
+}
+
+// addsKey reports whether node creates an index or adds a constraint, of
+// whose refusals only a storage parameter's (22023) and a foreign key's
+// unmatched key (42830) are judged: the catalog does not inline a SQL
+// function before checking an index expression's volatility.
+func addsKey(node ast.Node) bool {
+	switch v := node.(type) {
+	case *ast.IndexStmt:
+		return true
+	case *ast.AlterTableStmt:
+		if v.Cmds != nil {
+			for _, item := range v.Cmds.Items {
+				if cmd, ok := item.(*ast.AlterTableCmd); ok && cmd.Subtype == int(ast.AT_AddConstraint) {
+					return true
+				}
+			}
+		}
 	}
 	return false
 }
@@ -346,8 +370,8 @@ func untypedArgs(args *ast.List) bool {
 // a view's query; what defines, changes, calls or drops a routine or a
 // trigger; dropping a table, view or type, or a column or its type, that a
 // routine may depend on, which pg/catalog's queries and programs suites
-// pin; and an index, an added constraint and an enum's new label, whose
-// storage parameters, keys and labels its DDL suites pin. Any other statement the catalog follows, and its refusal ends the
+// pin; and an index and an added constraint, whose storage parameters and
+// foreign keys its DDL suites pin. Any other statement the catalog follows, and its refusal ends the
 // replay.
 func catalogJudges(node ast.Node) bool {
 	switch v := node.(type) {
@@ -360,7 +384,7 @@ func catalogJudges(node ast.Node) bool {
 			ast.OBJECT_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW, ast.OBJECT_TYPE:
 			return true
 		}
-	case *ast.IndexStmt, *ast.AlterEnumStmt:
+	case *ast.IndexStmt:
 		return true
 	case *ast.AlterTableStmt:
 		if ast.ObjectType(v.ObjType) != ast.OBJECT_TABLE || v.Cmds == nil || len(v.Cmds.Items) == 0 {
