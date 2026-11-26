@@ -48,3 +48,17 @@ CREATE TABLE dbo.c (x INT INDEX ix_x INDEX ix_x2 (x DESC), y INT NOT NULL CONSTR
 	require.ErrorContains(t, results[0].Error, "invalid column 'missing'")
 	require.Nil(t, columnByName(c.GetTable("dbo", "c"), "w"))
 }
+
+// A procedure's SET @v = column = ... binds the column as a target.
+func TestProcedureBindsDualAssignmentColumn(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE dbo.t (a INT);`)
+	require.NoError(t, err)
+	results, err := c.Exec(`CREATE PROCEDURE dbo.p AS BEGIN DECLARE @v int; UPDATE dbo.t SET @v = missing = 1; END`, nil)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.ErrorContains(t, results[0].Error, "missing")
+	results, err = c.Exec(`CREATE PROCEDURE dbo.p2 AS BEGIN DECLARE @v int; UPDATE dbo.t SET @v = a += 1; END`, nil)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.NoError(t, results[0].Error)
+}
