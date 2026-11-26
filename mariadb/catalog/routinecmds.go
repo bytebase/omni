@@ -18,6 +18,8 @@ func programDefiner(definer string) string {
 	switch strings.ToUpper(definer) {
 	case "", "CURRENT_USER", "CURRENT_USER()":
 		return "`root`@`%`"
+	case "CURRENT_ROLE", "CURRENT_ROLE()":
+		return definer
 	}
 	if _, _, hasAt := splitDefinerAccount(definer); !hasAt {
 		return definer + "@%"

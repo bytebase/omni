@@ -3117,13 +3117,14 @@ func (c *Catalog) applyAlterConvertCharset(tbl *Table, plan alterCharsetPlan) er
 			was = oldTableCharset
 		}
 		if !eqFoldStr(was, "binary") && charsetMaxBytes(was) < targetMB {
+			_, comment := splitColumnTypeComment(col.ColumnType)
 			switch strings.ToLower(col.DataType) {
 			case "tinytext":
-				col.DataType, col.ColumnType = "text", "text"
+				col.DataType, col.ColumnType = "text", "text"+comment
 			case "text":
-				col.DataType, col.ColumnType = "mediumtext", "mediumtext"
+				col.DataType, col.ColumnType = "mediumtext", "mediumtext"+comment
 			case "mediumtext":
-				col.DataType, col.ColumnType = "longtext", "longtext"
+				col.DataType, col.ColumnType = "longtext", "longtext"+comment
 			}
 		}
 		col.Charset = plan.convertCharset
@@ -3146,9 +3147,11 @@ func convertRewritesDiscardedTable(tbl *Table, plan alterCharsetPlan) bool {
 }
 
 func convertExistingColumnToBinary(col *Column) {
+	typ, comment := splitColumnTypeComment(col.ColumnType)
+	defer func() { col.ColumnType += comment }()
 	suffix := ""
-	if open := strings.IndexByte(col.ColumnType, '('); open >= 0 {
-		suffix = col.ColumnType[open:]
+	if open := strings.IndexByte(typ, '('); open >= 0 {
+		suffix = typ[open:]
 	}
 	switch col.DataType {
 	case "char":

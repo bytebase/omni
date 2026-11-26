@@ -3287,10 +3287,7 @@ func convertToBinaryType(col *Column, dt *nodes.DataType) *Column {
 	// A compressed column keeps its comment through the conversion: measured on
 	// mariadb:11.8.8, `TEXT COMPRESSED CHARACTER SET binary` is
 	// blob /*M!100301 COMPRESSED*/.
-	var suffix string
-	if i := strings.Index(col.ColumnType, " /*"); i >= 0 {
-		suffix = col.ColumnType[i:]
-	}
+	_, suffix := splitColumnTypeComment(col.ColumnType)
 	defer func() { col.ColumnType += suffix }()
 	switch col.DataType {
 	case "char":
@@ -3739,6 +3736,16 @@ func applyCompressedNotNullDefault(col *Column, def *nodes.ColumnDef) {
 // /*M!100301 COMPRESSED*/. mariadb:10.7.8 writes the comment without the M
 // (releaseColumnType).
 const compressedSuffix = " /*M!100301 COMPRESSED*/"
+
+// splitColumnTypeComment splits a column type from the versioned comment a
+// compressed column carries after it (compressedSuffix), which a conversion to
+// another type keeps.
+func splitColumnTypeComment(columnType string) (typ, comment string) {
+	if i := strings.Index(columnType, " /*"); i >= 0 {
+		return columnType[:i], columnType[i:]
+	}
+	return columnType, ""
+}
 
 // releaseColumnType is a column type as v writes it: 10.7 writes a compressed
 // column's comment as /*!100301 COMPRESSED*/.
