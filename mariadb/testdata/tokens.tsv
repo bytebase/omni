@@ -69,6 +69,30 @@ opt_if_exists	(every site)	IF EXISTS
 opt_if_not_exists_table_element	(every site)	IF NOT EXISTS on an ALTER TABLE element
 opt_if_exists_table_element	(every site)	IF EXISTS on an ALTER TABLE element
 opt_temporary	(every site)	sql_yacc.yy:13601 TEMPORARY
+opt_ignore	(every site)	sql_yacc.yy:8240 IGNORE
+opt_low_priority	(every site)	sql_yacc.yy:13995 LOW_PRIORITY
+definer_opt	(every site)	sql_yacc.yy:18416 DEFINER = user
+opt_view_suid	(every site)	sql_yacc.yy:18455 SQL SECURITY
+opt_column	(every site)	sql_yacc.yy:8235 COLUMN
+opt_equal	(every site)	sql_yacc.yy:13773 = before an option's value
+opt_db	(every site)	sql_yacc.yy:14760 FROM or IN a database
+opt_full	(every site)	sql_yacc.yy:14765 FULL
+opt_work	(every site)	sql_yacc.yy:18298 WORK
+opt_linear	(every site)	sql_yacc.yy:4981 LINEAR
+opt_outer	(every site)	sql_yacc.yy:12328 OUTER
+opt_constraint	(every site)	sql_yacc.yy:6218 CONSTRAINT [name]
+opt_all	(every site)	sql_yacc.yy:12473 ALL
+opt_key_or_index	(every site)	sql_yacc.yy:7246 KEY or INDEX
+opt_ignore_leaves	(every site)	sql_yacc.yy:8884 IGNORE LEAVES
+opt_privileges	(every site)	sql_yacc.yy:17934 PRIVILEGES
+opt_default	(every site)	sql_yacc.yy:6986 DEFAULT
+opt_storage	(every site)	sql_yacc.yy:14755 STORAGE
+opt_bin_mod	(every site)	sql_yacc.yy:7068 BINARY
+opt_compressed	(every site)	sql_yacc.yy:6858 COMPRESSED
+opt_aggregate	(every site)	sql_yacc.yy:3243 AGGREGATE
+opt_generated_always	(every site)	sql_yacc.yy:6336 GENERATED ALWAYS
+opt_returning	(every site)	sql_yacc.yy:14149 RETURNING
+opt_with_admin	(every site)	sql_yacc.yy:17864 WITH ADMIN
 
 # Keyword choices tried at every site that names them, and not only where
 # their own alternatives' rows reach (see grammar.EveryAlternative).
@@ -111,6 +135,11 @@ opt_chain	(every alternative)	sql_yacc.yy:18303 AND [NO] CHAIN
 opt_release	(every alternative)	sql_yacc.yy:18310 [NO] RELEASE
 union_option	(every alternative)	sql_yacc.yy:18387 DISTINCT or ALL
 view_algorithm	(every alternative)	sql_yacc.yy:18449 ALGORITHM = UNDEFINED, MERGE or TEMPTABLE
+opt_index_lock_algorithm	(every alternative)	sql_yacc.yy:8202 LOCK =, ALGORITHM = or both
+opt_lock_wait_timeout	(every alternative)	sql_yacc.yy:17605 WAIT n or NOWAIT
+opt_lock_wait_timeout_new	(every alternative)	sql_yacc.yy:9452 WAIT n, NOWAIT or SKIP LOCKED
+opt_place	(every alternative)	sql_yacc.yy:8274 AFTER or FIRST
+wild_and_where	(every alternative)	sql_yacc.yy:14785 LIKE or WHERE
 
 # Operators and keywords of lex.h.
 PREPARE_SYM	PREPARE

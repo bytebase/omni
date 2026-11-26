@@ -2847,7 +2847,10 @@ func buildColumnFromDefInDB(tbl *Table, seqDBName string, colDef *nodes.ColumnDe
 		// `j` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
 		// CHECK (json_valid(`j`)).
 		if col.DataType == "json" {
-			applyJSONColumn(col)
+			applyJSONColumn(col, colDef.TypeName.Compressed)
+		}
+		if tbl != nil && tbl.Database != nil {
+			col.ColumnType = releaseColumnType(tbl.Database.version, col.ColumnType)
 		}
 		if isStringType(col.DataType) {
 			if isNationalStringType(colDef.TypeName.Name) {
@@ -2946,6 +2949,7 @@ func buildColumnFromDefInDB(tbl *Table, seqDBName string, colDef *nodes.ColumnDe
 			// Handled via declaredColumnCollate above.
 		}
 	}
+	applyCompressedNotNullDefault(col, colDef)
 
 	return col
 }

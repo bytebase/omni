@@ -246,6 +246,11 @@ type AlterTableStmt struct {
 	// references (db.tbl.col) when Table carried no explicit schema. MariaDB
 	// holds those qualifiers to the session's current database (1102).
 	FieldDBs []string
+	// NoWait, HasWait and WaitSeconds are the [WAIT n | NOWAIT] after the table, of
+	// which there is at most one. WaitSeconds keeps the literal as written.
+	NoWait      bool
+	HasWait     bool
+	WaitSeconds string
 }
 
 func (s *AlterTableStmt) nodeTag()  {}
@@ -381,6 +386,11 @@ type DropTableStmt struct {
 	Temporary bool
 	Cascade   bool
 	Restrict  bool
+	// NoWait, HasWait and WaitSeconds are the [WAIT n | NOWAIT] after the table list, of
+	// which there is at most one. WaitSeconds keeps the literal as written.
+	NoWait      bool
+	HasWait     bool
+	WaitSeconds string
 }
 
 func (s *DropTableStmt) nodeTag()  {}
@@ -512,6 +522,11 @@ type RenameTablePair struct {
 	Loc Loc
 	Old *TableRef
 	New *TableRef
+	// NoWait, HasWait and WaitSeconds are the [WAIT n | NOWAIT] after the old name, of
+	// which there is at most one. WaitSeconds keeps the literal as written.
+	NoWait      bool
+	HasWait     bool
+	WaitSeconds string
 }
 
 func (p *RenameTablePair) nodeTag() {}
@@ -767,6 +782,9 @@ type DataType struct {
 	// RefSystemID is MariaDB's srid_option, REF_SYSTEM_ID = n after a spatial
 	// type (0 = not written).
 	RefSystemID int
+	// Compressed is MariaDB's column compression, COMPRESSED [= zlib] after a
+	// string or blob type.
+	Compressed bool
 }
 
 func (t *DataType) nodeTag() {}
@@ -1638,6 +1656,11 @@ func (s *SavepointStmt) stmtNode() {}
 type LockTablesStmt struct {
 	Loc    Loc
 	Tables []*LockTable
+	// NoWait, HasWait and WaitSeconds are the [WAIT n | NOWAIT] after the lock list, of
+	// which there is at most one. WaitSeconds keeps the literal as written.
+	NoWait      bool
+	HasWait     bool
+	WaitSeconds string
 }
 
 func (s *LockTablesStmt) nodeTag()  {}
@@ -2136,6 +2159,11 @@ type OptimizeTableStmt struct {
 	Loc             Loc
 	NoWriteToBinlog bool
 	Tables          []*TableRef
+	// NoWait, HasWait and WaitSeconds are the [WAIT n | NOWAIT] after the table list, of
+	// which there is at most one. WaitSeconds keeps the literal as written.
+	NoWait      bool
+	HasWait     bool
+	WaitSeconds string
 }
 
 func (s *OptimizeTableStmt) nodeTag()  {}

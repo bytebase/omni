@@ -41,6 +41,9 @@ ok:d4f513621391	ok:d4f513621391	engine	one_table@column	opt_from_clause/from_cla
 1054	1054	engine	one_table@column	select_option/SQL_CACHE_SYM!insert	CREATE VIEW _v AS SELECT SQL_CACHE zzz a
 1054	1054	engine	one_table@column	select_lock_type/FOR_SYM_UPDATE_SYM_opt_lock_wait_timeout_new	CREATE VIEW _v AS SELECT a FOR UPDATE
 1054	1054	engine	one_table@column	select_lock_type/LOCK_SYM_IN_SYM_SHARE_SYM_MODE_SYM_opt_lock_wait_timeout_new	CREATE VIEW _v AS SELECT a LOCK IN SHARE MODE
+1350	1350	engine	one_table@column	select_lock_type/LOCK_SYM_IN_SYM_SHARE_SYM_MODE_SYM_opt_lock_wait_timeout_new+opt_lock_wait_timeout_new/WAIT_SYM_ulong_num	CREATE VIEW _v AS SELECT a LOCK IN SHARE MODE WAIT 1
+1350	1350	engine	one_table@column	select_lock_type/LOCK_SYM_IN_SYM_SHARE_SYM_MODE_SYM_opt_lock_wait_timeout_new+opt_lock_wait_timeout_new/NOWAIT_SYM	CREATE VIEW _v AS SELECT a LOCK IN SHARE MODE NOWAIT
+1054	1054	engine	one_table@column	select_lock_type/LOCK_SYM_IN_SYM_SHARE_SYM_MODE_SYM_opt_lock_wait_timeout_new+opt_lock_wait_timeout_new/SKIP_SYM_LOCKED_SYM	CREATE VIEW _v AS SELECT a LOCK IN SHARE MODE SKIP LOCKED
 1064	1064	engine	one_table@column	opt_select_lock_type/select_lock_type	CREATE VIEW _v AS SELECT a INTO @a FOR UPDATE
 1350	1350	engine	one_table@column	opt_lock_wait_timeout_new/WAIT_SYM_ulong_num	CREATE VIEW _v AS SELECT a FOR UPDATE WAIT 1
 1350	1350	engine	one_table@column	opt_lock_wait_timeout_new/NOWAIT_SYM	CREATE VIEW _v AS SELECT a FOR UPDATE NOWAIT
@@ -289,6 +292,7 @@ ok:e6d9214febee	ok:e6d9214febee	engine	one_table@column	sum_expr/BIT_AND_(_in_su
 ok:d6d615cd76f2	ok:d6d615cd76f2	engine	one_table@column	sum_expr/BIT_OR_(_in_sum_expr_)	CREATE VIEW _v AS SELECT BIT_OR(a) FROM a
 ok:938a527872db	ok:938a527872db	engine	one_table@column	sum_expr/BIT_XOR_(_in_sum_expr_)	CREATE VIEW _v AS SELECT BIT_XOR(a) FROM a
 ok:512d95ade910	ok:512d95ade910	engine	one_table@column	sum_expr/COUNT_SYM_(_opt_all_*_)	CREATE VIEW _v AS SELECT COUNT(*) FROM a
+ok:f7832b9ffa9b	ok:f7832b9ffa9b	engine	one_table@column	sum_expr/COUNT_SYM_(_opt_all_*_)+opt_all	CREATE VIEW _v AS SELECT COUNT(ALL *) FROM a
 ok:c9060d8dd8af	ok:c9060d8dd8af	engine	one_table@column	sum_expr/COUNT_SYM_(_in_sum_expr_)	CREATE VIEW _v AS SELECT COUNT(a) FROM a
 1630	1630	engine	one_table@column	sum_expr/COUNT_SYM_(_in_sum_expr_)!swap	CREATE VIEW _v AS SELECT CPU(a) FROM a
 ok:4dd2b072734e	ok:4dd2b072734e	engine	one_table@column	sum_expr/COUNT_SYM_(_DISTINCT_expr_list_)	CREATE VIEW _v AS SELECT COUNT(DISTINCT a) FROM a

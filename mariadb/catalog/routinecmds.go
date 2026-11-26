@@ -11,11 +11,16 @@ import (
 // DEFINER clause names, or the session's when it names none or CURRENT_USER.
 // The catalog's session is `root`@`%`, as on the servers omni is measured on:
 // mariadb:11.8.8 stores CREATE DEFINER = CURRENT_USER PROCEDURE p() as
-// DEFINER=`root`@`%`.
+// DEFINER=`root`@`%`. An account written without a host is the user at any
+// host: mariadb:11.8.8 stores CREATE DEFINER = a PROCEDURE p() as
+// DEFINER=`a`@`%`, where no role a exists.
 func programDefiner(definer string) string {
 	switch strings.ToUpper(definer) {
 	case "", "CURRENT_USER", "CURRENT_USER()":
 		return "`root`@`%`"
+	}
+	if _, _, hasAt := splitDefinerAccount(definer); !hasAt {
+		return definer + "@%"
 	}
 	return definer
 }
