@@ -491,6 +491,9 @@ ok	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT IND
 137	one_table@missing	issue:BYT-10538	UPDATE a SET @v += 1;
 137	one_table@missing	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
 137	one_table@missing	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+208	one_table@missing	issue:BYT-10538	UPDATE a SET a.m();
+208	one_table@missing	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+208	one_table@missing	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
 ok	one_table@type	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	one_table@type	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	one_table@type	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -982,6 +985,9 @@ ok	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX 
 137	one_table@type	issue:BYT-10538	UPDATE a SET @v += 1;
 137	one_table@type	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
 137	one_table@type	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+208	one_table@type	issue:BYT-10538	UPDATE a SET a.m();
+208	one_table@type	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+208	one_table@type	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
 ok	one_table@table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	one_table@table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	one_table@table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1473,6 +1479,9 @@ ok	one_table@table	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEG
 137	one_table@table	issue:BYT-10538	UPDATE a SET @v += 1;
 137	one_table@table	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
 137	one_table@table	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+207	one_table@table	issue:BYT-10538	UPDATE a SET a.m();
+207	one_table@table	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+207	one_table@table	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
 ok	one_table@column	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	one_table@column	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	one_table@column	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1964,6 +1973,9 @@ ok	one_table@column	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BE
 137	one_table@column	issue:BYT-10538	UPDATE a SET @v += 1;
 137	one_table@column	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
 137	one_table@column	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+258	one_table@column	issue:BYT-10538	UPDATE a SET a.m();
+258	one_table@column	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+258	one_table@column	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
 ok	one_table@index	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	one_table@index	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	one_table@index	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2455,6 +2467,9 @@ ok	one_table@index	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEG
 137	one_table@index	issue:BYT-10538	UPDATE a SET @v += 1;
 137	one_table@index	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
 137	one_table@index	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+258	one_table@index	issue:BYT-10538	UPDATE a SET a.m();
+258	one_table@index	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+258	one_table@index	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
 ok	objects@view	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@view	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@view	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2946,6 +2961,9 @@ ok	objects@view	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN 
 137	objects@view	issue:BYT-10538	UPDATE a SET @v += 1;
 137	objects@view	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
 137	objects@view	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+258	objects@view	issue:BYT-10538	UPDATE a SET a.m();
+258	objects@view	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+258	objects@view	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
 ok	objects@sequence	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@sequence	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@sequence	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3437,6 +3455,9 @@ ok	objects@sequence	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BE
 137	objects@sequence	issue:BYT-10538	UPDATE a SET @v += 1;
 137	objects@sequence	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
 137	objects@sequence	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+208	objects@sequence	issue:BYT-10538	UPDATE a SET a.m();
+208	objects@sequence	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+208	objects@sequence	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
 ok	objects@procedure	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@procedure	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@procedure	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3928,6 +3949,9 @@ ok	objects@procedure	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS B
 137	objects@procedure	issue:BYT-10538	UPDATE a SET @v += 1;
 137	objects@procedure	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
 137	objects@procedure	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+208	objects@procedure	issue:BYT-10538	UPDATE a SET a.m();
+208	objects@procedure	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+208	objects@procedure	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
 ok	objects@function	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@function	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@function	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -4419,6 +4443,9 @@ ok	objects@function	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BE
 137	objects@function	issue:BYT-10538	UPDATE a SET @v += 1;
 137	objects@function	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
 137	objects@function	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+208	objects@function	issue:BYT-10538	UPDATE a SET a.m();
+208	objects@function	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+208	objects@function	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
 ok	objects@synonym	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@synonym	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@synonym	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -4910,6 +4937,9 @@ ok	objects@synonym	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEG
 137	objects@synonym	issue:BYT-10538	UPDATE a SET @v += 1;
 137	objects@synonym	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
 137	objects@synonym	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+258	objects@synonym	issue:BYT-10538	UPDATE a SET a.m();
+258	objects@synonym	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+258	objects@synonym	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
 2714	objects@schema	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@schema	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@schema	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -5401,6 +5431,9 @@ ok	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX 
 137	objects@schema	issue:BYT-10538	UPDATE a SET @v += 1;
 137	objects@schema	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
 137	objects@schema	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+208	objects@schema	issue:BYT-10538	UPDATE a SET a.m();
+208	objects@schema	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+208	objects@schema	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
 2714	objects@schema_nonempty	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@schema_nonempty	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@schema_nonempty	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -5892,6 +5925,9 @@ ok	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b I
 137	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET @v += 1;
 137	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
 137	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET a.m();
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
 ok	objects@constraint	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@constraint	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@constraint	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -6383,6 +6419,9 @@ ok	objects@constraint	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS 
 137	objects@constraint	issue:BYT-10538	UPDATE a SET @v += 1;
 137	objects@constraint	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
 137	objects@constraint	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+208	objects@constraint	issue:BYT-10538	UPDATE a SET a.m();
+208	objects@constraint	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+208	objects@constraint	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
 ok	objects@trigger	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@trigger	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@trigger	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -6874,6 +6913,9 @@ ok	objects@trigger	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEG
 137	objects@trigger	issue:BYT-10538	UPDATE a SET @v += 1;
 137	objects@trigger	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
 137	objects@trigger	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+208	objects@trigger	issue:BYT-10538	UPDATE a SET a.m();
+208	objects@trigger	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+208	objects@trigger	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
 ok	objects@xml_table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@xml_table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@xml_table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -7365,6 +7407,9 @@ ok	objects@xml_table	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS B
 137	objects@xml_table	issue:BYT-10538	UPDATE a SET @v += 1;
 137	objects@xml_table	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
 137	objects@xml_table	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+227	objects@xml_table	issue:BYT-10538	UPDATE a SET a.m();
+227	objects@xml_table	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+227	objects@xml_table	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
 ok	objects@spatial_table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@spatial_table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@spatial_table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -7856,3 +7901,6 @@ ok	objects@spatial_table	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER 
 137	objects@spatial_table	issue:BYT-10538	UPDATE a SET @v += 1;
 137	objects@spatial_table	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
 137	objects@spatial_table	issue:BYT-10538	UPDATE a SET @v = a.m(1);
+6506	objects@spatial_table	issue:BYT-10538	UPDATE a SET a.m();
+6506	objects@spatial_table	issue:BYT-10538	UPDATE a SET a.[LEFT](1);
+6506	objects@spatial_table	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));

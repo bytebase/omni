@@ -570,12 +570,31 @@ func (p *Parser) parseSetClause() (*nodes.SetExpr, error) {
 		// method: SET a.m(1) and SET .m(1) parse, and SET a.a.WRITE(...) is
 		// Msg 102 (measured, compat.tsv).
 		if p.cur.Type == '(' && len(ends) == 2 {
-			method, methodLoc := target.Column, p.prev.Loc
+			method, methodLoc, methodEnd := target.Column, p.prev.Loc, p.prev.End
 			target.Column, target.Table = target.Table, ""
 			target.Loc.End = ends[0]
-			call, err := p.parseFuncCall(method, methodLoc)
+			// The arguments are parenthesizedOptExpressionWithDefaultList,
+			// none of a built-in call's: SET c.m(DISTINCT 1) and
+			// SET c.m(1) OVER () are refused (measured, compat.tsv).
+			p.advance() // consume (
+			args, err := p.parseCommaList(')', commaListAllowEmpty, func() (nodes.Node, error) {
+				arg, err := p.parseExpr()
+				if _, star := arg.(*nodes.StarExpr); err == nil && star {
+					// SET c.m(*) is Msg 102 (measured, compat.tsv).
+					return nil, p.newParseError(nodes.NodeLoc(arg).Start, "a method takes no *")
+				}
+				return arg, err
+			})
 			if err != nil {
 				return nil, err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			call := &nodes.FuncCallExpr{
+				Name: &nodes.TableRef{Object: method, Loc: nodes.Loc{Start: methodLoc, End: methodEnd}},
+				Args: &nodes.List{Items: args},
+				Loc:  nodes.Loc{Start: methodLoc, End: p.prevEnd()},
 			}
 			if strings.EqualFold(method, "WRITE") {
 				se.WriteMethod = true
