@@ -42,6 +42,7 @@ ok:05fd082ad27f	ok:05fd082ad27f	engine	one_table@column	batch(statementOptSemi)*
 263	263	engine	one_table@column	subquerySpecification(offsetClause)?/offsetClause	CREATE VIEW _v AS SELECT(SELECT * ORDER BY 1 OFFSET 1 ROW)
 263	263	engine	one_table@column	querySpecification(topRowFilter)?/topRowFilter	CREATE VIEW _v AS SELECT TOP 1 *
 263	263	engine	one_table@column	querySpecification(Comma_selectExpression)*/Comma_selectExpression_(Comma_selectExpression)*	CREATE VIEW _v AS SELECT *, *
+263	263	engine	one_table@column	querySpecification(Comma_selectExpression)*/Comma_selectExpression_(Comma_selectExpression)*+selectExpression/selectColumn	CREATE VIEW _v AS SELECT *, 1
 156	156	engine	one_table@column	querySpecification(Into_schemaObjectThreePartName)?/Into_schemaObjectThreePartName	CREATE VIEW _v AS SELECT * INTO a
 263	263	engine	one_table@column	querySpecification(whereClause)?/whereClause	CREATE VIEW _v AS SELECT * WHERE 1 = 1
 164	164	engine	one_table@column	querySpecification(groupByClause)?/groupByClause	CREATE VIEW _v AS SELECT * GROUP BY 1
@@ -65,6 +66,14 @@ ok:ba63af05834a	ok:ba63af05834a	engine	one_table@column	selectColumn((As)?_(stri
 ok:f8f3ae70933f	ok:f8f3ae70933f	engine	one_table@column	selectColumn((As)?_(stringOrIdentifier))?/(As)?_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE VIEW _v AS SELECT 1 N'a'
 ok:238e2accc9c9	ok:238e2accc9c9	engine	one_table@column	selectColumn(As)?/As	CREATE VIEW _v AS SELECT 1 AS 'a'
 207	207	engine	one_table@column	selectColumnExpression/identityFunction!drop-1	CREATE VIEW _v AS SELECT(a)
+137	137	engine	one_table@column	selectSetVariable/variable_assignmentWithOptOp_expression+assignmentWithOptOp/assignmentWithOp	CREATE VIEW _v AS SELECT @a += 1
+137	137	engine	one_table@column	selectSetVariable/variable_assignmentWithOptOp_expression+assignmentWithOp/SubtractEquals	CREATE VIEW _v AS SELECT @a -= 1
+137	137	engine	one_table@column	selectSetVariable/variable_assignmentWithOptOp_expression+assignmentWithOp/MultiplyEquals	CREATE VIEW _v AS SELECT @a *= 1
+137	137	engine	one_table@column	selectSetVariable/variable_assignmentWithOptOp_expression+assignmentWithOp/DivideEquals	CREATE VIEW _v AS SELECT @a /= 1
+137	137	engine	one_table@column	selectSetVariable/variable_assignmentWithOptOp_expression+assignmentWithOp/ModEquals	CREATE VIEW _v AS SELECT @a %= 1
+137	137	engine	one_table@column	selectSetVariable/variable_assignmentWithOptOp_expression+assignmentWithOp/BitwiseAndEquals	CREATE VIEW _v AS SELECT @a &= 1
+137	137	engine	one_table@column	selectSetVariable/variable_assignmentWithOptOp_expression+assignmentWithOp/BitwiseOrEquals	CREATE VIEW _v AS SELECT @a |= 1
+137	137	engine	one_table@column	selectSetVariable/variable_assignmentWithOptOp_expression+assignmentWithOp/BitwiseXorEquals	CREATE VIEW _v AS SELECT @a ^= 1
 478	478	engine	one_table@column	tableSampleClause/TableSample_(SYSTEM)?_LeftParenthesis_expression_(ROWS|~13d8c9e0	CREATE VIEW _v AS SELECT * FROM a TABLESAMPLE(1)
 478	478	engine	one_table@column	tableSampleClause(SYSTEM)?/SYSTEM	CREATE VIEW _v AS SELECT * FROM a TABLESAMPLE SYSTEM(1)
 478	478	engine	one_table@column	tableSampleClause(ROWS|Percent)?/ROWS	CREATE VIEW _v AS SELECT * FROM a TABLESAMPLE(1 ROWS)
@@ -117,8 +126,11 @@ ok:f0353f8dc4d6	ok:f0353f8dc4d6	engine	one_table@column	odbcFunctionCall/LeftCur
 1087	1087	engine	one_table@column	joinTableReference/selectTableReferenceElementWithoutJoinParenthesis_(joinElement)+!insert	CREATE VIEW _v AS SELECT * FROM(@a CROSS JOIN @a zzz)
 1087	1087	engine	one_table@column	joinTableReference(joinElement)*/joinElement_(joinElement)*	CREATE VIEW _v AS SELECT * FROM((@a CROSS JOIN @a) CROSS JOIN @a)
 1087	1087	engine	one_table@column	joinTableReference(joinElement)*/joinElement_(joinElement)*!insert	CREATE VIEW _v AS SELECT * FROM((@a CROSS JOIN @a) CROSS JOIN @a zzz)
+1087	1087	engine	one_table@column	joinTableReference(joinElement)*/joinElement_(joinElement)*+joinElement/qualifiedJoin	CREATE VIEW _v AS SELECT * FROM((@a CROSS JOIN @a) JOIN @a ON 1 = 1)
+1087	1087	engine	one_table@column	joinTableReference(joinElement)+/joinElement+joinElement/qualifiedJoin	CREATE VIEW _v AS SELECT * FROM(@a JOIN @a ON 1 = 1)
 1087	1087	engine	one_table@column	joinTableReference(joinElement)+/joinElement_(joinElement)+	CREATE VIEW _v AS SELECT * FROM(@a CROSS JOIN @a CROSS JOIN @a)
 1087	1087	engine	one_table@column	joinTableReference(joinElement)+/joinElement_(joinElement)+!insert	CREATE VIEW _v AS SELECT * FROM(@a CROSS JOIN @a CROSS JOIN @a zzz)
+1087	1087	engine	one_table@column	joinTableReference(joinElement)+/joinElement_(joinElement)++joinElement/qualifiedJoin	CREATE VIEW _v AS SELECT * FROM(@a JOIN @a ON 1 = 1 CROSS JOIN @a)
 1087	1087	engine	one_table@column	selectTableReferenceAdditionalElement/unpivotedTableReference	CREATE VIEW _v AS SELECT * FROM @a UNPIVOT(a FOR a IN(a)) a
 1087	1087	engine	one_table@column	columnListWithParenthesis(Comma_fixedColumn)*/Comma_fixedColumn_(Comma_fixedColumn)*	CREATE VIEW _v AS SELECT * FROM @a UNPIVOT(a FOR a IN(a, a)) a
 1087	1087	engine	one_table@column	joinElement/qualifiedJoin	CREATE VIEW _v AS SELECT * FROM @a JOIN @a ON 1 = 1
@@ -189,8 +201,44 @@ ok:82b75cb99595	ok:82b75cb99595	engine	one_table@column	schemaObjectTableReferen
 41202	41202	engine	one_table@column	semanticTableReference/semanticSimilarityDetailsTableReference!insert	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, 1) zzz
 41202	41202	engine	one_table@column	semanticKeyPhraseTableReference/SemanticKeyPhraseTable_LeftParenthesis_schemaObjectFour~bc0395c0+simpleTableReferenceAliasOpt	CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a) a
 41202	41202	engine	one_table@column	semanticKeyPhraseTableReference(Comma_possibleNegativeConstant)?/Comma_possibleNegativeConstant	CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, 1)
+41202	41202	engine	one_table@column	semanticKeyPhraseTableReference(Comma_possibleNegativeConstant)?/Comma_possibleNegativeConstant+literal/numeric	CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, 1.5)
+41202	41202	engine	one_table@column	semanticKeyPhraseTableReference(Comma_possibleNegativeConstant)?/Comma_possibleNegativeConstant+literal/real	CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, 1E1)
+41202	41202	engine	one_table@column	semanticKeyPhraseTableReference(Comma_possibleNegativeConstant)?/Comma_possibleNegativeConstant+literal/moneyLiteral	CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, $1)
+41202	41202	engine	one_table@column	semanticKeyPhraseTableReference(Comma_possibleNegativeConstant)?/Comma_possibleNegativeConstant+literal/binary	CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, 0x00)
+41202	41202	engine	one_table@column	semanticKeyPhraseTableReference(Comma_possibleNegativeConstant)?/Comma_possibleNegativeConstant+literal/stringLiteral	CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, 'a')
+41202	41202	engine	one_table@column	semanticKeyPhraseTableReference(Comma_possibleNegativeConstant)?/Comma_possibleNegativeConstant+stringLiteral/UnicodeStringLiteral	CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, N'a')
+41202	41202	engine	one_table@column	semanticKeyPhraseTableReference(Comma_possibleNegativeConstant)?/Comma_possibleNegativeConstant+literal/nullLiteral	CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, NULL)
+137	137	engine	one_table@column	semanticKeyPhraseTableReference(Comma_possibleNegativeConstant)?/Comma_possibleNegativeConstant+literal/globalVariableOrVariableReference	CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, @a)
+41202	41202	engine	one_table@column	semanticKeyPhraseTableReference(Comma_possibleNegativeConstant)?/Comma_possibleNegativeConstant+possibleNegativeConstant/negativeConstant	CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, - 1)
 41202	41202	engine	one_table@column	semanticSimilarityTableReference/SemanticSimilarityTable_LeftParenthesis_schemaObjectFou~30b83cfc+simpleTableReferenceAliasOpt	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, 1) a
+41202	41202	engine	one_table@column	semanticSimilarityTableReference/SemanticSimilarityTable_LeftParenthesis_schemaObjectFou~30b83cfc+literal/numeric	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, 1.5)
+41202	41202	engine	one_table@column	semanticSimilarityTableReference/SemanticSimilarityTable_LeftParenthesis_schemaObjectFou~30b83cfc+literal/real	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, 1E1)
+41202	41202	engine	one_table@column	semanticSimilarityTableReference/SemanticSimilarityTable_LeftParenthesis_schemaObjectFou~30b83cfc+literal/moneyLiteral	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, $1)
+41202	41202	engine	one_table@column	semanticSimilarityTableReference/SemanticSimilarityTable_LeftParenthesis_schemaObjectFou~30b83cfc+literal/binary	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, 0x00)
+41202	41202	engine	one_table@column	semanticSimilarityTableReference/SemanticSimilarityTable_LeftParenthesis_schemaObjectFou~30b83cfc+literal/stringLiteral	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, 'a')
+41202	41202	engine	one_table@column	semanticSimilarityTableReference/SemanticSimilarityTable_LeftParenthesis_schemaObjectFou~30b83cfc+stringLiteral/UnicodeStringLiteral	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, N'a')
+41202	41202	engine	one_table@column	semanticSimilarityTableReference/SemanticSimilarityTable_LeftParenthesis_schemaObjectFou~30b83cfc+literal/nullLiteral	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, NULL)
+137	137	engine	one_table@column	semanticSimilarityTableReference/SemanticSimilarityTable_LeftParenthesis_schemaObjectFou~30b83cfc+literal/globalVariableOrVariableReference	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, @a)
+41202	41202	engine	one_table@column	semanticSimilarityTableReference/SemanticSimilarityTable_LeftParenthesis_schemaObjectFou~30b83cfc+possibleNegativeConstant/negativeConstant	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, - 1)
 41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+simpleTableReferenceAliasOpt	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, 1) a
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+literal/numeric	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1.5, a, 1)
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+literal/real	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1E1, a, 1)
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+literal/moneyLiteral	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, $1, a, 1)
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+literal/binary	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 0x00, a, 1)
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+literal/stringLiteral	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 'a', a, 1)
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+stringLiteral/UnicodeStringLiteral	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, N'a', a, 1)
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+literal/nullLiteral	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, NULL, a, 1)
+137	137	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+literal/globalVariableOrVariableReference	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, @a, a, 1)
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+possibleNegativeConstant/negativeConstant	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, - 1, a, 1)
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+literal/numeric#2	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, 1.5)
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+literal/real#2	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, 1E1)
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+literal/moneyLiteral#2	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, $1)
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+literal/binary#2	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, 0x00)
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+literal/stringLiteral#2	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, 'a')
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+stringLiteral/UnicodeStringLiteral#2	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, N'a')
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+literal/nullLiteral#2	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, NULL)
+137	137	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+literal/globalVariableOrVariableReference#2	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, @a)
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+possibleNegativeConstant/negativeConstant#2	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, - 1)
 137	137	engine	one_table@column	openXmlTableReference/OpenXml_LeftParenthesis_openXmlParams_RightParenthesis_~ea65ca99+simpleTableReferenceAliasOpt	CREATE VIEW _v AS SELECT * FROM OPENXML(@a, 'a') a
 137	137	engine	one_table@column	openXmlWithClauseOpt/((With_LeftParenthesis_openXmlSchemaI~257fe2b0)	CREATE VIEW _v AS SELECT * FROM OPENXML(@a, 'a') WITH a
 137	137	engine	one_table@column	openXmlWithClauseOpt/((With_LeftParenthesis_openXmlSchemaI~257fe2b0)!insert	CREATE VIEW _v AS SELECT * FROM OPENXML(@a, 'a') WITH a zzz
@@ -216,6 +264,12 @@ ok:a706c8580758	ok:a706c8580758	engine	one_table@column	simpleTableHints(oldForc
 ok:03a8d65ac4fc	ok:03a8d65ac4fc	engine	one_table@column	singleOldStyleTableHint/LeftParenthesis_tableHint_RightParenthesis+tableHint/simpleTableHint	CREATE VIEW _v AS SELECT * FROM a(HOLDLOCK)
 164	164	engine	one_table@column	groupByClause(All)?/All	CREATE VIEW _v AS SELECT * GROUP BY ALL 1
 164	164	engine	one_table@column	groupByClause(Comma_groupByItem)*/Comma_groupByItem_(Comma_groupByItem)*	CREATE VIEW _v AS SELECT * GROUP BY 1, 1
+164	164	engine	one_table@column	groupByClause(Comma_groupByItem)*/Comma_groupByItem_(Comma_groupByItem)*+groupByItem/cubeSpec_CUBE	CREATE VIEW _v AS SELECT * GROUP BY 1, CUBE(1)
+164	164	engine	one_table@column	groupByClause(Comma_groupByItem)*/Comma_groupByItem_(Comma_groupByItem)*+groupByItem/cubeSpec_CUBE!drop-2	CREATE VIEW _v AS SELECT * GROUP BY 1,(1)
+164	164	engine	one_table@column	groupByClause(Comma_groupByItem)*/Comma_groupByItem_(Comma_groupByItem)*+groupByItem/rollupSpec_ROLLUP	CREATE VIEW _v AS SELECT * GROUP BY 1, ROLLUP(1)
+164	164	engine	one_table@column	groupByClause(Comma_groupByItem)*/Comma_groupByItem_(Comma_groupByItem)*+groupByItem/groupingSetsSpec_GROUPING	CREATE VIEW _v AS SELECT * GROUP BY 1, GROUPING SETS(1)
+164	164	engine	one_table@column	groupByClause(Comma_groupByItem)*/Comma_groupByItem_(Comma_groupByItem)*+groupByItem/groupingSetsSpec_GROUPING!drop-3	CREATE VIEW _v AS SELECT * GROUP BY 1, GROUPING(1)
+164	164	engine	one_table@column	groupByClause(Comma_groupByItem)*/Comma_groupByItem_(Comma_groupByItem)*+groupByItem/grandTotal	CREATE VIEW _v AS SELECT * GROUP BY 1,()
 164	164	engine	one_table@column	groupByItem/cubeSpec_CUBE	CREATE VIEW _v AS SELECT * GROUP BY CUBE(1)
 164	164	engine	one_table@column	groupByItem/cubeSpec_CUBE!drop-1	CREATE VIEW _v AS SELECT * GROUP BY(1)
 164	164	engine	one_table@column	groupByItem/rollupSpec_ROLLUP	CREATE VIEW _v AS SELECT * GROUP BY ROLLUP(1)
@@ -224,7 +278,13 @@ ok:03a8d65ac4fc	ok:03a8d65ac4fc	engine	one_table@column	singleOldStyleTableHint/
 263	263	engine	one_table@column	groupByItem/grandTotal	CREATE VIEW _v AS SELECT * GROUP BY()
 263	263	engine	one_table@column	groupingSet/grandTotal	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS(())
 164	164	engine	one_table@column	groupingSet/composingGroupingSet	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS((1))
+164	164	engine	one_table@column	composingGroupingSet/LeftParenthesis_groupingSetItem_(Comma_groupingSetItem)~887779f9+groupingSetItem/cubeSpec_CUBE	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS((CUBE(1)))
+164	164	engine	one_table@column	composingGroupingSet/LeftParenthesis_groupingSetItem_(Comma_groupingSetItem)~887779f9+groupingSetItem/cubeSpec_CUBE!drop-2	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS(((1)))
+164	164	engine	one_table@column	composingGroupingSet/LeftParenthesis_groupingSetItem_(Comma_groupingSetItem)~887779f9+groupingSetItem/rollupSpec_ROLLUP	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS((ROLLUP(1)))
 164	164	engine	one_table@column	composingGroupingSet(Comma_groupingSetItem)*/Comma_groupingSetItem_(Comma_groupingSetItem)*	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS((1, 1))
+164	164	engine	one_table@column	composingGroupingSet(Comma_groupingSetItem)*/Comma_groupingSetItem_(Comma_groupingSetItem)*+groupingSetItem/cubeSpec_CUBE	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS((1, CUBE(1)))
+164	164	engine	one_table@column	composingGroupingSet(Comma_groupingSetItem)*/Comma_groupingSetItem_(Comma_groupingSetItem)*+groupingSetItem/cubeSpec_CUBE!drop-2	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS((1,(1)))
+164	164	engine	one_table@column	composingGroupingSet(Comma_groupingSetItem)*/Comma_groupingSetItem_(Comma_groupingSetItem)*+groupingSetItem/rollupSpec_ROLLUP	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS((1, ROLLUP(1)))
 164	164	engine	one_table@column	groupingSetItem/cubeSpec_CUBE	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS(CUBE(1))
 164	164	engine	one_table@column	groupingSetItem/rollupSpec_ROLLUP	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS(ROLLUP(1))
 164	164	engine	one_table@column	cubeOrRollupArgumentList(Comma_cubeOrRollupArgument)*/Comma_cubeOrRollupArgument_(Comma_cubeOrRollupArgument)*	CREATE VIEW _v AS SELECT * GROUP BY CUBE(1, 1)
@@ -246,6 +306,14 @@ ok:03a8d65ac4fc	ok:03a8d65ac4fc	engine	one_table@column	singleOldStyleTableHint/
 156	156	engine	one_table@column	optimizeForOptimizerHint(LeftParenthesis_variableValuePair_(C~e8d8e4d2)/LeftParenthesis_variableValuePair_(Comma_variableValueP~d0bbec3f	CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN))
 156	156	engine	one_table@column	optimizeForOptimizerHint(Comma_variableValuePair)*/Comma_variableValuePair_(Comma_variableValuePair)*	CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN, @a UNKNOWN))
 156	156	engine	one_table@column	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant	CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = 1))
+156	156	engine	one_table@column	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant+literal/numeric	CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = 1.5))
+156	156	engine	one_table@column	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant+literal/real	CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = 1E1))
+156	156	engine	one_table@column	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant+literal/moneyLiteral	CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = $1))
+156	156	engine	one_table@column	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant+literal/binary	CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = 0x00))
+156	156	engine	one_table@column	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant+literal/stringLiteral	CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = 'a'))
+156	156	engine	one_table@column	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant+stringLiteral/UnicodeStringLiteral	CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = N'a'))
+156	156	engine	one_table@column	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant+literal/nullLiteral	CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = NULL))
+156	156	engine	one_table@column	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant+possibleNegativeConstant/negativeConstant	CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = - 1))
 263	263	engine	one_table@column	integerOrRealOrNumeric/real	CREATE VIEW _v AS SELECT TOP 1E1 *
 263	263	engine	one_table@column	integerOrRealOrNumeric/numeric	CREATE VIEW _v AS SELECT TOP 1.5 *
 207	207	engine	one_table@column	multiPartIdentifier/identifierList	CREATE VIEW _v AS SELECT a
@@ -262,16 +330,22 @@ ok:764ba6f0db9a	ok:764ba6f0db9a	engine	one_table@column	expressionBinaryPri2(Plu
 ok:2d0d29b2c91f	ok:2d0d29b2c91f	engine	one_table@column	expressionBinaryPri2(Plus_expressionBinaryPri1|Minus_expr~dce83db9)/Circumflex_expressionBinaryPri1!insert	CREATE VIEW _v AS SELECT 1 ^ 1 zzz
 4511	4511	engine	one_table@column	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)*/(Star_expressionUnary|Divide_expressi~e6a220c0)_(Star_e~81803144	CREATE VIEW _v AS SELECT 1 * 1
 ok:804ca419176a	ok:804ca419176a	engine	one_table@column	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)*/(Star_expressionUnary|Divide_expressi~e6a220c0)_(Star_e~81803144!insert	CREATE VIEW _v AS SELECT 1 * 1 zzz
+4511	4511	engine	one_table@column	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/Star_expressionUnary+expressionUnary/(Plus|Minus|Tilde)_expressionUnary	CREATE VIEW _v AS SELECT 1 * + 1
 4511	4511	engine	one_table@column	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/Divide_expressionUnary	CREATE VIEW _v AS SELECT 1 / 1
 ok:e5c3a2c7bd59	ok:e5c3a2c7bd59	engine	one_table@column	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/Divide_expressionUnary!insert	CREATE VIEW _v AS SELECT 1 / 1 zzz
+4511	4511	engine	one_table@column	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/Divide_expressionUnary+expressionUnary/(Plus|Minus|Tilde)_expressionUnary	CREATE VIEW _v AS SELECT 1 / + 1
 4511	4511	engine	one_table@column	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/PercentSign_expressionUnary	CREATE VIEW _v AS SELECT 1 % 1
 ok:a8d604d6a4d1	ok:a8d604d6a4d1	engine	one_table@column	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/PercentSign_expressionUnary!insert	CREATE VIEW _v AS SELECT 1 % 1 zzz
+4511	4511	engine	one_table@column	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/PercentSign_expressionUnary+expressionUnary/(Plus|Minus|Tilde)_expressionUnary	CREATE VIEW _v AS SELECT 1 % + 1
 4511	4511	engine	one_table@column	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/LeftShift_expressionUnary	CREATE VIEW _v AS SELECT 1 << 1
 ok:393a323cb298	ok:393a323cb298	engine	one_table@column	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/LeftShift_expressionUnary!insert	CREATE VIEW _v AS SELECT 1 << 1 zzz
+4511	4511	engine	one_table@column	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/LeftShift_expressionUnary+expressionUnary/(Plus|Minus|Tilde)_expressionUnary	CREATE VIEW _v AS SELECT 1 << + 1
 4511	4511	engine	one_table@column	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/RightShift_expressionUnary	CREATE VIEW _v AS SELECT 1 >> 1
 ok:ca6c5a7ce5ed	ok:ca6c5a7ce5ed	engine	one_table@column	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/RightShift_expressionUnary!insert	CREATE VIEW _v AS SELECT 1 >> 1 zzz
+4511	4511	engine	one_table@column	expressionBinaryPri1(Star_expressionUnary|Divide_expressi~e6a220c0)/RightShift_expressionUnary+expressionUnary/(Plus|Minus|Tilde)_expressionUnary	CREATE VIEW _v AS SELECT 1 >> + 1
 4511	4511	engine	one_table@column	expressionUnary/(Plus|Minus|Tilde)_expressionUnary	CREATE VIEW _v AS SELECT + 1
 ok:77354dda8cc8	ok:77354dda8cc8	engine	one_table@column	expressionUnary/(Plus|Minus|Tilde)_expressionUnary!insert	CREATE VIEW _v AS SELECT + 1 zzz
+4511	4511	engine	one_table@column	expressionUnary/(Plus|Minus|Tilde)_expressionUnary+expressionUnary/(Plus|Minus|Tilde)_expressionUnary	CREATE VIEW _v AS SELECT + + 1
 4511	4511	engine	one_table@column	expressionUnary(Plus|Minus|Tilde)/Minus	CREATE VIEW _v AS SELECT - 1
 4511	4511	engine	one_table@column	expressionUnary(Plus|Minus|Tilde)/Tilde	CREATE VIEW _v AS SELECT ~ 1
 243	243	engine	one_table@column	expressionWithClrElements(udtExpression|expressionPrimary)/udtExpression	CREATE VIEW _v AS SELECT a :: a
@@ -279,6 +353,14 @@ ok:77354dda8cc8	ok:77354dda8cc8	engine	one_table@column	expressionUnary/(Plus|Mi
 243	243	engine	one_table@column	expressionWithClrElements(udtExpression|expressionPrimary)/udtExpression!insert	CREATE VIEW _v AS SELECT a :: a zzz
 ok:bef2662d2b25	ok:bef2662d2b25	engine	one_table@column	expressionWithClrElements(Dot_identifier_(expressionWithClrEle~fbf62e11)*/Dot_identifier_(expressionWithClrElementsFunctionCal~ed~63c0207b	CREATE VIEW _v AS SELECT 1.a
 4511	4511	engine	one_table@column	expressionWithClrElements(Dot_identifier_(expressionWithClrEle~fbf62e11)*/Dot_identifier_(expressionWithClrElementsFunctionCal~ed~63c0207b!drop-2	CREATE VIEW _v AS SELECT 1.
+4511	4511	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/literal+literal/numeric	CREATE VIEW _v AS SELECT 1.5
+4511	4511	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/literal+literal/real	CREATE VIEW _v AS SELECT 1E1
+4511	4511	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/literal+literal/moneyLiteral	CREATE VIEW _v AS SELECT $1
+4511	4511	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/literal+literal/binary	CREATE VIEW _v AS SELECT 0x00
+4511	4511	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/literal+literal/stringLiteral	CREATE VIEW _v AS SELECT 'a'
+4511	4511	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/literal+stringLiteral/UnicodeStringLiteral	CREATE VIEW _v AS SELECT N'a'
+4511	4511	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/literal+literal/nullLiteral	CREATE VIEW _v AS SELECT NULL
+137	137	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/literal+literal/globalVariableOrVariableReference	CREATE VIEW _v AS SELECT @a
 243	243	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/castCall_CAST	CREATE VIEW _v AS SELECT CAST(1 AS a)
 243	243	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/castCall_CAST!insert	CREATE VIEW _v AS SELECT CAST(1 AS a) zzz
 243	243	engine	one_table@column	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/tryCastCall_TRY_CAST	CREATE VIEW _v AS SELECT TRY_CAST(1 AS a)
@@ -317,9 +399,14 @@ ok:1f602bff0e62	ok:1f602bff0e62	engine	one_table@column	expressionPrimary(odbcFu
 243	243	engine	one_table@column	udtExpression(udtFunctionExpression|udtPropertyExpression)/udtFunctionExpression	CREATE VIEW _v AS SELECT a :: a()
 243	243	engine	one_table@column	udtExpression(udtFunctionExpression|udtPropertyExpression)/udtFunctionExpression!insert	CREATE VIEW _v AS SELECT a :: a() zzz
 243	243	engine	one_table@column	userDefinedTypeCallTarget/schemaObjectTwoPartName_DoubleColon!insert	CREATE VIEW _v AS SELECT a :: zzz a
+243	243	engine	one_table@column	userDefinedTypeCallTarget/schemaObjectTwoPartName_DoubleColon+schemaObjectTwoPartName/Dot_identifier	CREATE VIEW _v AS SELECT.a :: a
 243	243	engine	one_table@column	udtPropertyExpression/identifier_collationOpt+collationOpt	CREATE VIEW _v AS SELECT a :: a COLLATE a
 243	243	engine	one_table@column	udtPropertyExpression/identifier_collationOpt+collationOpt!drop-2	CREATE VIEW _v AS SELECT a :: a a
+4511	4511	engine	one_table@column	convertCall/Convert_LeftParenthesis_scalarDataType_Comma_expression~6a117179+scalarDataType/doubleDataType	CREATE VIEW _v AS SELECT CONVERT(DOUBLE PRECISION, 1)
+243	243	engine	one_table@column	convertCall/Convert_LeftParenthesis_scalarDataType_Comma_expression~6a117179+scalarDataType/doubleDataType!drop-3	CREATE VIEW _v AS SELECT CONVERT(PRECISION, 1)
 243	243	engine	one_table@column	convertCall(Comma_expression)?/Comma_expression	CREATE VIEW _v AS SELECT CONVERT(a, 1, 1)
+4511	4511	engine	one_table@column	tryConvertCall/TryConvert_LeftParenthesis_scalarDataType_Comma_express~5dca6b44+scalarDataType/doubleDataType	CREATE VIEW _v AS SELECT TRY_CONVERT(DOUBLE PRECISION, 1)
+243	243	engine	one_table@column	tryConvertCall/TryConvert_LeftParenthesis_scalarDataType_Comma_express~5dca6b44+scalarDataType/doubleDataType!drop-3	CREATE VIEW _v AS SELECT TRY_CONVERT(PRECISION, 1)
 243	243	engine	one_table@column	tryConvertCall(Comma_expression)?/Comma_expression	CREATE VIEW _v AS SELECT TRY_CONVERT(a, 1, 1)
 4511	4511	engine	one_table@column	parameterlessCall/CurrentUser	CREATE VIEW _v AS SELECT CURRENT_USER
 ok:e2270f58ae67	ok:e2270f58ae67	engine	one_table@column	parameterlessCall/CurrentUser!insert	CREATE VIEW _v AS SELECT CURRENT_USER zzz
@@ -370,10 +457,23 @@ ok:e1b83eaff11c	ok:e1b83eaff11c	engine	one_table@column	parameterlessCall/Curren
 ok:5cc7f1d389b9	ok:5cc7f1d389b9	engine	one_table@column	stringOrIdentifier/identifier	CREATE VIEW _v AS SELECT 1 a
 137	137	engine	one_table@column	stringLiteralOrVariable/variable	CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME AS OF @a
 137	137	engine	one_table@column	stringLiteralOrVariable/variable!insert	CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME AS OF @a zzz
+263	263	engine	one_table@column	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*+xmlNamespacesElement/xmlNamespacesAliasElement	CREATE VIEW _v AS WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) SELECT *
 22108	137	engine	one_table@column	ctContext_CHANGE_TRACKING_CONTEXT/CHANGE_TRACKING_CONTEXT_LeftParenthesis_binaryOrVariabl~a39ca77e+binaryOrVariable/variable	CREATE VIEW _v AS WITH CHANGE_TRACKING_CONTEXT(@a) SELECT *
 ok:de65c8b97d97	ok:de65c8b97d97	engine	one_table@column	openJsonTableReference_OPENJSON/OPENJSON_LeftParenthesis_openJsonParams_RightParenthesi~3d152f0e+simpleTableReferenceAliasOpt	CREATE VIEW _v AS SELECT * FROM OPENJSON(1) a
 164	164	engine	one_table@column	groupingSetsSpec_GROUPING(Comma_groupingSet)*/Comma_groupingSet_(Comma_groupingSet)*	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS(1, 1)
+164	164	engine	one_table@column	groupingSetsSpec_GROUPING(Comma_groupingSet)*/Comma_groupingSet_(Comma_groupingSet)*+groupingSet/grandTotal	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS(1,())
+164	164	engine	one_table@column	groupingSetsSpec_GROUPING(Comma_groupingSet)*/Comma_groupingSet_(Comma_groupingSet)*+groupingSet/composingGroupingSet	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS(1,(1))
+164	164	engine	one_table@column	groupingSetsSpec_GROUPING(Comma_groupingSet)*/Comma_groupingSet_(Comma_groupingSet)*+groupingSetItem/cubeSpec_CUBE	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS(1, CUBE(1))
+164	164	engine	one_table@column	groupingSetsSpec_GROUPING(Comma_groupingSet)*/Comma_groupingSet_(Comma_groupingSet)*+groupingSetItem/rollupSpec_ROLLUP	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS(1, ROLLUP(1))
+4511	4511	engine	one_table@column	castCall_CAST/CAST_LeftParenthesis_expression_As_scalarDataType_Right~c7c27964+scalarDataType/doubleDataType	CREATE VIEW _v AS SELECT CAST(1 AS DOUBLE PRECISION)
+243	243	engine	one_table@column	castCall_CAST/CAST_LeftParenthesis_expression_As_scalarDataType_Right~c7c27964+scalarDataType/doubleDataType!drop-5	CREATE VIEW _v AS SELECT CAST(1 AS PRECISION)
+4511	4511	engine	one_table@column	tryCastCall_TRY_CAST/TRY_CAST_LeftParenthesis_expression_As_scalarDataType_R~87588f6e+scalarDataType/doubleDataType	CREATE VIEW _v AS SELECT TRY_CAST(1 AS DOUBLE PRECISION)
+243	243	engine	one_table@column	tryCastCall_TRY_CAST/TRY_CAST_LeftParenthesis_expression_As_scalarDataType_R~87588f6e+scalarDataType/doubleDataType!drop-5	CREATE VIEW _v AS SELECT TRY_CAST(1 AS PRECISION)
+4511	8116	engine	one_table@column	parseCall_PARSE/PARSE_LeftParenthesis_expression_As_scalarDataType_(USI~59d85dd6+scalarDataType/doubleDataType	CREATE VIEW _v AS SELECT PARSE(1 AS DOUBLE PRECISION)
+10761	10761	engine	one_table@column	parseCall_PARSE/PARSE_LeftParenthesis_expression_As_scalarDataType_(USI~59d85dd6+scalarDataType/doubleDataType!drop-5	CREATE VIEW _v AS SELECT PARSE(1 AS PRECISION)
 10761	10761	engine	one_table@column	parseCall_PARSE(USING_expression)?/USING_expression	CREATE VIEW _v AS SELECT PARSE(1 AS a USING 1)
+4511	8116	engine	one_table@column	tryParseCall_TRY_PARSE/TRY_PARSE_LeftParenthesis_expression_As_scalarDataType_~a0b754d4+scalarDataType/doubleDataType	CREATE VIEW _v AS SELECT TRY_PARSE(1 AS DOUBLE PRECISION)
+10761	10761	engine	one_table@column	tryParseCall_TRY_PARSE/TRY_PARSE_LeftParenthesis_expression_As_scalarDataType_~a0b754d4+scalarDataType/doubleDataType!drop-5	CREATE VIEW _v AS SELECT TRY_PARSE(1 AS PRECISION)
 10761	10761	engine	one_table@column	tryParseCall_TRY_PARSE(USING_expression)?/USING_expression	CREATE VIEW _v AS SELECT TRY_PARSE(1 AS a USING 1)
 8116	8116	engine	one_table@column	trimCall_TRIM((trim3ArgsBuiltInFunctionCall_LEADIN~b294f8a0)/(trim3ArgsBuiltInFunctionCall_LEADING~80620e31)	CREATE VIEW _v AS SELECT TRIM(LEADING 1 FROM 1)
 8116	8116	engine	one_table@column	trimCall_TRIM((trim3ArgsBuiltInFunctionCall_LEADIN~b294f8a0)/(trim3ArgsBuiltInFunctionCall_LEADING~80620e31)!insert	CREATE VIEW _v AS SELECT TRIM(LEADING 1 FROM 1) zzz

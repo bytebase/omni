@@ -1129,6 +1129,21 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		// (measured).
 		loc := p.pos()
 		p.advance() // consume .
+		// A static method's type may leave its schema empty too:
+		// userDefinedTypeCallTarget is schemaObjectTwoPartName ::
+		// (TSql160.g:30407), whose second form is . identifier, and SQL
+		// Server takes SELECT .a::a (measured).
+		if (p.cur.Type == tokIDENT || isContextKeyword(p.cur.Type)) && p.peekNext().Type == tokCOLONCOLON {
+			expr, err := p.parseIdentExpr()
+			if err != nil {
+				return nil, err
+			}
+			if mc, ok := expr.(*nodes.MethodCallExpr); ok {
+				mc.Loc.Start = loc
+				mc.Type.Loc.Start = loc
+			}
+			return expr, nil
+		}
 		if p.cur.Type != tokPSEUDOCOL {
 			return nil, p.syntaxErrorAtCur()
 		}

@@ -3652,16 +3652,15 @@ func (p *Parser) parseOptimizeForParam() (*nodes.OptimizeForParam, error) {
 		Loc:      nodes.Loc{Start: loc, End: -1},
 	}
 	p.advance()
-	// @variable { UNKNOWN | = literal }, one of them required.
+	// @variable { UNKNOWN | = possibleNegativeConstant }, one of them
+	// required (variableValuePair, TSql160.g:21910). SQL Server takes a
+	// negative number and refuses a variable as the value (Msg 320).
 	if p.cur.Type == '=' {
 		p.advance()
 		var err error
-		param.Value, err = p.parsePrimary()
+		param.Value, err = p.parsePossibleNegativeConstant(false)
 		if err != nil {
 			return nil, err
-		}
-		if param.Value == nil {
-			return nil, p.syntaxErrorAtCur()
 		}
 	} else if p.cur.Type == kwUNKNOWN {
 		param.Unknown = true

@@ -168,7 +168,19 @@ func (p *Parser) parseAlterSchemaStmt() (*nodes.AlterSchemaStmt, error) {
 		stmt.TransferType = "XML SCHEMA COLLECTION"
 	}
 
-	// securable_name: [ schema_name . ] name
+	// securable_name: [ schema_name . ] name, or . name with the schema
+	// left empty (schemaObjectTwoPartName, TSql160.g:30407).
+	if p.cur.Type == '.' {
+		p.advance()
+		part, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.TransferObject = part
+		stmt.TransferEntity = "." + part
+		stmt.Loc.End = p.prevEnd()
+		return stmt, nil
+	}
 	id, ok := p.parseIdentifier()
 	if !ok {
 		return nil, p.syntaxErrorAtCur()

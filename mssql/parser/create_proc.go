@@ -730,6 +730,11 @@ func (p *Parser) routineParseTableDefinition() (*nodes.List, error) {
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
+	// A typed column is required (tableDefHasColumn): SQL Server refuses
+	// RETURNS @t TABLE (UNIQUE (a)) at the closing parenthesis (Msg 102).
+	if !tableDefHasColumn(items, false) {
+		return nil, p.transSyntaxErrorAtPrev()
+	}
 	return &nodes.List{Items: items}, nil
 }
 
