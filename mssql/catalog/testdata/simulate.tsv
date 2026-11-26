@@ -298,6 +298,52 @@ ok:c9be65ef10f0	ok:c9be65ef10f0	engine	one_table@missing	dropSequenceStatement_S
 8168	8168	engine	one_table@missing	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	one_table@missing	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 ok:2b5f48c7bbbd	ok:2b5f48c7bbbd	engine	one_table@missing	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	8197	engine	one_table@missing	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	8197	engine	one_table@missing	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok:2ff3f727e336	ok:2ff3f727e336	engine	one_table@missing	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+ok	1767	engine	one_table@missing	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	one_table@missing	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	one_table@missing	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+ok	1767	engine	one_table@missing	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	4902	engine	one_table@missing	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+4902	4902	engine	one_table@missing	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+ok	ok:39f2fd25f037	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok:a58663a1870f	ok:a58663a1870f	engine	one_table@missing	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+ok	1767	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+ok	1767	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+ok	8140	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+ok	1769	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+ok	1767	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+ok:c81bc4e4b08b	ok:c81bc4e4b08b	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4902	4902	engine	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4902	4902	engine	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+ok	ok:fa7dd8bc8968	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+ok	1727	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4902	4902	engine	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+ok	1767	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+ok	1767	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+ok	8148	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+ok	8148	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4902	4902	engine	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+ok	ok:ab728c5b708c	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok:5d3285e9178d	ok:5d3285e9178d	engine	one_table@missing	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+ok	1911	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+ok	ok:196f2a8a502d	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+ok	10793	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+ok	ok:2ee9f9c53186	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4902	4902	engine	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4902	4902	engine	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
 ok:b08530f8a202	ok:b08530f8a202	engine	one_table@table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	one_table@table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	one_table@table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -596,6 +642,52 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	lockEscalationTableOption
 8168	8168	engine	one_table@table	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	one_table@table	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	2010	engine	one_table@table	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	8197	engine	one_table@table	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	8197	engine	one_table@table	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok:e8b527cd2439	ok:e8b527cd2439	engine	one_table@table	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+ok	1767	engine	one_table@table	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	one_table@table	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	one_table@table	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+ok	1767	engine	one_table@table	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	4902	engine	one_table@table	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+4902	4902	engine	one_table@table	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+2714	2714	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok:f7bb6ca4b584	ok:f7bb6ca4b584	engine	one_table@table	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	2714	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	2714	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+2714	8140	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+2714	1769	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	2714	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	2714	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+2705	2705	engine	one_table@table	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+1752	1752	engine	one_table@table	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+2714	2714	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+2714	10791	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	2714	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+2705	2705	engine	one_table@table	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	2714	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	2714	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+2714	8148	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2714	8148	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2705	2705	engine	one_table@table	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	2714	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok:730f4651e371	ok:730f4651e371	engine	one_table@table	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+2714	10791	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	2714	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	2714	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+2714	10793	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	2714	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+2705	2705	engine	one_table@table	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+2714	10791	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+2714	10791	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+2714	10791	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+2714	10791	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+2714	10791	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+10785	10791	engine	one_table@table	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
 ok:700d834f3ec9	ok:700d834f3ec9	engine	one_table@column	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	one_table@column	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	one_table@column	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -894,6 +986,52 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	lockEscalationTableOptio
 8168	8168	engine	one_table@column	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	one_table@column	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	2010	engine	one_table@column	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	8197	engine	one_table@column	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	8197	engine	one_table@column	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok:fb37efe2f62d	ok:fb37efe2f62d	engine	one_table@column	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+ok	1767	engine	one_table@column	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	one_table@column	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	one_table@column	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+ok	1767	engine	one_table@column	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	4902	engine	one_table@column	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+4902	4902	engine	one_table@column	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+2714	2714	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok:b90b780adabe	ok:b90b780adabe	engine	one_table@column	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	2714	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	2714	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+2714	8140	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+2714	1769	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	2714	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	2714	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+2705	2705	engine	one_table@column	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+ok:b4349e700605	ok:b4349e700605	engine	one_table@column	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+2714	2714	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+2714	10791	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	2714	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+2705	2705	engine	one_table@column	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	2714	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	2714	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+2714	8148	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2714	8148	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2705	2705	engine	one_table@column	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	2714	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok:5a3c7b96933c	ok:5a3c7b96933c	engine	one_table@column	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+2714	10791	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	2714	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	2714	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+2714	10793	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	2714	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+2705	2705	engine	one_table@column	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+2714	10791	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+2714	10791	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+2714	10791	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+2714	10791	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+2714	10791	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+10785	10791	engine	one_table@column	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
 ok:5855584afb6a	ok:5855584afb6a	engine	one_table@index	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	one_table@index	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	one_table@index	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1192,6 +1330,52 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	lockEscalationTableOption
 8168	8168	engine	one_table@index	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	one_table@index	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	2010	engine	one_table@index	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	8197	engine	one_table@index	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	8197	engine	one_table@index	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok:cadb8bcaac11	ok:cadb8bcaac11	engine	one_table@index	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+ok	1767	engine	one_table@index	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	one_table@index	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	one_table@index	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+ok	1767	engine	one_table@index	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	4902	engine	one_table@index	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+4902	4902	engine	one_table@index	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+2714	2714	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok:ac4bd4a2b672	ok:ac4bd4a2b672	engine	one_table@index	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	2714	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	2714	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+2714	8140	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+2714	1769	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	2714	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	2714	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+2705	2705	engine	one_table@index	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+ok:c1920cc19498	ok:c1920cc19498	engine	one_table@index	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+2714	2714	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+2714	10791	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	2714	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+2705	2705	engine	one_table@index	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	2714	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	2714	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+2714	8148	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2714	8148	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2705	2705	engine	one_table@index	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	2714	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok:4188ae53864e	ok:4188ae53864e	engine	one_table@index	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+2714	10791	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	2714	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	2714	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+2714	10793	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	2714	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+2705	2705	engine	one_table@index	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+2714	10791	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+2714	10791	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+2714	10791	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+2714	10791	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+2714	10791	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+10785	10791	engine	one_table@index	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
 ok:35bdc4532691	ok:35bdc4532691	engine	objects@view	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@view	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@view	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1490,6 +1674,52 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 8168	8168	engine	objects@view	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	objects@view	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	2010	engine	objects@view	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	8197	engine	objects@view	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	8197	engine	objects@view	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok:d318a114481c	ok:d318a114481c	engine	objects@view	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+ok	1767	engine	objects@view	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	objects@view	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	objects@view	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+ok	1767	engine	objects@view	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	4902	engine	objects@view	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+4902	4902	engine	objects@view	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+2714	2714	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok:856115c5c1f9	ok:856115c5c1f9	engine	objects@view	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	2714	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	2714	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+2714	8140	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+2714	1769	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	2714	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	2714	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4909	4909	engine	objects@view	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4909	4909	engine	objects@view	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+2714	2714	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+2714	10791	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	2714	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4909	4909	engine	objects@view	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	2714	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	2714	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+2714	8148	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2714	8148	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4909	4909	engine	objects@view	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	2714	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok:7587435d20b6	ok:7587435d20b6	engine	objects@view	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+2714	10791	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	2714	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	2714	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+2714	10793	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	2714	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4909	4909	engine	objects@view	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+2714	10791	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+2714	10791	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+2714	10791	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+2714	10791	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4909	4909	engine	objects@view	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
 ok:a39909444bda	ok:a39909444bda	engine	objects@fk	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@fk	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@fk	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1788,6 +2018,52 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	lockEscalationTableOption_LOCK
 8168	8168	engine	objects@fk	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	objects@fk	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	2010	engine	objects@fk	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	8197	engine	objects@fk	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	8197	engine	objects@fk	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok:db3fa3564dec	ok:db3fa3564dec	engine	objects@fk	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+ok	1767	engine	objects@fk	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	objects@fk	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	objects@fk	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+ok	1767	engine	objects@fk	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	4902	engine	objects@fk	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+4902	4902	engine	objects@fk	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+2714	2714	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok:8778367aa94f	ok:8778367aa94f	engine	objects@fk	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	2714	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	2714	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+2714	8140	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+2714	1769	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	2714	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	2714	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+2705	2705	engine	objects@fk	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+ok:1f440221322f	ok:1f440221322f	engine	objects@fk	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+2714	2714	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+2714	10791	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	2714	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+2705	2705	engine	objects@fk	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	2714	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	2714	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+2714	8148	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2714	8148	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2705	2705	engine	objects@fk	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	2714	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+2714	2714	engine	objects@fk	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+2714	10791	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	2714	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	2714	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+2714	10793	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	2714	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+2705	2705	engine	objects@fk	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+2714	10791	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+2714	10791	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+2714	10791	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+2714	10791	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+10785	10791	engine	objects@fk	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
 2714	2714	engine	objects@schema	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@schema	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@schema	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2086,6 +2362,52 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	lockEscalationTableOption_
 8168	8168	engine	objects@schema	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	objects@schema	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	2010	engine	objects@schema	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	8197	engine	objects@schema	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	8197	engine	objects@schema	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok:ef48b89e22e0	ok:ef48b89e22e0	engine	objects@schema	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+ok	1767	engine	objects@schema	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	objects@schema	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	objects@schema	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+ok	1767	engine	objects@schema	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	4902	engine	objects@schema	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+4902	4902	engine	objects@schema	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+2714	2714	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok:91190a7347fd	ok:91190a7347fd	engine	objects@schema	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	2714	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	2714	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+2714	8140	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+2714	1769	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	2714	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	2714	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+2705	2705	engine	objects@schema	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+1752	1752	engine	objects@schema	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+2714	2714	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+2714	10791	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	2714	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+2705	2705	engine	objects@schema	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	2714	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	2714	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+2714	8148	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2714	8148	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2705	2705	engine	objects@schema	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	2714	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok:2ea4d31c8efa	ok:2ea4d31c8efa	engine	objects@schema	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+2714	10791	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	2714	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	2714	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+2714	10793	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	2714	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+2705	2705	engine	objects@schema	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+2714	10791	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+2714	10791	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+2714	10791	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+2714	10791	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+10785	10791	engine	objects@schema	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
 ok:ca6ffa04f178	ok:ca6ffa04f178	engine	objects@sequence	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@sequence	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@sequence	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2384,6 +2706,52 @@ ok:ba4169ec1613	ok:ba4169ec1613	engine	objects@sequence	sequenceNoOptionListElem
 8168	8168	engine	objects@sequence	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	objects@sequence	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	2010	engine	objects@sequence	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	8197	engine	objects@sequence	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	8197	engine	objects@sequence	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok:53760090da6d	ok:53760090da6d	engine	objects@sequence	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+ok	1767	engine	objects@sequence	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	objects@sequence	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	objects@sequence	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+ok	1767	engine	objects@sequence	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	4902	engine	objects@sequence	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+4902	4902	engine	objects@sequence	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+2714	2714	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok:aa8d8cdffd15	ok:aa8d8cdffd15	engine	objects@sequence	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	2714	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	2714	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+2714	8140	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+2714	1769	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	2714	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	2714	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4909	4909	engine	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4909	4909	engine	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+2714	2714	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+2714	10791	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	2714	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4909	4909	engine	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	2714	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	2714	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+2714	8148	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2714	8148	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4909	4909	engine	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	2714	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok:256e3a7a886a	ok:256e3a7a886a	engine	objects@sequence	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+2714	10791	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	2714	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	2714	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+2714	10793	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	2714	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4909	4909	engine	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+2714	10791	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+2714	10791	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+2714	10791	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+2714	10791	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4909	4909	engine	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
 ok:9f5b0a656ba7	ok:9f5b0a656ba7	engine	objects@synonym	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@synonym	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@synonym	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2682,6 +3050,52 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@synonym	dropSynonymStatement_SYNO
 8168	8168	engine	objects@synonym	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	objects@synonym	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	2010	engine	objects@synonym	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	8197	engine	objects@synonym	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	8197	engine	objects@synonym	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok:f23460d9f128	ok:f23460d9f128	engine	objects@synonym	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+ok	1767	engine	objects@synonym	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	objects@synonym	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	objects@synonym	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+ok	1767	engine	objects@synonym	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	4902	engine	objects@synonym	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+4902	4902	engine	objects@synonym	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+2714	2714	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok:d0bc1171afa5	ok:d0bc1171afa5	engine	objects@synonym	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	2714	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	2714	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+2714	8140	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+2714	1769	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	2714	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	2714	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4909	4909	engine	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4909	4909	engine	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+2714	2714	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+2714	10791	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	2714	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4909	4909	engine	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	2714	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	2714	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+2714	8148	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2714	8148	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4909	4909	engine	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	2714	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok:82bd413c8066	ok:82bd413c8066	engine	objects@synonym	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+2714	10791	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	2714	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	2714	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+2714	10793	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	2714	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4909	4909	engine	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+2714	10791	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+2714	10791	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+2714	10791	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+2714	10791	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4909	4909	engine	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
 ok:2b3aebfef9a1	ok:2b3aebfef9a1	engine	objects@procedure	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@procedure	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@procedure	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2980,6 +3394,52 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 8168	8168	engine	objects@procedure	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	objects@procedure	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 ok:0b121dab692c	ok:0b121dab692c	engine	objects@procedure	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	8197	engine	objects@procedure	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	8197	engine	objects@procedure	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok:8b9cce0cd5d7	ok:8b9cce0cd5d7	engine	objects@procedure	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+ok	1767	engine	objects@procedure	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	objects@procedure	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	objects@procedure	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+ok	1767	engine	objects@procedure	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	4902	engine	objects@procedure	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+4902	4902	engine	objects@procedure	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+2714	2714	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok:3a517f65b405	ok:3a517f65b405	engine	objects@procedure	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	2714	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	2714	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+2714	8140	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+2714	1769	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	2714	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	2714	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4909	4909	engine	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4909	4909	engine	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+2714	2714	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+2714	10791	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	2714	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4909	4909	engine	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	2714	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	2714	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+2714	8148	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2714	8148	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4909	4909	engine	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	2714	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok:23074fe32789	ok:23074fe32789	engine	objects@procedure	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+2714	10791	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	2714	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	2714	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+2714	10793	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	2714	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4909	4909	engine	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+2714	10791	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+2714	10791	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+2714	10791	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+2714	10791	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4909	4909	engine	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
 ok:e8852332e164	ok:e8852332e164	engine	objects@function	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@function	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@function	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3278,6 +3738,52 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 8168	8168	engine	objects@function	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	objects@function	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	2010	engine	objects@function	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	8197	engine	objects@function	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	8197	engine	objects@function	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok:0b9c4cdf6d97	ok:0b9c4cdf6d97	engine	objects@function	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+ok	1767	engine	objects@function	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	objects@function	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	objects@function	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+ok	1767	engine	objects@function	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	4902	engine	objects@function	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+4902	4902	engine	objects@function	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+2714	2714	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok:f63a10d512b4	ok:f63a10d512b4	engine	objects@function	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	2714	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	2714	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+2714	8140	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+2714	1769	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	2714	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	2714	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4909	4909	engine	objects@function	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4909	4909	engine	objects@function	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+2714	2714	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+2714	10791	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	2714	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4909	4909	engine	objects@function	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	2714	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	2714	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+2714	8148	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2714	8148	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4909	4909	engine	objects@function	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	2714	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok:6893604530d9	ok:6893604530d9	engine	objects@function	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+2714	10791	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	2714	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	2714	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+2714	10793	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	2714	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4909	4909	engine	objects@function	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+2714	10791	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+2714	10791	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+2714	10791	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+2714	10791	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4909	4909	engine	objects@function	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
 ok:67933fa12252	ok:67933fa12252	engine	objects@trigger	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@trigger	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@trigger	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3576,3 +4082,49 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 8168	8168	engine	objects@trigger	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	objects@trigger	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	2010	engine	objects@trigger	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	8197	engine	objects@trigger	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	8197	engine	objects@trigger	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok:d2b2fb8a2542	ok:d2b2fb8a2542	engine	objects@trigger	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+ok	1767	engine	objects@trigger	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	objects@trigger	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+ok	1767	engine	objects@trigger	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+ok	1767	engine	objects@trigger	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	4902	engine	objects@trigger	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+4902	4902	engine	objects@trigger	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+2714	2714	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok:7cb7e2341dee	ok:7cb7e2341dee	engine	objects@trigger	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	2714	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	2714	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+2714	8140	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+2714	1769	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	2714	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	2714	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4909	4909	engine	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4909	4909	engine	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+2714	2714	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+2714	10791	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	2714	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4909	4909	engine	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	2714	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	2714	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+2714	8148	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2714	8148	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4909	4909	engine	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	2714	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok:a35aff99dd83	ok:a35aff99dd83	engine	objects@trigger	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+2714	10791	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	2714	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	2714	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+2714	10793	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	2714	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4909	4909	engine	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+2714	10791	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+2714	10791	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+2714	10791	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+2714	10791	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+2714	10791	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+2714	10791	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4909	4909	engine	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);

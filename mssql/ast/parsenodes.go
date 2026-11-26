@@ -338,6 +338,7 @@ type InlineIndexDef struct {
 	Unique       bool
 	Clustered    *bool    // true=CLUSTERED, false=NONCLUSTERED, nil=unspecified
 	Columnstore  bool     // COLUMNSTORE index
+	Hash         bool     // HASH index (memory-optimized)
 	Columns      *List    // list of *IndexColumn
 	IncludeCols  *List    // INCLUDE columns
 	WhereClause  ExprNode // filtered index
@@ -359,6 +360,7 @@ type ColumnDef struct {
 	Collation   string
 	Constraints *List // column-level constraints
 	Nullable    *NullableSpec
+	Index       *InlineIndexDef // INDEX index_name ... on the column
 
 	// Advanced column options
 	Sparse      bool // SPARSE
@@ -2484,6 +2486,7 @@ type SetExpr struct {
 	VarColumn   *ColumnRef // @variable = column = expression (dual assignment)
 	Operator    string     // "=" (default), "+=", "-=", "*=", "/=", "%=", "&=", "^=", "|="
 	WriteMethod bool       // column.WRITE(expression, @Offset, @Length) form
+	Mutator     bool       // column.method(args), a CLR type's mutator; Value holds the call
 	Value       ExprNode
 	Loc         Loc
 }
@@ -2515,9 +2518,11 @@ func (n *ResTarget) exprNode() {}
 
 // ---------- Assignment in SELECT ----------
 
-// SelectAssign represents SELECT @var = expr.
+// SelectAssign represents SELECT @var = expr, or with Operator set, a
+// compound assignment such as SELECT @var += expr.
 type SelectAssign struct {
 	Variable string
+	Operator string // "+=", "-=", "*=", "/=", "%=", "&=", "^=", "|="; "" for =
 	Value    ExprNode
 	Loc      Loc
 }
@@ -3233,11 +3238,12 @@ func (n *UpdatetextStmt) stmtNode() {}
 
 // MethodCallExpr represents a :: static method call, or, with Expr set, a
 // method called on an expression's value: EVENTDATA().value(path, type).
+// Args is nil for a property, which has no parentheses: T::Prop, @x.Prop.
 type MethodCallExpr struct {
 	Type   *DataType
 	Expr   ExprNode // the value an instance method is called on; nil for a static call
 	Method string
-	Args   *List
+	Args   *List // nil for a property
 	Loc    Loc
 }
 

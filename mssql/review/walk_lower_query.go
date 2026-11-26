@@ -1293,7 +1293,7 @@ func (q *binder) statement(n ast.Node) {
 				if !ok {
 					continue
 				}
-				if se.Column != nil && !se.WriteMethod {
+				if se.Column != nil && !se.WriteMethod && !se.Mutator {
 					q.column(se.Column, sc)
 				}
 				q.expr(se.Value, sc)

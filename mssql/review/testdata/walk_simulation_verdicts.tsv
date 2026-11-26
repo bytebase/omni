@@ -404,6 +404,93 @@ ok	one_table@missing	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP S
 8168	one_table@missing	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	one_table@missing	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 ok	one_table@missing	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	one_table@missing	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	one_table@missing	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok	one_table@missing	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+1767	one_table@missing	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+1767	one_table@missing	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+1767	one_table@missing	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+1767	one_table@missing	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	one_table@missing	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+ok	one_table@missing	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+ok	one_table@missing	issue:BYT-10538	UPDATE t SET t.c = 1;
+208	one_table@missing	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+7202	one_table@missing	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+ok	one_table@missing	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+4902	one_table@missing	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET .a.a = 1;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+137	one_table@missing	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+208	one_table@missing	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+208	one_table@missing	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+ok	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok	one_table@missing	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+ok	one_table@missing	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+1767	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+1767	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+8140	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+1769	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+1767	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+ok	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4902	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4902	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET a..a = 1;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET ..a = 1;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET a...a = 1;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+137	one_table@missing	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+137	one_table@missing	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET a.m(1);
+ok	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+10791	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+1727	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4902	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+1767	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+1767	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+8148	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+8148	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4902	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+ok	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok	one_table@missing	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+10791	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+1911	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+ok	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+10793	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+ok	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4902	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET WRITE = 1;
+208	one_table@missing	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+10791	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+10791	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+10791	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+10791	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+10791	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+10791	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+10791	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4902	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+208	one_table@missing	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+208	one_table@missing	issue:BYT-10538	UPDATE a SET [a].m(1);
+208	one_table@missing	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+208	one_table@missing	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+208	one_table@missing	issue:BYT-10538	UPDATE a SET .m(1);
+137	one_table@missing	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+137	one_table@missing	issue:BYT-10538	UPDATE a SET @v = a += 1;
+137	one_table@missing	issue:BYT-10538	UPDATE a SET @v += 1;
+137	one_table@missing	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+137	one_table@missing	issue:BYT-10538	UPDATE a SET @v = a.m(1);
 ok	one_table@type	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	one_table@type	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	one_table@type	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -808,6 +895,93 @@ ok	one_table@type	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQU
 8168	one_table@type	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	one_table@type	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 ok	one_table@type	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	one_table@type	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	one_table@type	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok	one_table@type	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+1767	one_table@type	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+1767	one_table@type	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+1767	one_table@type	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+1767	one_table@type	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	one_table@type	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+ok	one_table@type	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+ok	one_table@type	issue:BYT-10538	UPDATE t SET t.c = 1;
+208	one_table@type	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+7202	one_table@type	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+ok	one_table@type	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+4902	one_table@type	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+208	one_table@type	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+208	one_table@type	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+208	one_table@type	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+208	one_table@type	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+208	one_table@type	issue:BYT-10538	UPDATE a SET .a.a = 1;
+208	one_table@type	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+208	one_table@type	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+137	one_table@type	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+208	one_table@type	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+208	one_table@type	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+ok	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok	one_table@type	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+ok	one_table@type	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+1767	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+1767	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+8140	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+1769	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+1767	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+ok	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4902	one_table@type	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4902	one_table@type	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+208	one_table@type	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+208	one_table@type	issue:BYT-10538	UPDATE a SET a..a = 1;
+208	one_table@type	issue:BYT-10538	UPDATE a SET ..a = 1;
+208	one_table@type	issue:BYT-10538	UPDATE a SET a...a = 1;
+208	one_table@type	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+137	one_table@type	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+137	one_table@type	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+208	one_table@type	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+208	one_table@type	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+208	one_table@type	issue:BYT-10538	UPDATE a SET a.m(1);
+ok	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+10791	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+1727	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4902	one_table@type	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+1767	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+1767	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+8148	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+8148	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4902	one_table@type	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+ok	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok	one_table@type	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+10791	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+1911	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+ok	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+10793	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+ok	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4902	one_table@type	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+208	one_table@type	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+208	one_table@type	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+208	one_table@type	issue:BYT-10538	UPDATE a SET WRITE = 1;
+208	one_table@type	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+10791	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+10791	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+10791	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+10791	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+10791	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+10791	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+10791	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	one_table@type	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4902	one_table@type	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+208	one_table@type	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+208	one_table@type	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+208	one_table@type	issue:BYT-10538	UPDATE a SET [a].m(1);
+208	one_table@type	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+208	one_table@type	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+208	one_table@type	issue:BYT-10538	UPDATE a SET .m(1);
+137	one_table@type	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+137	one_table@type	issue:BYT-10538	UPDATE a SET @v = a += 1;
+137	one_table@type	issue:BYT-10538	UPDATE a SET @v += 1;
+137	one_table@type	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+137	one_table@type	issue:BYT-10538	UPDATE a SET @v = a.m(1);
 ok	one_table@table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	one_table@table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	one_table@table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1212,6 +1386,93 @@ ok	one_table@table	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/T
 8168	one_table@table	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	one_table@table	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	one_table@table	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	one_table@table	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	one_table@table	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok	one_table@table	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+1767	one_table@table	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+1767	one_table@table	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+1767	one_table@table	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+1767	one_table@table	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	one_table@table	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+208	one_table@table	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+208	one_table@table	issue:BYT-10538	UPDATE t SET t.c = 1;
+208	one_table@table	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+7202	one_table@table	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+208	one_table@table	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+4902	one_table@table	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+4104	one_table@table	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+207	one_table@table	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+4104	one_table@table	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+4104	one_table@table	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+207	one_table@table	issue:BYT-10538	UPDATE a SET .a.a = 1;
+4104	one_table@table	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+4104	one_table@table	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+137	one_table@table	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+207	one_table@table	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+207	one_table@table	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+2714	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok	one_table@table	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+ok	one_table@table	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+8140	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+1769	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+2705	one_table@table	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+1752	one_table@table	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+4104	one_table@table	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+4104	one_table@table	issue:BYT-10538	UPDATE a SET a..a = 1;
+4104	one_table@table	issue:BYT-10538	UPDATE a SET ..a = 1;
+4104	one_table@table	issue:BYT-10538	UPDATE a SET a...a = 1;
+207	one_table@table	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+137	one_table@table	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+137	one_table@table	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+207	one_table@table	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+4104	one_table@table	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+207	one_table@table	issue:BYT-10538	UPDATE a SET a.m(1);
+2714	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+10791	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+2705	one_table@table	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+8148	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+8148	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2705	one_table@table	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok	one_table@table	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+10791	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+10793	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+2705	one_table@table	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+207	one_table@table	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+4104	one_table@table	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+207	one_table@table	issue:BYT-10538	UPDATE a SET WRITE = 1;
+4104	one_table@table	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+10791	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+10791	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+10791	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+10791	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+10791	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+10791	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+10791	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+10791	one_table@table	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+4104	one_table@table	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+207	one_table@table	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+207	one_table@table	issue:BYT-10538	UPDATE a SET [a].m(1);
+207	one_table@table	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+207	one_table@table	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+207	one_table@table	issue:BYT-10538	UPDATE a SET .m(1);
+137	one_table@table	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+137	one_table@table	issue:BYT-10538	UPDATE a SET @v = a += 1;
+137	one_table@table	issue:BYT-10538	UPDATE a SET @v += 1;
+137	one_table@table	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+137	one_table@table	issue:BYT-10538	UPDATE a SET @v = a.m(1);
 ok	one_table@column	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	one_table@column	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	one_table@column	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1616,6 +1877,93 @@ ok	one_table@column	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/
 8168	one_table@column	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	one_table@column	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	one_table@column	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	one_table@column	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	one_table@column	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok	one_table@column	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+1767	one_table@column	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+1767	one_table@column	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+1767	one_table@column	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+1767	one_table@column	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	one_table@column	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+208	one_table@column	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+208	one_table@column	issue:BYT-10538	UPDATE t SET t.c = 1;
+208	one_table@column	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+7202	one_table@column	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+208	one_table@column	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+4902	one_table@column	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+4104	one_table@column	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+ok	one_table@column	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+4104	one_table@column	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+4104	one_table@column	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+ok	one_table@column	issue:BYT-10538	UPDATE a SET .a.a = 1;
+4104	one_table@column	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+4104	one_table@column	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+137	one_table@column	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+ok	one_table@column	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+ok	one_table@column	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+2714	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok	one_table@column	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+ok	one_table@column	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+8140	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+1769	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+2705	one_table@column	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+1754	one_table@column	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+4104	one_table@column	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+4104	one_table@column	issue:BYT-10538	UPDATE a SET a..a = 1;
+4104	one_table@column	issue:BYT-10538	UPDATE a SET ..a = 1;
+4104	one_table@column	issue:BYT-10538	UPDATE a SET a...a = 1;
+258	one_table@column	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+137	one_table@column	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+137	one_table@column	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+ok	one_table@column	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+4104	one_table@column	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+258	one_table@column	issue:BYT-10538	UPDATE a SET a.m(1);
+2714	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+10791	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+2705	one_table@column	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+8148	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+8148	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2705	one_table@column	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok	one_table@column	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+10791	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+10793	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+2705	one_table@column	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+207	one_table@column	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+4104	one_table@column	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+207	one_table@column	issue:BYT-10538	UPDATE a SET WRITE = 1;
+4104	one_table@column	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+10791	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+10791	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+10791	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+10791	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+10791	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+10791	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+10791	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+10791	one_table@column	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+4104	one_table@column	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+258	one_table@column	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+258	one_table@column	issue:BYT-10538	UPDATE a SET [a].m(1);
+258	one_table@column	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+258	one_table@column	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+207	one_table@column	issue:BYT-10538	UPDATE a SET .m(1);
+137	one_table@column	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+137	one_table@column	issue:BYT-10538	UPDATE a SET @v = a += 1;
+137	one_table@column	issue:BYT-10538	UPDATE a SET @v += 1;
+137	one_table@column	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+137	one_table@column	issue:BYT-10538	UPDATE a SET @v = a.m(1);
 ok	one_table@index	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	one_table@index	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	one_table@index	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2020,6 +2368,93 @@ ok	one_table@index	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/T
 8168	one_table@index	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	one_table@index	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	one_table@index	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	one_table@index	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	one_table@index	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok	one_table@index	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+1767	one_table@index	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+1767	one_table@index	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+1767	one_table@index	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+1767	one_table@index	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	one_table@index	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+208	one_table@index	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+208	one_table@index	issue:BYT-10538	UPDATE t SET t.c = 1;
+208	one_table@index	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+7202	one_table@index	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+208	one_table@index	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+4902	one_table@index	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+4104	one_table@index	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+ok	one_table@index	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+4104	one_table@index	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+4104	one_table@index	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+ok	one_table@index	issue:BYT-10538	UPDATE a SET .a.a = 1;
+4104	one_table@index	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+4104	one_table@index	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+137	one_table@index	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+ok	one_table@index	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+ok	one_table@index	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+2714	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok	one_table@index	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+ok	one_table@index	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+8140	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+1769	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+2705	one_table@index	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+ok	one_table@index	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+4104	one_table@index	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+4104	one_table@index	issue:BYT-10538	UPDATE a SET a..a = 1;
+4104	one_table@index	issue:BYT-10538	UPDATE a SET ..a = 1;
+4104	one_table@index	issue:BYT-10538	UPDATE a SET a...a = 1;
+258	one_table@index	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+137	one_table@index	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+137	one_table@index	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+ok	one_table@index	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+4104	one_table@index	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+258	one_table@index	issue:BYT-10538	UPDATE a SET a.m(1);
+2714	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+10791	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+2705	one_table@index	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+8148	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+8148	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2705	one_table@index	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok	one_table@index	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+10791	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+10793	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+2705	one_table@index	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+207	one_table@index	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+4104	one_table@index	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+207	one_table@index	issue:BYT-10538	UPDATE a SET WRITE = 1;
+4104	one_table@index	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+10791	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+10791	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+10791	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+10791	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+10791	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+10791	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+10791	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+10791	one_table@index	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+4104	one_table@index	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+258	one_table@index	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+258	one_table@index	issue:BYT-10538	UPDATE a SET [a].m(1);
+258	one_table@index	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+258	one_table@index	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+207	one_table@index	issue:BYT-10538	UPDATE a SET .m(1);
+137	one_table@index	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+137	one_table@index	issue:BYT-10538	UPDATE a SET @v = a += 1;
+137	one_table@index	issue:BYT-10538	UPDATE a SET @v += 1;
+137	one_table@index	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+137	one_table@index	issue:BYT-10538	UPDATE a SET @v = a.m(1);
 ok	objects@view	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@view	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@view	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2424,6 +2859,93 @@ ok	objects@view	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF EXISTS
 8168	objects@view	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	objects@view	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	objects@view	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	objects@view	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	objects@view	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok	objects@view	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+1767	objects@view	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@view	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@view	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+1767	objects@view	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	objects@view	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+207	objects@view	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+207	objects@view	issue:BYT-10538	UPDATE t SET t.c = 1;
+208	objects@view	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+7202	objects@view	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+207	objects@view	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+4902	objects@view	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+4104	objects@view	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+ok	objects@view	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+4104	objects@view	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+4104	objects@view	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+ok	objects@view	issue:BYT-10538	UPDATE a SET .a.a = 1;
+4104	objects@view	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+4104	objects@view	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+137	objects@view	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+ok	objects@view	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+ok	objects@view	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+2714	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok	objects@view	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+ok	objects@view	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	objects@view	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	objects@view	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+8140	objects@view	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+1769	objects@view	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	objects@view	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4909	objects@view	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4909	objects@view	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+4104	objects@view	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+4104	objects@view	issue:BYT-10538	UPDATE a SET a..a = 1;
+4104	objects@view	issue:BYT-10538	UPDATE a SET ..a = 1;
+4104	objects@view	issue:BYT-10538	UPDATE a SET a...a = 1;
+258	objects@view	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+137	objects@view	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+137	objects@view	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+ok	objects@view	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+4104	objects@view	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+258	objects@view	issue:BYT-10538	UPDATE a SET a.m(1);
+2714	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+10791	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4909	objects@view	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	objects@view	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	objects@view	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+8148	objects@view	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+8148	objects@view	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4909	objects@view	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok	objects@view	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+10791	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+10793	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4909	objects@view	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+207	objects@view	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+4104	objects@view	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+207	objects@view	issue:BYT-10538	UPDATE a SET WRITE = 1;
+4104	objects@view	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+10791	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+10791	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+10791	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+10791	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+10791	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+10791	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+10791	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4909	objects@view	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+4104	objects@view	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+258	objects@view	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+258	objects@view	issue:BYT-10538	UPDATE a SET [a].m(1);
+258	objects@view	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+258	objects@view	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+207	objects@view	issue:BYT-10538	UPDATE a SET .m(1);
+137	objects@view	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+137	objects@view	issue:BYT-10538	UPDATE a SET @v = a += 1;
+137	objects@view	issue:BYT-10538	UPDATE a SET @v += 1;
+137	objects@view	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+137	objects@view	issue:BYT-10538	UPDATE a SET @v = a.m(1);
 ok	objects@sequence	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@sequence	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@sequence	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2828,6 +3350,93 @@ ok	objects@sequence	sequenceNoOptionListElement_NO(MINVALUE|MAXVALUE|CACHE|CYCLE
 8168	objects@sequence	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	objects@sequence	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	objects@sequence	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	objects@sequence	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	objects@sequence	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok	objects@sequence	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+1767	objects@sequence	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@sequence	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@sequence	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+1767	objects@sequence	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	objects@sequence	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+ok	objects@sequence	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+ok	objects@sequence	issue:BYT-10538	UPDATE t SET t.c = 1;
+208	objects@sequence	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+7202	objects@sequence	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+ok	objects@sequence	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+4902	objects@sequence	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET .a.a = 1;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+137	objects@sequence	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+208	objects@sequence	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+208	objects@sequence	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+2714	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok	objects@sequence	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+ok	objects@sequence	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+8140	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+1769	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4909	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4909	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET a..a = 1;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET ..a = 1;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET a...a = 1;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+137	objects@sequence	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+137	objects@sequence	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET a.m(1);
+2714	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+10791	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4909	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+8148	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+8148	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4909	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok	objects@sequence	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+10791	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+10793	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4909	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET WRITE = 1;
+208	objects@sequence	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+10791	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+10791	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+10791	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+10791	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+10791	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+10791	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+10791	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4909	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+208	objects@sequence	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+208	objects@sequence	issue:BYT-10538	UPDATE a SET [a].m(1);
+208	objects@sequence	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+208	objects@sequence	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+208	objects@sequence	issue:BYT-10538	UPDATE a SET .m(1);
+137	objects@sequence	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+137	objects@sequence	issue:BYT-10538	UPDATE a SET @v = a += 1;
+137	objects@sequence	issue:BYT-10538	UPDATE a SET @v += 1;
+137	objects@sequence	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+137	objects@sequence	issue:BYT-10538	UPDATE a SET @v = a.m(1);
 ok	objects@procedure	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@procedure	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@procedure	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3232,6 +3841,93 @@ ok	objects@procedure	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF E
 8168	objects@procedure	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	objects@procedure	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 ok	objects@procedure	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	objects@procedure	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	objects@procedure	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok	objects@procedure	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+1767	objects@procedure	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@procedure	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@procedure	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+1767	objects@procedure	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	objects@procedure	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+ok	objects@procedure	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+ok	objects@procedure	issue:BYT-10538	UPDATE t SET t.c = 1;
+208	objects@procedure	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+7202	objects@procedure	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+ok	objects@procedure	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+4902	objects@procedure	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET .a.a = 1;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+137	objects@procedure	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+208	objects@procedure	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+208	objects@procedure	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+2714	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok	objects@procedure	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+ok	objects@procedure	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+8140	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+1769	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4909	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4909	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET a..a = 1;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET ..a = 1;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET a...a = 1;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+137	objects@procedure	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+137	objects@procedure	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET a.m(1);
+2714	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+10791	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4909	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+8148	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+8148	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4909	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok	objects@procedure	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+10791	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+10793	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4909	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET WRITE = 1;
+208	objects@procedure	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+10791	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+10791	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+10791	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+10791	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+10791	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+10791	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+10791	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4909	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+208	objects@procedure	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+208	objects@procedure	issue:BYT-10538	UPDATE a SET [a].m(1);
+208	objects@procedure	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+208	objects@procedure	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+208	objects@procedure	issue:BYT-10538	UPDATE a SET .m(1);
+137	objects@procedure	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+137	objects@procedure	issue:BYT-10538	UPDATE a SET @v = a += 1;
+137	objects@procedure	issue:BYT-10538	UPDATE a SET @v += 1;
+137	objects@procedure	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+137	objects@procedure	issue:BYT-10538	UPDATE a SET @v = a.m(1);
 ok	objects@function	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@function	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@function	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3636,6 +4332,93 @@ ok	objects@function	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF EX
 8168	objects@function	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	objects@function	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	objects@function	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	objects@function	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	objects@function	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok	objects@function	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+1767	objects@function	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@function	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@function	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+1767	objects@function	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	objects@function	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+ok	objects@function	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+ok	objects@function	issue:BYT-10538	UPDATE t SET t.c = 1;
+208	objects@function	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+7202	objects@function	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+ok	objects@function	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+4902	objects@function	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+208	objects@function	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+208	objects@function	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+208	objects@function	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+208	objects@function	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+208	objects@function	issue:BYT-10538	UPDATE a SET .a.a = 1;
+208	objects@function	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+208	objects@function	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+137	objects@function	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+208	objects@function	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+208	objects@function	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+2714	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok	objects@function	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+ok	objects@function	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	objects@function	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	objects@function	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+8140	objects@function	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+1769	objects@function	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	objects@function	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4909	objects@function	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4909	objects@function	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+208	objects@function	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+208	objects@function	issue:BYT-10538	UPDATE a SET a..a = 1;
+208	objects@function	issue:BYT-10538	UPDATE a SET ..a = 1;
+208	objects@function	issue:BYT-10538	UPDATE a SET a...a = 1;
+208	objects@function	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+137	objects@function	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+137	objects@function	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+208	objects@function	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+208	objects@function	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+208	objects@function	issue:BYT-10538	UPDATE a SET a.m(1);
+2714	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+10791	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4909	objects@function	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	objects@function	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	objects@function	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+8148	objects@function	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+8148	objects@function	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4909	objects@function	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok	objects@function	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+10791	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+10793	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4909	objects@function	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+208	objects@function	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+208	objects@function	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+208	objects@function	issue:BYT-10538	UPDATE a SET WRITE = 1;
+208	objects@function	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+10791	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+10791	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+10791	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+10791	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+10791	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+10791	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+10791	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4909	objects@function	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+208	objects@function	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+208	objects@function	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+208	objects@function	issue:BYT-10538	UPDATE a SET [a].m(1);
+208	objects@function	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+208	objects@function	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+208	objects@function	issue:BYT-10538	UPDATE a SET .m(1);
+137	objects@function	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+137	objects@function	issue:BYT-10538	UPDATE a SET @v = a += 1;
+137	objects@function	issue:BYT-10538	UPDATE a SET @v += 1;
+137	objects@function	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+137	objects@function	issue:BYT-10538	UPDATE a SET @v = a.m(1);
 ok	objects@synonym	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@synonym	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@synonym	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -4040,6 +4823,93 @@ ok	objects@synonym	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF EXI
 8168	objects@synonym	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	objects@synonym	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	objects@synonym	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	objects@synonym	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	objects@synonym	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok	objects@synonym	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+1767	objects@synonym	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@synonym	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@synonym	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+1767	objects@synonym	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	objects@synonym	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+207	objects@synonym	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+207	objects@synonym	issue:BYT-10538	UPDATE t SET t.c = 1;
+208	objects@synonym	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+7202	objects@synonym	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+207	objects@synonym	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+4902	objects@synonym	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+4104	objects@synonym	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+ok	objects@synonym	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+4104	objects@synonym	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+4104	objects@synonym	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+ok	objects@synonym	issue:BYT-10538	UPDATE a SET .a.a = 1;
+4104	objects@synonym	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+4104	objects@synonym	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+137	objects@synonym	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+ok	objects@synonym	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+ok	objects@synonym	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+2714	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok	objects@synonym	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+ok	objects@synonym	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+8140	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+1769	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4909	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4909	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+4104	objects@synonym	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+4104	objects@synonym	issue:BYT-10538	UPDATE a SET a..a = 1;
+4104	objects@synonym	issue:BYT-10538	UPDATE a SET ..a = 1;
+4104	objects@synonym	issue:BYT-10538	UPDATE a SET a...a = 1;
+258	objects@synonym	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+137	objects@synonym	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+137	objects@synonym	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+ok	objects@synonym	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+4104	objects@synonym	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+258	objects@synonym	issue:BYT-10538	UPDATE a SET a.m(1);
+2714	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+10791	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4909	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+8148	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+8148	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4909	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok	objects@synonym	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+10791	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+10793	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4909	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+207	objects@synonym	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+4104	objects@synonym	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+207	objects@synonym	issue:BYT-10538	UPDATE a SET WRITE = 1;
+4104	objects@synonym	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+10791	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+10791	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+10791	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+10791	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+10791	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+10791	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+10791	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4909	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+4104	objects@synonym	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+258	objects@synonym	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+258	objects@synonym	issue:BYT-10538	UPDATE a SET [a].m(1);
+258	objects@synonym	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+258	objects@synonym	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+207	objects@synonym	issue:BYT-10538	UPDATE a SET .m(1);
+137	objects@synonym	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+137	objects@synonym	issue:BYT-10538	UPDATE a SET @v = a += 1;
+137	objects@synonym	issue:BYT-10538	UPDATE a SET @v += 1;
+137	objects@synonym	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+137	objects@synonym	issue:BYT-10538	UPDATE a SET @v = a.m(1);
 2714	objects@schema	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@schema	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@schema	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -4444,6 +5314,93 @@ ok	objects@schema	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQU
 8168	objects@schema	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	objects@schema	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 ok	objects@schema	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	objects@schema	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	objects@schema	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok	objects@schema	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+1767	objects@schema	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@schema	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@schema	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+1767	objects@schema	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	objects@schema	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+ok	objects@schema	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+ok	objects@schema	issue:BYT-10538	UPDATE t SET t.c = 1;
+208	objects@schema	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+7202	objects@schema	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+ok	objects@schema	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+4902	objects@schema	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+208	objects@schema	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+208	objects@schema	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+208	objects@schema	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+208	objects@schema	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+208	objects@schema	issue:BYT-10538	UPDATE a SET .a.a = 1;
+208	objects@schema	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+208	objects@schema	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+137	objects@schema	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+208	objects@schema	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+208	objects@schema	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+ok	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok	objects@schema	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+ok	objects@schema	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+1767	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+1767	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+8140	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+1769	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+1767	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+ok	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4902	objects@schema	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4902	objects@schema	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+208	objects@schema	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+208	objects@schema	issue:BYT-10538	UPDATE a SET a..a = 1;
+208	objects@schema	issue:BYT-10538	UPDATE a SET ..a = 1;
+208	objects@schema	issue:BYT-10538	UPDATE a SET a...a = 1;
+208	objects@schema	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+137	objects@schema	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+137	objects@schema	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+208	objects@schema	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+208	objects@schema	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+208	objects@schema	issue:BYT-10538	UPDATE a SET a.m(1);
+ok	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+10791	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+1727	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4902	objects@schema	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+1767	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+1767	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+8148	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+8148	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4902	objects@schema	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+ok	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok	objects@schema	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+10791	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+1911	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+ok	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+10793	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+ok	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4902	objects@schema	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+208	objects@schema	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+208	objects@schema	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+208	objects@schema	issue:BYT-10538	UPDATE a SET WRITE = 1;
+208	objects@schema	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+10791	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+10791	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+10791	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+10791	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+10791	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+10791	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+10791	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4902	objects@schema	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+208	objects@schema	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+208	objects@schema	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+208	objects@schema	issue:BYT-10538	UPDATE a SET [a].m(1);
+208	objects@schema	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+208	objects@schema	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+208	objects@schema	issue:BYT-10538	UPDATE a SET .m(1);
+137	objects@schema	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+137	objects@schema	issue:BYT-10538	UPDATE a SET @v = a += 1;
+137	objects@schema	issue:BYT-10538	UPDATE a SET @v += 1;
+137	objects@schema	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+137	objects@schema	issue:BYT-10538	UPDATE a SET @v = a.m(1);
 2714	objects@schema_nonempty	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@schema_nonempty	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@schema_nonempty	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -4848,6 +5805,93 @@ ok	objects@schema_nonempty	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	
 8168	objects@schema_nonempty	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	objects@schema_nonempty	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 ok	objects@schema_nonempty	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	objects@schema_nonempty	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	objects@schema_nonempty	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+1767	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+1767	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	objects@schema_nonempty	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE t SET t.c = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+7202	objects@schema_nonempty	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+4902	objects@schema_nonempty	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET .a.a = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+137	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+208	objects@schema_nonempty	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+208	objects@schema_nonempty	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+ok	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok	objects@schema_nonempty	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+ok	objects@schema_nonempty	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+1767	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+1767	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+8140	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+1769	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+1767	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+ok	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4902	objects@schema_nonempty	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4902	objects@schema_nonempty	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET a..a = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET ..a = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET a...a = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+137	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+137	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET a.m(1);
+ok	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+10791	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+1727	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4902	objects@schema_nonempty	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+1767	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+1767	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+8148	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+8148	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4902	objects@schema_nonempty	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+ok	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok	objects@schema_nonempty	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+10791	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+1911	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+ok	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+10793	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+ok	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4902	objects@schema_nonempty	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET WRITE = 1;
+208	objects@schema_nonempty	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+10791	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+10791	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+10791	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+10791	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+10791	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+10791	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+10791	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@schema_nonempty	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4902	objects@schema_nonempty	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET [a].m(1);
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+208	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET .m(1);
+137	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+137	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET @v = a += 1;
+137	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET @v += 1;
+137	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+137	objects@schema_nonempty	issue:BYT-10538	UPDATE a SET @v = a.m(1);
 ok	objects@constraint	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@constraint	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@constraint	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -5252,6 +6296,93 @@ ok	objects@constraint	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF 
 8168	objects@constraint	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	objects@constraint	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	objects@constraint	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	objects@constraint	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	objects@constraint	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok	objects@constraint	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+1767	objects@constraint	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@constraint	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@constraint	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+1767	objects@constraint	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	objects@constraint	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+ok	objects@constraint	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+ok	objects@constraint	issue:BYT-10538	UPDATE t SET t.c = 1;
+208	objects@constraint	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+7202	objects@constraint	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+ok	objects@constraint	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+4902	objects@constraint	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET .a.a = 1;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+137	objects@constraint	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+208	objects@constraint	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+208	objects@constraint	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+2714	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok	objects@constraint	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+ok	objects@constraint	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+8140	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+1769	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4909	objects@constraint	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4909	objects@constraint	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET a..a = 1;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET ..a = 1;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET a...a = 1;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+137	objects@constraint	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+137	objects@constraint	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET a.m(1);
+2714	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+10791	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4909	objects@constraint	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+8148	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+8148	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4909	objects@constraint	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok	objects@constraint	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+10791	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+10793	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4909	objects@constraint	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET WRITE = 1;
+208	objects@constraint	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+10791	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+10791	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+10791	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+10791	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+10791	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+10791	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+10791	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@constraint	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4909	objects@constraint	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+208	objects@constraint	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+208	objects@constraint	issue:BYT-10538	UPDATE a SET [a].m(1);
+208	objects@constraint	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+208	objects@constraint	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+208	objects@constraint	issue:BYT-10538	UPDATE a SET .m(1);
+137	objects@constraint	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+137	objects@constraint	issue:BYT-10538	UPDATE a SET @v = a += 1;
+137	objects@constraint	issue:BYT-10538	UPDATE a SET @v += 1;
+137	objects@constraint	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+137	objects@constraint	issue:BYT-10538	UPDATE a SET @v = a.m(1);
 ok	objects@trigger	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@trigger	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@trigger	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -5656,6 +6787,93 @@ ok	objects@trigger	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF EXI
 8168	objects@trigger	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	objects@trigger	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	objects@trigger	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	objects@trigger	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	objects@trigger	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok	objects@trigger	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+1767	objects@trigger	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@trigger	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@trigger	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+1767	objects@trigger	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	objects@trigger	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+ok	objects@trigger	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+ok	objects@trigger	issue:BYT-10538	UPDATE t SET t.c = 1;
+208	objects@trigger	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+7202	objects@trigger	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+ok	objects@trigger	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+4902	objects@trigger	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET .a.a = 1;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+137	objects@trigger	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+208	objects@trigger	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+208	objects@trigger	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+2714	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok	objects@trigger	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+ok	objects@trigger	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+8140	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+1769	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+4909	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+4909	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET a..a = 1;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET ..a = 1;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET a...a = 1;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+137	objects@trigger	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+137	objects@trigger	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET a.m(1);
+2714	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+10791	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+4909	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+8148	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+8148	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+4909	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok	objects@trigger	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+10791	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+10793	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+4909	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET WRITE = 1;
+208	objects@trigger	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+10791	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+10791	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+10791	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+10791	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+10791	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+10791	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+10791	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+4909	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+208	objects@trigger	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+208	objects@trigger	issue:BYT-10538	UPDATE a SET [a].m(1);
+208	objects@trigger	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+208	objects@trigger	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+208	objects@trigger	issue:BYT-10538	UPDATE a SET .m(1);
+137	objects@trigger	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+137	objects@trigger	issue:BYT-10538	UPDATE a SET @v = a += 1;
+137	objects@trigger	issue:BYT-10538	UPDATE a SET @v += 1;
+137	objects@trigger	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+137	objects@trigger	issue:BYT-10538	UPDATE a SET @v = a.m(1);
 ok	objects@xml_table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@xml_table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@xml_table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -6060,6 +7278,93 @@ ok	objects@xml_table	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)
 8168	objects@xml_table	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	objects@xml_table	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	objects@xml_table	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	objects@xml_table	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	objects@xml_table	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok	objects@xml_table	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+1767	objects@xml_table	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@xml_table	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@xml_table	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+1767	objects@xml_table	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	objects@xml_table	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+208	objects@xml_table	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+208	objects@xml_table	issue:BYT-10538	UPDATE t SET t.c = 1;
+208	objects@xml_table	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+7202	objects@xml_table	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+208	objects@xml_table	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+4902	objects@xml_table	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+4141	objects@xml_table	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+206	objects@xml_table	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+4104	objects@xml_table	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+4104	objects@xml_table	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+206	objects@xml_table	issue:BYT-10538	UPDATE a SET .a.a = 1;
+4141	objects@xml_table	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+4141	objects@xml_table	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+137	objects@xml_table	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+206	objects@xml_table	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+206	objects@xml_table	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+2714	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok	objects@xml_table	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+ok	objects@xml_table	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+8140	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+1769	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+2705	objects@xml_table	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+206	objects@xml_table	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+4104	objects@xml_table	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+4141	objects@xml_table	issue:BYT-10538	UPDATE a SET a..a = 1;
+4104	objects@xml_table	issue:BYT-10538	UPDATE a SET ..a = 1;
+4141	objects@xml_table	issue:BYT-10538	UPDATE a SET a...a = 1;
+227	objects@xml_table	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+137	objects@xml_table	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+137	objects@xml_table	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+206	objects@xml_table	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+4119	objects@xml_table	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+227	objects@xml_table	issue:BYT-10538	UPDATE a SET a.m(1);
+2714	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+10791	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+2705	objects@xml_table	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+8148	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+8148	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2705	objects@xml_table	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok	objects@xml_table	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+10791	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+10793	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+2705	objects@xml_table	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+4104	objects@xml_table	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+4141	objects@xml_table	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+207	objects@xml_table	issue:BYT-10538	UPDATE a SET WRITE = 1;
+4104	objects@xml_table	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+10791	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+10791	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+10791	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+10791	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+10791	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+10791	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+10791	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@xml_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+10791	objects@xml_table	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+4104	objects@xml_table	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+227	objects@xml_table	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+227	objects@xml_table	issue:BYT-10538	UPDATE a SET [a].m(1);
+227	objects@xml_table	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+227	objects@xml_table	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+207	objects@xml_table	issue:BYT-10538	UPDATE a SET .m(1);
+137	objects@xml_table	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+137	objects@xml_table	issue:BYT-10538	UPDATE a SET @v = a += 1;
+137	objects@xml_table	issue:BYT-10538	UPDATE a SET @v += 1;
+137	objects@xml_table	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+137	objects@xml_table	issue:BYT-10538	UPDATE a SET @v = a.m(1);
 ok	objects@spatial_table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@spatial_table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@spatial_table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -6464,3 +7769,90 @@ ok	objects@spatial_table	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Ta
 8168	objects@spatial_table	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	objects@spatial_table	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
 2010	objects@spatial_table	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
+8197	objects@spatial_table	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+8197	objects@spatial_table	issue:BYT-10538	CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+ok	objects@spatial_table	issue:BYT-10538	CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+1767	objects@spatial_table	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@spatial_table	issue:BYT-10538	CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+1767	objects@spatial_table	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+1767	objects@spatial_table	issue:BYT-10538	CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+4902	objects@spatial_table	issue:BYT-10538	ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+208	objects@spatial_table	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c = 1;
+208	objects@spatial_table	issue:BYT-10538	UPDATE t SET t.c = 1;
+208	objects@spatial_table	issue:BYT-10538	UPDATE db.dbo.t SET db.dbo.t.c = 1;
+7202	objects@spatial_table	issue:BYT-10538	UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+208	objects@spatial_table	issue:BYT-10538	UPDATE dbo.t SET dbo.t.c += 1;
+4902	objects@spatial_table	issue:BYT-10538	ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+4141	objects@spatial_table	issue:BYT-10538	UPDATE a SET a.a.a = 1;
+206	objects@spatial_table	issue:BYT-10538	UPDATE a SET dbo.a.a = 1;
+4104	objects@spatial_table	issue:BYT-10538	UPDATE a SET x.dbo.a.a = 1;
+4104	objects@spatial_table	issue:BYT-10538	UPDATE a SET w.x.dbo.a.a = 1;
+206	objects@spatial_table	issue:BYT-10538	UPDATE a SET .a.a = 1;
+4141	objects@spatial_table	issue:BYT-10538	UPDATE a SET a.a.a += 1, a.a = 2;
+4141	objects@spatial_table	issue:BYT-10538	UPDATE a SET a.a.a = 1 FROM a;
+137	objects@spatial_table	issue:BYT-10538	UPDATE a SET @v = a.a.a = 1;
+206	objects@spatial_table	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+206	objects@spatial_table	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+2714	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+ok	objects@spatial_table	issue:BYT-10538	CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+ok	objects@spatial_table	issue:BYT-10538	CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+2714	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+2714	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+8140	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+1769	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+2714	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+2714	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+2705	objects@spatial_table	issue:BYT-10538	ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+206	objects@spatial_table	issue:BYT-10538	ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+4104	objects@spatial_table	issue:BYT-10538	UPDATE a SET v.w.x.dbo.a.a = 1;
+4141	objects@spatial_table	issue:BYT-10538	UPDATE a SET a..a = 1;
+4104	objects@spatial_table	issue:BYT-10538	UPDATE a SET ..a = 1;
+4141	objects@spatial_table	issue:BYT-10538	UPDATE a SET a...a = 1;
+6506	objects@spatial_table	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1);
+137	objects@spatial_table	issue:BYT-10538	UPDATE a SET @v = dbo.a.a = 1;
+137	objects@spatial_table	issue:BYT-10538	UPDATE a SET @v = x.dbo.a.a += 1;
+206	objects@spatial_table	issue:BYT-10538	UPDATE a SET [dbo].[a].[a] = 1;
+4119	objects@spatial_table	issue:BYT-10538	UPDATE a SET a.a.a = DEFAULT;
+6506	objects@spatial_table	issue:BYT-10538	UPDATE a SET a.m(1);
+2714	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+10791	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+2714	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+2705	objects@spatial_table	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b;
+2714	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+2714	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+8148	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+8148	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+2705	objects@spatial_table	issue:BYT-10538	ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+2714	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+ok	objects@spatial_table	issue:BYT-10538	CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+10791	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+2714	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+2714	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+10793	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+2714	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+2705	objects@spatial_table	issue:BYT-10538	ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+4104	objects@spatial_table	issue:BYT-10538	UPDATE a SET a.WRITE = 1;
+4141	objects@spatial_table	issue:BYT-10538	UPDATE a SET a.a.WRITE = 1;
+207	objects@spatial_table	issue:BYT-10538	UPDATE a SET WRITE = 1;
+4104	objects@spatial_table	issue:BYT-10538	MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+10791	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+10791	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+10791	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+10791	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+10791	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+10791	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+10791	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+10791	objects@spatial_table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+10791	objects@spatial_table	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+4104	objects@spatial_table	issue:BYT-10538	UPDATE a SET u.v.w.x.dbo.a.a = 1;
+6506	objects@spatial_table	issue:BYT-10538	UPDATE a SET a.m(1), b = 1;
+6506	objects@spatial_table	issue:BYT-10538	UPDATE a SET [a].m(1);
+6506	objects@spatial_table	issue:BYT-10538	UPDATE a SET a.m(DEFAULT);
+6506	objects@spatial_table	issue:BYT-10538	UPDATE a SET a.m(1, 2, 3);
+207	objects@spatial_table	issue:BYT-10538	UPDATE a SET .m(1);
+137	objects@spatial_table	issue:BYT-10538	UPDATE a SET @v = a.a += 1;
+137	objects@spatial_table	issue:BYT-10538	UPDATE a SET @v = a += 1;
+137	objects@spatial_table	issue:BYT-10538	UPDATE a SET @v += 1;
+137	objects@spatial_table	issue:BYT-10538	UPDATE a SET @v = a = DEFAULT;
+137	objects@spatial_table	issue:BYT-10538	UPDATE a SET @v = a.m(1);

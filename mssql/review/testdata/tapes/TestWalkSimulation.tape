@@ -5121,6 +5121,886 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'fk_child' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin1' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin2' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin3' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+< error
+| 4902 1 16 1 Cannot find the object "dbo.child" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE t SET t.c = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE db.dbo.t SET db.dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'db.dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+< error
+| 7202 2 11 1 Could not find server 's' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c += 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "dbo.demo" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET x.dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET w.x.dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a += 1, a.a = 2;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1 FROM a;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+< error
+| 1767 0 16 1 Foreign key 'fk' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+< error
+| 1767 0 16 1 Foreign key 'fk' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+< error
+| 8140 0 16 1 More than one key specified in column level FOREIGN KEY constraint, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+< error
+| 1769 1 16 1 Foreign key 'a' references invalid column 'b' in referencing table 'a'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+< error
+| 1767 0 16 1 Foreign key 'FK__a__standin4' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET v.w.x.dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a..a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET ..a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a...a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE(N'x', 0, 1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = dbo.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = x.dbo.a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [dbo].[a].[a] = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = DEFAULT;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+< error
+| 1727 1 16 1 Cannot create non-clustered index 'ix_a' on table 'a' with the FILESTREAM_ON clause.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+< error
+| 1767 0 16 1 Foreign key 'c' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+< error
+| 1767 0 16 1 Foreign key 'c' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+< error
+| 1911 1 16 1 Column name 'b' does not exist in the target table or view.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+< error
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.WRITE = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET WRITE = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET u.v.w.x.dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1), b = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [a].m(1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(DEFAULT);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1, 2, 3);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .m(1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = DEFAULT;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.m(1);
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -10245,6 +11125,886 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'fk_child' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin5' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin6' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin7' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+< error
+| 4902 1 16 1 Cannot find the object "dbo.child" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE t SET t.c = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE db.dbo.t SET db.dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'db.dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+< error
+| 7202 2 11 1 Could not find server 's' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c += 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "dbo.demo" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET x.dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET w.x.dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a += 1, a.a = 2;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1 FROM a;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+< error
+| 1767 0 16 1 Foreign key 'fk' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+< error
+| 1767 0 16 1 Foreign key 'fk' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+< error
+| 8140 0 16 1 More than one key specified in column level FOREIGN KEY constraint, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+< error
+| 1769 1 16 1 Foreign key 'a' references invalid column 'b' in referencing table 'a'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+< error
+| 1767 0 16 1 Foreign key 'FK__a__standin8' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET v.w.x.dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a..a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET ..a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a...a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE(N'x', 0, 1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = dbo.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = x.dbo.a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [dbo].[a].[a] = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = DEFAULT;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+< error
+| 1727 1 16 1 Cannot create non-clustered index 'ix_a' on table 'a' with the FILESTREAM_ON clause.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+< error
+| 1767 0 16 1 Foreign key 'c' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+< error
+| 1767 0 16 1 Foreign key 'c' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+< error
+| 1911 1 16 1 Column name 'b' does not exist in the target table or view.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+< error
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.WRITE = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET WRITE = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET u.v.w.x.dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1), b = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [a].m(1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(DEFAULT);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1, 2, 3);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .m(1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = DEFAULT;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.m(1);
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -14859,7 +16619,7 @@
 > exec
 | ALTER TABLE a ADD FOREIGN KEY REFERENCES a
 < error
-| 1773 0 16 1 Foreign key 'FK__a__standin1' has implicit reference to object 'a' which does not have a primary key defined on it.
+| 1773 0 16 1 Foreign key 'FK__a__standin9' has implicit reference to object 'a' which does not have a primary key defined on it.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -15354,6 +17114,890 @@
 | CREATE OR ALTER PROC a AS SELECT 1
 < error
 | 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'fk_child' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin10' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin11' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin12' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+< error
+| 4902 1 16 1 Cannot find the object "dbo.child" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE t SET t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 't'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE db.dbo.t SET db.dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'db.dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+< error
+| 7202 2 11 1 Could not find server 's' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c += 1;
+< error
+| 208 1 16 1 Invalid object name 'dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "dbo.demo" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET dbo.a.a = 1;
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .a.a = 1;
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a += 1, a.a = 2;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1 FROM a;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+< error
+| 8140 0 16 1 More than one key specified in column level FOREIGN KEY constraint, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+< error
+| 1769 1 16 1 Foreign key 'a' references invalid column 'b' in referencing table 'a'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+< error
+| 1752 0 16 1 Column 'a' in table 'a' is invalid for creating a default constraint.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET v.w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "v.w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a..a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a..a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET ..a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "..a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a...a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a...a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE(N'x', 0, 1);
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = dbo.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = x.dbo.a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [dbo].[a].[a] = 1;
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = DEFAULT;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1);
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+< error
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE = 1;
+< error
+| 207 1 16 1 Invalid column name 'WRITE'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.WRITE = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.WRITE" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET WRITE = 1;
+< error
+| 207 1 16 1 Invalid column name 'WRITE'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+< error
+| 4104 1 16 1 The multi-part identifier "x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET u.v.w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "u.v.w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1), b = 1;
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [a].m(1);
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(DEFAULT);
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1, 2, 3);
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .m(1);
+< error
+| 207 1 16 1 Invalid column name ''.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = DEFAULT;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.m(1);
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -20014,7 +22658,7 @@
 > exec
 | ALTER TABLE a ADD FOREIGN KEY REFERENCES a
 < error
-| 1774 0 16 1 The number of columns in the referencing column list for foreign key 'FK__a__standin2' does not match those of the primary key in the referenced table 'a'.
+| 1774 0 16 1 The number of columns in the referencing column list for foreign key 'FK__a__standin13' does not match those of the primary key in the referenced table 'a'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -20502,6 +23146,887 @@
 | CREATE OR ALTER PROC a AS SELECT 1
 < error
 | 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'fk_child' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin14' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin15' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin16' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+< error
+| 4902 1 16 1 Cannot find the object "dbo.child" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE t SET t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 't'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE db.dbo.t SET db.dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'db.dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+< error
+| 7202 2 11 1 Could not find server 's' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c += 1;
+< error
+| 208 1 16 1 Invalid object name 'dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "dbo.demo" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET dbo.a.a = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .a.a = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a += 1, a.a = 2;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1 FROM a;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+< error
+| 8140 0 16 1 More than one key specified in column level FOREIGN KEY constraint, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+< error
+| 1769 1 16 1 Foreign key 'a' references invalid column 'b' in referencing table 'a'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+< error
+| 1754 0 16 1 Defaults cannot be created on columns with an IDENTITY attribute. Table 'a', column 'b'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET v.w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "v.w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a..a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a..a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET ..a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "..a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a...a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a...a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE(N'x', 0, 1);
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = dbo.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = x.dbo.a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [dbo].[a].[a] = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = DEFAULT;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1);
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+< error
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE = 1;
+< error
+| 207 1 16 1 Invalid column name 'WRITE'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.WRITE = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.WRITE" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET WRITE = 1;
+< error
+| 207 1 16 1 Invalid column name 'WRITE'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+< error
+| 4104 1 16 1 The multi-part identifier "x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET u.v.w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "u.v.w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1), b = 1;
+< error
+| 258 1 15 1 Cannot call methods on int.
+| 8102 1 16 1 Cannot update identity column 'b'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [a].m(1);
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(DEFAULT);
+< error
+| 258 1 15 1 Cannot call methods on int.
+| 1090 1 16 1 Invalid default for parameter 1.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1, 2, 3);
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .m(1);
+< error
+| 207 1 16 1 Invalid column name ''.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = DEFAULT;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.m(1);
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -25169,7 +28694,7 @@
 > exec
 | ALTER TABLE a ADD FOREIGN KEY REFERENCES a
 < error
-| 1774 0 16 1 The number of columns in the referencing column list for foreign key 'FK__a__standin3' does not match those of the primary key in the referenced table 'a'.
+| 1774 0 16 1 The number of columns in the referencing column list for foreign key 'FK__a__standin17' does not match those of the primary key in the referenced table 'a'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -25655,6 +29180,884 @@
 | CREATE OR ALTER PROC a AS SELECT 1
 < error
 | 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'fk_child' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin18' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin19' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin10' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+< error
+| 4902 1 16 1 Cannot find the object "dbo.child" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE t SET t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 't'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE db.dbo.t SET db.dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'db.dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+< error
+| 7202 2 11 1 Could not find server 's' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c += 1;
+< error
+| 208 1 16 1 Invalid object name 'dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "dbo.demo" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET dbo.a.a = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .a.a = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a += 1, a.a = 2;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1 FROM a;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+< error
+| 8140 0 16 1 More than one key specified in column level FOREIGN KEY constraint, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+< error
+| 1769 1 16 1 Foreign key 'a' references invalid column 'b' in referencing table 'a'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET v.w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "v.w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a..a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a..a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET ..a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "..a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a...a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a...a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE(N'x', 0, 1);
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = dbo.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = x.dbo.a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [dbo].[a].[a] = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = DEFAULT;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1);
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+< error
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE = 1;
+< error
+| 207 1 16 1 Invalid column name 'WRITE'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.WRITE = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.WRITE" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET WRITE = 1;
+< error
+| 207 1 16 1 Invalid column name 'WRITE'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+< error
+| 4104 1 16 1 The multi-part identifier "x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET u.v.w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "u.v.w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1), b = 1;
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [a].m(1);
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(DEFAULT);
+< error
+| 258 1 15 1 Cannot call methods on int.
+| 1090 1 16 1 Invalid default for parameter 1.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1, 2, 3);
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .m(1);
+< error
+| 207 1 16 1 Invalid column name ''.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = DEFAULT;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.m(1);
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -30780,6 +35183,884 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'fk_child' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin20' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin21' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin22' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+< error
+| 4902 1 16 1 Cannot find the object "dbo.child" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c = 1;
+< error
+| 207 1 16 1 Invalid column name 'c'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE t SET t.c = 1;
+< error
+| 207 1 16 1 Invalid column name 'c'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE db.dbo.t SET db.dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'db.dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+< error
+| 7202 2 11 1 Could not find server 's' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c += 1;
+< error
+| 207 1 16 1 Invalid column name 'c'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "dbo.demo" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET dbo.a.a = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .a.a = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a += 1, a.a = 2;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1 FROM a;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+< error
+| 8140 0 16 1 More than one key specified in column level FOREIGN KEY constraint, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+< error
+| 1769 1 16 1 Foreign key 'a' references invalid column 'b' in referencing table 'a'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET v.w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "v.w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a..a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a..a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET ..a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "..a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a...a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a...a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE(N'x', 0, 1);
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = dbo.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = x.dbo.a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [dbo].[a].[a] = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = DEFAULT;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1);
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+< error
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE = 1;
+< error
+| 207 1 16 1 Invalid column name 'WRITE'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.WRITE = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.WRITE" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET WRITE = 1;
+< error
+| 207 1 16 1 Invalid column name 'WRITE'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+< error
+| 4104 1 16 1 The multi-part identifier "x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET u.v.w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "u.v.w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1), b = 1;
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [a].m(1);
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(DEFAULT);
+< error
+| 258 1 15 1 Cannot call methods on int.
+| 1090 1 16 1 Invalid default for parameter 1.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1, 2, 3);
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .m(1);
+< error
+| 207 1 16 1 Invalid column name ''.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = DEFAULT;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.m(1);
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -35900,6 +41181,885 @@
 | CREATE OR ALTER PROC a AS SELECT 1
 < error
 | 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'fk_child' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin23' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin1' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin2' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+< error
+| 4902 1 16 1 Cannot find the object "dbo.child" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE t SET t.c = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE db.dbo.t SET db.dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'db.dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+< error
+| 7202 2 11 1 Could not find server 's' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c += 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "dbo.demo" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET w.x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a += 1, a.a = 2;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1 FROM a;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+< error
+| 8140 0 16 1 More than one key specified in column level FOREIGN KEY constraint, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+< error
+| 1769 1 16 1 Foreign key 'a' references invalid column 'b' in referencing table 'a'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET v.w.x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a..a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET ..a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a...a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE(N'x', 0, 1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = dbo.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = x.dbo.a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [dbo].[a].[a] = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = DEFAULT;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+< error
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.WRITE = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET WRITE = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET u.v.w.x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1), b = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [a].m(1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(DEFAULT);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1, 2, 3);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .m(1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = DEFAULT;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.m(1);
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -41033,6 +47193,885 @@
 > exec
 | CREATE OR ALTER PROC a AS SELECT 1
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'fk_child' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin23' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin1' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin2' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+< error
+| 4902 1 16 1 Cannot find the object "dbo.child" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE t SET t.c = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE db.dbo.t SET db.dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'db.dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+< error
+| 7202 2 11 1 Could not find server 's' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c += 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "dbo.demo" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET w.x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a += 1, a.a = 2;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1 FROM a;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+< error
+| 8140 0 16 1 More than one key specified in column level FOREIGN KEY constraint, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+< error
+| 1769 1 16 1 Foreign key 'a' references invalid column 'b' in referencing table 'a'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET v.w.x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a..a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET ..a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a...a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE(N'x', 0, 1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = dbo.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = x.dbo.a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [dbo].[a].[a] = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = DEFAULT;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+< error
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.WRITE = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET WRITE = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET u.v.w.x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1), b = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [a].m(1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(DEFAULT);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1, 2, 3);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .m(1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = DEFAULT;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.m(1);
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -46190,6 +53229,885 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'fk_child' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin24' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin5' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin6' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+< error
+| 4902 1 16 1 Cannot find the object "dbo.child" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE t SET t.c = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE db.dbo.t SET db.dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'db.dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+< error
+| 7202 2 11 1 Could not find server 's' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c += 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "dbo.demo" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET w.x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a += 1, a.a = 2;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1 FROM a;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+< error
+| 8140 0 16 1 More than one key specified in column level FOREIGN KEY constraint, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+< error
+| 1769 1 16 1 Foreign key 'a' references invalid column 'b' in referencing table 'a'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET v.w.x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a..a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET ..a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a...a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE(N'x', 0, 1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = dbo.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = x.dbo.a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [dbo].[a].[a] = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = DEFAULT;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+< error
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.WRITE = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET WRITE = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET u.v.w.x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1), b = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [a].m(1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(DEFAULT);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1, 2, 3);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .m(1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = DEFAULT;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.m(1);
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -51312,6 +59230,884 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'fk_child' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin23' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin1' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin2' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+< error
+| 4902 1 16 1 Cannot find the object "dbo.child" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c = 1;
+< error
+| 207 1 16 1 Invalid column name 'c'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE t SET t.c = 1;
+< error
+| 207 1 16 1 Invalid column name 'c'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE db.dbo.t SET db.dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'db.dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+< error
+| 7202 2 11 1 Could not find server 's' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c += 1;
+< error
+| 207 1 16 1 Invalid column name 'c'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "dbo.demo" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET dbo.a.a = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .a.a = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a += 1, a.a = 2;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1 FROM a;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+< error
+| 8140 0 16 1 More than one key specified in column level FOREIGN KEY constraint, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+< error
+| 1769 1 16 1 Foreign key 'a' references invalid column 'b' in referencing table 'a'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET v.w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "v.w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a..a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a..a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET ..a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "..a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a...a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a...a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE(N'x', 0, 1);
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = dbo.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = x.dbo.a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [dbo].[a].[a] = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = DEFAULT;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1);
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+< error
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE = 1;
+< error
+| 207 1 16 1 Invalid column name 'WRITE'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.WRITE = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a.a.WRITE" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET WRITE = 1;
+< error
+| 207 1 16 1 Invalid column name 'WRITE'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+< error
+| 4104 1 16 1 The multi-part identifier "x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET u.v.w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "u.v.w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1), b = 1;
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [a].m(1);
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(DEFAULT);
+< error
+| 258 1 15 1 Cannot call methods on int.
+| 1090 1 16 1 Invalid default for parameter 1.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1, 2, 3);
+< error
+| 258 1 15 1 Cannot call methods on int.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .m(1);
+< error
+| 207 1 16 1 Invalid column name ''.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = DEFAULT;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.m(1);
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -56419,6 +65215,886 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'fk_child' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin1' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin2' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin3' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+< error
+| 4902 1 16 1 Cannot find the object "dbo.child" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE t SET t.c = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE db.dbo.t SET db.dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'db.dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+< error
+| 7202 2 11 1 Could not find server 's' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c += 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "dbo.demo" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET x.dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET w.x.dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a += 1, a.a = 2;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1 FROM a;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+< error
+| 1767 0 16 1 Foreign key 'fk' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+< error
+| 1767 0 16 1 Foreign key 'fk' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+< error
+| 8140 0 16 1 More than one key specified in column level FOREIGN KEY constraint, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+< error
+| 1769 1 16 1 Foreign key 'a' references invalid column 'b' in referencing table 'a'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+< error
+| 1767 0 16 1 Foreign key 'FK__a__standin4' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET v.w.x.dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a..a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET ..a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a...a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE(N'x', 0, 1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = dbo.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = x.dbo.a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [dbo].[a].[a] = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = DEFAULT;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+< error
+| 1727 1 16 1 Cannot create non-clustered index 'ix_a' on table 'a' with the FILESTREAM_ON clause.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+< error
+| 1767 0 16 1 Foreign key 'c' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+< error
+| 1767 0 16 1 Foreign key 'c' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+< error
+| 1911 1 16 1 Column name 'b' does not exist in the target table or view.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+< error
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.WRITE = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET WRITE = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET u.v.w.x.dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1), b = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [a].m(1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(DEFAULT);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1, 2, 3);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .m(1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = DEFAULT;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.m(1);
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -61445,6 +71121,889 @@
 > exec
 | CREATE OR ALTER PROC a AS SELECT 1
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'fk_child' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin20' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin21' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin22' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+< error
+| 4902 1 16 1 Cannot find the object "dbo.child" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE t SET t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 't'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE db.dbo.t SET db.dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'db.dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+< error
+| 7202 2 11 1 Could not find server 's' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c += 1;
+< error
+| 208 1 16 1 Invalid object name 'dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "dbo.demo" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET x.dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET w.x.dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a += 1, a.a = 2;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1 FROM a;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+< error
+| 1767 0 16 1 Foreign key 'fk' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+< error
+| 1767 0 16 1 Foreign key 'fk' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+< error
+| 8140 0 16 1 More than one key specified in column level FOREIGN KEY constraint, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+< error
+| 1769 1 16 1 Foreign key 'a' references invalid column 'b' in referencing table 'a'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+< error
+| 1767 0 16 1 Foreign key 'FK__a__standin25' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET v.w.x.dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a..a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET ..a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a...a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE(N'x', 0, 1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = dbo.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = x.dbo.a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [dbo].[a].[a] = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = DEFAULT;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+< error
+| 1727 1 16 1 Cannot create non-clustered index 'ix_a' on table 'a' with the FILESTREAM_ON clause.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+< error
+| 1767 0 16 1 Foreign key 'c' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+< error
+| 1767 0 16 1 Foreign key 'c' references invalid table 'b'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+< error
+| 1911 1 16 1 Column name 'b' does not exist in the target table or view.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+< error
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.WRITE = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET WRITE = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET u.v.w.x.dbo.a.a = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1), b = 1;
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [a].m(1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(DEFAULT);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1, 2, 3);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .m(1);
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = DEFAULT;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.m(1);
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -66549,6 +77108,885 @@
 | CREATE OR ALTER PROC a AS SELECT 1
 < error
 | 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'fk_child' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin26' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin20' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin21' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+< error
+| 4902 1 16 1 Cannot find the object "dbo.child" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE t SET t.c = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE db.dbo.t SET db.dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'db.dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+< error
+| 7202 2 11 1 Could not find server 's' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c += 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "dbo.demo" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET w.x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a += 1, a.a = 2;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1 FROM a;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+< error
+| 8140 0 16 1 More than one key specified in column level FOREIGN KEY constraint, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+< error
+| 1769 1 16 1 Foreign key 'a' references invalid column 'b' in referencing table 'a'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET v.w.x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a..a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET ..a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a...a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE(N'x', 0, 1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = dbo.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = x.dbo.a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [dbo].[a].[a] = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = DEFAULT;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+< error
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.WRITE = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET WRITE = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET u.v.w.x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1), b = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [a].m(1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(DEFAULT);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1, 2, 3);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .m(1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = DEFAULT;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.m(1);
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -71673,6 +83111,885 @@
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'fk_child' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin23' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin1' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin2' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+< error
+| 4902 1 16 1 Cannot find the object "dbo.child" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE t SET t.c = 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE db.dbo.t SET db.dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'db.dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+< error
+| 7202 2 11 1 Could not find server 's' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c += 1;
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "dbo.demo" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET w.x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a += 1, a.a = 2;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1 FROM a;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+< error
+| 8140 0 16 1 More than one key specified in column level FOREIGN KEY constraint, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+< error
+| 1769 1 16 1 Foreign key 'a' references invalid column 'b' in referencing table 'a'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET v.w.x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a..a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET ..a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a...a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE(N'x', 0, 1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = dbo.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = x.dbo.a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [dbo].[a].[a] = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = DEFAULT;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+< error
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.WRITE = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET WRITE = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET u.v.w.x.dbo.a.a = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1), b = 1;
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [a].m(1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(DEFAULT);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1, 2, 3);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .m(1);
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = DEFAULT;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.m(1);
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
 > exec ^
 < ok 0 -
 > exec
@@ -76302,7 +88619,7 @@
 > exec
 | ALTER TABLE a ADD FOREIGN KEY REFERENCES a
 < error
-| 1774 0 16 1 The number of columns in the referencing column list for foreign key 'FK__a__standin3' does not match those of the primary key in the referenced table 'a'.
+| 1774 0 16 1 The number of columns in the referencing column list for foreign key 'FK__a__standin17' does not match those of the primary key in the referenced table 'a'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -76430,7 +88747,7 @@
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 < error
-| 1778 0 16 1 Column 'a.b' is not the same data type as referencing column 'a.a' in foreign key 'FK__a__a__standin4'.
+| 1778 0 16 1 Column 'a.b' is not the same data type as referencing column 'a.a' in foreign key 'FK__a__a__standin27'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -76793,6 +89110,890 @@
 | CREATE OR ALTER PROC a AS SELECT 1
 < error
 | 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'fk_child' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin6' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin7' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin28' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+< error
+| 4902 1 16 1 Cannot find the object "dbo.child" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE t SET t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 't'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE db.dbo.t SET db.dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'db.dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+< error
+| 7202 2 11 1 Could not find server 's' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c += 1;
+< error
+| 208 1 16 1 Invalid object name 'dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "dbo.demo" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1;
+< error
+| 4141 1 16 1 Nested CLR type updates are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET dbo.a.a = 1;
+< error
+| 206 2 16 1 Operand type clash: int is incompatible with xml
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .a.a = 1;
+< error
+| 206 2 16 1 Operand type clash: int is incompatible with xml
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a += 1, a.a = 2;
+< error
+| 4141 1 16 1 Nested CLR type updates are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1 FROM a;
+< error
+| 4141 1 16 1 Nested CLR type updates are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+< error
+| 206 2 16 1 Operand type clash: int is incompatible with xml
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+< error
+| 206 2 16 1 Operand type clash: int is incompatible with xml
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+< error
+| 8140 0 16 1 More than one key specified in column level FOREIGN KEY constraint, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+< error
+| 1769 1 16 1 Foreign key 'a' references invalid column 'b' in referencing table 'a'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+< error
+| 206 2 16 1 Operand type clash: int is incompatible with xml
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET v.w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "v.w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a..a = 1;
+< error
+| 4141 1 16 1 Nested CLR type updates are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET ..a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "..a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a...a = 1;
+< error
+| 4141 1 16 1 Nested CLR type updates are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE(N'x', 0, 1);
+< error
+| 227 1 15 1 "WRITE" is not a valid function, property, or field.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = dbo.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = x.dbo.a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [dbo].[a].[a] = 1;
+< error
+| 206 2 16 1 Operand type clash: int is incompatible with xml
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = DEFAULT;
+< error
+| 4119 1 16 1 Default values cannot be assigned to property setters of columns with a CLR type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1);
+< error
+| 227 1 15 1 "m" is not a valid function, property, or field.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+< error
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a.WRITE" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.WRITE = 1;
+< error
+| 4141 1 16 1 Nested CLR type updates are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET WRITE = 1;
+< error
+| 207 1 16 1 Invalid column name 'WRITE'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+< error
+| 4104 1 16 1 The multi-part identifier "x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET u.v.w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "u.v.w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1), b = 1;
+< error
+| 227 1 15 1 "m" is not a valid function, property, or field.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [a].m(1);
+< error
+| 227 1 15 1 "m" is not a valid function, property, or field.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(DEFAULT);
+< error
+| 227 1 15 1 "m" is not a valid function, property, or field.
+| 1090 1 16 1 Invalid default for parameter 1.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1, 2, 3);
+< error
+| 227 1 15 1 "m" is not a valid function, property, or field.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .m(1);
+< error
+| 207 1 16 1 Invalid column name ''.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = DEFAULT;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.m(1);
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -81423,7 +94624,7 @@
 > exec
 | ALTER TABLE a ADD FOREIGN KEY REFERENCES a
 < error
-| 1774 0 16 1 The number of columns in the referencing column list for foreign key 'FK__a__standin5' does not match those of the primary key in the referenced table 'a'.
+| 1774 0 16 1 The number of columns in the referencing column list for foreign key 'FK__a__standin29' does not match those of the primary key in the referenced table 'a'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -81551,7 +94752,7 @@
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 < error
-| 1778 0 16 1 Column 'a.b' is not the same data type as referencing column 'a.a' in foreign key 'FK__a__a__standin6'.
+| 1778 0 16 1 Column 'a.b' is not the same data type as referencing column 'a.a' in foreign key 'FK__a__a__standin30'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -81916,6 +95117,889 @@
 | CREATE OR ALTER PROC a AS SELECT 1
 < error
 | 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF NOT UPDATE(a) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER dbo.trg_demo ON dbo.demo AFTER UPDATE AS BEGIN IF UPDATE(a) OR UPDATE([b]) RETURN; END
+< error
+| 8197 4 16 1 proc=trg_demo The object 'dbo.demo' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.demo (a INT NOT NULL, b INT NULL CONSTRAINT pk_demo PRIMARY KEY CLUSTERED (a));
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL CONSTRAINT fk_child FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'fk_child' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT NOT NULL FOREIGN KEY REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin6' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY REFERENCES dbo.parent);
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin7' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE dbo.child (id INT FOREIGN KEY (id) REFERENCES dbo.parent (id));
+< error
+| 1767 0 16 1 Foreign key 'FK__child__id__standin28' references invalid table 'dbo.parent'.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.child ADD id2 INT CONSTRAINT fk2 FOREIGN KEY REFERENCES dbo.parent (id);
+< error
+| 4902 1 16 1 Cannot find the object "dbo.child" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE t SET t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 't'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE db.dbo.t SET db.dbo.t.c = 1;
+< error
+| 208 1 16 1 Invalid object name 'db.dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE s.db.dbo.t SET s.db.dbo.t.c = 1;
+< error
+| 7202 2 11 1 Could not find server 's' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE dbo.t SET dbo.t.c += 1;
+< error
+| 208 1 16 1 Invalid object name 'dbo.t'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE dbo.demo ADD CONSTRAINT df_demo DEFAULT (0) FOR a;
+< error
+| 4902 1 16 1 Cannot find the object "dbo.demo" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1;
+< error
+| 4141 1 16 1 Nested CLR type updates are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET dbo.a.a = 1;
+< error
+| 206 2 16 1 Operand type clash: int is incompatible with geography
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .a.a = 1;
+< error
+| 206 2 16 1 Operand type clash: int is incompatible with geography
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a += 1, a.a = 2;
+< error
+| 4141 1 16 1 Nested CLR type updates are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = 1 FROM a;
+< error
+| 4141 1 16 1 Nested CLR type updates are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET dbo.a.a = 1;
+< error
+| 206 2 16 1 Operand type clash: int is incompatible with geography
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET a.a = 1;
+< error
+| 206 2 16 1 Operand type clash: int is incompatible with geography
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a CLUSTERED);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TYPE dbo.tt AS TABLE (a INT INDEX ix_a);
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE FUNCTION dbo.f() RETURNS @t TABLE (a INT INDEX ix_a) AS BEGIN RETURN END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) ON DELETE CASCADE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a) NOT FOR REPLICATION);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT fk FOREIGN KEY REFERENCES b (a, c));
+< error
+| 8140 0 16 1 More than one key specified in column level FOREIGN KEY constraint, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY (a, b) REFERENCES b);
+< error
+| 1769 1 16 1 Foreign key 'a' references invalid column 'b' in referencing table 'a'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, FOREIGN KEY REFERENCES b);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT NOT NULL CONSTRAINT df DEFAULT (0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT, CONSTRAINT df DEFAULT (0) FOR a;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CONSTRAINT df DEFAULT (0) FOR a, CONSTRAINT df2 DEFAULT (0) FOR b;
+< error
+| 206 2 16 1 Operand type clash: int is incompatible with geography
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET v.w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "v.w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a..a = 1;
+< error
+| 4141 1 16 1 Nested CLR type updates are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET ..a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "..a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a...a = 1;
+< error
+| 4141 1 16 1 Nested CLR type updates are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE(N'x', 0, 1);
+< error
+| 6506 10 16 1 Could not find method 'WRITE' for type 'Microsoft.SqlServer.Types.SqlGeography' in assembly 'Microsoft.SqlServer.Types'
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = dbo.a.a = 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = x.dbo.a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [dbo].[a].[a] = 1;
+< error
+| 206 2 16 1 Operand type clash: int is incompatible with geography
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.a = DEFAULT;
+< error
+| 4119 1 16 1 Default values cannot be assigned to property setters of columns with a CLR type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1);
+< error
+| 6506 10 16 1 Could not find method 'm' for type 'Microsoft.SqlServer.Types.SqlGeography' in assembly 'Microsoft.SqlServer.Types'
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a UNIQUE CLUSTERED WITH (FILLFACTOR = 80) ON [PRIMARY]);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED HASH WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a FILESTREAM_ON a);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY REFERENCES b (a) ON UPDATE NO ACTION ON DELETE SET NULL);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT c FOREIGN KEY (a) REFERENCES b (a));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT FOREIGN KEY REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT REFERENCES b (a) FOREIGN KEY REFERENCES c (a));
+< error
+| 8148 0 16 1 More than one column FOREIGN KEY constraint specified for column 'a', table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT FOREIGN KEY (b) REFERENCES c;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, CONSTRAINT df CHECK (a > 0));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @h UNIQUEIDENTIFIER AS BEGIN END CONVERSATION @h END
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a (a) INCLUDE (b));
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a NONCLUSTERED WHERE a > 1);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a PRIMARY KEY);
+< error
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_b UNIQUE);
+< error
+| 2714 6 16 1 There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD b INT INDEX ix_b, CONSTRAINT df DEFAULT (0) FOR b;
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'b' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.WRITE = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "a.WRITE" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.a.WRITE = 1;
+< error
+| 4141 1 16 1 Nested CLR type updates are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET WRITE = 1;
+< error
+| 207 1 16 1 Invalid column name 'WRITE'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| MERGE a USING a b ON 1 = 1 WHEN MATCHED THEN UPDATE SET x.dbo.a.a += 1;
+< error
+| 4104 1 16 1 The multi-part identifier "x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, FILLFACTOR = 80));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WITH (BUCKET_COUNT = 8) ON [PRIMARY]);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) INCLUDE (b) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix HASH (a) WHERE a > 1 WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix UNIQUE HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+< error
+| 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET u.v.w.x.dbo.a.a = 1;
+< error
+| 4104 1 16 1 The multi-part identifier "u.v.w.x.dbo.a.a" could not be bound.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1), b = 1;
+< error
+| 6506 10 16 1 Could not find method 'm' for type 'Microsoft.SqlServer.Types.SqlGeography' in assembly 'Microsoft.SqlServer.Types'
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET [a].m(1);
+< error
+| 6506 10 16 1 Could not find method 'm' for type 'Microsoft.SqlServer.Types.SqlGeography' in assembly 'Microsoft.SqlServer.Types'
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(DEFAULT);
+< error
+| 6506 10 16 1 Could not find method 'm' for type 'Microsoft.SqlServer.Types.SqlGeography' in assembly 'Microsoft.SqlServer.Types'
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a.m(1, 2, 3);
+< error
+| 6506 10 16 1 Could not find method 'm' for type 'Microsoft.SqlServer.Types.SqlGeography' in assembly 'Microsoft.SqlServer.Types'
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET .m(1);
+< error
+| 207 1 16 1 Invalid column name ''.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v += 1;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a = DEFAULT;
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @v = a.m(1);
+< error
+| 137 1 15 1 Must declare the scalar variable "@v".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -

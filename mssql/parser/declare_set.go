@@ -193,6 +193,9 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 		vd.IsTable = true
 		if p.cur.Type == '(' {
 			p.advance()
+			saved := p.tableTypeBody
+			p.tableTypeBody = true
+			defer func() { p.tableTypeBody = saved }()
 			var cols []nodes.Node
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
 				// Near-CREATE TABLE element grammar: a table variable body

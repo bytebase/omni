@@ -463,7 +463,13 @@ func (p *Parser) parseDmlTargetHints() (*nodes.List, error) {
 // isCompoundAssign returns the operator string if the current token is a compound assignment operator,
 // or empty string if not.
 func (p *Parser) isCompoundAssign() string {
-	switch p.cur.Type {
+	return compoundAssignOp(p.cur.Type)
+}
+
+// compoundAssignOp returns the compound assignment operator a token type
+// spells, or "" when it spells none.
+func compoundAssignOp(tokType int) string {
+	switch tokType {
 	case tokPLUSEQUAL:
 		return "+="
 	case tokMINUSEQUAL:
@@ -535,9 +541,21 @@ func (p *Parser) parseSetClause() (*nodes.SetExpr, error) {
 	if p.cur.Type == tokVARIABLE {
 		se.Variable = p.cur.Str
 		p.advance()
+		// @variable = column { = | += | ... } expression
+		// (setClauseStartingWithVariable, TSql160.g:19871): SQL Server parses
+		// SET @v = a.a += 1, and refuses a column of six parts there
+		// (measured, compat.tsv).
+		if p.cur.Type == '=' && p.atSetTargetAssignment() {
+			p.advance() // consume =
+			target, _, err := p.parseSetTarget(maxSetVarColumnParts)
+			if err != nil {
+				return nil, err
+			}
+			se.VarColumn = target
+		}
 	} else {
 		// Parse column reference (not a full expression - just the column name)
-		target, err := p.parseSetTarget()
+		target, ends, err := p.parseSetTarget(0)
 		if err != nil {
 			return nil, err
 		}
@@ -546,25 +564,27 @@ func (p *Parser) parseSetClause() (*nodes.SetExpr, error) {
 			return nil, nil
 		}
 
-		// Check for .WRITE(expression, @Offset, @Length) form
-		if p.cur.Type == '.' && p.peekNext().Type == kwWRITE {
-			next := p.peekNext()
-			if next.Type == kwWRITE {
-				p.advance() // consume .
-				writeLoc := p.pos()
-				p.advance() // consume WRITE
-				if p.cur.Type == '(' {
-					se.WriteMethod = true
-					// Parse as a FuncCallExpr to store the args
-					fc, err := p.parseFuncCall("WRITE", writeLoc)
-					if err != nil {
-						return nil, err
-					}
-					se.Value = fc
-					se.Loc.End = p.prevEnd()
-					return se, nil
-				}
+		// column.method ( args ): setClauseFunctionCall (TSql160.g:19925),
+		// .WRITE ( expression, @Offset, @Length ) or a CLR type's mutator.
+		// SQL Server takes it after a name of two parts, the column and the
+		// method: SET a.m(1) and SET .m(1) parse, and SET a.a.WRITE(...) is
+		// Msg 102 (measured, compat.tsv).
+		if p.cur.Type == '(' && len(ends) == 2 {
+			method, methodLoc := target.Column, p.prev.Loc
+			target.Column, target.Table = target.Table, ""
+			target.Loc.End = ends[0]
+			call, err := p.parseFuncCall(method, methodLoc)
+			if err != nil {
+				return nil, err
 			}
+			if strings.EqualFold(method, "WRITE") {
+				se.WriteMethod = true
+			} else {
+				se.Mutator = true
+			}
+			se.Value = call
+			se.Loc.End = p.prevEnd()
+			return se, nil
 		}
 	}
 
@@ -598,48 +618,104 @@ func (p *Parser) parseSetClause() (*nodes.SetExpr, error) {
 // $from_id = ... is Msg 271, SET $identity is Msg 8102), while unknown $foo
 // is Msg 126. The table-qualified form (e.$from_id) is a syntax error in the
 // engine (Msg 102) and stays rejected.
-func (p *Parser) parseSetTarget() (*nodes.ColumnRef, error) {
+//
+// It also returns where each part of the name ends, the start of the name
+// for an empty part.
+func (p *Parser) parseSetTarget(maxParts int) (*nodes.ColumnRef, []int, error) {
 	loc := p.pos()
 
 	if p.cur.Type == tokPSEUDOCOL {
 		if !knownPseudoColumns[strings.ToLower(p.cur.Str)] {
-			return nil, p.newParseError(p.cur.Loc, fmt.Sprintf("invalid pseudocolumn %q", p.cur.Str))
+			return nil, nil, p.newParseError(p.cur.Loc, fmt.Sprintf("invalid pseudocolumn %q", p.cur.Str))
 		}
 		ref := &nodes.ColumnRef{
 			Column: p.cur.Str,
 			Loc:    nodes.Loc{Start: loc, End: p.cur.End},
 		}
 		p.advance()
-		return ref, nil
+		return ref, []int{ref.Loc.End}, nil
 	}
 
-	name, ok := p.parseIdentifier()
-	if !ok {
-		return nil, nil
+	// multiPartIdentifier[-1] (TSql160.g:30314), a name of any number of
+	// parts whose leading and inner parts may be empty: SET dbo.t.c = 1,
+	// SET u.v.w.x.dbo.t.c = 1 and SET .t.c = 1 parse (measured, compat.tsv).
+	// The last five parts fill the column, table, schema, database and
+	// server; SQL Server refuses the name when it binds the statement.
+	if !p.isIdentLike() && p.cur.Type != '.' {
+		return nil, nil, nil
 	}
-
-	ref := &nodes.ColumnRef{
-		Column: name,
-		Loc:    nodes.Loc{Start: loc, End: -1},
-	}
-
-	// Check for qualified name: table.column
-	// But don't consume dot if next is .WRITE
-	if p.cur.Type == '.' {
-		next := p.peekNext()
-		// Don't consume if it's .WRITE (handled separately)
-		if next.Type == kwWRITE {
-			return ref, nil
+	var parts []string
+	var ends []int
+	for i := 0; ; i++ {
+		dots := 0
+		for p.cur.Type == '.' {
+			dots++
+			p.advance()
 		}
-		p.advance()
-		col, ok := p.parseIdentifier()
-		if ok {
-			ref.Table = name
-			ref.Column = col
+		if i > 0 && dots == 0 {
+			break
+		}
+		empties := dots
+		if i > 0 {
+			empties-- // the dot that joins this part to the previous one
+		}
+		for j := 0; j < empties; j++ {
+			parts = append(parts, "")
+			ends = append(ends, loc)
+		}
+		id, ok := p.parseIdentifier()
+		if !ok {
+			return nil, nil, p.syntaxErrorAtCur()
+		}
+		parts = append(parts, id)
+		ends = append(ends, p.prevEnd())
+		if maxParts > 0 && len(parts) > maxParts {
+			return nil, nil, p.syntaxErrorAtCur()
 		}
 	}
 
-	return ref, nil
+	ref := &nodes.ColumnRef{Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}
+	fields := []*string{&ref.Column, &ref.Table, &ref.Schema, &ref.Database, &ref.Server}
+	for i := 0; i < len(fields) && i < len(parts); i++ {
+		*fields[i] = parts[len(parts)-1-i]
+	}
+	return ref, ends, nil
+}
+
+// maxSetVarColumnParts is the most parts the column of SET @v = column = ...
+// takes.
+const maxSetVarColumnParts = 5
+
+// atSetTargetAssignment reports whether the tokens from cur on are a name and
+// an assignment operator: the (multiPartIdentifier assignmentWithOptOp)=>
+// predicate of setClauseStartingWithVariable (TSql160.g:19883), read after
+// the = that follows the variable.
+func (p *Parser) atSetTargetAssignment() bool {
+	lx := *p.lexer
+	toks := []Token{p.cur}
+	if p.hasNext {
+		toks = append(toks, p.nextBuf)
+	}
+	next := func(i int) Token {
+		for len(toks) <= i {
+			toks = append(toks, lx.NextToken())
+		}
+		return toks[i]
+	}
+	i := 1 // toks[0] is the = after the variable
+	sawName, afterDot := false, true
+	for {
+		tok := next(i)
+		switch {
+		case tok.Type == '.':
+			afterDot = true
+		case IsIdentTokenType(tok.Type) && afterDot:
+			sawName, afterDot = true, false
+		default:
+			return sawName && !afterDot && (tok.Type == '=' || compoundAssignOp(tok.Type) != "")
+		}
+		i++
+	}
 }
 
 // parseDMLFromClause parses the table sources after an UPDATE's or a

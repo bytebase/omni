@@ -830,6 +830,9 @@ func writeInlineIndexDef(sb *strings.Builder, n *InlineIndexDef) {
 	if n.Columnstore {
 		sb.WriteString(" :columnstore true")
 	}
+	if n.Hash {
+		sb.WriteString(" :hash true")
+	}
 	if n.Columns != nil {
 		sb.WriteString(" :columns ")
 		writeNode(sb, n.Columns)
@@ -2756,6 +2759,9 @@ func writeSetExpr(sb *strings.Builder, n *SetExpr) {
 	if n.WriteMethod {
 		sb.WriteString(" :writeMethod true")
 	}
+	if n.Mutator {
+		sb.WriteString(" :mutator true")
+	}
 	if n.Value != nil {
 		sb.WriteString(" :value ")
 		writeNode(sb, n.Value)
@@ -2907,6 +2913,10 @@ func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 	if n.Nullable != nil {
 		sb.WriteString(" :nullable ")
 		writeNode(sb, n.Nullable)
+	}
+	if n.Index != nil {
+		sb.WriteString(" :index ")
+		writeNode(sb, n.Index)
 	}
 	if n.Sparse {
 		sb.WriteString(" :sparse true")
@@ -3133,6 +3143,9 @@ func writeVariableDecl(sb *strings.Builder, n *VariableDecl) {
 func writeSelectAssign(sb *strings.Builder, n *SelectAssign) {
 	sb.WriteString("{SELECTASSIGN")
 	sb.WriteString(fmt.Sprintf(" :variable \"%s\"", escapeString(n.Variable)))
+	if n.Operator != "" {
+		sb.WriteString(fmt.Sprintf(" :operator \"%s\"", n.Operator))
+	}
 	if n.Value != nil {
 		sb.WriteString(" :value ")
 		writeNode(sb, n.Value)

@@ -17,6 +17,7 @@ on a fresh server confirmed every row.
 | Near-misses | 12,268 | 12,268 | 0 | 0 |
 | `suite:lexer` | 66 | 66 | 0 | 0 |
 | `suite:optional-clauses` | 100 | 100 | 0 | 0 |
+| `issue:BYT-10538` | 331 | 331 | 0 | 0 |
 
 6,044 alternatives include the rows `tokens.tsv` adds with an optional clause
 written out at each site a rule names it (`(every site)`), such as
@@ -138,7 +139,8 @@ go test ./mssql/parser/ -run '^TestCompatibility$' -update-compat
 
 ## The work list
 
-18,478 / 18,478 rows agree (**100.00%**). The `(every alternative)` rows found 5
+18,809 / 18,809 rows agree (**100.00%**). `issue:BYT-10538` holds the forms a
+T-SQL codebase failed on and the forms beside them, every one closed. The `(every alternative)` rows found 5
 gaps, closed: a split comparison operator in an index filter, HOLDLOCK and no
 condition in a table-valued function's list, a variable as OPENXML's column
 pattern, and a pseudo-column as a text column's last part. The `(every site)` and

@@ -2511,38 +2511,47 @@ func (p *Parser) parseUpdateCall() (nodes.ExprNode, error) {
 	}, nil
 }
 
-// parseInstanceMethods parses the method calls that may follow a call, a
-// CAST or CONVERT, or a parenthesized expression: expressionWithClrElements
-// (TSql160.g), primary ( . identifier ( args ) )*. EVENTDATA().value(path,
-// type) is the common one (measured, mssql/catalog/testdata/programs/
-// simulate.tsv). A dotted name's methods are read with the name.
+// parseInstanceMethods parses the methods and properties that may follow a
+// primary expression: expressionWithClrElements (TSql160.g:31441), primary
+// ( . identifier [ ( args ) ] )*. EVENTDATA().value(path, type) is the common
+// one (measured, mssql/catalog/testdata/programs/simulate.tsv), and SQL Server
+// takes it on a variable, a subquery, a literal, CASE and COALESCE too:
+// @x.value('.', 'int'), (SELECT ... FOR XML PATH(”), TYPE).value(...) and
+// @x.a.b parse (measured, compat.tsv). A property has no parentheses and nil
+// Args. A dotted name's methods are read with the name.
 func (p *Parser) parseInstanceMethods(expr nodes.ExprNode) (nodes.ExprNode, error) {
-	switch expr.(type) {
-	case *nodes.FuncCallExpr, *nodes.CastExpr, *nodes.ConvertExpr, *nodes.TryCastExpr, *nodes.TryConvertExpr, *nodes.ParenExpr:
+	switch e := expr.(type) {
+	case *nodes.FuncCallExpr, *nodes.CastExpr, *nodes.ConvertExpr, *nodes.TryCastExpr, *nodes.TryConvertExpr,
+		*nodes.ParenExpr, *nodes.SubqueryExpr, *nodes.VariableRef, *nodes.CaseExpr, *nodes.CoalesceExpr,
+		*nodes.NullifExpr, *nodes.IifExpr:
+	case *nodes.Literal:
+		if e.Type == nodes.LitDefault {
+			return expr, nil
+		}
 	default:
 		return expr, nil
 	}
-	for p.cur.Type == '.' && IsIdentTokenType(p.peekNext().Type) && p.peekSecond().Type == '(' {
+	for p.cur.Type == '.' && IsIdentTokenType(p.peekNext().Type) {
 		start := nodes.NodeLoc(expr).Start
 		p.advance() // consume .
 		method := p.cur.Str
 		p.advance() // consume the method's name
-		p.advance() // consume (
-		args, err := p.parseCommaList(')', commaListAllowEmpty, func() (nodes.Node, error) {
-			return p.parseExpr()
-		})
-		if err != nil {
-			return nil, err
+		mc := &nodes.MethodCallExpr{Expr: expr, Method: method}
+		if p.cur.Type == '(' {
+			p.advance() // consume (
+			args, err := p.parseCommaList(')', commaListAllowEmpty, func() (nodes.Node, error) {
+				return p.parseExpr()
+			})
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			mc.Args = &nodes.List{Items: args}
 		}
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-		expr = &nodes.MethodCallExpr{
-			Expr:   expr,
-			Method: method,
-			Args:   &nodes.List{Items: args},
-			Loc:    nodes.Loc{Start: start, End: p.prevEnd()},
-		}
+		mc.Loc = nodes.Loc{Start: start, End: p.prevEnd()}
+		expr = mc
 	}
 	return expr, nil
 }
