@@ -31,6 +31,7 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		{sql: "CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;", message: `PostgreSQL refuses this statement: syntax error at or near "end of input", expected END (SQLSTATE 42601).`},
 		{sql: "CREATE FUNCTION f_double(y int) RETURNS int LANGUAGE sql AS 'SELECT y';", message: `PostgreSQL refuses this statement: function "f_double" already exists (SQLSTATE 42723).`},
 		{sql: "CALL f_double(1);", message: "PostgreSQL refuses this statement: f_double(integer) is not a procedure (SQLSTATE 42809)."},
+		{sql: "CALL nope('x', NULL);", message: "PostgreSQL refuses this statement: procedure nope(unknown, unknown) does not exist (SQLSTATE 42883)."},
 		{sql: "CALL nope();", message: "PostgreSQL refuses this statement: procedure nope() does not exist (SQLSTATE 42883)."},
 		{sql: "CREATE TRIGGER tr BEFORE UPDATE OF nope ON t FOR EACH ROW EXECUTE FUNCTION f_double();", message: `PostgreSQL refuses this statement: function "f_double" does not exist (SQLSTATE 42883).`},
 		{sql: "CREATE FUNCTION g() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x t.nope%TYPE; BEGIN RETURN 1; END $$;", message: `PostgreSQL refuses this statement: column "nope" of relation "t" does not exist (SQLSTATE 42703).`},
@@ -55,6 +56,9 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		"CREATE VIEW v AS SELECT 1 OPERATOR(public.##) 2 AS n;",
 		// The sync leaves out a routine named as a system one, which a body may call.
 		"DO $$ BEGIN CALL public.abs(); END $$;",
+		// An implicit cast the sync does not list may let an argument reach a procedure.
+		"CALL f_double('1'::text);",
+		"CALL nope(1);",
 		// DROP ROUTINE also drops an aggregate, which the sync does not list.
 		"DROP ROUTINE nope_agg(int);",
 		// A call may be a function-style cast to a domain the sync does not list.

@@ -51,7 +51,7 @@ func TestProgramSimulationPG18(t *testing.T) {
 
 func programRows(t *testing.T) []simulate.Generated {
 	t.Helper()
-	rows := make([]simulate.Generated, 0, len(programFeatures)+len(quotedTypeFeatures)+len(quotedAliasFeatures)+len(retypeFeatures)+len(generatedRetypeFeatures))
+	rows := make([]simulate.Generated, 0, len(programFeatures)+len(quotedTypeFeatures)+len(quotedAliasFeatures)+len(retypeFeatures)+len(generatedRetypeFeatures)+len(identityRetypeFeatures))
 	seen := map[string]bool{}
 	add := func(fixture string, features []struct{ kind, statement string }) {
 		for _, f := range features {
@@ -67,6 +67,7 @@ func programRows(t *testing.T) []simulate.Generated {
 	add("programs@quoted", quotedAliasFeatures)
 	add("programs@retype", retypeFeatures)
 	add("programs@generated", generatedRetypeFeatures)
+	add("programs@identity", identityRetypeFeatures)
 	return rows
 }
 
@@ -496,4 +497,17 @@ var generatedRetypeFeatures = []struct{ kind, statement string }{
 	{"alter-using", `ALTER TABLE gen ALTER COLUMN d TYPE int USING length(d), ALTER COLUMN d DROP DEFAULT`},
 	{"alter-using", `ALTER TABLE gen ALTER COLUMN d SET DEFAULT 1, ALTER COLUMN d TYPE int USING length(d)`},
 	{"alter-using", `ALTER TABLE gen ALTER COLUMN d DROP DEFAULT, ALTER COLUMN d SET DEFAULT 2`},
+}
+
+// identityRetypeFeatures run ALTER COLUMN TYPE on programs@identity's
+// identity columns, whose sequences take the new type: an integer type,
+// with a bound that was the old type's default moved to the new type's.
+var identityRetypeFeatures = []struct{ kind, statement string }{
+	{"alter-identity", `ALTER TABLE ident ALTER COLUMN id TYPE bigint`},
+	{"alter-identity", `ALTER TABLE ident ALTER COLUMN id TYPE smallint`},
+	{"alter-identity", `ALTER TABLE ident ALTER COLUMN b TYPE bigint`},
+	{"alter-identity", `ALTER TABLE ident ALTER COLUMN c TYPE int`},
+	{"alter-identity", `ALTER TABLE ident ALTER COLUMN id TYPE numeric`},
+	{"alter-identity", `ALTER TABLE ident ALTER COLUMN id TYPE text`},
+	{"alter-identity", `ALTER TABLE ident ALTER COLUMN id TYPE bigint USING id * 2`},
 }

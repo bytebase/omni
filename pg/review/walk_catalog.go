@@ -208,6 +208,11 @@ func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot) bool {
 		if snap == nil || snap.lostRoutines {
 			return true
 		}
+		if v, ok := node.(*ast.CallStmt); ok && v.Funccall != nil && !untypedArgs(v.Funccall.Args) {
+			// An implicit cast the sync does not list may let an argument
+			// of a known type reach the procedure.
+			return true
+		}
 		for _, name := range signatureNames(node) {
 			if strings.Contains(err.Message, name+"(") || strings.Contains(err.Message, `"`+name+`"`) {
 				return false
@@ -216,6 +221,27 @@ func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot) bool {
 		return true
 	}
 	return false
+}
+
+// untypedArgs reports whether every argument is a quoted literal or NULL,
+// which takes any parameter's type with no cast.
+func untypedArgs(args *ast.List) bool {
+	if args == nil {
+		return true
+	}
+	for _, item := range args.Items {
+		if named, ok := item.(*ast.NamedArgExpr); ok {
+			item = named.Arg
+		}
+		c, ok := item.(*ast.A_Const)
+		if !ok {
+			return false
+		}
+		if _, str := c.Val.(*ast.String); !str && !c.Isnull {
+			return false
+		}
+	}
+	return true
 }
 
 // signatureNames lists the routines node names by signature, which the

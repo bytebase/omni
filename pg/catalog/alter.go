@@ -3245,11 +3245,6 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 		}
 	}
 
-	// Block if column is an identity column.
-	if col.Identity != 0 {
-		return errInvalidObjectDefinition("cannot alter type of a column used as identity")
-	}
-
 	// Block if a view, a generated column or a trigger reads this column.
 	// Indexes and constraints on it are rebuilt.
 	// pg: src/backend/commands/tablecmds.c — RememberAllDependentForRebuilding
@@ -3410,6 +3405,21 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 	// pg: ATExecAlterColumnType rebuilds the attribute tuple without preserving attcompression.
 	col.Compression = 0
 
+	// An identity column's sequence takes the new type, which must be an
+	// integer type. A partition's column may run its parent's sequence.
+	// pg: src/backend/commands/tablecmds.c — ATExecAlterColumnType (attidentity)
+	if col.Identity != 0 {
+		for _, seq := range c.sequenceByOID {
+			if seq.OwnerRelOID != rel.OID || seq.OwnerAttNum != col.AttNum {
+				continue
+			}
+			return c.AlterSequenceStmt(&nodes.AlterSeqStmt{
+				Sequence:    &nodes.RangeVar{Schemaname: seq.Schema.Name, Relname: seq.Name},
+				Options:     &nodes.List{Items: []nodes.Node{&nodes.DefElem{Defname: "as", Arg: cd.TypeName}}},
+				ForIdentity: true,
+			})
+		}
+	}
 	return nil
 }
 

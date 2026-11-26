@@ -344,3 +344,10 @@ ok:3cf47a7b54ff	ok:3cf47a7b54ff	engine	programs@generated	program:alter-using	AL
 ok:3cf47a7b54ff	ok:3cf47a7b54ff	engine	programs@generated	program:alter-using	ALTER TABLE gen ALTER COLUMN d TYPE int USING length(d), ALTER COLUMN d DROP DEFAULT
 42804	42804	engine	programs@generated	program:alter-using	ALTER TABLE gen ALTER COLUMN d SET DEFAULT 1, ALTER COLUMN d TYPE int USING length(d)
 ok:22b921940d58	ok:22b921940d58	engine	programs@generated	program:alter-using	ALTER TABLE gen ALTER COLUMN d DROP DEFAULT, ALTER COLUMN d SET DEFAULT 2
+ok:688430c46727	ok:688430c46727	engine	programs@identity	program:alter-identity	ALTER TABLE ident ALTER COLUMN id TYPE bigint
+ok:4efc2588c7f0	ok:4efc2588c7f0	engine	programs@identity	program:alter-identity	ALTER TABLE ident ALTER COLUMN id TYPE smallint
+ok:39535d714c7b	ok:39535d714c7b	engine	programs@identity	program:alter-identity	ALTER TABLE ident ALTER COLUMN b TYPE bigint
+ok:ab19986696bb	ok:ab19986696bb	engine	programs@identity	program:alter-identity	ALTER TABLE ident ALTER COLUMN c TYPE int
+22023	22023	engine	programs@identity	program:alter-identity	ALTER TABLE ident ALTER COLUMN id TYPE numeric
+22023	22023	engine	programs@identity	program:alter-identity	ALTER TABLE ident ALTER COLUMN id TYPE text
+ok:688430c46727	ok:688430c46727	engine	programs@identity	program:alter-identity	ALTER TABLE ident ALTER COLUMN id TYPE bigint USING id * 2

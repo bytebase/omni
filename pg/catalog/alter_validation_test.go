@@ -103,20 +103,32 @@ func TestAddColumnDefaultTypeMismatchRollsBackColumn(t *testing.T) {
 	}
 }
 
+// An identity column takes another integer type, and its sequence with it;
+// programs/simulate.tsv's programs@identity rows hold this to PostgreSQL.
 func TestAlterColumnTypeOnIdentityColumn(t *testing.T) {
-	c := New()
-	c.DefineRelation(makeCreateTableStmt("", "t", []ColumnDef{
-		{Name: "id", Type: TypeName{Name: "int4", TypeMod: -1}},
-	}, nil, false), 'r')
-
-	// Manually mark column as identity (ALWAYS).
+	c, err := LoadSQL("CREATE TABLE t (id int GENERATED ALWAYS AS IDENTITY);")
+	if err != nil {
+		t.Fatal(err)
+	}
+	results, err := c.Exec("ALTER TABLE t ALTER COLUMN id TYPE bigint;\nALTER TABLE t ALTER COLUMN id TYPE numeric;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("results = %d, want 2", len(results))
+	}
+	if results[0].Error != nil {
+		t.Errorf("bigint: %v", results[0].Error)
+	}
 	rel := c.GetRelation("", "t")
-	rel.Columns[0].Identity = 'a'
-
-	err := c.AlterTableStmt(makeAlterTableStmt("", "t",
-		makeATAlterColumnType("id", TypeName{Name: "int8", TypeMod: -1}),
-	))
-	assertErrorCode(t, err, CodeInvalidObjectDefinition)
+	seq, err := c.findIdentitySequence(rel, rel.Columns[0].AttNum)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if seq.TypeOID != INT8OID {
+		t.Errorf("identity sequence type = %d, want bigint", seq.TypeOID)
+	}
+	assertErrorCode(t, results[1].Error, CodeInvalidParameterValue)
 }
 
 func TestAlterColumnTypeWithDependentView(t *testing.T) {
