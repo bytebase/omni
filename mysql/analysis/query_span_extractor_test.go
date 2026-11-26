@@ -720,17 +720,16 @@ func TestQuerySpanScenarioBatch1_ExpressionCoverage(t *testing.T) {
 		}, span.Results)
 	})
 
-	t.Run("group_concat_separator_contributes_lineage", func(t *testing.T) {
-		span, err := resolveExtractorSpan(
+	// SEPARATOR takes a text_string, never a column: MySQL answers 1064
+	// (mysql/parser compat.tsv, suite:group-concat-separator).
+	t.Run("group_concat_separator_takes_no_column", func(t *testing.T) {
+		_, err := resolveExtractorSpan(
 			catalog,
 			"SELECT GROUP_CONCAT(a SEPARATOR b) AS gc FROM t",
 			"db",
 			false,
 		)
-		require.NoError(t, err)
-		require.Equal(t, []QuerySpanResult{
-			{Name: "gc", SourceColumns: sourceColumnSetFromResources([]ColumnResource{{Database: "db", Table: "t", Column: "a"}, {Database: "db", Table: "t", Column: "b"}}), IsPlainField: false},
-		}, span.Results)
+		require.Error(t, err)
 	})
 
 	t.Run("group_concat_order_by_contributes_lineage", func(t *testing.T) {
