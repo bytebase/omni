@@ -97,7 +97,7 @@ DELETE FROM "writes" WHERE id = 'w2';`
 }
 
 // TestExecuteRunsOnlyStatements holds that a script's comment-only segments
-// hold no statement: partiql.Split decides, and nothing is sent for them.
+// hold no statement: dynamodb.Split decides, and nothing is sent for them.
 func TestExecuteRunsOnlyStatements(t *testing.T) {
 	d := newDriver(t)
 	log := &recorder{}

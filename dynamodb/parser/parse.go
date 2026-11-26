@@ -1,0 +1,215 @@
+package parser
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/bytebase/omni/dynamodb/ast"
+)
+
+// Parse parses a PartiQL script and returns an *ast.List of statement nodes.
+//
+// The script rule is:
+//
+//	script : root (COLON_SEMI root)* COLON_SEMI? EOF
+//	root   : (EXPLAIN (PAREN_LEFT explainOption (COMMA explainOption)* PAREN_RIGHT)?)? statement
+//
+// Multiple statements are separated by semicolons. A trailing semicolon is
+// allowed. Each statement may optionally be prefixed with EXPLAIN.
+//
+// Returns an error on the first syntax error encountered. An empty input
+// (or an input consisting only of whitespace/comments) is not an error —
+// it returns an empty List.
+func Parse(input string) (*ast.List, error) {
+	p := NewParser(input)
+	return p.parseScript()
+}
+
+// parseScript implements the script grammar rule. It is an internal method
+// so that unit tests can drive it through NewParser without going through
+// the public Parse function.
+func (p *Parser) parseScript() (*ast.List, error) {
+	if err := p.checkLexerErr(); err != nil {
+		return nil, err
+	}
+
+	var stmts []ast.Node
+
+	// A script may be completely empty.
+	if p.cur.Type == tokEOF {
+		return &ast.List{Items: stmts}, nil
+	}
+
+	// Parse the first root.
+	stmt, err := p.parseCheckedRoot()
+	if err != nil {
+		return nil, err
+	}
+	stmts = append(stmts, stmt)
+
+	// Parse subsequent roots separated by semicolons.
+	for p.cur.Type == tokCOLON_SEMI {
+		p.advance() // consume ;
+		// Trailing semicolon: stop if we hit EOF after consuming it.
+		if p.cur.Type == tokEOF {
+			break
+		}
+		stmt, err = p.parseCheckedRoot()
+		if err != nil {
+			return nil, err
+		}
+		stmts = append(stmts, stmt)
+	}
+
+	// Surface trailing garbage that lexed to a LEXER error before the EOF
+	// check below (see Parser.ParseExpr for the first-error-and-stop
+	// rationale): a trailing '#' or unterminated '/*' after the final
+	// statement sets p.lexer.Err and makes advance() yield tokEOF, so the
+	// cur==tokEOF check would otherwise pass and drop the pending lexer
+	// error. This entry point backs the public Parse function consumed by
+	// dynamodb/analysis, so the gap is reachable from bytebase.
+	if err := p.checkLexerErr(); err != nil {
+		return nil, err
+	}
+
+	if p.cur.Type != tokEOF {
+		return nil, &ParseError{
+			Message:  "unexpected token after statement",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		}
+	}
+
+	return &ast.List{Items: stmts}, nil
+}
+
+// parseCheckedRoot parses one root and rejects it when its tree is more than
+// maxTreeHeight nodes deep (see treeTooHigh).
+func (p *Parser) parseCheckedRoot() (ast.StmtNode, error) {
+	first := p.cur
+	stmt, err := p.parseRoot()
+	// No later statement parses these tokens again.
+	p.parenMemo, p.tableMemo, p.trimFroms, p.positionCommas = nil, nil, nil, nil
+	if err != nil {
+		return nil, err
+	}
+	if treeTooHigh(stmt, p.prev.Loc.End-first.Loc.Start) {
+		return nil, nestedTooDeeply(first)
+	}
+	return stmt, nil
+}
+
+// parseRoot implements the root grammar rule:
+//
+//	root : (EXPLAIN (PAREN_LEFT explainOption (COMMA explainOption)* PAREN_RIGHT)?)? statement
+//
+// If the current token is EXPLAIN, the optional options list is parsed and
+// discarded (ExplainStmt in the AST has no options field), and the inner
+// statement is wrapped in an ExplainStmt.
+func (p *Parser) parseRoot() (ast.StmtNode, error) {
+	if p.cur.Type != tokEXPLAIN {
+		return p.parseRootStatement()
+	}
+
+	explainStart := p.cur.Loc.Start
+	p.advance() // consume EXPLAIN
+
+	// Optional EXPLAIN options: (key value, key value, ...)
+	// The AST has no options field on ExplainStmt, so we parse and discard.
+	// Note: ExplainStmt only stores Inner + Loc; options are grammar-legal but
+	// not representable in the current AST.
+	if p.cur.Type == tokPAREN_LEFT {
+		p.advance() // consume (
+		var params, values []Token
+		for {
+			// Each option is a pair of identifiers: param=IDENTIFIER value=IDENTIFIER.
+			param, err := p.expect(tokIDENT)
+			if err != nil {
+				return nil, err
+			}
+			value, err := p.expect(tokIDENT)
+			if err != nil {
+				return nil, err
+			}
+			params, values = append(params, param), append(values, value)
+			if p.cur.Type != tokCOMMA {
+				break
+			}
+			p.advance() // consume ,
+		}
+		if _, err := p.expect(tokPAREN_RIGHT); err != nil {
+			return nil, err
+		}
+		// The reference parser's visitor takes TYPE and FORMAT, each once
+		// (PartiQLParserDefault.kt:524, 2298).
+		seen := map[string]bool{}
+		for i, param := range params {
+			name := strings.ToUpper(param.Str)
+			if name != "TYPE" && name != "FORMAT" {
+				return nil, &ParseError{
+					Message:  fmt.Sprintf("unknown EXPLAIN parameter %q", param.Str),
+					Position: param.Loc.Start, End: param.Loc.End,
+				}
+			}
+			if seen[name] {
+				return nil, &ParseError{
+					Message:  fmt.Sprintf("cannot set EXPLAIN parameter %s multiple times", name),
+					Position: values[i].Loc.Start, End: values[i].Loc.End,
+				}
+			}
+			seen[name] = true
+		}
+	}
+
+	inner, err := p.parseRootStatement()
+	if err != nil {
+		return nil, err
+	}
+
+	return &ast.ExplainStmt{
+		Inner: inner,
+		Loc:   ast.Loc{Start: explainStart, End: inner.GetLoc().End},
+	}, nil
+}
+
+// parseRootStatement dispatches to the appropriate statement parser based
+// on the current token. This is the internal statement parser used by
+// parseRoot; it does not assert EOF (unlike ParseStatement).
+func (p *Parser) parseRootStatement() (ast.StmtNode, error) {
+	if err := p.checkLexerErr(); err != nil {
+		return nil, err
+	}
+
+	switch p.cur.Type {
+	case tokCREATE:
+		return p.parseCreateCommand()
+	case tokDROP:
+		return p.parseDropCommand()
+	case tokINSERT:
+		return p.parseInsertStmt()
+	case tokUPDATE:
+		return p.parseUpdateStmt()
+	case tokDELETE:
+		return p.parseDeleteStmt()
+	case tokREPLACE:
+		return p.parseReplaceStmt()
+	case tokUPSERT:
+		return p.parseUpsertStmt()
+	case tokREMOVE:
+		return p.parseRemoveStmt()
+	case tokSET:
+		// A SET command alone is DML: dml#DmlBase (PartiQLParser.g4:125).
+		return p.parseSetStmt()
+	case tokFROM:
+		// FROM-led DML: `FROM fromClause whereClause? dmlBaseCommand+
+		// returningClause?` (dml#DmlBaseWrapper 2nd alt). A leading FROM at
+		// statement position is always DML.
+		return p.parseFromLedDml()
+	case tokEXEC:
+		// execCommand begins with EXEC alone (PartiQLParser.g4:64-65);
+		// EXECUTE is a reserved word no rule uses.
+		p.advance() // consume EXEC
+		return p.parseExecCommand()
+	default:
+		return p.parseDqlStatement()
+	}
+}

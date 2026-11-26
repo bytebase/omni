@@ -79,7 +79,7 @@
 // binary as bytes, a boolean as a boolean, a NULL as a null, and a set, a list
 // or a map as its JSON text, where a binary is base64.
 //
-// A PartiQL script is split by partiql.Split, so statement boundaries are
+// A PartiQL script is split by dynamodb.Split, so statement boundaries are
 // omni's partiql judgment and not this package's, and a segment holding no
 // statement is skipped. Execute runs each statement as its own
 // ExecuteTransaction, which is why ExecuteOptions.Transaction, .Isolation and

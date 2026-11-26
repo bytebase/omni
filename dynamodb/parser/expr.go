@@ -1,0 +1,742 @@
+package parser
+
+import (
+	"github.com/bytebase/omni/dynamodb/ast"
+)
+
+// parseMathOp00 parses the string-concatenation and bitwise-and layer.
+// PartiQL is unusual here: || and & bind LOOSER than +/- per
+// PartiQLParser.g4:575-578. That contradicts most SQL dialects.
+//
+// Grammar: mathOp00 (PartiQLParser.g4:575-578):
+//
+//	lhs=mathOp00 op=(AMPERSAND|CONCAT) rhs=mathOp01
+//	| parent=mathOp01
+func (p *Parser) parseMathOp00() (ast.ExprNode, error) {
+	left, err := p.parseMathOp01()
+	if err != nil {
+		return nil, err
+	}
+	return p.parseMathOp00Rest(left)
+}
+
+// parseMathOp00Rest parses the `|| mathOp01` and `& mathOp01` operations
+// that follow left, the mathOp00's first operand.
+func (p *Parser) parseMathOp00Rest(left ast.ExprNode) (ast.ExprNode, error) {
+	for p.cur.Type == tokCONCAT || p.cur.Type == tokAMPERSAND {
+		op := ast.BinOpConcat
+		if p.cur.Type == tokAMPERSAND {
+			op = ast.BinOpBitAnd
+		}
+		p.advance()
+		right, err := p.parseMathOp01()
+		if err != nil {
+			return nil, err
+		}
+		left = &ast.BinaryExpr{
+			Op:    op,
+			Left:  left,
+			Right: right,
+			Loc:   ast.Loc{Start: left.GetLoc().Start, End: right.GetLoc().End},
+		}
+	}
+	return left, nil
+}
+
+// parseMathOp01 parses the additive layer (+, -).
+//
+// Grammar: mathOp01 (lines 499-502):
+//
+//	lhs=mathOp01 op=(PLUS|MINUS) rhs=mathOp02
+//	| parent_=mathOp02
+func (p *Parser) parseMathOp01() (ast.ExprNode, error) {
+	left, err := p.parseMathOp02()
+	if err != nil {
+		return nil, err
+	}
+	return p.parseMathOp01Rest(left)
+}
+
+// parseMathOp01Rest parses the `+ mathOp02` and `- mathOp02` operations that
+// follow left, the mathOp01's first operand.
+func (p *Parser) parseMathOp01Rest(left ast.ExprNode) (ast.ExprNode, error) {
+	for p.cur.Type == tokPLUS || p.cur.Type == tokMINUS {
+		op := ast.BinOpAdd
+		if p.cur.Type == tokMINUS {
+			op = ast.BinOpSub
+		}
+		p.advance()
+		right, err := p.parseMathOp02()
+		if err != nil {
+			return nil, err
+		}
+		left = &ast.BinaryExpr{
+			Op:    op,
+			Left:  left,
+			Right: right,
+			Loc:   ast.Loc{Start: left.GetLoc().Start, End: right.GetLoc().End},
+		}
+	}
+	return left, nil
+}
+
+// parseMathOp02 parses the multiplicative layer (*, /, %).
+//
+// Grammar: mathOp02 (lines 504-507):
+//
+//	lhs=mathOp02 op=(PERCENT|ASTERISK|SLASH_FORWARD) rhs=valueExpr
+//	| parent_=valueExpr
+func (p *Parser) parseMathOp02() (ast.ExprNode, error) {
+	left, err := p.parseValueExpr()
+	if err != nil {
+		return nil, err
+	}
+	return p.parseMathOp02Rest(left)
+}
+
+// parseMathOp02Rest parses the `*`, `/` and `%` operations that follow left,
+// the mathOp02's first operand.
+func (p *Parser) parseMathOp02Rest(left ast.ExprNode) (ast.ExprNode, error) {
+	for p.cur.Type == tokASTERISK || p.cur.Type == tokSLASH_FORWARD || p.cur.Type == tokPERCENT {
+		var op ast.BinOp
+		switch p.cur.Type {
+		case tokASTERISK:
+			op = ast.BinOpMul
+		case tokSLASH_FORWARD:
+			op = ast.BinOpDiv
+		case tokPERCENT:
+			op = ast.BinOpMod
+		}
+		p.advance()
+		right, err := p.parseValueExpr()
+		if err != nil {
+			return nil, err
+		}
+		left = &ast.BinaryExpr{
+			Op:    op,
+			Left:  left,
+			Right: right,
+			Loc:   ast.Loc{Start: left.GetLoc().Start, End: right.GetLoc().End},
+		}
+	}
+	return left, nil
+}
+
+// parseValueExpr parses the unary-sign layer (+expr, -expr). Unary
+// signs are right-associative so they stack naturally via recursion.
+//
+// Grammar: valueExpr (lines 509-512):
+//
+//	sign=(PLUS|MINUS) rhs=valueExpr
+//	| parent_=exprPrimary
+func (p *Parser) parseValueExpr() (ast.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+	if p.cur.Type == tokPLUS || p.cur.Type == tokMINUS {
+		start := p.cur.Loc.Start
+		op := ast.UnOpPos
+		if p.cur.Type == tokMINUS {
+			op = ast.UnOpNeg
+		}
+		p.advance()
+		operand, err := p.parseValueExpr()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.UnaryExpr{
+			Op:      op,
+			Operand: operand,
+			Loc:     ast.Loc{Start: start, End: operand.GetLoc().End},
+		}, nil
+	}
+	return p.parsePrimary()
+}
+
+// isComparisonOp reports whether the given token type is one of the
+// six comparison operators from exprPredicate#PredicateComparison
+// (line 485).
+func isComparisonOp(t int) bool {
+	switch t {
+	case tokEQ, tokNEQ, tokLT, tokLT_EQ, tokGT, tokGT_EQ:
+		return true
+	}
+	return false
+}
+
+// tokToComparisonOp maps a comparison token type to its ast.BinOp.
+func tokToComparisonOp(t int) ast.BinOp {
+	switch t {
+	case tokEQ:
+		return ast.BinOpEq
+	case tokNEQ:
+		return ast.BinOpNotEq
+	case tokLT:
+		return ast.BinOpLt
+	case tokLT_EQ:
+		return ast.BinOpLtEq
+	case tokGT:
+		return ast.BinOpGt
+	case tokGT_EQ:
+		return ast.BinOpGtEq
+	}
+	return ast.BinOpInvalid
+}
+
+// parsePredicate parses the predicate layer. Handles 5 grammar
+// alternatives plus the NOT-prefix form for IN/LIKE/BETWEEN:
+//
+//	comparison (=, <>, <, <=, >, >=)
+//	IS [NOT] <type>
+//	[NOT] IN (expr, expr, ...)
+//	[NOT] LIKE mathOp00 [ESCAPE expr]
+//	[NOT] BETWEEN mathOp00 AND mathOp00
+//
+// Grammar: exprPredicate (lines 484-492).
+//
+// The IS predicate's RHS is the full `type` production (g4:486 —
+// `lhs IS NOT? type`), which includes NULL and MISSING as atomic types.
+// `x IS NULL`, `x IS MISSING`, `x IS INT`, `x IS DECIMAL(10,2)`, and
+// `a IS NOT STRUCT` are therefore all valid. `x IS TRUE` / `x IS FALSE`
+// are rejected — TRUE/FALSE are not types (the legacy grammar marks the
+// SQL-92 `IS TRUE/FALSE` form "Not yet implemented", g4:437-438).
+func (p *Parser) parsePredicate() (ast.ExprNode, error) {
+	left, err := p.parseMathOp00()
+	if err != nil {
+		return nil, err
+	}
+	// The first operand of POSITION(a IN b) leaves its IN to POSITION.
+	stopAtIn := p.inStopLevel != 0 && p.exprLevel == p.inStopLevel
+	for {
+		startLoc := left.GetLoc().Start
+		switch {
+		case stopAtIn && (p.cur.Type == tokIN || p.cur.Type == tokNOT && p.peekNext().Type == tokIN):
+			return left, nil
+		case isComparisonOp(p.cur.Type):
+			op := tokToComparisonOp(p.cur.Type)
+			p.advance()
+			right, err := p.parseMathOp00()
+			if err != nil {
+				return nil, err
+			}
+			left = &ast.BinaryExpr{
+				Op:    op,
+				Left:  left,
+				Right: right,
+				Loc:   ast.Loc{Start: startLoc, End: right.GetLoc().End},
+			}
+
+		case p.cur.Type == tokIS:
+			p.advance()
+			not := p.match(tokNOT)
+			isExpr, err := p.parseIsBody(left, not, startLoc)
+			if err != nil {
+				return nil, err
+			}
+			left = isExpr
+
+		case p.cur.Type == tokNOT:
+			// NOT IN, NOT LIKE, NOT BETWEEN (lookahead).
+			nextType := p.peekNext().Type
+			if nextType != tokIN && nextType != tokLIKE && nextType != tokBETWEEN {
+				return left, nil
+			}
+			p.advance() // consume NOT
+			switch p.cur.Type {
+			case tokIN:
+				left, err = p.parseInBody(left, true, startLoc)
+			case tokLIKE:
+				left, err = p.parseLikeBody(left, true, startLoc)
+			case tokBETWEEN:
+				left, err = p.parseBetweenBody(left, true, startLoc)
+			}
+			if err != nil {
+				return nil, err
+			}
+
+		case p.cur.Type == tokIN:
+			left, err = p.parseInBody(left, false, startLoc)
+			if err != nil {
+				return nil, err
+			}
+
+		case p.cur.Type == tokLIKE:
+			left, err = p.parseLikeBody(left, false, startLoc)
+			if err != nil {
+				return nil, err
+			}
+
+		case p.cur.Type == tokBETWEEN:
+			left, err = p.parseBetweenBody(left, false, startLoc)
+			if err != nil {
+				return nil, err
+			}
+
+		default:
+			return left, nil
+		}
+	}
+}
+
+// parseIsBody parses the RHS of `expr IS [NOT] <type>`. The caller has
+// already consumed the IS token and optionally NOT.
+//
+// The RHS is the full `type` production (PartiQLParser.g4:674-686) — the
+// same one CAST consumes via parseType. NULL and MISSING are atomic types
+// in that production, so `IS NULL` / `IS MISSING` flow through here as
+// types; there is no separate keyword branch. TRUE / FALSE / UNKNOWN are
+// not types, so parseType rejects them with "expected type" — matching the
+// generated ANTLR parser, which yields `mismatched input 'TRUE' expecting
+// { <type first-set> }`.
+func (p *Parser) parseIsBody(left ast.ExprNode, not bool, startLoc int) (*ast.IsExpr, error) {
+	typeRef, err := p.parseType()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.IsExpr{
+		Expr: left,
+		Type: typeRef,
+		Not:  not,
+		Loc:  ast.Loc{Start: startLoc, End: typeRef.GetLoc().End},
+	}, nil
+}
+
+// parseInBody parses the RHS of `expr [NOT] IN ...`. The caller has
+// NOT yet consumed IN.
+//
+// Grammar: exprPredicate#PredicateIn (lines 487-488):
+//
+//	lhs=exprPredicate NOT? IN PAREN_LEFT expr PAREN_RIGHT
+//	lhs=exprPredicate NOT? IN rhs=mathOp00
+//
+// Supports two forms:
+//  1. Parenthesized: `IN (expr)` or `IN (expr, expr, ...)`. A lone query,
+//     `IN (SELECT ...)`, fills Subquery; anything else fills List.
+//  2. Expression form: `IN rhs` for any other mathOp00, such as the array
+//     literal `[1, 2, 3]`. List holds the rhs alone. A mathOp00 may begin
+//     with a parenthesized operand, as in `IN (1) + 1`, `IN (x).y` and the
+//     graph match `IN (g MATCH (n))`; the parentheses are then read as
+//     that operand rather than as form 1.
+func (p *Parser) parseInBody(left ast.ExprNode, not bool, startLoc int) (*ast.InExpr, error) {
+	p.advance() // consume IN
+
+	// Parenthesized form: IN (expr, expr, ...)
+	if p.cur.Type == tokPAREN_LEFT {
+		open := p.cur.Loc.Start
+		p.advance() // consume (
+		// The grammar requires at least one expr inside the parens
+		// (g4:487 — `NOT? IN PAREN_LEFT expr PAREN_RIGHT`). An empty list
+		// `IN ()` is rejected: the generated ANTLR parser reports
+		// "no viable alternative at input 'IN ()'".
+		if p.cur.Type == tokPAREN_RIGHT {
+			return nil, &ParseError{
+				Message:  "IN list requires at least one expression",
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			}
+		}
+		// Each item is a full expr, not a mathOp00: one item is the expr
+		// of g4:487 (`NOT? IN PAREN_LEFT expr PAREN_RIGHT`), and several
+		// are the valueList that g4:488 (`NOT? IN rhs=mathOp00`) reaches
+		// through exprPrimary, `PAREN_LEFT expr (COMMA expr)+ PAREN_RIGHT`
+		// (g4:566-567). So a query, a comparison, or AND/OR is an item:
+		// `a IN (SELECT b FROM t)`, `a IN (1, b = 2)`.
+		var list []ast.ExprNode
+		for {
+			item, err := p.parseExprTop()
+			if err != nil {
+				return nil, err
+			}
+			list = append(list, item)
+			if p.cur.Type != tokCOMMA {
+				break
+			}
+			p.advance() // consume ,
+		}
+		// `IN (g MATCH (n))`: an expr followed by MATCH is the graph match
+		// exprGraphMatchMany (g4:625-626), an exprPrimary, so only g4:488
+		// reads these parentheses, as the first operand of rhs=mathOp00.
+		// parseParenExprBody parses it the same way.
+		if len(list) == 1 && p.cur.Type == tokMATCH {
+			match, err := p.parseGraphMatch(list[0])
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(tokPAREN_RIGHT); err != nil {
+				return nil, err
+			}
+			return p.finishInRHS(left, not, startLoc, match)
+		}
+		rp, err := p.expect(tokPAREN_RIGHT)
+		if err != nil {
+			return nil, err
+		}
+		// A path step or an arithmetic or || operator after the ')' extends
+		// a mathOp00 whose first operand is the parenthesized expr
+		// (exprTerm#ExprTermWrappedQuery, g4:543), as in `a IN (1) + 1` or
+		// `a IN (x)[0]`. g4:487 cannot read the tokens after its ')', so
+		// the input is g4:488's, and the rhs is the tree parseMathOp00
+		// builds for those tokens: the parentheses add no node, and a
+		// SubLink spans them, as parseParenExprBody makes it. Several items
+		// followed by an operator, `a IN (1, 2) + 1`, make a valueList the
+		// operand, as parseParenExprBody reads it.
+		if continuesMathOp00(p.cur.Type) {
+			operand := list[0]
+			if len(list) > 1 {
+				operand = &ast.ValueList{Items: list, Loc: ast.Loc{Start: open, End: rp.Loc.End}}
+			} else if sub, ok := operand.(*ast.SubLink); ok {
+				wrapped := *sub
+				wrapped.Loc = ast.Loc{Start: open, End: rp.Loc.End}
+				operand = &wrapped
+			}
+			return p.finishInRHS(left, not, startLoc, operand)
+		}
+		in := &ast.InExpr{
+			Expr: left,
+			Not:  not,
+			Loc:  ast.Loc{Start: startLoc, End: rp.Loc.End},
+		}
+		// A query standing alone in the parentheses is the subquery. The
+		// SubLink of a query in parentheses of its own, as in
+		// `a IN ((SELECT b FROM t))`, spans those parentheses
+		// (parseParenExpr), so it is not its statement's span and stays
+		// a list item.
+		if sub, ok := list[0].(*ast.SubLink); ok && len(list) == 1 && sub.Loc == sub.Stmt.GetLoc() {
+			in.Subquery = sub.Stmt
+		} else {
+			in.List = list
+		}
+		return in, nil
+	}
+
+	// Expression form: IN expr (e.g., IN [1, 2, 3]).
+	rhs, err := p.parseMathOp00()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.InExpr{
+		Expr: left,
+		List: []ast.ExprNode{rhs},
+		Not:  not,
+		Loc:  ast.Loc{Start: startLoc, End: rhs.GetLoc().End},
+	}, nil
+}
+
+// finishInRHS completes the expression form of IN when the rhs=mathOp00
+// (g4:488) began with a parenthesized exprPrimary that parseInBody has
+// already parsed: operand, with p.cur on the token after its ')'. The
+// InExpr ends at the last token of the rhs, which is past the end of the
+// rhs node when the rhs ends in a parenthesized operand, as in
+// `a IN (1) + (2)`: the parentheses add no node.
+func (p *Parser) finishInRHS(left ast.ExprNode, not bool, startLoc int, operand ast.ExprNode) (*ast.InExpr, error) {
+	rhs, err := p.parseMathOp00From(operand)
+	if err != nil {
+		return nil, err
+	}
+	return &ast.InExpr{
+		Expr: left,
+		List: []ast.ExprNode{rhs},
+		Not:  not,
+		Loc:  ast.Loc{Start: startLoc, End: p.prev.Loc.End},
+	}, nil
+}
+
+// continuesMathOp00 reports whether a token after an exprPrimary continues
+// the mathOp00 it begins: a path step (g4:528, 618-623) or an operator of
+// mathOp02, mathOp01 or mathOp00 (g4:494-507).
+func continuesMathOp00(t int) bool {
+	switch t {
+	case tokASTERISK, tokSLASH_FORWARD, tokPERCENT, tokPLUS, tokMINUS, tokCONCAT, tokAMPERSAND:
+		return true
+	}
+	return isPathStepStart(t)
+}
+
+// parseMathOp00From parses a mathOp00 whose first exprPrimary, primary, is
+// already parsed, with p.cur on the token after it: the path steps that
+// follow it, then the operations of each layer. It builds the tree that
+// parseMathOp00 builds for the same tokens.
+func (p *Parser) parseMathOp00From(primary ast.ExprNode) (ast.ExprNode, error) {
+	left := primary
+	if isPathStepStart(p.cur.Type) {
+		path, err := p.parsePathSteps(primary)
+		if err != nil {
+			return nil, err
+		}
+		left = path
+	}
+	left, err := p.parseMathOp02Rest(left)
+	if err != nil {
+		return nil, err
+	}
+	left, err = p.parseMathOp01Rest(left)
+	if err != nil {
+		return nil, err
+	}
+	return p.parseMathOp00Rest(left)
+}
+
+// parseLikeBody parses the RHS of `expr [NOT] LIKE pattern [ESCAPE escape]`.
+// The caller has NOT yet consumed LIKE.
+//
+// Grammar: exprPredicate#PredicateLike (line 489).
+func (p *Parser) parseLikeBody(left ast.ExprNode, not bool, startLoc int) (*ast.LikeExpr, error) {
+	p.advance() // consume LIKE
+	pattern, err := p.parseMathOp00()
+	if err != nil {
+		return nil, err
+	}
+	var escape ast.ExprNode
+	end := pattern.GetLoc().End
+	if p.cur.Type == tokESCAPE {
+		p.advance()
+		escape, err = p.parseMathOp00()
+		if err != nil {
+			return nil, err
+		}
+		end = escape.GetLoc().End
+	}
+	return &ast.LikeExpr{
+		Expr:    left,
+		Pattern: pattern,
+		Escape:  escape,
+		Not:     not,
+		Loc:     ast.Loc{Start: startLoc, End: end},
+	}, nil
+}
+
+// parseBetweenBody parses the RHS of `expr [NOT] BETWEEN lower AND upper`.
+// The caller has NOT yet consumed BETWEEN.
+//
+// Grammar: exprPredicate#PredicateBetween (line 490).
+func (p *Parser) parseBetweenBody(left ast.ExprNode, not bool, startLoc int) (*ast.BetweenExpr, error) {
+	p.advance() // consume BETWEEN
+	lower, err := p.parseMathOp00()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(tokAND); err != nil {
+		return nil, err
+	}
+	upper, err := p.parseMathOp00()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.BetweenExpr{
+		Expr: left,
+		Low:  lower,
+		High: upper,
+		Not:  not,
+		Loc:  ast.Loc{Start: startLoc, End: upper.GetLoc().End},
+	}, nil
+}
+
+// parseOr parses the OR layer (left-associative).
+//
+// Grammar: exprOr (lines 469-472):
+//
+//	lhs=exprOr OR rhs=exprAnd
+//	| parent_=exprAnd
+func (p *Parser) parseOr() (ast.ExprNode, error) {
+	left, err := p.parseAnd()
+	if err != nil {
+		return nil, err
+	}
+	for p.cur.Type == tokOR {
+		p.advance()
+		right, err := p.parseAnd()
+		if err != nil {
+			return nil, err
+		}
+		left = &ast.BinaryExpr{
+			Op:    ast.BinOpOr,
+			Left:  left,
+			Right: right,
+			Loc:   ast.Loc{Start: left.GetLoc().Start, End: right.GetLoc().End},
+		}
+	}
+	return left, nil
+}
+
+// parseAnd parses the AND layer (left-associative).
+//
+// Grammar: exprAnd (lines 474-477):
+//
+//	lhs=exprAnd AND rhs=exprNot
+//	| parent_=exprNot
+func (p *Parser) parseAnd() (ast.ExprNode, error) {
+	left, err := p.parseNot()
+	if err != nil {
+		return nil, err
+	}
+	for p.cur.Type == tokAND {
+		p.advance()
+		right, err := p.parseNot()
+		if err != nil {
+			return nil, err
+		}
+		left = &ast.BinaryExpr{
+			Op:    ast.BinOpAnd,
+			Left:  left,
+			Right: right,
+			Loc:   ast.Loc{Start: left.GetLoc().Start, End: right.GetLoc().End},
+		}
+	}
+	return left, nil
+}
+
+// parseNot parses the NOT layer (right-associative prefix).
+//
+// Grammar: exprNot (lines 479-482):
+//
+//	<assoc=right> NOT rhs=exprNot
+//	| parent_=exprPredicate
+func (p *Parser) parseNot() (ast.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+	if p.cur.Type == tokNOT {
+		start := p.cur.Loc.Start
+		p.advance()
+		operand, err := p.parseNot() // right-associative recursion
+		if err != nil {
+			return nil, err
+		}
+		return &ast.UnaryExpr{
+			Op:      ast.UnOpNot,
+			Operand: operand,
+			Loc:     ast.Loc{Start: start, End: operand.GetLoc().End},
+		}, nil
+	}
+	return p.parsePredicate()
+}
+
+// parseBagOp handles UNION/INTERSECT/EXCEPT at the top of the
+// precedence ladder. Builds left-associative SetOpStmt chains wrapped
+// in SubLink.
+//
+// Grammar: exprBagOp (lines 449-454):
+//
+//	lhs=exprBagOp OUTER? EXCEPT (DISTINCT|ALL)? rhs=exprSelect  # Except
+//	lhs=exprBagOp OUTER? UNION (DISTINCT|ALL)? rhs=exprSelect   # Union
+//	lhs=exprBagOp OUTER? INTERSECT (DISTINCT|ALL)? rhs=exprSelect # Intersect
+//	exprSelect                                                    # QueryBase
+func (p *Parser) parseBagOp() (ast.ExprNode, error) {
+	left, err := p.parseSelectExpr()
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		outer := false
+		var opKind ast.SetOpKind
+
+		// Check for OUTER prefix before the set-op keyword.
+		if p.cur.Type == tokOUTER {
+			next := p.peekNext()
+			if next.Type == tokUNION || next.Type == tokINTERSECT || next.Type == tokEXCEPT {
+				outer = true
+				p.advance() // consume OUTER
+			} else {
+				break
+			}
+		}
+
+		switch p.cur.Type {
+		case tokUNION:
+			opKind = ast.SetOpUnion
+		case tokINTERSECT:
+			opKind = ast.SetOpIntersect
+		case tokEXCEPT:
+			opKind = ast.SetOpExcept
+		default:
+			break
+		}
+		if opKind == ast.SetOpInvalid {
+			break
+		}
+		p.advance() // consume UNION/INTERSECT/EXCEPT
+
+		// Optional DISTINCT/ALL quantifier.
+		quantifier := ast.QuantifierNone
+		if p.cur.Type == tokDISTINCT {
+			quantifier = ast.QuantifierDistinct
+			p.advance()
+		} else if p.cur.Type == tokALL {
+			quantifier = ast.QuantifierAll
+			p.advance()
+		}
+
+		right, err := p.parseSelectExpr()
+		if err != nil {
+			return nil, err
+		}
+
+		// Extract StmtNode from left and right for SetOpStmt.
+		leftStmt := exprToStmt(left)
+		rightStmt := exprToStmt(right)
+
+		setOp := &ast.SetOpStmt{
+			Op:         opKind,
+			Quantifier: quantifier,
+			Outer:      outer,
+			Left:       leftStmt,
+			Right:      rightStmt,
+			Loc:        ast.Loc{Start: left.GetLoc().Start, End: right.GetLoc().End},
+		}
+		left = &ast.SubLink{
+			Stmt: setOp,
+			Loc:  setOp.Loc,
+		}
+	}
+
+	return left, nil
+}
+
+// exprToStmt extracts a StmtNode from an ExprNode. If the expression
+// is a SubLink, returns its inner Stmt. Otherwise wraps the expression
+// in a minimal SelectStmt (bare expression as query — for set-op
+// operands that are not SELECT queries but plain expressions).
+func exprToStmt(expr ast.ExprNode) ast.StmtNode {
+	if sub, ok := expr.(*ast.SubLink); ok {
+		return sub.Stmt
+	}
+	// Bare expression used as a set-op operand: wrap in a SelectStmt
+	// with just the Value field (SELECT VALUE expr semantics).
+	return &ast.SelectStmt{
+		Value: expr,
+		Loc:   expr.GetLoc(),
+	}
+}
+
+// parseSelectExpr handles the SELECT-shaped query (SfwQuery form) and
+// otherwise delegates to parseOr.
+//
+// DML statements (INSERT, UPDATE, DELETE) are also statement-level
+// constructs that cannot appear as expressions; they remain stubbed
+// for future parser-dml (DAG node 6).
+//
+// Grammar: exprSelect (lines 456-467).
+func (p *Parser) parseSelectExpr() (ast.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+	switch p.cur.Type {
+	case tokSELECT:
+		return p.parseSFWQuery()
+	case tokPIVOT:
+		// PIVOT begins a SELECT-replacement query (selectClause#SelectPivot);
+		// parseSFWQuery -> parseSelectClause consumes the PIVOT projection and
+		// the trailing FROM/LET/WHERE/... clauses, exactly like a SELECT query.
+		return p.parseSFWQuery()
+	case tokINSERT:
+		return nil, p.deferredFeature("INSERT", "parser-dml (DAG node 6)")
+	case tokUPDATE:
+		return nil, p.deferredFeature("UPDATE", "parser-dml (DAG node 6)")
+	case tokDELETE:
+		return nil, p.deferredFeature("DELETE", "parser-dml (DAG node 6)")
+	}
+	return p.parseOr()
+}

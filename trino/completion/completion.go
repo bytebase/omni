@@ -8,7 +8,7 @@
 // omni Trino parser is a hand-written recursive-descent parser that was not
 // built with c3 instrumentation (no rule-candidate collection hooks), and this
 // node may only touch trino/completion/*.go — it cannot weave collection points
-// through trino/parser. So, like omni's mongo and partiql completers, this
+// through trino/parser. So, like omni's mongo and dynamodb completers, this
 // package is self-contained: it tokenizes the input up to the caret with the
 // exported lexer, classifies the completion context from the token sequence,
 // and produces candidates from the three-level Trino catalog
