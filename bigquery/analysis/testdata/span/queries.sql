@@ -278,6 +278,49 @@ FROM `events_*` |> SELECT Kind
 FROM Customers |> SELECT * EXCEPT (Email)
 FROM Customers |> AGGREGATE COUNT(*) GROUP BY Region
 FROM Customers |> CALL OrdersOf(1)
+FROM Customers c |> SET Name = Email |> SELECT c.Name, Name
+FROM Customers c |> DROP Email |> SELECT c.Email, *
+FROM Customers c |> RENAME Name AS n |> SELECT c.Name, n
+FROM Customers c |> EXTEND UPPER(Name) AS u |> SELECT c.Email, u
+FROM Customers c |> WHERE Region = 'eu' |> SELECT c.*
+FROM Customers |> SELECT Customers.Name
+FROM Customers, Targets |> SELECT Customers.Name, Targets.Goal
+FROM Customers |> SET Name = Email, Email = Name
+FROM Customers |> EXTEND Email AS Contact |> DROP Email |> RENAME Contact AS Email
+FROM Customers |> DROP email, region
+FROM MixedCase |> RENAME camelcol AS Renamed
+FROM Customers |> SET Name = Email |> AS c |> SELECT c.Name
+FROM Customers |> JOIN Orders USING (CustomerId)
+FROM Customers c |> JOIN Orders o ON c.CustomerId = o.CustomerId
+FROM Customers c |> JOIN Orders o USING (CustomerId) |> SELECT c.CustomerId, o.CustomerId, CustomerId
+FROM Customers |> AS c |> JOIN Orders AS o ON c.CustomerId = o.CustomerId |> SELECT c.Name, o.OrderId
+FROM Orders o |> CROSS JOIN UNNEST(o.Items) AS item WITH OFFSET |> SELECT item, offset
+FROM Products |> JOIN UNNEST(Tags) AS tag |> SELECT Name, tag.k
+FROM Orders |> AGGREGATE SUM(Amount) AS total, COUNT(*) GROUP BY ROLLUP(CustomerId, Status)
+FROM Orders |> AGGREGATE COUNT(*) GROUP BY GROUPING SETS ((Status), (Status, CustomerId))
+FROM Orders |> AGGREGATE MAX(Amount) AS top GROUP AND ORDER BY Status DESC, CustomerId
+FROM Orders |> AGGREGATE SUM(Amount) AS total GROUP BY CustomerId AS cid |> JOIN Customers ON cid = Customers.CustomerId |> SELECT Name, total
+FROM Orders |> EXTEND Ship.City AS city |> AGGREGATE COUNT(*) AS n GROUP BY city
+FROM Customers |> AGGREGATE COUNT(DISTINCT Region) AS regions
+FROM Customers |> SELECT Name, Region |> UNION ALL BY NAME (SELECT Region, Name FROM Customers)
+FROM Customers |> SELECT Name |> UNION DISTINCT (SELECT Name FROM Products), (SELECT Name FROM Employees)
+FROM Customers |> SELECT CustomerId |> INTERSECT DISTINCT (SELECT CustomerId FROM Orders)
+FROM Customers |> SELECT * |> SELECT Name
+FROM Customers |> SELECT * REPLACE (Email AS Name) |> SELECT Name
+FROM Customers |> SELECT * EXCEPT (Email) |> EXTEND 1 AS one
+FROM Customers |> EXTEND Name AS Name2 |> SELECT * EXCEPT (Name)
+SELECT * FROM Customers |> DROP Email |> SET Name = LOWER(Name)
+SELECT c.Name, o.Amount FROM Customers c JOIN Orders o USING (CustomerId) |> EXTEND Amount * 2 AS twice
+WITH big AS (FROM Orders |> WHERE Amount > 10 |> SELECT CustomerId, Amount) SELECT c.Name, big.Amount FROM big JOIN Customers c USING (CustomerId)
+SELECT * FROM (FROM Customers |> RENAME Email AS mail |> DROP Name)
+FROM Customers |> EXTEND (SELECT MAX(Amount) FROM Orders o WHERE o.CustomerId = Customers.CustomerId) AS top
+FROM CustomerOrders |> RENAME Amount AS total
+FROM Customers |> SELECT Name |> UNION ALL (SELECT Name FROM Products) |> SELECT Name
+SELECT c.Name FROM (FROM Customers AS c)
+(FROM Customers AS c |> WHERE Region = 'eu') |> SELECT c.Email
+(FROM Customers |> AS c) |> SELECT c.Name
+FROM (FROM Customers AS c |> SET Name = Email) |> SELECT c.Name, Name
+SELECT c.Name FROM (FROM Customers AS c) AS s
 
 -- INFORMATION_SCHEMA and other datasets.
 SELECT table_name FROM omni_span.INFORMATION_SCHEMA.TABLES
