@@ -34,9 +34,12 @@ func TestWalkSimulation(t *testing.T) {
 		// STORAGE_FORMAT_VERSION (4179), DYNAMIC_PARTITION_POLICY,
 		// repartitioning or REORGANIZE PARTITION of a partitioned table, or
 		// a vector ORDER BY ... APPROX (1235).
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 3599},
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 4660},
 		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 280},
-		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 4069},
+		// Nor a function of another database (1305), ORDER BY ... APPROX
+		// (1235, 1054), a window frame that starts FOLLOWING (1149), or a
+		// view of a DML statement, which omni's parser refuses first (1064).
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 4121},
 		// A sequence is not synced, so the walk finds only what OceanBase
 		// refuses of the statement itself, never a sequence that exists or not
 		// (4297, 4298), a database that does not (1049), or what ALTER SEQUENCE

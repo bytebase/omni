@@ -422,6 +422,27 @@ func TestWalkThroughOceanBaseRecallFamilies(t *testing.T) {
 	})
 }
 
+// TestWalkThroughOceanBasePartitionNames pins DROP and TRUNCATE PARTITION
+// of a partition a synced table doesn't have (1507, oceanbase/catalog's
+// objects@partitioned fixture), and a column's unknown character set (1115).
+func TestWalkThroughOceanBasePartitionNames(t *testing.T) {
+	db := oceanBaseSchema()
+	db.Schemas[0].Tables = append(db.Schemas[0].Tables,
+		&metadata.TableMetadata{Name: "pt", Columns: columns("a"), Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Expression: "`a`"}, {Name: "p1", Expression: "`a`"}}},
+		&metadata.TableMetadata{Name: "spt", Columns: columns("a"), Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Expression: "`a`", Subpartitions: []*metadata.TablePartitionMetadata{{Name: "s0"}}}}},
+	)
+	target := review.Target{Schema: db, LowerCaseTableNames: 1}
+	oneFindingOB(t, "ALTER TABLE pt DROP PARTITION p0 zzz;", 0, "Partition `zzz` doesn't exist in `pt`.", target)
+	oneFindingOB(t, "ALTER TABLE pt TRUNCATE PARTITION p0 zzz;", 0, "Partition `zzz` doesn't exist in `pt`.", target)
+	noFindingOB(t, "ALTER TABLE pt TRUNCATE PARTITION p0, P1;", target)
+	noFindingOB(t, "ALTER TABLE pt TRUNCATE PARTITION ALL;", target)
+	// A subpartition's name is not in the facts.
+	noFindingOB(t, "ALTER TABLE spt TRUNCATE PARTITION s0;", target)
+	oneFindingOB(t, "ALTER TABLE pt ADD COLUMN b VARCHAR(1) CHARSET nosuch;", 0, "OceanBase has no character set `nosuch`.", target)
+	oneFindingOB(t, "CREATE TABLE x (b TEXT CHARACTER SET nosuch);", 0, "OceanBase has no character set `nosuch`.", target)
+	noFindingOB(t, "ALTER TABLE pt ADD COLUMN b VARCHAR(1) CHARSET gbk, ADD COLUMN c CHAR(1) CHARACTER SET binary;", target)
+}
+
 // TestWalkThroughOceanBaseQueries pins what the walk finds in the query of a
 // view or of CREATE TABLE ... AS: each refusal was answered by OceanBase in
 // oceanbase/catalog/testdata/queries/simulate.tsv.
