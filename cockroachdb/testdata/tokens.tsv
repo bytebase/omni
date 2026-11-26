@@ -738,6 +738,18 @@ opt_without_index	(every site)	sql.y:11188 WITHOUT INDEX
 opt_asymmetric	(every site)	sql.y:17457 ASYMMETRIC
 join_outer	(every site)	sql.y:14889 OUTER
 opt_immediate	(every site)	sql.y:6660 IMMEDIATE
+opt_with_storage_parameter_list	(every site)	sql.y:10714 WITH (storage parameters)
+opt_where_clause	(every site)	sql.y:15056 WHERE
+opt_as_of_clause	(every site)	sql.y:14863 AS OF SYSTEM TIME
+opt_hash_sharded	(every site)	sql.y:11515 USING HASH [WITH BUCKET_COUNT = n]
+opt_primary_region_clause	(every site)	sql.y:13309 PRIMARY REGION
+opt_secondary_region_clause	(every site)	sql.y:13321 SECONDARY REGION
+opt_regions_list	(every site)	sql.y:13363 REGION or REGIONS list
+opt_super_region_clause	(every site)	sql.y:13333 SUPER REGION
+opt_owner_clause	(every site)	sql.y:13457 OWNER
+opt_in_database	(every site)	sql.y:11814 IN DATABASE
+opt_alias_clause	(every site)	sql.y:14833 [AS] alias
+opt_collate	(every site)	sql.y:12434 COLLATE
 
 # Keyword choices written out in each form at every site that names them
 # (enginetest/grammar EveryAlternative), cited to sql.y at v25.2.3.
@@ -778,3 +790,16 @@ opt_policy_type	(every alternative)	sql.y:5146 AS PERMISSIVE or AS RESTRICTIVE
 opt_policy_command	(every alternative)	sql.y:5160 FOR ALL, SELECT, INSERT, UPDATE or DELETE
 opt_add_val_placement	(every alternative)	sql.y:3285 BEFORE or AFTER
 placement_clause	(every alternative)	sql.y:13353 PLACEMENT RESTRICTED or DEFAULT
+storing	(every alternative)	sql.y:11491 COVERING, STORING or INCLUDE
+opt_storing	(every alternative)	sql.y:11505 a storing keyword and its column list
+opt_with_options	(every alternative)	sql.y:4258 WITH options or WITH OPTIONS (options)
+set_zone_config	(every alternative)	sql.y:2656 CONFIGURE ZONE = or TO, USING, USING DEFAULT or DISCARD
+opt_create_table_on_commit	(every alternative)	sql.y:10723 ON COMMIT PRESERVE ROWS, DELETE ROWS or DROP
+locality	(every alternative)	sql.y:12538 LOCALITY GLOBAL or REGIONAL forms
+opt_locality	(every alternative)	sql.y:10680 a LOCALITY clause
+partition_by_inner	(every alternative)	sql.y:10972 LIST, RANGE or NOTHING
+partition_by	(every alternative)	sql.y:10966 PARTITION BY a partitioning
+opt_partition_by	(every alternative)	sql.y:10917 a PARTITION BY clause
+survival_goal_clause	(every alternative)	sql.y:13380 SURVIVE ZONE, REGION or AVAILABILITY ZONE FAILURE
+opt_survival_goal_clause	(every alternative)	sql.y:13396 a SURVIVE clause
+region_or_regions	(every alternative)	sql.y:13373 REGION or REGIONS
