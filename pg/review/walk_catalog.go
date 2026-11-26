@@ -180,25 +180,31 @@ func setsOwnSettings(node ast.Node) bool {
 }
 
 // curable reports whether an object the sync does not list could cure the
-// refusal of node, run on path: a user routine named as a built-in
-// aggregate or window function; a cast, for a coercion the catalog finds
-// none for (a RETURN that does not fit its routine's kind needs no cast); or, for a
-// missing function, anything but a routine node names by its signature,
-// which the sync lists unless it may have lost routines. An operator, a
-// call in an expression (an aggregate, or a domain's function-style cast)
-// or in a body, and an aggregate that DROP ROUTINE or renaming a function
-// or routine finds by its signature may be what the sync leaves out.
+// refusal of node, run on path. A DO block or a called procedure runs
+// statements whose names the walk cannot check against the sync, under a
+// search path of their own, so only RAISE EXCEPTION, a DO block's syntax,
+// which PL/pgSQL compiles before it runs, and a refusal that names the
+// procedure a CALL calls hold. Otherwise: a user routine named as a
+// built-in aggregate or window function, found first where the path puts
+// pg_catalog after its schema; a cast, for a coercion the catalog finds
+// none for (a RETURN that does not fit its routine's kind needs no cast);
+// or, for a missing function, anything but a routine node names by its
+// signature, which the sync lists unless it may have lost routines: an
+// operator, a call in an expression (an aggregate, or a domain's
+// function-style cast) or in a body, a CALL's argument an implicit cast
+// may carry, and an aggregate that DROP ROUTINE or renaming a function or
+// routine finds by its signature.
 func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []string) bool {
-	switch err.Code {
-	case "42803", "42P20":
-		// The aggregate or window function may be a user's routine of a
-		// built-in's name, which the sync leaves out, where the search path
-		// puts pg_catalog after its schema, or where a DO block or a called
-		// procedure runs the statement under a path of its own.
-		switch node.(type) {
-		case *ast.DoStmt, *ast.CallStmt:
+	switch node.(type) {
+	case *ast.DoStmt:
+		return err.Code != "P0001" && err.Code != "42601"
+	case *ast.CallStmt:
+		if err.Code != "P0001" && !namesAny(err.Message, signatureNames(node)) {
 			return true
 		}
+	}
+	switch err.Code {
+	case "42803", "42P20":
 		return slices.Index(path, "pg_catalog") > 0
 	case "42846":
 		return true
@@ -216,21 +222,24 @@ func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []strin
 			if ast.ObjectType(v.RemoveType) == ast.OBJECT_ROUTINE {
 				return true
 			}
-		}
-		if snap == nil || snap.lostRoutines {
-			return true
-		}
-		if v, ok := node.(*ast.CallStmt); ok && v.Funccall != nil && !untypedArgs(v.Funccall.Args) {
-			// An implicit cast the sync does not list may let an argument
-			// of a known type reach the procedure.
-			return true
-		}
-		for _, name := range signatureNames(node) {
-			if strings.Contains(err.Message, name+"(") || strings.Contains(err.Message, `"`+name+`"`) {
-				return false
+		case *ast.CallStmt:
+			if v.Funccall != nil && !untypedArgs(v.Funccall.Args) {
+				// An implicit cast the sync does not list may let an
+				// argument of a known type reach the procedure.
+				return true
 			}
 		}
-		return true
+		return snap == nil || snap.lostRoutines || !namesAny(err.Message, signatureNames(node))
+	}
+	return false
+}
+
+// namesAny reports whether a refusal's message names one of the routines.
+func namesAny(message string, names []string) bool {
+	for _, name := range names {
+		if strings.Contains(message, name+"(") || strings.Contains(message, `"`+name+`"`) {
+			return true
+		}
 	}
 	return false
 }

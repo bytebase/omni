@@ -62,6 +62,10 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		// A user's sum may stand before pg_catalog's, as a DO block may set.
 		"DO $$ BEGIN SET search_path = public, pg_catalog; ALTER TABLE t ALTER n TYPE integer USING sum(n); END $$;",
 		"SET search_path = public, pg_catalog;\nALTER TABLE t ALTER n TYPE json USING JSON_ARRAYAGG(n);",
+		// A DO block may call a routine the sync leaves out.
+		"DO $$ BEGIN CREATE VIEW v AS SELECT n FROM now(); END $$;",
+		"CREATE FUNCTION g() RETURNS int LANGUAGE sql AS 'SELECT n FROM now()';",
+		"CREATE FUNCTION g() RETURNS int LANGUAGE plpgsql AS $$ BEGIN CALL now(); RETURN 1; END $$;",
 		// DROP ROUTINE also drops an aggregate, which the sync does not list.
 		"DROP ROUTINE nope_agg(int);",
 		// A call may be a function-style cast to a domain the sync does not list.
