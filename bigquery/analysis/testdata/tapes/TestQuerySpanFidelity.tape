@@ -818,6 +818,18 @@
 < raw
 | {"columns":["x"],"tables":["omni_span.Orders"]}
 > raw
+| {"op":"query","sql":"SELECT * FROM omni_span.OrdersOf(1)"}
+< raw
+| {"columns":["OrderId","Amount"],"tables":["omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"FROM (SELECT * FROM omni_span.OrdersOf(1)) AS a |\u003e SELECT TO_JSON_STRING(a) AS j"}
+< raw
+| {"columns":["j"],"tables":["omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"SELECT TO_JSON_STRING(t) FROM omni_span.INFORMATION_SCHEMA.TABLES AS t"}
+< raw
+| {"columns":["f0_"],"tables":["omni_span.INFORMATION_SCHEMA.TABLES"]}
+> raw
 | {"op":"query","sql":"SELECT ANY_VALUE(Ship).City FROM Orders"}
 < raw
 | {"columns":["City"],"tables":["omni_span.Orders"]}

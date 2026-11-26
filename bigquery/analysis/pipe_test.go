@@ -154,6 +154,13 @@ func TestGetQuerySpanPipe(t *testing.T) {
 			"SELECT 0 AS p |> SELECT ARRAY(SELECT secret FROM t) AS s",
 			"SELECT x FROM t |> SET x = (SELECT MAX(secret) FROM t)",
 			"SELECT x FROM t |> AGGREGATE COUNT(*) GROUP BY (SELECT 1)",
+			// BigQuery takes ROLLUP, CUBE and GROUPING SETS only alone.
+			"SELECT x, y, secret FROM t |> AGGREGATE COUNT(*) GROUP BY ROLLUP(x, y), ROLLUP(x, secret)",
+			"SELECT x, secret FROM t |> AGGREGATE COUNT(*) GROUP BY x, CUBE(x, secret)",
+			// A star over a table function adds no columns.
+			"SELECT * FROM tvf()",
+			"SELECT x, * FROM t, tvf()",
+			"FROM (SELECT * FROM tvf()) AS a |> SELECT TO_JSON_STRING(a) AS j",
 		} {
 			if _, err := GetQuerySpan(sql); err == nil {
 				t.Errorf("GetQuerySpan(%q) returned a span; want fail closed", sql)
@@ -266,6 +273,8 @@ func TestResolveQuerySpanRangeVariableLineage(t *testing.T) {
 		{"FROM t |> SELECT x AS a |> SELECT a", [][]string{{"a", "t.x"}}},
 		{"FROM t |> AS a |> SELECT a", [][]string{append([]string{"a"}, all...)}},
 		{"FROM t |> AS a |> SELECT TO_JSON_STRING(a) AS j", [][]string{append([]string{"j"}, all...)}},
+		// A system table's columns add no lineage: system tables are not masked.
+		{"SELECT TO_JSON_STRING(a) AS j FROM ds1.INFORMATION_SCHEMA.TABLES AS a", [][]string{{"j"}}},
 		{"FROM (SELECT x, secret FROM t) AS a |> EXTEND TO_JSON_STRING(a) AS j", [][]string{{"x", "t.x"}, {"secret", "t.secret"}, {"j", "t.secret", "t.x"}}},
 	}
 	for _, tc := range tests {

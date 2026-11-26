@@ -342,9 +342,9 @@ omni_span.BigOrders	omni_span.BigOrders, omni_span.CustomerOrders, omni_span.Cus
 Name	Name	engine	shop	omni_span	results	WITH v AS (SELECT * FROM CustomerOrders) SELECT Name FROM v
 omni_span.CustomerOrders.Name	~	engine	shop	omni_span	lineage	WITH v AS (SELECT * FROM CustomerOrders) SELECT Name FROM v
 omni_span.CustomerOrders	omni_span.CustomerOrders, omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	WITH v AS (SELECT * FROM CustomerOrders) SELECT Name FROM v
--	error:invalidQuery	engine	shop	omni_span	results	SELECT * FROM OrdersOf(1)
--	error:invalidQuery	engine	shop	omni_span	lineage	SELECT * FROM OrdersOf(1)
--	error:invalidQuery	engine	shop	omni_span	tables	SELECT * FROM OrdersOf(1)
+error:omni	error:invalidQuery	engine	shop	omni_span	results	SELECT * FROM OrdersOf(1)
+error:omni	error:invalidQuery	engine	shop	omni_span	lineage	SELECT * FROM OrdersOf(1)
+error:omni	error:invalidQuery	engine	shop	omni_span	tables	SELECT * FROM OrdersOf(1)
 OrderId	OrderId	engine	shop	omni_span	results	SELECT OrderId FROM omni_span.OrdersOf(2)
 -	~	engine	shop	omni_span	lineage	SELECT OrderId FROM omni_span.OrdersOf(2)
 -	omni_span.Orders	engine	shop	omni_span	tables	SELECT OrderId FROM omni_span.OrdersOf(2)
@@ -609,6 +609,15 @@ omni_span.CustomerOrders	omni_span.CustomerOrders, omni_span.Customers, omni_spa
 error:omni	x	engine	shop	omni_span	results	SELECT x FROM omni_span.OrdersOf(1) AS x
 error:omni	~	engine	shop	omni_span	lineage	SELECT x FROM omni_span.OrdersOf(1) AS x
 error:omni	omni_span.Orders	engine	shop	omni_span	tables	SELECT x FROM omni_span.OrdersOf(1) AS x
+error:omni	OrderId, Amount	engine	shop	omni_span	results	SELECT * FROM omni_span.OrdersOf(1)
+error:omni	~ | ~	engine	shop	omni_span	lineage	SELECT * FROM omni_span.OrdersOf(1)
+error:omni	omni_span.Orders	engine	shop	omni_span	tables	SELECT * FROM omni_span.OrdersOf(1)
+error:omni	j	engine	shop	omni_span	results	FROM (SELECT * FROM omni_span.OrdersOf(1)) AS a |> SELECT TO_JSON_STRING(a) AS j
+error:omni	~	engine	shop	omni_span	lineage	FROM (SELECT * FROM omni_span.OrdersOf(1)) AS a |> SELECT TO_JSON_STRING(a) AS j
+error:omni	omni_span.Orders	engine	shop	omni_span	tables	FROM (SELECT * FROM omni_span.OrdersOf(1)) AS a |> SELECT TO_JSON_STRING(a) AS j
+f0_	f0_	engine	shop	omni_span	results	SELECT TO_JSON_STRING(t) FROM omni_span.INFORMATION_SCHEMA.TABLES AS t
+-	~	engine	shop	omni_span	lineage	SELECT TO_JSON_STRING(t) FROM omni_span.INFORMATION_SCHEMA.TABLES AS t
+omni_span.INFORMATION_SCHEMA.TABLES	omni_span.INFORMATION_SCHEMA.TABLES	engine	shop	omni_span	tables	SELECT TO_JSON_STRING(t) FROM omni_span.INFORMATION_SCHEMA.TABLES AS t
 City	City	engine	shop	omni_span	results	SELECT ANY_VALUE(Ship).City FROM Orders
 omni_span.Orders.Ship	~	engine	shop	omni_span	lineage	SELECT ANY_VALUE(Ship).City FROM Orders
 omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT ANY_VALUE(Ship).City FROM Orders

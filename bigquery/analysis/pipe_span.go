@@ -278,6 +278,12 @@ func (w *spanWalker) pipeAggregate(sel *ast.SelectStmt) *pipeTable {
 				cols = append(cols, projColumn{name: name, sources: sources})
 			case ast.GroupingEmpty:
 			case ast.GroupingRollup, ast.GroupingCube, ast.GroupingSets:
+				// BigQuery takes ROLLUP, CUBE and GROUPING SETS only as the one
+				// grouping element ("only supports ROLLUP when there are no other
+				// grouping elements"), so their columns never repeat another's.
+				if len(sel.GroupBy.Items) > 1 {
+					return w.pipeFailClosed("a pipe AGGREGATE with ROLLUP, CUBE or GROUPING SETS beside other grouping elements")
+				}
 				seen := map[string]bool{}
 				for _, e := range gi.Items {
 					parts := exprToParts(e)

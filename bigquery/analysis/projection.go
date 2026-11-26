@@ -174,7 +174,13 @@ func (w *spanWalker) resolveSelectProjection(stmt *ast.SelectStmt, fromRels []*r
 		}
 		switch {
 		case item.Star && item.Expr == nil:
-			// Bare `*`: every comma-item relation's columns, in order.
+			// Bare `*`: every comma-item relation's columns, in order. A FROM
+			// source with no known projection (a table function) would add
+			// none, leaving the masker short of its columns, so fail closed.
+			if w.fromUnresolved {
+				w.failClosed(fmt.Errorf("a star over a FROM source whose columns are unknown (fail closed)"))
+				return nil
+			}
 			out = append(out, w.starProjColumns(allColumns(fromRels), item.Modifiers)...)
 		case item.Star && item.Expr != nil:
 			// `expr.*`: the named relation's columns (or a field-path star).
@@ -365,9 +371,18 @@ func (w *spanWalker) resolvePath(parts []string) (string, []ColumnRef) {
 // rangeVariableSources is the lineage of a range variable used as a value:
 // every column of its relation, a base table's listed from metadata. It fails
 // closed when the columns cannot be listed, since an empty lineage would leave
-// the row unmasked.
+// the row unmasked. A system table (INFORMATION_SCHEMA) adds none: metadata
+// does not list its columns, and the consumer masks no system table and
+// rejects a query that mixes one with a user table.
 func (w *spanWalker) rangeVariableSources(rel *relation) []ColumnRef {
-	cols, ok := w.pipeConcrete(rel.columns)
+	user := make([]projColumn, 0, len(rel.columns))
+	for _, c := range rel.columns {
+		if c.baseStar != nil && isSystemSchemaName(c.baseStar.Schema) {
+			continue
+		}
+		user = append(user, c)
+	}
+	cols, ok := w.pipeConcrete(user)
 	if !ok {
 		w.failClosed(fmt.Errorf("range variable %s over a relation whose columns cannot be listed (fail closed)", rel.name))
 		return nil

@@ -68,7 +68,8 @@ that hold the text.
   its columns and no definition.
 - Table functions: BigQuery reports the tables a table function reads. The
   sync stores no routines, so omni lists none of them, and fails closed on a
-  table function's range variable used as a value (`SELECT x FROM f() AS x`).
+  star over a table function and on its range variable used as a value
+  (`SELECT x FROM f() AS x`), whose columns it cannot list.
 - Pipe syntax: omni fails closed on `PIVOT`, `UNPIVOT`, `CALL`,
   `MATCH_RECOGNIZE` and a recursive union, and on any operator that changes
   the projection of an input it cannot list column by column (a wildcard

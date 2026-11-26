@@ -240,6 +240,9 @@ SELECT r FROM (SELECT c AS r FROM Customers c)
 WITH big AS (SELECT CustomerId, Amount FROM Orders) SELECT big FROM big
 SELECT v FROM CustomerOrders AS v
 SELECT x FROM omni_span.OrdersOf(1) AS x
+SELECT * FROM omni_span.OrdersOf(1)
+FROM (SELECT * FROM omni_span.OrdersOf(1)) AS a |> SELECT TO_JSON_STRING(a) AS j
+SELECT TO_JSON_STRING(t) FROM omni_span.INFORMATION_SCHEMA.TABLES AS t
 SELECT ANY_VALUE(Ship).City FROM Orders
 
 -- PIVOT and UNPIVOT.
