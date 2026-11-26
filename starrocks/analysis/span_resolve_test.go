@@ -230,3 +230,62 @@ func TestResolveQuerySpanExplain(t *testing.T) {
 		t.Errorf("EXPLAIN of a missing column: %v, NotFoundError %v; want one", err, span.NotFoundError)
 	}
 }
+
+// A PIVOT keeps the FROM columns it does not use and adds one column per
+// IN value and aggregate, which reads the aggregate's arguments and the FOR
+// columns, inside a subquery too.
+func TestResolveQuerySpanPivot(t *testing.T) {
+	amount := ColumnResource{Database: "shop", Table: "orders", Column: "amount"}
+	customer := ColumnResource{Database: "shop", Table: "orders", Column: "customer_id"}
+	id := ColumnResource{Database: "shop", Table: "orders", Column: "id"}
+	for _, tc := range []struct {
+		statement string
+		want      []string
+		reads     map[string][]ColumnResource
+	}{
+		{
+			"SELECT * FROM orders PIVOT (SUM(amount) FOR customer_id IN (1, 'x' AS two))",
+			[]string{"id", "1", "two"},
+			map[string][]ColumnResource{"id": {id}, "1": {amount, customer}, "two": {amount, customer}},
+		},
+		{
+			"SELECT * FROM orders PIVOT (SUM(amount), count(*) AS n FOR (customer_id, id) IN ((1, 2), ('a', 3) AS b))",
+			[]string{"{1,2}_sum(shop.orders.amount)", "{1,2}_n", "b_sum(shop.orders.amount)", "b_n"},
+			map[string][]ColumnResource{"{1,2}_n": {customer, id}, "b_sum(shop.orders.amount)": {amount, customer, id}},
+		},
+		{
+			"SELECT * FROM orders PIVOT (sum(amount + 1) AS s FOR customer_id IN (1))",
+			[]string{"id", "amount", "1"},
+			map[string][]ColumnResource{"amount": {amount}, "1": {amount, customer}},
+		},
+		{
+			"SELECT p.c FROM (SELECT customer_id AS c FROM orders PIVOT (sum(amount) FOR id IN (1))) p",
+			[]string{"c"},
+			map[string][]ColumnResource{"c": {customer}},
+		},
+	} {
+		span, err := resolveWithCatalog(t, tc.statement)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.statement, err)
+		}
+		if span.NotFoundError != nil {
+			t.Fatalf("%s: NotFoundError %v", tc.statement, span.NotFoundError)
+		}
+		var names []string
+		for _, r := range span.Results {
+			names = append(names, r.Name)
+			if want, ok := tc.reads[r.Name]; ok && len(r.SourceColumns) != len(want) {
+				t.Errorf("%s: %s reads %v, want %v", tc.statement, r.Name, r.SourceColumns, want)
+			} else if ok {
+				for _, c := range want {
+					if !r.SourceColumns[c] {
+						t.Errorf("%s: %s reads %v, want %v", tc.statement, r.Name, r.SourceColumns, want)
+					}
+				}
+			}
+		}
+		if !slices.Equal(names, tc.want) {
+			t.Errorf("%s: results %v, want %v", tc.statement, names, tc.want)
+		}
+	}
+}

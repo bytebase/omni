@@ -2816,6 +2816,22 @@ func writeGroupConcatAlias(b *strings.Builder, n *ast.FuncCallExpr) {
 		b.WriteString("','")
 	}
 
+	if l := n.Limit; l != nil {
+		b.WriteString(" LIMIT ")
+		switch {
+		case l.Offset == nil:
+			writeExprAlias(b, l.Count)
+		case l.OffsetKeyword:
+			writeExprAlias(b, l.Count)
+			b.WriteString(" OFFSET ")
+			writeExprAlias(b, l.Offset)
+		default:
+			writeExprAlias(b, l.Offset)
+			b.WriteString(", ")
+			writeExprAlias(b, l.Count)
+		}
+	}
+
 	b.WriteString(")")
 	if n.Over != nil {
 		b.WriteString(" ")
@@ -2863,6 +2879,11 @@ func writeGroupConcat(b *strings.Builder, n *ast.FuncCallExpr) {
 		writeExpr(b, n.Separator)
 	} else {
 		b.WriteString("','")
+	}
+
+	// LIMIT, as Item_func_group_concat::print writes it: ` limit offset,count`.
+	if n.Limit != nil {
+		writeLimit(b, n.Limit)
 	}
 
 	b.WriteString(")")

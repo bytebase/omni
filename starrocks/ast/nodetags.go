@@ -682,6 +682,15 @@ const (
 
 	// T_RowExpr is the tag for *RowExpr ((a, b)).
 	T_RowExpr
+
+	// T_PivotClause is the tag for *PivotClause (FROM ... PIVOT (...)).
+	T_PivotClause
+
+	// T_PivotAggregation is the tag for *PivotAggregation.
+	T_PivotAggregation
+
+	// T_PivotValue is the tag for *PivotValue.
+	T_PivotValue
 )
 
 // String returns a human-readable representation of the tag.
@@ -1103,6 +1112,12 @@ func (t NodeTag) String() string {
 		return "ExecuteAsStmt"
 	case T_BlacklistStmt:
 		return "BlacklistStmt"
+	case T_PivotClause:
+		return "PivotClause"
+	case T_PivotAggregation:
+		return "PivotAggregation"
+	case T_PivotValue:
+		return "PivotValue"
 	default:
 		return "Unknown"
 	}

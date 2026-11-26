@@ -211,6 +211,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, item)
 		}
 		walkNodes(v, n.From)
+		if n.Pivot != nil {
+			Walk(v, n.Pivot)
+		}
 		if n.Where != nil {
 			Walk(v, n.Where)
 		}
@@ -233,6 +236,19 @@ func walkChildren(v Visitor, node Node) {
 		if n.Into != nil {
 			Walk(v, n.Into)
 		}
+	case *PivotClause:
+		for _, agg := range n.Aggregations {
+			Walk(v, agg)
+		}
+		for _, val := range n.Values {
+			Walk(v, val)
+		}
+	case *PivotAggregation:
+		if n.Func != nil {
+			Walk(v, n.Func)
+		}
+	case *PivotValue:
+		walkNodes(v, n.Exprs)
 	case *SelectItem:
 		if n.Expr != nil {
 			Walk(v, n.Expr)

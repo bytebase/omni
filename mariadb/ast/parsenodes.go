@@ -907,6 +907,8 @@ type FuncCallExpr struct {
 	Over          *WindowDef // OVER clause for window functions
 	Separator     ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
 	Using         string     // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
+	// Limit is GROUP_CONCAT's LIMIT clause (glimit_clause), nil when none.
+	Limit *Limit
 	// WEIGHT_STRING(expr AS CHAR(n)) / AS BINARY(n): the AS clause of
 	// weight_string's own grammar. WeightAs is "" when no AS clause is
 	// written, else "CHAR" or "BINARY"; WeightAsLen holds its length (n).
