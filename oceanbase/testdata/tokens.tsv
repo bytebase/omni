@@ -32,6 +32,39 @@ opt_ignore	(every site)	sql_parser_mysql_mode.y:11198 IGNORE
 opt_set	(every site)	sql_parser_mysql_mode.y:20108 SET
 opt_work	(every site)	sql_parser_mysql_mode.y:17756 WORK
 
+opt_comment	(every site)	sql_parser_mysql_mode.y:22910 COMMENT and a string
+opt_host_name	(every site)	sql_parser_mysql_mode.y:17151 @host after a user name
+opt_partitions	(every site)	sql_parser_mysql_mode.y:9141 PARTITIONS n
+opt_subpartitions	(every site)	sql_parser_mysql_mode.y:9152 SUBPARTITIONS n
+relation_sep_option	(every site)	sql_parser_mysql_mode.y:15020 a comma between names
+opt_engine_option	(every site)	sql_parser_mysql_mode.y:9019 ENGINE = INNODB
+opt_copy_id	(every site)	sql_parser_mysql_mode.y:22315 COPY n
+opt_encrypt_key	(every site)	sql_parser_mysql_mode.y:24142 ENCRYPTED BY a string
+opt_ignore_unknown_user	(every site)	sql_parser_mysql_mode.y:18498 IGNORE UNKNOWN USER
+opt_order_by	(every site)	sql_parser_mysql_mode.y:13625 ORDER BY
+opt_where	(every site)	sql_parser_mysql_mode.y:11895 WHERE
+opt_collation	(every site)	sql_parser_mysql_mode.y:7517 COLLATE
+opt_match_option	(every site)	sql_parser_mysql_mode.y:6117 MATCH after REFERENCES
+opt_string_length_i	(every site)	sql_parser_mysql_mode.y:7369 a string type's length
+opt_string_length_i_v2	(every site)	sql_parser_mysql_mode.y:7374 a string type's length
+opt_storage	(every site)	sql_parser_mysql_mode.y:16494 STORAGE
+opt_outer	(every site)	sql_parser_mysql_mode.y:15338 OUTER
+opt_into	(every site)	sql_parser_mysql_mode.y:11189 INTO
+opt_with_star	(every site)	sql_parser_mysql_mode.y:14917 .* after a name
+opt_separator	(every site)	sql_parser_mysql_mode.y:3975 SEPARATOR and a string
+opt_low_priority	(every site)	sql_parser_mysql_mode.y:11226 LOW_PRIORITY
+opt_status	(every site)	sql_parser_mysql_mode.y:16489 STATUS
+opt_table	(every site)	sql_parser_mysql_mode.y:9707 TABLE
+opt_cluster	(every site)	sql_parser_mysql_mode.y:17742 CLUSTER and a string
+opt_privilege	(every site)	sql_parser_mysql_mode.y:18356 PRIVILEGES
+opt_primary	(every site)	sql_parser_mysql_mode.y:7725 PRIMARY
+opt_integer	(every site)	sql_parser_mysql_mode.y:6648 INTEGER
+opt_datetime_fsp_i	(every site)	sql_parser_mysql_mode.y:7312 a fractional seconds precision
+opt_ascii	(every site)	sql_parser_mysql_mode.y:25327 ASCII
+opt_truncate_clause	(every site)	sql_parser_mysql_mode.y:25312 TRUNCATE
+grant_options	(every site)	sql_parser_mysql_mode.y:18431 WITH GRANT OPTION
+opt_dblink	(every site)	sql_parser_mysql_mode.y:14984 @dblink after a name
+flush_scope	(every site)	sql_parser_mysql_mode.y:21830 GLOBAL
 # Keyword choices tried in each of their forms at every site that names
 # them, and not only where the rule's own alternatives are reached (see
 # grammar.EveryAlternative).
@@ -81,6 +114,37 @@ check_table_option	(every alternative)	sql_parser_mysql_mode.y:16418 a CHECK TAB
 opt_sql_security	(every alternative)	sql_parser_mysql_mode.y:10150 SQL SECURITY DEFINER or INVOKER
 suspend_or_resume	(every alternative)	sql_parser_mysql_mode.y:22551 SUSPEND or RESUME
 
+collation_name	(every alternative)	sql_parser_mysql_mode.y:7399 a name or a string
+number_literal	(every alternative)	sql_parser_mysql_mode.y:1403 an integer or a decimal
+int_or_decimal	(every alternative)	sql_parser_mysql_mode.y:9163 an integer or a decimal
+simple_num	(every alternative)	sql_parser_mysql_mode.y:17615 a signed integer or decimal
+file_size_const	(every alternative)	sql_parser_mysql_mode.y:12093 an integer or a string
+opt_number_precision	(every alternative)	sql_parser_mysql_mode.y:7269 (m, d) or (m)
+opt_time_func_fsp_i	(every alternative)	sql_parser_mysql_mode.y:3881 (n) or ()
+opt_index_prefix	(every alternative)	sql_parser_mysql_mode.y:13096 n or -n
+opt_limit	(every alternative)	sql_parser_mysql_mode.y:16450 LIMIT n or LIMIT n, n
+opt_restore_until	(every alternative)	sql_parser_mysql_mode.y:24081 UNTIL TIME or UNTIL SCN
+tls_option	(every alternative)	sql_parser_mysql_mode.y:17103 CIPHER, ISSUER or SUBJECT
+statement_information_item_name	(every alternative)	sql_parser_mysql_mode.y:16004 NUMBER or ROW_COUNT
+condition_information_item_name	(every alternative)	sql_parser_mysql_mode.y:16019 a GET DIAGNOSTICS condition item
+opt_response_query	(every alternative)	sql_parser_mysql_mode.y:25142 ERROR or NULL
+index_hint_scope	(every alternative)	sql_parser_mysql_mode.y:14777 FOR JOIN, FOR ORDER BY or FOR GROUP BY
+inner_join_type	(every alternative)	sql_parser_mysql_mode.y:15303 JOIN, INNER JOIN, CROSS JOIN or STRAIGHT_JOIN
+object_type	(every alternative)	sql_parser_mysql_mode.y:18367 an object type
+mview_nested_refresh_mode	(every alternative)	sql_parser_mysql_mode.y:9890 INDIVIDUAL, INCONSISTENT or CONSISTENT
+lock_spec_mysql57	(every alternative)	sql_parser_mysql_mode.y:17415 LOCK or UNLOCK
+opt_join_or_resume	(every alternative)	sql_parser_mysql_mode.y:17893 JOIN or RESUME
+trans_param_value	(every alternative)	sql_parser_mysql_mode.y:7422 a string, n or -n
+delete_option	(every alternative)	sql_parser_mysql_mode.y:4214 QUICK or LOW_PRIORITY
+skip_index_type	(every alternative)	sql_parser_mysql_mode.y:25483 MIN_MAX or SUM
+lob_chunk_size	(every alternative)	sql_parser_mysql_mode.y:25494 CHUNK n or CHUNK a string
+global_or_session_alias	(every alternative)	sql_parser_mysql_mode.y:1461 @@global or @@session
+upgrade_action	(every alternative)	sql_parser_mysql_mode.y:23047 BEGIN or END
+opt_index_keyname	(every alternative)	sql_parser_mysql_mode.y:10355 VECTOR, SPATIAL or UNIQUE
+mlog_with_special_column	(every alternative)	sql_parser_mysql_mode.y:10804 PRIMARY KEY, ROWID or SEQUENCE
+audit_whenever_option	(every alternative)	sql_parser_mysql_mode.y:19025 WHENEVER [NOT] SUCCESSFUL
+opt_auth_plugin	(every alternative)	sql_parser_mysql_mode.y:16926 WITH a string or a name
+opt_ignore_or_replace	(every alternative)	sql_parser_mysql_mode.y:5797 IGNORE or REPLACE
 # Literals, operators and the tokens the lexer forms from other text.
 NAME_OB	a
 .	(spaced)	the lexer reads a word, a dot and a word as one token ({start_identifier}"."{identifier}), so a dot that is a token of its own stands apart

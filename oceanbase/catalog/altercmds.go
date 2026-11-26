@@ -33,6 +33,13 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
 	tbl := db.Tables[key]
+	// PARTITION BY RANGE () with PARTITIONS n parses (sql_parser_mysql_mode.y:8663)
+	// and is refused once the name resolves, a view's included: the pinned server
+	// answers 1064 for it on a table or a view and 1146 on a missing name
+	// (testdata/simulate.tsv, rule range_partition_option+opt_partitions).
+	if rp := alterRepartition(stmt.Commands); rp != nil && rp.Type == nodes.PartitionRange && rp.Expr == nil && len(rp.Columns) == 0 && rp.NumParts != 0 && (tbl != nil || db.Views[key] != nil) {
+		return &Error{Code: 1064, SQLState: "42000", Message: "PARTITIONS cannot be given to an automatic range partitioning"}
+	}
 	if tbl == nil {
 		if v := db.Views[key]; v != nil {
 			return c.alterViewAsTable(db, v, stmt)
