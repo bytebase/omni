@@ -57,8 +57,11 @@ func analyzeMultiSearchBody(body string) *RequestAnalysis {
 			continue
 		}
 		// An include list keeps a field when any search's does, and every
-		// field when one search has none; an exclude pattern removes a field
-		// only when every search excludes it.
+		// field when one search's is empty; an exclude pattern removes a
+		// field only when every search excludes it.
+		if len(search.SourceFields) == 0 {
+			search.SourceFields = nil
+		}
 		if returned == 0 {
 			result.SourceFields, result.SourceExcludes = search.SourceFields, search.SourceExcludes
 		} else {

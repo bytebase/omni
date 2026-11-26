@@ -2,7 +2,10 @@
 // and extracts field references from request bodies.
 package analysis
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // MaskableAPI classifies an Elasticsearch endpoint for data-masking purposes.
 type MaskableAPI int
@@ -195,6 +198,12 @@ func extractIndex(path string) string {
 	return first
 }
 
+// isMultiSearch reports whether a search's path is the multi-search endpoint:
+// one of its segments is _msearch, not a name that holds it.
+func isMultiSearch(urlPath string) bool {
+	return slices.Contains(strings.Split(strings.Trim(urlPath, "/"), "/"), "_msearch")
+}
+
 // AnalyzeRequest combines URL classification with body analysis for an ES
 // request.  Body analysis is only performed for search and explain APIs.
 func AnalyzeRequest(method, url, body string) *RequestAnalysis {
@@ -213,7 +222,7 @@ func AnalyzeRequest(method, url, body string) *RequestAnalysis {
 	switch api {
 	case APIMaskSearch, APIMaskExplain:
 		var bodyResult *RequestAnalysis
-		if api == APIMaskSearch && strings.Contains(urlPath, "_msearch") {
+		if api == APIMaskSearch && isMultiSearch(urlPath) {
 			bodyResult = analyzeMultiSearchBody(body)
 		} else {
 			bodyResult = analyzeRequestBody(body)

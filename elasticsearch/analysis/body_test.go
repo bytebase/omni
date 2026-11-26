@@ -26,6 +26,8 @@ func TestMultiSearchBody(t *testing.T) {
 		{body: "{}\n{\"_source\":false}\n", disabled: true},
 		{body: "{}\n{\"_source\":{\"excludes\":[\"ssn\",\"age\"]}}\n{}\n{\"_source\":{\"excludes\":[\"ssn\"]}}\n", exclude: []string{"ssn"}},
 		{body: "{}\n{\"_source\":{\"excludes\":[\"ssn\"]}}\n{}\n{}\n"},
+		{body: "{}\n{\"_source\":[]}\n{}\n{\"_source\":[\"name\"]}\n"},
+		{body: "{}\n{\"_source\":{\"includes\":[]}}\n{}\n{\"_source\":[\"name\"]}\n"},
 	} {
 		a := analysis.AnalyzeRequest("POST", "/users/_msearch", tc.body)
 		if !slices.Equal(a.BlockedFeatures, tc.blocked) || a.SourceDisabled != tc.disabled ||
@@ -35,5 +37,17 @@ func TestMultiSearchBody(t *testing.T) {
 				tc.body, a.BlockedFeatures, a.SourceDisabled, a.SourceFields, a.SourceExcludes, a.PredicateFields,
 				tc.blocked, tc.disabled, tc.includes, tc.exclude, tc.predicates)
 		}
+	}
+}
+
+// TestSearchOfAnIndexNamedMultiSearch holds a search of an index whose name
+// holds _msearch to the analysis of one JSON body.
+func TestSearchOfAnIndexNamedMultiSearch(t *testing.T) {
+	a := analysis.AnalyzeRequest("POST", "/logs_msearch/_search", `{"aggs":{"a":{"terms":{"field":"ssn"}}}}`)
+	if !slices.Equal(a.BlockedFeatures, []analysis.BlockedFeature{analysis.BlockedFeatureAggs}) {
+		t.Errorf("blocked %v, want aggregations", a.BlockedFeatures)
+	}
+	if want := [][]string{{"logs_msearch"}}; !slices.EqualFunc(a.Targets, want, slices.Equal) {
+		t.Errorf("Targets = %q, want %q", a.Targets, want)
 	}
 }
