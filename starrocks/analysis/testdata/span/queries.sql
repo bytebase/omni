@@ -142,6 +142,33 @@ SELECT c.region, sum(o.amount) FROM customers c JOIN orders o ON o.customer_id =
 SELECT customer_id, status, sum(amount) FROM orders GROUP BY ROLLUP (customer_id, status)
 SELECT count(*) FROM orders WHERE 1 = 0
 
+-- PIVOT.
+SELECT * FROM orders PIVOT (sum(amount) FOR status IN ('open', 'paid'))
+SELECT * FROM orders PIVOT (sum(amount) AS total, count(*) AS n FOR status IN ('open' AS o, 'paid' AS p))
+SELECT * FROM orders PIVOT (SUM(amount), max(id) FOR status IN ('open', 'paid'))
+SELECT * FROM orders PIVOT (sum(amount) FOR (status, customer_id) IN (('open', 1) AS o1, ('paid', 2)))
+SELECT * FROM (SELECT customer_id, status, amount FROM orders) t PIVOT (sum(amount) FOR customer_id IN (1, 2))
+SELECT * FROM (SELECT customer_id, status, amount FROM orders) t PIVOT (sum(amount * 2) AS d FOR status IN ('open', 'paid'))
+SELECT * FROM (SELECT customer_id, status FROM orders) t PIVOT (count(*) AS n FOR status IN ('open', 'paid'))
+SELECT * FROM (SELECT id, status, created_at FROM orders) t PIVOT (count(id) FOR created_at IN (DATE '2026-01-01', '2026-01-02'))
+SELECT * FROM (SELECT id, amount FROM orders) t PIVOT (count(id) FOR amount IN (10.00, 20, NULL))
+SELECT * FROM orders o JOIN customers c ON c.id = o.customer_id PIVOT (sum(o.amount) FOR region IN ('east', 'west'))
+SELECT customer_id, o AS open_total FROM orders PIVOT (sum(amount) FOR status IN ('open' AS o, 'paid' AS p))
+SELECT t.customer_id, `'open'` FROM (SELECT customer_id, status, amount FROM orders) t PIVOT (sum(amount) FOR status IN ('open', 'paid')) WHERE customer_id = 1
+SELECT customer_id, sum(o) FROM (SELECT customer_id, status, amount FROM orders) t PIVOT (sum(amount) FOR status IN ('open' AS o)) GROUP BY customer_id
+SELECT * FROM (SELECT customer_id, status, amount FROM orders) t PIVOT (sum(amount) FOR status IN ('open' AS 'Open Orders'))
+SELECT s.c FROM (SELECT customer_id AS c FROM orders PIVOT (sum(amount) FOR status IN ('open'))) s
+SELECT * FROM customer_totals PIVOT (sum(total) FOR customer_id IN (1, 2))
+SELECT * FROM orders o PIVOT (sum(o.amount), count(id) FOR status IN ('open'))
+SELECT * FROM (SELECT customer_id, status, amount FROM orders) t PIVOT (sum((amount)), max(customer_id + 1) FOR status IN ('open'))
+SELECT * FROM hr.staff PIVOT (sum(salary), count(*) FOR dept_id IN (1, 2))
+WITH c AS (SELECT status, amount FROM orders) SELECT * FROM c PIVOT (sum(amount), min(amount) FOR status IN ('open'))
+SELECT * FROM (SELECT id, created_at FROM orders) t PIVOT (count(id) FOR created_at IN (DATETIME '2026-01-01 00:00:00'))
+SELECT * FROM orders PIVOT (sum(amount) FOR status IN ('open')) WHERE status = 'open'
+SELECT amount FROM orders PIVOT (sum(amount) FOR status IN ('open'))
+SELECT * FROM orders PIVOT (sum(nope) FOR status IN ('open'))
+SELECT * FROM orders PIVOT (sum(amount) FOR nope IN ('open'))
+
 -- Table functions and system tables.
 SELECT generate_series FROM TABLE(generate_series(1, 3))
 SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = 'shop'

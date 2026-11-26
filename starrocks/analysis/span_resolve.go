@@ -1,7 +1,6 @@
 package analysis
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -62,8 +61,13 @@ type relation struct {
 	catalog  string
 	database string
 	// name is the alias, or the table's name as written.
-	name    string
-	columns []spanColumn
+	name string
+	// qualified is how StarRocks qualifies an analyzed column of a table
+	// or view (TableName.toString): its database, then its alias or name,
+	// after its catalog when that is not the internal one. Empty for any
+	// other relation, whose columns StarRocks qualifies by name.
+	qualified string
+	columns   []spanColumn
 	// open marks a relation whose columns the metadata does not list (a
 	// table function, a system table, a table of another catalog): any
 	// column name resolves on it, to source, which is nil for a column
@@ -107,6 +111,9 @@ type spanResolver struct {
 	// resolving holds the views whose definitions are being resolved, so
 	// a view that reads itself stops.
 	resolving map[ColumnResource]bool
+	// qualify, while set, makes printed render a column reference as
+	// StarRocks prints it once analyzed, resolved in this scope.
+	qualify *spanScope
 }
 
 func newSpanResolver(opts ResolveOptions, text string) *spanResolver {
@@ -295,16 +302,12 @@ func (r *spanResolver) selectStmt(stmt *ast.SelectStmt, outer *spanScope, ctes *
 	if !withBound {
 		ctes = r.with(stmt.With, outer, ctes)
 	}
-	if stmt.Pivot != nil {
-		// A PIVOT replaces the FROM columns with one per IN value and
-		// aggregate, named by rules this resolver does not follow yet, so
-		// the span fails closed rather than answer the FROM's columns.
-		r.fail(errors.New("the query span does not resolve PIVOT"))
-		return nil
-	}
 	sc := &spanScope{parent: outer}
 	for _, from := range stmt.From {
 		r.from(from, sc, outer, ctes)
+	}
+	if stmt.Pivot != nil {
+		sc = r.pivot(stmt.Pivot, sc, ctes)
 	}
 	if stmt.Where != nil {
 		r.expr(stmt.Where, sc, ctes)
@@ -341,6 +344,130 @@ func (r *spanResolver) selectStmt(stmt *ast.SelectStmt, outer *spanScope, ctes *
 	}
 	r.trailing(stmt.OrderBy, stmt.Limit, stmt.Offset, sc, ctes)
 	return cols
+}
+
+// pivot returns the scope a PIVOT leaves over the FROM relations of sc, as
+// StarRocks's QueryAnalyzer.visitPivotRelation builds it. Its columns are
+// the FROM columns the PIVOT does not use, which it groups by, each kept in
+// its relation, then one column per IN value and aggregate in a relation of
+// no name. A column the PIVOT uses is an aggregate's direct column argument
+// or a FOR column (PivotRelation.getUsedColumns), matched by name in any
+// case. A generated column reads what its aggregate reads, and the FOR
+// columns, which StarRocks's rewrite, agg(CASE WHEN for = value THEN arg
+// END), compares. A used column is out of scope after the PIVOT.
+func (r *spanResolver) pivot(p *ast.PivotClause, sc *spanScope, ctes *cteBinding) *spanScope {
+	used := map[string]bool{}
+	type aggregate struct {
+		name    string
+		sources SourceColumnSet
+	}
+	var aggs []aggregate
+	for _, agg := range p.Aggregations {
+		if agg == nil || agg.Func == nil {
+			continue
+		}
+		if call, ok := agg.Func.(*ast.FuncCallExpr); ok {
+			for _, arg := range call.Args {
+				for {
+					paren, ok := arg.(*ast.ParenExpr)
+					if !ok {
+						break
+					}
+					arg = paren.Expr
+				}
+				if ref, ok := arg.(*ast.ColumnRef); ok && ref.Name != nil && len(ref.Name.Parts) > 0 {
+					used[strings.ToLower(ref.Name.Parts[len(ref.Name.Parts)-1])] = true
+				}
+			}
+		}
+		name := agg.Alias
+		if name == "" {
+			name = r.aggregateName(agg.Func, sc)
+		}
+		aggs = append(aggs, aggregate{name: name, sources: r.expr(agg.Func, sc, ctes)})
+	}
+	forSources := SourceColumnSet{}
+	for _, c := range p.Columns {
+		used[strings.ToLower(c)] = true
+		for k := range r.column([]string{c}, sc) {
+			forSources[k] = true
+		}
+	}
+	pivoted := &spanScope{parent: sc.parent}
+	for _, rel := range sc.relations {
+		kept := *rel
+		kept.columns = nil
+		for _, c := range rel.columns {
+			if !used[strings.ToLower(c.name)] {
+				kept.columns = append(kept.columns, c)
+			}
+		}
+		pivoted.relations = append(pivoted.relations, &kept)
+	}
+	generated := &relation{}
+	for _, v := range p.Values {
+		if v == nil {
+			continue
+		}
+		value := v.Alias
+		if value == "" {
+			names := make([]string, len(v.Exprs))
+			for i, e := range v.Exprs {
+				names[i] = r.printed(e)
+				// A DATE or DATETIME literal prints as its string.
+				if c, ok := e.(*ast.CastExpr); ok {
+					names[i] = r.printed(c.Expr)
+				}
+			}
+			value = "{" + strings.Join(names, ",") + "}"
+			if len(names) == 1 {
+				value = names[0]
+			}
+		}
+		for _, agg := range aggs {
+			name := value
+			if len(aggs) > 1 {
+				name += "_" + agg.name
+			}
+			sources := clone(agg.sources)
+			for k := range forSources {
+				sources[k] = true
+			}
+			generated.columns = append(generated.columns, spanColumn{name: name, sources: sources})
+		}
+	}
+	pivoted.relations = append(pivoted.relations, generated)
+	return pivoted
+}
+
+// aggregateName is the name StarRocks gives an unaliased PIVOT aggregate
+// (AstToStringBuilder.visitFunctionCall): the function's name in lower
+// case, then its arguments as StarRocks prints them once analyzed,
+// separated by ", ", where a column carries its relation's name (see
+// qualifiedColumn). A call with an ORDER BY or a SEPARATOR keeps its text
+// as written.
+func (r *spanResolver) aggregateName(node ast.Node, sc *spanScope) string {
+	call, ok := node.(*ast.FuncCallExpr)
+	if !ok || call.Name == nil || len(call.Name.Parts) != 1 || len(call.OrderBy) > 0 || call.SeparatorExpr != nil || call.Separator != "" || call.Over != nil {
+		return r.slice(node)
+	}
+	var b strings.Builder
+	b.WriteString(strings.ToLower(call.Name.Parts[0]) + "(")
+	if call.Star {
+		b.WriteString("*")
+	}
+	if call.Distinct {
+		b.WriteString("DISTINCT ")
+	}
+	saved := r.qualify
+	r.qualify = sc
+	defer func() { r.qualify = saved }()
+	args := make([]string, len(call.Args))
+	for i, a := range call.Args {
+		args[i] = r.printed(a)
+	}
+	b.WriteString(strings.Join(args, ", ") + ")")
+	return b.String()
 }
 
 // from adds a FROM item's relations to sc. A derived table sees only the
@@ -446,6 +573,10 @@ func (r *spanResolver) tableRef(ref *ast.TableRef, outer *spanScope, ctes *cteBi
 		return nil
 	}
 	rel := &relation{catalog: catalog, database: database, name: alias(table)}
+	rel.qualified = database + "." + rel.name
+	if !strings.EqualFold(catalog, internalCatalog) {
+		rel.qualified = catalog + "." + rel.qualified
+	}
 	if !strings.EqualFold(catalog, internalCatalog) {
 		// A table of another catalog: the metadata describes none.
 		r.tables[ColumnResource{Database: database, Table: table}] = true
@@ -885,6 +1016,16 @@ func (r *spanResolver) printed(node ast.Node) string {
 		if w := e.Over; w != nil && w.Name == "" && w.Frame == nil {
 			return r.printedWindow(e, w)
 		}
+	case *ast.ParenExpr:
+		if r.qualify != nil {
+			return r.printed(e.Expr)
+		}
+	case *ast.ColumnRef:
+		if r.qualify != nil {
+			if name, ok := r.qualifiedColumn(e, r.qualify); ok {
+				return name
+			}
+		}
 	case *ast.UnaryExpr:
 		if e.Op == ast.UnaryMinus {
 			if lit, ok := e.Expr.(*ast.Literal); ok && (lit.Kind == ast.LitInt || lit.Kind == ast.LitFloat) {
@@ -894,6 +1035,41 @@ func (r *spanResolver) printed(node ast.Node) string {
 		}
 	}
 	return r.slice(node)
+}
+
+// qualifiedColumn renders a column reference as StarRocks prints it once
+// analyzed (AstToStringBuilder.visitSlot): its relation's qualified name
+// or else its alias or name, a dot, and the column's name as written. It
+// reports false unless exactly one relation of sc lists the column.
+func (r *spanResolver) qualifiedColumn(ref *ast.ColumnRef, sc *spanScope) (string, bool) {
+	if ref.Name == nil || len(ref.Name.Parts) == 0 || len(ref.Name.Parts) > 4 {
+		return "", false
+	}
+	parts := ref.Name.Parts
+	name := parts[len(parts)-1]
+	rels := sc.relations
+	if len(parts) > 1 {
+		rels = matching(rels, parts[:len(parts)-1], r)
+	}
+	var found *relation
+	for _, rel := range rels {
+		for _, c := range rel.columns {
+			if strings.EqualFold(c.name, name) {
+				if found != nil && found != rel {
+					return "", false
+				}
+				found = rel
+			}
+		}
+	}
+	if found == nil {
+		return "", false
+	}
+	prefix := found.qualified
+	if prefix == "" {
+		prefix = found.name
+	}
+	return prefix + "." + name, true
 }
 
 // printedWindow renders an analytic call as StarRocks names it: the call,
