@@ -24,12 +24,16 @@ func TestWalkSimulation(t *testing.T) {
 		minPct   float64
 		minFound int
 	}{
-		// The partitioned@, features@ and schemas@ rows and the alter:algorithm
-		// and event: ones hold 142 refusals the walk finds 100 of: it does not
-		// model partition bounds and names, InnoDB's foreign key and row-size
-		// refusals, ALGORITHM, or invisible and spatial column rules. The rows
-		// before them keep 4,208/4,340 (97.0%).
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 96.0, 4308},
+		// Of the 101 refusals the walk misses, 9 are statements the parser
+		// refuses. 32 drop or alter a routine of another database, or DROP
+		// FUNCTION a name a loadable function may hold, and 10 give a
+		// sequence an engine-defined option, which depends on the engine
+		// under it that the sync doesn't list. 15 need what a schema doesn't
+		// show: application-time periods (1091, 4156) and whether a
+		// tablespace was discarded (1813). The other 35 are InnoDB's foreign
+		// key, row-size and spatial rules, partition bounds, ALGORITHM, and
+		// renames into another database.
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 98.3, 6008},
 		// Of the 695 refusals, 180 are statements the parser refuses, which
 		// reach the review as a syntax finding. Of the other 66 the walk
 		// misses, 65 name a database other than the target's, whose objects

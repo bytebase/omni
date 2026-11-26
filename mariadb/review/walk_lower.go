@@ -622,6 +622,10 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 		if noExtraCols && b.checkCreateIndexColumns(c.IndexColumns, columns, r.written) {
 			return true
 		}
+		if rtreeKey(c) {
+			b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, notRTree) // 1210
+			return true
+		}
 		if innoDB && b.keyPartTypesFail(constraintKeyKind(c), c.IndexColumns, typeOf) {
 			return true
 		}

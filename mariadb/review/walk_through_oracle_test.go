@@ -436,6 +436,17 @@ var walkCodes = []struct {
 	{func(m, _ string) bool { return strings.HasPrefix(m, "Collation ") }, []string{"1253"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "MariaDB has no storage engine ") }, []string{"1286"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "InnoDB can't ") }, []string{"1845", "1846"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Storage engine ") && strings.Contains(m, " has no option ")
+	}, []string{"1911"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Storage engine ") && strings.Contains(m, " doesn't take `ROW_FORMAT=")
+	}, []string{"1478"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " key can be an `RTREE` key.") }, []string{"1210"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " can't be placed after itself.") }, []string{"1054"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Sequence ") && strings.Contains(m, " has a value out of the range of ")
+	}, []string{"1264"}},
 	// Foreign keys of other tables (walk_lower_fk.go).
 	{func(m, _ string) bool { return strings.HasSuffix(m, " keeps no foreign keys.") }, []string{"1217"}},
 	{func(m, stmt string) bool {
