@@ -383,7 +383,7 @@ func (ch *plChecker) declType(text string, s *plScope) error {
 		if err != nil || rel == nil {
 			return nil
 		}
-		if _, ok := rel.colByName[names[1]]; !ok {
+		if _, ok := rel.colByName[names[1]]; !ok && !hasSystemColumn(rel, names[1]) {
 			return &Error{Code: CodeUndefinedColumn, Message: fmt.Sprintf("column %q of relation %q does not exist", names[1], names[0])}
 		}
 		return nil

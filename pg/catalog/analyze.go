@@ -2552,6 +2552,22 @@ var systemColumns = []struct {
 	{"tableoid", OIDOID},
 }
 
+// hasSystemColumn reports whether rel has the system column name: every
+// relation but a view or a composite type has them.
+//
+// pg: src/backend/catalog/heap.c — AddNewAttributeTuples
+func hasSystemColumn(rel *Relation, name string) bool {
+	if rel == nil || rel.RelKind == 'v' || rel.RelKind == 'c' {
+		return false
+	}
+	for _, sc := range systemColumns {
+		if sc.name == name {
+			return true
+		}
+	}
+	return false
+}
+
 // SystemColumnName is the name of system column attNum, a negative
 // attribute number, or "" for any other number.
 func SystemColumnName(attNum int16) string {
@@ -2598,7 +2614,7 @@ func (ac *analyzeCtx) systemColumnVar(rtIdx int, name string) *VarExpr {
 	if !ac.systemColumns {
 		return nil
 	}
-	if rel == nil || rel.RelKind == 'v' || rel.RelKind == 'c' {
+	if !hasSystemColumn(rel, name) {
 		return nil
 	}
 	for i, sc := range systemColumns {

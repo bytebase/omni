@@ -81,7 +81,7 @@ func walkThrough(ctx context.Context, stmts []statement, plan *run, target revie
 	}
 	v, err := walk.Run(ctx, len(plan.steps), snap, lower)
 	if v == nil && err == nil {
-		v = catalogRefusal(ctx, stmts, plan.steps[:len(sessions)], sessions, target)
+		v = catalogRefusal(ctx, stmts, plan.steps[:len(sessions)], sessions, target, w.pg)
 	}
 	if v != nil {
 		v.Statement = plan.steps[v.Statement].stmt

@@ -82,6 +82,9 @@ const (
 type Error struct {
 	Code    string
 	Message string
+	// InCall marks a refusal of a statement a CALL's procedure body runs,
+	// rather than of the CALL itself.
+	InCall bool
 }
 
 func (e *Error) Error() string {

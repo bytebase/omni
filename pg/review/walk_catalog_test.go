@@ -9,9 +9,8 @@ import (
 	"github.com/bytebase/omni/review"
 )
 
-// The walk takes a refusal from pg/catalog for a routine or a view when
-// the synced schema loads in full, and only for a code no unsynced object
-// can cause.
+// The walk takes a refusal from pg/catalog when the synced schema loads in
+// full, and only for a code no unsynced object can cause or cure.
 func TestWalkThroughCatalogRefusals(t *testing.T) {
 	target := review.Target{SessionUser: "u", Schema: &metadata.DatabaseSchemaMetadata{
 		Name:       "db",
@@ -22,6 +21,21 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 			Functions: []*metadata.FunctionMetadata{{
 				Name:       "f_double",
 				Definition: "CREATE OR REPLACE FUNCTION public.f_double(x integer)\n RETURNS integer\n LANGUAGE sql\nAS $function$SELECT x * 2$function$\n",
+			}, {
+				Name:       "p",
+				Definition: "CREATE OR REPLACE PROCEDURE public.p()\n LANGUAGE plpgsql\nAS $procedure$BEGIN CREATE VIEW v AS SELECT p FROM now(); END$procedure$\n",
+			}, {
+				Name:       "r",
+				Definition: "CREATE OR REPLACE PROCEDURE public.r()\n LANGUAGE plpgsql\nAS $procedure$BEGIN CALL r('1'::text); END$procedure$\n",
+			}, {
+				Name:       "r",
+				Definition: "CREATE OR REPLACE PROCEDURE public.r(a integer)\n LANGUAGE plpgsql\nAS $procedure$BEGIN NULL; END$procedure$\n",
+			}, {
+				Name:       "w",
+				Definition: "CREATE OR REPLACE PROCEDURE public.w()\n LANGUAGE plpgsql\nAS $procedure$BEGIN CALL nope(); END$procedure$\n",
+			}, {
+				Name:       "trg",
+				Definition: "CREATE OR REPLACE FUNCTION public.trg()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$BEGIN RETURN NEW; END$function$\n",
 			}},
 		}},
 	}}
@@ -31,7 +45,13 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 	}{
 		{sql: "CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;", message: `PostgreSQL refuses this statement: syntax error at or near "end of input", expected END (SQLSTATE 42601).`},
 		{sql: "CREATE FUNCTION f_double(y int) RETURNS int LANGUAGE sql AS 'SELECT y';", message: `PostgreSQL refuses this statement: function "f_double" already exists (SQLSTATE 42723).`},
-		{sql: "CALL f_double(1);", message: "PostgreSQL refuses this statement: f_double(integer) is not a procedure (SQLSTATE 42809)."},
+		{sql: "CALL f_double('1');", message: "PostgreSQL refuses this statement: f_double(unknown) is not a procedure (SQLSTATE 42809)."},
+		{sql: "CALL nope('x', NULL);", message: "PostgreSQL refuses this statement: procedure nope(unknown, unknown) does not exist (SQLSTATE 42883)."},
+		{sql: "CALL nope();", message: "PostgreSQL refuses this statement: procedure nope() does not exist (SQLSTATE 42883)."},
+		{sql: "CREATE TRIGGER tr BEFORE UPDATE OF nope ON t FOR EACH ROW EXECUTE FUNCTION f_double();", message: `PostgreSQL refuses this statement: function "f_double" does not exist (SQLSTATE 42883).`},
+		{sql: "ALTER TABLE t ALTER n TYPE text USING missing::text;", message: `PostgreSQL refuses this statement: column "missing" does not exist (SQLSTATE 42703).`},
+		{sql: "ALTER TABLE t ALTER n TYPE json USING JSON_ARRAYAGG(n);", message: "PostgreSQL refuses this statement: aggregate functions are not allowed in transform expressions (SQLSTATE 42803)."},
+		{sql: "DO $$ BEGIN RAISE EXCEPTION 'boom'; END $$;", message: "PostgreSQL refuses this statement: boom (SQLSTATE P0001)."},
 		{sql: "CREATE TABLE u (a int);\nCREATE FUNCTION g() RETURNS void LANGUAGE plpgsql AS $$ BEGIN RETURN 1; END $$;", statement: 1, message: "PostgreSQL refuses this statement: RETURN cannot have a parameter in function returning void (SQLSTATE 42804)."},
 	} {
 		got := walkFindings(t, tc.sql, target)
@@ -43,6 +63,50 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		// A missing name may be an object the sync does not list.
 		"CREATE FUNCTION f() RETURNS bigint LANGUAGE sql AS 'SELECT count(*) FROM missing_t';",
 		"CREATE VIEW v AS SELECT nope_fn(n) FROM t;",
+		// A query may call an aggregate, which the sync does not list.
+		"CREATE TABLE u AS SELECT nope_agg(n) FROM t;",
+		// PL/pgSQL's %TYPE takes a system column, and a.b%TYPE may name a
+		// domain b in a schema a.
+		"CREATE FUNCTION g() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x t.nope%TYPE; BEGIN RETURN 1; END $$;",
+		// A qualified column may be a function called in attribute notation.
+		"ALTER TABLE t ALTER n TYPE integer USING t.f_double;",
+		"CREATE TRIGGER tr AFTER UPDATE ON t FOR EACH ROW WHEN (OLD.tableoid IS NOT NULL) EXECUTE FUNCTION trg();",
+		// A refusal in an expression is not the lookup of the trigger's function.
+		"CREATE TRIGGER tr BEFORE UPDATE ON t FOR EACH ROW WHEN (trg(NEW.n) > 0) EXECUTE FUNCTION trg();",
+		// A schema the sync leaves out may hold what a name resolves to.
+		"SET search_path = cron, public;\nCALL nope();",
+		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION partman.nope();",
+		"ALTER FUNCTION f_double(int) SUPPORT partman.f_double;",
+		// A refusal of what a procedure's body runs.
+		"CALL w();",
+		// ALTER ROUTINE also finds an aggregate.
+		"ALTER ROUTINE nope_agg(int) PARALLEL SAFE;",
+		"CREATE FUNCTION g() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x t.ctid%TYPE; BEGIN RETURN 1; END $$;",
+		// The sync lists no operator.
+		"CREATE VIEW v AS SELECT 1 OPERATOR(public.##) 2 AS n;",
+		// The sync leaves out a routine named as a system one, which a body may call.
+		"DO $$ BEGIN CALL public.abs(); END $$;",
+		// An implicit cast the sync does not list may let an argument reach a procedure.
+		"CALL f_double('1'::text);",
+		"CALL f_double(1);",
+		"CALL nope(1);",
+		// A user's sum may stand before pg_catalog's, as a DO block may set.
+		"DO $$ BEGIN SET search_path = public, pg_catalog; ALTER TABLE t ALTER n TYPE integer USING sum(n); END $$;",
+		"SET search_path = public, pg_catalog;\nALTER TABLE t ALTER n TYPE json USING JSON_ARRAYAGG(n);",
+		// A DO block may call a routine the sync leaves out.
+		"DO $$ BEGIN CREATE VIEW v AS SELECT n FROM now(); END $$;",
+		"CREATE FUNCTION g() RETURNS int LANGUAGE sql AS 'SELECT n FROM now()';",
+		"CALL p();",
+		// A nested CALL may reach its procedure through an unsynced cast.
+		"CALL r();",
+		"CREATE FUNCTION g() RETURNS int LANGUAGE plpgsql AS $$ BEGIN CALL now(); RETURN 1; END $$;",
+		// DROP ROUTINE also drops an aggregate, which the sync does not list.
+		"DROP ROUTINE nope_agg(int);",
+		// A call may be a function-style cast to a domain the sync does not list.
+		"CALL f_double(nope_domain(1));",
+		"CREATE PROCEDURE q() LANGUAGE sql AS 'CALL f_double(nope_domain(1))';",
+		// The catalog does not know which index a foreign key uses.
+		"ALTER TABLE t DROP CONSTRAINT t_pkey;",
 		// The change turns the body check off.
 		"SET check_function_bodies = off;\nCREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;",
 		// After a statement that runs user code, the catalog is not asked.
@@ -68,7 +132,7 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		"CREATE FUNCTION f() RETURNS int LANGUAGE sql SET search_path = public AS 'SELECT n, n FROM t';",
 		// A cast the sync does not list may allow the coercion.
 		"CREATE FUNCTION f() RETURNS date LANGUAGE sql AS 'SELECT 20260101';",
-		// A refusal of another statement ends the replay.
+		// A refusal a cast may cure ends the replay.
 		"ALTER TABLE t ALTER n TYPE boolean;\nCREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;",
 	} {
 		if got := walkFindings(t, sql, target); len(got) != 0 {
@@ -87,6 +151,13 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 	triggered.Schema.EventTriggers = []*metadata.EventTriggerMetadata{{Name: "e", Event: "ddl_command_end", Tags: []string{"CREATE TABLE"}, FunctionSchema: "public", FunctionName: "evt", Enabled: true}}
 	if got := walkFindings(t, "CREATE TABLE u (a int);\nCREATE FUNCTION f_double(y int) RETURNS int LANGUAGE sql AS 'SELECT y';", triggered); len(got) != 0 {
 		t.Errorf("event trigger: findings = %+v, want none", got)
+	}
+	// The sync does not list a range type's constructor.
+	ranged := target
+	ranged.Schema = proto.Clone(target.Schema).(*metadata.DatabaseSchemaMetadata)
+	ranged.Schema.Schemas[0].RangeTypes = []*metadata.RangeTypeMetadata{{Name: "floatrange", Subtype: "double precision"}}
+	if got := walkFindings(t, "ALTER FUNCTION floatrange(double precision, double precision) COST 10;", ranged); len(got) != 0 {
+		t.Errorf("range constructor: findings = %+v, want none", got)
 	}
 	// Another spec may change the database first.
 	other := target
