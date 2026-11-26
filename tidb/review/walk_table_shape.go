@@ -60,7 +60,7 @@ const clusteredYes = "yes"
 
 // shapeSpaces are the spaces of a table's shape, which DROP DATABASE
 // clears.
-var shapeSpaces = []string{spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache, spaceCheckSet, spaceClustered, spacePartList}
+var shapeSpaces = []string{spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache, spaceCheckSet, spaceClustered, spacePartList, spaceColumnSet}
 
 // AUTO_ID_CACHE kinds: 1, or anything else (TiDB keeps the two apart).
 const (
@@ -167,10 +167,14 @@ func fkIncompatible(a, b columnType) bool {
 	return false
 }
 
+// timeTypes are the date and time types.
+var timeTypes = map[string]bool{"date": true, "datetime": true, "timestamp": true, "time": true, "year": true}
+
 // rewritesData reports whether a column's change of type makes TiDB
 // rewrite its data (needChangeColumnData in v8.5.5's ddl): an integer made
-// narrower or given the other sign, or one made a character string. The
-// walk claims nothing of other changes.
+// narrower or given the other sign, or one made a character string, or a
+// date or time type made another. The walk claims nothing of other
+// changes.
 func rewritesData(from, to columnType) bool {
 	rf, rt := intRanks[from.base], intRanks[to.base]
 	switch {
@@ -178,6 +182,8 @@ func rewritesData(from, to columnType) bool {
 		return rt < rf || from.unsigned != to.unsigned
 	case rf > 0:
 		return textTypes[to.base]
+	case timeTypes[from.base] && timeTypes[to.base]:
+		return from.base != to.base
 	}
 	return false
 }
@@ -373,6 +379,9 @@ func (s *tidbSnapshot) readShape(tk string, t *metadata.TableMetadata) {
 	if cs, ok := syncedChecks(t); ok {
 		s.checkSets[tk] = cs
 	}
+	if cs, ok := syncedColumnSet(t); ok {
+		s.columnSets[tk] = cs
+	}
 	defs := make(map[string]string)
 	for _, fk := range t.GetForeignKeys() {
 		name, ok := plainName(spaceTableForeignKey, fk.GetName())
@@ -428,6 +437,10 @@ func (s *tidbSnapshot) lookupShape(k walk.Key, table string) (walk.Fact, string)
 		if l, ok := s.partLists[table]; ok && k.Name == shapeName {
 			return walk.Present, l
 		}
+	case spaceColumnSet:
+		if cs, ok := s.columnSets[table]; ok && k.Name == shapeName {
+			return walk.Present, cs
+		}
 	case spaceClustered:
 		if s.clustered[table] && k.Name == shapeName {
 			return walk.Present, clusteredYes
@@ -441,6 +454,28 @@ func (s *tidbSnapshot) lookupShape(k walk.Key, table string) (walk.Fact, string)
 func (b *builder) clustered(r tableRef) bool {
 	f, kind := b.l.Lookup(clusteredKey(r.db, r.name))
 	return f == walk.Present && kind == clusteredYes
+}
+
+// intHandle reports whether the walk knows the table is clustered by a
+// primary key of one integer column, which TiDB keeps as the row handle
+// and lists among no indexes: ALTER INDEX PRIMARY finds no key there
+// (1176, verified on v8.5.5).
+func (b *builder) intHandle(r tableRef) bool {
+	if !b.clustered(r) {
+		return false
+	}
+	ix, ok := b.indexesOf(r)
+	if !ok {
+		return false
+	}
+	for _, i := range ix {
+		if i.primary && len(i.cols) == 1 && i.cols[0] != "" {
+			f, kind := b.l.Lookup(columnTypeKey(r.db, r.name, i.cols[0]))
+			t, ok := parseColumnType(kind)
+			return f == walk.Present && ok && intRanks[t.base] > 0
+		}
+	}
+	return false
 }
 
 // typeOf returns a column's type before the statement, false when the
@@ -516,10 +551,11 @@ func idCacheKind(v string) string {
 // Unknown, the table's own and, since the walk cannot find a referencing
 // table once it moves, every other's (renamedColumns).
 func (b *builder) shapeEffects(v *ast.AlterTableStmt, r tableRef) {
-	// What the table's CHECK constraints read is followed no further than
-	// the sync.
+	// What the table's CHECK constraints and generated columns read, and
+	// its columns' character sets, are followed no further than the sync.
 	b.Set(checkSetKey(r.db, r.name), walk.Unknown, "")
 	b.Set(partListKey(r.db, r.name), walk.Unknown, "")
+	b.Set(columnSetKey(r.db, r.name), walk.Unknown, "")
 	unknownIndexes := func() { b.Set(indexSetKey(r.db, r.name), walk.Unknown, "") }
 	setType := func(name string, dt *ast.DataType) {
 		if k, ok := b.key(spaceColumn, name); ok {

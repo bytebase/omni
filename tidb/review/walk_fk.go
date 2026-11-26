@@ -264,9 +264,11 @@ func (b *builder) typeChangeFKFails(r tableRef, col string, def *ast.ColumnDef, 
 // columns' types do not match the referenced columns' (3780), or whose
 // referenced columns lead no index of the referenced table (1822), each
 // with the checks off too, in that order (verified on v8.5.5). childType
-// gives a column's type in the statement's table, false when the walk
-// does not know it.
-func (b *builder) addFKTypesFail(r tableRef, c *ast.Constraint, childType func(col string) (columnType, bool), rng review.Range) bool {
+// gives a column's type in the statement's table, and childCharset, when
+// not nil, a character string column's character set there, each false
+// when the walk does not know it: TiDB pairs character strings of one set
+// only.
+func (b *builder) addFKTypesFail(r tableRef, c *ast.Constraint, childType func(col string) (columnType, bool), childCharset func(col string) (string, bool), rng review.Range) bool {
 	if c == nil || c.Type != ast.ConstrForeignKey || c.RefTable == nil || len(c.Columns) == 0 || len(c.Columns) != len(c.RefColumns) {
 		return false
 	}
@@ -302,10 +304,23 @@ func (b *builder) addFKTypesFail(r tableRef, c *ast.Constraint, childType func(c
 			continue
 		}
 		pt, ok := b.typeOf(p.db, p.name, c.RefColumns[n])
-		if !ok || !fkIncompatible(ct, pt) {
+		if !ok {
 			continue
 		}
-		b.fail(rng, nil, review.UnsupportedForm, "A foreign key would pair "+review.Code(ident(col))+" ("+review.Code(ct.String())+") with "+review.Code(table(c.RefTable))+"."+review.Code(ident(c.RefColumns[n]))+" ("+review.Code(pt.String())+"), types that don't match.")
+		cs, pcs := "", ""
+		if !fkIncompatible(ct, pt) {
+			if childCharset == nil || !textTypes[ct.base] || !textTypes[pt.base] {
+				continue
+			}
+			var ok1, ok2 bool
+			cs, ok1 = childCharset(col)
+			pcs, ok2 = b.columnCharset(p, c.RefColumns[n])
+			if !ok1 || !ok2 || cs == pcs {
+				continue
+			}
+			cs, pcs = " in "+review.Code(cs), " in "+review.Code(pcs)
+		}
+		b.fail(rng, nil, review.UnsupportedForm, "A foreign key would pair "+review.Code(ident(col))+" ("+review.Code(ct.String())+cs+") with "+review.Code(table(c.RefTable))+"."+review.Code(ident(c.RefColumns[n]))+" ("+review.Code(pt.String())+pcs+"), types that don't match.")
 		return true
 	}
 	if !known {

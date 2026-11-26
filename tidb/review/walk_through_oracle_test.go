@@ -454,6 +454,13 @@ var walkCodes = []struct {
 		return strings.HasPrefix(m, "TiDB can't drop the primary key of ") || strings.HasPrefix(m, "TiDB can't set `SHARD_ROW_ID_BITS` on ")
 	}, []string{"8200"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "TTL column ") }, []string{"8148"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " can't be invisible.") }, []string{"3522"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB can't change whether generated column ") || strings.HasPrefix(m, "TiDB can't change the expression of generated column ")
+	}, []string{"3106"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " is read by generated column ")
+	}, []string{"3108"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "Every unique key of ") }, []string{"1503", "8264"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "TiDB can't add an index or a constraint with ") }, []string{"1846"}},
 	{func(m, _ string) bool {

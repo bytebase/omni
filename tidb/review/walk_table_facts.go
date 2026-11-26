@@ -101,24 +101,18 @@ func alterCharset(v *ast.AlterTableStmt) (cs string, names bool) {
 	return fromCollate, names
 }
 
-// charsetChangeFails fails an ALTER TABLE that moves a table to another
-// character set TiDB will not convert it to: "Unsupported modify charset"
-// (8200, verified on v8.5.5 for CHARSET, COLLATE and CONVERT TO binary on a
-// utf8mb4 table). TiDB changes a table's character set only to utf8mb4, from
-// utf8 or latin1 (ddl's modifiableCharsetAndCollation); the walk claims
-// only a move to a set other than utf8mb4, and leaves utf8 from latin1 or
-// ascii alone.
+// charsetChangeFails fails an ALTER TABLE that moves a table, or with
+// CONVERT TO one of its columns, to another character set TiDB will not
+// convert it to: "Unsupported modify charset" (8200, verified on v8.5.5
+// for CHARSET, COLLATE and CONVERT TO; charsetConvertible).
 func (b *builder) charsetChangeFails(v *ast.AlterTableStmt, r tableRef) bool {
 	to, names := alterCharset(v)
-	if !names || to == "" || to == "utf8mb4" {
+	if !names || to == "" {
 		return false
 	}
 	f, from := b.l.Lookup(tableCharsetKey(r.db, r.name))
-	if f != walk.Present || from == "" || from == to {
-		return false
-	}
-	if to == "utf8" && (from == "latin1" || from == "ascii") {
-		return false
+	if f != walk.Present || from == "" || charsetConvertible(from, to) {
+		return b.convertColumnsFail(v, r)
 	}
 	b.fail(b.anchor(), nil, review.UnsupportedForm, engineName+" can't change the character set of "+review.Code(r.written)+" from "+review.Code(from)+" to "+review.Code(to)+".")
 	return true
