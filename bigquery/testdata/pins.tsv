@@ -13,6 +13,11 @@
 # is the day the answers were recorded. A dataset recreated anywhere else
 # answers another creationTime, so its digest moves and the pin fails instead of
 # quietly replaying. The service account is never part of a pin.
+#
+# span records bigquery/analysis's span.tsv: dry-run queries on a dataset the
+# recording builds and deletes (omni_span), so the pin is the project and
+# location alone, confirmed as default's is.
 # columns: role, image, digest, source tag
 default	gcp:bigquery:bytebase-dev:US	sha256:fef5b54092b50edbb5d7c363182e0cd578a2147d527595e968a26f5131429231	2026-11-21
 driver	gcp:bigquery:bytebase-dev:US	sha256:a38c0d3800b3dfd8d1c6e3f3644af8fd02fc0f8ed110efc924159d3415533cd7	2026-11-21
+span	gcp:bigquery:bytebase-dev:US	sha256:fef5b54092b50edbb5d7c363182e0cd578a2147d527595e968a26f5131429231	2026-11-26

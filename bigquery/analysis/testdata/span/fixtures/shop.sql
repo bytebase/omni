@@ -1,0 +1,14 @@
+CREATE TABLE omni_span.Customers (CustomerId INT64 NOT NULL, Name STRING, Email STRING, Region STRING);
+CREATE TABLE omni_span.Orders (CustomerId INT64 NOT NULL, OrderId INT64 NOT NULL, Amount FLOAT64, Status STRING, Items ARRAY<STRING>, Ship STRUCT<City STRING, Zip STRING>, Placed DATE);
+CREATE TABLE omni_span.LineItems (CustomerId INT64, OrderId INT64, LineId INT64, ProductId INT64, Qty INT64);
+CREATE TABLE omni_span.Products (ProductId INT64, Name STRING, Price NUMERIC, Tags ARRAY<STRUCT<k STRING, v STRING>>);
+CREATE TABLE omni_span.Employees (EmpId INT64, ManagerId INT64, Name STRING, Salary INT64);
+CREATE TABLE omni_span.MixedCase (Id INT64, CamelCol STRING, lower_col STRING);
+CREATE TABLE omni_span.Targets (Region STRING, Goal INT64);
+CREATE TABLE omni_span.events_2024 (EventId INT64, Kind STRING, Payload STRING);
+CREATE TABLE omni_span.events_2025 (EventId INT64, Kind STRING, Payload STRING);
+CREATE TABLE omni_span.Sales (Region STRING, Quarter STRING, Revenue INT64);
+CREATE VIEW omni_span.CustomerOrders AS SELECT c.CustomerId, c.Name, o.OrderId, o.Amount FROM omni_span.Customers AS c JOIN omni_span.Orders AS o ON c.CustomerId = o.CustomerId;
+CREATE VIEW omni_span.BigOrders AS SELECT co.CustomerId, co.Name, co.Amount FROM omni_span.CustomerOrders AS co WHERE co.Amount > 100;
+CREATE VIEW omni_span.RegionGoals AS SELECT c.Region, t.Goal FROM omni_span.Customers AS c JOIN omni_span.Targets AS t ON c.Region = t.Region;
+CREATE TABLE FUNCTION omni_span.OrdersOf(cid INT64) AS SELECT OrderId, Amount FROM omni_span.Orders WHERE CustomerId = cid;
