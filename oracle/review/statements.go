@@ -27,8 +27,7 @@ type statement struct {
 // finding: nothing after a syntax error can be trusted, and one finding
 // per sheet is the contract. The segments after it are still listed.
 //
-// bytebase: backend/plugin/parser/plsql/split.go — SplitSQL
-// bytebase: backend/plugin/parser/plsql/plsql.go — parsePLSQLStatements
+// bytebase: backend/plugin/parser/oracle/oracle.go — SplitSQL, parsePLSQLStatements
 func parseReview(sql string) ([]review.Range, []statement, *review.Finding) {
 	var ranges []review.Range
 	var stmts []statement

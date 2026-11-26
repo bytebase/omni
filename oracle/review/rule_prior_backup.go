@@ -11,7 +11,7 @@ import (
 // Oracle change fail, which fails the task before any of the change runs,
 // judged from the SQL and the synced schema alone. The backup works like
 // this (bytebase backend/runner/taskrun/database_migrate_executor.go,
-// backupData, and backend/plugin/parser/plsql/backup.go,
+// backupData, and omni oracle/analysis/backup.go,
 // TransformDMLToSelect):
 //
 //   - It runs before the change, on the database the change runs in, with
@@ -89,7 +89,7 @@ type backupDML struct {
 // backupDMLs returns the statements the backup copies the rows of: each
 // top-level UPDATE and DELETE whose target is a table.
 //
-// bytebase: backend/plugin/parser/plsql/backup.go — prepareTransformation, extractOmniDML
+// mirrors: oracle/analysis/backup.go — prepareTransformation, extractDML
 func backupDMLs(stmts []statement) []backupDML {
 	var out []backupDML
 	for i := range stmts {
@@ -117,7 +117,7 @@ func backupDMLs(stmts []statement) []backupDML {
 // link. db is "" when the target's database is not known: then a name
 // without a schema matches only another without one.
 //
-// bytebase: backend/plugin/parser/plsql/backup.go — omniDMLTableReference, generateSQL
+// mirrors: oracle/analysis/backup.go — dMLTableReference, generateSQL
 func groupKey(t *ast.ObjectName, db string) string {
 	schema := t.Schema
 	if schema == "" {
@@ -132,7 +132,7 @@ func groupKey(t *ast.ObjectName, db string) string {
 // single quote, which the comment Bytebase sets on the copy does not
 // escape.
 //
-// bytebase: backend/plugin/parser/plsql/backup.go — prepareTransformation (errNoBackupableDML), generateSQLForTable
+// mirrors: oracle/analysis/backup.go — prepareTransformation (ErrNoBackupableDML), generateSQLForTable
 // bytebase: backend/runner/taskrun/database_migrate_executor.go — backupData (COMMENT ON TABLE)
 func checkPriorBackupStatements(stmts []statement, r *reporter) {
 	dmls := backupDMLs(stmts)
@@ -159,7 +159,7 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 // a statement before the change's first ALTER SESSION SET CURRENT_SCHEMA
 // reads that only the change makes.
 //
-// bytebase: backend/plugin/parser/plsql/backup.go — generateSQL, generateSQLForTable, writeBranchSelect
+// mirrors: oracle/analysis/backup.go — generateSQL, generateSQLForTable, writeBranchSelect
 // bytebase: backend/plugin/advisor/oracle/rule_builtin_prior_backup_check.go — oracleFindLongColumns
 func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex, m changeMade, r *reporter) {
 	if !backupExists {

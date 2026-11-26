@@ -4,6 +4,8 @@ Feature dependency graph for migrating the PartiQL (DynamoDB / Cosmos DB)
 parser from `bytebase/parser/partiql` (ANTLR4) to `bytebase/omni/partiql`
 (hand-written). Source: [analysis.md](./analysis.md).
 
+> The tree has since moved: omni's `partiql/<pkg>` is `dynamodb/<pkg>` (#1834), and Bytebase's `backend/plugin/parser/partiql` is `parser/dynamodb` (bytebase#22253). This DAG keeps the paths it was written with.
+
 Linear umbrella issue: BYT-9000.
 
 **Engine constant in bytebase:** `storepb.Engine_DYNAMODB`.

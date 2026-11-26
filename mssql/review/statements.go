@@ -54,7 +54,7 @@ func parseReview(sql string) ([]review.Range, []statement, *review.Finding) {
 // Bytebase does then, so the review lists the statements Bytebase lists.
 // Without a tree, nothing better tells where a T-SQL statement ends.
 //
-// bytebase: backend/plugin/parser/tsql/split.go — SplitSQL
+// bytebase: backend/plugin/parser/mssql/mssql.go — SplitSQL
 func semicolonRanges(sql string) []review.Range {
 	var ranges []review.Range
 	add := func(start, end int) {
