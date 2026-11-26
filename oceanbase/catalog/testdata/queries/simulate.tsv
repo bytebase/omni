@@ -298,6 +298,17 @@ ok:333f4f7d3d38	ok:333f4f7d3d38	engine	one_table@column	simple_expr/func_expr!in
 5835	5835	engine	one_table@column	simple_expr/id_dot_id_dot_id_USER_VARIABLE!insert	CREATE VIEW _v AS SELECT a.a.a @v zzz
 1054	1054	engine	one_table@column	simple_expr_list/simple_expr	CREATE VIEW _v AS SELECT a FROM UNNEST(a)
 1054	1054	engine	one_table@column	simple_expr_list/simple_expr_list_,_simple_expr	CREATE VIEW _v AS SELECT a FROM UNNEST(a, a)
+1054	1054	engine	one_table@column	search_expr/expr_const+literal/DATE_VALUE	CREATE VIEW _v AS SELECT MATCH(a) AGAINST(DATE '2020-01-01')
+1054	1054	engine	one_table@column	search_expr/expr_const+literal/INTNUM	CREATE VIEW _v AS SELECT MATCH(a) AGAINST(1)
+1054	1054	engine	one_table@column	search_expr/expr_const+literal/DECIMAL_VAL	CREATE VIEW _v AS SELECT MATCH(a) AGAINST(1.5)
+1054	1054	engine	one_table@column	search_expr/expr_const+literal/BOOL_VALUE	CREATE VIEW _v AS SELECT MATCH(a) AGAINST(TRUE)
+1054	1054	engine	one_table@column	search_expr/expr_const+literal/NULLX	CREATE VIEW _v AS SELECT MATCH(a) AGAINST(NULL)
+1054	1054	engine	one_table@column	search_expr/expr_const+literal/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT MATCH(a) AGAINST(0x41)
+1054	1054	engine	one_table@column	search_expr/expr_const+literal/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT MATCH(a) AGAINST(b'1')
+1351	1351	engine	one_table@column	search_expr/expr_const+expr_const/SYSTEM_VARIABLE	CREATE VIEW _v AS SELECT MATCH(a) AGAINST(@@autocommit)
+1064	1064	engine	one_table@column	search_expr/expr_const+expr_const/QUESTIONMARK	CREATE VIEW _v AS SELECT MATCH(a) AGAINST(?)
+1351	1351	engine	one_table@column	search_expr/expr_const+expr_const/global_or_session_alias_._column_name	CREATE VIEW _v AS SELECT MATCH(a) AGAINST(@@global . a)
+1351	1351	engine	one_table@column	search_expr/expr_const+global_or_session_alias/SESSION_ALIAS	CREATE VIEW _v AS SELECT MATCH(a) AGAINST(@@session . a)
 1054	1054	engine	one_table@column	search_expr/func_expr	CREATE VIEW _v AS SELECT MATCH(a) AGAINST(CURRENT_TIMESTAMP)
 1054	1054	engine	one_table@column	search_expr/func_expr!swap	CREATE VIEW _v AS SELECT MATCH(a) AGAINST(CURRENT_USER)
 1054	1054	engine	one_table@column	opt_mode_flag/IN_NATURAL_LANGUAGE_MODE	CREATE VIEW _v AS SELECT MATCH(a) AGAINST('s' IN NATURAL LANGUAGE MODE)
@@ -450,9 +461,21 @@ ok:05dfa2a7669b	ok:05dfa2a7669b	engine	one_table@column	window_function/COUNT_(_
 5929	5929	engine	one_table@column	window_function/LAG_win_fun_lead_lag_params_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT LAG(a) OVER a zzz
 1210	1210	engine	one_table@column	window_function/NTH_VALUE_(_expr_,_simple_expr_)_opt_from_first_or_last_opt_respect_or_ignore_nulls_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT NTH_VALUE(a, a) OVER a
 1210	1210	engine	one_table@column	window_function/NTH_VALUE_(_expr_,_simple_expr_)_opt_from_first_or_last_opt_respect_or_ignore_nulls_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT NTH_VALUE(a, a) OVER a zzz
+1210	1210	engine	one_table@column	window_function/NTH_VALUE_(_expr_,_simple_expr_)_opt_from_first_or_last_opt_respect_or_ignore_nulls_OVER_new_generalized_window_clause+opt_respect_or_ignore_nulls	CREATE VIEW _v AS SELECT NTH_VALUE(a, a) RESPECT NULLS OVER a
 5929	5929	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, 's') OVER a
 1054	1054	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause!drop-11	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, 's') a
 5929	5929	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, 's') OVER a zzz
+5929	5929	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause+literal/DATE_VALUE	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, DATE '2020-01-01') OVER a
+5929	5929	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause+literal/INTNUM	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, 1) OVER a
+5929	5929	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause+literal/DECIMAL_VAL	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, 1.5) OVER a
+5929	5929	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause+literal/BOOL_VALUE	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, TRUE) OVER a
+5929	5929	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause+literal/NULLX	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, NULL) OVER a
+5929	5929	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause+literal/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, 0x41) OVER a
+5929	5929	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause+literal/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, b'1') OVER a
+1351	1351	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause+expr_const/SYSTEM_VARIABLE	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, @@autocommit) OVER a
+1064	1064	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause+expr_const/QUESTIONMARK	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, ?) OVER a
+1351	1351	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause+expr_const/global_or_session_alias_._column_name	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, @@global . a) OVER a
+1351	1351	engine	one_table@column	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause+global_or_session_alias/SESSION_ALIAS	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, @@session . a) OVER a
 5929	5929	engine	one_table@column	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT HYBRID_HIST(a, 1) OVER a
 1054	1054	engine	one_table@column	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_generalized_window_clause!drop-7	CREATE VIEW _v AS SELECT HYBRID_HIST(a, 1) a
 5929	5929	engine	one_table@column	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT HYBRID_HIST(a, 1) OVER a zzz
@@ -478,6 +501,7 @@ ok:05dfa2a7669b	ok:05dfa2a7669b	engine	one_table@column	window_function/COUNT_(_
 5929	5929	engine	one_table@column	win_fun_lead_lag_params/(_expr_respect_or_ignore_NULLS_)+respect_or_ignore/IGNORE	CREATE VIEW _v AS SELECT LEAD(a IGNORE NULLS) OVER a
 5929	5929	engine	one_table@column	win_fun_lead_lag_params/(_expr_respect_or_ignore_NULLS_,_expr_list_)	CREATE VIEW _v AS SELECT LEAD(a RESPECT NULLS, a) OVER a
 5929	5929	engine	one_table@column	win_fun_lead_lag_params/(_expr_respect_or_ignore_NULLS_,_expr_list_)+respect_or_ignore/IGNORE	CREATE VIEW _v AS SELECT LEAD(a IGNORE NULLS, a) OVER a
+5929	5929	engine	one_table@column	win_fun_lead_lag_params/(_expr_list_)_opt_respect_or_ignore_nulls+opt_respect_or_ignore_nulls	CREATE VIEW _v AS SELECT LEAD(a) RESPECT NULLS OVER a
 ok:f0a43dbcd52a	ok:f0a43dbcd52a	engine	one_table@column	new_generalized_window_clause/new_generalized_window_clause_with_blanket	CREATE VIEW _v AS SELECT RANK() OVER()
 ok:ad2624615090	ok:ad2624615090	engine	one_table@column	new_generalized_window_clause/new_generalized_window_clause_with_blanket!insert	CREATE VIEW _v AS SELECT RANK() OVER() zzz
 5929	5929	engine	one_table@column	new_generalized_window_clause_with_blanket/(_NAME_OB_generalized_window_clause_)	CREATE VIEW _v AS SELECT RANK() OVER(a)
@@ -614,6 +638,17 @@ ok:8b3ee4b75227	ok:8b3ee4b75227	engine	one_table@column	func_expr/COUNT_(_opt_al
 1054	1054	engine	one_table@column	func_expr/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)+opt_order_by	CREATE VIEW _v AS SELECT GROUP_CONCAT(a ORDER BY a)
 1054	1054	engine	one_table@column	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, 's')
 1054	1054	engine	one_table@column	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)!insert	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, 's') zzz
+1054	1054	engine	one_table@column	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)+literal/DATE_VALUE	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, DATE '2020-01-01')
+1054	1054	engine	one_table@column	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)+literal/INTNUM	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, 1)
+1054	1054	engine	one_table@column	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)+literal/DECIMAL_VAL	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, 1.5)
+1054	1054	engine	one_table@column	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)+literal/BOOL_VALUE	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, TRUE)
+1054	1054	engine	one_table@column	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)+literal/NULLX	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, NULL)
+1054	1054	engine	one_table@column	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)+literal/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, 0x41)
+1054	1054	engine	one_table@column	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)+literal/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, b'1')
+1351	1351	engine	one_table@column	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)+expr_const/SYSTEM_VARIABLE	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, @@autocommit)
+1064	1064	engine	one_table@column	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)+expr_const/QUESTIONMARK	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, ?)
+1351	1351	engine	one_table@column	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)+expr_const/global_or_session_alias_._column_name	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, @@global . a)
+1351	1351	engine	one_table@column	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)+global_or_session_alias/SESSION_ALIAS	CREATE VIEW _v AS SELECT TOP_K_FRE_HIST(1.5, a, 1, @@session . a)
 1054	1054	engine	one_table@column	func_expr/HYBRID_HIST_(_bit_expr_,_INTNUM_)	CREATE VIEW _v AS SELECT HYBRID_HIST(a, 1)
 1054	1054	engine	one_table@column	func_expr/HYBRID_HIST_(_bit_expr_,_INTNUM_)!insert	CREATE VIEW _v AS SELECT HYBRID_HIST(a, 1) zzz
 1054	1054	engine	one_table@column	func_expr/IF_(_expr_,_expr_,_expr_)	CREATE VIEW _v AS SELECT IF(a, a, a)
@@ -1054,11 +1089,19 @@ ok:333f4f7d3d38	ok:333f4f7d3d38	engine	one_table@column	opt_time_func_fsp_i/(_)!
 1054	1054	engine	one_table@column	select_stmt/with_select!insert	CREATE VIEW _v AS WITH a AS(SELECT a) SELECT a zzz
 1054	1054	engine	one_table@column	select_no_parens/select_clause_set_opt_lock_type	CREATE VIEW _v AS SELECT a UNION SELECT a
 1054	1054	engine	one_table@column	select_no_parens/select_clause_set_opt_lock_type!insert	CREATE VIEW _v AS SELECT a UNION SELECT a zzz
+1054	1054	engine	one_table@column	select_no_parens/select_clause_set_opt_lock_type+opt_lock_type/opt_for_update	CREATE VIEW _v AS SELECT a UNION SELECT a FOR UPDATE
+1054	1054	engine	one_table@column	select_no_parens/select_clause_set_opt_lock_type+opt_lock_type/opt_lock_in_share_mode	CREATE VIEW _v AS SELECT a UNION SELECT a LOCK IN SHARE MODE
 1054	1054	engine	one_table@column	select_no_parens/select_clause_set_with_order_and_limit_opt_lock_type	CREATE VIEW _v AS SELECT a UNION SELECT a LIMIT 1
+1054	1054	engine	one_table@column	select_no_parens/select_clause_set_with_order_and_limit_opt_lock_type+opt_lock_type/opt_for_update	CREATE VIEW _v AS SELECT a UNION SELECT a LIMIT 1 FOR UPDATE
+1054	1054	engine	one_table@column	select_no_parens/select_clause_set_with_order_and_limit_opt_lock_type+opt_lock_type/opt_lock_in_share_mode	CREATE VIEW _v AS SELECT a UNION SELECT a LIMIT 1 LOCK IN SHARE MODE
 1054	1054	engine	one_table@column	opt_lock_type/opt_for_update	CREATE VIEW _v AS SELECT a FOR UPDATE
 1054	1054	engine	one_table@column	opt_lock_type/opt_lock_in_share_mode	CREATE VIEW _v AS SELECT a LOCK IN SHARE MODE
 1054	1054	engine	one_table@column	no_table_select/select_with_opt_hint_opt_query_expression_option_list_select_expr_list_into_opt_FROM_DUAL_opt_where_opt_groupby_opt_having_opt_named_windows	CREATE VIEW _v AS SELECT a FROM DUAL
+1054	1054	engine	one_table@column	no_table_select/select_with_opt_hint_opt_query_expression_option_list_select_expr_list_into_opt_FROM_DUAL_opt_where_opt_groupby_opt_having_opt_named_windows+into_opt	CREATE VIEW _v AS SELECT a INTO @v FROM DUAL
 1054	1054	engine	one_table@column	no_table_select/select_with_opt_hint_opt_query_expression_option_list_select_expr_list_into_opt_FROM_DUAL_opt_where_opt_groupby_opt_having_opt_named_windows+opt_where	CREATE VIEW _v AS SELECT a FROM DUAL WHERE a
+1054	1054	engine	one_table@column	no_table_select/select_with_opt_hint_opt_query_expression_option_list_select_expr_list_into_opt_FROM_DUAL_opt_where_opt_groupby_opt_having_opt_named_windows+opt_groupby	CREATE VIEW _v AS SELECT a FROM DUAL GROUP BY a
+1054	1054	engine	one_table@column	no_table_select/select_with_opt_hint_opt_query_expression_option_list_select_expr_list_into_opt_FROM_DUAL_opt_where_opt_groupby_opt_having_opt_named_windows+opt_having	CREATE VIEW _v AS SELECT a FROM DUAL HAVING a
+1054	1054	engine	one_table@column	no_table_select/select_with_opt_hint_opt_query_expression_option_list_select_expr_list_into_opt_FROM_DUAL_opt_where_opt_groupby_opt_having_opt_named_windows+opt_named_windows	CREATE VIEW _v AS SELECT a FROM DUAL WINDOW a AS()
 1054	1054	engine	one_table@column	select_clause/no_table_select_with_order_and_limit	CREATE VIEW _v AS SELECT a LIMIT 1
 ok:9a10873b7d74	ok:9a10873b7d74	engine	one_table@column	select_clause/simple_select	CREATE VIEW _v AS SELECT a FROM a
 ok:eaba38ee5c30	ok:eaba38ee5c30	engine	one_table@column	select_clause/simple_select!insert	CREATE VIEW _v AS SELECT a FROM a zzz
@@ -1067,6 +1110,8 @@ ok:f08bee1b8861	ok:f08bee1b8861	engine	one_table@column	select_clause/simple_sel
 3942	3942	engine	one_table@column	select_clause/table_values_clause_with_order_by_and_limit	CREATE VIEW _v AS VALUES ROW() LIMIT 1
 1054	1054	engine	one_table@column	select_clause_set_with_order_and_limit/select_clause_set_order_by	CREATE VIEW _v AS SELECT a UNION SELECT a ORDER BY a
 1054	1054	engine	one_table@column	select_clause_set_with_order_and_limit/select_clause_set_opt_order_by_limit_clause+opt_order_by	CREATE VIEW _v AS SELECT a UNION SELECT a ORDER BY a LIMIT 1
+1054	1054	engine	one_table@column	select_clause_set_with_order_and_limit/select_clause_set_opt_order_by_limit_clause+limit_clause/LIMIT_limit_expr_OFFSET_limit_expr	CREATE VIEW _v AS SELECT a UNION SELECT a LIMIT 1 OFFSET 1
+1054	1054	engine	one_table@column	select_clause_set_with_order_and_limit/select_clause_set_opt_order_by_limit_clause+limit_clause/LIMIT_limit_expr_,_limit_expr	CREATE VIEW _v AS SELECT a UNION SELECT a LIMIT 1, 1
 1054	1054	engine	one_table@column	select_clause_set/select_clause_set_set_type_select_clause_set_body	CREATE VIEW _v AS SELECT a UNION SELECT a UNION SELECT a
 1054	1054	engine	one_table@column	select_clause_set/select_clause_set_set_type_select_clause_set_body!insert	CREATE VIEW _v AS SELECT a UNION SELECT a UNION SELECT a zzz
 1054	1054	engine	one_table@column	select_clause_set/select_clause_set_set_type_select_clause_set_body+set_type/UNION_ALL	CREATE VIEW _v AS SELECT a UNION SELECT a UNION ALL SELECT a
@@ -1094,12 +1139,20 @@ ok:f08bee1b8861	ok:f08bee1b8861	engine	one_table@column	select_clause/simple_sel
 ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order_and_limit/simple_select_order_by	CREATE VIEW _v AS SELECT a FROM a ORDER BY a
 1054	1054	engine	one_table@column	simple_select_with_order_and_limit/simple_select_order_by!drop-3	CREATE VIEW _v AS SELECT a a ORDER BY a
 ok:3e1787ab4bb4	ok:3e1787ab4bb4	engine	one_table@column	simple_select_with_order_and_limit/simple_select_opt_order_by_limit_clause+opt_order_by	CREATE VIEW _v AS SELECT a FROM a ORDER BY a LIMIT 1
+ok:10d8f0aa30bd	ok:10d8f0aa30bd	engine	one_table@column	simple_select_with_order_and_limit/simple_select_opt_order_by_limit_clause+limit_clause/LIMIT_limit_expr_OFFSET_limit_expr	CREATE VIEW _v AS SELECT a FROM a LIMIT 1 OFFSET 1
+ok:10d8f0aa30bd	ok:10d8f0aa30bd	engine	one_table@column	simple_select_with_order_and_limit/simple_select_opt_order_by_limit_clause+limit_clause/LIMIT_limit_expr_,_limit_expr	CREATE VIEW _v AS SELECT a FROM a LIMIT 1, 1
 1054	1054	engine	one_table@column	simple_select_with_order_and_limit/simple_select_order_by_opt_approx_limit_clause_opt_with_vector_index_parameters!drop-7	CREATE VIEW _v AS SELECT a FROM a ORDER BY APPROX LIMIT 1
+1235	1235	engine	one_table@column	simple_select_with_order_and_limit/simple_select_order_by_opt_approx_limit_clause_opt_with_vector_index_parameters+limit_clause/LIMIT_limit_expr_OFFSET_limit_expr	CREATE VIEW _v AS SELECT a FROM a ORDER BY a APPROX LIMIT 1 OFFSET 1
+1235	1235	engine	one_table@column	simple_select_with_order_and_limit/simple_select_order_by_opt_approx_limit_clause_opt_with_vector_index_parameters+limit_clause/LIMIT_limit_expr_,_limit_expr	CREATE VIEW _v AS SELECT a FROM a ORDER BY a APPROX LIMIT 1, 1
 1054	1054	engine	one_table@column	select_with_opt_hint/SELECT!insert	CREATE VIEW _v AS SELECT zzz a
 1054	1054	engine	one_table@column	select_with_opt_hint/SELECT_HINT_BEGIN_hint_list_with_end	CREATE VIEW _v AS SELECT /*+ */ a
 1054	1054	engine	one_table@column	select_with_opt_hint/SELECT_HINT_BEGIN_hint_list_with_end!insert	CREATE VIEW _v AS SELECT /*+ */ zzz a
+1350	1350	engine	one_table@column	simple_select/select_with_opt_hint_opt_query_expression_option_list_select_expr_list_into_opt_FROM_from_list_opt_where_opt_groupby_opt_having_opt_named_windows+into_opt	CREATE VIEW _v AS SELECT a INTO @v FROM a
 ok:6e4a0efc882d	ok:6e4a0efc882d	engine	one_table@column	simple_select/select_with_opt_hint_opt_query_expression_option_list_select_expr_list_into_opt_FROM_from_list_opt_where_opt_groupby_opt_having_opt_named_windows+opt_where	CREATE VIEW _v AS SELECT a FROM a WHERE a
 ok:99a4b2110be5	ok:99a4b2110be5	engine	one_table@column	simple_select/select_with_opt_hint_opt_query_expression_option_list_select_expr_list_into_opt_FROM_from_list_opt_where_opt_groupby_opt_having_opt_named_windows+opt_where!drop-5	CREATE VIEW _v AS SELECT a FROM a a
+ok:59fa4b5b7949	ok:59fa4b5b7949	engine	one_table@column	simple_select/select_with_opt_hint_opt_query_expression_option_list_select_expr_list_into_opt_FROM_from_list_opt_where_opt_groupby_opt_having_opt_named_windows+opt_groupby	CREATE VIEW _v AS SELECT a FROM a GROUP BY a
+ok:de8db6521436	ok:de8db6521436	engine	one_table@column	simple_select/select_with_opt_hint_opt_query_expression_option_list_select_expr_list_into_opt_FROM_from_list_opt_where_opt_groupby_opt_having_opt_named_windows+opt_having	CREATE VIEW _v AS SELECT a FROM a HAVING a
+ok:9a10873b7d74	ok:9a10873b7d74	engine	one_table@column	simple_select/select_with_opt_hint_opt_query_expression_option_list_select_expr_list_into_opt_FROM_from_list_opt_where_opt_groupby_opt_having_opt_named_windows+opt_named_windows	CREATE VIEW _v AS SELECT a FROM a WINDOW a AS()
 1054	1054	engine	one_table@column	opt_where/WHERE_opt_hint_value_expr	CREATE VIEW _v AS SELECT a WHERE a
 1054	1054	engine	one_table@column	limit_clause/LIMIT_limit_expr_OFFSET_limit_expr	CREATE VIEW _v AS SELECT a LIMIT 1 OFFSET 1
 1054	1054	engine	one_table@column	limit_clause/LIMIT_limit_expr_,_limit_expr	CREATE VIEW _v AS SELECT a LIMIT 1, 1
@@ -2327,6 +2380,8 @@ ok:58523c408684	ok:58523c408684	engine	one_table@column	opt_full_table_factor/ta
 1054	1054	engine	one_table@column	opt_column_alias_name_list/(_alias_name_list_)	CREATE VIEW _v AS WITH a(a) AS(SELECT a) SELECT a
 3942	3942	engine	one_table@column	table_values_clause_with_order_by_and_limit/VALUES_values_row_list_order_by	CREATE VIEW _v AS VALUES ROW() ORDER BY a
 3942	3942	engine	one_table@column	table_values_clause_with_order_by_and_limit/VALUES_values_row_list_opt_order_by_limit_clause+opt_order_by	CREATE VIEW _v AS VALUES ROW() ORDER BY a LIMIT 1
+3942	3942	engine	one_table@column	table_values_clause_with_order_by_and_limit/VALUES_values_row_list_opt_order_by_limit_clause+limit_clause/LIMIT_limit_expr_OFFSET_limit_expr	CREATE VIEW _v AS VALUES ROW() LIMIT 1 OFFSET 1
+3942	3942	engine	one_table@column	table_values_clause_with_order_by_and_limit/VALUES_values_row_list_opt_order_by_limit_clause+limit_clause/LIMIT_limit_expr_,_limit_expr	CREATE VIEW _v AS VALUES ROW() LIMIT 1, 1
 3942	3942	engine	one_table@column	values_row_list/values_row_list_,_row_value	CREATE VIEW _v AS VALUES ROW(), ROW()
 1054	1054	engine	one_table@column	column_name/unreserved_keyword	CREATE VIEW _v AS SELECT ACCESS_INFO
 1054	1054	engine	one_table@column	column_name/unreserved_keyword!insert	CREATE VIEW _v AS SELECT ACCESS_INFO zzz
@@ -2400,15 +2455,64 @@ ok:9b5ea0524e46	ok:9b5ea0524e46	engine	one_table@column	function_name/SESSION_US
 1054	1054	engine	one_table@column	date_unit/YEAR_MONTH	CREATE VIEW _v AS SELECT a + INTERVAL a YEAR_MONTH
 1054	1054	engine	one_table@column	date_unit/YEAR_MONTH!insert	CREATE VIEW _v AS SELECT a + INTERVAL a YEAR_MONTH zzz
 1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_relation_name	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY)) a
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_relation_name+literal/DATE_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, DATE '2020-01-01' COLUMNS(a FOR ORDINALITY)) a
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_relation_name+literal/INTNUM	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 1 COLUMNS(a FOR ORDINALITY)) a
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_relation_name+literal/DECIMAL_VAL	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 1.5 COLUMNS(a FOR ORDINALITY)) a
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_relation_name+literal/BOOL_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, TRUE COLUMNS(a FOR ORDINALITY)) a
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_relation_name+literal/NULLX	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, NULL COLUMNS(a FOR ORDINALITY)) a
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_relation_name+literal/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 0x41 COLUMNS(a FOR ORDINALITY)) a
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_relation_name+literal/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, b'1' COLUMNS(a FOR ORDINALITY)) a
 1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY)) AS a
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name+literal/DATE_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, DATE '2020-01-01' COLUMNS(a FOR ORDINALITY)) AS a
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name+literal/INTNUM	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 1 COLUMNS(a FOR ORDINALITY)) AS a
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name+literal/DECIMAL_VAL	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 1.5 COLUMNS(a FOR ORDINALITY)) AS a
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name+literal/BOOL_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, TRUE COLUMNS(a FOR ORDINALITY)) AS a
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name+literal/NULLX	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, NULL COLUMNS(a FOR ORDINALITY)) AS a
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name+literal/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 0x41 COLUMNS(a FOR ORDINALITY)) AS a
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name+literal/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, b'1' COLUMNS(a FOR ORDINALITY)) AS a
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)+literal/DATE_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, DATE '2020-01-01' COLUMNS(a FOR ORDINALITY))
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)+literal/INTNUM	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 1 COLUMNS(a FOR ORDINALITY))
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)+literal/DECIMAL_VAL	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 1.5 COLUMNS(a FOR ORDINALITY))
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)+literal/BOOL_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, TRUE COLUMNS(a FOR ORDINALITY))
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)+literal/NULLX	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, NULL COLUMNS(a FOR ORDINALITY))
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)+literal/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 0x41 COLUMNS(a FOR ORDINALITY))
+1054	1054	engine	one_table@column	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)+literal/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, b'1' COLUMNS(a FOR ORDINALITY))
 1054	1054	engine	one_table@column	jt_column_list/jt_column_list_,_json_table_column_def	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY, a FOR ORDINALITY))
 1054	1054	engine	one_table@column	json_table_column_def/json_table_exists_column_def	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT EXISTS PATH 's'))
 1054	1054	engine	one_table@column	json_table_column_def/json_table_exists_column_def!swap	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYTEXT EXISTS PATH 's'))
 1054	1054	engine	one_table@column	json_table_column_def/json_table_value_column_def	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH 's'))
 1054	1054	engine	one_table@column	json_table_column_def/json_table_value_column_def!swap	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYTEXT PATH 's'))
 1054	1054	engine	one_table@column	json_table_exists_column_def/column_name_data_type_opt_collation_EXISTS_PATH_literal_mock_jt_on_error_on_empty+opt_collation	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT COLLATE a EXISTS PATH 's'))
+1054	1054	engine	one_table@column	json_table_exists_column_def/column_name_data_type_opt_collation_EXISTS_PATH_literal_mock_jt_on_error_on_empty+literal/DATE_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT EXISTS PATH DATE '2020-01-01'))
+1054	1054	engine	one_table@column	json_table_exists_column_def/column_name_data_type_opt_collation_EXISTS_PATH_literal_mock_jt_on_error_on_empty+literal/INTNUM	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT EXISTS PATH 1))
+1054	1054	engine	one_table@column	json_table_exists_column_def/column_name_data_type_opt_collation_EXISTS_PATH_literal_mock_jt_on_error_on_empty+literal/DECIMAL_VAL	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT EXISTS PATH 1.5))
+1054	1054	engine	one_table@column	json_table_exists_column_def/column_name_data_type_opt_collation_EXISTS_PATH_literal_mock_jt_on_error_on_empty+literal/BOOL_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT EXISTS PATH TRUE))
+1054	1054	engine	one_table@column	json_table_exists_column_def/column_name_data_type_opt_collation_EXISTS_PATH_literal_mock_jt_on_error_on_empty+literal/NULLX	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT EXISTS PATH NULL))
+1054	1054	engine	one_table@column	json_table_exists_column_def/column_name_data_type_opt_collation_EXISTS_PATH_literal_mock_jt_on_error_on_empty+literal/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT EXISTS PATH 0x41))
+1054	1054	engine	one_table@column	json_table_exists_column_def/column_name_data_type_opt_collation_EXISTS_PATH_literal_mock_jt_on_error_on_empty+literal/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT EXISTS PATH b'1'))
 1054	1054	engine	one_table@column	json_table_value_column_def/column_name_data_type_opt_collation_PATH_literal_opt_value_on_empty_or_error_or_mismatch+opt_collation	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT COLLATE a PATH 's'))
+1054	1054	engine	one_table@column	json_table_value_column_def/column_name_data_type_opt_collation_PATH_literal_opt_value_on_empty_or_error_or_mismatch+literal/DATE_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH DATE '2020-01-01'))
+1054	1054	engine	one_table@column	json_table_value_column_def/column_name_data_type_opt_collation_PATH_literal_opt_value_on_empty_or_error_or_mismatch+literal/INTNUM	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH 1))
+1054	1054	engine	one_table@column	json_table_value_column_def/column_name_data_type_opt_collation_PATH_literal_opt_value_on_empty_or_error_or_mismatch+literal/DECIMAL_VAL	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH 1.5))
+1054	1054	engine	one_table@column	json_table_value_column_def/column_name_data_type_opt_collation_PATH_literal_opt_value_on_empty_or_error_or_mismatch+literal/BOOL_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH TRUE))
+1054	1054	engine	one_table@column	json_table_value_column_def/column_name_data_type_opt_collation_PATH_literal_opt_value_on_empty_or_error_or_mismatch+literal/NULLX	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH NULL))
+1054	1054	engine	one_table@column	json_table_value_column_def/column_name_data_type_opt_collation_PATH_literal_opt_value_on_empty_or_error_or_mismatch+literal/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH 0x41))
+1054	1054	engine	one_table@column	json_table_value_column_def/column_name_data_type_opt_collation_PATH_literal_opt_value_on_empty_or_error_or_mismatch+literal/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH b'1'))
+1054	1054	engine	one_table@column	json_table_nested_column_def/NESTED_literal_COLUMNS_(_jt_column_list_)+literal/DATE_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED DATE '2020-01-01' COLUMNS(a FOR ORDINALITY)))
+1054	1054	engine	one_table@column	json_table_nested_column_def/NESTED_literal_COLUMNS_(_jt_column_list_)+literal/INTNUM	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED 1 COLUMNS(a FOR ORDINALITY)))
+1054	1054	engine	one_table@column	json_table_nested_column_def/NESTED_literal_COLUMNS_(_jt_column_list_)+literal/DECIMAL_VAL	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED 1.5 COLUMNS(a FOR ORDINALITY)))
+1054	1054	engine	one_table@column	json_table_nested_column_def/NESTED_literal_COLUMNS_(_jt_column_list_)+literal/BOOL_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED TRUE COLUMNS(a FOR ORDINALITY)))
+1054	1054	engine	one_table@column	json_table_nested_column_def/NESTED_literal_COLUMNS_(_jt_column_list_)+literal/NULLX	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED NULL COLUMNS(a FOR ORDINALITY)))
+1054	1054	engine	one_table@column	json_table_nested_column_def/NESTED_literal_COLUMNS_(_jt_column_list_)+literal/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED 0x41 COLUMNS(a FOR ORDINALITY)))
+1054	1054	engine	one_table@column	json_table_nested_column_def/NESTED_literal_COLUMNS_(_jt_column_list_)+literal/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED b'1' COLUMNS(a FOR ORDINALITY)))
 1054	1054	engine	one_table@column	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED PATH 's' COLUMNS(a FOR ORDINALITY)))
+1054	1054	engine	one_table@column	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)+literal/DATE_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED PATH DATE '2020-01-01' COLUMNS(a FOR ORDINALITY)))
+1054	1054	engine	one_table@column	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)+literal/INTNUM	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED PATH 1 COLUMNS(a FOR ORDINALITY)))
+1054	1054	engine	one_table@column	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)+literal/DECIMAL_VAL	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED PATH 1.5 COLUMNS(a FOR ORDINALITY)))
+1054	1054	engine	one_table@column	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)+literal/BOOL_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED PATH TRUE COLUMNS(a FOR ORDINALITY)))
+1054	1054	engine	one_table@column	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)+literal/NULLX	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED PATH NULL COLUMNS(a FOR ORDINALITY)))
+1054	1054	engine	one_table@column	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)+literal/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED PATH 0x41 COLUMNS(a FOR ORDINALITY)))
+1054	1054	engine	one_table@column	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)+literal/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED PATH b'1' COLUMNS(a FOR ORDINALITY)))
 5454	5454	engine	one_table@column	json_query_expr/JSON_QUERY_(_simple_expr_,_complex_string_literal_opt_returning_type_opt_truncate_clause_opt_scalars_opt_pretty_opt_ascii_opt_wrapper_opt_asis_opt_query_on_error_or_empty_or_mismatch_opt_multivalue_)+opt_truncate_clause	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' TRUNCATE)
 5454	5454	engine	one_table@column	json_query_expr/JSON_QUERY_(_simple_expr_,_complex_string_literal_opt_returning_type_opt_truncate_clause_opt_scalars_opt_pretty_opt_ascii_opt_wrapper_opt_asis_opt_query_on_error_or_empty_or_mismatch_opt_multivalue_)+opt_ascii	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ASCII)
 1054	1054	engine	one_table@column	opt_array/ARRAY	CREATE VIEW _v AS SELECT CAST(a AS BINARY ARRAY)
@@ -2419,17 +2523,65 @@ ok:9b5ea0524e46	ok:9b5ea0524e46	engine	one_table@column	function_name/SESSION_US
 5454	5454	engine	one_table@column	opt_pretty/PRETTY	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' PRETTY)
 5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY)
 5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' NULL ON ERROR)
 5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_mismatch_query	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_mismatch_query+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' NULL ON MISMATCH)
 5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR ERROR ON EMPTY)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' NULL ON ERROR ERROR ON EMPTY)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query+on_error_query/EMPTY_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY ON ERROR ERROR ON EMPTY)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query+on_error_query/EMPTY_ARRAY_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY ARRAY ON ERROR ERROR ON EMPTY)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query+on_error_query/EMPTY_OBJECT_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY OBJECT ON ERROR ERROR ON EMPTY)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR NULL ON EMPTY)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query+on_empty_query/EMPTY_ON_EMPTY	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR EMPTY ON EMPTY)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query+on_empty_query/EMPTY_ARRAY_ON_EMPTY	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR EMPTY ARRAY ON EMPTY)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query+on_empty_query/EMPTY_OBJECT_ON_EMPTY	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR EMPTY OBJECT ON EMPTY)
 5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY ERROR ON ERROR)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' NULL ON EMPTY ERROR ON ERROR)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query+on_empty_query/EMPTY_ON_EMPTY	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY ON EMPTY ERROR ON ERROR)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query+on_empty_query/EMPTY_ARRAY_ON_EMPTY	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY ARRAY ON EMPTY ERROR ON ERROR)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query+on_empty_query/EMPTY_OBJECT_ON_EMPTY	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY OBJECT ON EMPTY ERROR ON ERROR)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY NULL ON ERROR)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query+on_error_query/EMPTY_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY EMPTY ON ERROR)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query+on_error_query/EMPTY_ARRAY_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY EMPTY ARRAY ON ERROR)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query+on_error_query/EMPTY_OBJECT_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY EMPTY OBJECT ON ERROR)
 5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_mismatch_query	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_mismatch_query+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' NULL ON ERROR ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_mismatch_query+on_error_query/EMPTY_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY ON ERROR ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_mismatch_query+on_error_query/EMPTY_ARRAY_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY ARRAY ON ERROR ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_mismatch_query+on_error_query/EMPTY_OBJECT_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY OBJECT ON ERROR ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_mismatch_query+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR NULL ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_mismatch_query+on_mismatch_query/DOT_ON_MISMATCH	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR DOT ON MISMATCH)
 5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_mismatch_query	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_mismatch_query+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' NULL ON EMPTY ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_mismatch_query+on_empty_query/EMPTY_ON_EMPTY	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY ON EMPTY ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_mismatch_query+on_empty_query/EMPTY_ARRAY_ON_EMPTY	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY ARRAY ON EMPTY ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_mismatch_query+on_empty_query/EMPTY_OBJECT_ON_EMPTY	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY OBJECT ON EMPTY ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_mismatch_query+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY NULL ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_mismatch_query+on_mismatch_query/DOT_ON_MISMATCH	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY DOT ON MISMATCH)
 5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query_on_mismatch_query	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR ERROR ON EMPTY ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query_on_mismatch_query+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' NULL ON ERROR ERROR ON EMPTY ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query_on_mismatch_query+on_error_query/EMPTY_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY ON ERROR ERROR ON EMPTY ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query_on_mismatch_query+on_error_query/EMPTY_ARRAY_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY ARRAY ON ERROR ERROR ON EMPTY ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query_on_mismatch_query+on_error_query/EMPTY_OBJECT_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY OBJECT ON ERROR ERROR ON EMPTY ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query_on_mismatch_query+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR NULL ON EMPTY ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query_on_mismatch_query+on_empty_query/EMPTY_ON_EMPTY	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR EMPTY ON EMPTY ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query_on_mismatch_query+on_empty_query/EMPTY_ARRAY_ON_EMPTY	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR EMPTY ARRAY ON EMPTY ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query_on_mismatch_query+on_empty_query/EMPTY_OBJECT_ON_EMPTY	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR EMPTY OBJECT ON EMPTY ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query_on_mismatch_query+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR ERROR ON EMPTY NULL ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_error_query_on_empty_query_on_mismatch_query+on_mismatch_query/DOT_ON_MISMATCH	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON ERROR ERROR ON EMPTY DOT ON MISMATCH)
 5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query_on_mismatch_query	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY ERROR ON ERROR ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query_on_mismatch_query+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' NULL ON EMPTY ERROR ON ERROR ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query_on_mismatch_query+on_empty_query/EMPTY_ON_EMPTY	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY ON EMPTY ERROR ON ERROR ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query_on_mismatch_query+on_empty_query/EMPTY_ARRAY_ON_EMPTY	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY ARRAY ON EMPTY ERROR ON ERROR ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query_on_mismatch_query+on_empty_query/EMPTY_OBJECT_ON_EMPTY	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY OBJECT ON EMPTY ERROR ON ERROR ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query_on_mismatch_query+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY NULL ON ERROR ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query_on_mismatch_query+on_error_query/EMPTY_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY EMPTY ON ERROR ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query_on_mismatch_query+on_error_query/EMPTY_ARRAY_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY EMPTY ARRAY ON ERROR ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query_on_mismatch_query+on_error_query/EMPTY_OBJECT_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY EMPTY OBJECT ON ERROR ERROR ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query_on_mismatch_query+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY ERROR ON ERROR NULL ON MISMATCH)
+5454	5454	engine	one_table@column	opt_query_on_error_or_empty_or_mismatch/on_empty_query_on_error_query_on_mismatch_query+on_mismatch_query/DOT_ON_MISMATCH	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' ERROR ON EMPTY ERROR ON ERROR DOT ON MISMATCH)
 5454	5454	engine	one_table@column	opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' NULL ON EMPTY)
-5454	5454	engine	one_table@column	on_mismatch_query/opt_response_query_ON_MISMATCH+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' NULL ON MISMATCH)
 5454	5454	engine	one_table@column	on_mismatch_query/DOT_ON_MISMATCH	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' DOT ON MISMATCH)
-5454	5454	engine	one_table@column	on_error_query/opt_response_query_ON_ERROR_P+opt_response_query/NULLX	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' NULL ON ERROR)
 5454	5454	engine	one_table@column	on_error_query/EMPTY_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY ON ERROR)
 5454	5454	engine	one_table@column	on_error_query/EMPTY_ARRAY_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY ARRAY ON ERROR)
 5454	5454	engine	one_table@column	on_error_query/EMPTY_OBJECT_ON_ERROR_P	CREATE VIEW _v AS SELECT JSON_QUERY(a, 's' EMPTY OBJECT ON ERROR)
@@ -2452,6 +2604,17 @@ ok:9b5ea0524e46	ok:9b5ea0524e46	engine	one_table@column	function_name/SESSION_US
 1054	1054	engine	one_table@column	opt_on_empty_or_error/on_empty_on_error	CREATE VIEW _v AS SELECT JSON_VALUE(a, 's' ERROR ON EMPTY ERROR ON ERROR)
 1054	1054	engine	one_table@column	json_on_response/NULLX	CREATE VIEW _v AS SELECT JSON_VALUE(a, 's' NULL ON EMPTY)
 1054	1054	engine	one_table@column	json_on_response/DEFAULT_signed_literal	CREATE VIEW _v AS SELECT JSON_VALUE(a, 's' DEFAULT 's' ON EMPTY)
+1054	1054	engine	one_table@column	json_on_response/DEFAULT_signed_literal+literal/DATE_VALUE	CREATE VIEW _v AS SELECT JSON_VALUE(a, 's' DEFAULT DATE '2020-01-01' ON EMPTY)
+1054	1054	engine	one_table@column	json_on_response/DEFAULT_signed_literal+literal/INTNUM	CREATE VIEW _v AS SELECT JSON_VALUE(a, 's' DEFAULT 1 ON EMPTY)
+1054	1054	engine	one_table@column	json_on_response/DEFAULT_signed_literal+literal/DECIMAL_VAL	CREATE VIEW _v AS SELECT JSON_VALUE(a, 's' DEFAULT 1.5 ON EMPTY)
+1054	1054	engine	one_table@column	json_on_response/DEFAULT_signed_literal+literal/BOOL_VALUE	CREATE VIEW _v AS SELECT JSON_VALUE(a, 's' DEFAULT TRUE ON EMPTY)
+1149	1149	engine	one_table@column	json_on_response/DEFAULT_signed_literal+literal/NULLX	CREATE VIEW _v AS SELECT JSON_VALUE(a, 's' DEFAULT NULL ON EMPTY)
+1054	1054	engine	one_table@column	json_on_response/DEFAULT_signed_literal+literal/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT JSON_VALUE(a, 's' DEFAULT 0x41 ON EMPTY)
+1054	1054	engine	one_table@column	json_on_response/DEFAULT_signed_literal+literal/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT JSON_VALUE(a, 's' DEFAULT b'1' ON EMPTY)
+1054	1054	engine	one_table@column	json_on_response/DEFAULT_signed_literal+signed_literal/+_number_literal	CREATE VIEW _v AS SELECT JSON_VALUE(a, 's' DEFAULT + 1 ON EMPTY)
+1054	1054	engine	one_table@column	json_on_response/DEFAULT_signed_literal+number_literal/DECIMAL_VAL	CREATE VIEW _v AS SELECT JSON_VALUE(a, 's' DEFAULT + 1.5 ON EMPTY)
+1054	1054	engine	one_table@column	json_on_response/DEFAULT_signed_literal+signed_literal/-_number_literal	CREATE VIEW _v AS SELECT JSON_VALUE(a, 's' DEFAULT - 1 ON EMPTY)
+1054	1054	engine	one_table@column	json_on_response/DEFAULT_signed_literal+number_literal/DECIMAL_VAL#2	CREATE VIEW _v AS SELECT JSON_VALUE(a, 's' DEFAULT - 1.5 ON EMPTY)
 1054	1054	engine	one_table@column	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name	CREATE VIEW _v AS SELECT a FROM RB_ITERATE(a) a
 1054	1054	engine	one_table@column	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name	CREATE VIEW _v AS SELECT a FROM RB_ITERATE(a) AS a
 1054	1054	engine	one_table@column	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name_(_relation_name_)	CREATE VIEW _v AS SELECT a FROM RB_ITERATE(a) a(a)
