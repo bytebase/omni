@@ -433,3 +433,11 @@ func TestExecRound21(t *testing.T) {
 		require.Error(t, err, script)
 	}
 }
+
+func TestExecRound22(t *testing.T) {
+	c, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (m mood CHECK (m IN ('sad', 'happy'))); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.NoError(t, err)
+	require.Contains(t, c.Metadata().Schemas[0].Tables[0].CheckConstraints[0].Expression, "'blue'")
+	_, err = execLast(t, "CREATE SEQUENCE sq; CREATE FUNCTION f(n INT8 DEFAULT nextval('sq')) RETURNS INT8 LANGUAGE SQL AS $$ SELECT n $$; ALTER SEQUENCE sq RENAME TO sq2")
+	require.Error(t, err)
+}

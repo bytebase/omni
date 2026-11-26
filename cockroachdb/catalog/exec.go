@@ -1811,6 +1811,20 @@ func relabelIn(text, typ, from, to string, enumColumns []string) string {
 			case isEnumColumn(x.Right) && bare(x.Left):
 				cmp.Left = tree.NewStrVal(to)
 				return true, &cmp, nil
+			case isEnumColumn(x.Left):
+				// m IN ('sad', 'happy'): the tuple's labels are the enum's.
+				if tuple, ok := unparen(x.Right).(*tree.Tuple); ok {
+					out := *tuple
+					out.Exprs = make(tree.Exprs, len(tuple.Exprs))
+					for i, e := range tuple.Exprs {
+						out.Exprs[i] = e
+						if bare(e) {
+							out.Exprs[i] = tree.NewStrVal(to)
+						}
+					}
+					cmp.Right = &out
+					return true, &cmp, nil
+				}
 			}
 		case *tree.CastExpr:
 			if inner, ok := relabelArray(x.Expr, x.Type); ok {
@@ -1934,11 +1948,31 @@ func isIdentChar(b byte) bool {
 	return b == '_' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9'
 }
 
+// routineDefaultsName reports whether a routine's parameter defaults hold a
+// name.
+func routineDefaultsName(definition, name string) bool {
+	stmt, err := parser.ParseOne(definition)
+	if err != nil {
+		return false
+	}
+	routine, ok := stmt.AST.(*tree.CreateRoutine)
+	if !ok {
+		return false
+	}
+	for _, param := range routine.Params {
+		if param.DefaultVal != nil && identifierIn(tree.AsString(param.DefaultVal), name) {
+			return true
+		}
+	}
+	return false
+}
+
 // routineNamesType reports whether a routine's parameters or result have a
 // type, as the catalog names a user-defined type.
 func routineNamesType(definition, typ, name string) bool {
-	// The body is stored as written; a type it names is not rewritten.
-	if identifierIn(routineBody(definition), name) {
+	// The body and the parameters' defaults are stored as written; a type
+	// they name is not rewritten.
+	if identifierIn(routineBody(definition), name) || routineDefaultsName(definition, name) {
 		return true
 	}
 	stmt, err := parser.ParseOne(definition)
@@ -2130,7 +2164,8 @@ func (c *Catalog) viewSequenceUser(schema, name string, kind relKind) error {
 	}
 	for _, s := range c.l.meta.Schemas {
 		for _, function := range s.Functions {
-			if identifierIn(routineBody(function.Definition), name) {
+			// Its body or a parameter's default.
+			if identifierIn(function.Definition, name) {
 				return &Error{Message: fmt.Sprintf("changing sequence %q, which routine %q may call, is not supported", name, function.Name)}
 			}
 		}
