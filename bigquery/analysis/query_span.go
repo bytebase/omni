@@ -383,6 +383,9 @@ type spanWalker struct {
 	// pipeColumns holds, folded, the names of the columns a pipe operator's
 	// expressions read (see requirePipeColumn); nil outside a pipe operator.
 	pipeColumns map[string]bool
+	// opaqueSubqueries counts the subqueries met in lineage expressions (a
+	// select item, a REPLACE or pipe value), whose output gets no sources.
+	opaqueSubqueries int
 	// fixpoints counts the recursive-CTE fixpoints started, so
 	// recursiveFixpoint can tell whether a recursive arm holds another one.
 	fixpoints int

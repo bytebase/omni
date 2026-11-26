@@ -371,18 +371,17 @@ func (w *spanWalker) resolvePath(parts []string) (string, []ColumnRef) {
 // rangeVariableSources is the lineage of a range variable used as a value:
 // every column of its relation, a base table's listed from metadata. It fails
 // closed when the columns cannot be listed, since an empty lineage would leave
-// the row unmasked. A system table (INFORMATION_SCHEMA) adds none: metadata
-// does not list its columns, and the consumer masks no system table and
-// rejects a query that mixes one with a user table.
+// the row unmasked. So it does over a derived relation once a lineage
+// expression has held a subquery, whose output omni leaves without sources:
+// the relation may carry that output. A system table (INFORMATION_SCHEMA)
+// adds none: metadata does not list its columns, and the consumer masks no
+// system table and rejects a query that mixes one with a user table.
 func (w *spanWalker) rangeVariableSources(rel *relation) []ColumnRef {
-	user := make([]projColumn, 0, len(rel.columns))
-	for _, c := range rel.columns {
-		if c.baseStar != nil && isSystemSchemaName(c.baseStar.Schema) {
-			continue
-		}
-		user = append(user, c)
+	if !rel.isBase && w.opaqueSubqueries > 0 {
+		w.failClosed(fmt.Errorf("range variable %s over a relation that may hold a subquery's output, whose lineage this walker does not resolve (fail closed)", rel.name))
+		return nil
 	}
-	cols, ok := w.pipeConcrete(user)
+	cols, ok := w.pipeConcrete(withoutSystemStars(rel.columns))
 	if !ok {
 		w.failClosed(fmt.Errorf("range variable %s over a relation whose columns cannot be listed (fail closed)", rel.name))
 		return nil
@@ -392,6 +391,24 @@ func (w *spanWalker) rangeVariableSources(rel *relation) []ColumnRef {
 		sources.add(c.sources)
 	}
 	return sources.refs
+}
+
+// withoutSystemStars drops each system table's star from cols, including one
+// inside a star with EXCEPT or REPLACE.
+func withoutSystemStars(cols []projColumn) []projColumn {
+	out := make([]projColumn, 0, len(cols))
+	for _, c := range cols {
+		switch {
+		case c.baseStar != nil && isSystemSchemaName(c.baseStar.Schema):
+			continue
+		case c.starGroup != nil:
+			g := *c.starGroup
+			g.segments = withoutSystemStars(g.segments)
+			c.starGroup = &g
+		}
+		out = append(out, c)
+	}
+	return out
 }
 
 // qualifierNamesBaseRelation reports whether a bucketed column ref's qualifier
@@ -1234,11 +1251,15 @@ func (w *spanWalker) collectColumnPaths(expr ast.Node) [][]string {
 		followSub: false,
 		onParts:   func(parts []string) { paths = append(paths, parts) },
 	}
+	// A subquery's output is opaque to lineage here (the legacy corpus pins
+	// it empty in a SELECT list); rangeVariableSources reads the count.
+	ew.onSubquery = func() { w.opaqueSubqueries++ }
 	if w.pipeColumns != nil {
 		// A subquery's output is opaque to lineage here (the legacy corpus
 		// pins it empty in a SELECT list), and a pipe expression that used to
 		// fail closed must not resolve to that empty lineage.
 		ew.onSubquery = func() {
+			w.opaqueSubqueries++
 			w.failClosed(fmt.Errorf("a pipe expression holds a subquery, whose lineage this walker does not resolve (fail closed)"))
 		}
 	}

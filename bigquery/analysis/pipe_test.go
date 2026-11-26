@@ -275,6 +275,7 @@ func TestResolveQuerySpanRangeVariableLineage(t *testing.T) {
 		{"FROM t |> AS a |> SELECT TO_JSON_STRING(a) AS j", [][]string{append([]string{"j"}, all...)}},
 		// A system table's columns add no lineage: system tables are not masked.
 		{"SELECT TO_JSON_STRING(a) AS j FROM ds1.INFORMATION_SCHEMA.TABLES AS a", [][]string{{"j"}}},
+		{"SELECT TO_JSON_STRING(a) AS j FROM (SELECT * EXCEPT (table_catalog) FROM ds1.INFORMATION_SCHEMA.TABLES) AS a", [][]string{{"j"}}},
 		{"FROM (SELECT x, secret FROM t) AS a |> EXTEND TO_JSON_STRING(a) AS j", [][]string{{"x", "t.x"}, {"secret", "t.secret"}, {"j", "t.secret", "t.x"}}},
 	}
 	for _, tc := range tests {
@@ -293,6 +294,11 @@ func TestResolveQuerySpanRangeVariableLineage(t *testing.T) {
 		"SELECT a FROM missing AS a",
 		"SELECT f FROM tvf() AS f",
 		"SELECT a FROM (SELECT x, y FROM t UNION ALL SELECT * FROM u) AS a",
+		// A scalar subquery's output has no lineage, so a row that may hold it
+		// does not resolve.
+		"FROM (SELECT (SELECT secret FROM t LIMIT 1) AS s) AS a |> SELECT TO_JSON_STRING(a) AS j",
+		"SELECT a FROM (SELECT s FROM (SELECT ARRAY(SELECT secret FROM t) AS s)) AS a",
+		"WITH c AS (SELECT (SELECT MAX(secret) FROM t) AS s) SELECT c FROM c",
 	} {
 		opts := bigqueryResolveOptions()
 		opts.DefaultDatabase = "ds1"
