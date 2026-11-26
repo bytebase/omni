@@ -63,3 +63,37 @@ argument	(every alternative)	SqlBase.g4:922 a positional or named argument
 literal	(every alternative)	SqlBase.g4:687 a literal
 booleanValue	(every alternative)	SqlBase.g4:778 TRUE or FALSE
 number	(every alternative)	SqlBase.g4:1059 a decimal, double or integer, signed or not
+# More optional clauses tried at every site that names them (wave 21): each
+# is an inline group or optional rule reached at several alternatives.
+predicate(NOT)?	(every site)	SqlBase.g4:584 NOT before BETWEEN, IN, LIKE, and after IS
+statement(LIKE_string_(ESCAPE_string)?)?	(every site)	SqlBase.g4:184 a SHOW's LIKE pattern
+statement((FROM|IN)_identifier)?	(every site)	SqlBase.g4:185 a SHOW's FROM or IN catalog
+statement((FROM|IN)_qualifiedName)?	(every site)	SqlBase.g4:183 a SHOW's FROM or IN schema
+statement(FROM|IN)	(every alternative)	SqlBase.g4:183 FROM or IN in a SHOW
+statement(@_identifier)?	(every site)	SqlBase.g4:80 a table's @ branch
+statement(columnAliases)?	(every site)	SqlBase.g4:81 a column list
+statement(USING_expression_(,_expression)*)?	(every site)	SqlBase.g4:210 EXECUTE's USING parameters
+type((_typeParameter_))?	(every site)	SqlBase.g4:801 a type's parameters
+intervalQualifier((_INTEGER_VALUE_))?	(every site)	SqlBase.g4:805 an interval field's precision
+primaryExpression((_INTEGER_VALUE_))?	(every site)	SqlBase.g4:637 CURRENT_TIME and the like's precision
+patternQuantifier(QUESTION_MARK)?	(every site)	SqlBase.g4:894 a reluctant quantifier
+number(MINUS)?	(every site)	SqlBase.g4:1060 a minus sign
+controlStatement(identifier_COLON)?	(every site)	SqlBase.g4:976 a loop's label
+controlStatement(elseClause)?	(every site)	SqlBase.g4:970 an ELSE branch
+primaryExpression(filter)?	(every site)	SqlBase.g4:613 an aggregate's FILTER
+primaryExpression(over)?	(every site)	SqlBase.g4:613 a window function's OVER
+primaryExpression(RETURNING_type_(FORMAT_jsonRepresentation)?)?	(every site)	SqlBase.g4:664 a JSON function's RETURNING type
+primaryExpression(NULL_ON_NULL|ABSENT_ON_NULL)?	(every alternative)	SqlBase.g4:673 a JSON constructor's null handling
+primaryExpression(KEYS)?	(every site)	SqlBase.g4:674 UNIQUE KEYS
+primaryExpression(setQuantifier)?	(every site)	SqlBase.g4:610 DISTINCT or ALL in an aggregate
+primaryExpression(FOR_valueExpression)?	(every site)	SqlBase.g4:648 SUBSTRING's FOR length
+mergeCase(AND_expression)?	(every site)	SqlBase.g4:838 a MERGE case's AND condition
+queryTerm(setQuantifier)?	(every site)	SqlBase.g4:302 a set operation's DISTINCT or ALL
+queryTerm(corresponding)?	(every site)	SqlBase.g4:302 a set operation's CORRESPONDING
+jsonTableColumn(PATH_string)?	(every site)	SqlBase.g4:501 a JSON_TABLE column's PATH
+joinType(OUTER)?	(every site)	SqlBase.g4:384 OUTER after LEFT, RIGHT or FULL
+jsonQueryWrapperBehavior(ARRAY)?	(every site)	SqlBase.g4:734 ARRAY after WITHOUT or WITH
+statement(argument_(,_argument)*)?	(every site)	SqlBase.g4:132 a procedure's arguments
+primaryExpression(expression_(,_expression)*)?	(every site)	SqlBase.g4:631 an ARRAY constructor's elements
+groupingElement(groupingSet_(,_groupingSet)*)?	(every site)	SqlBase.g4:337 ROLLUP and CUBE's grouping sets
+tableArgumentRelation(AS?_identifier_columnAliases?)?	(every site)	SqlBase.g4:552 a table argument's alias

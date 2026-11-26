@@ -837,7 +837,7 @@ func (p *Parser) parseJSONArray() (Expr, error) {
 
 	// Elements are present unless the next token closes the call or begins the
 	// trailing RETURNING clause.
-	if p.cur.Kind != int(')') && p.cur.Kind != kwRETURNING {
+	if p.cur.Kind != int(')') && !p.jsonArrayReturningFollows() {
 		first, err := p.parseJSONValueExpr()
 		if err != nil {
 			return nil, err
@@ -876,6 +876,23 @@ func (p *Parser) parseJSONArray() (Expr, error) {
 	}
 	ja.Loc.End = closeTok.Loc.End
 	return ja, nil
+}
+
+// jsonArrayReturningFollows reports whether the RETURNING clause, and then the
+// call's ')', is next. RETURNING is non-reserved, so where no type and ')'
+// follow it, it is a column and JSON_ARRAY's first element
+// (`JSON_ARRAY(RETURNING)`, SqlBase.g4:678), as Trino reads it. The cursor is
+// restored.
+func (p *Parser) jsonArrayReturningFollows() bool {
+	if p.cur.Kind != kwRETURNING {
+		return false
+	}
+	cp := p.checkpoint()
+	defer p.restore(cp)
+	if _, _, err := p.parseJSONReturning(); err != nil {
+		return false
+	}
+	return p.cur.Kind == int(')')
 }
 
 // ---------------------------------------------------------------------------

@@ -390,6 +390,88 @@
 | CREATE TABLE t (b integer NOT NULL, a integer COMMENT 'a', d varchar(10)) COMMENT 't'
 < ok 0 -
 > exec
+| CREATE TABLE a(a) AS SELECT 1.5
+< ok 1 -
+> query
+| SELECT schema_name FROM memory.information_schema.schemata WHERE schema_name <> 'information_schema' ORDER BY 1
+< result
+< column "schema_name" "VARCHAR"
+< row
+: string
+| default
+< row
+: string
+| s
+> query
+| SELECT table_schema, table_name, table_type FROM memory.information_schema.tables WHERE table_schema <> 'information_schema' ORDER BY 1, 2
+< result
+< column "table_schema" "VARCHAR"
+< column "table_name" "VARCHAR"
+< column "table_type" "VARCHAR"
+< row
+: string
+| s
+: string
+| a
+: string
+| BASE TABLE
+< row
+: string
+| s
+: string
+| t
+: string
+| BASE TABLE
+> query
+| SELECT c.table_schema, c.table_name, c.column_name, c.data_type FROM memory.information_schema.columns c JOIN memory.information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name WHERE t.table_type = 'VIEW' ORDER BY 1, 2, c.ordinal_position
+< result
+< column "table_schema" "VARCHAR"
+< column "table_name" "VARCHAR"
+< column "column_name" "VARCHAR"
+< column "data_type" "VARCHAR"
+> query
+| SHOW CREATE TABLE memory.s.a
+< result
+< column "Create Table" "VARCHAR"
+< row
+: string
+| CREATE TABLE memory.s.a (
+|    a decimal(2, 1)
+| )
+> query
+| SHOW CREATE TABLE memory.s.t
+< result
+< column "Create Table" "VARCHAR"
+< row
+: string
+| CREATE TABLE memory.s.t (
+|    b integer NOT NULL,
+|    a integer COMMENT 'a',
+|    d varchar(10)
+| )
+| COMMENT 't'
+> query
+| SELECT schema_name FROM memory.information_schema.schemata WHERE schema_name NOT IN ('information_schema', 'default') ORDER BY 1
+< result
+< column "schema_name" "VARCHAR"
+< row
+: string
+| s
+> query
+| SELECT table_name, table_type FROM memory.information_schema.tables WHERE table_schema = 'default' ORDER BY 1
+< result
+< column "table_name" "VARCHAR"
+< column "table_type" "VARCHAR"
+> exec
+| DROP SCHEMA memory.s CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA s
+< ok 0 -
+> exec
+| CREATE TABLE t (b integer NOT NULL, a integer COMMENT 'a', d varchar(10)) COMMENT 't'
+< ok 0 -
+> exec
 | CREATE TABLE a COMMENT 'a' AS SELECT 1.5
 < error
 | {"Status":200,"Type":"USER_ERROR","Message":"line 1:1: Column name not specified at position 1","SqlState":"","Name":"MISSING_COLUMN_NAME","Code":55,"Line":1,"Column":1}
@@ -3852,6 +3934,31 @@
 < ok 0 -
 > exec
 | ALTER TABLE a EXECUTE a()
+< error
+| {"Status":200,"Type":"USER_ERROR","Message":"line 1:7: Table 'memory.s.a' does not exist","SqlState":"","Name":"TABLE_NOT_FOUND","Code":46,"Line":1,"Column":7}
+> query
+| SELECT schema_name FROM memory.information_schema.schemata WHERE schema_name NOT IN ('information_schema', 'default') ORDER BY 1
+< result
+< column "schema_name" "VARCHAR"
+< row
+: string
+| s
+> query
+| SELECT table_name, table_type FROM memory.information_schema.tables WHERE table_schema = 'default' ORDER BY 1
+< result
+< column "table_name" "VARCHAR"
+< column "table_type" "VARCHAR"
+> exec
+| DROP SCHEMA memory.s CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA s
+< ok 0 -
+> exec
+| CREATE TABLE t (b integer NOT NULL, a integer COMMENT 'a', d varchar(10)) COMMENT 't'
+< ok 0 -
+> exec
+| ALTER TABLE a EXECUTE a(?)
 < error
 | {"Status":200,"Type":"USER_ERROR","Message":"line 1:7: Table 'memory.s.a' does not exist","SqlState":"","Name":"TABLE_NOT_FOUND","Code":46,"Line":1,"Column":7}
 > query
@@ -11648,6 +11755,34 @@
 | CREATE TABLE a (b integer NOT NULL, a integer, d varchar(10))
 < ok 0 -
 > exec
+| CREATE TABLE a(a) AS SELECT 1.5
+< error
+| {"Status":200,"Type":"USER_ERROR","Message":"line 1:1: Destination table 'memory.s.a' already exists","SqlState":"","Name":"TABLE_ALREADY_EXISTS","Code":50,"Line":1,"Column":1}
+> query
+| SELECT schema_name FROM memory.information_schema.schemata WHERE schema_name NOT IN ('information_schema', 'default') ORDER BY 1
+< result
+< column "schema_name" "VARCHAR"
+< row
+: string
+| s
+> query
+| SELECT table_name, table_type FROM memory.information_schema.tables WHERE table_schema = 'default' ORDER BY 1
+< result
+< column "table_name" "VARCHAR"
+< column "table_type" "VARCHAR"
+> exec
+| DROP SCHEMA memory.s CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA s
+< ok 0 -
+> exec
+| CREATE TABLE t (b integer NOT NULL, a integer COMMENT 'a', d varchar(10)) COMMENT 't'
+< ok 0 -
+> exec
+| CREATE TABLE a (b integer NOT NULL, a integer, d varchar(10))
+< ok 0 -
+> exec
 | CREATE TABLE a COMMENT 'a' AS SELECT 1.5
 < error
 | {"Status":200,"Type":"USER_ERROR","Message":"line 1:1: Destination table 'memory.s.a' already exists","SqlState":"","Name":"TABLE_ALREADY_EXISTS","Code":50,"Line":1,"Column":1}
@@ -15556,6 +15691,34 @@
 < ok 0 -
 > exec
 | ALTER TABLE a EXECUTE a()
+< error
+| {"Status":200,"Type":"USER_ERROR","Message":"Table procedure not registered: A","SqlState":"","Name":"PROCEDURE_NOT_FOUND","Code":29,"Line":0,"Column":0}
+> query
+| SELECT schema_name FROM memory.information_schema.schemata WHERE schema_name NOT IN ('information_schema', 'default') ORDER BY 1
+< result
+< column "schema_name" "VARCHAR"
+< row
+: string
+| s
+> query
+| SELECT table_name, table_type FROM memory.information_schema.tables WHERE table_schema = 'default' ORDER BY 1
+< result
+< column "table_name" "VARCHAR"
+< column "table_type" "VARCHAR"
+> exec
+| DROP SCHEMA memory.s CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA s
+< ok 0 -
+> exec
+| CREATE TABLE t (b integer NOT NULL, a integer COMMENT 'a', d varchar(10)) COMMENT 't'
+< ok 0 -
+> exec
+| CREATE TABLE a (b integer NOT NULL, a integer, d varchar(10))
+< ok 0 -
+> exec
+| ALTER TABLE a EXECUTE a(?)
 < error
 | {"Status":200,"Type":"USER_ERROR","Message":"Table procedure not registered: A","SqlState":"","Name":"PROCEDURE_NOT_FOUND","Code":29,"Line":0,"Column":0}
 > query
@@ -24048,6 +24211,34 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 -
 > exec
+| CREATE TABLE a(a) AS SELECT 1.5
+< error
+| {"Status":200,"Type":"USER_ERROR","Message":"line 1:1: Destination table 'memory.s.a' already exists","SqlState":"","Name":"TABLE_ALREADY_EXISTS","Code":50,"Line":1,"Column":1}
+> query
+| SELECT schema_name FROM memory.information_schema.schemata WHERE schema_name NOT IN ('information_schema', 'default') ORDER BY 1
+< result
+< column "schema_name" "VARCHAR"
+< row
+: string
+| s
+> query
+| SELECT table_name, table_type FROM memory.information_schema.tables WHERE table_schema = 'default' ORDER BY 1
+< result
+< column "table_name" "VARCHAR"
+< column "table_type" "VARCHAR"
+> exec
+| DROP SCHEMA memory.s CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA s
+< ok 0 -
+> exec
+| CREATE TABLE t (b integer NOT NULL, a integer COMMENT 'a', d varchar(10)) COMMENT 't'
+< ok 0 -
+> exec
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 -
+> exec
 | CREATE TABLE a COMMENT 'a' AS SELECT 1.5
 < error
 | {"Status":200,"Type":"USER_ERROR","Message":"line 1:1: Destination table 'memory.s.a' already exists","SqlState":"","Name":"TABLE_ALREADY_EXISTS","Code":50,"Line":1,"Column":1}
@@ -27596,6 +27787,34 @@
 < ok 0 -
 > exec
 | ALTER TABLE a EXECUTE a()
+< error
+| {"Status":200,"Type":"USER_ERROR","Message":"line 1:1: ALTER TABLE EXECUTE is not supported for views","SqlState":"","Name":"NOT_SUPPORTED","Code":13,"Line":1,"Column":1}
+> query
+| SELECT schema_name FROM memory.information_schema.schemata WHERE schema_name NOT IN ('information_schema', 'default') ORDER BY 1
+< result
+< column "schema_name" "VARCHAR"
+< row
+: string
+| s
+> query
+| SELECT table_name, table_type FROM memory.information_schema.tables WHERE table_schema = 'default' ORDER BY 1
+< result
+< column "table_name" "VARCHAR"
+< column "table_type" "VARCHAR"
+> exec
+| DROP SCHEMA memory.s CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA s
+< ok 0 -
+> exec
+| CREATE TABLE t (b integer NOT NULL, a integer COMMENT 'a', d varchar(10)) COMMENT 't'
+< ok 0 -
+> exec
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 -
+> exec
+| ALTER TABLE a EXECUTE a(?)
 < error
 | {"Status":200,"Type":"USER_ERROR","Message":"line 1:1: ALTER TABLE EXECUTE is not supported for views","SqlState":"","Name":"NOT_SUPPORTED","Code":13,"Line":1,"Column":1}
 > query
@@ -36879,6 +37098,119 @@
 | CREATE TABLE a.b (a integer)
 < ok 0 -
 > exec
+| CREATE TABLE a(a) AS SELECT 1.5
+< ok 1 -
+> query
+| SELECT schema_name FROM memory.information_schema.schemata WHERE schema_name <> 'information_schema' ORDER BY 1
+< result
+< column "schema_name" "VARCHAR"
+< row
+: string
+| a
+< row
+: string
+| default
+< row
+: string
+| s
+> query
+| SELECT table_schema, table_name, table_type FROM memory.information_schema.tables WHERE table_schema <> 'information_schema' ORDER BY 1, 2
+< result
+< column "table_schema" "VARCHAR"
+< column "table_name" "VARCHAR"
+< column "table_type" "VARCHAR"
+< row
+: string
+| a
+: string
+| b
+: string
+| BASE TABLE
+< row
+: string
+| s
+: string
+| a
+: string
+| BASE TABLE
+< row
+: string
+| s
+: string
+| t
+: string
+| BASE TABLE
+> query
+| SELECT c.table_schema, c.table_name, c.column_name, c.data_type FROM memory.information_schema.columns c JOIN memory.information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name WHERE t.table_type = 'VIEW' ORDER BY 1, 2, c.ordinal_position
+< result
+< column "table_schema" "VARCHAR"
+< column "table_name" "VARCHAR"
+< column "column_name" "VARCHAR"
+< column "data_type" "VARCHAR"
+> query
+| SHOW CREATE TABLE memory.a.b
+< result
+< column "Create Table" "VARCHAR"
+< row
+: string
+| CREATE TABLE memory.a.b (
+|    a integer
+| )
+> query
+| SHOW CREATE TABLE memory.s.a
+< result
+< column "Create Table" "VARCHAR"
+< row
+: string
+| CREATE TABLE memory.s.a (
+|    a decimal(2, 1)
+| )
+> query
+| SHOW CREATE TABLE memory.s.t
+< result
+< column "Create Table" "VARCHAR"
+< row
+: string
+| CREATE TABLE memory.s.t (
+|    b integer NOT NULL,
+|    a integer COMMENT 'a',
+|    d varchar(10)
+| )
+| COMMENT 't'
+> query
+| SELECT schema_name FROM memory.information_schema.schemata WHERE schema_name NOT IN ('information_schema', 'default') ORDER BY 1
+< result
+< column "schema_name" "VARCHAR"
+< row
+: string
+| a
+< row
+: string
+| s
+> query
+| SELECT table_name, table_type FROM memory.information_schema.tables WHERE table_schema = 'default' ORDER BY 1
+< result
+< column "table_name" "VARCHAR"
+< column "table_type" "VARCHAR"
+> exec
+| DROP SCHEMA memory.a CASCADE
+< ok 0 -
+> exec
+| DROP SCHEMA memory.s CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA s
+< ok 0 -
+> exec
+| CREATE TABLE t (b integer NOT NULL, a integer COMMENT 'a', d varchar(10)) COMMENT 't'
+< ok 0 -
+> exec
+| CREATE SCHEMA a
+< ok 0 -
+> exec
+| CREATE TABLE a.b (a integer)
+< ok 0 -
+> exec
 | CREATE TABLE a COMMENT 'a' AS SELECT 1.5
 < error
 | {"Status":200,"Type":"USER_ERROR","Message":"line 1:1: Column name not specified at position 1","SqlState":"","Name":"MISSING_COLUMN_NAME","Code":55,"Line":1,"Column":1}
@@ -41638,6 +41970,43 @@
 < ok 0 -
 > exec
 | ALTER TABLE a EXECUTE a()
+< error
+| {"Status":200,"Type":"USER_ERROR","Message":"line 1:7: Table 'memory.s.a' does not exist","SqlState":"","Name":"TABLE_NOT_FOUND","Code":46,"Line":1,"Column":7}
+> query
+| SELECT schema_name FROM memory.information_schema.schemata WHERE schema_name NOT IN ('information_schema', 'default') ORDER BY 1
+< result
+< column "schema_name" "VARCHAR"
+< row
+: string
+| a
+< row
+: string
+| s
+> query
+| SELECT table_name, table_type FROM memory.information_schema.tables WHERE table_schema = 'default' ORDER BY 1
+< result
+< column "table_name" "VARCHAR"
+< column "table_type" "VARCHAR"
+> exec
+| DROP SCHEMA memory.a CASCADE
+< ok 0 -
+> exec
+| DROP SCHEMA memory.s CASCADE
+< ok 0 -
+> exec
+| CREATE SCHEMA s
+< ok 0 -
+> exec
+| CREATE TABLE t (b integer NOT NULL, a integer COMMENT 'a', d varchar(10)) COMMENT 't'
+< ok 0 -
+> exec
+| CREATE SCHEMA a
+< ok 0 -
+> exec
+| CREATE TABLE a.b (a integer)
+< ok 0 -
+> exec
+| ALTER TABLE a EXECUTE a(?)
 < error
 | {"Status":200,"Type":"USER_ERROR","Message":"line 1:7: Table 'memory.s.a' does not exist","SqlState":"","Name":"TABLE_NOT_FOUND","Code":46,"Line":1,"Column":7}
 > query

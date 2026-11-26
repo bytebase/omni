@@ -9,6 +9,7 @@ SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@missing	statement/ALTER_SCHEM
 MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb	CREATE TABLE a AS SELECT 1.5
 ok:1d64a1a14d18	ok:1d64a1a14d18	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb!insert	CREATE TABLE a AS SELECT 1.5 zzz
 MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(IF_NOT_EXISTS)?	CREATE TABLE IF NOT EXISTS a AS SELECT 1.5
+ok:49b983e73759	ok:49b983e73759	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(columnAliases)?	CREATE TABLE a(a) AS SELECT 1.5
 MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(COMMENT_string)?	CREATE TABLE a COMMENT 'a' AS SELECT 1.5
 INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(WITH_properties)?	CREATE TABLE a WITH(a = DEFAULT) AS SELECT 1.5
 ok:5ee8e5f15460	ok:5ee8e5f15460	engine	one_table@missing	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368	CREATE TABLE a(a TIMESTAMP)
@@ -107,6 +108,7 @@ TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement(FIRST|LAST|AF
 TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement(FIRST|LAST|AFTER_identifier)?/LAST	ALTER TABLE a ADD COLUMN a TIMESTAMP LAST
 TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement(FIRST|LAST|AFTER_identifier)?/AFTER_identifier	ALTER TABLE a ADD COLUMN a TIMESTAMP AFTER a
 TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement((_(argument_(,_argument)*)?_))?/(_(argument_(,_argument)*)?_)	ALTER TABLE a EXECUTE a()
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	one_table@missing	statement((_(argument_(,_argument)*)?_))?/(_(argument_(,_argument)*)?_)+statement(argument_(,_argument)*)?	ALTER TABLE a EXECUTE a(?)
 INVALID_LITERAL	INVALID_LITERAL	engine	one_table@missing	statement(GRACE_PERIOD_interval)?/GRACE_PERIOD_interval	CREATE MATERIALIZED VIEW a GRACE PERIOD INTERVAL 'a' YEAR AS SELECT 1.5
 MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement(WHEN_STALE_(INLINE|FAIL))?/WHEN_STALE_(INLINE|FAIL)	CREATE MATERIALIZED VIEW a WHEN STALE INLINE AS SELECT 1.5
 MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@missing	statement(INLINE|FAIL)/FAIL	CREATE MATERIALIZED VIEW a WHEN STALE FAIL AS SELECT 1.5
@@ -329,6 +331,7 @@ SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	one_table@table	statement/ALTER_SCHEMA_
 TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb	CREATE TABLE a AS SELECT 1.5
 TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb!insert	CREATE TABLE a AS SELECT 1.5 zzz
 ok:c2a61dabfa3e	ok:c2a61dabfa3e	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(IF_NOT_EXISTS)?	CREATE TABLE IF NOT EXISTS a AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(columnAliases)?	CREATE TABLE a(a) AS SELECT 1.5
 TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(COMMENT_string)?	CREATE TABLE a COMMENT 'a' AS SELECT 1.5
 TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(WITH_properties)?	CREATE TABLE a WITH(a = DEFAULT) AS SELECT 1.5
 TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	one_table@table	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368	CREATE TABLE a(a TIMESTAMP)
@@ -427,6 +430,7 @@ COLUMN_ALREADY_EXISTS	COLUMN_ALREADY_EXISTS	engine	one_table@table	statement(FIR
 COLUMN_ALREADY_EXISTS	COLUMN_ALREADY_EXISTS	engine	one_table@table	statement(FIRST|LAST|AFTER_identifier)?/LAST	ALTER TABLE a ADD COLUMN a TIMESTAMP LAST
 COLUMN_ALREADY_EXISTS	COLUMN_ALREADY_EXISTS	engine	one_table@table	statement(FIRST|LAST|AFTER_identifier)?/AFTER_identifier	ALTER TABLE a ADD COLUMN a TIMESTAMP AFTER a
 PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	one_table@table	statement((_(argument_(,_argument)*)?_))?/(_(argument_(,_argument)*)?_)	ALTER TABLE a EXECUTE a()
+PROCEDURE_NOT_FOUND	PROCEDURE_NOT_FOUND	engine	one_table@table	statement((_(argument_(,_argument)*)?_))?/(_(argument_(,_argument)*)?_)+statement(argument_(,_argument)*)?	ALTER TABLE a EXECUTE a(?)
 INVALID_LITERAL	INVALID_LITERAL	engine	one_table@table	statement(GRACE_PERIOD_interval)?/GRACE_PERIOD_interval	CREATE MATERIALIZED VIEW a GRACE PERIOD INTERVAL 'a' YEAR AS SELECT 1.5
 MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@table	statement(WHEN_STALE_(INLINE|FAIL))?/WHEN_STALE_(INLINE|FAIL)	CREATE MATERIALIZED VIEW a WHEN STALE INLINE AS SELECT 1.5
 MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	one_table@table	statement(INLINE|FAIL)/FAIL	CREATE MATERIALIZED VIEW a WHEN STALE FAIL AS SELECT 1.5
@@ -649,6 +653,7 @@ SCHEMA_NOT_FOUND	SCHEMA_NOT_FOUND	engine	objects@view	statement/ALTER_SCHEMA_qua
 TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb	CREATE TABLE a AS SELECT 1.5
 TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb!insert	CREATE TABLE a AS SELECT 1.5 zzz
 ok:29c0860913d4	ok:29c0860913d4	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(IF_NOT_EXISTS)?	CREATE TABLE IF NOT EXISTS a AS SELECT 1.5
+TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(columnAliases)?	CREATE TABLE a(a) AS SELECT 1.5
 TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(COMMENT_string)?	CREATE TABLE a COMMENT 'a' AS SELECT 1.5
 TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(WITH_properties)?	CREATE TABLE a WITH(a = DEFAULT) AS SELECT 1.5
 TABLE_ALREADY_EXISTS	TABLE_ALREADY_EXISTS	engine	objects@view	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368	CREATE TABLE a(a TIMESTAMP)
@@ -747,6 +752,7 @@ TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement(FIRST|LAST|
 TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement(FIRST|LAST|AFTER_identifier)?/LAST	ALTER TABLE a ADD COLUMN a TIMESTAMP LAST
 TABLE_NOT_FOUND	GENERIC_INTERNAL_ERROR	engine	objects@view	statement(FIRST|LAST|AFTER_identifier)?/AFTER_identifier	ALTER TABLE a ADD COLUMN a TIMESTAMP AFTER a
 NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	statement((_(argument_(,_argument)*)?_))?/(_(argument_(,_argument)*)?_)	ALTER TABLE a EXECUTE a()
+NOT_SUPPORTED	NOT_SUPPORTED	engine	objects@view	statement((_(argument_(,_argument)*)?_))?/(_(argument_(,_argument)*)?_)+statement(argument_(,_argument)*)?	ALTER TABLE a EXECUTE a(?)
 INVALID_LITERAL	INVALID_LITERAL	engine	objects@view	statement(GRACE_PERIOD_interval)?/GRACE_PERIOD_interval	CREATE MATERIALIZED VIEW a GRACE PERIOD INTERVAL 'a' YEAR AS SELECT 1.5
 MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@view	statement(WHEN_STALE_(INLINE|FAIL))?/WHEN_STALE_(INLINE|FAIL)	CREATE MATERIALIZED VIEW a WHEN STALE INLINE AS SELECT 1.5
 MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@view	statement(INLINE|FAIL)/FAIL	CREATE MATERIALIZED VIEW a WHEN STALE FAIL AS SELECT 1.5
@@ -969,6 +975,7 @@ SCHEMA_ALREADY_EXISTS	SCHEMA_ALREADY_EXISTS	engine	objects@schema	statement/ALTE
 MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb	CREATE TABLE a AS SELECT 1.5
 ok:68afb67cf966	ok:68afb67cf966	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb!insert	CREATE TABLE a AS SELECT 1.5 zzz
 MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(IF_NOT_EXISTS)?	CREATE TABLE IF NOT EXISTS a AS SELECT 1.5
+ok:ccd00dd7ee53	ok:ccd00dd7ee53	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(columnAliases)?	CREATE TABLE a(a) AS SELECT 1.5
 MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(COMMENT_string)?	CREATE TABLE a COMMENT 'a' AS SELECT 1.5
 INVALID_TABLE_PROPERTY	INVALID_TABLE_PROPERTY	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(WITH_properties)?	CREATE TABLE a WITH(a = DEFAULT) AS SELECT 1.5
 ok:5e7a75158c34	ok:5e7a75158c34	engine	objects@schema	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368	CREATE TABLE a(a TIMESTAMP)
@@ -1067,6 +1074,7 @@ TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement(FIRST|LAST|AFTER
 TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement(FIRST|LAST|AFTER_identifier)?/LAST	ALTER TABLE a ADD COLUMN a TIMESTAMP LAST
 TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement(FIRST|LAST|AFTER_identifier)?/AFTER_identifier	ALTER TABLE a ADD COLUMN a TIMESTAMP AFTER a
 TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement((_(argument_(,_argument)*)?_))?/(_(argument_(,_argument)*)?_)	ALTER TABLE a EXECUTE a()
+TABLE_NOT_FOUND	TABLE_NOT_FOUND	engine	objects@schema	statement((_(argument_(,_argument)*)?_))?/(_(argument_(,_argument)*)?_)+statement(argument_(,_argument)*)?	ALTER TABLE a EXECUTE a(?)
 INVALID_LITERAL	INVALID_LITERAL	engine	objects@schema	statement(GRACE_PERIOD_interval)?/GRACE_PERIOD_interval	CREATE MATERIALIZED VIEW a GRACE PERIOD INTERVAL 'a' YEAR AS SELECT 1.5
 MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement(WHEN_STALE_(INLINE|FAIL))?/WHEN_STALE_(INLINE|FAIL)	CREATE MATERIALIZED VIEW a WHEN STALE INLINE AS SELECT 1.5
 MISSING_COLUMN_NAME	MISSING_COLUMN_NAME	engine	objects@schema	statement(INLINE|FAIL)/FAIL	CREATE MATERIALIZED VIEW a WHEN STALE FAIL AS SELECT 1.5
