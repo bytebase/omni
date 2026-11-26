@@ -333,7 +333,7 @@ func repeated(exists, ifNotExists bool, name string) (bool, error) {
 
 // schemaTable finds a table of a loaded schema.
 func schemaTable(s *metadatapb.SchemaMetadata, name string) *metadatapb.TableMetadata {
-	for _, table := range s.Tables {
+	for _, table := range s.GetTables() {
 		if table.Name == name {
 			return table
 		}

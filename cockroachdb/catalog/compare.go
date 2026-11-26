@@ -36,15 +36,17 @@ func exprKey(expr string, columns map[string]string) string {
 
 // generationKey is exprKey for a computed column's expression, which
 // CockroachDB stores with each literal annotated with the type it resolved
-// it to (a * 2:::INT8, price * 100:::DECIMAL). The literal written bare
-// resolves to that type again, so the annotations go.
+// it to (a * 2:::INT8, price * 100:::DECIMAL). A number annotated with a
+// numeric type, or a string with STRING, resolves the same way written bare,
+// so those annotations go; one that picks another overload ('é':::BYTES)
+// stays.
 func generationKey(expr string) string {
 	parsed, err := crparser.ParseExpr(expr)
 	if err != nil {
 		return expr
 	}
 	parsed, err = tree.SimpleVisit(parsed, func(e tree.Expr) (bool, tree.Expr, error) {
-		if a, ok := e.(*tree.AnnotateTypeExpr); ok && isLiteral(unparen(a.Expr)) {
+		if a, ok := e.(*tree.AnnotateTypeExpr); ok && impliedAnnotation(unparen(a.Expr), a.Type) {
 			return false, unparen(a.Expr), nil
 		}
 		return true, e, nil
@@ -53,6 +55,25 @@ func generationKey(expr string) string {
 		return expr
 	}
 	return groupedKey(parsed)
+}
+
+// impliedAnnotation reports whether an annotation names a type its literal
+// resolves to unannotated: a numeric type on a number, STRING on a string.
+func impliedAnnotation(literal tree.Expr, ref tree.ResolvableTypeReference) bool {
+	t, ok := tree.GetStaticallyKnownType(ref)
+	if !ok {
+		return false
+	}
+	switch literal.(type) {
+	case *tree.NumVal:
+		switch t.Family() {
+		case types.IntFamily, types.DecimalFamily, types.FloatFamily:
+			return true
+		}
+	case *tree.StrVal:
+		return t.Identical(types.String)
+	}
+	return false
 }
 
 // columnTypes maps a table's columns to their types, for exprKey.

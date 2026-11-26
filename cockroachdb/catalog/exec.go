@@ -142,6 +142,11 @@ func (c *Catalog) exec(stmt tree.Statement) error {
 		return c.alterSchema(n)
 	case *tree.DropSchema:
 		return c.dropSchema(n)
+	case *tree.SetVar:
+		if strings.EqualFold(n.Name, "search_path") {
+			// The catalog resolves every name in public.
+			return &Error{Message: "SET search_path is not supported"}
+		}
 	case *tree.CommentOnSchema:
 		if c.l.schemas[string(n.Name.SchemaName)] == nil {
 			return refuse(codeUndefinedSchema, "unknown schema %q", n.Name.SchemaName)
@@ -442,6 +447,16 @@ func (c *Catalog) createTable(n *tree.CreateTable) error {
 			}
 		}
 	}
+	// The new table's columns, for the foreign keys it declares.
+	pending := &metadatapb.TableMetadata{Name: name}
+	for _, def := range n.Defs {
+		if d, ok := def.(*tree.ColumnTableDef); ok {
+			typ, _ := sdlType(d.Type)
+			pending.Columns = append(pending.Columns, &metadatapb.ColumnMetadata{Name: string(d.Name), Type: typ})
+		}
+	}
+	c.pending = pending
+	defer func() { c.pending = nil }()
 	for _, def := range n.Defs {
 		if err := c.checkTableDef(name, columns, def); err != nil {
 			return err
@@ -556,14 +571,6 @@ func (c *Catalog) checkForeignKey(table string, columns map[string]bool, d *tree
 		}
 		to[i] = string(col)
 	}
-	if from := c.columnFamilies(table, d.FromCols); from != nil {
-		for i, col := range to {
-			ref := findColumn(referenced, col)
-			if i < len(from) && from[i] != "" && ref != nil && family(ref.Type) != "" && from[i] != family(ref.Type) {
-				return refuse("42804", "type of %q does not match foreign key %q.%q", d.FromCols[i], referenced.Name, col)
-			}
-		}
-	}
 	if len(to) == 0 {
 		for _, index := range referenced.Indexes {
 			if index.Primary {
@@ -574,6 +581,14 @@ func (c *Catalog) checkForeignKey(table string, columns map[string]bool, d *tree
 			return refuse(codeForeignKeyViolation, "there is no unique constraint matching given keys for referenced table %s", referenced.Name)
 		}
 	}
+	if from := c.columnFamilies(table, d.FromCols); from != nil {
+		for i, col := range to {
+			ref := findColumn(referenced, col)
+			if i < len(from) && from[i] != "" && ref != nil && family(ref.Type) != "" && from[i] != family(ref.Type) {
+				return refuse("42804", "type of %q does not match foreign key %q.%q", d.FromCols[i], referenced.Name, col)
+			}
+		}
+	}
 	for _, key := range keys {
 		if sameSet(key, to) {
 			return nil
@@ -582,9 +597,8 @@ func (c *Catalog) checkForeignKey(table string, columns map[string]bool, d *tree
 	return refuse(codeForeignKeyViolation, "there is no unique constraint matching given keys for referenced table %s", referenced.Name)
 }
 
-// columnFamilies returns the type families of a foreign key's columns, where
-// the table that declares it is in the catalog; nil while CREATE TABLE
-// declares it.
+// columnFamilies returns the type families of a foreign key's columns, from
+// the table CREATE TABLE or ALTER TABLE is declaring it on.
 func (c *Catalog) columnFamilies(table string, cols tree.NameList) []string {
 	t := c.pending
 	if t == nil || t.Name != table {
@@ -823,6 +837,16 @@ func (c *Catalog) createIndex(n *tree.CreateIndex) error {
 	}
 	if err := checkIndexColumns(names, n.Columns); err != nil {
 		return err
+	}
+	for _, col := range n.Storing {
+		if !names[string(col)] {
+			return refuse(codeUndefinedColumn, "column %q does not exist", col)
+		}
+	}
+	if n.Predicate != nil {
+		if err := checkColumns(names, n.Predicate); err != nil {
+			return err
+		}
 	}
 	return c.l.load(n)
 }
@@ -1751,6 +1775,14 @@ func (c *Catalog) alterPrimaryKey(schema string, table *metadatapb.TableMetadata
 func (c *Catalog) renameColumn(schema string, table *metadatapb.TableMetadata, from, to string) {
 	findColumn(table, from).Name = to
 	reindex(table.Indexes, schema, table.Name, from, to)
+	for _, column := range table.Columns {
+		if column.Generation == nil {
+			continue
+		}
+		if expr, err := parser.ParseExpr(column.Generation.Expression); err == nil {
+			column.Generation.Expression = tree.AsString(renameColumnIn(expr, from, to))
+		}
+	}
 	for _, check := range table.CheckConstraints {
 		expr, err := parser.ParseExpr(check.Expression)
 		if err == nil {
@@ -1946,6 +1978,21 @@ func (c *Catalog) dropIndex(n *tree.DropIndex) error {
 			return refuse(codeDependentObjects, "index %q is in use as unique constraint", index.Name)
 		}
 		*list = slices.DeleteFunc(*list, func(x *metadatapb.IndexMetadata) bool { return x == index })
+		// CASCADE takes the foreign keys that relied on the index's key.
+		c.eachTable(func(s *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
+			if &table.Indexes != list {
+				return
+			}
+			var orphans []*metadatapb.ForeignKeyMetadata
+			for _, fk := range c.referencing(s.Name, table.Name, "") {
+				if !slices.ContainsFunc(table.Indexes, func(i *metadatapb.IndexMetadata) bool {
+					return i.Unique && sameSet(i.Expressions, fk.ReferencedColumns)
+				}) {
+					orphans = append(orphans, fk)
+				}
+			}
+			c.dropForeignKeys(orphans)
+		})
 	}
 	return nil
 }
