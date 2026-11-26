@@ -1311,11 +1311,14 @@ func (c *Catalog) createSequence(n *tree.CreateSequence) error {
 	if err := c.l.load(n); err != nil {
 		return err
 	}
-	return checkBounds(findSequence(s, name))
+	return checkBounds(findSequence(s, name), true)
 }
 
 // checkBounds refuses a sequence whose start is outside its bounds.
-func checkBounds(sequence *metadatapb.SequenceMetadata) error {
+// typed checks the bounds against the sequence's type too, as CREATE and an
+// ALTER that states AS do; another ALTER widens a bound at the type's limit
+// to INT8's (applySequenceOptions), which CockroachDB takes.
+func checkBounds(sequence *metadatapb.SequenceMetadata, typed bool) error {
 	minimum, err1 := strconv.ParseInt(sequence.MinValue, 10, 64)
 	maximum, err2 := strconv.ParseInt(sequence.MaxValue, 10, 64)
 	start, err3 := strconv.ParseInt(sequence.Start, 10, 64)
@@ -1329,9 +1332,9 @@ func checkBounds(sequence *metadatapb.SequenceMetadata) error {
 	switch {
 	case sequence.Increment == "0":
 		return refuse(codeInvalidParameter, "INCREMENT must not be zero")
-	case maximum > limit:
+	case typed && maximum > limit:
 		return refuse(codeInvalidParameter, "MAXVALUE (%d) must be less than (%d) for type %s", maximum, limit, sequence.DataType)
-	case minimum < -limit-1:
+	case typed && minimum < -limit-1:
 		return refuse(codeInvalidParameter, "MINVALUE (%d) must be greater than (%d) for type %s", minimum, -limit-1, sequence.DataType)
 	case minimum > maximum:
 		return refuse(codeInvalidParameter, "MINVALUE (%d) must be less than MAXVALUE (%d)", minimum, maximum)
@@ -1395,7 +1398,8 @@ func (c *Catalog) alterSequence(n *tree.AlterSequence) error {
 		return err
 	}
 	sequence := findSequence(s, n.Name.Object())
-	if err := checkBounds(sequence); err != nil {
+	typed := slices.ContainsFunc(n.Options, func(o tree.SequenceOption) bool { return o.Name == tree.SeqOptAs })
+	if err := checkBounds(sequence, typed); err != nil {
 		return err
 	}
 	if restart != nil {
@@ -1801,6 +1805,20 @@ func relabelIn(text, typ, from, to string, enumColumns []string) string {
 	}
 	out, err := tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
 		switch x := e.(type) {
+		case *tree.CaseExpr:
+			// CASE m WHEN 'sad' ...: the WHEN values are the enum's.
+			if x.Expr != nil && isEnumColumn(x.Expr) {
+				out := *x
+				out.Whens = make([]*tree.When, len(x.Whens))
+				for i, w := range x.Whens {
+					when := *w
+					if bare(w.Cond) {
+						when.Cond = tree.NewStrVal(to)
+					}
+					out.Whens[i] = &when
+				}
+				return true, &out, nil
+			}
 		case *tree.ComparisonExpr:
 			// A label compared with an enum column is the enum's (m = 'sad').
 			cmp := *x
@@ -2410,6 +2428,18 @@ type nameVisitor struct{ visit func(*tree.UnresolvedName) }
 
 func (v *nameVisitor) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 	switch e := expr.(type) {
+	case *tree.FuncExpr:
+		// The walker does not descend into OVER (...).
+		if w := e.WindowDef; w != nil {
+			for _, p := range w.Partitions {
+				tree.WalkExprConst(v, p)
+			}
+			for _, o := range w.OrderBy {
+				if o.Expr != nil {
+					tree.WalkExprConst(v, o.Expr)
+				}
+			}
+		}
 	case *tree.UnresolvedName:
 		v.visit(e)
 	case tree.UnqualifiedStar:
@@ -3390,11 +3420,13 @@ func indexReadsColumn(index *metadatapb.IndexMetadata, column string) bool {
 
 func exprReads(expr tree.Expr, column string) bool {
 	found := false
-	tree.WalkExprConst(&columnCollector{visit: func(name string) {
-		if name == column {
+	_, _ = tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
+		// A column named alone or under its relation (t.a).
+		if name, ok := e.(*tree.UnresolvedName); ok && !name.Star && name.NumParts <= 2 && name.Parts[0] == column {
 			found = true
 		}
-	}}, expr)
+		return true, e, nil
+	})
 	return found
 }
 

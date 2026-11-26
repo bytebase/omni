@@ -446,3 +446,16 @@ func TestExecRound23(t *testing.T) {
 	_, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad'); CREATE FUNCTION f(x mood DEFAULT 'sad'::mood) RETURNS STRING LANGUAGE SQL AS $$ SELECT x::STRING $$; ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
 	require.Error(t, err)
 }
+
+func TestExecRound24(t *testing.T) {
+	c, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (m mood CHECK (CASE m WHEN 'sad' THEN true ELSE false END)); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.NoError(t, err)
+	require.Contains(t, c.Metadata().Schemas[0].Tables[0].CheckConstraints[0].Expression, "'blue'")
+	c, err = execLast(t, "CREATE TABLE t (a INT8, b INT8, CHECK (t.a > 0)); ALTER TABLE t DROP COLUMN a")
+	require.NoError(t, err)
+	require.Empty(t, c.Metadata().Schemas[0].Tables[0].CheckConstraints)
+	_, err = execLast(t, "CREATE TABLE t (a INT8, b INT8); CREATE VIEW v AS SELECT row_number() OVER (ORDER BY a) AS n FROM t; ALTER TABLE t DROP COLUMN a")
+	require.Equal(t, "2BP01", code(err))
+	_, err = execLast(t, "CREATE SEQUENCE sq AS INT4; ALTER SEQUENCE sq CACHE 10")
+	require.NoError(t, err)
+}
