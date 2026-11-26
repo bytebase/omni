@@ -917,7 +917,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 			}
 			alter(phaseAlterTables, OpAlterColumn, column.Name, col+"SET DATA TYPE "+typ)
 		}
-		if generationText(oldColumn) != generationText(column) {
+		if generationText(oldColumn, columnTypes(oldColumns)) != generationText(column, columnTypes(newColumns)) {
 			return fmt.Errorf("column %s.%s.%s changes its computed expression, which CockroachDB cannot alter in place", schema, new.Name, column.Name)
 		}
 		if detached && column.Default != "" {
@@ -1038,11 +1038,11 @@ func (d *differ) callsDropped(expr string) bool {
 	return false
 }
 
-func generationText(column *metadatapb.ColumnMetadata) string {
+func generationText(column *metadatapb.ColumnMetadata, columns map[string]string) string {
 	if column.Generation == nil {
 		return ""
 	}
-	return column.Generation.Type.String() + ":" + generationKey(column.Generation.Expression)
+	return column.Generation.Type.String() + ":" + generationKey(column.Generation.Expression, columns)
 }
 
 func findColumnIn(columns []*metadatapb.ColumnMetadata, name string) *metadatapb.ColumnMetadata {

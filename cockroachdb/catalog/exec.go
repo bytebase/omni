@@ -1513,18 +1513,10 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 		// enum's is refused, as is a view's query, which the catalog does
 		// not rewrite.
 		typ := typeName(s.Name, name)
-		for _, other := range c.l.meta.Schemas {
-			for _, v := range other.Views {
-				if viewNamesType(v.Definition, typ) {
-					return &Error{Message: fmt.Sprintf("renaming a value of type %q, which view %q names, is not supported", typ, v.Name)}
-				}
-			}
-			for _, v := range other.MaterializedViews {
-				if viewNamesType(v.Definition, typ) {
-					return &Error{Message: fmt.Sprintf("renaming a value of type %q, which materialized view %q names, is not supported", typ, v.Name)}
-				}
-			}
+		if err := c.viewTypeUser(typ, "renaming a value of"); err != nil {
+			return err
 		}
+
 		from, to := string(cmd.OldVal), string(cmd.NewVal)
 		var stuck error
 		c.eachTable(func(_ *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
@@ -1580,6 +1572,9 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 		}
 		if user := c.labelUser(typeName(s.Name, name), string(cmd.Val)); user != "" {
 			return refuse(codeDependentObjects, "could not remove enum value %q as it is being used in a default expression of %q", cmd.Val, user)
+		}
+		if err := c.viewTypeUser(typeName(s.Name, name), "removing a value of"); err != nil {
+			return err
 		}
 		enum.Values = slices.Delete(enum.Values, at, at+1)
 	case *tree.AlterTypeRename:
@@ -2070,6 +2065,57 @@ func (c *Catalog) typeUsers(schema, name string) []string {
 	return users
 }
 
+// viewTypeUser refuses changing a type a view's query names, which the
+// catalog does not rewrite.
+func (c *Catalog) viewTypeUser(typ, what string) error {
+	for _, s := range c.l.meta.Schemas {
+		for _, v := range s.Views {
+			if viewNamesType(v.Definition, typ) {
+				return &Error{Message: fmt.Sprintf("%s type %q, which view %q names, is not supported", what, typ, v.Name)}
+			}
+		}
+		for _, v := range s.MaterializedViews {
+			if viewNamesType(v.Definition, typ) {
+				return &Error{Message: fmt.Sprintf("%s type %q, which materialized view %q names, is not supported", what, typ, v.Name)}
+			}
+		}
+	}
+	return nil
+}
+
+// viewSequenceUser refuses renaming, moving or dropping a sequence a view's
+// query calls, which the catalog does not track or rewrite.
+func (c *Catalog) viewSequenceUser(schema, name string, kind relKind) error {
+	if kind != relSequence {
+		return nil
+	}
+	for _, s := range c.l.meta.Schemas {
+		var definitions []string
+		for _, v := range s.Views {
+			definitions = append(definitions, v.Definition)
+		}
+		for _, v := range s.MaterializedViews {
+			definitions = append(definitions, v.Definition)
+		}
+		for _, definition := range definitions {
+			stmt, err := parser.ParseOne(definition)
+			if err != nil {
+				continue
+			}
+			calls := false
+			tree.WalkStmt(&exprVisitor{visit: func(e tree.Expr) {
+				for _, tn := range calledSequences(e) {
+					calls = calls || schemaOf(tn) == schema && string(tn.ObjectName) == name
+				}
+			}}, stmt.AST)
+			if calls {
+				return &Error{Message: fmt.Sprintf("changing sequence %q, which a view calls, is not supported", name)}
+			}
+		}
+	}
+	return nil
+}
+
 // viewNamesType reports whether a view's query casts or annotates to a type.
 func viewNamesType(definition, typ string) bool {
 	stmt, err := parser.ParseOne(definition)
@@ -2396,6 +2442,9 @@ func (c *Catalog) dropRelations(names tree.TableNames, ifExists bool, behavior t
 				}
 			}
 		case relSequence:
+			if err := c.viewSequenceUser(t.s.Name, t.name, relSequence); err != nil {
+				return err
+			}
 			var users []*metadatapb.ColumnMetadata
 			c.eachTable(func(s *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
 				if dropping(s.Name, table.Name) {
@@ -2490,6 +2539,9 @@ func (c *Catalog) renameRelation(n *tree.RenameTable) error {
 	if err := ownedAcross(s, name, got, target); err != nil {
 		return err
 	}
+	if err := c.viewSequenceUser(s.Name, name, got); err != nil {
+		return err
+	}
 	c.moveRelation(s, name, got, target, to)
 	return nil
 }
@@ -2530,6 +2582,9 @@ func (c *Catalog) setRelationSchema(n *tree.AlterTableSetSchema) error {
 		return refuse(codeDependentObjects, "cannot set schema on relation %q because function %q depends on it", name, readers[0])
 	}
 	if err := ownedAcross(s, name, got, target); err != nil {
+		return err
+	}
+	if err := c.viewSequenceUser(s.Name, name, got); err != nil {
 		return err
 	}
 	c.moveRelation(s, name, got, target, name)

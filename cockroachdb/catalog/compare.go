@@ -39,15 +39,20 @@ func exprKey(expr string, columns map[string]string) string {
 // it to (a * 2:::INT8, price * 100:::DECIMAL). An annotation goes where the
 // bare literal resolves to the same type: one that names the literal's own
 // type (an integer's INT8, a fraction's DECIMAL, a string's STRING), and an
-// exact numeric one on an arithmetic operand beside a non-literal, whose type
-// decides the literal's. One that picks another overload (pg_typeof(1:::DECIMAL),
-// 'é':::BYTES) or may round (:::FLOAT8) stays.
-func generationKey(expr string) string {
+// exact numeric one on an arithmetic operand beside a column of that type's
+// family (price * 100:::DECIMAL with price DECIMAL(10, 2)), which decides the
+// literal's. One that picks another overload (pg_typeof(1:::DECIMAL),
+// x + 1:::DECIMAL with x INT8, 'é':::BYTES) or may round (:::FLOAT8) stays.
+// columns maps the table's columns to their types.
+func generationKey(expr string, columns map[string]string) string {
 	parsed, err := crparser.ParseExpr(expr)
 	if err != nil {
 		return expr
 	}
-	strip := func(e tree.Expr, contextual bool) tree.Expr {
+	columnOf := func(e tree.Expr) string {
+		return literalCastStripper{columns}.columnType(e)
+	}
+	strip := func(e tree.Expr, beside string) tree.Expr {
 		a, ok := unparen(e).(*tree.AnnotateTypeExpr)
 		if !ok {
 			return e
@@ -56,7 +61,7 @@ func generationKey(expr string) string {
 		if !isLiteral(literal) {
 			return e
 		}
-		if ownType(literal, a.Type) || contextual && exactNumeric(literal, a.Type) {
+		if ownType(literal, a.Type) || beside != "" && exactNumeric(literal, a.Type) && sameFamily(a.Type, beside) {
 			return literal
 		}
 		return e
@@ -65,11 +70,11 @@ func generationKey(expr string) string {
 		switch x := e.(type) {
 		case *tree.BinaryExpr:
 			op := *x
-			op.Left = strip(x.Left, !isLiteral(unparen(x.Right)) && !annotatedLiteral(x.Right))
-			op.Right = strip(x.Right, !isLiteral(unparen(x.Left)) && !annotatedLiteral(x.Left))
+			op.Left = strip(x.Left, columnOf(x.Right))
+			op.Right = strip(x.Right, columnOf(x.Left))
 			return true, &op, nil
 		case *tree.AnnotateTypeExpr:
-			if out := strip(x, false); out != tree.Expr(x) {
+			if out := strip(x, ""); out != tree.Expr(x) {
 				return false, out, nil
 			}
 		}
@@ -81,9 +86,17 @@ func generationKey(expr string) string {
 	return groupedKey(parsed)
 }
 
-func annotatedLiteral(e tree.Expr) bool {
-	a, ok := unparen(e).(*tree.AnnotateTypeExpr)
-	return ok && isLiteral(unparen(a.Expr))
+// sameFamily reports whether a type is of the family of typ, a type as the
+// sync states it: an INT8 beside an INT4 adds as integers, a DECIMAL beside a
+// DECIMAL(10, 2) as decimals.
+func sameFamily(ref tree.ResolvableTypeReference, typ string) bool {
+	t, ok := tree.GetStaticallyKnownType(ref)
+	other, err := crparser.GetTypeFromValidSQLSyntax(typ)
+	if !ok || err != nil {
+		return false
+	}
+	o, ok := tree.GetStaticallyKnownType(other)
+	return ok && t.Family() == o.Family()
 }
 
 // exactNumeric reports whether an annotation is INT8 on an integer or

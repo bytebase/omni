@@ -365,3 +365,28 @@ func TestExecRound17(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, `nextval('"a.b".sq2')`, c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
 }
+
+func TestSDLComputedAnnotationContext(t *testing.T) {
+	_, err := catalog.BuildSDLMigrationPlan(
+		"CREATE TABLE t (id INT8 PRIMARY KEY, x INT8, a STRING AS (pg_typeof(x + 1:::DECIMAL)::STRING) STORED);",
+		"CREATE TABLE t (id INT8 PRIMARY KEY, x INT8, a STRING AS (pg_typeof(x + 1)::STRING) STORED);",
+		catalog.SDLMigrationOptions{})
+	require.Error(t, err)
+	plan, err := catalog.BuildSDLMigrationPlan(
+		"CREATE TABLE t (id INT8 PRIMARY KEY, p DECIMAL, a DECIMAL AS (p * 100:::DECIMAL) STORED);",
+		"CREATE TABLE t (id INT8 PRIMARY KEY, p DECIMAL, a DECIMAL AS (p * 100) STORED);",
+		catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	require.Nil(t, plan)
+}
+
+func TestExecRound18(t *testing.T) {
+	for _, script := range []string{
+		"CREATE SEQUENCE sq; CREATE VIEW v AS SELECT nextval('sq') AS id; ALTER SEQUENCE sq RENAME TO sq2",
+		"CREATE SEQUENCE sq; CREATE VIEW v AS SELECT nextval('sq') AS id; DROP SEQUENCE sq",
+		"CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE VIEW v AS SELECT 'sad'::mood AS m; ALTER TYPE mood DROP VALUE 'sad'",
+	} {
+		_, err := execLast(t, script)
+		require.Error(t, err, script)
+	}
+}
