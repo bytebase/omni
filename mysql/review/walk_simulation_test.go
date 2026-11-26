@@ -25,18 +25,15 @@ func TestWalkSimulation(t *testing.T) {
 		minPct   float64
 		minFound int
 	}{
-		// The 86 ddl refusals the walk misses: 51 rows the parser refuses
+		// The 75 ddl refusals the walk misses: 51 rows the parser refuses
 		// (49 give COLLATE utf8mb4, an unknown collation, 1273 while
 		// parsing; 1504, 1064), which reach the review as a syntax finding.
 		// 16 are ALTER TABLE ... TABLESPACE t and IMPORT TABLESPACE, on
 		// tablespace state a schema doesn't show (3510, 1813). 6 are on
 		// another database or a server object (1049, 1050, 3730; 1128 a
-		// parser plugin, 3548 an SRID). 13 the walk doesn't judge yet: they
-		// need a column's nullability, SRID, charset or generation, a
-		// referenced table's keys, the row size or what an engine supports
-		// (1252, 1830, 3644, 3780, 3104, 1822, 1283, 4028, 1118, 1178,
-		// 1845).
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 97.2, 3070},
+		// parser plugin, 3548 an SRID). 2 the walk doesn't judge: the row
+		// size (1118) and what an engine supports (1178).
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 97.6, 3081},
 		// The 36 refusals the walk misses, none of which a schema shows: 9
 		// drop a function the sync can't rule out: unqualified, a loadable
 		// one of the name would go, and qualified, it is another database's
@@ -50,9 +47,9 @@ func TestWalkSimulation(t *testing.T) {
 		// 9 call a function a loadable one of the name or another database
 		// could hold (1305, 1584).
 		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 94.4, 222},
-		// The ddl rows on mysql:8.4.13, with eight 8.4-only refusals (6125,
+		// The ddl rows on mysql:8.4.13, with six 8.4-only refusals (6125,
 		// 1063) the walk doesn't model: it judges every server alike.
-		{"mysql84", filepath.Join("..", "catalog", "testdata", "mysql84", "simulate.tsv"), 97.0, 3070},
+		{"mysql84", filepath.Join("..", "catalog", "testdata", "mysql84", "simulate.tsv"), 97.4, 3082},
 		// The programs and queries rows on mysql:8.4.13, which refuses the
 		// same rows as 8.0.
 		{"mysql84_programs", filepath.Join("..", "catalog", "testdata", "mysql84", "programs", "simulate.tsv"), 89.4, 287},

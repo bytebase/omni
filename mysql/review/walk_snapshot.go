@@ -102,9 +102,9 @@ type mysqlSnapshot struct {
 	ignoresFKs map[string]bool
 	// engines records each synced table's engine ("" means default/InnoDB).
 	engines map[string]string
-	// colGen holds, for each column of each synced table, genVirtual or
-	// genStored for a generated column and "" for any other.
-	colGen map[string]map[string]string
+	// colFacts holds what the sync states of each column of each synced
+	// table.
+	colFacts map[string]map[string]colFact
 	// fkRefs holds each synced foreign key to a table of the database, by
 	// table and foreign key key.
 	fkRefs map[string]map[string]snapFKRef
@@ -159,7 +159,7 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 		secondary:          make(map[string]bool),
 		checkCols:          make(map[string]map[string][]string),
 		fkRefs:             make(map[string]map[string]snapFKRef),
-		colGen:             make(map[string]map[string]string),
+		colFacts:           make(map[string]map[string]colFact),
 		colTypes:           make(map[string]map[string]string),
 		partitionState:     make(map[string]*tablePartitionInfo),
 		tableIndexes:       make(map[string]map[string]*indexMeta),
@@ -197,18 +197,11 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 			}
 			cols := make(map[string]bool)
 			cTypes := make(map[string]string)
-			gens := make(map[string]string)
+			facts := make(map[string]colFact)
 			for _, c := range t.GetColumns() {
 				set(cols, spaceColumn, tk, c.GetName())
 				if ck, ok := nameKey(spaceColumn, c.GetName(), foldTables); ok {
-					switch g := c.GetGeneration(); {
-					case g == nil || g.GetExpression() == "":
-						gens[ck] = ""
-					case g.GetType() == metadata.GenerationMetadata_TYPE_STORED:
-						gens[ck] = genStored
-					case g.GetType() == metadata.GenerationMetadata_TYPE_VIRTUAL:
-						gens[ck] = genVirtual
-					}
+					facts[ck] = syncedColFact(c)
 				}
 				if ck, ok := nameKey(spaceColumn, c.GetName(), foldTables); ok {
 					if bt := normalizeBaseType(c.GetType()); bt != "" {
@@ -217,7 +210,7 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 				}
 			}
 			s.columns[tk] = cols
-			s.colGen[tk] = gens
+			s.colFacts[tk] = facts
 			if len(cTypes) > 0 {
 				s.colTypes[tk] = cTypes
 			}
@@ -559,10 +552,14 @@ type snapFKRef struct {
 	refTable string
 	cols     []string
 	refCols  []string
+	// setsNull is set when the foreign key sets its columns NULL on
+	// delete or update.
+	setsNull bool
 }
 
 func snapshotFKRef(fk *metadata.ForeignKeyMetadata, parent string, foldTables bool) (snapFKRef, bool) {
 	fr := snapFKRef{parent: parent, refTable: fk.GetReferencedTable()}
+	fr.setsNull = strings.EqualFold(fk.GetOnDelete(), "SET NULL") || strings.EqualFold(fk.GetOnUpdate(), "SET NULL")
 	if len(fk.GetColumns()) == 0 || len(fk.GetColumns()) != len(fk.GetReferencedColumns()) {
 		return fr, false
 	}
