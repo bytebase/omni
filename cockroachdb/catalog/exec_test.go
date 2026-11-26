@@ -390,3 +390,16 @@ func TestExecRound18(t *testing.T) {
 		require.Error(t, err, script)
 	}
 }
+
+func TestExecRound19(t *testing.T) {
+	_, err := execLast(t, "CREATE SCHEMA s; CREATE SEQUENCE s.sq; CREATE VIEW v AS SELECT nextval('s.sq') AS id; ALTER SCHEMA s RENAME TO s2")
+	require.Error(t, err)
+	_, err = execLast(t, "CREATE TABLE t (a INT8); ALTER TABLE t ADD COLUMN b INT8 CONSTRAINT ck CHECK (b > 0) CONSTRAINT ck CHECK (b < 10)")
+	require.Equal(t, "42710", code(err))
+	plan, err := catalog.BuildSDLMigrationPlan(
+		`CREATE SCHEMA "a.b"; CREATE SCHEMA a; CREATE SEQUENCE "a.b".c; CREATE SEQUENCE a."b.c"; CREATE TABLE t (id INT8 PRIMARY KEY, v INT8 DEFAULT nextval('"a.b".c'));`,
+		`CREATE SCHEMA "a.b"; CREATE SCHEMA a; CREATE SEQUENCE "a.b".c; CREATE SEQUENCE a."b.c"; CREATE TABLE t (id INT8 PRIMARY KEY, v INT8 DEFAULT nextval('a."b.c"'));`,
+		catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+}

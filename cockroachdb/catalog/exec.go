@@ -535,6 +535,11 @@ func (c *Catalog) alterSchema(n *tree.AlterSchema) error {
 		// catalog does not rewrite.
 		return &Error{Message: fmt.Sprintf("renaming schema %q, which holds routines, is not supported", s.Name)}
 	}
+	for _, sequence := range sequenceNames(s) {
+		if err := c.viewSequenceUser(s.Name, sequence, relSequence); err != nil {
+			return err
+		}
+	}
 	for _, relation := range append(append(tableNames(s), viewNames(s)...), sequenceNames(s)...) {
 		if readers := c.routineReaders(s.Name, relation); len(readers) > 0 {
 			return refuse(codeDependentObjects, "cannot rename schema because function %q depends on relation %q", readers[0], relation)
@@ -2814,10 +2819,12 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 		if def.References.Table != nil {
 			names = append(names, def.References.ConstraintName)
 		}
+		seen := map[tree.Name]bool{}
 		for _, name := range names {
-			if name != "" && (constraintNamed(table, string(name)) || slices.ContainsFunc(table.Indexes, func(i *metadatapb.IndexMetadata) bool { return i.Name == string(name) })) {
+			if name != "" && (seen[name] || constraintNamed(table, string(name)) || slices.ContainsFunc(table.Indexes, func(i *metadatapb.IndexMetadata) bool { return i.Name == string(name) })) {
 				return refuse(codeDuplicateObject, "duplicate constraint name: %q", name)
 			}
+			seen[name] = true
 		}
 		if err := c.checkType(def.Type); err != nil {
 			return err

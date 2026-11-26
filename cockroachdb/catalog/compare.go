@@ -299,7 +299,7 @@ func (v literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 		// CockroachDB stores the name it resolved, in its schema:
 		// nextval('s') as nextval('public.s'::REGCLASS).
 		if sequence, err := crparser.ParseQualifiedTableName(literal.RawString()); err == nil {
-			literal = tree.NewStrVal(schemaOf(sequence) + "." + string(sequence.ObjectName))
+			literal = tree.NewStrVal(tree.NameString(schemaOf(sequence)) + "." + tree.NameString(string(sequence.ObjectName)))
 		}
 		call := *e
 		call.Exprs = append(tree.Exprs{literal}, e.Exprs[1:]...)
