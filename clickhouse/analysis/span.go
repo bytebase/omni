@@ -302,6 +302,8 @@ type spanResolver struct {
 	// resolved.
 	aliasMemo map[aliasUse]SourceColumnSet
 	skips     []any
+	// expansions counts alias expansions against maxExpansions.
+	expansions int
 	// aliasCols holds what each ALIAS column of a table reads.
 	aliasCols map[ColumnResource]SourceColumnSet
 	// err is why a view's definition could not be read: the span fails
@@ -897,6 +899,9 @@ func (r *spanResolver) aliasColumn(database, table, column, expression string) S
 		r.skips = append(r.skips, key)
 		return nil
 	}
+	if !r.spend() {
+		return nil
+	}
 	mark := len(r.skips)
 	quote := func(name string) string { return "`" + strings.ReplaceAll(name, "`", "``") + "`" }
 	text := "SELECT (" + expression + ") FROM " + quote(database) + "." + quote(table)
@@ -924,6 +929,25 @@ func (r *spanResolver) aliasColumn(database, table, column, expression string) S
 		r.aliasCols[key] = out
 	}
 	return out
+}
+
+// maxExpansions bounds how many times a query's aliases, lambda aliases
+// and ALIAS columns are expanded. Each is resolved once per scope, but a
+// scope of its own per use (a scalar subquery) can still multiply them; a
+// query past the bound fails rather than take exponential time.
+const maxExpansions = 10000
+
+// spend counts one expansion, and reports false, failing the span, past
+// maxExpansions.
+func (r *spanResolver) spend() bool {
+	r.expansions++
+	if r.expansions <= maxExpansions {
+		return true
+	}
+	if r.expansions == maxExpansions+1 {
+		r.err = errors.Join(r.err, fmt.Errorf("the query expands its aliases more than %d times, too many to analyze", maxExpansions))
+	}
+	return false
 }
 
 // whole reports whether what was resolved since mark is complete: no name
@@ -1259,6 +1283,15 @@ func (r *spanResolver) matching(re *regexp.Regexp, sc *spanScope) []spanColumn {
 				out = append(out, c)
 			}
 		}
+		if rel.open {
+			// Columns no metadata lists may match too: as an unexpanded *,
+			// what they read is the relation's tables.
+			sources := union(SourceColumnSet{}, rel.starTables)
+			if rel.table != "" {
+				sources[ColumnResource{Database: rel.database, Table: rel.table}] = true
+			}
+			out = append(out, spanColumn{name: "*", sources: sources, star: true})
+		}
 	}
 	return out
 }
@@ -1308,7 +1341,7 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 			key := aliasUse{lambda, sc}
 			if memo, ok := r.aliasMemo[key]; ok {
 				out = memo
-			} else {
+			} else if r.spend() {
 				mark := len(r.skips)
 				r.resolving[lambda] = true
 				out = r.expr(lambda, sc, ctes)
@@ -1558,6 +1591,9 @@ func (r *spanResolver) alias(name string, scopes []*spanScope, sc *spanScope, ct
 				key := aliasUse{e, sc}
 				if out, ok := r.aliasMemo[key]; ok {
 					return out, true
+				}
+				if !r.spend() {
+					return SourceColumnSet{}, true
 				}
 				mark := len(r.skips)
 				r.resolving[e] = true

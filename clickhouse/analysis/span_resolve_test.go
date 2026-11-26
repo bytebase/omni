@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/metadata"
@@ -335,5 +336,45 @@ func TestResolveQuerySpanReplaceWithoutCatalog(t *testing.T) {
 func TestResolveQuerySpanUntupleUnknown(t *testing.T) {
 	if _, err := ResolveQuerySpan("SELECT untuple(point) FROM shop.events", ResolveOptions{DefaultDatabase: "shop"}); err == nil {
 		t.Fatal("no error for an untuple of unknown arity")
+	}
+}
+
+// Aliases that each read the one before through scalar subqueries, whose
+// scopes defeat reuse, fail past the expansion bound rather than run
+// exponentially.
+func TestResolveQuerySpanAliasExpansionBound(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("WITH email AS a0")
+	for i := 1; i <= 40; i++ {
+		fmt.Fprintf(&b, ", concat((SELECT a%d), (SELECT a%d)) AS a%d", i-1, i-1, i)
+	}
+	b.WriteString(" SELECT a40 FROM shop.customers")
+	done := make(chan error, 1)
+	go func() {
+		_, err := ResolveQuerySpan(b.String(), ResolveOptions{DefaultDatabase: "shop"})
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err == nil || !strings.Contains(err.Error(), "too many to analyze") {
+			t.Fatalf("err %v, want the expansion bound's", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("resolution did not end")
+	}
+}
+
+// Without a catalog, COLUMNS('re') keeps an unexpanded marker reading the
+// table, as * does.
+func TestResolveQuerySpanColumnsWithoutCatalog(t *testing.T) {
+	got, err := ResolveQuerySpan("SELECT COLUMNS('.*'), 42 FROM shop.customers", ResolveOptions{DefaultDatabase: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Results) != 2 || !got.Results[0].SelectAsterisk {
+		t.Fatalf("results %+v", got.Results)
+	}
+	if want := []string{"shop.customers"}; !slices.Equal(names(got.Results[0].SourceColumns), want) {
+		t.Errorf("reads %v, want %v", names(got.Results[0].SourceColumns), want)
 	}
 }
