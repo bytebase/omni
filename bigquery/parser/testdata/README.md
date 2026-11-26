@@ -3,7 +3,7 @@
 ## `compat.tsv`: live BigQuery dry-run verdicts
 
 `compat.tsv` holds a statement for each alternative of each rule in
-`../../../googlesql/testdata/GoogleSQL.g4` (converted from `googlesql.tm` at
+`../../../spanner/testdata/GoogleSQL.g4` (converted from `googlesql.tm` at
 GoogleSQL `2026.01.1` by `spanner/parser/cmd/tm2g4`), followed by its
 near-misses, with omni's verdict (`bigquery/parser.Parse`, BigQuery's own
 parser, forked from `spanner/parser`'s `DialectBigQuery` mode) and live BigQuery
@@ -27,8 +27,10 @@ differences (793 seconds).
 | **All** | **9,240** | **9,240** | **0** | **0** | **100.00%** |
 
 `select_column_expr`'s `ATTACHED_ALIAS` alternative gets no generated row: it
-refuses every input (`../../../googlesql/testdata/tokens.tsv`). The optional
-clauses that file marks `(every site)` add 403 rows, all agreeing.
+refuses every input (`../../testdata/tokens.tsv`, BigQuery's copy of
+spanner's, with BigQuery's own opt-ins after it). The optional clauses that
+file marks `(every site)` and the keyword choices it marks `(every
+alternative)` are written at every site that names them.
 
 ### Comparison with Spanner emulator `1.5.54` (`spanner/parser/testdata/compat.tsv`)
 
