@@ -21,6 +21,9 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 			Functions: []*metadata.FunctionMetadata{{
 				Name:       "f_double",
 				Definition: "CREATE OR REPLACE FUNCTION public.f_double(x integer)\n RETURNS integer\n LANGUAGE sql\nAS $function$SELECT x * 2$function$\n",
+			}, {
+				Name:       "p",
+				Definition: "CREATE OR REPLACE PROCEDURE public.p()\n LANGUAGE plpgsql\nAS $procedure$BEGIN CREATE VIEW v AS SELECT p FROM now(); END$procedure$\n",
 			}},
 		}},
 	}}
@@ -65,6 +68,7 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		// A DO block may call a routine the sync leaves out.
 		"DO $$ BEGIN CREATE VIEW v AS SELECT n FROM now(); END $$;",
 		"CREATE FUNCTION g() RETURNS int LANGUAGE sql AS 'SELECT n FROM now()';",
+		"CALL p();",
 		"CREATE FUNCTION g() RETURNS int LANGUAGE plpgsql AS $$ BEGIN CALL now(); RETURN 1; END $$;",
 		// DROP ROUTINE also drops an aggregate, which the sync does not list.
 		"DROP ROUTINE nope_agg(int);",

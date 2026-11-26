@@ -183,8 +183,8 @@ func setsOwnSettings(node ast.Node) bool {
 // refusal of node, run on path. A DO block or a called procedure runs
 // statements whose names the walk cannot check against the sync, under a
 // search path of their own, so only RAISE EXCEPTION, a DO block's syntax,
-// which PL/pgSQL compiles before it runs, and a refusal that names the
-// procedure a CALL calls hold. Otherwise: a user routine named as a
+// which PL/pgSQL compiles before it runs, and a CALL's failure to resolve
+// its procedure hold. Otherwise: a user routine named as a
 // built-in aggregate or window function, found first where the path puts
 // pg_catalog after its schema; a cast, for a coercion the catalog finds
 // none for (a RETURN that does not fit its routine's kind needs no cast);
@@ -195,11 +195,11 @@ func setsOwnSettings(node ast.Node) bool {
 // may carry, and an aggregate that DROP ROUTINE or renaming a function or
 // routine finds by its signature.
 func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []string) bool {
-	switch node.(type) {
+	switch v := node.(type) {
 	case *ast.DoStmt:
 		return err.Code != "P0001" && err.Code != "42601"
 	case *ast.CallStmt:
-		if err.Code != "P0001" && !namesAny(err.Message, signatureNames(node)) {
+		if err.Code != "P0001" && !resolvesCall(err, v) {
 			return true
 		}
 	}
@@ -230,6 +230,27 @@ func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []strin
 			}
 		}
 		return snap == nil || snap.lostRoutines || !namesAny(err.Message, signatureNames(node))
+	}
+	return false
+}
+
+// resolvesCall reports whether err is call's failure to resolve the
+// procedure it names, as pg/catalog's checkCall words it, rather than a
+// refusal of a statement the procedure's body runs.
+func resolvesCall(err *pgcatalog.Error, call *ast.CallStmt) bool {
+	if call.Funccall == nil {
+		return false
+	}
+	parts := nameParts(call.Funccall.Funcname)
+	if len(parts) == 0 {
+		return false
+	}
+	name := parts[len(parts)-1]
+	switch err.Code {
+	case "42883":
+		return strings.HasPrefix(err.Message, "procedure "+name+"(") && strings.HasSuffix(err.Message, ") does not exist")
+	case "42809":
+		return strings.HasPrefix(err.Message, name+"(") && strings.HasSuffix(err.Message, ") is not a procedure")
 	}
 	return false
 }
