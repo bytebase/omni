@@ -2513,7 +2513,13 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 					addingClustered = true
 				}
 				if !c.lenientMetadataLoad && cd.Type == ast.ConstraintForeignKey {
-					if err := c.validateForeignKeyTarget(table, []string{action.Column.Name}, cd); err != nil {
+					// FOREIGN KEY (x, y) beside a column keys the columns it
+					// names, as extractColumn records them.
+					srcCols := []string{action.Column.Name}
+					if cd.Columns != nil {
+						srcCols = stringNodeList(cd.Columns)
+					}
+					if err := c.validateForeignKeyTarget(table, srcCols, cd); err != nil {
 						return err
 					}
 				}

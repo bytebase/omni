@@ -494,6 +494,8 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"procedure sets a variable and a missing column", "CREATE PROCEDURE dbo.p2 AS BEGIN DECLARE @v int; UPDATE dbo.t SET @v = nope = 1; END", 0, "Column `nope` doesn't exist in `dbo.t`."},
 		{"update sets a variable and a missing column", "DECLARE @v int; UPDATE dbo.t SET @v = nope += 1;", 1, "Column `nope` doesn't exist in `dbo.t`."},
 		{"update sets a variable and a column", "DECLARE @v int; UPDATE dbo.t SET @v = a += 1;", -1, ""},
+		{"drop a column's index", "CREATE TABLE dbo.x (a INT INDEX ix_a);\nDROP INDEX ix_a ON dbo.x;", -1, ""},
+		{"column's index named twice", "CREATE TABLE dbo.x (a INT INDEX ix_a, b INT INDEX ix_a);", 0, "This statement declares index `ix_a` twice."},
 		{"procedure deletes by a missing column", "CREATE PROCEDURE dbo.p2 AS DELETE FROM dbo.t WHERE nope = 1;", 0, "Column `nope` doesn't exist in `dbo.t`."},
 		{"procedure inserts a missing column", "CREATE PROCEDURE dbo.p2 AS INSERT INTO dbo.t (nope) VALUES (1);", 0, "Column `nope` doesn't exist in `dbo.t`."},
 		{"procedure merges on a missing column", "CREATE PROCEDURE dbo.p2 AS MERGE dbo.t AS x USING dbo.r AS y ON x.id = y.nope WHEN MATCHED THEN DELETE;", 0, "Column `nope` doesn't exist in `dbo.r`."},

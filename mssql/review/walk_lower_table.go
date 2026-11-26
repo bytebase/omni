@@ -239,6 +239,22 @@ func (d *tableDef) addColumn(c *ast.ColumnDef) {
 			}
 		}
 	}
+	// A column's INDEX keys the column when it names no key list
+	// (inlineIndexColumnDefinition): a INT INDEX ix indexes a.
+	if c.Indexes != nil {
+		for _, item := range c.Indexes.Items {
+			i, ok := item.(*ast.InlineIndexDef)
+			if !ok {
+				continue
+			}
+			if i.Columns == nil || len(i.Columns.Items) == 0 {
+				keyed := *i
+				keyed.Columns = &ast.List{Items: []ast.Node{&ast.IndexColumn{Name: c.Name, Loc: ast.Loc{Start: -1, End: -1}}}}
+				i = &keyed
+			}
+			d.indexes = append(d.indexes, i)
+		}
+	}
 }
 
 // marked reports whether a name a generated constraint name may hold is

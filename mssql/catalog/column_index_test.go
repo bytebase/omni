@@ -30,4 +30,14 @@ CREATE TABLE dbo.c (x INT INDEX ix_x INDEX ix_x2 (x DESC), y INT NOT NULL CONSTR
 	require.Len(t, table.ForeignKeys, 1)
 	require.Equal(t, []string{"x", "y"}, table.ForeignKeys[0].Columns)
 	require.Equal(t, []string{"a", "b"}, table.ForeignKeys[0].ReferencedColumns)
+
+	// ALTER TABLE ... ADD validates the columns the FOREIGN KEY names.
+	results, err := c.Exec(`ALTER TABLE dbo.c ADD z INT FOREIGN KEY (x, z) REFERENCES dbo.p (a, b);`, nil)
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error)
+	}
+	table = c.GetTable("dbo", "c")
+	require.Len(t, table.ForeignKeys, 2)
+	require.Equal(t, []string{"x", "z"}, table.ForeignKeys[1].Columns)
 }
