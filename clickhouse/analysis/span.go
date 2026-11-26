@@ -424,21 +424,16 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 		c := spanColumn{
 			name:    r.projectionName(item, sc, ctes),
 			sources: r.expr(item, sc, ctes),
-			plain:   isPlainColumn(item),
 		}
-		if parts, ok := identParts(item); ok && r.isAlias(parts, sc) {
-			// An alias is a plain field only when it names a column.
-			c.plain = isPlainColumn(r.aliasExpr(parts[0], sc))
-		} else if ok {
+		c.plain = r.plainField(item, sc, map[parser.Expr]bool{})
+		if parts, ok := identParts(item); ok && !r.isAlias(parts, sc) {
 			// A column is named by its own name (a Nested column's is
 			// dotted), and a qualified one keeps its qualifier unless the
 			// bare name reads the same column.
 			found, ok := lookup(parts, sc)
 			switch n := nameParts(parts, found.name); {
 			case ok == found1 && found.rel != nil && n > 0:
-				// A column of a subquery or CTE is as plain as its
-				// projection.
-				c.name, c.plain = found.name, found.plain
+				c.name = found.name
 				if len(parts) > n && !bareNames(found, sc) {
 					c.name = strings.Join(parts, ".")
 				}
@@ -672,8 +667,9 @@ func (r *spanResolver) cte(c *cteBinding) []spanColumn {
 		if c.ctes == c {
 			// A recursive CTE's rows feed its next iteration, which may
 			// move a value to another column: iterate until no column
-			// reads more.
-			for i := 0; i < 32; i++ {
+			// reads more. Each pass only adds sources, of which there are
+			// finitely many, so it ends.
+			for {
 				c.working = c.columns
 				next := r.query(c.query, c.scope, c.ctes)
 				grew := false
@@ -1039,6 +1035,27 @@ func nestedGroup(sc *spanScope, name string) bool {
 	return found
 }
 
+// plainField reports whether a select-list item is a plain field: a
+// column read by name, through any renaming, that its relation holds as
+// plain (a subquery's computed column is not), or an alias for one.
+func (r *spanResolver) plainField(e parser.Expr, sc *spanScope, seen map[parser.Expr]bool) bool {
+	if a, ok := e.(*parser.AliasExpr); ok {
+		e = a.Expr
+	}
+	parts, ok := identParts(e)
+	if !ok || seen[e] {
+		return false
+	}
+	seen[e] = true
+	if r.isAlias(parts, sc) {
+		return r.plainField(r.aliasExpr(parts[0], sc), sc, seen)
+	}
+	if found, ok := lookup(parts, sc); ok == found1 && found.rel != nil && nameParts(parts, found.name) > 0 {
+		return found.plain
+	}
+	return true
+}
+
 // aliasExpr is the expression an alias in scope stands for.
 func (r *spanResolver) aliasExpr(name string, sc *spanScope) parser.Expr {
 	for s := sc; s != nil; s = s.parent {
@@ -1253,7 +1270,9 @@ func (r *spanResolver) ident(parts []string, sc *spanScope, ctes *cteBinding) So
 				}
 			}
 		}
-		if len(parts) == 1 {
+		if len(parts) == 1 || !qualifierInScope(parts[0], scopes) {
+			// A name, or t.m where no relation is named t: an alias first
+			// (t.m is a member of its tuple).
 			if out, ok := r.alias(parts[0], scopes, sc, ctes); ok {
 				return out
 			}
@@ -1270,8 +1289,8 @@ func (r *spanResolver) ident(parts []string, sc *spanScope, ctes *cteBinding) So
 			}
 		}
 		if len(parts) > 1 {
-			// t.e where t is no relation or column: a member of an alias's
-			// tuple, which reads what the alias reads.
+			// t.e where t is a relation without column e and also an
+			// alias: a member of the alias's tuple.
 			if out, ok := r.alias(parts[0], scopes, sc, ctes); ok {
 				return out
 			}
@@ -1280,6 +1299,19 @@ func (r *spanResolver) ident(parts []string, sc *spanScope, ctes *cteBinding) So
 	}
 	r.missing(NotFoundError{Column: &name})
 	return SourceColumnSet{}
+}
+
+// qualifierInScope reports whether a relation of the scopes is named q,
+// or is of database q.
+func qualifierInScope(q string, scopes []*spanScope) bool {
+	for _, s := range scopes {
+		for _, rel := range s.relations {
+			if rel.name == q || rel.database == q {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // level is the scopes of one query level from s: lambda scopes, the
@@ -1335,7 +1367,8 @@ func (r *spanResolver) resolvesAsName(parts []string, sc *spanScope) bool {
 		if s.lambda[parts[0]] {
 			return true
 		}
-		if _, ok := s.aliases[parts[0]]; ok && len(parts) == 1 {
+		if _, ok := s.aliases[parts[0]]; ok {
+			// An alias, or a member of an alias's tuple.
 			return true
 		}
 		if _, found := lookup(parts, s); found != foundNone {

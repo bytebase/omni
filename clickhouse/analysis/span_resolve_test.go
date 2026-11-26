@@ -168,10 +168,13 @@ func TestResolveQuerySpanStarBesideColumnWithoutCatalog(t *testing.T) {
 // it is read by name.
 func TestResolveQuerySpanPlainField(t *testing.T) {
 	for q, plain := range map[string]bool{
-		"SELECT x FROM (SELECT lower(email) AS x FROM shop.customers)": false,
-		"WITH lower(email) AS x SELECT x FROM shop.customers":          false,
-		"SELECT x FROM (SELECT email AS x FROM shop.customers)":        true,
-		"SELECT email FROM shop.customers":                             true,
+		"SELECT x FROM (SELECT lower(email) AS x FROM shop.customers)":      false,
+		"WITH lower(email) AS x SELECT x FROM shop.customers":               false,
+		"SELECT x FROM (SELECT email AS x FROM shop.customers)":             true,
+		"SELECT email FROM shop.customers":                                  true,
+		"SELECT x AS y FROM (SELECT lower(email) AS x FROM shop.customers)": false,
+		"WITH lower(email) AS x, x AS y SELECT y FROM shop.customers":       false,
+		"SELECT x AS y FROM (SELECT email AS x FROM shop.customers)":        true,
 	} {
 		got, err := ResolveQuerySpan(q, ResolveOptions{DefaultDatabase: "shop"})
 		if err != nil {
@@ -180,5 +183,41 @@ func TestResolveQuerySpanPlainField(t *testing.T) {
 		if got.Results[0].IsPlainField != plain {
 			t.Errorf("%s: IsPlainField %v, want %v", q, got.Results[0].IsPlainField, plain)
 		}
+	}
+}
+
+// A recursive CTE that moves a value one column a pass converges however
+// many columns it moves it through.
+func TestResolveQuerySpanRecursiveConvergence(t *testing.T) {
+	const n = 40
+	var seed, step []string
+	seed = append(seed, "email AS c0")
+	step = append(step, "r.c0 AS c0")
+	for i := 1; i <= n; i++ {
+		seed = append(seed, fmt.Sprintf("'' AS c%d", i))
+		step = append(step, fmt.Sprintf("r.c%d AS c%d", i-1, i))
+	}
+	q := fmt.Sprintf("WITH RECURSIVE r AS (SELECT %s FROM shop.customers UNION ALL SELECT %s FROM r) SELECT c%d FROM r",
+		strings.Join(seed, ", "), strings.Join(step, ", "), n)
+	got, err := ResolveQuerySpan(q, ResolveOptions{DefaultDatabase: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"shop.customers.email"}; !slices.Equal(names(got.Results[0].SourceColumns), want) {
+		t.Errorf("c%d reads %v, want %v", n, names(got.Results[0].SourceColumns), want)
+	}
+}
+
+// x IN t.m where t is an alias's tuple reads the member, not a table t.m.
+func TestResolveQuerySpanInAliasMember(t *testing.T) {
+	got, err := ResolveQuerySpan("WITH CAST(tuple([email]), 'Tuple(vals Array(String))') AS t SELECT 'a' IN t.vals FROM shop.customers", ResolveOptions{DefaultDatabase: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.NotFoundError != nil {
+		t.Fatalf("NotFoundError %v", got.NotFoundError)
+	}
+	if want := []string{"shop.customers.email"}; !slices.Equal(names(got.Results[0].SourceColumns), want) {
+		t.Errorf("reads %v, want %v", names(got.Results[0].SourceColumns), want)
 	}
 }
