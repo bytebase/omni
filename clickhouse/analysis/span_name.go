@@ -10,18 +10,19 @@ import (
 // projectionName is the name ClickHouse gives a select-list item: its alias,
 // a column's own name, or the expression written as the functions it calls
 // (a + 1 is plus(a, 1)), which is how the analyzer names a projection.
-func (r *spanResolver) projectionName(e parser.Expr) string {
+func (r *spanResolver) projectionName(e parser.Expr, sc *spanScope) string {
 	if a, ok := e.(*parser.AliasExpr); ok {
 		return a.Alias
 	}
 	if parts, ok := identParts(e); ok {
 		return parts[len(parts)-1]
 	}
-	return (&namer{r: r}).name(e)
+	return (&namer{r: r, sc: sc}).name(e)
 }
 
 type namer struct {
-	r *spanResolver
+	r  *spanResolver
+	sc *spanScope
 	// subst names a lambda's parameter by the column APPLY applies it to.
 	subst map[string]string
 }
@@ -34,7 +35,7 @@ func (n *namer) apply(t *parser.StarTransformer, column string) string {
 	switch f := t.ApplyExpr.(type) {
 	case *parser.LambdaExpr:
 		if len(f.Params) == 1 {
-			sub := &namer{r: n.r, subst: map[string]string{f.Params[0]: column}}
+			sub := &namer{r: n.r, sc: n.sc, subst: map[string]string{f.Params[0]: column}}
 			return sub.name(f.Body)
 		}
 	case *parser.FuncCallExpr:
@@ -72,9 +73,16 @@ func (n *namer) call(fn string, args ...parser.Expr) string {
 }
 
 func (n *namer) list(args []parser.Expr) string {
-	parts := make([]string, len(args))
-	for i, a := range args {
-		parts[i] = n.name(a)
+	var parts []string
+	for _, a := range args {
+		if re, ok := columnsMatcher(a); ok && n.sc != nil {
+			// COLUMNS('re') is an argument per column it matches.
+			for _, c := range n.r.matching(re, n.sc) {
+				parts = append(parts, c.name)
+			}
+			continue
+		}
+		parts = append(parts, n.name(a))
 	}
 	return strings.Join(parts, ", ")
 }

@@ -593,6 +593,11 @@
 | {"columns":["cnt"],"lineage":[null],"tables":["shop.items"]}
 > raw
 | span shop
+| SELECT `a.b` FROM (SELECT 1 AS `a.b`)
+< raw
+| {"columns":["a.b"],"lineage":[null]}
+> raw
+| span shop
 | WITH c AS (SELECT id, name FROM customers) SELECT name FROM c
 < raw
 | {"columns":["name"],"lineage":[["shop.customers.name"]],"tables":["shop.customers"]}
@@ -674,6 +679,16 @@
 > raw
 | span shop
 | WITH 2 AS k, c AS (SELECT id * k AS n FROM customers) SELECT n FROM c
+< raw
+| {"columns":["n"],"lineage":[["shop.customers.id"]],"tables":["shop.customers"]}
+> raw
+| span shop
+| WITH 1 AS x SELECT * FROM (SELECT x)
+< raw
+| {"columns":["x"],"lineage":[null]}
+> raw
+| span shop
+| WITH 3 AS k SELECT n FROM (SELECT id * k AS n FROM customers)
 < raw
 | {"columns":["n"],"lineage":[["shop.customers.id"]],"tables":["shop.customers"]}
 > raw
@@ -1053,6 +1068,11 @@
 | {"columns":["country","created"],"lineage":[["shop.customers.country"],["shop.customers.created"]],"tables":["shop.customers"]}
 > raw
 | span shop
+| SELECT concat(COLUMNS('^(name|email)$')) FROM customers
+< raw
+| {"columns":["concat(name, email)"],"lineage":[["shop.customers.email","shop.customers.name"]],"tables":["shop.customers"]}
+> raw
+| span shop
 | SELECT amount * 2 AS doubled, doubled + 1 FROM orders
 < raw
 | {"columns":["doubled","plus(doubled, 1)"],"lineage":[["shop.orders.amount"],["shop.orders.amount"]],"tables":["shop.orders"]}
@@ -1098,6 +1118,11 @@
 | {"columns":["amount","amount"],"lineage":[["shop.orders.customer_id"],["shop.orders.customer_id"]],"tables":["shop.orders"]}
 > raw
 | span shop
+| SELECT x FROM customers WHERE (email AS x) != ''
+< raw
+| {"columns":["x"],"lineage":[["shop.customers.email"]],"tables":["shop.customers"]}
+> raw
+| span shop
 | SELECT toString(id) AS status, concat(status, '') AS s FROM orders SETTINGS prefer_column_name_to_alias = 1
 < raw
 | {"columns":["status","s"],"lineage":[["shop.orders.id"],["shop.orders.status"]],"tables":["shop.orders"]}
@@ -1136,6 +1161,16 @@
 | SELECT name FROM customers SETTINGS max_threads = 1
 < raw
 | {"columns":["name"],"lineage":[["shop.customers.name"]],"tables":["shop.customers"]}
+> raw
+| span shop
+| SELECT id FROM orders WHERE _part = 'all_0_0_0'
+< raw
+| {"columns":["id"],"lineage":[["shop.orders.id"]],"tables":["shop.orders"]}
+> raw
+| span shop
+| SELECT _part, id FROM orders
+< raw
+| {"columns":["_part","id"],"lineage":[["shop.orders._part"],["shop.orders.id"]],"tables":["shop.orders"]}
 > raw
 | span shop
 | SELECT name FROM customers WHERE id > 0 ORDER BY id LIMIT 3

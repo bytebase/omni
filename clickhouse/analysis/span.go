@@ -179,6 +179,8 @@ type relation struct {
 	// arrayJoin marks the columns an ARRAY JOIN adds, which shadow the FROM
 	// clause's.
 	arrayJoin bool
+	// virtual marks a catalog table, whose virtual columns a name reads.
+	virtual bool
 }
 
 func (rel *relation) column(name string) (spanColumn, bool) {
@@ -188,7 +190,7 @@ func (rel *relation) column(name string) (spanColumn, bool) {
 			return c, true
 		}
 	}
-	if rel.open {
+	if rel.open || rel.virtual && virtualColumns[name] {
 		c := spanColumn{name: name, sources: SourceColumnSet{}, plain: true, rel: rel}
 		if rel.table != "" {
 			c.sources[ColumnResource{Database: rel.database, Table: rel.table, Column: name}] = true
@@ -316,11 +318,26 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 			with.aliases[w.Alias] = w.Expr
 		}
 	}
+	// An expression alias is visible to the whole SELECT, wherever it is
+	// defined.
 	for _, c := range s.Columns {
 		collectAliases(c, sc.aliases)
 	}
+	for _, e := range []parser.Expr{s.Prewhere, s.Where, s.Having, s.Qualify} {
+		collectAliases(e, sc.aliases)
+	}
+	if s.GroupBy != nil {
+		for _, e := range s.GroupBy.Exprs {
+			collectAliases(e, sc.aliases)
+		}
+	}
+	for _, o := range s.OrderBy {
+		collectAliases(o.Expr, sc.aliases)
+	}
 	if s.From != nil {
-		r.from(s.From, sc, outer, ctes)
+		// A FROM subquery sees the WITH clause's aliases, not this
+		// SELECT's columns.
+		r.from(s.From, sc, with, ctes)
 	}
 	if s.ArrayJoin != nil {
 		// An ARRAY JOIN column is an element of the array it names. An
@@ -355,14 +372,14 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 			// untuple(t) is one result column per element of t, each
 			// taken from the whole tuple.
 			arg := item.(*parser.FuncCallExpr).Args[0]
-			name, sources := (&namer{r: r}).name(arg), r.expr(arg, sc, ctes)
+			name, sources := (&namer{r: r, sc: sc}).name(arg), r.expr(arg, sc, ctes)
 			for i := range items {
 				out = append(out, spanColumn{name: fmt.Sprintf("tupleElement(%s, '%d')", name, i+1), sources: sources})
 			}
 			continue
 		}
 		c := spanColumn{
-			name:    r.projectionName(item),
+			name:    r.projectionName(item, sc),
 			sources: r.expr(item, sc, ctes),
 			plain:   isPlainColumn(item),
 		}
@@ -370,10 +387,12 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 			// A column is named by its own name (a Nested column's is
 			// dotted), and a qualified one keeps its qualifier unless the
 			// bare name reads the same column.
-			if found, ok := lookup(parts, sc); ok == found1 && found.rel != nil && found.name == strings.Join(parts[len(parts)-len(strings.Split(found.name, ".")):], ".") {
-				c.name = found.name
-				if len(parts) > len(strings.Split(found.name, ".")) && !bareNames(found, sc) {
-					c.name = strings.Join(parts, ".")
+			if found, ok := lookup(parts, sc); ok == found1 && found.rel != nil {
+				if n := nameParts(parts, found.name); n > 0 {
+					c.name = found.name
+					if len(parts) > n && !bareNames(found, sc) {
+						c.name = strings.Join(parts, ".")
+					}
 				}
 			}
 		}
@@ -555,7 +574,17 @@ func (r *spanResolver) tableExpr(t *parser.TableExpr, outer *spanScope, ctes *ct
 	if name == "" {
 		name = t.Table
 	}
-	return &relation{database: database, table: t.Table, name: name, columns: renamed(cols, t.ColumnAliases), open: open}
+	_, isView := r.views[ColumnResource{Database: database, Table: t.Table}]
+	return &relation{database: database, table: t.Table, name: name, columns: renamed(cols, t.ColumnAliases), open: open, virtual: !open && !isView}
+}
+
+// virtualColumns are the MergeTree family's virtual columns, which a
+// table's synced columns do not list and only a name reads.
+var virtualColumns = map[string]bool{
+	"_part": true, "_part_index": true, "_part_starting_offset": true, "_part_offset": true,
+	"_part_granule_offset": true, "_part_uuid": true, "_part_data_version": true,
+	"_partition_id": true, "_partition_value": true, "_sample_factor": true,
+	"_row_exists": true, "_block_number": true, "_block_offset": true, "_disk_name": true,
 }
 
 // tableFunctionColumns are the one column of the table functions that read
@@ -754,7 +783,7 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 			// Each column is the function, or the lambda, applied to it.
 			applied := r.expr(t.ApplyExpr, sc, ctes)
 			for i := range kept {
-				kept[i].name = (&namer{r: r}).apply(t, kept[i].name)
+				kept[i].name = (&namer{r: r, sc: sc}).apply(t, kept[i].name)
 				kept[i].sources = union(kept[i].sources, applied)
 				kept[i].plain = false
 			}
@@ -777,7 +806,7 @@ func qualifies(rel *relation, q []string) bool {
 // name does not read it (another joined relation's column has it), when it
 // is relation.column, as ClickHouse names it.
 func starName(c spanColumn, sc *spanScope) string {
-	if bareNames(c, sc) {
+	if c.rel.name == "" || bareNames(c, sc) {
 		return c.name
 	}
 	return c.rel.name + "." + c.name
@@ -807,6 +836,18 @@ func (r *spanResolver) isAlias(parts []string, sc *spanScope) bool {
 		}
 	}
 	return false
+}
+
+// nameParts is how many of an identifier's last parts spell a column's
+// name: one for a quoted `a.b`, two for a Nested column's a.b; 0 when they
+// spell another name (a subcolumn).
+func nameParts(parts []string, name string) int {
+	for n := 1; n <= len(parts); n++ {
+		if strings.Join(parts[len(parts)-n:], ".") == name {
+			return n
+		}
+	}
+	return 0
 }
 
 // nestedGroup unrolls ARRAY JOIN of a Nested column's name: its arrays
@@ -913,6 +954,13 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 		// count(*) and the like read no column.
 		return out
 	case *parser.FuncCallExpr:
+		if re, ok := columnsMatcher(n); ok {
+			// COLUMNS('re') in an expression is the columns it matches.
+			for _, c := range r.matching(re, sc) {
+				out = union(out, c.sources)
+			}
+			return out
+		}
 		out = union(r.exprs(n.Params, sc, ctes), r.exprs(n.Args, sc, ctes))
 		over := n.Over
 		if n.OverName != "" {

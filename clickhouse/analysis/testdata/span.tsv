@@ -345,6 +345,9 @@ shop.customers	shop.customers	engine	shop	shop	tables	SELECT `plus(id, 1)` FROM 
 cnt	cnt	engine	shop	shop	results	SELECT s.cnt FROM (SELECT count() AS cnt FROM items) AS s
 -	-	engine	shop	shop	lineage	SELECT s.cnt FROM (SELECT count() AS cnt FROM items) AS s
 shop.items	shop.items	engine	shop	shop	tables	SELECT s.cnt FROM (SELECT count() AS cnt FROM items) AS s
+a.b	a.b	engine	shop	shop	results	SELECT `a.b` FROM (SELECT 1 AS `a.b`)
+-	-	engine	shop	shop	lineage	SELECT `a.b` FROM (SELECT 1 AS `a.b`)
+-	-	engine	shop	shop	tables	SELECT `a.b` FROM (SELECT 1 AS `a.b`)
 name	name	engine	shop	shop	results	WITH c AS (SELECT id, name FROM customers) SELECT name FROM c
 shop.customers.name	shop.customers.name	engine	shop	shop	lineage	WITH c AS (SELECT id, name FROM customers) SELECT name FROM c
 shop.customers	shop.customers	engine	shop	shop	tables	WITH c AS (SELECT id, name FROM customers) SELECT name FROM c
@@ -396,6 +399,12 @@ c.x	c.x	engine	shop	shop	results	WITH 1 AS x, c AS (SELECT x) SELECT * FROM c
 n	n	engine	shop	shop	results	WITH 2 AS k, c AS (SELECT id * k AS n FROM customers) SELECT n FROM c
 shop.customers.id	shop.customers.id	engine	shop	shop	lineage	WITH 2 AS k, c AS (SELECT id * k AS n FROM customers) SELECT n FROM c
 shop.customers	shop.customers	engine	shop	shop	tables	WITH 2 AS k, c AS (SELECT id * k AS n FROM customers) SELECT n FROM c
+x	x	engine	shop	shop	results	WITH 1 AS x SELECT * FROM (SELECT x)
+-	-	engine	shop	shop	lineage	WITH 1 AS x SELECT * FROM (SELECT x)
+-	-	engine	shop	shop	tables	WITH 1 AS x SELECT * FROM (SELECT x)
+n	n	engine	shop	shop	results	WITH 3 AS k SELECT n FROM (SELECT id * k AS n FROM customers)
+shop.customers.id	shop.customers.id	engine	shop	shop	lineage	WITH 3 AS k SELECT n FROM (SELECT id * k AS n FROM customers)
+shop.customers	shop.customers	engine	shop	shop	tables	WITH 3 AS k SELECT n FROM (SELECT id * k AS n FROM customers)
 n	n	engine	shop	shop	results	WITH RECURSIVE r AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
 -	~	engine	shop	shop	lineage	WITH RECURSIVE r AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
 -	-	engine	shop	shop	tables	WITH RECURSIVE r AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
@@ -621,6 +630,9 @@ shop.customers	shop.customers	engine	shop	shop	tables	SELECT untuple((id, email)
 country, created	country, created	engine	shop	shop	results	SELECT COLUMNS('^c') FROM customers
 shop.customers.country | shop.customers.created	shop.customers.country | shop.customers.created	engine	shop	shop	lineage	SELECT COLUMNS('^c') FROM customers
 shop.customers	shop.customers	engine	shop	shop	tables	SELECT COLUMNS('^c') FROM customers
+concat(name, email)	concat(name, email)	engine	shop	shop	results	SELECT concat(COLUMNS('^(name|email)$')) FROM customers
+shop.customers.email shop.customers.name	shop.customers.email shop.customers.name	engine	shop	shop	lineage	SELECT concat(COLUMNS('^(name|email)$')) FROM customers
+shop.customers	shop.customers	engine	shop	shop	tables	SELECT concat(COLUMNS('^(name|email)$')) FROM customers
 doubled, plus(doubled, 1)	doubled, plus(doubled, 1)	engine	shop	shop	results	SELECT amount * 2 AS doubled, doubled + 1 FROM orders
 shop.orders.amount | shop.orders.amount	shop.orders.amount | shop.orders.amount	engine	shop	shop	lineage	SELECT amount * 2 AS doubled, doubled + 1 FROM orders
 shop.orders	shop.orders	engine	shop	shop	tables	SELECT amount * 2 AS doubled, doubled + 1 FROM orders
@@ -648,6 +660,9 @@ shop.orders	shop.orders	engine	shop	shop	tables	SELECT id AS x, x * 2 AS y, y + 
 amount, amount	amount, amount	engine	shop	shop	results	SELECT customer_id AS amount, amount FROM orders
 shop.orders.customer_id | shop.orders.customer_id	shop.orders.customer_id | shop.orders.customer_id	engine	shop	shop	lineage	SELECT customer_id AS amount, amount FROM orders
 shop.orders	shop.orders	engine	shop	shop	tables	SELECT customer_id AS amount, amount FROM orders
+x	x	engine	shop	shop	results	SELECT x FROM customers WHERE (email AS x) != ''
+shop.customers.email	shop.customers.email	engine	shop	shop	lineage	SELECT x FROM customers WHERE (email AS x) != ''
+shop.customers	shop.customers	engine	shop	shop	tables	SELECT x FROM customers WHERE (email AS x) != ''
 status, s	status, s	engine	shop	shop	results	SELECT toString(id) AS status, concat(status, '') AS s FROM orders SETTINGS prefer_column_name_to_alias = 1
 shop.orders.id | shop.orders.status	shop.orders.id | shop.orders.status	engine	shop	shop	lineage	SELECT toString(id) AS status, concat(status, '') AS s FROM orders SETTINGS prefer_column_name_to_alias = 1
 shop.orders	shop.orders	engine	shop	shop	tables	SELECT toString(id) AS status, concat(status, '') AS s FROM orders SETTINGS prefer_column_name_to_alias = 1
@@ -672,6 +687,12 @@ shop.orders	shop.orders	engine	shop	shop	tables	SELECT id FROM orders ORDER BY i
 name	name	engine	shop	shop	results	SELECT name FROM customers SETTINGS max_threads = 1
 shop.customers.name	shop.customers.name	engine	shop	shop	lineage	SELECT name FROM customers SETTINGS max_threads = 1
 shop.customers	shop.customers	engine	shop	shop	tables	SELECT name FROM customers SETTINGS max_threads = 1
+id	id	engine	shop	shop	results	SELECT id FROM orders WHERE _part = 'all_0_0_0'
+shop.orders.id	shop.orders.id	engine	shop	shop	lineage	SELECT id FROM orders WHERE _part = 'all_0_0_0'
+shop.orders	shop.orders	engine	shop	shop	tables	SELECT id FROM orders WHERE _part = 'all_0_0_0'
+_part, id	_part, id	engine	shop	shop	results	SELECT _part, id FROM orders
+shop.orders._part | shop.orders.id	shop.orders._part | shop.orders.id	engine	shop	shop	lineage	SELECT _part, id FROM orders
+shop.orders	shop.orders	engine	shop	shop	tables	SELECT _part, id FROM orders
 name	name	engine	shop	shop	results	SELECT name FROM customers WHERE id > 0 ORDER BY id LIMIT 3
 shop.customers.name	shop.customers.name	engine	shop	shop	lineage	SELECT name FROM customers WHERE id > 0 ORDER BY id LIMIT 3
 shop.customers	shop.customers	engine	shop	shop	tables	SELECT name FROM customers WHERE id > 0 ORDER BY id LIMIT 3

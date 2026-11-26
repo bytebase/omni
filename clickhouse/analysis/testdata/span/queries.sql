@@ -128,6 +128,7 @@ SELECT * FROM (SELECT * FROM (SELECT id, email FROM customers))
 SELECT t.amount FROM (SELECT * FROM orders) AS t
 SELECT `plus(id, 1)` FROM (SELECT id + 1 FROM customers)
 SELECT s.cnt FROM (SELECT count() AS cnt FROM items) AS s
+SELECT `a.b` FROM (SELECT 1 AS `a.b`)
 
 -- WITH: CTEs and expression aliases.
 WITH c AS (SELECT id, name FROM customers) SELECT name FROM c
@@ -147,6 +148,8 @@ WITH customers AS (SELECT order_id AS id FROM items) SELECT id FROM customers
 WITH c AS (SELECT id, name FROM customers) SELECT count() FROM c WHERE name != ''
 WITH 1 AS x, c AS (SELECT x) SELECT * FROM c
 WITH 2 AS k, c AS (SELECT id * k AS n FROM customers) SELECT n FROM c
+WITH 1 AS x SELECT * FROM (SELECT x)
+WITH 3 AS k SELECT n FROM (SELECT id * k AS n FROM customers)
 WITH RECURSIVE r AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
 WITH RECURSIVE r AS (SELECT id, customer_id AS parent FROM orders UNION ALL SELECT o.id, r.parent FROM orders AS o JOIN r ON o.customer_id = r.id) SELECT * FROM r
 
@@ -234,6 +237,7 @@ SELECT * EXCEPT (sku) APPLY (max) FROM items
 SELECT * EXCEPT ('mail') FROM customers
 SELECT untuple((id, email)) FROM customers
 SELECT COLUMNS('^c') FROM customers
+SELECT concat(COLUMNS('^(name|email)$')) FROM customers
 
 -- Aliases resolve before columns, anywhere in the query.
 SELECT amount * 2 AS doubled, doubled + 1 FROM orders
@@ -245,6 +249,7 @@ SELECT country AS c, count() FROM customers GROUP BY c
 SELECT (amount + 1 AS a) * 2, a FROM orders
 SELECT id AS x, x * 2 AS y, y + 1 FROM orders
 SELECT customer_id AS amount, amount FROM orders
+SELECT x FROM customers WHERE (email AS x) != ''
 SELECT toString(id) AS status, concat(status, '') AS s FROM orders SETTINGS prefer_column_name_to_alias = 1
 
 -- ClickHouse's own clauses.
@@ -255,6 +260,8 @@ SELECT order_id, qty FROM items FINAL
 SELECT id FROM orders LIMIT 1 BY customer_id
 SELECT id FROM orders ORDER BY id WITH FILL
 SELECT name FROM customers SETTINGS max_threads = 1
+SELECT id FROM orders WHERE _part = 'all_0_0_0'
+SELECT _part, id FROM orders
 SELECT name FROM customers WHERE id > 0 ORDER BY id LIMIT 3
 SELECT DISTINCT ON (country) country, name FROM customers
 SELECT TOP 3 name FROM customers

@@ -74,3 +74,14 @@ func TestResolveQuerySpanWindowCycle(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A quoted name holding a dot is one name.
+func TestResolveQuerySpanQuotedDottedName(t *testing.T) {
+	got, err := ResolveQuerySpan("SELECT `a.b` FROM (SELECT 1 AS `a.b`)", ResolveOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Results) != 1 || got.Results[0].Name != "a.b" {
+		t.Fatalf("results %+v", got.Results)
+	}
+}
