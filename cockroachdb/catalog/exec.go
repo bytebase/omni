@@ -500,6 +500,11 @@ func (c *Catalog) createTable(n *tree.CreateTable) error {
 func (c *Catalog) checkTableDef(table string, columns map[string]bool, def tree.TableDef) error {
 	switch d := def.(type) {
 	case *tree.ColumnTableDef:
+		if d.Computed.Computed {
+			if err := checkColumns(columns, d.Computed.Expr); err != nil {
+				return err
+			}
+		}
 		for _, check := range d.CheckExprs {
 			if err := checkColumns(columns, check.Expr); err != nil {
 				return err
@@ -618,6 +623,9 @@ func (c *Catalog) checkForeignKey(table string, columns map[string]bool, d *tree
 				return refuse("42804", "type of %q does not match foreign key %q.%q", d.FromCols[i], referenced.Name, col)
 			}
 		}
+	}
+	if len(to) != len(d.FromCols) {
+		return refuse("42601", "%d columns must reference exactly %d columns in referenced table (found %d)", len(d.FromCols), len(d.FromCols), len(to))
 	}
 	for _, key := range keys {
 		if sameSet(key, to) {
@@ -758,8 +766,19 @@ func (c *Catalog) checkViewColumns(query *tree.Select) error {
 	for _, column := range table.Columns {
 		columns[column.Name] = true
 	}
+	exprs := []tree.Expr{}
 	for _, expr := range sel.Exprs {
-		if err := checkColumns(columns, expr.Expr); err != nil {
+		exprs = append(exprs, expr.Expr)
+	}
+	exprs = append(exprs, sel.GroupBy...)
+	if sel.Where != nil {
+		exprs = append(exprs, sel.Where.Expr)
+	}
+	if sel.Having != nil {
+		exprs = append(exprs, sel.Having.Expr)
+	}
+	for _, expr := range exprs {
+		if err := checkColumns(columns, expr); err != nil {
 			return err
 		}
 	}
@@ -1063,8 +1082,52 @@ func (c *Catalog) retype(fromSchema, from, toSchema, to string) {
 			case old + "[]":
 				column.Type = now + "[]"
 			}
+			column.Default = retypeIn(column.Default, old, now)
 		}
 	})
+}
+
+// retypeIn returns an expression with its casts and annotations to a
+// user-defined type renamed, as CockroachDB, which holds the type by ID,
+// writes them afterwards.
+func retypeIn(text, old, now string) string {
+	if text == "" {
+		return text
+	}
+	expr, err := parser.ParseExpr(text)
+	if err != nil {
+		return text
+	}
+	ref, err := parser.GetTypeFromValidSQLSyntax(now)
+	if err != nil {
+		return text
+	}
+	matches := func(t tree.ResolvableTypeReference) bool {
+		_, known := tree.GetStaticallyKnownType(t)
+		return !known && schemaQualified(t).SQLString() == old
+	}
+	changed := false
+	out, err := tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
+		switch x := e.(type) {
+		case *tree.CastExpr:
+			if matches(x.Type) {
+				cast := *x
+				cast.Type, changed = ref, true
+				return true, &cast, nil
+			}
+		case *tree.AnnotateTypeExpr:
+			if matches(x.Type) {
+				annotation := *x
+				annotation.Type, changed = ref, true
+				return true, &annotation, nil
+			}
+		}
+		return true, e, nil
+	})
+	if err != nil || !changed {
+		return text
+	}
+	return tree.AsString(out)
 }
 
 // labelUser returns a table a column default of which holds an enum label.
@@ -1305,6 +1368,12 @@ func (c *Catalog) dropRelations(names tree.TableNames, ifExists bool, behavior t
 		}
 		switch t.kind {
 		case relTable:
+			// A sequence a column of the table owns goes with it.
+			for _, sequence := range t.s.Sequences {
+				if sequence.OwnerTable == t.name && !dropping(t.s.Name, sequence.Name) {
+					targets = append(targets, target{t.s, sequence.Name, relSequence})
+				}
+			}
 			for _, fk := range c.referencing(t.s.Name, t.name, "") {
 				if owner := c.foreignKeyTable(fk); owner != nil && dropping(owner.schema, owner.table) {
 					continue
@@ -1314,7 +1383,18 @@ func (c *Catalog) dropRelations(names tree.TableNames, ifExists bool, behavior t
 				}
 			}
 		case relSequence:
-			if users := c.sequenceUsers(t.s.Name, t.name); len(users) > 0 {
+			var users []*metadatapb.ColumnMetadata
+			c.eachTable(func(s *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
+				if dropping(s.Name, table.Name) {
+					return
+				}
+				for _, column := range table.Columns {
+					if slices.Contains(usedSequences(column.Default), t.s.Name+"."+t.name) {
+						users = append(users, column)
+					}
+				}
+			})
+			if len(users) > 0 {
 				if !cascade {
 					return refuse(codeDependentObjects, "cannot drop sequence %s because other objects depend on it", t.name)
 				}
@@ -1329,8 +1409,6 @@ func (c *Catalog) dropRelations(names tree.TableNames, ifExists bool, behavior t
 		case relTable:
 			c.dropForeignKeys(c.referencing(t.s.Name, t.name, ""))
 			t.s.Tables = slices.DeleteFunc(t.s.Tables, func(x *metadatapb.TableMetadata) bool { return x.Name == t.name })
-			// A sequence a column of the table owns goes with it.
-			t.s.Sequences = slices.DeleteFunc(t.s.Sequences, func(x *metadatapb.SequenceMetadata) bool { return x.OwnerTable == t.name })
 		case relView:
 			t.s.Views = slices.DeleteFunc(t.s.Views, func(x *metadatapb.ViewMetadata) bool { return x.Name == t.name })
 		case relMaterializedView:

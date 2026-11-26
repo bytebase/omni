@@ -44,6 +44,10 @@ func TestExecRefusals(t *testing.T) {
 		{"CREATE TABLE p (id INT8 PRIMARY KEY, u INT8); CREATE UNIQUE INDEX i ON p (u); CREATE TABLE c (u INT8 REFERENCES p (u)); DROP INDEX p@i", "2BP01"},
 		{"CREATE TABLE x (a INT8, b INT8); CREATE TABLE y (a INT8); CREATE VIEW v AS SELECT a, b FROM x; CREATE OR REPLACE VIEW v AS SELECT * FROM y", "42P16"},
 		{"CREATE SEQUENCE sq; ALTER SEQUENCE sq MINVALUE 10 MAXVALUE 5", "22023"},
+		{"CREATE TABLE p (id INT8 PRIMARY KEY); CREATE TABLE c (a INT8, b INT8, FOREIGN KEY (a, b) REFERENCES p (id))", "42601"},
+		{"CREATE TABLE p (id INT8 PRIMARY KEY); CREATE TABLE c (a INT8, b INT8, FOREIGN KEY (a, b) REFERENCES p)", "42601"},
+		{"CREATE TABLE t (a INT8, b INT8 AS (missing * 2) STORED)", "42703"},
+		{"CREATE TABLE t (a INT8); CREATE VIEW v AS SELECT a FROM t WHERE missing > 0", "42703"},
 	} {
 		_, err := execLast(t, tc.script)
 		require.Equal(t, tc.code, code(err), "%s: %v", tc.script, err)
@@ -97,6 +101,21 @@ func TestExecDropsDependents(t *testing.T) {
 	require.Len(t, c.Metadata().Schemas, 1)
 	require.Empty(t, c.Metadata().Schemas[0].Views)
 	c, err = execLast(t, "CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); CREATE SEQUENCE sq OWNED BY t.a; ALTER TABLE t DROP COLUMN a")
+	require.NoError(t, err)
+	require.Empty(t, c.Metadata().Schemas[0].Sequences)
+}
+
+func TestExecRetypesDefaultsAndDropsOwnedSequences(t *testing.T) {
+	c, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad'); CREATE TABLE t (m mood DEFAULT 'sad'::mood); ALTER TYPE mood RENAME TO feeling")
+	require.NoError(t, err)
+	require.Equal(t, "'sad'::public.feeling", c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
+	c, err = execLast(t, "CREATE TABLE t (a INT8); CREATE SEQUENCE sq OWNED BY t.a; CREATE TABLE u (a INT8 DEFAULT nextval('sq')); DROP TABLE t CASCADE")
+	require.NoError(t, err)
+	require.Empty(t, c.Metadata().Schemas[0].Sequences)
+	require.Empty(t, c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
+	_, err = execLast(t, "CREATE TABLE t (a INT8); CREATE SEQUENCE sq OWNED BY t.a; CREATE TABLE u (a INT8 DEFAULT nextval('sq')); DROP TABLE t")
+	require.Equal(t, "2BP01", code(err))
+	c, err = execLast(t, "CREATE TABLE t (a INT8); CREATE SEQUENCE sq OWNED BY t.a; ALTER TABLE t ALTER COLUMN a SET DEFAULT nextval('sq'); DROP TABLE t")
 	require.NoError(t, err)
 	require.Empty(t, c.Metadata().Schemas[0].Sequences)
 }
