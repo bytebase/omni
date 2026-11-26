@@ -177,3 +177,35 @@ func TestQuerySpanMetadataErrorIsFatal(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to get database metadata for database: ds1")
 }
+
+// TestNameResults: results are named as BigQuery names its fields
+// (testdata/span.tsv), and a wide select list is named in linear time.
+func TestNameResults(t *testing.T) {
+	named := func(names ...string) []string {
+		var in []ResolvedQuerySpanResult
+		for _, n := range names {
+			in = append(in, ResolvedQuerySpanResult{Name: n})
+		}
+		var out []string
+		for _, r := range nameResults(in) {
+			out = append(out, r.Name)
+		}
+		return out
+	}
+	// Each case is the field names a BigQuery dry run states.
+	require.Equal(t, []string{"f1_", "f0_", "f2_"}, named("", "f0_", ""))
+	require.Equal(t, []string{"x", "X_1"}, named("x", "X"))
+	require.Equal(t, []string{"x", "x_2", "x_1"}, named("x", "x", "x_1"))
+	require.Equal(t, []string{"x_1", "x", "x_2"}, named("x_1", "x", "x"))
+	require.Equal(t, []string{"f1_", "F0_"}, named("", "F0_"))
+
+	wide := make([]string, 100000)
+	for i := range wide {
+		if i%2 == 1 {
+			wide[i] = "x"
+		}
+	}
+	out := named(wide...)
+	require.Equal(t, "f49999_", out[len(out)-2])
+	require.Equal(t, "x_49999", out[len(out)-1])
+}
