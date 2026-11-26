@@ -781,11 +781,9 @@ func (c *Catalog) checkTableDef(table string, columns map[string]bool, def tree.
 			if d.DefaultExpr.Expr != nil {
 				return refuse(codeInvalidTableDef, "STORED COMPUTED COLUMN cannot have default values")
 			}
-			if !d.Computed.Virtual {
-				for column := range c.computed {
-					if exprReads(d.Computed.Expr, column) {
-						return refuse(codeInvalidTableDef, "STORED COMPUTED COLUMN expression cannot reference computed columns")
-					}
+			for column := range c.computed {
+				if exprReads(d.Computed.Expr, column) {
+					return refuse(codeInvalidTableDef, "computed column expression cannot reference computed columns")
 				}
 			}
 		}
@@ -867,6 +865,17 @@ func calledSequences(expr tree.Expr) []*tree.TableName {
 	var out []*tree.TableName
 	_, _ = tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
 		call, ok := e.(*tree.FuncExpr)
+		if ok && call.WindowDef != nil {
+			// The walker does not descend into OVER (...).
+			for _, p := range call.WindowDef.Partitions {
+				out = append(out, calledSequences(p)...)
+			}
+			for _, o := range call.WindowDef.OrderBy {
+				if o.Expr != nil {
+					out = append(out, calledSequences(o.Expr)...)
+				}
+			}
+		}
 		if !ok || len(call.Exprs) == 0 {
 			return true, e, nil
 		}
@@ -2057,17 +2066,30 @@ func compositeNames(s *metadatapb.SchemaMetadata) []string {
 func (c *Catalog) labelUser(typ, label string) string {
 	user := ""
 	c.eachTable(func(_ *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
-		var texts []string
+		var texts, enumColumns []string
+		for _, column := range table.Columns {
+			if column.Type == typ || column.Type == typ+"[]" {
+				enumColumns = append(enumColumns, column.Name)
+			}
+		}
+		// An expression holds the enum's label only where it reads the
+		// enum, by a cast or an enum column.
+		usesEnum := func(text string) bool {
+			expr, err := parser.ParseExpr(text)
+			return err == nil && (namesType(text, typ) || slices.ContainsFunc(enumColumns, func(col string) bool { return exprReads(expr, col) }))
+		}
 		for _, column := range table.Columns {
 			if column.Type == typ || column.Type == typ+"[]" || namesType(column.Default, typ) {
 				texts = append(texts, column.Default)
 			}
-			if column.Generation != nil {
+			if column.Generation != nil && usesEnum(column.Generation.Expression) {
 				texts = append(texts, column.Generation.Expression)
 			}
 		}
 		for _, check := range table.CheckConstraints {
-			texts = append(texts, check.Expression)
+			if usesEnum(check.Expression) {
+				texts = append(texts, check.Expression)
+			}
 		}
 		for _, text := range texts {
 			if user == "" && text != "" {
@@ -2440,6 +2462,13 @@ func hasColumnAliases(stmt tree.Statement) bool {
 		return false
 	}
 	if n, ok := stmt.(*tree.Select); ok {
+		if n.With != nil {
+			for _, cte := range n.With.CTEList {
+				if hasColumnAliases(cte.Stmt) {
+					return true
+				}
+			}
+		}
 		return selects(n.Select)
 	}
 	return false

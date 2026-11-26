@@ -476,3 +476,14 @@ func TestExecRound26(t *testing.T) {
 	_, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (m mood CHECK (COALESCE(m, 'sad') = m)); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
 	require.Error(t, err)
 }
+
+func TestExecRound27(t *testing.T) {
+	_, err := execLast(t, "CREATE TABLE t (a INT8, b INT8); CREATE TABLE u (a INT8); CREATE VIEW v AS WITH c AS (SELECT t.b FROM t JOIN u USING (a)) SELECT b FROM c; ALTER TABLE t DROP COLUMN a")
+	require.Equal(t, "2BP01", code(err))
+	_, err = execLast(t, "CREATE SEQUENCE sq; CREATE VIEW v AS SELECT row_number() OVER (ORDER BY nextval('sq')) AS n; ALTER SEQUENCE sq RENAME TO sq2")
+	require.Error(t, err)
+	_, err = execLast(t, "CREATE TABLE t (x INT8); ALTER TABLE t ADD COLUMN a INT8 AS (a + 1) VIRTUAL")
+	require.Equal(t, "42P16", code(err))
+	_, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (s STRING CHECK (s <> 'sad')); ALTER TYPE mood DROP VALUE 'sad'")
+	require.NoError(t, err)
+}
