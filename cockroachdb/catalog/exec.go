@@ -1062,7 +1062,7 @@ func (c *Catalog) createView(n *tree.CreateView) error {
 	if kind != relNone {
 		var cyclic bool
 		storedRelations(n.AsSource, func(tn *tree.TableName) {
-			cyclic = cyclic || schemaOf(tn) == s.Name && string(tn.ObjectName) == name
+			cyclic = cyclic || c.reaches(schemaOf(tn), string(tn.ObjectName), s.Name, name)
 		})
 		if cyclic && n.Replace {
 			return refuse("42P17", "cyclic view dependency for relation %s", name)
@@ -1212,7 +1212,8 @@ func (c *Catalog) checkViewColumns(query *tree.Select) error {
 func (c *Catalog) checkViewQuery(query *tree.Select) error {
 	var missing error
 	storedRelations(query, func(tn *tree.TableName) {
-		if missing == nil && relation(c.l.schemas[schemaOf(tn)], string(tn.ObjectName)) == relNone {
+		// A cast's type comes through as a name too.
+		if s := c.l.schemas[schemaOf(tn)]; missing == nil && relation(s, string(tn.ObjectName)) == relNone && (s == nil || !typeTaken(s, string(tn.ObjectName))) {
 			missing = refuse(codeUndefinedTable, "relation %q does not exist", tn.String())
 		}
 	})
@@ -1220,6 +1221,37 @@ func (c *Catalog) checkViewQuery(query *tree.Select) error {
 		return missing
 	}
 	return c.checkViewColumns(query)
+}
+
+// reaches reports whether a relation is the target, or a view that reads it,
+// directly or through other views.
+func (c *Catalog) reaches(schema, name, targetSchema, target string) bool {
+	seen := map[string]bool{}
+	var walk func(schema, name string) bool
+	walk = func(schema, name string) bool {
+		if schema == targetSchema && name == target {
+			return true
+		}
+		id := getObjectID(schema, name)
+		if seen[id] {
+			return false
+		}
+		seen[id] = true
+		s := c.l.schemas[schema]
+		var deps []*metadatapb.DependencyColumn
+		if v := findView(s, name); s != nil && v != nil {
+			deps = v.DependencyColumns
+		} else if v := findMaterializedView(s, name); s != nil && v != nil {
+			deps = v.DependencyColumns
+		}
+		for _, d := range deps {
+			if walk(d.Schema, d.Table) {
+				return true
+			}
+		}
+		return false
+	}
+	return walk(schema, name)
 }
 
 // keepsColumns refuses a replacement view whose columns drop or rename the
@@ -2005,6 +2037,16 @@ func (c *Catalog) typeUsers(schema, name string) []string {
 				}
 			}
 		}
+		for _, v := range s.Views {
+			if viewNamesType(v.Definition, typ) {
+				users = append(users, typeName(s.Name, v.Name))
+			}
+		}
+		for _, v := range s.MaterializedViews {
+			if viewNamesType(v.Definition, typ) {
+				users = append(users, typeName(s.Name, v.Name))
+			}
+		}
 		// A routine names its parameter and result types by their schema.
 		for _, function := range s.Functions {
 			if routineNamesType(function.Definition, typ) {
@@ -2014,6 +2056,31 @@ func (c *Catalog) typeUsers(schema, name string) []string {
 	}
 	return users
 }
+
+// viewNamesType reports whether a view's query casts or annotates to a type.
+func viewNamesType(definition, typ string) bool {
+	stmt, err := parser.ParseOne(definition)
+	if err != nil {
+		return false
+	}
+	found := false
+	tree.WalkStmt(&exprVisitor{visit: func(e tree.Expr) {
+		switch x := e.(type) {
+		case *tree.CastExpr, *tree.AnnotateTypeExpr:
+			found = found || namesType(tree.AsString(x), typ)
+		}
+	}}, stmt.AST)
+	return found
+}
+
+type exprVisitor struct{ visit func(tree.Expr) }
+
+func (v *exprVisitor) VisitPre(expr tree.Expr) (bool, tree.Expr) {
+	v.visit(expr)
+	return true, expr
+}
+
+func (*exprVisitor) VisitPost(expr tree.Expr) tree.Expr { return expr }
 
 // namesType reports whether an expression casts or annotates to a type.
 func namesType(text, typ string) bool {
@@ -2692,6 +2759,10 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 			return err
 		}
 		columns[string(def.Name)] = true
+		if def.Computed.Computed {
+			// Its expression may not read itself.
+			c.computed[string(def.Name)] = true
+		}
 		// The foreign key the column declares checks the column's type.
 		typ, _ := sdlType(def.Type)
 		c.pending = &metadatapb.TableMetadata{Name: table.Name, Columns: append(slices.Clone(table.Columns), &metadatapb.ColumnMetadata{Name: string(def.Name), Type: typ})}
