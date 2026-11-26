@@ -63,6 +63,7 @@ func TestExecRefusals(t *testing.T) {
 		{"CREATE TYPE mood AS ENUM ('sad'); CREATE FUNCTION f(x mood) RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$; DROP TYPE mood", "2BP01"},
 		{"CREATE SEQUENCE sq INCREMENT BY 0", "22023"},
 		{"CREATE SEQUENCE sq; ALTER SEQUENCE sq INCREMENT BY 0", "22023"},
+		{"CREATE TABLE p (id INT8 PRIMARY KEY, u INT8); CREATE UNIQUE INDEX ux ON p (u); ALTER TABLE p ADD COLUMN parent INT8 REFERENCES p (u); DROP INDEX p@ux", "2BP01"},
 		{"CREATE SCHEMA s; CREATE TYPE s.t AS ENUM ('a'); CREATE TABLE public.t (a INT8); ALTER TABLE public.t SET SCHEMA s", "42P07"},
 		{"CREATE SCHEMA s; CREATE TYPE s.m AS ENUM ('a'); CREATE TABLE t (m s.m); DROP SCHEMA s CASCADE", "0A000"},
 	} {
@@ -173,6 +174,7 @@ func TestExecRefusesUnmodeledForms(t *testing.T) {
 		"CREATE SCHEMA s; CREATE TABLE public.t (a INT8); CREATE SEQUENCE s.sq OWNED BY public.t.a",
 		"CREATE TABLE t (a INT8, b INT8 AS (a * 2) STORED); ALTER TABLE t ALTER COLUMN a TYPE STRING USING a::STRING",
 		"CREATE TABLE p (id INT8 PRIMARY KEY, u INT8, x INT8); CREATE UNIQUE INDEX ux ON p (u) STORING (x); CREATE TABLE c (u INT8 REFERENCES p (u)); ALTER TABLE p DROP COLUMN x",
+		"CREATE TYPE mood AS ENUM ('sad'); CREATE FUNCTION f(x mood) RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$; ALTER TYPE mood RENAME TO feeling",
 	} {
 		_, err := execLast(t, script)
 		require.Error(t, err, script)

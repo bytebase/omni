@@ -1176,6 +1176,9 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 		}
 		enum.Values = slices.Delete(enum.Values, at, at+1)
 	case *tree.AlterTypeRename:
+		if err := c.routineTypeUser(s.Name, name); err != nil {
+			return err
+		}
 		to := string(cmd.NewName)
 		if typeTaken(s, to) || relation(s, to) != relNone {
 			return refuse(codeDuplicateObject, "type %q already exists", to)
@@ -1187,6 +1190,9 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 			composite.Name = to
 		}
 	case *tree.AlterTypeSetSchema:
+		if err := c.routineTypeUser(s.Name, name); err != nil {
+			return err
+		}
 		target, err := c.schemaFor(string(cmd.Schema))
 		if err != nil {
 			return err
@@ -1397,6 +1403,20 @@ func (c *Catalog) typeUsers(schema, name string) []string {
 	return users
 }
 
+// routineTypeUser refuses renaming or moving a type a routine names, whose
+// stored definition the catalog does not rewrite.
+func (c *Catalog) routineTypeUser(schema, name string) error {
+	typ := typeName(schema, name)
+	for _, s := range c.l.meta.Schemas {
+		for _, function := range s.Functions {
+			if slices.Contains(typeNamed.FindAllString(function.Definition, -1), typ) {
+				return &Error{Message: fmt.Sprintf("renaming or moving type %q, which routine %q names, is not supported", typ, function.Name)}
+			}
+		}
+	}
+	return nil
+}
+
 // typeNamed matches the schema-qualified names a routine's definition holds.
 var typeNamed = regexp.MustCompile(`[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*`)
 
@@ -1516,6 +1536,20 @@ func (c *Catalog) referencing(schema, name, column string) []*metadatapb.Foreign
 				if column == "" && s.Name == schema && table.Name == name {
 					continue
 				}
+				out = append(out, fk)
+			}
+		}
+	})
+	return out
+}
+
+// keysOn returns every foreign key that references a table, its own
+// included.
+func (c *Catalog) keysOn(schema, name string) []*metadatapb.ForeignKeyMetadata {
+	var out []*metadatapb.ForeignKeyMetadata
+	c.eachTable(func(_ *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
+		for _, fk := range table.ForeignKeys {
+			if fk.ReferencedSchema == schema && fk.ReferencedTable == name {
 				out = append(out, fk)
 			}
 		}
@@ -2276,7 +2310,7 @@ func (c *Catalog) dropColumn(schema string, table *metadatapb.TableMetadata, nam
 	// A foreign key that relied on an index the column took along needs
 	// CASCADE, which takes it.
 	var orphans []*metadatapb.ForeignKeyMetadata
-	for _, fk := range c.referencing(schema, table.Name, "") {
+	for _, fk := range c.keysOn(schema, table.Name) {
 		if !slices.ContainsFunc(table.Indexes, func(i *metadatapb.IndexMetadata) bool {
 			return i.Unique && sameSet(i.Expressions, fk.ReferencedColumns)
 		}) {
@@ -2425,7 +2459,7 @@ func (c *Catalog) dropIndex(n *tree.DropIndex) error {
 			if &table.Indexes != list {
 				return
 			}
-			for _, fk := range c.referencing(s.Name, table.Name, "") {
+			for _, fk := range c.keysOn(s.Name, table.Name) {
 				if !slices.ContainsFunc(table.Indexes, func(i *metadatapb.IndexMetadata) bool {
 					return i.Unique && sameSet(i.Expressions, fk.ReferencedColumns)
 				}) {
