@@ -137,6 +137,11 @@ var selectAcceptCorpus = []string{
 	// --- RETURNING is non-reserved: a JSON_ARRAY element unless a type and ) follow ---
 	"SELECT JSON_ARRAY(RETURNING, 1) FROM t",
 	"SELECT JSON_ARRAY(RETURNING FORMAT JSON) FROM t",
+
+	// --- AT TIME ZONE takes an interval or a string (timeZoneSpecifier, SqlBase.g4:765) ---
+	"SELECT a AT TIME ZONE U&'UTC' UESCAPE '!' FROM t",
+	"SELECT a AT TIME ZONE INTERVAL -'1' HOUR FROM t",
+	"SELECT a AT TIME ZONE 'UTC' || 'x' FROM t",
 }
 
 // selectRejectCorpus is malformed querySpecification / queryNoWith input Trino
@@ -164,6 +169,9 @@ var selectRejectCorpus = []string{
 	"TABLE",                                                // TABLE with no name
 	"SELECT a a a FROM t",                                  // two aliases (trailing-token error)
 	"SELECT 1 garbage extra",                               // trailing junk after the statement
+	"SELECT a AT TIME ZONE b FROM t",                       // a zone is an interval or a string, not a column
+	"SELECT a AT TIME ZONE (b) FROM t",                     // nor a parenthesized expression
+	"SELECT a AT TIME ZONE AT LOCAL FROM t",                // nor the non-reserved word AT
 }
 
 // TestSelect_AcceptCorpusParses verifies omni accepts every form in
