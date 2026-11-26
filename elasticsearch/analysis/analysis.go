@@ -212,7 +212,12 @@ func AnalyzeRequest(method, url, body string) *RequestAnalysis {
 	// Only analyze the body for APIs that accept a query body.
 	switch api {
 	case APIMaskSearch, APIMaskExplain:
-		bodyResult := analyzeRequestBody(body)
+		var bodyResult *RequestAnalysis
+		if api == APIMaskSearch && strings.Contains(urlPath, "_msearch") {
+			bodyResult = analyzeMultiSearchBody(body)
+		} else {
+			bodyResult = analyzeRequestBody(body)
+		}
 		result.BlockedFeatures = bodyResult.BlockedFeatures
 		result.SourceFields = bodyResult.SourceFields
 		result.SourceExcludes = bodyResult.SourceExcludes

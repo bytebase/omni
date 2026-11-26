@@ -29,6 +29,64 @@ func analyzeRequestBody(body string) *RequestAnalysis {
 	return result
 }
 
+// analyzeMultiSearchBody analyzes each search of a multi-search body, whose
+// JSON values alternate a header and a search, and merges them into one
+// analysis: every search's blocked features and field references, and a
+// _source filter that keeps each field some search keeps.
+func analyzeMultiSearchBody(body string) *RequestAnalysis {
+	result := &RequestAnalysis{}
+	held, returned := 0, 0
+	decoder := json.NewDecoder(strings.NewReader(body))
+	for i := 0; ; i++ {
+		var raw json.RawMessage
+		if decoder.Decode(&raw) != nil {
+			break
+		}
+		if i%2 == 0 {
+			continue
+		}
+		held++
+		search := analyzeRequestBody(string(raw))
+		result.BlockedFeatures = appendNew(result.BlockedFeatures, search.BlockedFeatures...)
+		result.RequestedFields = appendNew(result.RequestedFields, search.RequestedFields...)
+		result.HighlightFields = appendNew(result.HighlightFields, search.HighlightFields...)
+		result.SortFields = appendNew(result.SortFields, search.SortFields...)
+		result.PredicateFields = appendNew(result.PredicateFields, search.PredicateFields...)
+		result.HasInnerHits = result.HasInnerHits || search.HasInnerHits
+		if search.SourceDisabled {
+			continue
+		}
+		// An include list keeps a field when any search's does, and every
+		// field when one search has none; an exclude pattern removes a field
+		// only when every search excludes it.
+		if returned == 0 {
+			result.SourceFields, result.SourceExcludes = search.SourceFields, search.SourceExcludes
+		} else {
+			if result.SourceFields == nil || search.SourceFields == nil {
+				result.SourceFields = nil
+			} else {
+				result.SourceFields = appendNew(result.SourceFields, search.SourceFields...)
+			}
+			result.SourceExcludes = slices.DeleteFunc(result.SourceExcludes, func(p string) bool {
+				return !slices.Contains(search.SourceExcludes, p)
+			})
+		}
+		returned++
+	}
+	result.SourceDisabled = held > 0 && returned == 0
+	return result
+}
+
+// appendNew appends each value the list does not hold yet.
+func appendNew[T comparable](list []T, values ...T) []T {
+	for _, v := range values {
+		if !slices.Contains(list, v) {
+			list = append(list, v)
+		}
+	}
+	return list
+}
+
 // detectBlockedFeatures checks for top-level keys that indicate blocked
 // features.
 func detectBlockedFeatures(parsed map[string]any) []BlockedFeature {
