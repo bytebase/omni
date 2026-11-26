@@ -347,17 +347,26 @@ func (r *spanResolver) missing(nf NotFoundError) {
 // query resolves a query's columns: a set operation's columns are named by
 // its first query and read what every query reads in that position.
 func (r *spanResolver) query(q *parser.SelectUnionStmt, outer *spanScope, ctes *cteBinding) []spanColumn {
+	return r.queryWith(q, outer, ctes, nil)
+}
+
+// queryWith resolves a query inside a set operation whose first query's
+// WITH aliases (inherited) it inherits.
+func (r *spanResolver) queryWith(q *parser.SelectUnionStmt, outer *spanScope, ctes *cteBinding, inherited *spanScope) []spanColumn {
 	defer r.settings(q)()
 	var (
 		out []spanColumn
 		// The first query's WITH clause is every query's
 		// (enable_global_with_statement, on by default).
-		with *spanScope
+		with = inherited
 	)
 	for i, item := range q.Items {
 		cols, w, c := r.selectStmt(item, outer, ctes, with)
 		if i == 0 {
-			out, with, ctes = cols, w, c
+			out, ctes = cols, c
+			if w != nil {
+				with = w
+			}
 			continue
 		}
 		for j := range out {
@@ -375,7 +384,9 @@ func (r *spanResolver) query(q *parser.SelectUnionStmt, outer *spanScope, ctes *
 // (inherited holds the first query's aliases).
 func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *cteBinding, inherited *spanScope) ([]spanColumn, *spanScope, *cteBinding) {
 	if s.Nested != nil {
-		return r.query(s.Nested, outer, ctes), nil, ctes
+		// A parenthesized arm of a set operation inherits the first arm's
+		// WITH clause too.
+		return r.queryWith(s.Nested, outer, ctes, inherited), nil, ctes
 	}
 	// The WITH clause's expression aliases are visible to its CTEs too, so
 	// they are a scope of their own, between the SELECT's and the outer
@@ -514,7 +525,7 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 func (r *spanResolver) exprs(list []parser.Expr, sc *spanScope, ctes *cteBinding) SourceColumnSet {
 	out := SourceColumnSet{}
 	for _, e := range list {
-		out = union(out, r.expr(e, sc, ctes))
+		addAll(out, r.expr(e, sc, ctes))
 	}
 	return out
 }
@@ -526,7 +537,7 @@ func (r *spanResolver) orderBy(items []*parser.OrderByItem, sc *spanScope, ctes 
 		return out
 	}
 	for _, o := range items {
-		out = union(out, r.exprs([]parser.Expr{o.Expr, o.FillFrom, o.FillTo, o.FillStep}, sc, ctes))
+		addAll(out, r.exprs([]parser.Expr{o.Expr, o.FillFrom, o.FillTo, o.FillStep}, sc, ctes))
 	}
 	return out
 }
@@ -842,7 +853,9 @@ func (r *spanResolver) merge(f *parser.FuncCallExpr, name string) *relation {
 			}
 			i := slices.IndexFunc(rel.columns, func(o spanColumn) bool { return o.name == c.name })
 			if i < 0 {
-				rel.columns = append(rel.columns, spanColumn{name: c.name, sources: sources, plain: c.plain, omitted: c.omitted})
+				// alias keeps the column's kind (ALIAS, not MATERIALIZED) for
+				// the asterisk settings; its sources are already resolved.
+				rel.columns = append(rel.columns, spanColumn{name: c.name, sources: sources, plain: c.plain, omitted: c.omitted, alias: c.alias})
 				continue
 			}
 			rel.columns[i].sources = union(rel.columns[i].sources, sources)
@@ -969,7 +982,7 @@ func (r *spanResolver) aliasColumn(database, table, column, expression string) S
 	delete(r.resolving, key)
 	out := SourceColumnSet{}
 	for _, c := range cols {
-		out = union(out, c.sources)
+		addAll(out, c.sources)
 	}
 	if r.whole(mark) {
 		r.aliasCols[key] = out
@@ -1379,7 +1392,7 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 		return r.expr(n.Expr, sc, ctes)
 	case *parser.SubqueryExpr:
 		for _, c := range r.query(n.Query, sc, ctes) {
-			out = union(out, c.sources)
+			addAll(out, c.sources)
 		}
 		return out
 	case *parser.LambdaExpr:
@@ -1391,7 +1404,7 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 	case *parser.StarExpr:
 		// A star in an expression is every column it expands to.
 		for _, c := range r.star(n, sc, ctes) {
-			out = union(out, c.sources)
+			addAll(out, c.sources)
 		}
 		return out
 	case *parser.FuncCallExpr:
@@ -1406,30 +1419,32 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 			// alias is.
 			key := aliasUse{lambda, sc}
 			if memo, ok := r.aliasMemo[key]; ok {
-				out = memo
+				addAll(out, memo)
 			} else if r.spend() {
 				mark := len(r.skips)
 				r.resolving[lambda] = true
-				out = r.expr(lambda, sc, ctes)
+				body := r.expr(lambda, sc, ctes)
 				delete(r.resolving, lambda)
 				if r.whole(mark) {
-					r.aliasMemo[key] = out
+					r.aliasMemo[key] = body
 				}
+				addAll(out, body)
 			}
 		}
 		if lookupFunction(n.Name) {
 			// joinGet('db.t', 'c', key) and dictGet('db.d', 'c', key) read
 			// column c of table or dictionary t.
-			out = union(out, r.lookupSources(n))
+			addAll(out, r.lookupSources(n))
 		}
 		if re, ok := columnsMatcher(n); ok {
 			// COLUMNS('re') in an expression is the columns it matches.
 			for _, c := range r.matching(re, sc) {
-				out = union(out, c.sources)
+				addAll(out, c.sources)
 			}
 			return out
 		}
-		out = union(out, union(r.exprs(n.Params, sc, ctes), r.exprs(args, sc, ctes)))
+		addAll(out, r.exprs(n.Params, sc, ctes))
+		addAll(out, r.exprs(args, sc, ctes))
 		over := n.Over
 		if n.OverName != "" {
 			over = sc.window(n.OverName)
@@ -1439,7 +1454,7 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 		seen := map[*parser.WindowSpec]bool{}
 		for ; over != nil && !seen[over]; over = sc.window(over.BaseWindow) {
 			seen[over] = true
-			out = union(out, r.window(over, sc, ctes))
+			addAll(out, r.window(over, sc, ctes))
 		}
 		return out
 	case *parser.InExpr:
@@ -1451,7 +1466,7 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 		return union(out, r.expr(n.Right, sc, ctes))
 	}
 	for _, c := range children(e) {
-		out = union(out, r.expr(c, sc, ctes))
+		addAll(out, r.expr(c, sc, ctes))
 	}
 	return out
 }
@@ -1721,7 +1736,7 @@ func (r *spanResolver) inTable(parts []string, sc *spanScope, ctes *cteBinding) 
 	out := SourceColumnSet{}
 	if rel := r.tableExpr(t, sc, ctes); rel != nil {
 		for _, c := range rel.columns {
-			out = union(out, c.sources)
+			addAll(out, c.sources)
 		}
 		if rel.open && rel.table != "" {
 			// A table no metadata describes: all of it.
@@ -1846,6 +1861,14 @@ func lookup(parts []string, sc *spanScope) (spanColumn, found) {
 		}
 	}
 	return column(sc.relations, parts, false)
+}
+
+// addAll adds src's entries to dst, which the caller owns: accumulating
+// into one set stays linear where union, copying, would not.
+func addAll(dst, src SourceColumnSet) {
+	for k := range src {
+		dst[k] = true
+	}
 }
 
 func union(a, b SourceColumnSet) SourceColumnSet {

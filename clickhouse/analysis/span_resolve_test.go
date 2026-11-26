@@ -503,3 +503,55 @@ func TestResolveQuerySpanTableFunctionColumnAliases(t *testing.T) {
 		}
 	}
 }
+
+// A parenthesized arm of a set operation inherits the first arm's WITH.
+func TestResolveQuerySpanParenthesizedArmWith(t *testing.T) {
+	got, err := ResolveQuerySpan("WITH email AS x SELECT x FROM customers UNION ALL (SELECT x FROM customers)", ResolveOptions{DefaultDatabase: "shop", Catalog: customersCatalog()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.NotFoundError != nil || len(got.Results) != 1 {
+		t.Fatalf("%+v", got)
+	}
+}
+
+// A wide expression collects its sources in linear time.
+func TestResolveQuerySpanWideExpression(t *testing.T) {
+	cols := make([]string, 8000)
+	for i := range cols {
+		cols[i] = fmt.Sprintf("c%d", i)
+	}
+	start := time.Now()
+	got, err := ResolveQuerySpan("SELECT tuple("+strings.Join(cols, ", ")+") FROM shop.t", ResolveOptions{DefaultDatabase: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := len(got.Results[0].SourceColumns); n != len(cols) {
+		t.Errorf("%d sources, want %d", n, len(cols))
+	}
+	if d := time.Since(start); d > 5*time.Second {
+		t.Errorf("took %v", d)
+	}
+}
+
+// merge() keeps which generated columns are ALIAS, for the asterisk
+// settings.
+func TestResolveQuerySpanMergeAsteriskSettings(t *testing.T) {
+	db := tableDatabase{table: &metadata.TableMetadata{Name: "calc", Columns: []*metadata.ColumnMetadata{
+		{Name: "email"},
+		{Name: "a", Generation: &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_VIRTUAL, Expression: "email"}},
+	}}}
+	opts := ResolveOptions{DefaultDatabase: "shop", Catalog: Catalog{GetDatabase: func(string) (Database, error) { return db, nil }}}
+	for q, want := range map[string]int{
+		"SELECT * FROM merge('shop', '^calc$') SETTINGS asterisk_include_alias_columns = 1":        2,
+		"SELECT * FROM merge('shop', '^calc$') SETTINGS asterisk_include_materialized_columns = 1": 1,
+	} {
+		got, err := ResolveQuerySpan(q, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got.Results) != want {
+			t.Errorf("%s: %d results, want %d", q, len(got.Results), want)
+		}
+	}
+}
