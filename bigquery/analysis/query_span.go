@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/bigquery/ast"
@@ -1644,7 +1645,7 @@ func (w *spanWalker) buildPathRelation(path *ast.PathExpr, alias string) *relati
 	if path == nil || len(path.Parts) == 0 {
 		return nil
 	}
-	cat, db, schema, table := bucketNameParts(path.Parts)
+	cat, db, schema, table := bucketNameParts(tablePath(path.Parts))
 	refName := alias
 	if refName == "" {
 		refName = table
@@ -1672,11 +1673,11 @@ func (w *spanWalker) buildPathRelation(path *ast.PathExpr, alias string) *relati
 }
 
 // addLeaf registers a leaf FROM relation in the current SELECT's lookup set
-// (w.leaves), used to resolve `rel.col` / `rel.*` / bare-column references. A
-// nil or unnamed relation is skipped (a join wrapper is unnamed — its sides are
-// registered individually).
+// (w.leaves), used to resolve `rel.col` / `rel.*` / bare-column references. An
+// unnamed relation (an unaliased subquery or UNNEST) is registered too: no
+// qualifier finds it, but a bare column still resolves to its projection.
 func (w *spanWalker) addLeaf(rel *relation) {
-	if rel == nil || rel.name == "" {
+	if rel == nil {
 		return
 	}
 	w.leaves.add(rel)
@@ -2006,9 +2007,9 @@ func (w *spanWalker) recordPath(path *ast.PathExpr, alias string) {
 		if alias != "" {
 			w.fromAliases[strings.ToLower(alias)] = true
 		}
-		if n := len(path.Parts); n > 0 {
+		if parts := tablePath(path.Parts); len(parts) > 0 {
 			// The bare (rightmost) table name is also a valid correlation root.
-			w.fromAliases[strings.ToLower(path.Parts[n-1])] = true
+			w.fromAliases[strings.ToLower(parts[len(parts)-1])] = true
 		}
 	}
 }
@@ -2031,7 +2032,7 @@ func (w *spanWalker) recordParts(parts []string, alias string, loc ast.Loc) {
 		return
 	}
 
-	cat, db, schema, table := bucketNameParts(parts)
+	cat, db, schema, table := bucketNameParts(tablePath(parts))
 
 	ta := TableAccess{
 		Catalog:  cat,
@@ -2072,6 +2073,20 @@ func (w *spanWalker) recordParts(parts []string, alias string, loc ast.Loc) {
 	}
 	w.accessed[key] = true
 	w.span.AccessTables = append(w.span.AccessTables, ta)
+}
+
+// tablePath splits a table path's quoted parts at their dots: BigQuery reads
+// `project.dataset.table` and `dataset`.`table` as the same path, and no
+// dataset or table name holds a dot.
+func tablePath(parts []string) []string {
+	if !slices.ContainsFunc(parts, func(p string) bool { return strings.Contains(p, ".") }) {
+		return parts
+	}
+	var out []string
+	for _, p := range parts {
+		out = append(out, strings.Split(p, ".")...)
+	}
+	return out
 }
 
 // bucketNameParts maps a dotted name's components to (catalog, database, schema,

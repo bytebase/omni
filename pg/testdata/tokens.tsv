@@ -34,6 +34,33 @@ opt_no	(every site)	NO
 opt_granted_by	(every site)	GRANTED BY
 opt_as	(every site)	AS
 opt_procedural	(every site)	PROCEDURAL
+opt_definition	(every site)	gram.y:8777 WITH definition
+opt_reloptions	(every site)	gram.y:3030 WITH (reloptions)
+OptWith	(every alternative)	gram.y:4554 WITH (reloptions) or WITHOUT OIDS
+OptTableSpace	(every site)	gram.y:4566 TABLESPACE name
+OptConsTableSpace	(every site)	gram.y:4570 USING INDEX TABLESPACE name
+table_access_method_clause	(every site)	gram.y:4548 USING access method
+create_generic_options	(every site)	gram.y:5392 OPTIONS (generic options)
+opt_provider	(every site)	gram.y:7347 FOR provider
+opt_in_database	(every site)	gram.y:1371 IN DATABASE name
+opt_restrict	(every site)	gram.y:8850 RESTRICT
+opt_equal	(every site)	gram.y:11337 =
+opt_varying	(every site)	gram.y:14614 VARYING
+opt_outer	(every site)	gram.y:13730 OUTER
+opt_c_include	(every site)	gram.y:4328 INCLUDE (columns) on a constraint
+opt_include	(every site)	gram.y:8223 INCLUDE (columns) on an index
+OptWhereClause	(every site)	gram.y:4371 WHERE (predicate)
+opt_grant_grant_option	(every site)	gram.y:7899 WITH GRANT OPTION
+opt_default	(every site)	gram.y:6633 DEFAULT
+opt_all_clause	(every site)	gram.y:13071 ALL
+opt_set_data	(every site)	gram.y:9870 SET DATA
+opt_collate	(every site)	gram.y:8231 COLLATE name on an index element
+opt_collate_clause	(every site)	gram.y:2973 COLLATE name
+OptInherit	(every site)	gram.y:4488 INHERITS (tables)
+opt_column_list	(every site)	gram.y:4312 (columns)
+returning_clause	(every site)	gram.y:12269 RETURNING
+where_clause	(every site)	gram.y:13909 WHERE
+opt_ordinality	(every site)	gram.y:13904 WITH ORDINALITY
 
 # Keyword choices tried at every site that names them, and not only where
 # their own alternatives' rows reach (see grammar.EveryAlternative).

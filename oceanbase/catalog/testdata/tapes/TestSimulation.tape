@@ -355,6 +355,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(a TINYINT) AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -370,6 +377,13 @@
 < ok 0 0
 > exec
 | CREATE TABLE IF NOT EXISTS a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -404,6 +418,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a NOPARALLEL AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -432,6 +453,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a PARTITION BY KEY() SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -453,6 +481,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a PARTITION BY KEY() AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -468,6 +503,13 @@
 < ok 0 0
 > exec
 | CREATE TABLE IF NOT EXISTS a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -663,6 +705,27 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a PRIMARY KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT PRIMARY KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT PRIMARY KEY(a) USING BTREE)
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(PRIMARY KEY(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
@@ -670,7 +733,56 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(PRIMARY KEY a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY(a) USING BTREE)
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY BTREE(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -691,6 +803,27 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(KEY a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(INDEX(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
@@ -705,7 +838,63 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(UNIQUE KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -719,7 +908,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a UNIQUE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT a UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -733,7 +992,42 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(FULLTEXT KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(VECTOR KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(VECTOR KEY a(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -754,7 +1048,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a FOREIGN KEY(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT FOREIGN KEY a(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(SPATIAL(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL BTREE(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -768,7 +1104,42 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(SPATIAL KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(FOREIGN KEY a(a) REFERENCES a(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -915,6 +1286,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a CHECK(a) ENFORCED
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT CHECK(a) NOT ENFORCED
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
@@ -937,6 +1315,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD CONSTRAINT CHECK(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT a CHECK(a)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -1083,6 +1468,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a FLOAT ZEROFILL
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a FLOAT UNSIGNED
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
@@ -1098,6 +1490,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a NUMBER
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NUMBER ZEROFILL
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -1125,6 +1524,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a DECIMAL ZEROFILL
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a DECIMAL UNSIGNED
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
@@ -1140,6 +1546,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a FIXED
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a FIXED ZEROFILL
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -1195,7 +1608,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHARACTER CHARSET a
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a NCHAR
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NCHAR BINARY
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -1209,7 +1636,28 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL CHARACTER BINARY
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a VARCHAR(1)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a VARCHAR(1) BINARY
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a VARCHAR(1) CHARSET a
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -1230,7 +1678,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NCHAR VARCHAR(1) BINARY
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a NVARCHAR(1)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NVARCHAR(1) BINARY
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -1244,7 +1706,28 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL VARCHAR(1) BINARY
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHARACTER VARYING(1)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHARACTER VARYING(1) BINARY
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHARACTER VARYING(1) CHARSET a
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -1265,6 +1748,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL CHARACTER VARYING(1) BINARY
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a TINYBLOB
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
@@ -1273,6 +1763,20 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a TINYTEXT
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a TINYTEXT BINARY
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a TINYTEXT CHARSET a
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -1314,7 +1818,35 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a ENUM('s') BINARY
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a ENUM('s') CHARSET a
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a SET('s')
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a SET('s') BINARY
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a SET('s') CHARSET a
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2000,7 +2532,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a TABLE_MODE = 's'
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DUPLICATE_SCOPE 's'
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DUPLICATE_SCOPE = 's'
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2014,7 +2560,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a EXPIRE_INFO =(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PROGRESSIVE_MERGE_NUM 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PROGRESSIVE_MERGE_NUM = 1
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2028,7 +2588,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a BLOCK_SIZE = 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a KEY_BLOCK_SIZE 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a KEY_BLOCK_SIZE = 1
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2042,7 +2616,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a TABLE_ID = 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a REPLICA_NUM 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a REPLICA_NUM = 1
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2056,7 +2644,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a COMPRESSION = 's'
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ROW_FORMAT REDUNDANT
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ROW_FORMAT = REDUNDANT
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2070,6 +2672,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STORAGE_FORMAT_VERSION = 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a USE_BLOOM_FILTER TRUE
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
@@ -2077,7 +2686,28 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a USE_BLOOM_FILTER = TRUE
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a CHARSET a
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DEFAULT CHARSET a
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a CHARSET = a
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2119,7 +2749,28 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a DEFAULT COLLATE a
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a COLLATE = a
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a COMMENT 's'
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a COMMENT = 's'
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2133,7 +2784,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a TABLEGROUP = a
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_INCREMENT = 1
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2161,7 +2826,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ENGINE = a
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a TABLET_SIZE 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a TABLET_SIZE = 1
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2175,7 +2854,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PCTFREE = 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a MAX_USED_PART_ID 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a MAX_USED_PART_ID = 1
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2196,7 +2889,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a DELAY_KEY_WRITE = 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AVG_ROW_LENGTH 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a AVG_ROW_LENGTH = 1
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2210,7 +2917,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a CHECKSUM = 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT_MODE 's'
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_INCREMENT_MODE = 's'
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2224,6 +2945,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE = 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ENABLE_EXTENDED_ROWID TRUE
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
@@ -2231,7 +2959,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ENABLE_EXTENDED_ROWID = TRUE
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PARTITION_TYPE USER_SPECIFIED
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PARTITION_TYPE = USER_SPECIFIED
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2259,6 +3001,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PROPERTIES =(TYPE = 's')
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PATTERN 's'
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
@@ -2273,7 +3022,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a TTL =(a + INTERVAL 1 SECOND)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a KV_ATTRIBUTES 's'
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a KV_ATTRIBUTES = 's'
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2287,7 +3050,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a DEFAULT_LOB_INROW_THRESHOLD = 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a LOB_INROW_THRESHOLD 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a LOB_INROW_THRESHOLD = 1
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2308,7 +3085,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a MICRO_INDEX_CLUSTERED = TRUE
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER TRUE
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER = TRUE
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2322,7 +3113,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_REFRESH = OFF
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_REFRESH IMMEDIATE
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_REFRESH = IMMEDIATE
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2336,7 +3141,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_REFRESH = INTERVAL
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DUPLICATE_READ_CONSISTENCY 's'
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DUPLICATE_READ_CONSISTENCY = 's'
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2350,7 +3169,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STORAGE_CACHE_POLICY =(GLOBAL = 's')
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a MAX_ROWS 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a MAX_ROWS = 1
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2364,7 +3197,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a MIN_ROWS = 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PASSWORD 's'
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PASSWORD = 's'
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2378,7 +3225,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PACK_KEYS = 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PACK_KEYS DEFAULT
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PACK_KEYS = DEFAULT
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2392,7 +3253,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a CONNECTION = 's'
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DATA DIRECTORY 's'
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DATA DIRECTORY = 's'
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2406,7 +3281,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a INDEX DIRECTORY = 's'
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ENCRYPTION 's'
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ENCRYPTION = 's'
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2420,7 +3309,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_AUTO_RECALC = 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_AUTO_RECALC DEFAULT
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_AUTO_RECALC = DEFAULT
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2434,7 +3337,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_PERSISTENT = 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_PERSISTENT DEFAULT
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_PERSISTENT = DEFAULT
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2448,7 +3365,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_SAMPLE_PAGES = 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_SAMPLE_PAGES DEFAULT
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_SAMPLE_PAGES = DEFAULT
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2462,7 +3393,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a UNION =()
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a INSERT_METHOD NO
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a INSERT_METHOD = NO
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2476,7 +3421,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ORGANIZATION = INDEX
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 's'
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a SEMISTRUCT_ENCODING_TYPE = 's'
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2490,6 +3449,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a MERGE_ENGINE = PARTIAL_UPDATE
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
@@ -2497,7 +3463,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a DYNAMIC_PARTITION_POLICY =(ENABLE = TRUE)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE ENABLE = TRUE)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE, ENABLE = TRUE)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2533,6 +3513,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(BIGINT_PRECISION = 's')
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a LOCATION = 's'
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -2631,6 +3618,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a PARALLEL 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PARALLEL = 1
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -3169,6 +4163,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a FORMAT(TYPE = 's', TYPE = 's')
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a FORMAT(FIELD_DELIMITER = a)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
@@ -3435,6 +4436,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE INDEX a USING BTREE ON a(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
@@ -3443,6 +4451,13 @@
 < ok 0 0
 > exec
 | CREATE INDEX IF NOT EXISTS a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE INDEX a USING BTREE ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -3463,6 +4478,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE FULLTEXT INDEX a USING BTREE ON a(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE FULLTEXT INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
@@ -3471,6 +4493,13 @@
 < ok 0 0
 > exec
 | CREATE FULLTEXT INDEX IF NOT EXISTS a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE FULLTEXT INDEX a USING BTREE ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -3659,7 +4688,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES =(MIN_TOKEN_SIZE = 1)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1 MIN_TOKEN_SIZE = 1)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1, MIN_TOKEN_SIZE = 1)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -3736,7 +4779,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) BLOCK_SIZE = 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE = 1
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -3806,7 +4863,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) DATA_TABLE_ID = 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID = 1
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -3820,7 +4891,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID = 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID = 1
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -3835,6 +4920,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY =(GLOBAL = 's')
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -4024,6 +5116,20 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PATTERN = 's'
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a FORMAT =(TYPE = 's')
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
@@ -4046,6 +5152,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a, NOPARALLEL
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a SET NOPARALLEL
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -4150,7 +5263,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ALGORITHM = DEFAULT
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a LOCK DEFAULT
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a LOCK = DEFAULT
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -4311,6 +5438,34 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD FULLTEXT KEY(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT a(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT USING BTREE(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT BTREE(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT PRIMARY KEY(a)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
@@ -4340,6 +5495,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY =(GLOBAL = 's')
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -4388,6 +5550,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY a(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD INDEX(a)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
@@ -4396,6 +5565,27 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -4416,7 +5606,63 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD UNIQUE KEY(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE a(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE USING BTREE(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE BTREE(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -4430,7 +5676,70 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE KEY(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE a(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE USING BTREE(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE BTREE(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT a UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -4444,7 +5753,42 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a PRIMARY KEY(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD(SPATIAL(a))
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL KEY(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL a(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL USING BTREE(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL BTREE(a)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -4458,7 +5802,42 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD SPATIAL KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD(PRIMARY KEY(a))
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD PRIMARY KEY a(a)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -4472,7 +5851,28 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY(a) REFERENCES a(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT FOREIGN KEY a(a) REFERENCES a(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY a(a) REFERENCES a(a)
 < error
 | 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
 > exec
@@ -5045,6 +6445,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(a TINYINT) AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -5060,6 +6467,13 @@
 < ok 0 0
 > exec
 | CREATE TABLE IF NOT EXISTS a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -5094,6 +6508,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a NOPARALLEL AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -5122,6 +6543,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a PARTITION BY KEY() SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -5143,6 +6571,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a PARTITION BY KEY() AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -5158,6 +6593,13 @@
 < ok 0 0
 > exec
 | CREATE TABLE IF NOT EXISTS a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -5311,6 +6753,27 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a PRIMARY KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT PRIMARY KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT PRIMARY KEY(a) USING BTREE)
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(PRIMARY KEY(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
@@ -5318,7 +6781,56 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(PRIMARY KEY a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY(a) USING BTREE)
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY BTREE(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -5339,6 +6851,27 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(KEY a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(INDEX(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
@@ -5353,7 +6886,63 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(UNIQUE KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -5367,7 +6956,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a UNIQUE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT a UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -5381,7 +7040,42 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(FULLTEXT KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(VECTOR KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(VECTOR KEY a(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -5402,7 +7096,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a FOREIGN KEY(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT FOREIGN KEY a(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(SPATIAL(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL BTREE(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -5416,7 +7152,42 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(SPATIAL KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(FOREIGN KEY a(a) REFERENCES a(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -6006,6 +7777,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a CHECK(a) ENFORCED
+< error
+| 3820 HY000 Check constraint 'a' refers to non-existing column 'a'.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT CHECK(a) NOT ENFORCED
 < error
 | 3820 HY000 Check constraint 'a_OBCHECK_0000000000000002' refers to non-existing column 'a'.
@@ -6030,6 +7808,13 @@
 | ALTER TABLE a ADD CONSTRAINT CHECK(a)
 < error
 | 3820 HY000 Check constraint 'a_OBCHECK_0000000000000005' refers to non-existing column 'a'.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT a CHECK(a)
+< error
+| 3820 HY000 Check constraint 'a' refers to non-existing column 'a'.
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -6252,6 +8037,39 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a FLOAT ZEROFILL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` float unsigned zerofill DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a FLOAT UNSIGNED
 < ok 0 0
 > query
@@ -6344,6 +8162,39 @@
 |   `c` int(11) DEFAULT NULL,
 |   `d` int(11) DEFAULT NULL,
 |   `a` decimal(10,0) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NUMBER ZEROFILL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` decimal(10,0) unsigned zerofill DEFAULT NULL,
 |   PRIMARY KEY (`b`),
 |   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
@@ -6450,6 +8301,39 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a DECIMAL ZEROFILL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` decimal(10,0) unsigned zerofill DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a DECIMAL UNSIGNED
 < ok 0 0
 > query
@@ -6542,6 +8426,39 @@
 |   `c` int(11) DEFAULT NULL,
 |   `d` int(11) DEFAULT NULL,
 |   `a` decimal(10,0) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a FIXED ZEROFILL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` decimal(10,0) unsigned zerofill DEFAULT NULL,
 |   PRIMARY KEY (`b`),
 |   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
@@ -6780,6 +8697,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHARACTER CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a NCHAR
 < ok 0 0
 > query
@@ -6806,6 +8730,39 @@
 |   `c` int(11) DEFAULT NULL,
 |   `d` int(11) DEFAULT NULL,
 |   `a` char(1) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NCHAR BINARY
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
 |   PRIMARY KEY (`b`),
 |   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
@@ -6846,6 +8803,39 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL CHARACTER BINARY
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a VARCHAR(1)
 < ok 0 0
 > query
@@ -6875,6 +8865,46 @@
 |   PRIMARY KEY (`b`),
 |   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a VARCHAR(1) BINARY
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a VARCHAR(1) CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -6945,6 +8975,39 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NCHAR VARCHAR(1) BINARY
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a NVARCHAR(1)
 < ok 0 0
 > query
@@ -6971,6 +9034,39 @@
 |   `c` int(11) DEFAULT NULL,
 |   `d` int(11) DEFAULT NULL,
 |   `a` varchar(1) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NVARCHAR(1) BINARY
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
 |   PRIMARY KEY (`b`),
 |   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
@@ -7011,6 +9107,39 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL VARCHAR(1) BINARY
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHARACTER VARYING(1)
 < ok 0 0
 > query
@@ -7040,6 +9169,46 @@
 |   PRIMARY KEY (`b`),
 |   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHARACTER VARYING(1) BINARY
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHARACTER VARYING(1) CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -7110,6 +9279,39 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL CHARACTER VARYING(1) BINARY
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a TINYBLOB
 < ok 0 0
 > query
@@ -7172,6 +9374,46 @@
 |   PRIMARY KEY (`b`),
 |   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a TINYTEXT BINARY
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` tinytext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a TINYTEXT CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -7315,6 +9557,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a ENUM('s') BINARY
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` enum('s') CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a ENUM('s') CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a SET('s')
 < ok 0 0
 > query
@@ -7344,6 +9626,46 @@
 |   PRIMARY KEY (`b`),
 |   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a SET('s') BINARY
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` set('s') CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a SET('s') CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -9909,6 +12231,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a TABLE_MODE = 's'
+< error
+| 1235 0A000 Table mode s is not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DUPLICATE_SCOPE 's'
 < error
 | 1210 HY000 Incorrect arguments to duplicate_scope
@@ -9916,7 +12245,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a DUPLICATE_SCOPE = 's'
+< error
+| 1210 HY000 Incorrect arguments to duplicate_scope
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a EXPIRE_INFO(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a EXPIRE_INFO =(a)
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -9980,7 +12348,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PROGRESSIVE_MERGE_NUM = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 PROGRESSIVE_MERGE_NUM = 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a BLOCK_SIZE 1
+< error
+| 5258 HY000 Invalid block size, block size should between 1024 and 1048576
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a BLOCK_SIZE = 1
 < error
 | 5258 HY000 Invalid block size, block size should between 1024 and 1048576
 > exec
@@ -10019,7 +12426,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a KEY_BLOCK_SIZE = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a TABLE_ID 1
+< error
+| 1064 42000 Parse error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a TABLE_ID = 1
 < error
 | 1064 42000 Parse error
 > exec
@@ -10058,7 +12504,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a REPLICA_NUM = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a COMPRESSION 's'
+< error
+| 1210 HY000 Incorrect arguments to s
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a COMPRESSION = 's'
 < error
 | 1210 HY000 Incorrect arguments to s
 > exec
@@ -10097,7 +12582,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ROW_FORMAT = REDUNDANT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = REDUNDANT COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a STORAGE_FORMAT_VERSION 1
+< error
+| 4179 HY000 target storage format version cannot be smaller than current version not allowed
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a STORAGE_FORMAT_VERSION = 1
 < error
 | 4179 HY000 target storage format version cannot be smaller than current version not allowed
 > exec
@@ -10136,7 +12660,53 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a USE_BLOOM_FILTER = TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = TRUE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DEFAULT CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a CHARSET = a
 < error
 | 1115 42000 Unknown character set: 'a'
 > exec
@@ -10228,7 +12798,53 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a DEFAULT COLLATE a
+< error
+| 1273 HY000 Unknown collation: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a COLLATE = a
+< error
+| 1273 HY000 Unknown collation: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a COMMENT 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 COMMENT = 's'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a COMMENT = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -10267,7 +12883,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a TABLEGROUP = a
+< error
+| 5151 42P01 tablegroup not exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_INCREMENT = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -10395,7 +13050,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ENGINE = a
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a TABLET_SIZE 1
+< error
+| 4147 HY000 Invalid config
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a TABLET_SIZE = 1
 < error
 | 4147 HY000 Invalid config
 > exec
@@ -10434,7 +13128,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PCTFREE = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a MAX_USED_PART_ID 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a MAX_USED_PART_ID = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -10505,7 +13263,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a DELAY_KEY_WRITE = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AVG_ROW_LENGTH 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a AVG_ROW_LENGTH = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -10569,6 +13391,38 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a CHECKSUM = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT_MODE 's'
 < error
 | 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
@@ -10576,7 +13430,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_INCREMENT_MODE = 's'
+< error
+| 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -10640,7 +13533,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ENABLE_EXTENDED_ROWID = TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PARTITION_TYPE USER_SPECIFIED
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PARTITION_TYPE = USER_SPECIFIED
 < error
 | 4016 HY000 Internal error
 > exec
@@ -10668,6 +13600,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PROPERTIES =(TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PATTERN 's'
 < error
 | 4016 HY000 Internal error
@@ -10682,7 +13621,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a TTL =(a + INTERVAL 1 SECOND)
+< error
+| 10502 HY000 TTL column 'a' not exists
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a KV_ATTRIBUTES 's'
+< error
+| 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a KV_ATTRIBUTES = 's'
 < error
 | 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
 > exec
@@ -10721,7 +13674,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a DEFAULT_LOB_INROW_THRESHOLD = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 LOB_INROW_THRESHOLD=1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a LOB_INROW_THRESHOLD 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 LOB_INROW_THRESHOLD=1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a LOB_INROW_THRESHOLD = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -10792,7 +13809,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a MICRO_INDEX_CLUSTERED = TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER = TRUE
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -10831,7 +13912,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_REFRESH = OFF
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_REFRESH IMMEDIATE
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_REFRESH = IMMEDIATE
 < error
 | 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
 > exec
@@ -10845,7 +13940,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_REFRESH = INTERVAL
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DUPLICATE_READ_CONSISTENCY 's'
+< error
+| 1210 HY000 Incorrect arguments to duplicate_read_consistency
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DUPLICATE_READ_CONSISTENCY = 's'
 < error
 | 1210 HY000 Incorrect arguments to duplicate_read_consistency
 > exec
@@ -10859,7 +13968,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STORAGE_CACHE_POLICY =(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a MAX_ROWS 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a MAX_ROWS = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -10923,7 +14071,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a MIN_ROWS = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PASSWORD 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PASSWORD = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -10987,7 +14199,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PACK_KEYS = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PACK_KEYS DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PACK_KEYS = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -11051,7 +14327,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a CONNECTION = 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DATA DIRECTORY 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DATA DIRECTORY = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -11115,7 +14455,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a INDEX DIRECTORY = 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ENCRYPTION 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ENCRYPTION = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -11179,7 +14583,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_AUTO_RECALC = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_AUTO_RECALC DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_AUTO_RECALC = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -11243,7 +14711,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_PERSISTENT = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_PERSISTENT DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_PERSISTENT = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -11307,7 +14839,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_SAMPLE_PAGES = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_SAMPLE_PAGES DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_SAMPLE_PAGES = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -11371,7 +14967,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a UNION =()
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a INSERT_METHOD NO
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a INSERT_METHOD = NO
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -11410,7 +15070,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ORGANIZATION = INDEX
+< error
+| 1235 0A000 organization in the alter table statement not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 's'
+< error
+| 1210 HY000 Incorrect arguments to semistruct encoding type, should be none or encoding
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a SEMISTRUCT_ENCODING_TYPE = 's'
 < error
 | 1210 HY000 Incorrect arguments to semistruct encoding type, should be none or encoding
 > exec
@@ -11424,7 +15098,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a MERGE_ENGINE = PARTIAL_UPDATE
+< error
+| 1235 0A000 alter merge engine table option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE)
+< error
+| 1235 0A000 specify dynamic partition on non partitioned table is not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DYNAMIC_PARTITION_POLICY =(ENABLE = TRUE)
 < error
 | 1235 0A000 specify dynamic partition on non partitioned table is not supported
 > exec
@@ -11434,6 +15122,13 @@
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE ENABLE = TRUE)
 < error
 | 1210 HY000 Invalid argument
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE, ENABLE = TRUE)
+< error
+| 1235 0A000 specify dynamic partition on non partitioned table is not supported
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -11469,6 +15164,13 @@
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(BIGINT_PRECISION = 's')
 < error
 | 1235 0A000 specify dynamic partition on non partitioned table is not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a LOCATION = 's'
+< error
+| 4016 HY000 Internal error
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -11615,6 +15317,38 @@
 < ok 0 0
 > exec
 | ALTER TABLE a PARALLEL 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PARALLEL = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -12515,6 +16249,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a FORMAT(TYPE = 's', TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a FORMAT(FIELD_DELIMITER = a)
 < error
 | 4016 HY000 Internal error
@@ -12806,6 +16547,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE INDEX a USING BTREE ON a(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
@@ -12814,6 +16562,13 @@
 < ok 0 0
 > exec
 | CREATE INDEX IF NOT EXISTS a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE INDEX a USING BTREE ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
 > exec
@@ -12834,6 +16589,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE FULLTEXT INDEX a USING BTREE ON a(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE FULLTEXT INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
@@ -12842,6 +16604,13 @@
 < ok 0 0
 > exec
 | CREATE FULLTEXT INDEX IF NOT EXISTS a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE FULLTEXT INDEX a USING BTREE ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
 > exec
@@ -13030,7 +16799,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES =(MIN_TOKEN_SIZE = 1)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1 MIN_TOKEN_SIZE = 1)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1, MIN_TOKEN_SIZE = 1)
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
 > exec
@@ -13107,7 +16890,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) BLOCK_SIZE = 1
+< error
+| 5258 HY000 Invalid block size, block size should between 1024 and 1048576
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE 1
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE = 1
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
 > exec
@@ -13177,7 +16974,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) DATA_TABLE_ID = 1
+< error
+| 1235 0A000 specify data table id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
+< error
+| 1235 0A000 specify index table id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID = 1
 < error
 | 1235 0A000 specify index table id not for restore purpose in create index not supported
 > exec
@@ -13191,7 +17002,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID = 1
+< error
+| 1235 0A000 specify virtual column id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID = 1
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
 > exec
@@ -13206,6 +17031,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY =(GLOBAL = 's')
 < error
 | 1235 0A000 storage cache policy is not supported in shared storage mode not supported
 > exec
@@ -13349,6 +17181,20 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PATTERN = 's'
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a FORMAT =(TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 1091 42000 Can't DROP 'a'; check that column/key exists
@@ -13396,6 +17242,38 @@
 < ok 0 0
 > exec
 | ALTER TABLE a, NOPARALLEL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a SET NOPARALLEL
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -13750,7 +17628,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ALGORITHM = DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a LOCK DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a LOCK = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -14086,6 +18028,34 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD FULLTEXT KEY(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT a(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT USING BTREE(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT BTREE(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT PRIMARY KEY(a)
 < error
 | 1068 42000 Multiple primary key defined
@@ -14145,6 +18115,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY =(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a RENAME KEY a TO a
 < error
 | 1176 42000 Key 'a' doesn't exist in table 'a'
@@ -14187,6 +18164,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY a(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD INDEX(a)
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
@@ -14195,6 +18179,27 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
 > exec
@@ -14215,7 +18220,63 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD UNIQUE KEY(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE a(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE USING BTREE(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE BTREE(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
 > exec
@@ -14229,7 +18290,70 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE KEY(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE a(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE USING BTREE(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE BTREE(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT a UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
 > exec
@@ -14243,7 +18367,42 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a PRIMARY KEY(a)
+< error
+| 1068 42000 Multiple primary key defined
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD(SPATIAL(a))
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL KEY(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL a(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL USING BTREE(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL BTREE(a)
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
 > exec
@@ -14257,7 +18416,42 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD SPATIAL KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD(PRIMARY KEY(a))
+< error
+| 1068 42000 Multiple primary key defined
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD PRIMARY KEY a(a)
 < error
 | 1068 42000 Multiple primary key defined
 > exec
@@ -14271,7 +18465,28 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT FOREIGN KEY a(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY a(a) REFERENCES a(a)
 < error
 | 1215 HY000 Cannot add foreign key constraint
 > exec
@@ -15109,6 +19324,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(a TINYINT) AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -15124,6 +19346,13 @@
 < ok 0 0
 > exec
 | CREATE TABLE IF NOT EXISTS a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -15158,6 +19387,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a NOPARALLEL AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -15186,6 +19422,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a PARTITION BY KEY() SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -15207,6 +19450,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a PARTITION BY KEY() AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -15222,6 +19472,13 @@
 < ok 0 0
 > exec
 | CREATE TABLE IF NOT EXISTS a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -15375,6 +19632,27 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a PRIMARY KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT PRIMARY KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT PRIMARY KEY(a) USING BTREE)
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(PRIMARY KEY(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
@@ -15382,7 +19660,56 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(PRIMARY KEY a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY(a) USING BTREE)
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY BTREE(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -15403,6 +19730,27 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(KEY a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(INDEX(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
@@ -15417,7 +19765,63 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(UNIQUE KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -15431,7 +19835,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a UNIQUE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT a UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -15445,7 +19919,42 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(FULLTEXT KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(VECTOR KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(VECTOR KEY a(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -15466,7 +19975,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a FOREIGN KEY(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT FOREIGN KEY a(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(SPATIAL(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL BTREE(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -15480,7 +20031,42 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(SPATIAL KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(FOREIGN KEY a(a) REFERENCES a(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -15627,6 +20213,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a CHECK(a) ENFORCED
+< error
+| 3812 HY000 An expression of non-boolean type specified to a check constraint 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT CHECK(a) NOT ENFORCED
 < error
 | 3812 HY000 An expression of non-boolean type specified to a check constraint 'a_OBCHECK_0000000000000009'
@@ -15651,6 +20244,13 @@
 | ALTER TABLE a ADD CONSTRAINT CHECK(a)
 < error
 | 3812 HY000 An expression of non-boolean type specified to a check constraint 'a_OBCHECK_0000000000000012'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT a CHECK(a)
+< error
+| 3812 HY000 An expression of non-boolean type specified to a check constraint 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -15795,6 +20395,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a FLOAT ZEROFILL
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a FLOAT UNSIGNED
 < error
 | 1060 42S21 Duplicate column name 'a'
@@ -15810,6 +20417,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a NUMBER
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NUMBER ZEROFILL
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
@@ -15837,6 +20451,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a DECIMAL ZEROFILL
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a DECIMAL UNSIGNED
 < error
 | 1060 42S21 Duplicate column name 'a'
@@ -15852,6 +20473,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a FIXED
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a FIXED ZEROFILL
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
@@ -15907,7 +20535,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHARACTER CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a NCHAR
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NCHAR BINARY
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
@@ -15921,9 +20563,30 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL CHARACTER BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a VARCHAR(1)
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a VARCHAR(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a VARCHAR(1) CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -15942,7 +20605,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NCHAR VARCHAR(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a NVARCHAR(1)
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NVARCHAR(1) BINARY
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
@@ -15956,9 +20633,30 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL VARCHAR(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHARACTER VARYING(1)
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHARACTER VARYING(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHARACTER VARYING(1) CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -15977,6 +20675,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL CHARACTER VARYING(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a TINYBLOB
 < error
 | 1060 42S21 Duplicate column name 'a'
@@ -15987,6 +20692,20 @@
 | ALTER TABLE a ADD a TINYTEXT
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a TINYTEXT BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a TINYTEXT CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -16026,9 +20745,37 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a ENUM('s') BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a ENUM('s') CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a SET('s')
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a SET('s') BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a SET('s') CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -16720,6 +21467,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a TABLE_MODE = 's'
+< error
+| 1235 0A000 Table mode s is not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DUPLICATE_SCOPE 's'
 < error
 | 1210 HY000 Incorrect arguments to duplicate_scope
@@ -16727,7 +21481,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a DUPLICATE_SCOPE = 's'
+< error
+| 1210 HY000 Incorrect arguments to duplicate_scope
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a EXPIRE_INFO(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a EXPIRE_INFO =(a)
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -16791,7 +21584,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PROGRESSIVE_MERGE_NUM = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 PROGRESSIVE_MERGE_NUM = 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a BLOCK_SIZE 1
+< error
+| 5258 HY000 Invalid block size, block size should between 1024 and 1048576
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a BLOCK_SIZE = 1
 < error
 | 5258 HY000 Invalid block size, block size should between 1024 and 1048576
 > exec
@@ -16830,7 +21662,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a KEY_BLOCK_SIZE = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a TABLE_ID 1
+< error
+| 1064 42000 Parse error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a TABLE_ID = 1
 < error
 | 1064 42000 Parse error
 > exec
@@ -16869,7 +21740,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a REPLICA_NUM = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a COMPRESSION 's'
+< error
+| 1210 HY000 Incorrect arguments to s
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a COMPRESSION = 's'
 < error
 | 1210 HY000 Incorrect arguments to s
 > exec
@@ -16908,7 +21818,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ROW_FORMAT = REDUNDANT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = REDUNDANT COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a STORAGE_FORMAT_VERSION 1
+< error
+| 4179 HY000 target storage format version cannot be smaller than current version not allowed
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a STORAGE_FORMAT_VERSION = 1
 < error
 | 4179 HY000 target storage format version cannot be smaller than current version not allowed
 > exec
@@ -16947,7 +21896,53 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a USE_BLOOM_FILTER = TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = TRUE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DEFAULT CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a CHARSET = a
 < error
 | 1115 42000 Unknown character set: 'a'
 > exec
@@ -17039,7 +22034,53 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a DEFAULT COLLATE a
+< error
+| 1273 HY000 Unknown collation: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a COLLATE = a
+< error
+| 1273 HY000 Unknown collation: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a COMMENT 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 COMMENT = 's'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a COMMENT = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -17078,7 +22119,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a TABLEGROUP = a
+< error
+| 5151 42P01 tablegroup not exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_INCREMENT = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -17206,7 +22286,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ENGINE = a
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a TABLET_SIZE 1
+< error
+| 4147 HY000 Invalid config
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a TABLET_SIZE = 1
 < error
 | 4147 HY000 Invalid config
 > exec
@@ -17245,7 +22364,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PCTFREE = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a MAX_USED_PART_ID 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a MAX_USED_PART_ID = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -17316,7 +22499,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a DELAY_KEY_WRITE = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AVG_ROW_LENGTH 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a AVG_ROW_LENGTH = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -17380,6 +22627,38 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a CHECKSUM = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT_MODE 's'
 < error
 | 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
@@ -17387,7 +22666,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_INCREMENT_MODE = 's'
+< error
+| 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -17451,7 +22769,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ENABLE_EXTENDED_ROWID = TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PARTITION_TYPE USER_SPECIFIED
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PARTITION_TYPE = USER_SPECIFIED
 < error
 | 4016 HY000 Internal error
 > exec
@@ -17479,6 +22836,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PROPERTIES =(TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PATTERN 's'
 < error
 | 4016 HY000 Internal error
@@ -17493,7 +22857,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a TTL =(a + INTERVAL 1 SECOND)
+< error
+| 10503 HY000 Column type of 'a' is not supported for TTL definition
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a KV_ATTRIBUTES 's'
+< error
+| 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a KV_ATTRIBUTES = 's'
 < error
 | 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
 > exec
@@ -17532,7 +22910,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a DEFAULT_LOB_INROW_THRESHOLD = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 LOB_INROW_THRESHOLD=1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a LOB_INROW_THRESHOLD 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 LOB_INROW_THRESHOLD=1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a LOB_INROW_THRESHOLD = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -17603,7 +23045,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a MICRO_INDEX_CLUSTERED = TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER = TRUE
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -17642,7 +23148,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_REFRESH = OFF
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_REFRESH IMMEDIATE
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_REFRESH = IMMEDIATE
 < error
 | 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
 > exec
@@ -17656,7 +23176,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_REFRESH = INTERVAL
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DUPLICATE_READ_CONSISTENCY 's'
+< error
+| 1210 HY000 Incorrect arguments to duplicate_read_consistency
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DUPLICATE_READ_CONSISTENCY = 's'
 < error
 | 1210 HY000 Incorrect arguments to duplicate_read_consistency
 > exec
@@ -17670,7 +23204,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STORAGE_CACHE_POLICY =(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a MAX_ROWS 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a MAX_ROWS = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -17734,7 +23307,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a MIN_ROWS = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PASSWORD 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PASSWORD = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -17798,7 +23435,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PACK_KEYS = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PACK_KEYS DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PACK_KEYS = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -17862,7 +23563,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a CONNECTION = 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DATA DIRECTORY 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DATA DIRECTORY = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -17926,7 +23691,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a INDEX DIRECTORY = 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ENCRYPTION 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ENCRYPTION = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -17990,7 +23819,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_AUTO_RECALC = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_AUTO_RECALC DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_AUTO_RECALC = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -18054,7 +23947,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_PERSISTENT = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_PERSISTENT DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_PERSISTENT = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -18118,7 +24075,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_SAMPLE_PAGES = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_SAMPLE_PAGES DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_SAMPLE_PAGES = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -18182,7 +24203,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a UNION =()
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a INSERT_METHOD NO
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a INSERT_METHOD = NO
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -18221,7 +24306,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ORGANIZATION = INDEX
+< error
+| 1235 0A000 organization in the alter table statement not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 's'
+< error
+| 1210 HY000 Incorrect arguments to semistruct encoding type, should be none or encoding
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a SEMISTRUCT_ENCODING_TYPE = 's'
 < error
 | 1210 HY000 Incorrect arguments to semistruct encoding type, should be none or encoding
 > exec
@@ -18235,7 +24334,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a MERGE_ENGINE = PARTIAL_UPDATE
+< error
+| 1235 0A000 alter merge engine table option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE)
+< error
+| 1235 0A000 specify dynamic partition on non partitioned table is not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DYNAMIC_PARTITION_POLICY =(ENABLE = TRUE)
 < error
 | 1235 0A000 specify dynamic partition on non partitioned table is not supported
 > exec
@@ -18245,6 +24358,13 @@
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE ENABLE = TRUE)
 < error
 | 1210 HY000 Invalid argument
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE, ENABLE = TRUE)
+< error
+| 1235 0A000 specify dynamic partition on non partitioned table is not supported
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -18280,6 +24400,13 @@
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(BIGINT_PRECISION = 's')
 < error
 | 1235 0A000 specify dynamic partition on non partitioned table is not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a LOCATION = 's'
+< error
+| 4016 HY000 Internal error
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -18426,6 +24553,38 @@
 < ok 0 0
 > exec
 | ALTER TABLE a PARALLEL 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PARALLEL = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -19326,6 +25485,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a FORMAT(TYPE = 's', TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a FORMAT(FIELD_DELIMITER = a)
 < error
 | 4016 HY000 Internal error
@@ -19643,6 +25809,39 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE INDEX a USING BTREE ON a(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < ok 0 0
 > query
@@ -19709,6 +25908,39 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE INDEX a USING BTREE ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE FULLTEXT INDEX a ON a(a)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
@@ -19723,6 +25955,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE FULLTEXT INDEX a USING BTREE ON a(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE FULLTEXT INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
@@ -19731,6 +25970,13 @@
 < ok 0 0
 > exec
 | CREATE FULLTEXT INDEX IF NOT EXISTS a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE FULLTEXT INDEX a USING BTREE ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
 > exec
@@ -20179,7 +26425,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES =(MIN_TOKEN_SIZE = 1)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1 MIN_TOKEN_SIZE = 1)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1, MIN_TOKEN_SIZE = 1)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
 > exec
@@ -20282,7 +26542,47 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) BLOCK_SIZE = 1
+< error
+| 5258 HY000 Invalid block size, block size should between 1024 and 1048576
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -20560,7 +26860,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) DATA_TABLE_ID = 1
+< error
+| 1235 0A000 specify data table id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
+< error
+| 1235 0A000 specify index table id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID = 1
 < error
 | 1235 0A000 specify index table id not for restore purpose in create index not supported
 > exec
@@ -20574,7 +26888,47 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID = 1
+< error
+| 1235 0A000 specify virtual column id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -20641,6 +26995,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY =(GLOBAL = 's')
 < error
 | 1235 0A000 storage cache policy is not supported in shared storage mode not supported
 > exec
@@ -20914,6 +27275,20 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PATTERN = 's'
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a FORMAT =(TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 1091 42000 Can't DROP 'a'; check that column/key exists
@@ -20961,6 +27336,38 @@
 < ok 0 0
 > exec
 | ALTER TABLE a, NOPARALLEL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a SET NOPARALLEL
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -21315,7 +27722,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ALGORITHM = DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a LOCK DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a LOCK = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -21677,6 +28148,34 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD FULLTEXT KEY(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT a(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT USING BTREE(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT BTREE(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT PRIMARY KEY(a)
 < error
 | 1068 42000 Multiple primary key defined
@@ -21736,6 +28235,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY =(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a RENAME KEY a TO a
 < error
 | 1176 42000 Key 'a' doesn't exist in table 'a'
@@ -21772,6 +28278,39 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD(KEY(a))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY a(a)
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -21870,6 +28409,105 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD INDEX(a) WITH COLUMN GROUP(ALL COLUMNS)
 < ok 0 0
 > query
@@ -21936,6 +28574,138 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD UNIQUE KEY(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE a(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE USING BTREE(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE BTREE(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < ok 0 0
 > query
@@ -21963,6 +28733,138 @@
 |   `d` int(11) DEFAULT NULL,
 |   PRIMARY KEY (`b`),
 |   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
 |   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
@@ -22002,6 +28904,138 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE KEY(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE a(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE USING BTREE(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE BTREE(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < ok 0 0
 > query
@@ -22035,7 +29069,179 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD(CONSTRAINT PRIMARY KEY(a))
+< error
+| 1068 42000 Multiple primary key defined
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT a PRIMARY KEY(a)
 < error
 | 1068 42000 Multiple primary key defined
 > exec
@@ -22049,7 +29255,63 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD SPATIAL KEY(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL a(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL USING BTREE(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL BTREE(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1687 42000 A SPATIAL index may only contain a geometrical type column.
 > exec
@@ -22063,6 +29325,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD PRIMARY KEY a(a)
+< error
+| 1068 42000 Multiple primary key defined
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
 < error
 | 1215 HY000 Cannot add foreign key constraint
@@ -22070,7 +29339,28 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT FOREIGN KEY a(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY a(a) REFERENCES a(a)
 < error
 | 1215 HY000 Cannot add foreign key constraint
 > exec
@@ -23069,6 +30359,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(a TINYINT) AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -23084,6 +30381,13 @@
 < ok 0 0
 > exec
 | CREATE TABLE IF NOT EXISTS a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -23118,6 +30422,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| CREATE TABLE a NOPARALLEL AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -23146,6 +30457,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | CREATE TABLE a PARTITION BY KEY() SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -23167,6 +30485,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| CREATE TABLE a PARTITION BY KEY() AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | CREATE TABLE a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -23182,6 +30507,13 @@
 < ok 0 0
 > exec
 | CREATE TABLE IF NOT EXISTS a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -23335,6 +30667,27 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a PRIMARY KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT PRIMARY KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT PRIMARY KEY(a) USING BTREE)
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(PRIMARY KEY(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
@@ -23342,7 +30695,56 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(PRIMARY KEY a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY(a) USING BTREE)
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY BTREE(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -23363,6 +30765,27 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(KEY a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(INDEX(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
@@ -23377,7 +30800,63 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(UNIQUE KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -23391,7 +30870,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a UNIQUE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT a UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -23405,7 +30954,42 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(FULLTEXT KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(VECTOR KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(VECTOR KEY a(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -23426,7 +31010,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a FOREIGN KEY(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT FOREIGN KEY a(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(SPATIAL(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL BTREE(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -23440,7 +31066,42 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| CREATE TABLE a(SPATIAL KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE TABLE a(FOREIGN KEY a(a) REFERENCES a(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -23587,6 +31248,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a CHECK(a) ENFORCED
+< error
+| 3812 HY000 An expression of non-boolean type specified to a check constraint 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT CHECK(a) NOT ENFORCED
 < error
 | 3812 HY000 An expression of non-boolean type specified to a check constraint 'a_OBCHECK_0000000000000016'
@@ -23611,6 +31279,13 @@
 | ALTER TABLE a ADD CONSTRAINT CHECK(a)
 < error
 | 3812 HY000 An expression of non-boolean type specified to a check constraint 'a_OBCHECK_0000000000000019'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT a CHECK(a)
+< error
+| 3812 HY000 An expression of non-boolean type specified to a check constraint 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
@@ -23755,6 +31430,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a FLOAT ZEROFILL
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a FLOAT UNSIGNED
 < error
 | 1060 42S21 Duplicate column name 'a'
@@ -23770,6 +31452,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a NUMBER
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NUMBER ZEROFILL
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
@@ -23797,6 +31486,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a DECIMAL ZEROFILL
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a DECIMAL UNSIGNED
 < error
 | 1060 42S21 Duplicate column name 'a'
@@ -23812,6 +31508,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a FIXED
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a FIXED ZEROFILL
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
@@ -23867,7 +31570,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHARACTER CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a NCHAR
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NCHAR BINARY
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
@@ -23881,9 +31598,30 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL CHARACTER BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a VARCHAR(1)
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a VARCHAR(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a VARCHAR(1) CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
@@ -23902,7 +31640,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NCHAR VARCHAR(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a NVARCHAR(1)
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NVARCHAR(1) BINARY
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
@@ -23916,9 +31668,30 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL VARCHAR(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHARACTER VARYING(1)
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHARACTER VARYING(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHARACTER VARYING(1) CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
@@ -23937,6 +31710,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL CHARACTER VARYING(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a TINYBLOB
 < error
 | 1060 42S21 Duplicate column name 'a'
@@ -23947,6 +31727,20 @@
 | ALTER TABLE a ADD a TINYTEXT
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a TINYTEXT BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a TINYTEXT CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
@@ -23986,9 +31780,37 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a ENUM('s') BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a ENUM('s') CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a SET('s')
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a SET('s') BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a SET('s') CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
@@ -24680,6 +32502,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a TABLE_MODE = 's'
+< error
+| 1235 0A000 Table mode s is not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DUPLICATE_SCOPE 's'
 < error
 | 1210 HY000 Incorrect arguments to duplicate_scope
@@ -24687,7 +32516,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a DUPLICATE_SCOPE = 's'
+< error
+| 1210 HY000 Incorrect arguments to duplicate_scope
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a EXPIRE_INFO(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a EXPIRE_INFO =(a)
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -24751,7 +32619,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PROGRESSIVE_MERGE_NUM = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 PROGRESSIVE_MERGE_NUM = 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a BLOCK_SIZE 1
+< error
+| 5258 HY000 Invalid block size, block size should between 1024 and 1048576
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a BLOCK_SIZE = 1
 < error
 | 5258 HY000 Invalid block size, block size should between 1024 and 1048576
 > exec
@@ -24790,7 +32697,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a KEY_BLOCK_SIZE = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a TABLE_ID 1
+< error
+| 1064 42000 Parse error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a TABLE_ID = 1
 < error
 | 1064 42000 Parse error
 > exec
@@ -24829,7 +32775,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a REPLICA_NUM = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a COMPRESSION 's'
+< error
+| 1210 HY000 Incorrect arguments to s
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a COMPRESSION = 's'
 < error
 | 1210 HY000 Incorrect arguments to s
 > exec
@@ -24868,7 +32853,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ROW_FORMAT = REDUNDANT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = REDUNDANT COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a STORAGE_FORMAT_VERSION 1
+< error
+| 4179 HY000 target storage format version cannot be smaller than current version not allowed
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a STORAGE_FORMAT_VERSION = 1
 < error
 | 4179 HY000 target storage format version cannot be smaller than current version not allowed
 > exec
@@ -24907,7 +32931,53 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a USE_BLOOM_FILTER = TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = TRUE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DEFAULT CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a CHARSET = a
 < error
 | 1115 42000 Unknown character set: 'a'
 > exec
@@ -24999,7 +33069,53 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a DEFAULT COLLATE a
+< error
+| 1273 HY000 Unknown collation: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a COLLATE = a
+< error
+| 1273 HY000 Unknown collation: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a COMMENT 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 COMMENT = 's'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a COMMENT = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -25038,7 +33154,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a TABLEGROUP = a
+< error
+| 5151 42P01 tablegroup not exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_INCREMENT = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -25166,7 +33321,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ENGINE = a
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a TABLET_SIZE 1
+< error
+| 4147 HY000 Invalid config
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a TABLET_SIZE = 1
 < error
 | 4147 HY000 Invalid config
 > exec
@@ -25205,7 +33399,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PCTFREE = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a MAX_USED_PART_ID 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a MAX_USED_PART_ID = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -25276,7 +33534,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a DELAY_KEY_WRITE = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AVG_ROW_LENGTH 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a AVG_ROW_LENGTH = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -25340,6 +33662,38 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a CHECKSUM = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT_MODE 's'
 < error
 | 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
@@ -25347,7 +33701,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_INCREMENT_MODE = 's'
+< error
+| 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -25411,7 +33804,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ENABLE_EXTENDED_ROWID = TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PARTITION_TYPE USER_SPECIFIED
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PARTITION_TYPE = USER_SPECIFIED
 < error
 | 4016 HY000 Internal error
 > exec
@@ -25439,6 +33871,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PROPERTIES =(TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PATTERN 's'
 < error
 | 4016 HY000 Internal error
@@ -25453,7 +33892,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a TTL =(a + INTERVAL 1 SECOND)
+< error
+| 10503 HY000 Column type of 'a' is not supported for TTL definition
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a KV_ATTRIBUTES 's'
+< error
+| 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a KV_ATTRIBUTES = 's'
 < error
 | 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
 > exec
@@ -25492,7 +33945,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a DEFAULT_LOB_INROW_THRESHOLD = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 LOB_INROW_THRESHOLD=1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a LOB_INROW_THRESHOLD 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 LOB_INROW_THRESHOLD=1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a LOB_INROW_THRESHOLD = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -25563,7 +34080,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a MICRO_INDEX_CLUSTERED = TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER = TRUE
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -25602,7 +34183,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_REFRESH = OFF
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_REFRESH IMMEDIATE
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_REFRESH = IMMEDIATE
 < error
 | 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
 > exec
@@ -25616,7 +34211,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_REFRESH = INTERVAL
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DUPLICATE_READ_CONSISTENCY 's'
+< error
+| 1210 HY000 Incorrect arguments to duplicate_read_consistency
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DUPLICATE_READ_CONSISTENCY = 's'
 < error
 | 1210 HY000 Incorrect arguments to duplicate_read_consistency
 > exec
@@ -25630,7 +34239,46 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STORAGE_CACHE_POLICY =(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a MAX_ROWS 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a MAX_ROWS = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -25694,7 +34342,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a MIN_ROWS = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PASSWORD 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PASSWORD = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -25758,7 +34470,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PACK_KEYS = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PACK_KEYS DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PACK_KEYS = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -25822,7 +34598,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a CONNECTION = 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DATA DIRECTORY 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DATA DIRECTORY = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -25886,7 +34726,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a INDEX DIRECTORY = 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ENCRYPTION 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ENCRYPTION = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -25950,7 +34854,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_AUTO_RECALC = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_AUTO_RECALC DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_AUTO_RECALC = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -26014,7 +34982,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_PERSISTENT = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_PERSISTENT DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_PERSISTENT = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -26078,7 +35110,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_SAMPLE_PAGES = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_SAMPLE_PAGES DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_SAMPLE_PAGES = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -26142,7 +35238,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a UNION =()
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a INSERT_METHOD NO
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a INSERT_METHOD = NO
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -26181,7 +35341,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ORGANIZATION = INDEX
+< error
+| 1235 0A000 organization in the alter table statement not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 's'
+< error
+| 1210 HY000 Incorrect arguments to semistruct encoding type, should be none or encoding
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a SEMISTRUCT_ENCODING_TYPE = 's'
 < error
 | 1210 HY000 Incorrect arguments to semistruct encoding type, should be none or encoding
 > exec
@@ -26195,7 +35369,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a MERGE_ENGINE = PARTIAL_UPDATE
+< error
+| 1235 0A000 alter merge engine table option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE)
+< error
+| 1235 0A000 specify dynamic partition on non partitioned table is not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DYNAMIC_PARTITION_POLICY =(ENABLE = TRUE)
 < error
 | 1235 0A000 specify dynamic partition on non partitioned table is not supported
 > exec
@@ -26205,6 +35393,13 @@
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE ENABLE = TRUE)
 < error
 | 1210 HY000 Invalid argument
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE, ENABLE = TRUE)
+< error
+| 1235 0A000 specify dynamic partition on non partitioned table is not supported
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
@@ -26240,6 +35435,13 @@
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(BIGINT_PRECISION = 's')
 < error
 | 1235 0A000 specify dynamic partition on non partitioned table is not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a LOCATION = 's'
+< error
+| 4016 HY000 Internal error
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
@@ -26386,6 +35588,38 @@
 < ok 0 0
 > exec
 | ALTER TABLE a PARALLEL 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a PARALLEL = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -27286,6 +36520,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a FORMAT(TYPE = 's', TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a FORMAT(FIELD_DELIMITER = a)
 < error
 | 4016 HY000 Internal error
@@ -27602,6 +36843,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| CREATE INDEX a USING BTREE ON a(a)
+< error
+| 1061 42000 Duplicate key name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | CREATE INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1061 42000 Duplicate key name 'a'
@@ -27641,6 +36889,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| CREATE INDEX a USING BTREE ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1061 42000 Duplicate key name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | CREATE FULLTEXT INDEX a ON a(a)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
@@ -27655,6 +36910,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| CREATE FULLTEXT INDEX a USING BTREE ON a(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | CREATE FULLTEXT INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
@@ -27663,6 +36925,13 @@
 < ok 0 0
 > exec
 | CREATE FULLTEXT INDEX IF NOT EXISTS a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| CREATE FULLTEXT INDEX a USING BTREE ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
 > exec
@@ -28083,7 +37352,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES =(MIN_TOKEN_SIZE = 1)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1 MIN_TOKEN_SIZE = 1)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1, MIN_TOKEN_SIZE = 1)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
 > exec
@@ -28186,7 +37469,47 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) BLOCK_SIZE = 1
+< error
+| 5258 HY000 Invalid block size, block size should between 1024 and 1048576
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a_2` (`a`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -28464,7 +37787,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) DATA_TABLE_ID = 1
+< error
+| 1235 0A000 specify data table id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
+< error
+| 1235 0A000 specify index table id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID = 1
 < error
 | 1235 0A000 specify index table id not for restore purpose in create index not supported
 > exec
@@ -28478,7 +37815,47 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID = 1
+< error
+| 1235 0A000 specify virtual column id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a_2` (`a`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -28545,6 +37922,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY =(GLOBAL = 's')
 < error
 | 1235 0A000 storage cache policy is not supported in shared storage mode not supported
 > exec
@@ -28818,6 +38202,20 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a PATTERN = 's'
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a FORMAT =(TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a DROP INDEX a
 < ok 0 0
 > query
@@ -28889,6 +38287,38 @@
 < ok 0 0
 > exec
 | ALTER TABLE a, NOPARALLEL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a SET NOPARALLEL
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -29243,7 +38673,71 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ALGORITHM = DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a LOCK DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a LOCK = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -29605,6 +39099,34 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD FULLTEXT KEY(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT a(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT USING BTREE(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT BTREE(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT PRIMARY KEY(a)
 < error
 | 1068 42000 Multiple primary key defined
@@ -29683,6 +39205,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY =(GLOBAL = 's')
 < error
 | 1235 0A000 storage cache policy is not supported in shared storage mode not supported
 > exec
@@ -29782,6 +39311,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY a(a)
+< error
+| 1061 42000 Duplicate key name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD INDEX(a)
 < ok 0 0
 > query
@@ -29843,6 +39379,79 @@
 |   PRIMARY KEY (`b`),
 |   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL,
 |   KEY `a_2` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1061 42000 Duplicate key name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a_2` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns)
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
@@ -29914,6 +39523,112 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD UNIQUE KEY(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a_2` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE a(a)
+< error
+| 1061 42000 Duplicate key name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE USING BTREE(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a_2` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE BTREE(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < ok 0 0
 > query
@@ -29941,6 +39656,112 @@
 |   `d` int(11) DEFAULT NULL,
 |   PRIMARY KEY (`b`),
 |   UNIQUE KEY `a_2` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a_2` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1061 42000 Duplicate key name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a_2` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
 |   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > exec
@@ -29980,6 +39801,112 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE KEY(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a_2` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE a(a)
+< error
+| 1061 42000 Duplicate key name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE USING BTREE(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a_2` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE BTREE(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < ok 0 0
 > query
@@ -30013,7 +39940,127 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1061 42000 Duplicate key name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a_2` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1061 42000 Duplicate key name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a_2` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `a` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD(CONSTRAINT PRIMARY KEY(a))
+< error
+| 1068 42000 Multiple primary key defined
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT a PRIMARY KEY(a)
 < error
 | 1068 42000 Multiple primary key defined
 > exec
@@ -30027,7 +40074,63 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD SPATIAL KEY(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL a(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL USING BTREE(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL BTREE(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1687 42000 A SPATIAL index may only contain a geometrical type column.
 > exec
@@ -30041,6 +40144,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD PRIMARY KEY a(a)
+< error
+| 1068 42000 Multiple primary key defined
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
 < error
 | 1215 HY000 Cannot add foreign key constraint
@@ -30048,7 +40158,28 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT FOREIGN KEY a(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY a(a) REFERENCES a(a)
 < error
 | 1215 HY000 Cannot add foreign key constraint
 > exec
@@ -31088,6 +41219,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| CREATE TABLE a(a TINYINT) AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -31105,6 +41244,14 @@
 < ok 0 0
 > exec
 | CREATE TABLE IF NOT EXISTS a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -31144,6 +41291,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| CREATE TABLE a NOPARALLEL AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -31176,6 +41331,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | CREATE TABLE a PARTITION BY KEY() SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -31200,6 +41363,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| CREATE TABLE a PARTITION BY KEY() AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | CREATE TABLE a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -31217,6 +41388,14 @@
 < ok 0 0
 > exec
 | CREATE TABLE IF NOT EXISTS a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -31392,6 +41571,30 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a PRIMARY KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT PRIMARY KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT PRIMARY KEY(a) USING BTREE)
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | CREATE TABLE a(PRIMARY KEY(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
@@ -31400,7 +41603,63 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| CREATE TABLE a(PRIMARY KEY a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY(a) USING BTREE)
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | CREATE TABLE a(KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY BTREE(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -31424,6 +41683,30 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| CREATE TABLE a(KEY a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | CREATE TABLE a(INDEX(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
@@ -31440,7 +41723,71 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| CREATE TABLE a(UNIQUE KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -31456,7 +41803,87 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a UNIQUE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT a UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -31472,7 +41899,47 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| CREATE TABLE a(FULLTEXT KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | CREATE TABLE a(VECTOR KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(VECTOR KEY a(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -31496,7 +41963,55 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a FOREIGN KEY(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT FOREIGN KEY a(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | CREATE TABLE a(SPATIAL(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL BTREE(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -31512,7 +42027,47 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| CREATE TABLE a(SPATIAL KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE a(FOREIGN KEY a(a) REFERENCES a(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -31680,6 +42235,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a CHECK(a) ENFORCED
+< error
+| 3812 HY000 An expression of non-boolean type specified to a check constraint 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT CHECK(a) NOT ENFORCED
 < error
 | 3812 HY000 An expression of non-boolean type specified to a check constraint 'a_OBCHECK_0000000000000023'
@@ -31707,6 +42270,14 @@
 | ALTER TABLE a ADD CONSTRAINT CHECK(a)
 < error
 | 3812 HY000 An expression of non-boolean type specified to a check constraint 'a_OBCHECK_0000000000000026'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT a CHECK(a)
+< error
+| 3812 HY000 An expression of non-boolean type specified to a check constraint 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
 | CREATE VIEW a AS SELECT b, a, d FROM t
@@ -31872,6 +42443,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a FLOAT ZEROFILL
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a FLOAT UNSIGNED
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
@@ -31889,6 +42468,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a NUMBER
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NUMBER ZEROFILL
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -31920,6 +42507,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a DECIMAL ZEROFILL
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a DECIMAL UNSIGNED
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
@@ -31937,6 +42532,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a FIXED
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a FIXED ZEROFILL
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -32000,7 +42603,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHARACTER CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a NCHAR
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NCHAR BINARY
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -32016,9 +42635,33 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL CHARACTER BINARY
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a VARCHAR(1)
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a VARCHAR(1) BINARY
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a VARCHAR(1) CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
 | CREATE VIEW a AS SELECT b, a, d FROM t
@@ -32040,7 +42683,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NCHAR VARCHAR(1) BINARY
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a NVARCHAR(1)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NVARCHAR(1) BINARY
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -32056,9 +42715,33 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL VARCHAR(1) BINARY
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHARACTER VARYING(1)
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHARACTER VARYING(1) BINARY
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHARACTER VARYING(1) CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
 | CREATE VIEW a AS SELECT b, a, d FROM t
@@ -32080,6 +42763,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL CHARACTER VARYING(1) BINARY
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a TINYBLOB
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
@@ -32091,6 +42782,22 @@
 | ALTER TABLE a ADD a TINYTEXT
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a TINYTEXT BINARY
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a TINYTEXT CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
 | CREATE VIEW a AS SELECT b, a, d FROM t
@@ -32136,9 +42843,41 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a ENUM('s') BINARY
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a ENUM('s') CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a SET('s')
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a SET('s') BINARY
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a SET('s') CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
 | CREATE VIEW a AS SELECT b, a, d FROM t
@@ -32872,7 +43611,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a TABLE_MODE = 's'
+< error
+| 1235 0A000 Table mode s is not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a DUPLICATE_SCOPE 's'
+< error
+| 1210 HY000 Incorrect arguments to duplicate_scope
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a DUPLICATE_SCOPE = 's'
 < error
 | 1210 HY000 Incorrect arguments to duplicate_scope
 > exec
@@ -32888,7 +43643,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a EXPIRE_INFO =(a)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a PROGRESSIVE_MERGE_NUM 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a PROGRESSIVE_MERGE_NUM = 1
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -32904,7 +43675,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a BLOCK_SIZE = 1
+< error
+| 5258 HY000 Invalid block size, block size should between 1024 and 1048576
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a KEY_BLOCK_SIZE 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a KEY_BLOCK_SIZE = 1
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -32920,7 +43707,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a TABLE_ID = 1
+< error
+| 1064 42000 Parse error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a REPLICA_NUM 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a REPLICA_NUM = 1
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -32936,7 +43739,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a COMPRESSION = 's'
+< error
+| 1210 HY000 Incorrect arguments to s
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ROW_FORMAT REDUNDANT
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ROW_FORMAT = REDUNDANT
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -32952,6 +43771,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a STORAGE_FORMAT_VERSION = 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a USE_BLOOM_FILTER TRUE
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
@@ -32960,7 +43787,31 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a USE_BLOOM_FILTER = TRUE
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a DEFAULT CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a CHARSET = a
 < error
 | 1115 42000 Unknown character set: 'a'
 > exec
@@ -33001,6 +43852,22 @@
 < ok 0 0
 > exec
 | ALTER TABLE a COLLATE a
+< error
+| 1273 HY000 Unknown collation: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a DEFAULT COLLATE a
+< error
+| 1273 HY000 Unknown collation: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a COLLATE = a
 < error
 | 1273 HY000 Unknown collation: 'a'
 > exec
@@ -33062,6 +43929,60 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a COMMENT = 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| VIEW
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `a`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE VIEW `a` AS select `omni_t_simulation`.`t`.`b` AS `b`,`omni_t_simulation`.`t`.`a` AS `a`,`omni_t_simulation`.`t`.`d` AS `d` from `omni_t_simulation`.`t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a TABLEGROUP a
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
@@ -33070,7 +43991,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a TABLEGROUP = a
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_INCREMENT = 1
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -33102,7 +44039,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ENGINE = a
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a TABLET_SIZE 1
+< error
+| 4147 HY000 Invalid config
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a TABLET_SIZE = 1
 < error
 | 4147 HY000 Invalid config
 > exec
@@ -33118,7 +44071,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a PCTFREE = 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a MAX_USED_PART_ID 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a MAX_USED_PART_ID = 1
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -33142,7 +44111,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a DELAY_KEY_WRITE = 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a AVG_ROW_LENGTH 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a AVG_ROW_LENGTH = 1
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -33158,7 +44143,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a CHECKSUM = 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT_MODE 's'
+< error
+| 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_INCREMENT_MODE = 's'
 < error
 | 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
 > exec
@@ -33174,6 +44175,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE = 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ENABLE_EXTENDED_ROWID TRUE
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
@@ -33182,7 +44191,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ENABLE_EXTENDED_ROWID = TRUE
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a PARTITION_TYPE USER_SPECIFIED
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a PARTITION_TYPE = USER_SPECIFIED
 < error
 | 4016 HY000 Internal error
 > exec
@@ -33214,6 +44239,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a PROPERTIES =(TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a PATTERN 's'
 < error
 | 4016 HY000 Internal error
@@ -33230,7 +44263,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a TTL =(a + INTERVAL 1 SECOND)
+< error
+| 10503 HY000 Column type of 'a' is not supported for TTL definition
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a KV_ATTRIBUTES 's'
+< error
+| 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a KV_ATTRIBUTES = 's'
 < error
 | 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
 > exec
@@ -33246,7 +44295,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a DEFAULT_LOB_INROW_THRESHOLD = 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a LOB_INROW_THRESHOLD 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a LOB_INROW_THRESHOLD = 1
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -33270,7 +44335,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a MICRO_INDEX_CLUSTERED = TRUE
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER TRUE
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER = TRUE
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -33286,7 +44367,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_REFRESH = OFF
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_REFRESH IMMEDIATE
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_REFRESH = IMMEDIATE
 < error
 | 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
 > exec
@@ -33302,7 +44399,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_REFRESH = INTERVAL
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a DUPLICATE_READ_CONSISTENCY 's'
+< error
+| 1210 HY000 Incorrect arguments to duplicate_read_consistency
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a DUPLICATE_READ_CONSISTENCY = 's'
 < error
 | 1210 HY000 Incorrect arguments to duplicate_read_consistency
 > exec
@@ -33318,7 +44431,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a STORAGE_CACHE_POLICY =(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a MAX_ROWS 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a MAX_ROWS = 1
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -33334,7 +44463,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a MIN_ROWS = 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a PASSWORD 's'
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a PASSWORD = 's'
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -33350,7 +44495,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a PACK_KEYS = 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a PACK_KEYS DEFAULT
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a PACK_KEYS = DEFAULT
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -33366,7 +44527,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a CONNECTION = 's'
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a DATA DIRECTORY 's'
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a DATA DIRECTORY = 's'
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -33382,7 +44559,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a INDEX DIRECTORY = 's'
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ENCRYPTION 's'
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ENCRYPTION = 's'
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -33398,7 +44591,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_AUTO_RECALC = 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_AUTO_RECALC DEFAULT
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_AUTO_RECALC = DEFAULT
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -33414,7 +44623,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_PERSISTENT = 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_PERSISTENT DEFAULT
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_PERSISTENT = DEFAULT
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -33430,7 +44655,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_SAMPLE_PAGES = 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_SAMPLE_PAGES DEFAULT
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_SAMPLE_PAGES = DEFAULT
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -33446,7 +44687,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a UNION =()
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a INSERT_METHOD NO
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a INSERT_METHOD = NO
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -33462,7 +44719,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ORGANIZATION = INDEX
+< error
+| 1235 0A000 organization in the alter table statement not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 's'
+< error
+| 1210 HY000 Incorrect arguments to semistruct encoding type, should be none or encoding
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a SEMISTRUCT_ENCODING_TYPE = 's'
 < error
 | 1210 HY000 Incorrect arguments to semistruct encoding type, should be none or encoding
 > exec
@@ -33478,6 +44751,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a MERGE_ENGINE = PARTIAL_UPDATE
+< error
+| 1235 0A000 alter merge engine table option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE)
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
@@ -33486,7 +44767,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a DYNAMIC_PARTITION_POLICY =(ENABLE = TRUE)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE ENABLE = TRUE)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE, ENABLE = TRUE)
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -33529,6 +44826,14 @@
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(BIGINT_PRECISION = 's')
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a LOCATION = 's'
+< error
+| 4016 HY000 Internal error
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
 | CREATE VIEW a AS SELECT b, a, d FROM t
@@ -33639,6 +44944,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a PARALLEL 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a PARALLEL = 1
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -34254,6 +45567,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a FORMAT(TYPE = 's', TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a FORMAT(FIELD_DELIMITER = a)
 < error
 | 4016 HY000 Internal error
@@ -34558,6 +45879,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| CREATE INDEX a USING BTREE ON a(a)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE_TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | CREATE INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE_TABLE
@@ -34567,6 +45896,14 @@
 < ok 0 0
 > exec
 | CREATE INDEX IF NOT EXISTS a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE_TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a USING BTREE ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE_TABLE
 > exec
@@ -34590,6 +45927,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| CREATE FULLTEXT INDEX a USING BTREE ON a(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | CREATE FULLTEXT INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
@@ -34599,6 +45944,14 @@
 < ok 0 0
 > exec
 | CREATE FULLTEXT INDEX IF NOT EXISTS a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE FULLTEXT INDEX a USING BTREE ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
 > exec
@@ -34814,7 +46167,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES =(MIN_TOKEN_SIZE = 1)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1 MIN_TOKEN_SIZE = 1)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1, MIN_TOKEN_SIZE = 1)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
 > exec
@@ -34902,7 +46271,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) BLOCK_SIZE = 1
+< error
+| 5258 HY000 Invalid block size, block size should between 1024 and 1048576
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE = 1
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -34982,7 +46367,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) DATA_TABLE_ID = 1
+< error
+| 1235 0A000 specify data table id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
+< error
+| 1235 0A000 specify index table id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID = 1
 < error
 | 1235 0A000 specify index table id not for restore purpose in create index not supported
 > exec
@@ -34998,7 +46399,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID = 1
+< error
+| 1235 0A000 specify virtual column id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID = 1
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -35015,6 +46432,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY =(GLOBAL = 's')
 < error
 | 1235 0A000 storage cache policy is not supported in shared storage mode not supported
 > exec
@@ -35295,6 +46720,22 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a PATTERN = 's'
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a FORMAT =(TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
@@ -35320,6 +46761,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a, NOPARALLEL
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a SET NOPARALLEL
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -35439,7 +46888,23 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ALGORITHM = DEFAULT
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a LOCK DEFAULT
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a LOCK = DEFAULT
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -35623,6 +47088,38 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD FULLTEXT KEY(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT a(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT USING BTREE(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT BTREE(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT PRIMARY KEY(a)
 < error
 | 1068 42000 Multiple primary key defined
@@ -35656,6 +47153,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY =(GLOBAL = 's')
 < error
 | 1235 0A000 storage cache policy is not supported in shared storage mode not supported
 > exec
@@ -35711,6 +47216,14 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY a(a)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD INDEX(a)
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
@@ -35720,6 +47233,30 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -35743,7 +47280,71 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD UNIQUE KEY(a)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE a(a)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE USING BTREE(a)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE BTREE(a)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -35759,7 +47360,79 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE KEY(a)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE a(a)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE USING BTREE(a)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE BTREE(a)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT a UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1347 HY000 'omni_t_simulation.a' is not BASE TABLE
 > exec
@@ -35775,7 +47448,47 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a PRIMARY KEY(a)
+< error
+| 1068 42000 Multiple primary key defined
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD(SPATIAL(a))
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL KEY(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL a(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL USING BTREE(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL BTREE(a)
 < error
 | 1687 42000 A SPATIAL index may only contain a geometrical type column.
 > exec
@@ -35791,7 +47504,47 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD SPATIAL KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD(PRIMARY KEY(a))
+< error
+| 1068 42000 Multiple primary key defined
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD PRIMARY KEY a(a)
 < error
 | 1068 42000 Multiple primary key defined
 > exec
@@ -35807,7 +47560,31 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT FOREIGN KEY a(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+| CREATE VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY a(a) REFERENCES a(a)
 < error
 | 1215 HY000 Cannot add foreign key constraint
 > exec
@@ -36461,6 +48238,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE TABLE a(a TINYINT) AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -36476,6 +48260,13 @@
 < ok 0 0
 > exec
 | CREATE TABLE IF NOT EXISTS a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -36510,6 +48301,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE TABLE a NOPARALLEL AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -36538,6 +48336,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE TABLE a PARTITION BY KEY() SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -36559,6 +48364,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE TABLE a PARTITION BY KEY() AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE TABLE a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -36574,6 +48386,13 @@
 < ok 0 0
 > exec
 | CREATE TABLE IF NOT EXISTS a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -36727,6 +48546,27 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a PRIMARY KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT PRIMARY KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT PRIMARY KEY(a) USING BTREE)
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE TABLE a(PRIMARY KEY(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
@@ -36734,7 +48574,56 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE TABLE a(PRIMARY KEY a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY(a) USING BTREE)
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE TABLE a(KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY BTREE(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -36755,6 +48644,27 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE TABLE a(KEY a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE TABLE a(INDEX(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
@@ -36769,7 +48679,63 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE TABLE a(UNIQUE KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -36783,7 +48749,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a UNIQUE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT a UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -36797,7 +48833,42 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE TABLE a(FULLTEXT KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE TABLE a(VECTOR KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(VECTOR KEY a(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -36818,7 +48889,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a FOREIGN KEY(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT FOREIGN KEY a(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE TABLE a(SPATIAL(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL BTREE(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -36832,7 +48945,42 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE TABLE a(SPATIAL KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE a(FOREIGN KEY a(a) REFERENCES a(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -36979,6 +49127,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a CHECK(a) ENFORCED
+< error
+| 3812 HY000 An expression of non-boolean type specified to a check constraint 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT CHECK(a) NOT ENFORCED
 < error
 | 3812 HY000 An expression of non-boolean type specified to a check constraint 'a_OBCHECK_0000000000000030'
@@ -37003,6 +49158,13 @@
 | ALTER TABLE a ADD CONSTRAINT CHECK(a)
 < error
 | 3812 HY000 An expression of non-boolean type specified to a check constraint 'a_OBCHECK_0000000000000033'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT a CHECK(a)
+< error
+| 3812 HY000 An expression of non-boolean type specified to a check constraint 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
@@ -37147,6 +49309,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a FLOAT ZEROFILL
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a FLOAT UNSIGNED
 < error
 | 1060 42S21 Duplicate column name 'a'
@@ -37162,6 +49331,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a NUMBER
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NUMBER ZEROFILL
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
@@ -37189,6 +49365,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a DECIMAL ZEROFILL
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a DECIMAL UNSIGNED
 < error
 | 1060 42S21 Duplicate column name 'a'
@@ -37204,6 +49387,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a FIXED
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a FIXED ZEROFILL
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
@@ -37259,7 +49449,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHARACTER CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a NCHAR
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NCHAR BINARY
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
@@ -37273,9 +49477,30 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL CHARACTER BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a VARCHAR(1)
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a VARCHAR(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a VARCHAR(1) CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
@@ -37294,7 +49519,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NCHAR VARCHAR(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a NVARCHAR(1)
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NVARCHAR(1) BINARY
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
@@ -37308,9 +49547,30 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL VARCHAR(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHARACTER VARYING(1)
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHARACTER VARYING(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHARACTER VARYING(1) CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
@@ -37329,6 +49589,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL CHARACTER VARYING(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a TINYBLOB
 < error
 | 1060 42S21 Duplicate column name 'a'
@@ -37339,6 +49606,20 @@
 | ALTER TABLE a ADD a TINYTEXT
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a TINYTEXT BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a TINYTEXT CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
@@ -37378,9 +49659,37 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a ENUM('s') BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a ENUM('s') CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a SET('s')
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a SET('s') BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a SET('s') CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
@@ -38078,6 +50387,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a TABLE_MODE = 's'
+< error
+| 1235 0A000 Table mode s is not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a DUPLICATE_SCOPE 's'
 < error
 | 1210 HY000 Incorrect arguments to duplicate_scope
@@ -38085,7 +50401,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a DUPLICATE_SCOPE = 's'
+< error
+| 1210 HY000 Incorrect arguments to duplicate_scope
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a EXPIRE_INFO(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a EXPIRE_INFO =(a)
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -38155,7 +50513,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a PROGRESSIVE_MERGE_NUM = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 PROGRESSIVE_MERGE_NUM = 1
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a BLOCK_SIZE 1
+< error
+| 5258 HY000 Invalid block size, block size should between 1024 and 1048576
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a BLOCK_SIZE = 1
 < error
 | 5258 HY000 Invalid block size, block size should between 1024 and 1048576
 > exec
@@ -38197,7 +50597,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a KEY_BLOCK_SIZE = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a TABLE_ID 1
+< error
+| 1064 42000 Parse error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a TABLE_ID = 1
 < error
 | 1064 42000 Parse error
 > exec
@@ -38239,7 +50681,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a REPLICA_NUM = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a COMPRESSION 's'
+< error
+| 1210 HY000 Incorrect arguments to s
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a COMPRESSION = 's'
 < error
 | 1210 HY000 Incorrect arguments to s
 > exec
@@ -38281,7 +50765,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ROW_FORMAT = REDUNDANT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = REDUNDANT COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a STORAGE_FORMAT_VERSION 1
+< error
+| 4179 HY000 target storage format version cannot be smaller than current version not allowed
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a STORAGE_FORMAT_VERSION = 1
 < error
 | 4179 HY000 target storage format version cannot be smaller than current version not allowed
 > exec
@@ -38323,7 +50849,56 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a USE_BLOOM_FILTER = TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = TRUE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a DEFAULT CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a CHARSET = a
 < error
 | 1115 42000 Unknown character set: 'a'
 > exec
@@ -38421,7 +50996,56 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a DEFAULT COLLATE a
+< error
+| 1273 HY000 Unknown collation: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a COLLATE = a
+< error
+| 1273 HY000 Unknown collation: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a COMMENT 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 COMMENT = 's'
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a COMMENT = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -38463,7 +51087,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a TABLEGROUP = a
+< error
+| 5151 42P01 tablegroup not exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_INCREMENT = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -38603,7 +51269,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ENGINE = a
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a TABLET_SIZE 1
+< error
+| 4147 HY000 Invalid config
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a TABLET_SIZE = 1
 < error
 | 4147 HY000 Invalid config
 > exec
@@ -38645,7 +51353,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a PCTFREE = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 1
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a MAX_USED_PART_ID 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MAX_USED_PART_ID = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -38722,7 +51500,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a DELAY_KEY_WRITE = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a AVG_ROW_LENGTH 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a AVG_ROW_LENGTH = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -38792,6 +51640,41 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a CHECKSUM = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT_MODE 's'
 < error
 | 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
@@ -38799,7 +51682,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_INCREMENT_MODE = 's'
+< error
+| 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -38869,7 +51794,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ENABLE_EXTENDED_ROWID = TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a PARTITION_TYPE USER_SPECIFIED
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a PARTITION_TYPE = USER_SPECIFIED
 < error
 | 4016 HY000 Internal error
 > exec
@@ -38897,6 +51864,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a PROPERTIES =(TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a PATTERN 's'
 < error
 | 4016 HY000 Internal error
@@ -38911,7 +51885,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a TTL =(a + INTERVAL 1 SECOND)
+< error
+| 10503 HY000 Column type of 'a' is not supported for TTL definition
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a KV_ATTRIBUTES 's'
+< error
+| 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a KV_ATTRIBUTES = 's'
 < error
 | 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
 > exec
@@ -38953,7 +51941,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a DEFAULT_LOB_INROW_THRESHOLD = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 LOB_INROW_THRESHOLD=1
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a LOB_INROW_THRESHOLD 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 LOB_INROW_THRESHOLD=1
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a LOB_INROW_THRESHOLD = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -39030,7 +52088,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a MICRO_INDEX_CLUSTERED = TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER = TRUE
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -39072,7 +52200,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_REFRESH = OFF
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_REFRESH IMMEDIATE
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_REFRESH = IMMEDIATE
 < error
 | 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
 > exec
@@ -39086,7 +52228,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_REFRESH = INTERVAL
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a DUPLICATE_READ_CONSISTENCY 's'
+< error
+| 1210 HY000 Incorrect arguments to duplicate_read_consistency
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a DUPLICATE_READ_CONSISTENCY = 's'
 < error
 | 1210 HY000 Incorrect arguments to duplicate_read_consistency
 > exec
@@ -39100,7 +52256,49 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a STORAGE_CACHE_POLICY =(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a MAX_ROWS 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MAX_ROWS = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -39170,7 +52368,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a MIN_ROWS = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a PASSWORD 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a PASSWORD = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -39240,7 +52508,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a PACK_KEYS = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a PACK_KEYS DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a PACK_KEYS = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -39310,7 +52648,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a CONNECTION = 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a DATA DIRECTORY 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a DATA DIRECTORY = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -39380,7 +52788,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a INDEX DIRECTORY = 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ENCRYPTION 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ENCRYPTION = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -39450,7 +52928,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_AUTO_RECALC = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_AUTO_RECALC DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_AUTO_RECALC = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -39520,7 +53068,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_PERSISTENT = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_PERSISTENT DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_PERSISTENT = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -39590,7 +53208,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_SAMPLE_PAGES = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_SAMPLE_PAGES DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_SAMPLE_PAGES = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -39660,7 +53348,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a UNION =()
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a INSERT_METHOD NO
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a INSERT_METHOD = NO
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -39702,7 +53460,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ORGANIZATION = INDEX
+< error
+| 1235 0A000 organization in the alter table statement not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 's'
+< error
+| 1210 HY000 Incorrect arguments to semistruct encoding type, should be none or encoding
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a SEMISTRUCT_ENCODING_TYPE = 's'
 < error
 | 1210 HY000 Incorrect arguments to semistruct encoding type, should be none or encoding
 > exec
@@ -39716,7 +53488,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a MERGE_ENGINE = PARTIAL_UPDATE
+< error
+| 1235 0A000 alter merge engine table option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE)
+< error
+| 1235 0A000 for dynamic partition, this part key type is not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a DYNAMIC_PARTITION_POLICY =(ENABLE = TRUE)
 < error
 | 1235 0A000 for dynamic partition, this part key type is not supported
 > exec
@@ -39726,6 +53512,13 @@
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE ENABLE = TRUE)
 < error
 | 1210 HY000 Invalid argument
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE, ENABLE = TRUE)
+< error
+| 1235 0A000 for dynamic partition, this part key type is not supported
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
@@ -39761,6 +53554,13 @@
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(BIGINT_PRECISION = 's')
 < error
 | 1235 0A000 for dynamic partition, this part key type is not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a LOCATION = 's'
+< error
+| 4016 HY000 Internal error
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
@@ -39913,6 +53713,41 @@
 < ok 0 0
 > exec
 | ALTER TABLE a PARALLEL 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a PARALLEL = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -41253,6 +55088,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a FORMAT(TYPE = 's', TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a FORMAT(FIELD_DELIMITER = a)
 < error
 | 4016 HY000 Internal error
@@ -41576,6 +55418,42 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE INDEX a USING BTREE ON a(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < ok 0 0
 > query
@@ -41648,6 +55526,42 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE INDEX a USING BTREE ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE FULLTEXT INDEX a ON a(a)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
@@ -41662,6 +55576,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE FULLTEXT INDEX a USING BTREE ON a(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE FULLTEXT INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
@@ -41670,6 +55591,13 @@
 < ok 0 0
 > exec
 | CREATE FULLTEXT INDEX IF NOT EXISTS a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE FULLTEXT INDEX a USING BTREE ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
 > exec
@@ -42150,7 +56078,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES =(MIN_TOKEN_SIZE = 1)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1 MIN_TOKEN_SIZE = 1)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1, MIN_TOKEN_SIZE = 1)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
 > exec
@@ -42256,7 +56198,50 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) BLOCK_SIZE = 1
+< error
+| 5258 HY000 Invalid block size, block size should between 1024 and 1048576
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -42558,7 +56543,21 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) DATA_TABLE_ID = 1
+< error
+| 1235 0A000 specify data table id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
+< error
+| 1235 0A000 specify index table id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID = 1
 < error
 | 1235 0A000 specify index table id not for restore purpose in create index not supported
 > exec
@@ -42572,7 +56571,50 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID = 1
+< error
+| 1235 0A000 specify virtual column id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -42645,6 +56687,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY =(GLOBAL = 's')
 < error
 | 1235 0A000 storage cache policy is not supported in shared storage mode not supported
 > exec
@@ -42960,6 +57009,20 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a PATTERN = 's'
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a FORMAT =(TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 1091 42000 Can't DROP 'a'; check that column/key exists
@@ -43010,6 +57073,41 @@
 < ok 0 0
 > exec
 | ALTER TABLE a, NOPARALLEL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a SET NOPARALLEL
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -43394,7 +57492,77 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ALGORITHM = DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a LOCK DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a LOCK = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -43835,6 +58003,34 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD FULLTEXT KEY(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT a(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT USING BTREE(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT BTREE(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT PRIMARY KEY(a)
 < error
 | 1068 42000 Multiple primary key defined
@@ -43897,6 +58093,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY =(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a RENAME KEY a TO a
 < error
 | 1176 42000 Key 'a' doesn't exist in table 'a'
@@ -43933,6 +58136,42 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD(KEY(a))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY a(a)
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -44040,6 +58279,114 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD INDEX(a) WITH COLUMN GROUP(ALL COLUMNS)
 < ok 0 0
 > query
@@ -44112,6 +58459,150 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD UNIQUE KEY(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE a(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE USING BTREE(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE BTREE(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < ok 0 0
 > query
@@ -44139,6 +58630,150 @@
 |   `d` int(11) DEFAULT NULL,
 |   PRIMARY KEY (`b`, `a`),
 |   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
 |   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 |  partition by range(`a`)
@@ -44184,6 +58819,150 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE KEY(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE a(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE USING BTREE(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE BTREE(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < ok 0 0
 > query
@@ -44220,7 +58999,194 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) NOT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`, `a`),
+|   UNIQUE KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`)
+| (partition `p0` values less than (100),
+| partition `a` values less than (200))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD(CONSTRAINT PRIMARY KEY(a))
+< error
+| 1068 42000 Multiple primary key defined
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT a PRIMARY KEY(a)
 < error
 | 1068 42000 Multiple primary key defined
 > exec
@@ -44234,7 +59200,63 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD SPATIAL KEY(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL a(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL USING BTREE(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL BTREE(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1687 42000 A SPATIAL index may only contain a geometrical type column.
 > exec
@@ -44248,6 +59270,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD PRIMARY KEY a(a)
+< error
+| 1068 42000 Multiple primary key defined
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
 < error
 | 1215 HY000 Cannot add foreign key constraint
@@ -44255,7 +59284,28 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT FOREIGN KEY a(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE a (b INT, a INT, d INT, PRIMARY KEY (b, a), KEY idx_d (d)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY a(a) REFERENCES a(a)
 < error
 | 1215 HY000 Cannot add foreign key constraint
 > exec
@@ -45259,6 +60309,14 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE TABLE a(a TINYINT) AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -45276,6 +60334,14 @@
 < ok 0 0
 > exec
 | CREATE TABLE IF NOT EXISTS a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(a TINYINT) WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -45315,6 +60381,14 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE TABLE a NOPARALLEL AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -45347,6 +60421,14 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE TABLE a NOPARALLEL WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE TABLE a PARTITION BY KEY() SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -45371,6 +60453,14 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE TABLE a PARTITION BY KEY() AS SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE TABLE a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -45388,6 +60478,14 @@
 < ok 0 0
 > exec
 | CREATE TABLE IF NOT EXISTS a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a PARTITION BY KEY() WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
 > exec
@@ -45563,6 +60661,30 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a PRIMARY KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT PRIMARY KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT PRIMARY KEY(a) USING BTREE)
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE TABLE a(PRIMARY KEY(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
@@ -45571,7 +60693,63 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE TABLE a(PRIMARY KEY a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(PRIMARY KEY(a) USING BTREE)
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE TABLE a(KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY BTREE(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -45595,6 +60773,30 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE TABLE a(KEY a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(KEY BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE TABLE a(INDEX(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
@@ -45611,7 +60813,71 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE TABLE a(UNIQUE KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE TABLE a(UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -45627,7 +60893,87 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a UNIQUE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE TABLE a(CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT a UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -45643,7 +60989,47 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE TABLE a(FULLTEXT KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(FULLTEXT BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE TABLE a(VECTOR KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(VECTOR KEY a(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -45667,7 +61053,55 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE TABLE a(CONSTRAINT a FOREIGN KEY(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(CONSTRAINT FOREIGN KEY a(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE TABLE a(SPATIAL(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL KEY(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL USING BTREE(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL BTREE(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -45683,7 +61117,47 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE TABLE a(SPATIAL KEY(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL a(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(SPATIAL BTREE(a) WITH COLUMN GROUP(ALL COLUMNS))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
+< error
+| 4028 HY000 table must have at least one column that is not invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE TABLE a(FOREIGN KEY a(a) REFERENCES a(a))
 < error
 | 4028 HY000 table must have at least one column that is not invisible
 > exec
@@ -45851,6 +61325,14 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a CHECK(a) ENFORCED
+< error
+| 3812 HY000 An expression of non-boolean type specified to a check constraint 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT CHECK(a) NOT ENFORCED
 < error
 | 3812 HY000 An expression of non-boolean type specified to a check constraint 'a_OBCHECK_0000000000000037'
@@ -45878,6 +61360,14 @@
 | ALTER TABLE a ADD CONSTRAINT CHECK(a)
 < error
 | 3812 HY000 An expression of non-boolean type specified to a check constraint 'a_OBCHECK_0000000000000040'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT a CHECK(a)
+< error
+| 3812 HY000 An expression of non-boolean type specified to a check constraint 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
@@ -46043,6 +61533,14 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a FLOAT ZEROFILL
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a FLOAT UNSIGNED
 < error
 | 1060 42S21 Duplicate column name 'a'
@@ -46060,6 +61558,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a NUMBER
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NUMBER ZEROFILL
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
@@ -46091,6 +61597,14 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a DECIMAL ZEROFILL
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a DECIMAL UNSIGNED
 < error
 | 1060 42S21 Duplicate column name 'a'
@@ -46108,6 +61622,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a FIXED
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a FIXED ZEROFILL
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
@@ -46171,7 +61693,23 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a CHARACTER CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a NCHAR
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NCHAR BINARY
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
@@ -46187,9 +61725,33 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL CHARACTER BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a VARCHAR(1)
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a VARCHAR(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a VARCHAR(1) CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
@@ -46211,7 +61773,23 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NCHAR VARCHAR(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a NVARCHAR(1)
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NVARCHAR(1) BINARY
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
@@ -46227,9 +61805,33 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL VARCHAR(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a CHARACTER VARYING(1)
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHARACTER VARYING(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHARACTER VARYING(1) CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
@@ -46251,6 +61853,14 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a NATIONAL CHARACTER VARYING(1) BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a TINYBLOB
 < error
 | 1060 42S21 Duplicate column name 'a'
@@ -46262,6 +61872,22 @@
 | ALTER TABLE a ADD a TINYTEXT
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a TINYTEXT BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a TINYTEXT CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
@@ -46307,9 +61933,41 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD a ENUM('s') BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a ENUM('s') CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD a SET('s')
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a SET('s') BINARY
+< error
+| 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a SET('s') CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
@@ -47133,6 +62791,14 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a TABLE_MODE = 's'
+< error
+| 1235 0A000 Table mode s is not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a DUPLICATE_SCOPE 's'
 < error
 | 1210 HY000 Incorrect arguments to duplicate_scope
@@ -47141,7 +62807,68 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a DUPLICATE_SCOPE = 's'
+< error
+| 1210 HY000 Incorrect arguments to duplicate_scope
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a EXPIRE_INFO(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a EXPIRE_INFO =(a)
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -47247,7 +62974,68 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a PROGRESSIVE_MERGE_NUM = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 PROGRESSIVE_MERGE_NUM = 1
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a BLOCK_SIZE 1
+< error
+| 5258 HY000 Invalid block size, block size should between 1024 and 1048576
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a BLOCK_SIZE = 1
 < error
 | 5258 HY000 Invalid block size, block size should between 1024 and 1048576
 > exec
@@ -47308,7 +63096,68 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a KEY_BLOCK_SIZE = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a TABLE_ID 1
+< error
+| 1064 42000 Parse error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a TABLE_ID = 1
 < error
 | 1064 42000 Parse error
 > exec
@@ -47369,7 +63218,68 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a REPLICA_NUM = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a COMPRESSION 's'
+< error
+| 1210 HY000 Incorrect arguments to s
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a COMPRESSION = 's'
 < error
 | 1210 HY000 Incorrect arguments to s
 > exec
@@ -47430,7 +63340,68 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ROW_FORMAT = REDUNDANT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = REDUNDANT COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a STORAGE_FORMAT_VERSION 1
+< error
+| 4179 HY000 target storage format version cannot be smaller than current version not allowed
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a STORAGE_FORMAT_VERSION = 1
 < error
 | 4179 HY000 target storage format version cannot be smaller than current version not allowed
 > exec
@@ -47491,7 +63462,76 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a USE_BLOOM_FILTER = TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = TRUE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a DEFAULT CHARSET a
+< error
+| 1115 42000 Unknown character set: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a CHARSET = a
 < error
 | 1115 42000 Unknown character set: 'a'
 > exec
@@ -47629,7 +63669,76 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a DEFAULT COLLATE a
+< error
+| 1273 HY000 Unknown collation: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a COLLATE = a
+< error
+| 1273 HY000 Unknown collation: 'a'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a COMMENT 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 COMMENT = 's'
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a COMMENT = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -47690,7 +63799,68 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a TABLEGROUP = a
+< error
+| 5151 42P01 tablegroup not exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_INCREMENT = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -47902,7 +64072,68 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ENGINE = a
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a TABLET_SIZE 1
+< error
+| 4147 HY000 Invalid config
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a TABLET_SIZE = 1
 < error
 | 4147 HY000 Invalid config
 > exec
@@ -47963,7 +64194,113 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a PCTFREE = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 1
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a MAX_USED_PART_ID 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a MAX_USED_PART_ID = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -48077,7 +64414,113 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a DELAY_KEY_WRITE = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a AVG_ROW_LENGTH 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a AVG_ROW_LENGTH = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -48183,6 +64626,59 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a CHECKSUM = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT_MODE 's'
 < error
 | 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
@@ -48191,7 +64687,68 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_INCREMENT_MODE = 's'
+< error
+| 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_INCREMENT_CACHE_SIZE = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -48297,7 +64854,68 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ENABLE_EXTENDED_ROWID = TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a PARTITION_TYPE USER_SPECIFIED
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a PARTITION_TYPE = USER_SPECIFIED
 < error
 | 4016 HY000 Internal error
 > exec
@@ -48329,6 +64947,14 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a PROPERTIES =(TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a PATTERN 's'
 < error
 | 4016 HY000 Internal error
@@ -48345,7 +64971,23 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a TTL =(a + INTERVAL 1 SECOND)
+< error
+| 10503 HY000 Column type of 'a' is not supported for TTL definition
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a KV_ATTRIBUTES 's'
+< error
+| 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a KV_ATTRIBUTES = 's'
 < error
 | 1149 42000 You have an error in your SQL syntax; check the manual that corresponds to your OceanBase version for the right syntax to use
 > exec
@@ -48406,7 +65048,113 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a DEFAULT_LOB_INROW_THRESHOLD = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 LOB_INROW_THRESHOLD=1
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a LOB_INROW_THRESHOLD 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 LOB_INROW_THRESHOLD=1
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a LOB_INROW_THRESHOLD = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -48520,7 +65268,113 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a MICRO_INDEX_CLUSTERED = TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER TRUE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ENABLE_MACRO_BLOCK_BLOOM_FILTER = TRUE
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -48581,7 +65435,23 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_REFRESH = OFF
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a AUTO_REFRESH IMMEDIATE
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a AUTO_REFRESH = IMMEDIATE
 < error
 | 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
 > exec
@@ -48597,7 +65467,23 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a AUTO_REFRESH = INTERVAL
+< error
+| 1235 0A000 Using ALTER AUTO REFRESH as a ALTER TABLE option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a DUPLICATE_READ_CONSISTENCY 's'
+< error
+| 1210 HY000 Incorrect arguments to duplicate_read_consistency
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a DUPLICATE_READ_CONSISTENCY = 's'
 < error
 | 1210 HY000 Incorrect arguments to duplicate_read_consistency
 > exec
@@ -48613,7 +65499,68 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a STORAGE_CACHE_POLICY =(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a MAX_ROWS 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a MAX_ROWS = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -48719,7 +65666,113 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a MIN_ROWS = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a PASSWORD 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a PASSWORD = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -48825,7 +65878,113 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a PACK_KEYS = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a PACK_KEYS DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a PACK_KEYS = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -48931,7 +66090,113 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a CONNECTION = 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a DATA DIRECTORY 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a DATA DIRECTORY = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -49037,7 +66302,113 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a INDEX DIRECTORY = 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ENCRYPTION 's'
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ENCRYPTION = 's'
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -49143,7 +66514,113 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_AUTO_RECALC = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_AUTO_RECALC DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_AUTO_RECALC = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -49249,7 +66726,113 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_PERSISTENT = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_PERSISTENT DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_PERSISTENT = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -49355,7 +66938,113 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a STATS_SAMPLE_PAGES = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a STATS_SAMPLE_PAGES DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a STATS_SAMPLE_PAGES = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -49461,7 +67150,113 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a UNION =()
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a INSERT_METHOD NO
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a INSERT_METHOD = NO
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -49522,7 +67317,23 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ORGANIZATION = INDEX
+< error
+| 1235 0A000 organization in the alter table statement not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a SEMISTRUCT_ENCODING_TYPE 's'
+< error
+| 1210 HY000 Incorrect arguments to semistruct encoding type, should be none or encoding
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a SEMISTRUCT_ENCODING_TYPE = 's'
 < error
 | 1210 HY000 Incorrect arguments to semistruct encoding type, should be none or encoding
 > exec
@@ -49538,7 +67349,23 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a MERGE_ENGINE = PARTIAL_UPDATE
+< error
+| 1235 0A000 alter merge engine table option not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE)
+< error
+| 1235 0A000 specify dynamic partition on non partitioned table is not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a DYNAMIC_PARTITION_POLICY =(ENABLE = TRUE)
 < error
 | 1235 0A000 specify dynamic partition on non partitioned table is not supported
 > exec
@@ -49549,6 +67376,14 @@
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE ENABLE = TRUE)
 < error
 | 1210 HY000 Invalid argument
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a DYNAMIC_PARTITION_POLICY(ENABLE = TRUE, ENABLE = TRUE)
+< error
+| 1235 0A000 specify dynamic partition on non partitioned table is not supported
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
@@ -49589,6 +67424,14 @@
 | ALTER TABLE a DYNAMIC_PARTITION_POLICY(BIGINT_PRECISION = 's')
 < error
 | 1235 0A000 specify dynamic partition on non partitioned table is not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a LOCATION = 's'
+< error
+| 4016 HY000 Internal error
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
@@ -49789,6 +67632,59 @@
 < ok 0 0
 > exec
 | ALTER TABLE a PARALLEL 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a PARALLEL = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -51046,6 +68942,14 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a FORMAT(TYPE = 's', TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a FORMAT(FIELD_DELIMITER = a)
 < error
 | 4016 HY000 Internal error
@@ -51441,6 +69345,60 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE INDEX a USING BTREE ON a(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < ok 0 0
 > query
@@ -51549,6 +69507,60 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE INDEX a USING BTREE ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE FULLTEXT INDEX a ON a(a)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
@@ -51565,6 +69577,14 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| CREATE FULLTEXT INDEX a USING BTREE ON a(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | CREATE FULLTEXT INDEX a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
@@ -51574,6 +69594,14 @@
 < ok 0 0
 > exec
 | CREATE FULLTEXT INDEX IF NOT EXISTS a ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| CREATE FULLTEXT INDEX a USING BTREE ON a(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
 > exec
@@ -52249,7 +70277,23 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES =(MIN_TOKEN_SIZE = 1)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1 MIN_TOKEN_SIZE = 1)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) PARSER_PROPERTIES(MIN_TOKEN_SIZE = 1, MIN_TOKEN_SIZE = 1)
 < error
 | 1283 42000 A FTS index may only contain a text type column.
 > exec
@@ -52383,7 +70427,69 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) BLOCK_SIZE = 1
+< error
+| 5258 HY000 Invalid block size, block size should between 1024 and 1048576
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) KEY_BLOCK_SIZE = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -52831,7 +70937,23 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) DATA_TABLE_ID = 1
+< error
+| 1235 0A000 specify data table id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
+< error
+| 1235 0A000 specify index table id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID = 1
 < error
 | 1235 0A000 specify index table id not for restore purpose in create index not supported
 > exec
@@ -52847,7 +70969,69 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID = 1
+< error
+| 1235 0A000 specify virtual column id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -52956,6 +71140,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY =(GLOBAL = 's')
 < error
 | 1235 0A000 storage cache policy is not supported in shared storage mode not supported
 > exec
@@ -53367,6 +71559,22 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a PATTERN = 's'
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a FORMAT =(TYPE = 's')
+< error
+| 4016 HY000 Internal error
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 1091 42000 Can't DROP 'a'; check that column/key exists
@@ -53437,6 +71645,59 @@
 < ok 0 0
 > exec
 | ALTER TABLE a, NOPARALLEL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a SET NOPARALLEL
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -54094,7 +72355,113 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ALGORITHM = DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a LOCK DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a LOCK = DEFAULT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -54639,6 +73006,38 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD FULLTEXT KEY(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT a(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT USING BTREE(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT BTREE(a)
+< error
+| 1283 42000 A FTS index may only contain a text type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT PRIMARY KEY(a)
 < error
 | 1068 42000 Multiple primary key defined
@@ -54723,6 +73122,14 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY =(GLOBAL = 's')
+< error
+| 1235 0A000 storage cache policy is not supported in shared storage mode not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a RENAME KEY a TO a
 < error
 | 1176 42000 Key 'a' doesn't exist in table 'a'
@@ -54764,6 +73171,60 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD(KEY(a))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY a(a)
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -54925,6 +73386,168 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD KEY a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD INDEX(a) WITH COLUMN GROUP(ALL COLUMNS)
 < ok 0 0
 > query
@@ -55033,6 +73656,222 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD UNIQUE KEY(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE a(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE USING BTREE(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE BTREE(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < ok 0 0
 > query
@@ -55066,6 +73905,222 @@
 |   PRIMARY KEY (`b`),
 |   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
 |   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
 |   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
 |   CONSTRAINT `chk_d` CHECK ((`d` > 0))
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
@@ -55141,6 +74196,222 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE KEY(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE a(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE USING BTREE(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE BTREE(a)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < ok 0 0
 > query
@@ -55195,7 +74466,285 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT UNIQUE BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `omni_t_simulation`.`parent`(`b`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `BTREE` (`a`) BLOCK_SIZE 16384 LOCAL WITH COLUMN GROUP(all columns),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_d` CHECK ((`d` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int(11) NOT NULL,
+|   PRIMARY KEY (`b`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD(CONSTRAINT PRIMARY KEY(a))
+< error
+| 1068 42000 Multiple primary key defined
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT a PRIMARY KEY(a)
 < error
 | 1068 42000 Multiple primary key defined
 > exec
@@ -55211,7 +74760,71 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD SPATIAL KEY(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL a(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL USING BTREE(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL BTREE(a)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL a(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL USING BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL BTREE(a) WITH COLUMN GROUP(ALL COLUMNS)
 < error
 | 1687 42000 A SPATIAL index may only contain a geometrical type column.
 > exec
@@ -55227,6 +74840,14 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD PRIMARY KEY a(a)
+< error
+| 1068 42000 Multiple primary key defined
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
 < error
 | 1215 HY000 Cannot add foreign key constraint
@@ -55235,7 +74856,31 @@
 | CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT FOREIGN KEY a(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d), CONSTRAINT a FOREIGN KEY (a) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY a(a) REFERENCES a(a)
 < error
 | 1215 HY000 Cannot add foreign key constraint
 > exec

@@ -255,8 +255,13 @@ func (p *Parser) parseShowCreate(stmt *ast.ShowStmt) (ast.Node, error) {
 		stmt.Type = typeWord
 	}
 
-	// Optional target name
-	if isIdentifierToken(p.cur.Kind) || p.cur.Kind == tokString {
+	// Optional target name. A catalog's is identifierOrString
+	// (showCreateExternalCatalogStatement, StarRocks.g4:765), so it may be a
+	// string.
+	if typeWord == "CREATE CATALOG" && p.cur.Kind == tokString {
+		tok := p.advance()
+		stmt.Target = &ast.ObjectName{Parts: []string{tok.Str}, Loc: tok.Loc}
+	} else if isIdentifierToken(p.cur.Kind) || p.cur.Kind == tokString {
 		target, err := p.parseMultipartIdentifier()
 		if err == nil {
 			stmt.Target = target

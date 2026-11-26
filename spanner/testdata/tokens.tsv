@@ -40,6 +40,31 @@ opt_create_scope	(every site)	googlesql.tm:11875 TEMP, TEMPORARY, PUBLIC or PRIV
 opt_access	(every site)	googlesql.tm:12448 ACCESS in ROW ACCESS POLICY
 opt_unique	(every site)	googlesql.tm:11886 UNIQUE
 opt_options_list	(every site)	googlesql.tm:11946 OPTIONS (...)
+opt_where_clause	(every site)	googlesql.tm:8185 WHERE
+opt_with_clause	(every site)	googlesql.tm:8705 WITH before a query
+opt_with_connection_clause	(every site)	googlesql.tm:8712 WITH CONNECTION
+opt_collate_clause	(every site)	googlesql.tm:8782 COLLATE
+opt_default_collate_clause	(every site)	googlesql.tm:8796 DEFAULT COLLATE
+opt_column_list	(every site)	googlesql.tm:4515 a parenthesized column list
+opt_table_element_list	(every site)	googlesql.tm:3278 a parenthesized table element list
+opt_field_attributes	(every site)	googlesql.tm:3784 NOT NULL
+opt_foreign_key_on_delete	(every site)	googlesql.tm:4001 ON DELETE
+opt_constraint_enforcement	(every site)	googlesql.tm:4053 ENFORCED or NOT ENFORCED
+opt_identifier	(every site)	googlesql.tm:11031 a name
+opt_partition_by_clause	(every site)	googlesql.tm:11049 PARTITION BY
+opt_partition_by_clause_no_hint	(every site)	googlesql.tm:11067 PARTITION BY without a hint
+opt_repeatable_clause	(every site)	googlesql.tm:6128 REPEATABLE (...)
+opt_from_clause	(every site)	googlesql.tm:8107 FROM
+opt_group_by_clause	(every site)	googlesql.tm:8367 GROUP BY
+opt_having_clause	(every site)	googlesql.tm:8407 HAVING
+opt_order_by_clause	(every site)	googlesql.tm:8837 ORDER BY
+opt_limit_offset_clause	(every site)	googlesql.tm:8512 LIMIT [OFFSET]
+opt_lock_mode_clause	(every site)	googlesql.tm:8531 FOR UPDATE
+opt_asc_or_desc	(every site)	googlesql.tm:8737 ASC or DESC
+opt_null_order	(every site)	googlesql.tm:8759 NULLS FIRST or NULLS LAST
+opt_all_or_distinct	(every site)	googlesql.tm:5853 ALL or DISTINCT
+opt_select_as_clause	(every site)	googlesql.tm:5750 AS STRUCT, AS VALUE or AS a type
+opt_int_literal_or_parameter	(every site)	googlesql.tm:6067 a count or a parameter
 
 # Keyword choices written in each of their forms at every site that names
 # them, and not only where the rule's own alternatives are reached (see

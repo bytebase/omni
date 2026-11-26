@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -216,10 +217,15 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 	}
 
+	isPartition := (stmt.Partbound != nil)
+	effectiveTablespace, err := c.checkRelationPlacement(stmt, relkind, isPartition)
+	if err != nil {
+		return err
+	}
+
 	// Merge inherited columns (INHERITS clause).
 	// pg: src/backend/commands/tablecmds.c — MergeAttributes
 	var parentOIDs []uint32
-	isPartition := (stmt.Partbound != nil)
 	var conflictDefaults map[string]bool // column name → has conflicting defaults
 	if stmt.InhRelations != nil {
 		for _, item := range stmt.InhRelations.Items {
@@ -275,15 +281,6 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 					msg = fmt.Sprintf("cannot create a permanent relation as partition of temporary relation %q", parent.Name)
 				}
 				return &Error{Code: CodeWrongObjectType, Message: msg}
-			}
-
-			// Check for duplicate parent.
-			// pg: src/backend/commands/tablecmds.c — MergeAttributes (duplicate parent check)
-			for _, prevOID := range parentOIDs {
-				if prevOID == parent.OID {
-					return &Error{Code: CodeDuplicateObject,
-						Message: fmt.Sprintf("relation %q would be inherited from more than once", parent.Name)}
-				}
 			}
 
 			parentOIDs = append(parentOIDs, parent.OID)
@@ -563,50 +560,10 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 	}
 
-	// PostgreSQL keeps indexes and sequences in the relation namespace, so a
-	// name one holds is not free. The check comes after the columns' types and
-	// the parents are resolved, as PostgreSQL resolves them first: CREATE
-	// TABLE a(a a) on an index a is 42704 for the type, CREATE TABLE a(a a, a a)
-	// on a table a is 42701 for the duplicate column, and PARTITION OF an
-	// index is 42809, before any is a duplicate relation name.
-	if !stmt.IfNotExists {
-		if _, ok := relationNamespaceKind(schema, relName); ok {
-			return errDuplicateTable(relName)
-		}
-	}
-	// A non-relation type (e.g. enum or domain) with the same name conflicts
-	// with the table's implicit row type (42710), even with IF NOT EXISTS.
-	if c.typeByName[typeKey{ns: schema.OID, name: relName}] != nil {
-		return errDuplicateObject("type", relName)
-	}
-
-	// DefineRelation calls toast_reloptions(toastOptions, true) unconditionally
-	// before NewRelationCreateToastTable checks whether a TOAST table is needed.
-	if err := c.validateRelOptions(stmt.Options, relkind, ""); err != nil {
-		return err
-	}
-	// PostgreSQL resolves a new relation's tablespace in DefineRelation order:
-	// explicit TABLESPACE clause, then a partitioned parent's stored tablespace
-	// when non-empty, then GetDefaultTablespace ("" for temp relations, else the
-	// session's effective default_tablespace).
-	effectiveTablespace := stmt.Tablespacename
-	if effectiveTablespace == "" && isPartition && len(parentOIDs) > 0 {
-		if parent := c.relationByOID[parentOIDs[0]]; parent != nil && parent.Tablespace != "" {
-			effectiveTablespace = parent.Tablespace
-		}
-	}
-	if effectiveTablespace == "" && rv.Relpersistence != 't' {
-		effectiveTablespace = c.effectiveTablespace("")
-	}
-	if stmt.Partspec != nil && effectiveTablespace == "pg_default" {
-		return &Error{Code: CodeFeatureNotSupported,
-			Message: "cannot specify default tablespace for partitioned relations"}
-	}
-	if relkind == 'r' || relkind == 'p' || relkind == 'm' {
-		if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
-			return err
-		}
-	}
+	// DefineRelation picks the access method after MergeAttributes and
+	// BuildDescForRelation, and before heap_create_with_catalog finds the
+	// name taken: CREATE TABLE a() USING a on a table a is 42704.
+	// pg: src/backend/commands/tablecmds.c:992 (REL_17_12) — DefineRelation
 	tableAccessMethod := stmt.AccessMethod
 	if tableAccessMethod == "" && isPartition && len(parentOIDs) > 0 {
 		if parent := c.relationByOID[parentOIDs[0]]; parent != nil && parent.AccessMethod != "" {
@@ -618,6 +575,24 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	}
 	if err := c.checkTableAccessMethod(tableAccessMethod); err != nil {
 		return err
+	}
+
+	// PostgreSQL keeps indexes and sequences in the relation namespace, so a
+	// name one holds is not free. heap_create_with_catalog finds the name
+	// taken only after everything above: CREATE TABLE a(a a) on an index a is
+	// 42704 for the type, CREATE TABLE a(a a, a a) on a table a is 42701 for
+	// the duplicate column, PARTITION OF an index is 42809, and TABLESPACE a,
+	// WITH (a) and USING a fail their lookups first.
+	// pg: src/backend/commands/tablecmds.c:1011 (REL_17_12) — DefineRelation
+	if !stmt.IfNotExists {
+		if _, ok := relationNamespaceKind(schema, relName); ok {
+			return errDuplicateTable(relName)
+		}
+	}
+	// A non-relation type (e.g. enum or domain) with the same name conflicts
+	// with the table's implicit row type (42710), even with IF NOT EXISTS.
+	if c.typeByName[typeKey{ns: schema.OID, name: relName}] != nil {
+		return errDuplicateObject("type", relName)
 	}
 
 	// Constraint indexes and cloned partition indexes may take a tablespace;
@@ -986,6 +961,28 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			}
 		}
 
+		// transformIndexConstraint finds every key and INCLUDE column of a
+		// CREATE TABLE constraint before DefineIndex checks the index's
+		// tablespace and storage parameters; only ALTER TABLE leaves the
+		// columns to DefineIndex.
+		// pg: src/backend/parser/parse_utilcmd.c:2530 (REL_17_12) — transformIndexConstraint
+		for _, cd := range constraintDefs {
+			if cd.IndexName != "" {
+				continue
+			}
+			var names []string
+			switch cd.Type {
+			case ConstraintPK, ConstraintUnique:
+				names = append(slices.Clone(cd.Columns), cd.IncludeColumns...)
+			case ConstraintExclude:
+				names = cd.IncludeColumns
+			}
+			if _, err := c.resolveColumnNames(rel, names); err != nil {
+				rollbackRelation()
+				return err
+			}
+		}
+
 		c.deferImplicitNotNull = true
 		for _, cd := range constraintDefs {
 			if err := c.addConstraint(schema, rel, cd); err != nil {
@@ -1111,6 +1108,72 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	}
 
 	return nil
+}
+
+// checkRelationPlacement runs the checks DefineRelation makes between
+// resolving the parents' names and MergeAttributes: a parent named twice, the
+// tablespace, and the storage parameters. A name clash and a parent of the
+// wrong kind are found only later, so CREATE TABLE a() TABLESPACE a and
+// CREATE TABLE a() WITH (a) on a table a are 42704 and 22023, not 42P07, and
+// PARTITION OF an index with TABLESPACE a is 42704, not 42809. It returns
+// the tablespace the relation lands in: the TABLESPACE clause, else a
+// partition parent's, else GetDefaultTablespace ("" for a temporary
+// relation, else the session's effective default_tablespace).
+func (c *Catalog) checkRelationPlacement(stmt *nodes.CreateStmt, relkind byte, isPartition bool) (string, error) {
+	// pg: src/backend/commands/tablecmds.c:808 (REL_17_12) — DefineRelation
+	// resolves each parent with RangeVarGetRelid, which takes an index or a
+	// sequence too; MergeAttributes refuses one of those afterwards.
+	var parents []*Relation
+	if stmt.InhRelations != nil {
+		for _, item := range stmt.InhRelations.Items {
+			rv, ok := item.(*nodes.RangeVar)
+			if !ok {
+				continue
+			}
+			_, parent, err := c.findRelation(rv.Schemaname, rv.Relname)
+			if err != nil {
+				var refusal *Error
+				if errors.As(err, &refusal) && refusal.Code == CodeWrongObjectType {
+					parents = append(parents, nil)
+					continue
+				}
+				return "", err
+			}
+			for _, prev := range parents {
+				if prev == parent {
+					return "", &Error{Code: CodeDuplicateTable,
+						Message: fmt.Sprintf("relation %q would be inherited from more than once", parent.Name)}
+				}
+			}
+			parents = append(parents, parent)
+		}
+	}
+
+	// pg: src/backend/commands/tablecmds.c:828 (REL_17_12) — DefineRelation
+	tablespace := stmt.Tablespacename
+	if tablespace == "" && isPartition && len(parents) > 0 && parents[0] != nil {
+		tablespace = parents[0].Tablespace
+	}
+	if tablespace == "" && stmt.Relation.Relpersistence != 't' {
+		tablespace = c.effectiveTablespace("")
+	}
+	if stmt.Partspec != nil && tablespace == "pg_default" {
+		return "", &Error{Code: CodeFeatureNotSupported,
+			Message: "cannot specify default tablespace for partitioned relations"}
+	}
+	if relkind == 'r' || relkind == 'p' || relkind == 'm' {
+		if err := c.checkRelationTablespace(tablespace); err != nil {
+			return "", err
+		}
+	}
+
+	// DefineRelation calls toast_reloptions(toastOptions, true) unconditionally
+	// before NewRelationCreateToastTable checks whether a TOAST table is needed.
+	// pg: src/backend/commands/tablecmds.c:873 (REL_17_12) — DefineRelation
+	if err := c.validateRelOptions(stmt.Options, relkind, ""); err != nil {
+		return "", err
+	}
+	return tablespace, nil
 }
 
 // RemoveRelations handles DROP TABLE/VIEW/MATERIALIZED VIEW for one or more objects.

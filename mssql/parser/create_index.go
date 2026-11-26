@@ -496,11 +496,18 @@ func (p *Parser) indexFilterPrimary() (nodes.ExprNode, error) {
 		}
 		return &nodes.InExpr{Expr: col, List: &nodes.List{Items: items}, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 	}
-	op, ok := comparisonOp(p.cur.Type)
-	if !ok {
+	// filterComparisonPredicate (TSql160.g:17176) takes comparisonOperator,
+	// whose two-character operators may be written apart: WHERE a ! = 1 and
+	// WHERE a < = 1 parse (measured).
+	op, ok := p.splitComparisonTokens()
+	if ok {
+		p.advance()
+		p.advance()
+	} else if op, ok = comparisonOp(p.cur.Type); ok {
+		p.advance()
+	} else {
 		return nil, p.unexpectedToken()
 	}
-	p.advance()
 	right, err := p.parseAddition()
 	if err != nil {
 		return nil, err

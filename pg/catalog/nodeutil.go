@@ -373,6 +373,7 @@ func convertConstraintNode(con *nodes.Constraint) (ConstraintDef, bool) {
 	def.SkipValidation = con.SkipValidation
 	def.NoInherit = con.IsNoInherit
 	def.IndexSpace = con.Indexspace
+	def.Options = con.Options
 
 	switch ct {
 	case ConstraintPK, ConstraintUnique:
@@ -396,6 +397,7 @@ func convertConstraintNode(con *nodes.Constraint) (ConstraintDef, bool) {
 		// Raw check expression text will be filled from AnalyzeStandaloneExpr + DeparseExpr
 		// in addCheckConstraint.
 	case ConstraintExclude:
+		def.WhereClause = con.WhereClause
 		def.AccessMethod = con.AccessMethod
 		if def.AccessMethod == "" {
 			def.AccessMethod = "gist"

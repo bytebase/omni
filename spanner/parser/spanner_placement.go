@@ -21,15 +21,14 @@ import (
 // The pinned emulator also takes IF NOT EXISTS / IF EXISTS and a dotted name,
 // and refuses a placement without a non-NULL instance_partition while it
 // parses ("CREATE PLACEMENT statements require option `instance_partition` to
-// be set"), so OPTIONS is required here. It does not know read_lease_regions
-// yet; the documented option is accepted. The suite:spanner-ddl rows of
-// testdata/compat.tsv hold its answers.
+// be set"), so OPTIONS is required here. It refuses the documented
+// read_lease_regions option, so this parser does too. The suite:spanner-ddl
+// rows of testdata/compat.tsv hold its answers.
 
 // placementOptions are the options CREATE PLACEMENT takes.
 var placementOptions = map[string]spannerOptionKind{
 	"instance_partition": spannerOptionString,
 	"default_leader":     spannerOptionString,
-	"read_lease_regions": spannerOptionString,
 }
 
 // parseCreatePlacement parses a CREATE PLACEMENT body after the shared CREATE

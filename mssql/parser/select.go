@@ -2018,12 +2018,28 @@ func (p *Parser) parseTableValuedFunction(ref *nodes.TableRef) (nodes.TableExpr,
 	}
 
 	args, err := p.parseCommaList(')', commaListAllowEmpty, func() (nodes.Node, error) {
+		// HOLDLOCK is reserved, but SQL Server reads it where a name of the
+		// list goes, as it reads t(NOLOCK): FROM t(HOLDLOCK), t(NOLOCK,
+		// HOLDLOCK) and t(HOLDLOCK, zzz) parse (measured). It stands in the
+		// list as the column NOLOCK does.
+		if p.cur.Type == kwHOLDLOCK {
+			if next := p.peekNext().Type; next == ',' || next == ')' {
+				tok := p.advance()
+				return &nodes.ColumnRef{Column: tok.Str, Loc: nodes.Loc{Start: tok.Loc, End: p.prevEnd()}}, nil
+			}
+		}
 		arg, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
 		if arg == nil {
 			return nil, p.unexpectedToken()
+		}
+		// schemaObjectFunctionTableReference (TSql160.g:20177) takes
+		// expressions, never a condition: SQL Server refuses t(b = 1),
+		// t(b IS NULL) and t(SPATIAL_WINDOW_MAX_CELLS = 1) (measured).
+		if procIsCondition(arg) {
+			return nil, p.newParseError(nodes.NodeLoc(arg).Start, "a condition is not an argument of a table-valued function")
 		}
 		return arg, nil
 	})

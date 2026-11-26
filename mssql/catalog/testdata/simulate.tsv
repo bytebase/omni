@@ -105,12 +105,23 @@ ok:c9be65ef10f0	ok:c9be65ef10f0	engine	one_table@missing	dropTriggerStatement(If
 8135	8135	engine	one_table@missing	filterExpressionPrimary(Not)?/Not	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NOT DISTINCT FROM NULL
 8135	8135	engine	one_table@missing	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterDistinctPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
 8135	8135	engine	one_table@missing	filterExpression(And_filterExpression)?/And_filterExpression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL IS NULL
+8135	8135	engine	one_table@missing	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+8135	8135	engine	one_table@missing	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
 8135	8135	engine	one_table@missing	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?	ALTER TABLE a ADD INDEX a WHERE a IS NULL
 8135	8135	engine	one_table@missing	filterColumn(Dot_specialColumn)?/Dot_specialColumn	ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+8135	8135	engine	one_table@missing	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+8135	8135	engine	one_table@missing	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+8135	8135	engine	one_table@missing	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/GreaterThan_(EqualsSign)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+8135	8135	engine	one_table@missing	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/LessThan_(EqualsSign|GreaterThan)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+8135	8135	engine	one_table@missing	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 8135	8135	engine	one_table@missing	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1, 1)
 1088	1088	engine	one_table@missing	indexLegacyOption/fillFactorOption	CREATE INDEX a ON a(a) WITH FILLFACTOR = 1
 4902	4902	engine	one_table@missing	indexOptionList/LeftParenthesis_indexOption_(Comma_indexOption)*_RightP~6ace3071	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1)
 4902	4902	engine	one_table@missing	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+4902	4902	engine	one_table@missing	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+4902	4902	engine	one_table@missing	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+4902	4902	engine	one_table@missing	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+4902	4902	engine	one_table@missing	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 4902	4902	engine	one_table@missing	suppressMessagesOption/SUPPRESS_MESSAGES_EqualsSign_(On|Off)	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = ON))
 4902	4902	engine	one_table@missing	suppressMessagesOption(On|Off)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = OFF))
 4902	4902	engine	one_table@missing	indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(MAXDOP = 1)
@@ -135,6 +146,10 @@ ok:d6b574c79b2f	ok:d6b574c79b2f	engine	one_table@missing	createSequenceOptionLis
 1088	1088	engine	one_table@missing	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/gridsSpatialIndexOption_GRIDS	CREATE SPATIAL INDEX a ON a(a) WITH(GRIDS =(a))
 1088	1088	engine	one_table@missing	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption	CREATE SPATIAL INDEX a ON a(a) WITH(FILLFACTOR = 1)
 1088	1088	engine	one_table@missing	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption!swap	CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+1088	1088	engine	one_table@missing	spatialIndexRegularOption/indexOption+indexOption/maxDopOption_MAXDOP	CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+1088	1088	engine	one_table@missing	spatialIndexRegularOption/indexOption+indexOption/bucketCountOption_BUCKET_COUNT	CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+1088	1088	engine	one_table@missing	spatialIndexRegularOption/indexOption+indexOption/compressionDelayOption_COMPRESSION_DELAY	CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+1088	1088	engine	one_table@missing	spatialIndexRegularOption/indexOption+indexOption/maxDurationOption_MAX_DURATION	CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 1088	1088	engine	one_table@missing	boundingBoxParameter(boundingBoxParameterListByname|bound~a4e579c4)/boundingBoxParameterListByname	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1))
 1088	1088	engine	one_table@missing	boundingBoxParameterListByname(Comma_boundingBoxParameterByName)*/Comma_boundingBoxParameterByName_(Comma_boundingBoxPara~4a0392b5	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1, a = 1))
 1088	1088	engine	one_table@missing	boundingBoxParameterListByord(Comma_boundingBoxParameterByOrd)*/Comma_boundingBoxParameterByOrd_(Comma_boundingBoxParam~f95b6d17	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(1, 1))
@@ -249,6 +264,7 @@ ok:8f7dec70eb31	ok:8f7dec70eb31	engine	one_table@missing	createTableStatement(FI
 4902	4902	engine	one_table@missing	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 4902	4902	engine	one_table@missing	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4902	4902	engine	one_table@missing	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
+4902	4902	engine	one_table@missing	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/NO_ACTION	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
 4902	4902	engine	one_table@missing	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4902	4902	engine	one_table@missing	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 4902	4902	engine	one_table@missing	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
@@ -259,10 +275,14 @@ ok:8f7dec70eb31	ok:8f7dec70eb31	engine	one_table@missing	createTableStatement(FI
 1088	1088	engine	one_table@missing	createSelectiveXmlIndexStatement_SELECTIVE(Comma_promotedSelectiveXmlIndexPath)*/Comma_promotedSelectiveXmlIndexPath_(Comma_promotedSele~89ca84ab	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a', a = 'a')
 1088	1088	engine	one_table@missing	createSelectiveXmlIndexStatement_SELECTIVE(With_indexOptionList)?/With_indexOptionList	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a') WITH(FILLFACTOR = 1)
 1088	1088	engine	one_table@missing	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier	CREATE SPATIAL INDEX a ON a(a) ON 'a'
+1088	1088	engine	one_table@missing	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE SPATIAL INDEX a ON a(a) ON N'a'
+1088	1088	engine	one_table@missing	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringOrIdentifier/identifier	CREATE SPATIAL INDEX a ON a(a) ON a
 2715	2715	engine	one_table@missing	inlineFunctionOption_INLINE(On|Off)/Off	CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 ok:c9be65ef10f0	ok:c9be65ef10f0	engine	one_table@missing	dropSynonymStatement_SYNONYM(If_Exists)?/If_Exists	DROP SYNONYM IF EXISTS a
 ok:c9be65ef10f0	ok:c9be65ef10f0	engine	one_table@missing	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQUENCE IF EXISTS a
 4902	4902	engine	one_table@missing	onlineIndexOption_ONLINE(On_(LeftParenthesis_lowPriorityLockW~5a74051d)/Off	ALTER TABLE a REBUILD WITH(ONLINE = OFF)
+3701	3701	engine	one_table@missing	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+3701	3701	engine	one_table@missing	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringOrIdentifier/identifier	DROP INDEX a ON a WITH(FILESTREAM_ON a)
 4902	4902	engine	one_table@missing	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_suppressMessages~8656d08f)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 15151	15151	engine	one_table@missing	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement	ALTER SEQUENCE a RESTART WITH 1
 15151	15151	engine	one_table@missing	sequenceNoOptionListElement_NO(MINVALUE|MAXVALUE|CACHE|CYCLE)/MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
@@ -271,6 +291,8 @@ ok:c9be65ef10f0	ok:c9be65ef10f0	engine	one_table@missing	dropSequenceStatement_S
 4902	4902	engine	one_table@missing	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4902	4902	engine	one_table@missing	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4902	4902	engine	one_table@missing	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+4902	4902	engine	one_table@missing	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILESTREAM_ON = N'a')
+4902	4902	engine	one_table@missing	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringOrIdentifier/identifier	ALTER TABLE a SET(FILESTREAM_ON = a)
 4902	4902	engine	one_table@missing	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4902	4902	engine	one_table@missing	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	one_table@missing	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
@@ -381,12 +403,23 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	dropTableStatement(If_Exi
 8135	8135	engine	one_table@table	filterExpressionPrimary(Not)?/Not	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NOT DISTINCT FROM NULL
 8135	8135	engine	one_table@table	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterDistinctPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
 8135	8135	engine	one_table@table	filterExpression(And_filterExpression)?/And_filterExpression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL IS NULL
+8135	8135	engine	one_table@table	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+8135	8135	engine	one_table@table	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
 8135	8135	engine	one_table@table	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?	ALTER TABLE a ADD INDEX a WHERE a IS NULL
 8135	8135	engine	one_table@table	filterColumn(Dot_specialColumn)?/Dot_specialColumn	ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+8135	8135	engine	one_table@table	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+8135	8135	engine	one_table@table	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+8135	8135	engine	one_table@table	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/GreaterThan_(EqualsSign)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+8135	8135	engine	one_table@table	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/LessThan_(EqualsSign|GreaterThan)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+8135	8135	engine	one_table@table	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 8135	8135	engine	one_table@table	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1, 1)
 1911	1911	engine	one_table@table	indexLegacyOption/fillFactorOption	CREATE INDEX a ON a(a) WITH FILLFACTOR = 1
 ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	indexOptionList/LeftParenthesis_indexOption_(Comma_indexOption)*_RightP~6ace3071	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1)
 ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	suppressMessagesOption/SUPPRESS_MESSAGES_EqualsSign_(On|Off)	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = ON))
 ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	suppressMessagesOption(On|Off)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = OFF))
 ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(MAXDOP = 1)
@@ -411,6 +444,10 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	indexOption/ignoreDupKeyI
 1911	1911	engine	one_table@table	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/gridsSpatialIndexOption_GRIDS	CREATE SPATIAL INDEX a ON a(a) WITH(GRIDS =(a))
 1911	1911	engine	one_table@table	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption	CREATE SPATIAL INDEX a ON a(a) WITH(FILLFACTOR = 1)
 1911	1911	engine	one_table@table	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption!swap	CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+1911	1911	engine	one_table@table	spatialIndexRegularOption/indexOption+indexOption/maxDopOption_MAXDOP	CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+1911	1911	engine	one_table@table	spatialIndexRegularOption/indexOption+indexOption/bucketCountOption_BUCKET_COUNT	CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+1911	1911	engine	one_table@table	spatialIndexRegularOption/indexOption+indexOption/compressionDelayOption_COMPRESSION_DELAY	CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+1911	1911	engine	one_table@table	spatialIndexRegularOption/indexOption+indexOption/maxDurationOption_MAX_DURATION	CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 1911	1911	engine	one_table@table	boundingBoxParameter(boundingBoxParameterListByname|bound~a4e579c4)/boundingBoxParameterListByname	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1))
 1911	1911	engine	one_table@table	boundingBoxParameterListByname(Comma_boundingBoxParameterByName)*/Comma_boundingBoxParameterByName_(Comma_boundingBoxPara~4a0392b5	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1, a = 1))
 1911	1911	engine	one_table@table	boundingBoxParameterListByord(Comma_boundingBoxParameterByOrd)*/Comma_boundingBoxParameterByOrd_(Comma_boundingBoxParam~f95b6d17	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(1, 1))
@@ -525,6 +562,7 @@ ok:6c971c3a9d9f	ok:6c971c3a9d9f	engine	one_table@table	tableConstraint(uniqueTab
 1911	1911	engine	one_table@table	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 2715	2715	engine	one_table@table	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	13930	engine	one_table@table	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
+13930	13930	engine	one_table@table	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/NO_ACTION	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
 13930	13930	engine	one_table@table	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 1769	1769	engine	one_table@table	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 ok:6c971c3a9d9f	ok:6c971c3a9d9f	engine	one_table@table	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
@@ -535,10 +573,14 @@ ok:6c971c3a9d9f	ok:6c971c3a9d9f	engine	one_table@table	checkConstraint/Check_rep
 1911	1911	engine	one_table@table	createSelectiveXmlIndexStatement_SELECTIVE(Comma_promotedSelectiveXmlIndexPath)*/Comma_promotedSelectiveXmlIndexPath_(Comma_promotedSele~89ca84ab	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a', a = 'a')
 1911	1911	engine	one_table@table	createSelectiveXmlIndexStatement_SELECTIVE(With_indexOptionList)?/With_indexOptionList	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a') WITH(FILLFACTOR = 1)
 1911	1911	engine	one_table@table	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier	CREATE SPATIAL INDEX a ON a(a) ON 'a'
+1911	1911	engine	one_table@table	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE SPATIAL INDEX a ON a(a) ON N'a'
+1911	1911	engine	one_table@table	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringOrIdentifier/identifier	CREATE SPATIAL INDEX a ON a(a) ON a
 2715	2715	engine	one_table@table	inlineFunctionOption_INLINE(On|Off)/Off	CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 3705	3705	engine	one_table@table	dropSynonymStatement_SYNONYM(If_Exists)?/If_Exists	DROP SYNONYM IF EXISTS a
 3705	3705	engine	one_table@table	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQUENCE IF EXISTS a
 ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	onlineIndexOption_ONLINE(On_(LeftParenthesis_lowPriorityLockW~5a74051d)/Off	ALTER TABLE a REBUILD WITH(ONLINE = OFF)
+3701	3701	engine	one_table@table	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+3701	3701	engine	one_table@table	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringOrIdentifier/identifier	DROP INDEX a ON a WITH(FILESTREAM_ON a)
 ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_suppressMessages~8656d08f)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 15151	15151	engine	one_table@table	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement	ALTER SEQUENCE a RESTART WITH 1
 15151	15151	engine	one_table@table	sequenceNoOptionListElement_NO(MINVALUE|MAXVALUE|CACHE|CYCLE)/MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
@@ -547,6 +589,8 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	ignoreDupKeyIndexOption_I
 13510	13510	engine	one_table@table	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4955	4955	engine	one_table@table	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+1921	1921	engine	one_table@table	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILESTREAM_ON = N'a')
+1921	1921	engine	one_table@table	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringOrIdentifier/identifier	ALTER TABLE a SET(FILESTREAM_ON = a)
 2715	2715	engine	one_table@table	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4924	4924	engine	one_table@table	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	one_table@table	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
@@ -657,12 +701,23 @@ ok:45685f376927	ok:45685f376927	engine	one_table@column	columnstoreIndexKeyColum
 8135	8135	engine	one_table@column	filterExpressionPrimary(Not)?/Not	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NOT DISTINCT FROM NULL
 8135	8135	engine	one_table@column	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterDistinctPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
 8135	8135	engine	one_table@column	filterExpression(And_filterExpression)?/And_filterExpression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL IS NULL
+8135	8135	engine	one_table@column	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+8135	8135	engine	one_table@column	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
 8135	8135	engine	one_table@column	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?	ALTER TABLE a ADD INDEX a WHERE a IS NULL
 8135	8135	engine	one_table@column	filterColumn(Dot_specialColumn)?/Dot_specialColumn	ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+8135	8135	engine	one_table@column	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+8135	8135	engine	one_table@column	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+8135	8135	engine	one_table@column	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/GreaterThan_(EqualsSign)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+8135	8135	engine	one_table@column	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/LessThan_(EqualsSign|GreaterThan)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+8135	8135	engine	one_table@column	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 8135	8135	engine	one_table@column	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1, 1)
 ok:89c47dbd1788	ok:89c47dbd1788	engine	one_table@column	indexLegacyOption/fillFactorOption	CREATE INDEX a ON a(a) WITH FILLFACTOR = 1
 ok:899120d16816	ok:899120d16816	engine	one_table@column	indexOptionList/LeftParenthesis_indexOption_(Comma_indexOption)*_RightP~6ace3071	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1)
 ok:899120d16816	ok:899120d16816	engine	one_table@column	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+ok:899120d16816	ok:899120d16816	engine	one_table@column	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+ok:899120d16816	ok:899120d16816	engine	one_table@column	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+ok:899120d16816	ok:899120d16816	engine	one_table@column	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+ok:899120d16816	ok:899120d16816	engine	one_table@column	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 ok:899120d16816	ok:899120d16816	engine	one_table@column	suppressMessagesOption/SUPPRESS_MESSAGES_EqualsSign_(On|Off)	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = ON))
 ok:899120d16816	ok:899120d16816	engine	one_table@column	suppressMessagesOption(On|Off)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = OFF))
 ok:899120d16816	ok:899120d16816	engine	one_table@column	indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(MAXDOP = 1)
@@ -687,6 +742,10 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	indexOption/ignoreDupKey
 12002	12002	engine	one_table@column	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/gridsSpatialIndexOption_GRIDS	CREATE SPATIAL INDEX a ON a(a) WITH(GRIDS =(a))
 12002	12002	engine	one_table@column	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption	CREATE SPATIAL INDEX a ON a(a) WITH(FILLFACTOR = 1)
 12002	12002	engine	one_table@column	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption!swap	CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+12002	12002	engine	one_table@column	spatialIndexRegularOption/indexOption+indexOption/maxDopOption_MAXDOP	CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+12002	12002	engine	one_table@column	spatialIndexRegularOption/indexOption+indexOption/bucketCountOption_BUCKET_COUNT	CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+12002	12002	engine	one_table@column	spatialIndexRegularOption/indexOption+indexOption/compressionDelayOption_COMPRESSION_DELAY	CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+12002	12002	engine	one_table@column	spatialIndexRegularOption/indexOption+indexOption/maxDurationOption_MAX_DURATION	CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 12002	12002	engine	one_table@column	boundingBoxParameter(boundingBoxParameterListByname|bound~a4e579c4)/boundingBoxParameterListByname	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1))
 12002	12002	engine	one_table@column	boundingBoxParameterListByname(Comma_boundingBoxParameterByName)*/Comma_boundingBoxParameterByName_(Comma_boundingBoxPara~4a0392b5	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1, a = 1))
 12002	12002	engine	one_table@column	boundingBoxParameterListByord(Comma_boundingBoxParameterByOrd)*/Comma_boundingBoxParameterByOrd_(Comma_boundingBoxParam~f95b6d17	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(1, 1))
@@ -801,6 +860,7 @@ ok:c1bdaacd0fe9	ok:c1bdaacd0fe9	engine	one_table@column	columnWithSortOrder(orde
 ok:52a4b2c9a386	ok:52a4b2c9a386	engine	one_table@column	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 2705	2705	engine	one_table@column	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	13930	engine	one_table@column	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
+13930	13930	engine	one_table@column	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/NO_ACTION	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
 13930	13930	engine	one_table@column	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 ok:ff598b39c05d	ok:ff598b39c05d	engine	one_table@column	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 ok:34d8ba350b50	ok:34d8ba350b50	engine	one_table@column	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
@@ -811,10 +871,14 @@ ok:34d8ba350b50	ok:34d8ba350b50	engine	one_table@column	checkConstraint/Check_re
 6330	6330	engine	one_table@column	createSelectiveXmlIndexStatement_SELECTIVE(Comma_promotedSelectiveXmlIndexPath)*/Comma_promotedSelectiveXmlIndexPath_(Comma_promotedSele~89ca84ab	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a', a = 'a')
 6330	6330	engine	one_table@column	createSelectiveXmlIndexStatement_SELECTIVE(With_indexOptionList)?/With_indexOptionList	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a') WITH(FILLFACTOR = 1)
 12002	12002	engine	one_table@column	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier	CREATE SPATIAL INDEX a ON a(a) ON 'a'
+12002	12002	engine	one_table@column	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE SPATIAL INDEX a ON a(a) ON N'a'
+12002	12002	engine	one_table@column	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringOrIdentifier/identifier	CREATE SPATIAL INDEX a ON a(a) ON a
 2715	2715	engine	one_table@column	inlineFunctionOption_INLINE(On|Off)/Off	CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 3705	3705	engine	one_table@column	dropSynonymStatement_SYNONYM(If_Exists)?/If_Exists	DROP SYNONYM IF EXISTS a
 3705	3705	engine	one_table@column	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQUENCE IF EXISTS a
 ok:899120d16816	ok:899120d16816	engine	one_table@column	onlineIndexOption_ONLINE(On_(LeftParenthesis_lowPriorityLockW~5a74051d)/Off	ALTER TABLE a REBUILD WITH(ONLINE = OFF)
+3701	3701	engine	one_table@column	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+3701	3701	engine	one_table@column	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringOrIdentifier/identifier	DROP INDEX a ON a WITH(FILESTREAM_ON a)
 ok:899120d16816	ok:899120d16816	engine	one_table@column	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_suppressMessages~8656d08f)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 15151	15151	engine	one_table@column	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement	ALTER SEQUENCE a RESTART WITH 1
 15151	15151	engine	one_table@column	sequenceNoOptionListElement_NO(MINVALUE|MAXVALUE|CACHE|CYCLE)/MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
@@ -823,6 +887,8 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	ignoreDupKeyIndexOption_
 13510	13510	engine	one_table@column	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4955	4955	engine	one_table@column	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok:899120d16816	ok:899120d16816	engine	one_table@column	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+1921	1921	engine	one_table@column	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILESTREAM_ON = N'a')
+1921	1921	engine	one_table@column	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringOrIdentifier/identifier	ALTER TABLE a SET(FILESTREAM_ON = a)
 2705	2705	engine	one_table@column	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 2715	2715	engine	one_table@column	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	one_table@column	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
@@ -933,12 +999,23 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	dropTableStatement(If_Exi
 8135	8135	engine	one_table@index	filterExpressionPrimary(Not)?/Not	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NOT DISTINCT FROM NULL
 8135	8135	engine	one_table@index	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterDistinctPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
 8135	8135	engine	one_table@index	filterExpression(And_filterExpression)?/And_filterExpression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL IS NULL
+8135	8135	engine	one_table@index	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+8135	8135	engine	one_table@index	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
 8135	8135	engine	one_table@index	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?	ALTER TABLE a ADD INDEX a WHERE a IS NULL
 8135	8135	engine	one_table@index	filterColumn(Dot_specialColumn)?/Dot_specialColumn	ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+8135	8135	engine	one_table@index	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+8135	8135	engine	one_table@index	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+8135	8135	engine	one_table@index	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/GreaterThan_(EqualsSign)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+8135	8135	engine	one_table@index	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/LessThan_(EqualsSign|GreaterThan)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+8135	8135	engine	one_table@index	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 8135	8135	engine	one_table@index	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1, 1)
 1913	1913	engine	one_table@index	indexLegacyOption/fillFactorOption	CREATE INDEX a ON a(a) WITH FILLFACTOR = 1
 ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	indexOptionList/LeftParenthesis_indexOption_(Comma_indexOption)*_RightP~6ace3071	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1)
 ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	suppressMessagesOption/SUPPRESS_MESSAGES_EqualsSign_(On|Off)	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = ON))
 ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	suppressMessagesOption(On|Off)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = OFF))
 ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(MAXDOP = 1)
@@ -963,6 +1040,10 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	indexOption/ignoreDupKeyI
 12002	12002	engine	one_table@index	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/gridsSpatialIndexOption_GRIDS	CREATE SPATIAL INDEX a ON a(a) WITH(GRIDS =(a))
 12002	12002	engine	one_table@index	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption	CREATE SPATIAL INDEX a ON a(a) WITH(FILLFACTOR = 1)
 12002	12002	engine	one_table@index	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption!swap	CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+12002	12002	engine	one_table@index	spatialIndexRegularOption/indexOption+indexOption/maxDopOption_MAXDOP	CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+12002	12002	engine	one_table@index	spatialIndexRegularOption/indexOption+indexOption/bucketCountOption_BUCKET_COUNT	CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+12002	12002	engine	one_table@index	spatialIndexRegularOption/indexOption+indexOption/compressionDelayOption_COMPRESSION_DELAY	CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+12002	12002	engine	one_table@index	spatialIndexRegularOption/indexOption+indexOption/maxDurationOption_MAX_DURATION	CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 12002	12002	engine	one_table@index	boundingBoxParameter(boundingBoxParameterListByname|bound~a4e579c4)/boundingBoxParameterListByname	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1))
 12002	12002	engine	one_table@index	boundingBoxParameterListByname(Comma_boundingBoxParameterByName)*/Comma_boundingBoxParameterByName_(Comma_boundingBoxPara~4a0392b5	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1, a = 1))
 12002	12002	engine	one_table@index	boundingBoxParameterListByord(Comma_boundingBoxParameterByOrd)*/Comma_boundingBoxParameterByOrd_(Comma_boundingBoxParam~f95b6d17	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(1, 1))
@@ -1077,6 +1158,7 @@ ok:c5b4fe588b97	ok:c5b4fe588b97	engine	one_table@index	columnWithSortOrder(order
 ok:b33883055a9b	ok:b33883055a9b	engine	one_table@index	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 2705	2705	engine	one_table@index	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	13930	engine	one_table@index	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
+13930	13930	engine	one_table@index	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/NO_ACTION	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
 13930	13930	engine	one_table@index	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 ok:a7a4d6c3399e	ok:a7a4d6c3399e	engine	one_table@index	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 ok:d3bb6f6e137e	ok:d3bb6f6e137e	engine	one_table@index	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
@@ -1087,10 +1169,14 @@ ok:d3bb6f6e137e	ok:d3bb6f6e137e	engine	one_table@index	checkConstraint/Check_rep
 1913	1913	engine	one_table@index	createSelectiveXmlIndexStatement_SELECTIVE(Comma_promotedSelectiveXmlIndexPath)*/Comma_promotedSelectiveXmlIndexPath_(Comma_promotedSele~89ca84ab	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a', a = 'a')
 1913	1913	engine	one_table@index	createSelectiveXmlIndexStatement_SELECTIVE(With_indexOptionList)?/With_indexOptionList	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a') WITH(FILLFACTOR = 1)
 12002	12002	engine	one_table@index	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier	CREATE SPATIAL INDEX a ON a(a) ON 'a'
+12002	12002	engine	one_table@index	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE SPATIAL INDEX a ON a(a) ON N'a'
+12002	12002	engine	one_table@index	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringOrIdentifier/identifier	CREATE SPATIAL INDEX a ON a(a) ON a
 2715	2715	engine	one_table@index	inlineFunctionOption_INLINE(On|Off)/Off	CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 3705	3705	engine	one_table@index	dropSynonymStatement_SYNONYM(If_Exists)?/If_Exists	DROP SYNONYM IF EXISTS a
 3705	3705	engine	one_table@index	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQUENCE IF EXISTS a
 ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	onlineIndexOption_ONLINE(On_(LeftParenthesis_lowPriorityLockW~5a74051d)/Off	ALTER TABLE a REBUILD WITH(ONLINE = OFF)
+1716	1716	engine	one_table@index	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+1716	1716	engine	one_table@index	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringOrIdentifier/identifier	DROP INDEX a ON a WITH(FILESTREAM_ON a)
 ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_suppressMessages~8656d08f)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 15151	15151	engine	one_table@index	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement	ALTER SEQUENCE a RESTART WITH 1
 15151	15151	engine	one_table@index	sequenceNoOptionListElement_NO(MINVALUE|MAXVALUE|CACHE|CYCLE)/MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
@@ -1099,6 +1185,8 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	ignoreDupKeyIndexOption_I
 13510	13510	engine	one_table@index	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4955	4955	engine	one_table@index	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+1921	1921	engine	one_table@index	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILESTREAM_ON = N'a')
+1921	1921	engine	one_table@index	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringOrIdentifier/identifier	ALTER TABLE a SET(FILESTREAM_ON = a)
 2705	2705	engine	one_table@index	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 2715	2715	engine	one_table@index	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	one_table@index	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
@@ -1209,12 +1297,23 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 8135	8135	engine	objects@view	filterExpressionPrimary(Not)?/Not	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NOT DISTINCT FROM NULL
 8135	8135	engine	objects@view	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterDistinctPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
 8135	8135	engine	objects@view	filterExpression(And_filterExpression)?/And_filterExpression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL IS NULL
+8135	8135	engine	objects@view	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+8135	8135	engine	objects@view	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
 8135	8135	engine	objects@view	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?	ALTER TABLE a ADD INDEX a WHERE a IS NULL
 8135	8135	engine	objects@view	filterColumn(Dot_specialColumn)?/Dot_specialColumn	ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+8135	8135	engine	objects@view	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+8135	8135	engine	objects@view	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+8135	8135	engine	objects@view	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/GreaterThan_(EqualsSign)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+8135	8135	engine	objects@view	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/LessThan_(EqualsSign|GreaterThan)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+8135	8135	engine	objects@view	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 8135	8135	engine	objects@view	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1, 1)
 1939	1939	engine	objects@view	indexLegacyOption/fillFactorOption	CREATE INDEX a ON a(a) WITH FILLFACTOR = 1
 4909	4909	engine	objects@view	indexOptionList/LeftParenthesis_indexOption_(Comma_indexOption)*_RightP~6ace3071	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1)
 4909	4909	engine	objects@view	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+4909	4909	engine	objects@view	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+4909	4909	engine	objects@view	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+4909	4909	engine	objects@view	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+4909	4909	engine	objects@view	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 4909	4909	engine	objects@view	suppressMessagesOption/SUPPRESS_MESSAGES_EqualsSign_(On|Off)	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = ON))
 4909	4909	engine	objects@view	suppressMessagesOption(On|Off)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = OFF))
 4909	4909	engine	objects@view	indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(MAXDOP = 1)
@@ -1239,6 +1338,10 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 6334	6334	engine	objects@view	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/gridsSpatialIndexOption_GRIDS	CREATE SPATIAL INDEX a ON a(a) WITH(GRIDS =(a))
 6334	6334	engine	objects@view	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption	CREATE SPATIAL INDEX a ON a(a) WITH(FILLFACTOR = 1)
 6334	6334	engine	objects@view	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption!swap	CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+6334	6334	engine	objects@view	spatialIndexRegularOption/indexOption+indexOption/maxDopOption_MAXDOP	CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+6334	6334	engine	objects@view	spatialIndexRegularOption/indexOption+indexOption/bucketCountOption_BUCKET_COUNT	CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+6334	6334	engine	objects@view	spatialIndexRegularOption/indexOption+indexOption/compressionDelayOption_COMPRESSION_DELAY	CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+6334	6334	engine	objects@view	spatialIndexRegularOption/indexOption+indexOption/maxDurationOption_MAX_DURATION	CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 6334	6334	engine	objects@view	boundingBoxParameter(boundingBoxParameterListByname|bound~a4e579c4)/boundingBoxParameterListByname	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1))
 6334	6334	engine	objects@view	boundingBoxParameterListByname(Comma_boundingBoxParameterByName)*/Comma_boundingBoxParameterByName_(Comma_boundingBoxPara~4a0392b5	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1, a = 1))
 6334	6334	engine	objects@view	boundingBoxParameterListByord(Comma_boundingBoxParameterByOrd)*/Comma_boundingBoxParameterByOrd_(Comma_boundingBoxParam~f95b6d17	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(1, 1))
@@ -1353,6 +1456,7 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 4909	4909	engine	objects@view	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 4909	4909	engine	objects@view	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@view	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
+4909	4909	engine	objects@view	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/NO_ACTION	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
 4909	4909	engine	objects@view	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@view	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 4909	4909	engine	objects@view	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
@@ -1363,10 +1467,14 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 6334	6334	engine	objects@view	createSelectiveXmlIndexStatement_SELECTIVE(Comma_promotedSelectiveXmlIndexPath)*/Comma_promotedSelectiveXmlIndexPath_(Comma_promotedSele~89ca84ab	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a', a = 'a')
 6334	6334	engine	objects@view	createSelectiveXmlIndexStatement_SELECTIVE(With_indexOptionList)?/With_indexOptionList	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a') WITH(FILLFACTOR = 1)
 6334	6334	engine	objects@view	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier	CREATE SPATIAL INDEX a ON a(a) ON 'a'
+6334	6334	engine	objects@view	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE SPATIAL INDEX a ON a(a) ON N'a'
+6334	6334	engine	objects@view	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringOrIdentifier/identifier	CREATE SPATIAL INDEX a ON a(a) ON a
 2715	2715	engine	objects@view	inlineFunctionOption_INLINE(On|Off)/Off	CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 3705	3705	engine	objects@view	dropSynonymStatement_SYNONYM(If_Exists)?/If_Exists	DROP SYNONYM IF EXISTS a
 3705	3705	engine	objects@view	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQUENCE IF EXISTS a
 4909	4909	engine	objects@view	onlineIndexOption_ONLINE(On_(LeftParenthesis_lowPriorityLockW~5a74051d)/Off	ALTER TABLE a REBUILD WITH(ONLINE = OFF)
+3701	3701	engine	objects@view	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+3701	3701	engine	objects@view	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringOrIdentifier/identifier	DROP INDEX a ON a WITH(FILESTREAM_ON a)
 4909	4909	engine	objects@view	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_suppressMessages~8656d08f)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 15151	15151	engine	objects@view	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement	ALTER SEQUENCE a RESTART WITH 1
 15151	15151	engine	objects@view	sequenceNoOptionListElement_NO(MINVALUE|MAXVALUE|CACHE|CYCLE)/MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
@@ -1375,6 +1483,8 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 4909	4909	engine	objects@view	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4909	4909	engine	objects@view	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@view	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+4909	4909	engine	objects@view	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILESTREAM_ON = N'a')
+4909	4909	engine	objects@view	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringOrIdentifier/identifier	ALTER TABLE a SET(FILESTREAM_ON = a)
 4909	4909	engine	objects@view	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4909	4909	engine	objects@view	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	objects@view	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
@@ -1485,12 +1595,23 @@ ok:e3d82d707d88	ok:e3d82d707d88	engine	objects@fk	columnstoreIndexKeyColumnList/
 8135	8135	engine	objects@fk	filterExpressionPrimary(Not)?/Not	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NOT DISTINCT FROM NULL
 8135	8135	engine	objects@fk	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterDistinctPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
 8135	8135	engine	objects@fk	filterExpression(And_filterExpression)?/And_filterExpression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL IS NULL
+8135	8135	engine	objects@fk	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+8135	8135	engine	objects@fk	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
 8135	8135	engine	objects@fk	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?	ALTER TABLE a ADD INDEX a WHERE a IS NULL
 8135	8135	engine	objects@fk	filterColumn(Dot_specialColumn)?/Dot_specialColumn	ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+8135	8135	engine	objects@fk	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+8135	8135	engine	objects@fk	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+8135	8135	engine	objects@fk	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/GreaterThan_(EqualsSign)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+8135	8135	engine	objects@fk	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/LessThan_(EqualsSign|GreaterThan)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+8135	8135	engine	objects@fk	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 8135	8135	engine	objects@fk	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1, 1)
 ok:6510a2c87b10	ok:6510a2c87b10	engine	objects@fk	indexLegacyOption/fillFactorOption	CREATE INDEX a ON a(a) WITH FILLFACTOR = 1
 ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	indexOptionList/LeftParenthesis_indexOption_(Comma_indexOption)*_RightP~6ace3071	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1)
 ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	suppressMessagesOption/SUPPRESS_MESSAGES_EqualsSign_(On|Off)	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = ON))
 ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	suppressMessagesOption(On|Off)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = OFF))
 ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(MAXDOP = 1)
@@ -1515,6 +1636,10 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	indexOption/ignoreDupKeyIndexO
 12002	12002	engine	objects@fk	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/gridsSpatialIndexOption_GRIDS	CREATE SPATIAL INDEX a ON a(a) WITH(GRIDS =(a))
 12002	12002	engine	objects@fk	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption	CREATE SPATIAL INDEX a ON a(a) WITH(FILLFACTOR = 1)
 12002	12002	engine	objects@fk	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption!swap	CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+12002	12002	engine	objects@fk	spatialIndexRegularOption/indexOption+indexOption/maxDopOption_MAXDOP	CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+12002	12002	engine	objects@fk	spatialIndexRegularOption/indexOption+indexOption/bucketCountOption_BUCKET_COUNT	CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+12002	12002	engine	objects@fk	spatialIndexRegularOption/indexOption+indexOption/compressionDelayOption_COMPRESSION_DELAY	CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+12002	12002	engine	objects@fk	spatialIndexRegularOption/indexOption+indexOption/maxDurationOption_MAX_DURATION	CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 12002	12002	engine	objects@fk	boundingBoxParameter(boundingBoxParameterListByname|bound~a4e579c4)/boundingBoxParameterListByname	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1))
 12002	12002	engine	objects@fk	boundingBoxParameterListByname(Comma_boundingBoxParameterByName)*/Comma_boundingBoxParameterByName_(Comma_boundingBoxPara~4a0392b5	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1, a = 1))
 12002	12002	engine	objects@fk	boundingBoxParameterListByord(Comma_boundingBoxParameterByOrd)*/Comma_boundingBoxParameterByOrd_(Comma_boundingBoxParam~f95b6d17	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(1, 1))
@@ -1629,6 +1754,7 @@ ok:a597d2209282	ok:a597d2209282	engine	objects@fk	columnWithSortOrder(orderByOpt
 ok:cebc739de3fb	ok:cebc739de3fb	engine	objects@fk	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 2705	2705	engine	objects@fk	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	13930	engine	objects@fk	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
+13930	13930	engine	objects@fk	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/NO_ACTION	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
 13930	13930	engine	objects@fk	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 ok:91ee95387576	ok:91ee95387576	engine	objects@fk	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 ok:6363ae2043b1	ok:6363ae2043b1	engine	objects@fk	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
@@ -1639,10 +1765,14 @@ ok:6363ae2043b1	ok:6363ae2043b1	engine	objects@fk	checkConstraint/Check_replicat
 6330	6330	engine	objects@fk	createSelectiveXmlIndexStatement_SELECTIVE(Comma_promotedSelectiveXmlIndexPath)*/Comma_promotedSelectiveXmlIndexPath_(Comma_promotedSele~89ca84ab	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a', a = 'a')
 6330	6330	engine	objects@fk	createSelectiveXmlIndexStatement_SELECTIVE(With_indexOptionList)?/With_indexOptionList	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a') WITH(FILLFACTOR = 1)
 12002	12002	engine	objects@fk	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier	CREATE SPATIAL INDEX a ON a(a) ON 'a'
+12002	12002	engine	objects@fk	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE SPATIAL INDEX a ON a(a) ON N'a'
+12002	12002	engine	objects@fk	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringOrIdentifier/identifier	CREATE SPATIAL INDEX a ON a(a) ON a
 2715	2715	engine	objects@fk	inlineFunctionOption_INLINE(On|Off)/Off	CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 3705	3705	engine	objects@fk	dropSynonymStatement_SYNONYM(If_Exists)?/If_Exists	DROP SYNONYM IF EXISTS a
 3705	3705	engine	objects@fk	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQUENCE IF EXISTS a
 ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	onlineIndexOption_ONLINE(On_(LeftParenthesis_lowPriorityLockW~5a74051d)/Off	ALTER TABLE a REBUILD WITH(ONLINE = OFF)
+3701	3701	engine	objects@fk	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+3701	3701	engine	objects@fk	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringOrIdentifier/identifier	DROP INDEX a ON a WITH(FILESTREAM_ON a)
 ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_suppressMessages~8656d08f)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 15151	15151	engine	objects@fk	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement	ALTER SEQUENCE a RESTART WITH 1
 15151	15151	engine	objects@fk	sequenceNoOptionListElement_NO(MINVALUE|MAXVALUE|CACHE|CYCLE)/MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
@@ -1651,6 +1781,8 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	ignoreDupKeyIndexOption_IGNORE
 13510	13510	engine	objects@fk	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4955	4955	engine	objects@fk	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+1921	1921	engine	objects@fk	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILESTREAM_ON = N'a')
+1921	1921	engine	objects@fk	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringOrIdentifier/identifier	ALTER TABLE a SET(FILESTREAM_ON = a)
 2705	2705	engine	objects@fk	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 2715	2715	engine	objects@fk	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	objects@fk	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
@@ -1761,12 +1893,23 @@ ok:cd9e6b6f0770	ok:cd9e6b6f0770	engine	objects@schema	dropTableStatement(If_Exis
 8135	8135	engine	objects@schema	filterExpressionPrimary(Not)?/Not	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NOT DISTINCT FROM NULL
 8135	8135	engine	objects@schema	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterDistinctPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
 8135	8135	engine	objects@schema	filterExpression(And_filterExpression)?/And_filterExpression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL IS NULL
+8135	8135	engine	objects@schema	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+8135	8135	engine	objects@schema	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
 8135	8135	engine	objects@schema	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?	ALTER TABLE a ADD INDEX a WHERE a IS NULL
 8135	8135	engine	objects@schema	filterColumn(Dot_specialColumn)?/Dot_specialColumn	ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+8135	8135	engine	objects@schema	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+8135	8135	engine	objects@schema	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+8135	8135	engine	objects@schema	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/GreaterThan_(EqualsSign)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+8135	8135	engine	objects@schema	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/LessThan_(EqualsSign|GreaterThan)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+8135	8135	engine	objects@schema	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 8135	8135	engine	objects@schema	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1, 1)
 1911	1911	engine	objects@schema	indexLegacyOption/fillFactorOption	CREATE INDEX a ON a(a) WITH FILLFACTOR = 1
 ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	indexOptionList/LeftParenthesis_indexOption_(Comma_indexOption)*_RightP~6ace3071	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1)
 ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	suppressMessagesOption/SUPPRESS_MESSAGES_EqualsSign_(On|Off)	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = ON))
 ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	suppressMessagesOption(On|Off)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = OFF))
 ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(MAXDOP = 1)
@@ -1791,6 +1934,10 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	indexOption/ignoreDupKeyIn
 1911	1911	engine	objects@schema	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/gridsSpatialIndexOption_GRIDS	CREATE SPATIAL INDEX a ON a(a) WITH(GRIDS =(a))
 1911	1911	engine	objects@schema	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption	CREATE SPATIAL INDEX a ON a(a) WITH(FILLFACTOR = 1)
 1911	1911	engine	objects@schema	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption!swap	CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+1911	1911	engine	objects@schema	spatialIndexRegularOption/indexOption+indexOption/maxDopOption_MAXDOP	CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+1911	1911	engine	objects@schema	spatialIndexRegularOption/indexOption+indexOption/bucketCountOption_BUCKET_COUNT	CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+1911	1911	engine	objects@schema	spatialIndexRegularOption/indexOption+indexOption/compressionDelayOption_COMPRESSION_DELAY	CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+1911	1911	engine	objects@schema	spatialIndexRegularOption/indexOption+indexOption/maxDurationOption_MAX_DURATION	CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 1911	1911	engine	objects@schema	boundingBoxParameter(boundingBoxParameterListByname|bound~a4e579c4)/boundingBoxParameterListByname	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1))
 1911	1911	engine	objects@schema	boundingBoxParameterListByname(Comma_boundingBoxParameterByName)*/Comma_boundingBoxParameterByName_(Comma_boundingBoxPara~4a0392b5	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1, a = 1))
 1911	1911	engine	objects@schema	boundingBoxParameterListByord(Comma_boundingBoxParameterByOrd)*/Comma_boundingBoxParameterByOrd_(Comma_boundingBoxParam~f95b6d17	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(1, 1))
@@ -1905,6 +2052,7 @@ ok:e26e8eaa6a10	ok:e26e8eaa6a10	engine	objects@schema	tableConstraint(uniqueTabl
 1911	1911	engine	objects@schema	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 2715	2715	engine	objects@schema	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	13930	engine	objects@schema	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
+13930	13930	engine	objects@schema	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/NO_ACTION	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
 13930	13930	engine	objects@schema	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 1769	1769	engine	objects@schema	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 ok:e26e8eaa6a10	ok:e26e8eaa6a10	engine	objects@schema	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
@@ -1915,10 +2063,14 @@ ok:e26e8eaa6a10	ok:e26e8eaa6a10	engine	objects@schema	checkConstraint/Check_repl
 1911	1911	engine	objects@schema	createSelectiveXmlIndexStatement_SELECTIVE(Comma_promotedSelectiveXmlIndexPath)*/Comma_promotedSelectiveXmlIndexPath_(Comma_promotedSele~89ca84ab	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a', a = 'a')
 1911	1911	engine	objects@schema	createSelectiveXmlIndexStatement_SELECTIVE(With_indexOptionList)?/With_indexOptionList	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a') WITH(FILLFACTOR = 1)
 1911	1911	engine	objects@schema	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier	CREATE SPATIAL INDEX a ON a(a) ON 'a'
+1911	1911	engine	objects@schema	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE SPATIAL INDEX a ON a(a) ON N'a'
+1911	1911	engine	objects@schema	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringOrIdentifier/identifier	CREATE SPATIAL INDEX a ON a(a) ON a
 2715	2715	engine	objects@schema	inlineFunctionOption_INLINE(On|Off)/Off	CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 3705	3705	engine	objects@schema	dropSynonymStatement_SYNONYM(If_Exists)?/If_Exists	DROP SYNONYM IF EXISTS a
 3705	3705	engine	objects@schema	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQUENCE IF EXISTS a
 ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	onlineIndexOption_ONLINE(On_(LeftParenthesis_lowPriorityLockW~5a74051d)/Off	ALTER TABLE a REBUILD WITH(ONLINE = OFF)
+3701	3701	engine	objects@schema	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+3701	3701	engine	objects@schema	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringOrIdentifier/identifier	DROP INDEX a ON a WITH(FILESTREAM_ON a)
 ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_suppressMessages~8656d08f)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 15151	15151	engine	objects@schema	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement	ALTER SEQUENCE a RESTART WITH 1
 15151	15151	engine	objects@schema	sequenceNoOptionListElement_NO(MINVALUE|MAXVALUE|CACHE|CYCLE)/MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
@@ -1927,6 +2079,8 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	ignoreDupKeyIndexOption_IG
 13510	13510	engine	objects@schema	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4955	4955	engine	objects@schema	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+1921	1921	engine	objects@schema	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILESTREAM_ON = N'a')
+1921	1921	engine	objects@schema	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringOrIdentifier/identifier	ALTER TABLE a SET(FILESTREAM_ON = a)
 2715	2715	engine	objects@schema	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4924	4924	engine	objects@schema	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	objects@schema	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
@@ -2037,12 +2191,23 @@ ok:ba4169ec1613	ok:ba4169ec1613	engine	objects@sequence	dropSchemaStatement(If_E
 8135	8135	engine	objects@sequence	filterExpressionPrimary(Not)?/Not	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NOT DISTINCT FROM NULL
 8135	8135	engine	objects@sequence	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterDistinctPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
 8135	8135	engine	objects@sequence	filterExpression(And_filterExpression)?/And_filterExpression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL IS NULL
+8135	8135	engine	objects@sequence	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+8135	8135	engine	objects@sequence	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
 8135	8135	engine	objects@sequence	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?	ALTER TABLE a ADD INDEX a WHERE a IS NULL
 8135	8135	engine	objects@sequence	filterColumn(Dot_specialColumn)?/Dot_specialColumn	ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+8135	8135	engine	objects@sequence	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+8135	8135	engine	objects@sequence	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+8135	8135	engine	objects@sequence	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/GreaterThan_(EqualsSign)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+8135	8135	engine	objects@sequence	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/LessThan_(EqualsSign|GreaterThan)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+8135	8135	engine	objects@sequence	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 8135	8135	engine	objects@sequence	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1, 1)
 1914	1914	engine	objects@sequence	indexLegacyOption/fillFactorOption	CREATE INDEX a ON a(a) WITH FILLFACTOR = 1
 4909	4909	engine	objects@sequence	indexOptionList/LeftParenthesis_indexOption_(Comma_indexOption)*_RightP~6ace3071	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1)
 4909	4909	engine	objects@sequence	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+4909	4909	engine	objects@sequence	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+4909	4909	engine	objects@sequence	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+4909	4909	engine	objects@sequence	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+4909	4909	engine	objects@sequence	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 4909	4909	engine	objects@sequence	suppressMessagesOption/SUPPRESS_MESSAGES_EqualsSign_(On|Off)	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = ON))
 4909	4909	engine	objects@sequence	suppressMessagesOption(On|Off)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = OFF))
 4909	4909	engine	objects@sequence	indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(MAXDOP = 1)
@@ -2067,6 +2232,10 @@ ok:05f99f60b270	ok:05f99f60b270	engine	objects@sequence	sequenceMinMaxOptionList
 6334	6334	engine	objects@sequence	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/gridsSpatialIndexOption_GRIDS	CREATE SPATIAL INDEX a ON a(a) WITH(GRIDS =(a))
 6334	6334	engine	objects@sequence	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption	CREATE SPATIAL INDEX a ON a(a) WITH(FILLFACTOR = 1)
 6334	6334	engine	objects@sequence	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption!swap	CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+6334	6334	engine	objects@sequence	spatialIndexRegularOption/indexOption+indexOption/maxDopOption_MAXDOP	CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+6334	6334	engine	objects@sequence	spatialIndexRegularOption/indexOption+indexOption/bucketCountOption_BUCKET_COUNT	CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+6334	6334	engine	objects@sequence	spatialIndexRegularOption/indexOption+indexOption/compressionDelayOption_COMPRESSION_DELAY	CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+6334	6334	engine	objects@sequence	spatialIndexRegularOption/indexOption+indexOption/maxDurationOption_MAX_DURATION	CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 6334	6334	engine	objects@sequence	boundingBoxParameter(boundingBoxParameterListByname|bound~a4e579c4)/boundingBoxParameterListByname	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1))
 6334	6334	engine	objects@sequence	boundingBoxParameterListByname(Comma_boundingBoxParameterByName)*/Comma_boundingBoxParameterByName_(Comma_boundingBoxPara~4a0392b5	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1, a = 1))
 6334	6334	engine	objects@sequence	boundingBoxParameterListByord(Comma_boundingBoxParameterByOrd)*/Comma_boundingBoxParameterByOrd_(Comma_boundingBoxParam~f95b6d17	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(1, 1))
@@ -2181,6 +2350,7 @@ ok:05f99f60b270	ok:05f99f60b270	engine	objects@sequence	sequenceMinMaxOptionList
 4909	4909	engine	objects@sequence	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 4909	4909	engine	objects@sequence	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@sequence	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
+4909	4909	engine	objects@sequence	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/NO_ACTION	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
 4909	4909	engine	objects@sequence	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@sequence	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 4909	4909	engine	objects@sequence	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
@@ -2191,10 +2361,14 @@ ok:00a15132948b	ok:00a15132948b	engine	objects@sequence	seedIncrement/(Minus|Plu
 6334	6334	engine	objects@sequence	createSelectiveXmlIndexStatement_SELECTIVE(Comma_promotedSelectiveXmlIndexPath)*/Comma_promotedSelectiveXmlIndexPath_(Comma_promotedSele~89ca84ab	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a', a = 'a')
 6334	6334	engine	objects@sequence	createSelectiveXmlIndexStatement_SELECTIVE(With_indexOptionList)?/With_indexOptionList	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a') WITH(FILLFACTOR = 1)
 6334	6334	engine	objects@sequence	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier	CREATE SPATIAL INDEX a ON a(a) ON 'a'
+6334	6334	engine	objects@sequence	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE SPATIAL INDEX a ON a(a) ON N'a'
+6334	6334	engine	objects@sequence	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringOrIdentifier/identifier	CREATE SPATIAL INDEX a ON a(a) ON a
 2715	2715	engine	objects@sequence	inlineFunctionOption_INLINE(On|Off)/Off	CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 3705	3705	engine	objects@sequence	dropSynonymStatement_SYNONYM(If_Exists)?/If_Exists	DROP SYNONYM IF EXISTS a
 ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@sequence	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQUENCE IF EXISTS a
 4909	4909	engine	objects@sequence	onlineIndexOption_ONLINE(On_(LeftParenthesis_lowPriorityLockW~5a74051d)/Off	ALTER TABLE a REBUILD WITH(ONLINE = OFF)
+3701	3701	engine	objects@sequence	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+3701	3701	engine	objects@sequence	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringOrIdentifier/identifier	DROP INDEX a ON a WITH(FILESTREAM_ON a)
 4909	4909	engine	objects@sequence	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_suppressMessages~8656d08f)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 ok:ba4169ec1613	ok:ba4169ec1613	engine	objects@sequence	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement	ALTER SEQUENCE a RESTART WITH 1
 ok:ba4169ec1613	ok:ba4169ec1613	engine	objects@sequence	sequenceNoOptionListElement_NO(MINVALUE|MAXVALUE|CACHE|CYCLE)/MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
@@ -2203,6 +2377,8 @@ ok:ba4169ec1613	ok:ba4169ec1613	engine	objects@sequence	sequenceNoOptionListElem
 4909	4909	engine	objects@sequence	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4909	4909	engine	objects@sequence	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@sequence	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+4909	4909	engine	objects@sequence	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILESTREAM_ON = N'a')
+4909	4909	engine	objects@sequence	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringOrIdentifier/identifier	ALTER TABLE a SET(FILESTREAM_ON = a)
 4909	4909	engine	objects@sequence	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4909	4909	engine	objects@sequence	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	objects@sequence	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
@@ -2313,12 +2489,23 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 8135	8135	engine	objects@synonym	filterExpressionPrimary(Not)?/Not	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NOT DISTINCT FROM NULL
 8135	8135	engine	objects@synonym	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterDistinctPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
 8135	8135	engine	objects@synonym	filterExpression(And_filterExpression)?/And_filterExpression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL IS NULL
+8135	8135	engine	objects@synonym	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+8135	8135	engine	objects@synonym	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
 8135	8135	engine	objects@synonym	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?	ALTER TABLE a ADD INDEX a WHERE a IS NULL
 8135	8135	engine	objects@synonym	filterColumn(Dot_specialColumn)?/Dot_specialColumn	ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+8135	8135	engine	objects@synonym	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+8135	8135	engine	objects@synonym	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+8135	8135	engine	objects@synonym	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/GreaterThan_(EqualsSign)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+8135	8135	engine	objects@synonym	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/LessThan_(EqualsSign|GreaterThan)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+8135	8135	engine	objects@synonym	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 8135	8135	engine	objects@synonym	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1, 1)
 1914	1914	engine	objects@synonym	indexLegacyOption/fillFactorOption	CREATE INDEX a ON a(a) WITH FILLFACTOR = 1
 4909	4909	engine	objects@synonym	indexOptionList/LeftParenthesis_indexOption_(Comma_indexOption)*_RightP~6ace3071	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1)
 4909	4909	engine	objects@synonym	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+4909	4909	engine	objects@synonym	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+4909	4909	engine	objects@synonym	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+4909	4909	engine	objects@synonym	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+4909	4909	engine	objects@synonym	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 4909	4909	engine	objects@synonym	suppressMessagesOption/SUPPRESS_MESSAGES_EqualsSign_(On|Off)	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = ON))
 4909	4909	engine	objects@synonym	suppressMessagesOption(On|Off)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = OFF))
 4909	4909	engine	objects@synonym	indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(MAXDOP = 1)
@@ -2343,6 +2530,10 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 6334	6334	engine	objects@synonym	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/gridsSpatialIndexOption_GRIDS	CREATE SPATIAL INDEX a ON a(a) WITH(GRIDS =(a))
 6334	6334	engine	objects@synonym	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption	CREATE SPATIAL INDEX a ON a(a) WITH(FILLFACTOR = 1)
 6334	6334	engine	objects@synonym	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption!swap	CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+6334	6334	engine	objects@synonym	spatialIndexRegularOption/indexOption+indexOption/maxDopOption_MAXDOP	CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+6334	6334	engine	objects@synonym	spatialIndexRegularOption/indexOption+indexOption/bucketCountOption_BUCKET_COUNT	CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+6334	6334	engine	objects@synonym	spatialIndexRegularOption/indexOption+indexOption/compressionDelayOption_COMPRESSION_DELAY	CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+6334	6334	engine	objects@synonym	spatialIndexRegularOption/indexOption+indexOption/maxDurationOption_MAX_DURATION	CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 6334	6334	engine	objects@synonym	boundingBoxParameter(boundingBoxParameterListByname|bound~a4e579c4)/boundingBoxParameterListByname	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1))
 6334	6334	engine	objects@synonym	boundingBoxParameterListByname(Comma_boundingBoxParameterByName)*/Comma_boundingBoxParameterByName_(Comma_boundingBoxPara~4a0392b5	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1, a = 1))
 6334	6334	engine	objects@synonym	boundingBoxParameterListByord(Comma_boundingBoxParameterByOrd)*/Comma_boundingBoxParameterByOrd_(Comma_boundingBoxParam~f95b6d17	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(1, 1))
@@ -2457,6 +2648,7 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 4909	4909	engine	objects@synonym	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 4909	4909	engine	objects@synonym	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@synonym	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
+4909	4909	engine	objects@synonym	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/NO_ACTION	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
 4909	4909	engine	objects@synonym	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@synonym	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 4909	4909	engine	objects@synonym	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
@@ -2467,10 +2659,14 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 6334	6334	engine	objects@synonym	createSelectiveXmlIndexStatement_SELECTIVE(Comma_promotedSelectiveXmlIndexPath)*/Comma_promotedSelectiveXmlIndexPath_(Comma_promotedSele~89ca84ab	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a', a = 'a')
 6334	6334	engine	objects@synonym	createSelectiveXmlIndexStatement_SELECTIVE(With_indexOptionList)?/With_indexOptionList	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a') WITH(FILLFACTOR = 1)
 6334	6334	engine	objects@synonym	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier	CREATE SPATIAL INDEX a ON a(a) ON 'a'
+6334	6334	engine	objects@synonym	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE SPATIAL INDEX a ON a(a) ON N'a'
+6334	6334	engine	objects@synonym	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringOrIdentifier/identifier	CREATE SPATIAL INDEX a ON a(a) ON a
 2715	2715	engine	objects@synonym	inlineFunctionOption_INLINE(On|Off)/Off	CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@synonym	dropSynonymStatement_SYNONYM(If_Exists)?/If_Exists	DROP SYNONYM IF EXISTS a
 3705	3705	engine	objects@synonym	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQUENCE IF EXISTS a
 4909	4909	engine	objects@synonym	onlineIndexOption_ONLINE(On_(LeftParenthesis_lowPriorityLockW~5a74051d)/Off	ALTER TABLE a REBUILD WITH(ONLINE = OFF)
+3701	3701	engine	objects@synonym	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+3701	3701	engine	objects@synonym	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringOrIdentifier/identifier	DROP INDEX a ON a WITH(FILESTREAM_ON a)
 4909	4909	engine	objects@synonym	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_suppressMessages~8656d08f)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 15151	15151	engine	objects@synonym	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement	ALTER SEQUENCE a RESTART WITH 1
 15151	15151	engine	objects@synonym	sequenceNoOptionListElement_NO(MINVALUE|MAXVALUE|CACHE|CYCLE)/MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
@@ -2479,6 +2675,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@synonym	dropSynonymStatement_SYNO
 4909	4909	engine	objects@synonym	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4909	4909	engine	objects@synonym	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@synonym	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+4909	4909	engine	objects@synonym	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILESTREAM_ON = N'a')
+4909	4909	engine	objects@synonym	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringOrIdentifier/identifier	ALTER TABLE a SET(FILESTREAM_ON = a)
 4909	4909	engine	objects@synonym	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4909	4909	engine	objects@synonym	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	objects@synonym	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
@@ -2589,12 +2787,23 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 8135	8135	engine	objects@procedure	filterExpressionPrimary(Not)?/Not	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NOT DISTINCT FROM NULL
 8135	8135	engine	objects@procedure	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterDistinctPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
 8135	8135	engine	objects@procedure	filterExpression(And_filterExpression)?/And_filterExpression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL IS NULL
+8135	8135	engine	objects@procedure	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+8135	8135	engine	objects@procedure	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
 8135	8135	engine	objects@procedure	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?	ALTER TABLE a ADD INDEX a WHERE a IS NULL
 8135	8135	engine	objects@procedure	filterColumn(Dot_specialColumn)?/Dot_specialColumn	ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+8135	8135	engine	objects@procedure	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+8135	8135	engine	objects@procedure	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+8135	8135	engine	objects@procedure	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/GreaterThan_(EqualsSign)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+8135	8135	engine	objects@procedure	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/LessThan_(EqualsSign|GreaterThan)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+8135	8135	engine	objects@procedure	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 8135	8135	engine	objects@procedure	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1, 1)
 1914	1914	engine	objects@procedure	indexLegacyOption/fillFactorOption	CREATE INDEX a ON a(a) WITH FILLFACTOR = 1
 4909	4909	engine	objects@procedure	indexOptionList/LeftParenthesis_indexOption_(Comma_indexOption)*_RightP~6ace3071	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1)
 4909	4909	engine	objects@procedure	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+4909	4909	engine	objects@procedure	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+4909	4909	engine	objects@procedure	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+4909	4909	engine	objects@procedure	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+4909	4909	engine	objects@procedure	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 4909	4909	engine	objects@procedure	suppressMessagesOption/SUPPRESS_MESSAGES_EqualsSign_(On|Off)	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = ON))
 4909	4909	engine	objects@procedure	suppressMessagesOption(On|Off)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = OFF))
 4909	4909	engine	objects@procedure	indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(MAXDOP = 1)
@@ -2619,6 +2828,10 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 6334	6334	engine	objects@procedure	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/gridsSpatialIndexOption_GRIDS	CREATE SPATIAL INDEX a ON a(a) WITH(GRIDS =(a))
 6334	6334	engine	objects@procedure	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption	CREATE SPATIAL INDEX a ON a(a) WITH(FILLFACTOR = 1)
 6334	6334	engine	objects@procedure	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption!swap	CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+6334	6334	engine	objects@procedure	spatialIndexRegularOption/indexOption+indexOption/maxDopOption_MAXDOP	CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+6334	6334	engine	objects@procedure	spatialIndexRegularOption/indexOption+indexOption/bucketCountOption_BUCKET_COUNT	CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+6334	6334	engine	objects@procedure	spatialIndexRegularOption/indexOption+indexOption/compressionDelayOption_COMPRESSION_DELAY	CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+6334	6334	engine	objects@procedure	spatialIndexRegularOption/indexOption+indexOption/maxDurationOption_MAX_DURATION	CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 6334	6334	engine	objects@procedure	boundingBoxParameter(boundingBoxParameterListByname|bound~a4e579c4)/boundingBoxParameterListByname	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1))
 6334	6334	engine	objects@procedure	boundingBoxParameterListByname(Comma_boundingBoxParameterByName)*/Comma_boundingBoxParameterByName_(Comma_boundingBoxPara~4a0392b5	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1, a = 1))
 6334	6334	engine	objects@procedure	boundingBoxParameterListByord(Comma_boundingBoxParameterByOrd)*/Comma_boundingBoxParameterByOrd_(Comma_boundingBoxParam~f95b6d17	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(1, 1))
@@ -2733,6 +2946,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 4909	4909	engine	objects@procedure	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 4909	4909	engine	objects@procedure	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@procedure	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
+4909	4909	engine	objects@procedure	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/NO_ACTION	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
 4909	4909	engine	objects@procedure	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@procedure	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 4909	4909	engine	objects@procedure	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
@@ -2743,10 +2957,14 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 6334	6334	engine	objects@procedure	createSelectiveXmlIndexStatement_SELECTIVE(Comma_promotedSelectiveXmlIndexPath)*/Comma_promotedSelectiveXmlIndexPath_(Comma_promotedSele~89ca84ab	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a', a = 'a')
 6334	6334	engine	objects@procedure	createSelectiveXmlIndexStatement_SELECTIVE(With_indexOptionList)?/With_indexOptionList	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a') WITH(FILLFACTOR = 1)
 6334	6334	engine	objects@procedure	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier	CREATE SPATIAL INDEX a ON a(a) ON 'a'
+6334	6334	engine	objects@procedure	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE SPATIAL INDEX a ON a(a) ON N'a'
+6334	6334	engine	objects@procedure	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringOrIdentifier/identifier	CREATE SPATIAL INDEX a ON a(a) ON a
 2715	2715	engine	objects@procedure	inlineFunctionOption_INLINE(On|Off)/Off	CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 3705	3705	engine	objects@procedure	dropSynonymStatement_SYNONYM(If_Exists)?/If_Exists	DROP SYNONYM IF EXISTS a
 3705	3705	engine	objects@procedure	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQUENCE IF EXISTS a
 4909	4909	engine	objects@procedure	onlineIndexOption_ONLINE(On_(LeftParenthesis_lowPriorityLockW~5a74051d)/Off	ALTER TABLE a REBUILD WITH(ONLINE = OFF)
+3701	3701	engine	objects@procedure	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+3701	3701	engine	objects@procedure	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringOrIdentifier/identifier	DROP INDEX a ON a WITH(FILESTREAM_ON a)
 4909	4909	engine	objects@procedure	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_suppressMessages~8656d08f)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 15151	15151	engine	objects@procedure	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement	ALTER SEQUENCE a RESTART WITH 1
 15151	15151	engine	objects@procedure	sequenceNoOptionListElement_NO(MINVALUE|MAXVALUE|CACHE|CYCLE)/MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
@@ -2755,6 +2973,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 4909	4909	engine	objects@procedure	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4909	4909	engine	objects@procedure	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@procedure	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+4909	4909	engine	objects@procedure	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILESTREAM_ON = N'a')
+4909	4909	engine	objects@procedure	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringOrIdentifier/identifier	ALTER TABLE a SET(FILESTREAM_ON = a)
 4909	4909	engine	objects@procedure	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4909	4909	engine	objects@procedure	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	objects@procedure	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
@@ -2865,12 +3085,23 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 8135	8135	engine	objects@function	filterExpressionPrimary(Not)?/Not	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NOT DISTINCT FROM NULL
 8135	8135	engine	objects@function	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterDistinctPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
 8135	8135	engine	objects@function	filterExpression(And_filterExpression)?/And_filterExpression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL IS NULL
+8135	8135	engine	objects@function	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+8135	8135	engine	objects@function	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
 8135	8135	engine	objects@function	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?	ALTER TABLE a ADD INDEX a WHERE a IS NULL
 8135	8135	engine	objects@function	filterColumn(Dot_specialColumn)?/Dot_specialColumn	ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+8135	8135	engine	objects@function	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+8135	8135	engine	objects@function	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+8135	8135	engine	objects@function	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/GreaterThan_(EqualsSign)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+8135	8135	engine	objects@function	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/LessThan_(EqualsSign|GreaterThan)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+8135	8135	engine	objects@function	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 8135	8135	engine	objects@function	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1, 1)
 1914	1914	engine	objects@function	indexLegacyOption/fillFactorOption	CREATE INDEX a ON a(a) WITH FILLFACTOR = 1
 4909	4909	engine	objects@function	indexOptionList/LeftParenthesis_indexOption_(Comma_indexOption)*_RightP~6ace3071	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1)
 4909	4909	engine	objects@function	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+4909	4909	engine	objects@function	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+4909	4909	engine	objects@function	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+4909	4909	engine	objects@function	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+4909	4909	engine	objects@function	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 4909	4909	engine	objects@function	suppressMessagesOption/SUPPRESS_MESSAGES_EqualsSign_(On|Off)	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = ON))
 4909	4909	engine	objects@function	suppressMessagesOption(On|Off)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = OFF))
 4909	4909	engine	objects@function	indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(MAXDOP = 1)
@@ -2895,6 +3126,10 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 6334	6334	engine	objects@function	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/gridsSpatialIndexOption_GRIDS	CREATE SPATIAL INDEX a ON a(a) WITH(GRIDS =(a))
 6334	6334	engine	objects@function	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption	CREATE SPATIAL INDEX a ON a(a) WITH(FILLFACTOR = 1)
 6334	6334	engine	objects@function	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption!swap	CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+6334	6334	engine	objects@function	spatialIndexRegularOption/indexOption+indexOption/maxDopOption_MAXDOP	CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+6334	6334	engine	objects@function	spatialIndexRegularOption/indexOption+indexOption/bucketCountOption_BUCKET_COUNT	CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+6334	6334	engine	objects@function	spatialIndexRegularOption/indexOption+indexOption/compressionDelayOption_COMPRESSION_DELAY	CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+6334	6334	engine	objects@function	spatialIndexRegularOption/indexOption+indexOption/maxDurationOption_MAX_DURATION	CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 6334	6334	engine	objects@function	boundingBoxParameter(boundingBoxParameterListByname|bound~a4e579c4)/boundingBoxParameterListByname	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1))
 6334	6334	engine	objects@function	boundingBoxParameterListByname(Comma_boundingBoxParameterByName)*/Comma_boundingBoxParameterByName_(Comma_boundingBoxPara~4a0392b5	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1, a = 1))
 6334	6334	engine	objects@function	boundingBoxParameterListByord(Comma_boundingBoxParameterByOrd)*/Comma_boundingBoxParameterByOrd_(Comma_boundingBoxParam~f95b6d17	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(1, 1))
@@ -3009,6 +3244,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 4909	4909	engine	objects@function	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 4909	4909	engine	objects@function	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@function	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
+4909	4909	engine	objects@function	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/NO_ACTION	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
 4909	4909	engine	objects@function	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@function	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 4909	4909	engine	objects@function	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
@@ -3019,10 +3255,14 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 6334	6334	engine	objects@function	createSelectiveXmlIndexStatement_SELECTIVE(Comma_promotedSelectiveXmlIndexPath)*/Comma_promotedSelectiveXmlIndexPath_(Comma_promotedSele~89ca84ab	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a', a = 'a')
 6334	6334	engine	objects@function	createSelectiveXmlIndexStatement_SELECTIVE(With_indexOptionList)?/With_indexOptionList	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a') WITH(FILLFACTOR = 1)
 6334	6334	engine	objects@function	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier	CREATE SPATIAL INDEX a ON a(a) ON 'a'
+6334	6334	engine	objects@function	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE SPATIAL INDEX a ON a(a) ON N'a'
+6334	6334	engine	objects@function	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringOrIdentifier/identifier	CREATE SPATIAL INDEX a ON a(a) ON a
 2715	2715	engine	objects@function	inlineFunctionOption_INLINE(On|Off)/Off	CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 3705	3705	engine	objects@function	dropSynonymStatement_SYNONYM(If_Exists)?/If_Exists	DROP SYNONYM IF EXISTS a
 3705	3705	engine	objects@function	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQUENCE IF EXISTS a
 4909	4909	engine	objects@function	onlineIndexOption_ONLINE(On_(LeftParenthesis_lowPriorityLockW~5a74051d)/Off	ALTER TABLE a REBUILD WITH(ONLINE = OFF)
+3701	3701	engine	objects@function	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+3701	3701	engine	objects@function	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringOrIdentifier/identifier	DROP INDEX a ON a WITH(FILESTREAM_ON a)
 4909	4909	engine	objects@function	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_suppressMessages~8656d08f)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 15151	15151	engine	objects@function	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement	ALTER SEQUENCE a RESTART WITH 1
 15151	15151	engine	objects@function	sequenceNoOptionListElement_NO(MINVALUE|MAXVALUE|CACHE|CYCLE)/MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
@@ -3031,6 +3271,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 4909	4909	engine	objects@function	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4909	4909	engine	objects@function	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@function	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+4909	4909	engine	objects@function	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILESTREAM_ON = N'a')
+4909	4909	engine	objects@function	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringOrIdentifier/identifier	ALTER TABLE a SET(FILESTREAM_ON = a)
 4909	4909	engine	objects@function	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4909	4909	engine	objects@function	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	objects@function	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
@@ -3141,12 +3383,23 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 8135	8135	engine	objects@trigger	filterExpressionPrimary(Not)?/Not	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NOT DISTINCT FROM NULL
 8135	8135	engine	objects@trigger	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterDistinctPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
 8135	8135	engine	objects@trigger	filterExpression(And_filterExpression)?/And_filterExpression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL IS NULL
+8135	8135	engine	objects@trigger	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+8135	8135	engine	objects@trigger	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
 8135	8135	engine	objects@trigger	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?	ALTER TABLE a ADD INDEX a WHERE a IS NULL
 8135	8135	engine	objects@trigger	filterColumn(Dot_specialColumn)?/Dot_specialColumn	ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+8135	8135	engine	objects@trigger	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+8135	8135	engine	objects@trigger	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+8135	8135	engine	objects@trigger	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/GreaterThan_(EqualsSign)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+8135	8135	engine	objects@trigger	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/LessThan_(EqualsSign|GreaterThan)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+8135	8135	engine	objects@trigger	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 8135	8135	engine	objects@trigger	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1, 1)
 1914	1914	engine	objects@trigger	indexLegacyOption/fillFactorOption	CREATE INDEX a ON a(a) WITH FILLFACTOR = 1
 4909	4909	engine	objects@trigger	indexOptionList/LeftParenthesis_indexOption_(Comma_indexOption)*_RightP~6ace3071	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1)
 4909	4909	engine	objects@trigger	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+4909	4909	engine	objects@trigger	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+4909	4909	engine	objects@trigger	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+4909	4909	engine	objects@trigger	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+4909	4909	engine	objects@trigger	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 4909	4909	engine	objects@trigger	suppressMessagesOption/SUPPRESS_MESSAGES_EqualsSign_(On|Off)	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = ON))
 4909	4909	engine	objects@trigger	suppressMessagesOption(On|Off)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON(SUPPRESS_MESSAGES = OFF))
 4909	4909	engine	objects@trigger	indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(MAXDOP = 1)
@@ -3171,6 +3424,10 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 6334	6334	engine	objects@trigger	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/gridsSpatialIndexOption_GRIDS	CREATE SPATIAL INDEX a ON a(a) WITH(GRIDS =(a))
 6334	6334	engine	objects@trigger	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption	CREATE SPATIAL INDEX a ON a(a) WITH(FILLFACTOR = 1)
 6334	6334	engine	objects@trigger	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption!swap	CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+6334	6334	engine	objects@trigger	spatialIndexRegularOption/indexOption+indexOption/maxDopOption_MAXDOP	CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+6334	6334	engine	objects@trigger	spatialIndexRegularOption/indexOption+indexOption/bucketCountOption_BUCKET_COUNT	CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+6334	6334	engine	objects@trigger	spatialIndexRegularOption/indexOption+indexOption/compressionDelayOption_COMPRESSION_DELAY	CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+6334	6334	engine	objects@trigger	spatialIndexRegularOption/indexOption+indexOption/maxDurationOption_MAX_DURATION	CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 6334	6334	engine	objects@trigger	boundingBoxParameter(boundingBoxParameterListByname|bound~a4e579c4)/boundingBoxParameterListByname	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1))
 6334	6334	engine	objects@trigger	boundingBoxParameterListByname(Comma_boundingBoxParameterByName)*/Comma_boundingBoxParameterByName_(Comma_boundingBoxPara~4a0392b5	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1, a = 1))
 6334	6334	engine	objects@trigger	boundingBoxParameterListByord(Comma_boundingBoxParameterByOrd)*/Comma_boundingBoxParameterByOrd_(Comma_boundingBoxParam~f95b6d17	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(1, 1))
@@ -3285,6 +3542,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 4909	4909	engine	objects@trigger	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 4909	4909	engine	objects@trigger	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@trigger	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
+4909	4909	engine	objects@trigger	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/NO_ACTION	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
 4909	4909	engine	objects@trigger	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@trigger	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 4909	4909	engine	objects@trigger	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
@@ -3295,10 +3553,14 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 6334	6334	engine	objects@trigger	createSelectiveXmlIndexStatement_SELECTIVE(Comma_promotedSelectiveXmlIndexPath)*/Comma_promotedSelectiveXmlIndexPath_(Comma_promotedSele~89ca84ab	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a', a = 'a')
 6334	6334	engine	objects@trigger	createSelectiveXmlIndexStatement_SELECTIVE(With_indexOptionList)?/With_indexOptionList	CREATE SELECTIVE XML INDEX a ON a(a) FOR(a = 'a') WITH(FILLFACTOR = 1)
 6334	6334	engine	objects@trigger	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier	CREATE SPATIAL INDEX a ON a(a) ON 'a'
+6334	6334	engine	objects@trigger	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE SPATIAL INDEX a ON a(a) ON N'a'
+6334	6334	engine	objects@trigger	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringOrIdentifier/identifier	CREATE SPATIAL INDEX a ON a(a) ON a
 2715	2715	engine	objects@trigger	inlineFunctionOption_INLINE(On|Off)/Off	CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 3705	3705	engine	objects@trigger	dropSynonymStatement_SYNONYM(If_Exists)?/If_Exists	DROP SYNONYM IF EXISTS a
 3705	3705	engine	objects@trigger	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQUENCE IF EXISTS a
 4909	4909	engine	objects@trigger	onlineIndexOption_ONLINE(On_(LeftParenthesis_lowPriorityLockW~5a74051d)/Off	ALTER TABLE a REBUILD WITH(ONLINE = OFF)
+3701	3701	engine	objects@trigger	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+3701	3701	engine	objects@trigger	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringOrIdentifier/identifier	DROP INDEX a ON a WITH(FILESTREAM_ON a)
 4909	4909	engine	objects@trigger	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_suppressMessages~8656d08f)/Off	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 15151	15151	engine	objects@trigger	sequenceRestartOptionListElement_RESTART(With_seedIncrement)?/With_seedIncrement	ALTER SEQUENCE a RESTART WITH 1
 15151	15151	engine	objects@trigger	sequenceNoOptionListElement_NO(MINVALUE|MAXVALUE|CACHE|CYCLE)/MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
@@ -3307,6 +3569,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 4909	4909	engine	objects@trigger	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4909	4909	engine	objects@trigger	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@trigger	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+4909	4909	engine	objects@trigger	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILESTREAM_ON = N'a')
+4909	4909	engine	objects@trigger	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringOrIdentifier/identifier	ALTER TABLE a SET(FILESTREAM_ON = a)
 4909	4909	engine	objects@trigger	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4909	4909	engine	objects@trigger	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	objects@trigger	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a

@@ -175,8 +175,12 @@ func (p *Parser) parseOptCheckOption() (int, error) {
 //	opt_reloptions:
 //	    WITH reloptions
 //	    | /* EMPTY */
+//
+// Both callers (ViewStmt, gram.y:11178, and create_mv_target, gram.y:4784) put
+// AS or TABLESPACE after it, so WITH starts nothing else there, and a WITH
+// not followed by '(' is an error at the token after it, as gram.y reports it.
 func (p *Parser) parseOptReloptions() (*nodes.List, error) {
-	if p.cur.Type == WITH && p.peekNext().Type == '(' {
+	if p.cur.Type == WITH {
 		p.advance() // WITH
 		return p.parseReloptions()
 	}

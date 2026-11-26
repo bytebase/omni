@@ -30,8 +30,12 @@ ok:72815fb30f10	ok:72815fb30f10	engine	one_table@column	ws_num_codepoints/(_real
 1054	1054	engine	one_table@column	query_expression_body/query_expression_body_UNION_SYM_union_option_query_expression_body!insert	CREATE VIEW _v AS SELECT utf8mb4 UNION SELECT utf8mb4 zzz
 1054	1054	engine	one_table@column	query_expression_body/query_expression_body_EXCEPT_SYM_union_option_query_expression_body	CREATE VIEW _v AS SELECT utf8mb4 EXCEPT SELECT utf8mb4
 1054	1054	engine	one_table@column	query_expression_body/query_expression_body_EXCEPT_SYM_union_option_query_expression_body!insert	CREATE VIEW _v AS SELECT utf8mb4 EXCEPT SELECT utf8mb4 zzz
+1054	1054	engine	one_table@column	query_expression_body/query_expression_body_EXCEPT_SYM_union_option_query_expression_body+union_option/DISTINCT	CREATE VIEW _v AS SELECT utf8mb4 EXCEPT DISTINCT SELECT utf8mb4
+1054	1054	engine	one_table@column	query_expression_body/query_expression_body_EXCEPT_SYM_union_option_query_expression_body+union_option/ALL	CREATE VIEW _v AS SELECT utf8mb4 EXCEPT ALL SELECT utf8mb4
 1054	1054	engine	one_table@column	query_expression_body/query_expression_body_INTERSECT_SYM_union_option_query_expression_body	CREATE VIEW _v AS SELECT utf8mb4 INTERSECT SELECT utf8mb4
 1054	1054	engine	one_table@column	query_expression_body/query_expression_body_INTERSECT_SYM_union_option_query_expression_body!insert	CREATE VIEW _v AS SELECT utf8mb4 INTERSECT SELECT utf8mb4 zzz
+1054	1054	engine	one_table@column	query_expression_body/query_expression_body_INTERSECT_SYM_union_option_query_expression_body+union_option/DISTINCT	CREATE VIEW _v AS SELECT utf8mb4 INTERSECT DISTINCT SELECT utf8mb4
+1054	1054	engine	one_table@column	query_expression_body/query_expression_body_INTERSECT_SYM_union_option_query_expression_body+union_option/ALL	CREATE VIEW _v AS SELECT utf8mb4 INTERSECT ALL SELECT utf8mb4
 3942	3942	engine	one_table@column	query_primary/table_value_constructor	CREATE VIEW _v AS VALUES ROW()
 ok:de68a052dbb9	ok:de68a052dbb9	engine	one_table@column	query_primary/explicit_table	CREATE VIEW _v AS TABLE utf8mb4
 1054	1054	engine	one_table@column	opt_from_clause/from_clause	CREATE VIEW _v AS SELECT utf8mb4 FROM DUAL
@@ -429,6 +433,7 @@ ok:8fb2f38de1b3	ok:8fb2f38de1b3	engine	one_table@column	sum_expr/BIT_XOR_SYM_(_i
 ok:3b4aa0719230	ok:3b4aa0719230	engine	one_table@column	sum_expr/BIT_XOR_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	CREATE VIEW _v AS SELECT BIT_XOR(utf8mb4) zzz FROM utf8mb4
 ok:ee9c0240f36e	ok:ee9c0240f36e	engine	one_table@column	sum_expr/COUNT_SYM_(_opt_all_*_)_opt_windowing_clause	CREATE VIEW _v AS SELECT COUNT(*) FROM utf8mb4
 ok:f749df5d053a	ok:f749df5d053a	engine	one_table@column	sum_expr/COUNT_SYM_(_opt_all_*_)_opt_windowing_clause!insert	CREATE VIEW _v AS SELECT COUNT(*) zzz FROM utf8mb4
+ok:d6c6b8e4b72a	ok:d6c6b8e4b72a	engine	one_table@column	sum_expr/COUNT_SYM_(_opt_all_*_)_opt_windowing_clause+opt_all	CREATE VIEW _v AS SELECT COUNT(ALL *) FROM utf8mb4
 ok:438a45de95d0	ok:438a45de95d0	engine	one_table@column	sum_expr/COUNT_SYM_(_in_sum_expr_)_opt_windowing_clause	CREATE VIEW _v AS SELECT COUNT(utf8mb4) FROM utf8mb4
 ok:d3b2db3e198b	ok:d3b2db3e198b	engine	one_table@column	sum_expr/COUNT_SYM_(_in_sum_expr_)_opt_windowing_clause!insert	CREATE VIEW _v AS SELECT COUNT(utf8mb4) zzz FROM utf8mb4
 ok:cfbb0135c305	ok:cfbb0135c305	engine	one_table@column	sum_expr/COUNT_SYM_(_DISTINCT_expr_list_)_opt_windowing_clause	CREATE VIEW _v AS SELECT COUNT(DISTINCT utf8mb4) FROM utf8mb4
@@ -469,12 +474,20 @@ ok:3e365d33e083	ok:3e365d33e083	engine	one_table@column	sum_expr/GROUP_CONCAT_SY
 3579	3579	engine	one_table@column	window_func_call/LEAD_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause!insert	CREATE VIEW _v AS SELECT LEAD(utf8mb4) OVER utf8mb4 zzz FROM utf8mb4
 3579	3579	engine	one_table@column	window_func_call/LAG_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause	CREATE VIEW _v AS SELECT LAG(utf8mb4) OVER utf8mb4 FROM utf8mb4
 3579	3579	engine	one_table@column	window_func_call/LAG_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause!insert	CREATE VIEW _v AS SELECT LAG(utf8mb4) OVER utf8mb4 zzz FROM utf8mb4
+3579	3579	engine	one_table@column	window_func_call/LAG_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause+opt_null_treatment/RESPECT_SYM_NULLS_SYM	CREATE VIEW _v AS SELECT LAG(utf8mb4) RESPECT NULLS OVER utf8mb4 FROM utf8mb4
+3579	3579	engine	one_table@column	window_func_call/LAG_SYM_(_expr_opt_lead_lag_info_)_opt_null_treatment_windowing_clause+opt_null_treatment/IGNORE_SYM_NULLS_SYM	CREATE VIEW _v AS SELECT LAG(utf8mb4) IGNORE NULLS OVER utf8mb4 FROM utf8mb4
 3579	3579	engine	one_table@column	window_func_call/FIRST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause	CREATE VIEW _v AS SELECT FIRST_VALUE(utf8mb4) OVER utf8mb4 FROM utf8mb4
 3579	3579	engine	one_table@column	window_func_call/FIRST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause!insert	CREATE VIEW _v AS SELECT FIRST_VALUE(utf8mb4) OVER utf8mb4 zzz FROM utf8mb4
+3579	3579	engine	one_table@column	window_func_call/FIRST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause+opt_null_treatment/RESPECT_SYM_NULLS_SYM	CREATE VIEW _v AS SELECT FIRST_VALUE(utf8mb4) RESPECT NULLS OVER utf8mb4 FROM utf8mb4
+3579	3579	engine	one_table@column	window_func_call/FIRST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause+opt_null_treatment/IGNORE_SYM_NULLS_SYM	CREATE VIEW _v AS SELECT FIRST_VALUE(utf8mb4) IGNORE NULLS OVER utf8mb4 FROM utf8mb4
 3579	3579	engine	one_table@column	window_func_call/LAST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause	CREATE VIEW _v AS SELECT LAST_VALUE(utf8mb4) OVER utf8mb4 FROM utf8mb4
 3579	3579	engine	one_table@column	window_func_call/LAST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause!insert	CREATE VIEW _v AS SELECT LAST_VALUE(utf8mb4) OVER utf8mb4 zzz FROM utf8mb4
+3579	3579	engine	one_table@column	window_func_call/LAST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause+opt_null_treatment/RESPECT_SYM_NULLS_SYM	CREATE VIEW _v AS SELECT LAST_VALUE(utf8mb4) RESPECT NULLS OVER utf8mb4 FROM utf8mb4
+3579	3579	engine	one_table@column	window_func_call/LAST_VALUE_SYM_(_expr_)_opt_null_treatment_windowing_clause+opt_null_treatment/IGNORE_SYM_NULLS_SYM	CREATE VIEW _v AS SELECT LAST_VALUE(utf8mb4) IGNORE NULLS OVER utf8mb4 FROM utf8mb4
 3579	3579	engine	one_table@column	window_func_call/NTH_VALUE_SYM_(_expr_,_simple_expr_)_opt_from_first_last_opt_null_treatment_windowing_clause	CREATE VIEW _v AS SELECT NTH_VALUE(utf8mb4, utf8mb4) OVER utf8mb4 FROM utf8mb4
 3579	3579	engine	one_table@column	window_func_call/NTH_VALUE_SYM_(_expr_,_simple_expr_)_opt_from_first_last_opt_null_treatment_windowing_clause!insert	CREATE VIEW _v AS SELECT NTH_VALUE(utf8mb4, utf8mb4) OVER utf8mb4 zzz FROM utf8mb4
+3579	3579	engine	one_table@column	window_func_call/NTH_VALUE_SYM_(_expr_,_simple_expr_)_opt_from_first_last_opt_null_treatment_windowing_clause+opt_null_treatment/RESPECT_SYM_NULLS_SYM	CREATE VIEW _v AS SELECT NTH_VALUE(utf8mb4, utf8mb4) RESPECT NULLS OVER utf8mb4 FROM utf8mb4
+3579	3579	engine	one_table@column	window_func_call/NTH_VALUE_SYM_(_expr_,_simple_expr_)_opt_from_first_last_opt_null_treatment_windowing_clause+opt_null_treatment/IGNORE_SYM_NULLS_SYM	CREATE VIEW _v AS SELECT NTH_VALUE(utf8mb4, utf8mb4) IGNORE NULLS OVER utf8mb4 FROM utf8mb4
 3579	3579	engine	one_table@column	opt_lead_lag_info/,_stable_integer_opt_ll_default	CREATE VIEW _v AS SELECT LEAD(utf8mb4, 1) OVER utf8mb4 FROM utf8mb4
 1064	1064	engine	one_table@column	stable_integer/param_or_var	CREATE VIEW _v AS SELECT NTILE(?) OVER utf8mb4 FROM utf8mb4
 1327	1327	engine	one_table@column	param_or_var/ident	CREATE VIEW _v AS SELECT NTILE(utf8mb4) OVER utf8mb4 FROM utf8mb4

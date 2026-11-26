@@ -1203,6 +1203,11 @@ var (
 		kwENGINE: true, kwWAIT: true, kwNO_WAIT: true, kwENCRYPTION: true, kwENGINE_ATTRIBUTE: true}
 	tsUndoOptions = map[int]bool{kwENGINE: true}
 	tsDropOptions = map[int]bool{kwENGINE: true, kwWAIT: true, kwNO_WAIT: true}
+	// Ref: logfile_group_option and alter_logfile_group_option in MySQL 8.0
+	// sql/sql_yacc.yy; DROP LOGFILE GROUP takes drop_ts_option.
+	lgCreateOptions = map[int]bool{kwINITIAL_SIZE: true, kwUNDO_BUFFER_SIZE: true, kwREDO_BUFFER_SIZE: true,
+		kwNODEGROUP: true, kwENGINE: true, kwWAIT: true, kwNO_WAIT: true, kwCOMMENT: true}
+	lgAlterOptions = map[int]bool{kwINITIAL_SIZE: true, kwENGINE: true, kwWAIT: true, kwNO_WAIT: true}
 )
 
 // parseTablespaceOptions reads a tablespace option list: options from
@@ -1211,6 +1216,11 @@ var (
 func (p *Parser) parseTablespaceOptions(allowed map[int]bool, required bool) ([]tsOption, error) {
 	var opts []tsOption
 	for {
+		// ts_option_engine: opt_storage ENGINE_SYM opt_equal ident_or_text
+		// (sql_yacc.yy:6122), so STORAGE may come before ENGINE.
+		if p.cur.Type == kwSTORAGE && allowed[kwENGINE] && p.peekNext().Type == kwENGINE {
+			p.advance() // consume STORAGE
+		}
 		if !allowed[p.cur.Type] {
 			if len(opts) > 0 && p.prev.Type == ',' || len(opts) == 0 && required {
 				return nil, p.syntaxErrorAtCur()
@@ -1250,7 +1260,8 @@ func (p *Parser) parseTablespaceOption() (tsOption, error) {
 	p.matchEqual()
 	var err error
 	switch opt.kw {
-	case kwINITIAL_SIZE, kwAUTOEXTEND_SIZE, kwMAX_SIZE, kwEXTENT_SIZE, kwFILE_BLOCK_SIZE:
+	case kwINITIAL_SIZE, kwAUTOEXTEND_SIZE, kwMAX_SIZE, kwEXTENT_SIZE, kwFILE_BLOCK_SIZE,
+		kwUNDO_BUFFER_SIZE, kwREDO_BUFFER_SIZE:
 		opt.val, err = p.consumeSizeOptionValue()
 	case kwNODEGROUP:
 		opt.val, err = p.consumeIntegerOptionValue()
@@ -2605,70 +2616,30 @@ func (p *Parser) parseCreateLogfileGroupStmt(start int) (*nodes.CreateLogfileGro
 	}
 	stmt.UndoFile = p.advance().Str
 
-	// Parse optional clauses
-	for p.cur.Type != tokEOF && p.cur.Type != ';' {
-		switch {
-		case p.cur.Type == kwINITIAL_SIZE:
-			p.advance()
-			p.matchEqual()
-			size, err := p.consumeSizeOptionValue()
-			if err != nil {
-				return nil, err
-			}
-			stmt.InitialSize = size
-		case p.cur.Type == kwUNDO_BUFFER_SIZE:
-			p.advance()
-			p.matchEqual()
-			size, err := p.consumeSizeOptionValue()
-			if err != nil {
-				return nil, err
-			}
-			stmt.UndoBufferSize = size
-		case p.cur.Type == kwREDO_BUFFER_SIZE:
-			p.advance()
-			p.matchEqual()
-			size, err := p.consumeSizeOptionValue()
-			if err != nil {
-				return nil, err
-			}
-			stmt.RedoBufferSize = size
-		case p.cur.Type == kwNODEGROUP:
-			p.advance()
-			p.matchEqual()
-			group, err := p.consumeIntegerOptionValue()
-			if err != nil {
-				return nil, err
-			}
-			stmt.NodeGroup = group
-		case p.cur.Type == kwWAIT:
-			p.advance()
+	opts, err := p.parseTablespaceOptions(lgCreateOptions, false)
+	if err != nil {
+		return nil, err
+	}
+	for _, o := range opts {
+		switch o.kw {
+		case kwINITIAL_SIZE:
+			stmt.InitialSize = o.val
+		case kwUNDO_BUFFER_SIZE:
+			stmt.UndoBufferSize = o.val
+		case kwREDO_BUFFER_SIZE:
+			stmt.RedoBufferSize = o.val
+		case kwNODEGROUP:
+			stmt.NodeGroup = o.val
+		case kwWAIT:
 			stmt.Wait = true
-		case p.cur.Type == kwNO_WAIT:
-			// ts_option_wait: WAIT_SYM | NO_WAIT_SYM (sql_yacc.yy:6136).
-			p.advance()
+		case kwNO_WAIT:
 			stmt.Wait = false
-		case p.cur.Type == kwCOMMENT:
-			p.advance()
-			p.matchEqual()
-			// The comment is a quoted string and is required (1064 without it).
-			if p.cur.Type != tokSCONST {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.Comment = p.cur.Str
-			p.advance()
-		case p.cur.Type == kwENGINE:
-			p.advance()
-			p.matchEqual()
-			ename, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Engine = ename
-		default:
-			goto createLGDone
+		case kwCOMMENT:
+			stmt.Comment = o.val
+		case kwENGINE:
+			stmt.Engine = o.val
 		}
 	}
-createLGDone:
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
@@ -2713,37 +2684,22 @@ func (p *Parser) parseAlterLogfileGroupStmt(start int) (*nodes.AlterLogfileGroup
 	}
 	stmt.UndoFile = p.advance().Str
 
-	// Parse optional clauses
-	for p.cur.Type != tokEOF && p.cur.Type != ';' {
-		switch {
-		case p.cur.Type == kwINITIAL_SIZE:
-			p.advance()
-			p.matchEqual()
-			size, err := p.consumeSizeOptionValue()
-			if err != nil {
-				return nil, err
-			}
-			stmt.InitialSize = size
-		case p.cur.Type == kwWAIT:
-			p.advance()
+	opts, err := p.parseTablespaceOptions(lgAlterOptions, false)
+	if err != nil {
+		return nil, err
+	}
+	for _, o := range opts {
+		switch o.kw {
+		case kwINITIAL_SIZE:
+			stmt.InitialSize = o.val
+		case kwWAIT:
 			stmt.Wait = true
-		case p.cur.Type == kwNO_WAIT:
-			// ts_option_wait: WAIT_SYM | NO_WAIT_SYM (sql_yacc.yy:6136).
-			p.advance()
+		case kwNO_WAIT:
 			stmt.Wait = false
-		case p.cur.Type == kwENGINE:
-			p.advance()
-			p.matchEqual()
-			ename, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Engine = ename
-		default:
-			goto alterLGDone
+		case kwENGINE:
+			stmt.Engine = o.val
 		}
 	}
-alterLGDone:
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
@@ -2770,15 +2726,15 @@ func (p *Parser) parseDropLogfileGroupStmt(start int) (*nodes.DropLogfileGroupSt
 		Name: name,
 	}
 
-	// ENGINE [=] engine_name
-	if p.cur.Type == kwENGINE {
-		p.advance()
-		p.matchEqual()
-		ename, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
+	// opt_drop_ts_options: ENGINE, WAIT and NO_WAIT (sql_yacc.yy:12987).
+	opts, err := p.parseTablespaceOptions(tsDropOptions, false)
+	if err != nil {
+		return nil, err
+	}
+	for _, o := range opts {
+		if o.kw == kwENGINE {
+			stmt.Engine = o.val
 		}
-		stmt.Engine = ename
 	}
 
 	stmt.Loc.End = p.prev.End

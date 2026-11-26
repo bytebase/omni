@@ -54,11 +54,13 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	case kwINDEX:
 		kind = ast.AlterIndex
 	case kwSEARCH:
-		if p.peekNext().Type != kwINDEX {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance() // SEARCH (the shared p.advance() consumes INDEX)
-		kind = ast.AlterSearchIndex
+		// The Spanner DDL reference documents ALTER SEARCH INDEX … {ADD|DROP}
+		// STORED COLUMN
+		// (https://cloud.google.com/spanner/docs/reference/standard-sql/data-definition-language#alter_search_index),
+		// but the pinned emulator has no ALTER SEARCH INDEX at all ("Encountered
+		// 'SEARCH' while parsing: alter_statement"); the alter_index_action and
+		// suite:bq-ddl rows of testdata/compat.tsv hold its answers.
+		return nil, p.syntaxErrorAtCur()
 	case kwSCHEMA:
 		kind = ast.AlterSchema
 	case kwDATABASE:
@@ -118,32 +120,13 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	stmt.Name = name
 
 	// alter_action_list: alter_action (, alter_action)* — requires at least one.
-	// ALTER SEARCH INDEX is the exception: Spanner DDL-049 restricts it to a
-	// SINGLE {ADD|DROP} STORED COLUMN action, NOT the generic table action list.
 	for {
-		if kind == ast.AlterSearchIndex && p.cur.Type != kwADD && p.cur.Type != kwDROP {
-			// Only ADD/DROP STORED COLUMN is valid for a search index; reject
-			// RENAME/SET/ALTER/… at the offending keyword.
-			return nil, p.syntaxErrorAtCur()
-		}
-		var action *ast.AlterAction
-		var err error
-		action, err = p.parseAlterAction()
+		action, err := p.parseAlterAction()
 		if err != nil {
 			return nil, err
 		}
-		if kind == ast.AlterSearchIndex &&
-			action.Kind != ast.AlterAddStoredColumn && action.Kind != ast.AlterDropStoredColumn {
-			// ADD/DROP that is not STORED COLUMN (ADD COLUMN, ADD CONSTRAINT,
-			// ADD ROW DELETION POLICY, …) is not a valid SEARCH INDEX action.
-			return nil, p.syntaxErrorAtCur()
-		}
 		stmt.Actions = append(stmt.Actions, action)
 		if _, ok := p.match(int(',')); ok {
-			if kind == ast.AlterSearchIndex {
-				// DDL-049 allows a single action, not a comma-separated list.
-				return nil, p.syntaxErrorAtCur()
-			}
 			continue
 		}
 		break

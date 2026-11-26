@@ -59,7 +59,6 @@ const (
 	lossIgnored       = "sync: IGNORED, which sync reports as visible"
 	lossView          = "sync: a view's ALGORITHM and SQL SECURITY"
 	lossVector        = "sync: a vector key's M and DISTANCE"
-	gapCompressed     = "omni: the parser does not read a column's COMPRESSED attribute"
 	lossHashBefore118 = "sync: USING HASH on an InnoDB key, which information_schema reports as BTREE before 11.8"
 	gapInetCast1011   = "omni: the plan converts a column between INET6 and INET4 in place, which 10.11 refuses (4078) and 11.4 does"
 	gapQuoting        = "omni: SHOW CREATE VIEW backquotes a stored function's name, which the catalog does not yet tell from a builtin's"
@@ -92,7 +91,6 @@ var syncLosses = map[string]string{
 	"MariaDB index forms/new/table ix":                                                                                                                   lossIgnored,
 	"MariaDB views/new/view v1":                                                                                                                          lossView,
 	"MariaDB vector index/new/table emb":                                                                                                                 lossVector,
-	"MariaDB compressed columns/new/table cc":                                                                                                            gapCompressed,
 	"MariaDB dependent views and functions/old/view dv1":                                                                                                 gapQuoting,
 	"MariaDB dependent views and functions/new/view dv1":                                                                                                 gapQuoting,
 }

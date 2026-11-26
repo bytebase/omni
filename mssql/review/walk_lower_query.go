@@ -394,8 +394,13 @@ func (q *binder) column(c *ast.ColumnRef, sc *qscope) {
 			}
 		}
 	}
-	if strings.EqualFold(c.Column, "$IDENTITY") && !q.b.isDelimitedAt(c.Loc) && q.identity(c, sc) {
-		return
+	if !q.b.isDelimitedAt(c.Loc) {
+		switch {
+		case strings.EqualFold(c.Column, "$IDENTITY") && q.pseudoColumn(c, sc, func(st *snapTable) bool { return len(st.identity) == 0 }):
+			return
+		case strings.EqualFold(c.Column, "$ROWGUID") && q.pseudoColumn(c, sc, func(st *snapTable) bool { return st.noRowguid }):
+			return
+		}
 	}
 	cn, ok := keyed(c.Column)
 	if !ok {
@@ -721,6 +726,8 @@ func (b *builder) undeclared(body ast.Node, params []string) bool {
 			ref(v.Name, v.Loc, false)
 		case *ast.TableVarRef:
 			ref(v.Name, v.Loc, true)
+		case *ast.TableVarMethodCallRef:
+			ref(v.Var, v.Loc, false)
 		case *ast.SelectAssign:
 			ref(v.Variable, v.Loc, false)
 		case *ast.SetStmt:
@@ -1720,10 +1727,12 @@ func msgArgs(fn string, n int) string {
 	return "Function " + review.Code(fn) + " takes " + count(n, "argument") + "."
 }
 
-// identity checks $IDENTITY in a block with a source, and reports whether
-// it did: it fails when every source, and every source of the blocks
-// around it, is a synced table with no identity column (207).
-func (q *binder) identity(c *ast.ColumnRef, sc *qscope) bool {
+// pseudoColumn checks $IDENTITY or $ROWGUID in a block with a source, and
+// reports whether it did: it fails when every source, and every source of
+// the blocks around it, is a synced table that lacks the column the name
+// means (207), as lacks says: an identity column, or one that can be the
+// ROWGUIDCOL column.
+func (q *binder) pseudoColumn(c *ast.ColumnRef, sc *qscope, lacks func(*snapTable) bool) bool {
 	written := ""
 	for s := sc; s != nil; s = s.outer {
 		if s.opaque {
@@ -1733,7 +1742,7 @@ func (q *binder) identity(c *ast.ColumnRef, sc *qscope) bool {
 			if src.local || src.path == "" {
 				return true
 			}
-			if st := q.b.pathTable(src.path); st == nil || len(st.identity) > 0 {
+			if st := q.b.pathTable(src.path); st == nil || !lacks(st) {
 				return true
 			}
 			if written == "" {
@@ -1744,6 +1753,6 @@ func (q *binder) identity(c *ast.ColumnRef, sc *qscope) bool {
 	if written == "" {
 		return false
 	}
-	q.b.fail(rangeOf(c.Loc), review.ObjectNotFound, msgMissingIn("column", "$IDENTITY", written))
+	q.b.fail(rangeOf(c.Loc), review.ObjectNotFound, msgMissingIn("column", strings.ToUpper(c.Column), written))
 	return true
 }

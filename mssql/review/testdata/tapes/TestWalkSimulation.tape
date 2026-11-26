@@ -2538,6 +2538,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -2549,6 +2569,56 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
 > exec
@@ -2589,6 +2659,46 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -2710,6 +2820,26 @@
 < ok 0 -
 > exec
 | DELETE a OUTPUT 1 'a'
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 N'a'
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -3012,6 +3142,36 @@
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a = DEFAULT
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = DEFAULT
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY = DEFAULT
+< error
+| 208 1 16 1 Invalid object name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -3338,6 +3498,46 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 < error
 | 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -4528,6 +4728,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -4649,6 +4859,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -4719,6 +4949,26 @@
 | ALTER TABLE a REBUILD WITH(ONLINE = OFF)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+< error
+| 3701 6 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+< error
+| 3701 6 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -4797,6 +5047,26 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -7402,6 +7672,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -7413,6 +7703,56 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
 > exec
@@ -7453,6 +7793,46 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -7574,6 +7954,26 @@
 < ok 0 -
 > exec
 | DELETE a OUTPUT 1 'a'
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 N'a'
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -7876,6 +8276,36 @@
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a = DEFAULT
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = DEFAULT
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY = DEFAULT
+< error
+| 208 1 16 1 Invalid object name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -8201,6 +8631,46 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 < error
 | 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -9381,6 +9851,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -9502,6 +9982,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
@@ -9580,6 +10080,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+< error
+| 3701 6 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+< error
+| 3701 6 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -9651,6 +10171,26 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -12198,6 +12738,30 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -12211,6 +12775,66 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
 | 207 1 16 1 Invalid column name 'identitycol'.
@@ -12254,6 +12878,42 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -12364,6 +13024,24 @@
 < ok 0 -
 > exec
 | DELETE a OUTPUT 1 'a'
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 N'a'
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 a
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -12661,6 +13339,36 @@
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a = DEFAULT
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = DEFAULT
+< error
+| 207 1 16 1 Invalid column name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY = DEFAULT
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -12989,6 +13697,46 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 < error
 | 1911 103 16 1 Column name 'a' does not exist in the target table or view.
 > exec
@@ -14216,6 +14964,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+< error
+| 13930 0 16 1 Edge constraint cannot be created on table 'a'.  The table is not an edge table.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 < error
 | 13930 0 16 1 Edge constraint cannot be created on table 'a'.  The table is not an edge table.
@@ -14338,6 +15097,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
@@ -14407,6 +15186,26 @@
 > exec
 | ALTER TABLE a REBUILD WITH(ONLINE = OFF)
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -14485,6 +15284,26 @@
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -17087,6 +17906,30 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -17100,6 +17943,66 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
 | 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
@@ -17142,6 +18045,42 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -17252,6 +18191,24 @@
 < ok 0 -
 > exec
 | DELETE a OUTPUT 1 'a'
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 N'a'
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 a
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -17545,6 +18502,35 @@
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a = DEFAULT
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = DEFAULT
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY = DEFAULT
+< error
+| 8102 1 16 1 Cannot update identity column 'b'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -17873,6 +18859,46 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 < error
 | 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
 > exec
@@ -19087,6 +20113,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+< error
+| 13930 0 16 1 Edge constraint cannot be created on table 'a'.  The table is not an edge table.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 < error
 | 13930 0 16 1 Edge constraint cannot be created on table 'a'.  The table is not an edge table.
@@ -19207,6 +20244,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
@@ -19277,6 +20334,26 @@
 > exec
 | ALTER TABLE a REBUILD WITH(ONLINE = OFF)
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -19355,6 +20432,26 @@
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -21948,6 +23045,30 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -21961,6 +23082,66 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
 | 207 1 16 1 Invalid column name 'identitycol'.
@@ -22004,6 +23185,42 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -22114,6 +23331,24 @@
 < ok 0 -
 > exec
 | DELETE a OUTPUT 1 'a'
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 N'a'
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 a
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -22412,6 +23647,35 @@
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a = DEFAULT
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = DEFAULT
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY = DEFAULT
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -22740,6 +24004,46 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 < error
 | 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
 > exec
@@ -23964,6 +25268,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+< error
+| 13930 0 16 1 Edge constraint cannot be created on table 'a'.  The table is not an edge table.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 < error
 | 13930 0 16 1 Edge constraint cannot be created on table 'a'.  The table is not an edge table.
@@ -24084,6 +25399,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -24152,6 +25487,26 @@
 > exec
 | ALTER TABLE a REBUILD WITH(ONLINE = OFF)
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+< error
+| 1716 2 16 1 FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns. Remove the FILESTREAM_ON clause from the statement, or add a FILESTREAM column to the table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+< error
+| 1716 2 16 1 FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns. Remove the FILESTREAM_ON clause from the statement, or add a FILESTREAM column to the table.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -24230,6 +25585,26 @@
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -26819,6 +28194,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -26830,6 +28225,56 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
 > exec
@@ -26870,6 +28315,46 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -26987,6 +28472,24 @@
 < ok 0 -
 > exec
 | DELETE a OUTPUT 1 'a'
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 N'a'
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 a
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -27285,6 +28788,35 @@
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a = DEFAULT
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = DEFAULT
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY = DEFAULT
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -27613,6 +29145,46 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 < error
 | 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
 > exec
@@ -28812,6 +30384,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -28933,6 +30515,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -29012,6 +30614,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -29083,6 +30705,26 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -31675,6 +33317,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -31686,6 +33348,56 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
 > exec
@@ -31726,6 +33438,46 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -31847,6 +33599,26 @@
 < ok 0 -
 > exec
 | DELETE a OUTPUT 1 'a'
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 N'a'
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 a
 < error
 | 208 3 16 1 Invalid object name 'a'.
 > exec
@@ -32149,6 +33921,36 @@
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a = DEFAULT
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = DEFAULT
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY = DEFAULT
+< error
+| 208 3 16 1 Invalid object name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -32472,6 +34274,46 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 < error
 | 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
 > exec
@@ -33671,6 +35513,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -33791,6 +35643,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -33869,6 +35741,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -33936,6 +35828,26 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -36528,6 +38440,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -36539,6 +38471,56 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
 > exec
@@ -36579,6 +38561,46 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -36700,6 +38722,26 @@
 < ok 0 -
 > exec
 | DELETE a OUTPUT 1 'a'
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 N'a'
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 a
 < error
 | 208 3 16 1 Invalid object name 'a'.
 > exec
@@ -37002,6 +39044,36 @@
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a = DEFAULT
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = DEFAULT
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY = DEFAULT
+< error
+| 208 3 16 1 Invalid object name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -37330,6 +39402,46 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 < error
 | 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
 > exec
@@ -38529,6 +40641,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -38650,6 +40772,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -38729,6 +40871,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -38800,6 +40962,26 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -41410,6 +43592,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -41421,6 +43623,56 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
 > exec
@@ -41461,6 +43713,46 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -41582,6 +43874,26 @@
 < ok 0 -
 > exec
 | DELETE a OUTPUT 1 'a'
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 N'a'
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 a
 < error
 | 208 3 16 1 Invalid object name 'a'.
 > exec
@@ -41884,6 +44196,36 @@
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a = DEFAULT
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = DEFAULT
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY = DEFAULT
+< error
+| 208 3 16 1 Invalid object name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -42212,6 +44554,46 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 < error
 | 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
 > exec
@@ -43411,6 +45793,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -43532,6 +45924,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
@@ -43612,6 +46024,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -43683,6 +46115,26 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -46275,6 +48727,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -46286,6 +48758,56 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
 > exec
@@ -46326,6 +48848,46 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -46443,6 +49005,24 @@
 < ok 0 -
 > exec
 | DELETE a OUTPUT 1 'a'
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 N'a'
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 a
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -46741,6 +49321,35 @@
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a = DEFAULT
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = DEFAULT
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY = DEFAULT
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -47069,6 +49678,46 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 < error
 | 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
 > exec
@@ -48268,6 +50917,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -48389,6 +51048,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -48467,6 +51146,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -48538,6 +51237,26 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -51117,6 +53836,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -51128,6 +53867,56 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
 > exec
@@ -51168,6 +53957,46 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -51289,6 +54118,26 @@
 < ok 0 -
 > exec
 | DELETE a OUTPUT 1 'a'
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 N'a'
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -51591,6 +54440,36 @@
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a = DEFAULT
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = DEFAULT
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY = DEFAULT
+< error
+| 208 1 16 1 Invalid object name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -51917,6 +54796,46 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 < error
 | 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -53107,6 +56026,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -53228,6 +56157,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -53298,6 +56247,26 @@
 | ALTER TABLE a REBUILD WITH(ONLINE = OFF)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+< error
+| 3701 6 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+< error
+| 3701 6 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -53376,6 +56345,26 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -55876,6 +58865,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -55887,6 +58896,56 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
 > exec
@@ -55927,6 +58986,46 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -56048,6 +59147,26 @@
 < ok 0 -
 > exec
 | DELETE a OUTPUT 1 'a'
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 N'a'
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -56350,6 +59469,36 @@
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a = DEFAULT
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = DEFAULT
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY = DEFAULT
+< error
+| 208 1 16 1 Invalid object name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -56676,6 +59825,46 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 < error
 | 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -57866,6 +61055,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -57987,6 +61186,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -58057,6 +61276,26 @@
 | ALTER TABLE a REBUILD WITH(ONLINE = OFF)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+< error
+| 3701 6 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+< error
+| 3701 6 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -58135,6 +61374,26 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -60696,6 +63955,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -60707,6 +63986,56 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
 > exec
@@ -60747,6 +64076,46 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -60868,6 +64237,26 @@
 < ok 0 -
 > exec
 | DELETE a OUTPUT 1 'a'
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 N'a'
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 a
 < error
 | 208 3 16 1 Invalid object name 'a'.
 > exec
@@ -61170,6 +64559,36 @@
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a = DEFAULT
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = DEFAULT
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY = DEFAULT
+< error
+| 208 3 16 1 Invalid object name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -61498,6 +64917,46 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 < error
 | 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
 > exec
@@ -62697,6 +66156,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -62818,6 +66287,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -62897,6 +66386,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -62968,6 +66477,26 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -65547,6 +69076,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -65558,6 +69107,56 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
 > exec
@@ -65598,6 +69197,46 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -65719,6 +69358,26 @@
 < ok 0 -
 > exec
 | DELETE a OUTPUT 1 'a'
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 N'a'
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 a
 < error
 | 208 3 16 1 Invalid object name 'a'.
 > exec
@@ -66021,6 +69680,36 @@
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a = DEFAULT
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = DEFAULT
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY = DEFAULT
+< error
+| 208 3 16 1 Invalid object name 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -66349,6 +70038,46 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 < error
 | 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
 > exec
@@ -67548,6 +71277,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -67669,6 +71408,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -67748,6 +71507,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = OFF)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -67819,6 +71598,26 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -70376,6 +74175,30 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -70389,6 +74212,66 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
 | 207 1 16 1 Invalid column name 'identitycol'.
@@ -70432,6 +74315,42 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -70542,6 +74461,24 @@
 < ok 0 -
 > exec
 | DELETE a OUTPUT 1 'a'
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 N'a'
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 a
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -70841,6 +74778,35 @@
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a = DEFAULT
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = DEFAULT
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY = DEFAULT
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -71169,6 +75135,46 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 < error
 | 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
 > exec
@@ -72400,6 +76406,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+< error
+| 13930 0 16 1 Edge constraint cannot be created on table 'a'.  The table is not an edge table.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 < error
 | 13930 0 16 1 Edge constraint cannot be created on table 'a'.  The table is not an edge table.
@@ -72520,6 +76537,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -72588,6 +76625,26 @@
 > exec
 | ALTER TABLE a REBUILD WITH(ONLINE = OFF)
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -72666,6 +76723,26 @@
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -75222,6 +79299,30 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -75235,6 +79336,66 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
 | 207 1 16 1 Invalid column name 'identitycol'.
@@ -75278,6 +79439,42 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -75388,6 +79585,24 @@
 < ok 0 -
 > exec
 | DELETE a OUTPUT 1 'a'
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 N'a'
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE a OUTPUT 1 a
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -75687,6 +79902,35 @@
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = a = DEFAULT
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET a = DEFAULT
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET $IDENTITY = DEFAULT
+< error
+| 207 1 16 1 Invalid column name '$IDENTITY'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -76015,6 +80259,45 @@
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
 < error
 | 12005 3 16 1 Incorrect parameters were passed to the CREATE SPATIAL INDEX statement near 'FILTERING'. Validate the statement against the index-creation syntax.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+< error
+| 12005 3 16 1 Incorrect parameters were passed to the CREATE SPATIAL INDEX statement near 'BUCKET_COUNT'. Validate the statement against the index-creation syntax.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+< error
+| 12005 3 16 1 Incorrect parameters were passed to the CREATE SPATIAL INDEX statement near 'COMPRESSION_DELAY'. Validate the statement against the index-creation syntax.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
+< error
+| 12005 3 16 1 Incorrect parameters were passed to the CREATE SPATIAL INDEX statement near 'MAX_DURATION'. Validate the statement against the index-creation syntax.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -77244,6 +81527,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+< error
+| 13930 0 16 1 Edge constraint cannot be created on table 'a'.  The table is not an edge table.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 < error
 | 13930 0 16 1 Edge constraint cannot be created on table 'a'.  The table is not an edge table.
@@ -77366,6 +81660,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+< error
+| 1921 9 16 1 Invalid filegroup 'a' specified.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+< error
+| 1921 9 16 1 Invalid filegroup 'a' specified.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
@@ -77434,6 +81748,26 @@
 > exec
 | ALTER TABLE a REBUILD WITH(ONLINE = OFF)
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -77512,6 +81846,26 @@
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -

@@ -186,20 +186,30 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, orReplace bool) (*nodes.C
 	return stmt, nil
 }
 
-// parseIndexLockWait reads the [WAIT n | NOWAIT] of CREATE INDEX and DROP INDEX: at most
-// one of the two, right after the key parts or the table, and before any option. 11.8.8
-// answers 1064 for `(a) COMMENT 'c' WAIT 3`, for `WAIT 3 NOWAIT` and for WAIT before ON.
-// n is the literal isLockWaitLiteral reads for a locking clause: it takes WAIT 1.5, WAIT
-// 1e3 and WAIT 0x10, and answers 1064 for WAIT '3', WAIT -1, WAIT X'10' and WAIT (5).
+// parseIndexLockWait reads opt_lock_wait_timeout, [WAIT n | NOWAIT]: at most one of the
+// two, after the key parts or the table of CREATE INDEX and DROP INDEX and before any
+// option, and after the table of ALTER, DROP, OPTIMIZE, RENAME, TRUNCATE and LOCK TABLE.
+// 11.8.8 answers 1064 for `(a) COMMENT 'c' WAIT 3`, for `WAIT 3 NOWAIT` and for WAIT
+// before ON. n is the literal isLockWaitLiteral reads for a locking clause: it takes WAIT
+// 1.5, WAIT 1e3 and WAIT 0x10, and answers 1064 for WAIT '3', WAIT -1, WAIT X'10' and
+// WAIT (5).
 //
-// Ref: opt_lock_wait_timeout_new in MariaDB 11.8 sql/sql_yacc.yy.
+// In a stored program either one is 1314: the action sets the statement's
+// lock_wait_timeout through set_statement_var_if_exists, which refuses "[NO]WAIT" where
+// lex->sphead is set.
+//
+// Ref: opt_lock_wait_timeout in MariaDB 11.8 sql/sql_yacc.yy:17605.
 func (p *Parser) parseIndexLockWait() (noWait, hasWait bool, seconds string, err error) {
+	if p.cur.Type != kwNOWAIT && p.cur.Type != kwWAIT {
+		return false, false, "", nil
+	}
+	if err := p.refuseInProgram("[NO]WAIT", p.cur.Loc); err != nil {
+		return false, false, "", err
+	}
 	if _, ok := p.match(kwNOWAIT); ok {
 		return true, false, "", nil
 	}
-	if _, ok := p.match(kwWAIT); !ok {
-		return false, false, "", nil
-	}
+	p.advance() // consume WAIT
 	if !isLockWaitLiteral(p.cur) {
 		return false, false, "", p.syntaxErrorAtCur()
 	}

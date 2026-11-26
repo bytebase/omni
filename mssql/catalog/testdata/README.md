@@ -25,7 +25,7 @@ normalized DDL objects stored in the database afterwards. `TestSimulation`
 no server. The design is
 `docs/specs/2026-11-11-engine-compatibility-without-servers-design.md` §3.
 
-**3,192 / 3,192 rows (100.00%) agree** (266 statements × 12 fixtures).
+**3,576 / 3,576 rows (100.00%) agree** (298 statements × 12 fixtures).
 
 ## Collations
 
@@ -85,7 +85,7 @@ hashes the stored schema, view definition included. `TestQuerySimulation`
 (`../simulate_query_test.go`) replays it from
 `tapes/TestQuerySimulation.tape`. It has two parts:
 
-- 346 rows on `one_table@column`: every SELECT, WITH, or parenthesized query
+- 384 rows on `one_table@column`: every SELECT, WITH, or parenthesized query
   the parser's `compat.tsv` judges accepted, by its grammar rule.
 - 364 rows on `queries@tables`, labelled `feature:<feature>`: T-SQL query
   features the grammar's rows reach only with the one name `a` — select
@@ -96,13 +96,16 @@ hashes the stored schema, view definition included. `TestQuerySimulation`
   table, type, partition function and database DDL that names a collation).
   Some are refused on purpose.
 
-**712 / 719 rows (99.03%) agree** (349 / 353 grammar rows, 363 / 366
-feature rows; 262 rows SQL Server accepts). The 7 that do not need
-something a synced schema does not hold:
+**745 / 750 rows (99.33%) agree** (382 / 384 grammar rows, 363 / 366
+feature rows; 265 rows SQL Server accepts). The 5 that do not:
 
-- `SELECT $PARTITION.a(1)` and its three variants (Msg 208): Bytebase's
-  metadata has no partition functions, so a catalog loaded from it could not
-  tell a missing one from a synced one, and `$PARTITION` is not checked.
+- `SELECT a.$PARTITION.a(1)` (Msg 208): Bytebase's metadata has no
+  partition functions, so a catalog loaded from it could not tell a missing
+  one from a synced one, and `$PARTITION` is not checked.
+- `WITH CHANGE_TRACKING_CONTEXT(@a) SELECT *` (Msg 137): SQL Server's parser
+  declares variables before it checks where `CHANGE_TRACKING_CONTEXT` stands,
+  and a view declares none; omni's parser refuses the clause in a view's
+  query (Msg 22108) without knowing which variables a batch declares.
 - `SELECT b FROM nope.dbo.a` (Msg 208): a catalog holds one database, so
   another database's objects are not checked.
 - `SELECT name FROM sys.nope` (Msg 208): the system views are the server's,

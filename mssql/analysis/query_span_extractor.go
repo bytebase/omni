@@ -1284,9 +1284,17 @@ func (q *querySpanExtractor) extractTableSource(node ast.Node) ([]tableSource, e
 	case *ast.TableVarMethodCallRef:
 		return []tableSource{&pseudoTable{Name: v.Alias, Columns: xmlNodesColumns(v.Columns)}}, nil
 	case *ast.PivotExpr:
-		return nil, unsupportedTableSourceError(node)
+		ts, err := q.resolvePivot(v)
+		if err != nil {
+			return nil, err
+		}
+		return []tableSource{ts}, nil
 	case *ast.UnpivotExpr:
-		return nil, unsupportedTableSourceError(node)
+		ts, err := q.resolveUnpivot(v)
+		if err != nil {
+			return nil, err
+		}
+		return []tableSource{ts}, nil
 	case *ast.FuncCallExpr:
 		ts, err := q.resolveTableValuedFunction(v, "", nil)
 		if err != nil {
@@ -1296,6 +1304,118 @@ func (q *querySpanExtractor) extractTableSource(node ast.Node) ([]tableSource, e
 	default:
 		return nil, unsupportedTableSourceError(node)
 	}
+}
+
+// resolvePivot traces PIVOT. SQL Server groups the rows by every source
+// column the operator does not name, and those columns pass through. Each IN
+// column holds the aggregate of the value columns over the rows whose FOR
+// column holds its name, as SUM(CASE WHEN status = 'new' THEN amount END)
+// would, so it reads the value columns and the FOR column.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/from-using-pivot-and-unpivot
+func (q *querySpanExtractor) resolvePivot(p *ast.PivotExpr) (tableSource, error) {
+	fn, ok := p.AggFunc.(*ast.FuncCallExpr)
+	if !ok {
+		return nil, unsupportedNodeError("a PIVOT aggregate must be a function call", p.AggFunc)
+	}
+	var refs []*ast.ColumnRef
+	if fn.Args != nil {
+		for _, it := range fn.Args.Items {
+			ref, ok := it.(*ast.ColumnRef)
+			if !ok {
+				return nil, unsupportedNodeError("a PIVOT aggregate argument must be a column", it)
+			}
+			refs = append(refs, ref)
+		}
+	}
+	if p.ForCol != nil {
+		refs = append(refs, p.ForCol)
+	}
+	input, read, err := q.pivotInput(p.Source, refs)
+	if err != nil {
+		return nil, err
+	}
+	cols := q.pivotGroupingColumns(input, refs)
+	if p.InValues != nil {
+		for _, it := range p.InValues.Items {
+			ref, ok := it.(*ast.ColumnRef)
+			if !ok {
+				return nil, unsupportedNodeError("a PIVOT IN item must be a column name", it)
+			}
+			sources, _ := mergeColumnSet(make(ColumnSet), read)
+			cols = append(cols, QuerySpanResult{Name: ref.Column, SourceColumns: sources})
+		}
+	}
+	return &pseudoTable{Name: p.Alias, Columns: cols}, nil
+}
+
+// resolveUnpivot traces UNPIVOT. The source columns the IN list does not
+// name pass through, then come the value column and the FOR column, in that
+// order. The value column holds the IN columns' values, and the
+// FOR column their names, which the query spells, so it reads no column.
+// UNPIVOT drops a row whose value is NULL, so the IN columns also decide
+// which rows return.
+func (q *querySpanExtractor) resolveUnpivot(u *ast.UnpivotExpr) (tableSource, error) {
+	var refs []*ast.ColumnRef
+	if u.InCols != nil {
+		for _, it := range u.InCols.Items {
+			ref, ok := it.(*ast.ColumnRef)
+			if !ok {
+				return nil, unsupportedNodeError("an UNPIVOT IN item must be a column", it)
+			}
+			refs = append(refs, ref)
+		}
+	}
+	input, read, err := q.pivotInput(u.Source, refs)
+	if err != nil {
+		return nil, err
+	}
+	q.predicateColumns, _ = mergeColumnSet(q.predicateColumns, read)
+	cols := q.pivotGroupingColumns(input, refs)
+	if u.ValueCol != nil {
+		cols = append(cols, QuerySpanResult{Name: u.ValueCol.Column, SourceColumns: read})
+	}
+	if u.ForCol != nil {
+		cols = append(cols, QuerySpanResult{Name: u.ForCol.Column, SourceColumns: make(ColumnSet)})
+	}
+	return &pseudoTable{Name: u.Alias, Columns: cols}, nil
+}
+
+// pivotInput resolves the relation PIVOT or UNPIVOT reads and the columns
+// refs name in it, which bind to that relation alone. It returns the
+// relation's columns and the sources of the named ones.
+func (q *querySpanExtractor) pivotInput(source ast.TableExpr, refs []*ast.ColumnRef) ([]QuerySpanResult, ColumnSet, error) {
+	sources, err := q.extractTableSource(source)
+	if err != nil {
+		return nil, nil, err
+	}
+	var input []QuerySpanResult
+	for _, ts := range sources {
+		input = append(input, ts.GetQuerySpanResult()...)
+	}
+	from, outer := q.tableSourcesFrom, q.outerTableSources
+	q.tableSourcesFrom, q.outerTableSources = sources, nil
+	defer func() { q.tableSourcesFrom, q.outerTableSources = from, outer }()
+	read := make(ColumnSet)
+	for _, ref := range refs {
+		r, err := q.tsqlIsFieldSensitive(ref.Database, ref.Schema, ref.Table, ref.Column)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to resolve column %q: %w", ref.Column, err)
+		}
+		read, _ = mergeColumnSet(read, r.SourceColumns)
+	}
+	return input, read, nil
+}
+
+// pivotGroupingColumns returns the columns of input that no ref names.
+func (q *querySpanExtractor) pivotGroupingColumns(input []QuerySpanResult, refs []*ast.ColumnRef) []QuerySpanResult {
+	var cols []QuerySpanResult
+	for _, c := range input {
+		if !slices.ContainsFunc(refs, func(ref *ast.ColumnRef) bool { return q.isIdentifierEqual(ref.Column, c.Name) }) {
+			cols = append(cols, c)
+		}
+	}
+	return cols
 }
 
 func unsupportedTableSourceError(node ast.Node) error {

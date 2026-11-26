@@ -1,0 +1,782 @@
+# pin: span gcp:bigquery:bytebase-dev:US sha256:fef5b54092b50edbb5d7c363182e0cd578a2147d527595e968a26f5131429231 2026-11-26
+# columns: omni, expected, source, fixture, session, aspect, statement
+CustomerId, Name	CustomerId, Name	engine	shop	omni_span	results	SELECT CustomerId, Name FROM Customers
+omni_span.Customers.CustomerId | omni_span.Customers.Name	~ | ~	engine	shop	omni_span	lineage	SELECT CustomerId, Name FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT CustomerId, Name FROM Customers
+id, Email	id, Email	engine	shop	omni_span	results	SELECT c.CustomerId AS id, c.Email FROM Customers AS c
+omni_span.Customers.CustomerId | omni_span.Customers.Email	~ | ~	engine	shop	omni_span	lineage	SELECT c.CustomerId AS id, c.Email FROM Customers AS c
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT c.CustomerId AS id, c.Email FROM Customers AS c
+CustomerId	CustomerId	engine	shop	omni_span	results	SELECT c.CustomerId FROM Customers c
+omni_span.Customers.CustomerId	~	engine	shop	omni_span	lineage	SELECT c.CustomerId FROM Customers c
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT c.CustomerId FROM Customers c
+f0_, f1_	f0_, f1_	engine	shop	omni_span	results	SELECT Amount * 2, UPPER(Status) FROM Orders
+omni_span.Orders.Amount | omni_span.Orders.Status	~ | ~	engine	shop	omni_span	lineage	SELECT Amount * 2, UPPER(Status) FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT Amount * 2, UPPER(Status) FROM Orders
+a, f0_	a, f0_	engine	shop	omni_span	results	SELECT CAST(Amount AS STRING) AS a, SAFE_CAST(Status AS INT64) FROM Orders
+omni_span.Orders.Amount | omni_span.Orders.Status	~ | ~	engine	shop	omni_span	lineage	SELECT CAST(Amount AS STRING) AS a, SAFE_CAST(Status AS INT64) FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT CAST(Amount AS STRING) AS a, SAFE_CAST(Status AS INT64) FROM Orders
+f0_, b	f0_, b	engine	shop	omni_span	results	SELECT 1, 'a' AS b
+- | -	~ | ~	engine	shop	omni_span	lineage	SELECT 1, 'a' AS b
+-	-	engine	shop	omni_span	tables	SELECT 1, 'a' AS b
+f0_	f0_	engine	shop	omni_span	results	SELECT COUNT(*) FROM Orders
+-	~	engine	shop	omni_span	lineage	SELECT COUNT(*) FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT COUNT(*) FROM Orders
+Region	Region	engine	shop	omni_span	results	SELECT DISTINCT Region FROM Customers
+omni_span.Customers.Region	~	engine	shop	omni_span	lineage	SELECT DISTINCT Region FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT DISTINCT Region FROM Customers
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM Customers ORDER BY Region LIMIT 5
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM Customers ORDER BY Region LIMIT 5
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name FROM Customers ORDER BY Region LIMIT 5
+OrderId	OrderId	engine	shop	omni_span	results	SELECT OrderId FROM Orders LIMIT 2 OFFSET 1
+omni_span.Orders.OrderId	~	engine	shop	omni_span	lineage	SELECT OrderId FROM Orders LIMIT 2 OFFSET 1
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT OrderId FROM Orders LIMIT 2 OFFSET 1
+contact	contact	engine	shop	omni_span	results	SELECT CONCAT(Name, Email) AS contact FROM Customers
+omni_span.Customers.Email omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT CONCAT(Name, Email) AS contact FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT CONCAT(Name, Email) AS contact FROM Customers
+s	s	engine	shop	omni_span	results	SELECT IF(Amount > 10, Status, NULL) AS s FROM Orders
+omni_span.Orders.Amount omni_span.Orders.Status	~	engine	shop	omni_span	lineage	SELECT IF(Amount > 10, Status, NULL) AS s FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT IF(Amount > 10, Status, NULL) AS s FROM Orders
+f0_	f0_	engine	shop	omni_span	results	SELECT CASE WHEN Amount > 10 THEN 'big' ELSE Status END FROM Orders
+omni_span.Orders.Amount omni_span.Orders.Status	~	engine	shop	omni_span	lineage	SELECT CASE WHEN Amount > 10 THEN 'big' ELSE Status END FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT CASE WHEN Amount > 10 THEN 'big' ELSE Status END FROM Orders
+f0_	f0_	engine	shop	omni_span	results	SELECT COALESCE(Email, Name) FROM Customers
+omni_span.Customers.Email omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT COALESCE(Email, Name) FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT COALESCE(Email, Name) FROM Customers
+Name, Email	Name, Email	engine	shop	omni_span	results	SELECT (Name), ((c.Email)) FROM Customers c
+omni_span.Customers.Name | omni_span.Customers.Email	~ | ~	engine	shop	omni_span	lineage	SELECT (Name), ((c.Email)) FROM Customers c
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT (Name), ((c.Email)) FROM Customers c
+x, x_1	x, x_1	engine	shop	omni_span	results	SELECT Name AS x, Email AS x FROM Customers
+omni_span.Customers.Name | omni_span.Customers.Email	~ | ~	engine	shop	omni_span	lineage	SELECT Name AS x, Email AS x FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name AS x, Email AS x FROM Customers
+Name, Name_1	Name, Name_1	engine	shop	omni_span	results	SELECT Name, Name FROM Customers
+omni_span.Customers.Name | omni_span.Customers.Name	~ | ~	engine	shop	omni_span	lineage	SELECT Name, Name FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name, Name FROM Customers
+f0_, f1_	f0_, f1_	engine	shop	omni_span	results	SELECT 1 AS f0_, 2
+- | -	~ | ~	engine	shop	omni_span	lineage	SELECT 1 AS f0_, 2
+-	-	engine	shop	omni_span	tables	SELECT 1 AS f0_, 2
+k, Amount	k, Amount	engine	shop	omni_span	results	SELECT CustomerId + OrderId AS k, Amount FROM Orders WHERE Status = 'open'
+omni_span.Orders.CustomerId omni_span.Orders.OrderId | omni_span.Orders.Amount	~ | ~	engine	shop	omni_span	lineage	SELECT CustomerId + OrderId AS k, Amount FROM Orders WHERE Status = 'open'
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT CustomerId + OrderId AS k, Amount FROM Orders WHERE Status = 'open'
+y, f0_	y, f0_	engine	shop	omni_span	results	SELECT EXTRACT(YEAR FROM Placed) AS y, FORMAT_DATE('%Y', Placed) FROM Orders
+omni_span.Orders.Placed | omni_span.Orders.Placed	~ | ~	engine	shop	omni_span	lineage	SELECT EXTRACT(YEAR FROM Placed) AS y, FORMAT_DATE('%Y', Placed) FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT EXTRACT(YEAR FROM Placed) AS y, FORMAT_DATE('%Y', Placed) FROM Orders
+today, Name	today, Name	engine	shop	omni_span	results	SELECT CURRENT_DATE() AS today, Name FROM Customers
+- | omni_span.Customers.Name	~ | ~	engine	shop	omni_span	lineage	SELECT CURRENT_DATE() AS today, Name FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT CURRENT_DATE() AS today, Name FROM Customers
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM omni_span.Customers
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM omni_span.Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name FROM omni_span.Customers
+Name	Name	engine	shop	omni_span	results	SELECT c.Name FROM omni_span.Customers AS c
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT c.Name FROM omni_span.Customers AS c
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT c.Name FROM omni_span.Customers AS c
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM `omni_span.Customers`
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM `omni_span.Customers`
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name FROM `omni_span.Customers`
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM `omni_span`.`Customers`
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM `omni_span`.`Customers`
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name FROM `omni_span`.`Customers`
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM `bytebase-dev.omni_span.Customers`
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM `bytebase-dev.omni_span.Customers`
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name FROM `bytebase-dev.omni_span.Customers`
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM `bytebase-dev`.omni_span.Customers
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM `bytebase-dev`.omni_span.Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name FROM `bytebase-dev`.omni_span.Customers
+Name	Name	engine	shop	omni_span	results	SELECT Customers.Name FROM Customers
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Customers.Name FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Customers.Name FROM Customers
+Name	error:invalidQuery	engine	shop	omni_span	results	SELECT omni_span.Customers.Name FROM omni_span.Customers
+omni_span.Customers.Name	error:invalidQuery	engine	shop	omni_span	lineage	SELECT omni_span.Customers.Name FROM omni_span.Customers
+omni_span.Customers	error:invalidQuery	engine	shop	omni_span	tables	SELECT omni_span.Customers.Name FROM omni_span.Customers
+Name, Amount	Name, Amount	engine	shop	omni_span	results	SELECT c.Name, o.Amount FROM omni_span.Customers c JOIN Orders o USING (CustomerId)
+omni_span.Customers.Name | omni_span.Orders.Amount	~ | ~	engine	shop	omni_span	lineage	SELECT c.Name, o.Amount FROM omni_span.Customers c JOIN Orders o USING (CustomerId)
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT c.Name, o.Amount FROM omni_span.Customers c JOIN Orders o USING (CustomerId)
+CustomerId, OrderId, Amount, Status, Items, Ship, Placed	CustomerId, OrderId, Amount, Status, Items, Ship, Placed	engine	shop	omni_span	results	SELECT * FROM Orders
+omni_span.Orders.CustomerId | omni_span.Orders.OrderId | omni_span.Orders.Amount | omni_span.Orders.Status | omni_span.Orders.Items | omni_span.Orders.Ship | omni_span.Orders.Placed	~ | ~ | ~ | ~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT * FROM Orders
+CustomerId, OrderId, Amount, Status, Items, Ship, Placed	CustomerId, OrderId, Amount, Status, Items, Ship, Placed	engine	shop	omni_span	results	SELECT o.* FROM Orders o
+omni_span.Orders.CustomerId | omni_span.Orders.OrderId | omni_span.Orders.Amount | omni_span.Orders.Status | omni_span.Orders.Items | omni_span.Orders.Ship | omni_span.Orders.Placed	~ | ~ | ~ | ~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT o.* FROM Orders o
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT o.* FROM Orders o
+CustomerId, OrderId, Amount, Status, Items, Ship, Placed, Amount_1	CustomerId, OrderId, Amount, Status, Items, Ship, Placed, Amount_1	engine	shop	omni_span	results	SELECT *, Amount FROM Orders
+omni_span.Orders.CustomerId | omni_span.Orders.OrderId | omni_span.Orders.Amount | omni_span.Orders.Status | omni_span.Orders.Items | omni_span.Orders.Ship | omni_span.Orders.Placed | omni_span.Orders.Amount	~ | ~ | ~ | ~ | ~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT *, Amount FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT *, Amount FROM Orders
+CustomerId, Name, Email, Region, Amount	CustomerId, Name, Email, Region, Amount	engine	shop	omni_span	results	SELECT c.*, o.Amount FROM Customers c JOIN Orders o ON o.CustomerId = c.CustomerId
+omni_span.Customers.CustomerId | omni_span.Customers.Name | omni_span.Customers.Email | omni_span.Customers.Region | omni_span.Orders.Amount	~ | ~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT c.*, o.Amount FROM Customers c JOIN Orders o ON o.CustomerId = c.CustomerId
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT c.*, o.Amount FROM Customers c JOIN Orders o ON o.CustomerId = c.CustomerId
+CustomerId, Name, Email, Region	CustomerId, Name, Email, Region	engine	shop	omni_span	results	SELECT * FROM (SELECT * FROM Customers) c
+omni_span.Customers.CustomerId | omni_span.Customers.Name | omni_span.Customers.Email | omni_span.Customers.Region	~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM (SELECT * FROM Customers) c
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT * FROM (SELECT * FROM Customers) c
+CustomerId, Name, Region	CustomerId, Name, Region	engine	shop	omni_span	results	SELECT * EXCEPT (Email) FROM Customers
+omni_span.Customers.CustomerId | omni_span.Customers.Name | omni_span.Customers.Region	~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * EXCEPT (Email) FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT * EXCEPT (Email) FROM Customers
+CustomerId, Name, Email, Region	CustomerId, Name, Email, Region	engine	shop	omni_span	results	SELECT * REPLACE (UPPER(Name) AS Name) FROM Customers
+omni_span.Customers.CustomerId | omni_span.Customers.Name | omni_span.Customers.Email | omni_span.Customers.Region	~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * REPLACE (UPPER(Name) AS Name) FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT * REPLACE (UPPER(Name) AS Name) FROM Customers
+CustomerId, Name, Email, OrderId	CustomerId, Name, Email, OrderId	engine	shop	omni_span	results	SELECT c.* EXCEPT (Region), o.OrderId FROM Customers c JOIN Orders o USING (CustomerId)
+omni_span.Customers.CustomerId | omni_span.Customers.Name | omni_span.Customers.Email | omni_span.Orders.OrderId	~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT c.* EXCEPT (Region), o.OrderId FROM Customers c JOIN Orders o USING (CustomerId)
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT c.* EXCEPT (Region), o.OrderId FROM Customers c JOIN Orders o USING (CustomerId)
+Email	Email	engine	shop	omni_span	results	SELECT * EXCEPT (Name) FROM (SELECT (Name), Email FROM Customers)
+omni_span.Customers.Email	~	engine	shop	omni_span	lineage	SELECT * EXCEPT (Name) FROM (SELECT (Name), Email FROM Customers)
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT * EXCEPT (Name) FROM (SELECT (Name), Email FROM Customers)
+CustomerId, OrderId, Amount, Status, Placed	CustomerId, OrderId, Amount, Status, Placed	engine	shop	omni_span	results	SELECT * EXCEPT (Items, Ship) REPLACE (Amount * 2 AS Amount) FROM Orders
+omni_span.Orders.CustomerId | omni_span.Orders.OrderId | omni_span.Orders.Amount | omni_span.Orders.Status | omni_span.Orders.Placed	~ | ~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * EXCEPT (Items, Ship) REPLACE (Amount * 2 AS Amount) FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT * EXCEPT (Items, Ship) REPLACE (Amount * 2 AS Amount) FROM Orders
+CustomerId, Name, Email, Region, Region_1, Goal	CustomerId, Name, Email, Region, Region_1, Goal	engine	shop	omni_span	results	SELECT * FROM Customers, Targets
+omni_span.Customers.CustomerId | omni_span.Customers.Name | omni_span.Customers.Email | omni_span.Customers.Region | omni_span.Targets.Region | omni_span.Targets.Goal	~ | ~ | ~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM Customers, Targets
+omni_span.Customers, omni_span.Targets	omni_span.Customers, omni_span.Targets	engine	shop	omni_span	tables	SELECT * FROM Customers, Targets
+Region, CustomerId, Name, Email, Goal	Region, CustomerId, Name, Email, Goal	engine	shop	omni_span	results	SELECT * FROM Customers c JOIN Targets t USING (Region)
+omni_span.Customers.Region omni_span.Targets.Region | omni_span.Customers.CustomerId | omni_span.Customers.Name | omni_span.Customers.Email | omni_span.Targets.Goal	~ | ~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM Customers c JOIN Targets t USING (Region)
+omni_span.Customers, omni_span.Targets	omni_span.Customers, omni_span.Targets	engine	shop	omni_span	tables	SELECT * FROM Customers c JOIN Targets t USING (Region)
+Name, Email	Name, Email	engine	shop	omni_span	results	SELECT t.* FROM (SELECT Name, Email FROM Customers) t
+omni_span.Customers.Name | omni_span.Customers.Email	~ | ~	engine	shop	omni_span	lineage	SELECT t.* FROM (SELECT Name, Email FROM Customers) t
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT t.* FROM (SELECT Name, Email FROM Customers) t
+Name, Amount	Name, Amount	engine	shop	omni_span	results	SELECT c.Name, o.Amount FROM Customers c JOIN Orders o ON c.CustomerId = o.CustomerId
+omni_span.Customers.Name | omni_span.Orders.Amount	~ | ~	engine	shop	omni_span	lineage	SELECT c.Name, o.Amount FROM Customers c JOIN Orders o ON c.CustomerId = o.CustomerId
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT c.Name, o.Amount FROM Customers c JOIN Orders o ON c.CustomerId = o.CustomerId
+Name, Amount	Name, Amount	engine	shop	omni_span	results	SELECT c.Name, o.Amount FROM Customers c INNER JOIN Orders o ON c.CustomerId = o.CustomerId
+omni_span.Customers.Name | omni_span.Orders.Amount	~ | ~	engine	shop	omni_span	lineage	SELECT c.Name, o.Amount FROM Customers c INNER JOIN Orders o ON c.CustomerId = o.CustomerId
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT c.Name, o.Amount FROM Customers c INNER JOIN Orders o ON c.CustomerId = o.CustomerId
+Name, Amount	Name, Amount	engine	shop	omni_span	results	SELECT c.Name, o.Amount FROM Customers c LEFT JOIN Orders o ON c.CustomerId = o.CustomerId
+omni_span.Customers.Name | omni_span.Orders.Amount	~ | ~	engine	shop	omni_span	lineage	SELECT c.Name, o.Amount FROM Customers c LEFT JOIN Orders o ON c.CustomerId = o.CustomerId
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT c.Name, o.Amount FROM Customers c LEFT JOIN Orders o ON c.CustomerId = o.CustomerId
+Name, Amount	Name, Amount	engine	shop	omni_span	results	SELECT c.Name, o.Amount FROM Customers c LEFT OUTER JOIN Orders o ON c.CustomerId = o.CustomerId
+omni_span.Customers.Name | omni_span.Orders.Amount	~ | ~	engine	shop	omni_span	lineage	SELECT c.Name, o.Amount FROM Customers c LEFT OUTER JOIN Orders o ON c.CustomerId = o.CustomerId
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT c.Name, o.Amount FROM Customers c LEFT OUTER JOIN Orders o ON c.CustomerId = o.CustomerId
+Name, Amount	Name, Amount	engine	shop	omni_span	results	SELECT c.Name, o.Amount FROM Customers c RIGHT JOIN Orders o ON c.CustomerId = o.CustomerId
+omni_span.Customers.Name | omni_span.Orders.Amount	~ | ~	engine	shop	omni_span	lineage	SELECT c.Name, o.Amount FROM Customers c RIGHT JOIN Orders o ON c.CustomerId = o.CustomerId
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT c.Name, o.Amount FROM Customers c RIGHT JOIN Orders o ON c.CustomerId = o.CustomerId
+Name, Amount	Name, Amount	engine	shop	omni_span	results	SELECT c.Name, o.Amount FROM Customers c FULL JOIN Orders o ON c.CustomerId = o.CustomerId
+omni_span.Customers.Name | omni_span.Orders.Amount	~ | ~	engine	shop	omni_span	lineage	SELECT c.Name, o.Amount FROM Customers c FULL JOIN Orders o ON c.CustomerId = o.CustomerId
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT c.Name, o.Amount FROM Customers c FULL JOIN Orders o ON c.CustomerId = o.CustomerId
+Name, Name_1	Name, Name_1	engine	shop	omni_span	results	SELECT c.Name, p.Name FROM Customers c CROSS JOIN Products p
+omni_span.Customers.Name | omni_span.Products.Name	~ | ~	engine	shop	omni_span	lineage	SELECT c.Name, p.Name FROM Customers c CROSS JOIN Products p
+omni_span.Customers, omni_span.Products	omni_span.Customers, omni_span.Products	engine	shop	omni_span	tables	SELECT c.Name, p.Name FROM Customers c CROSS JOIN Products p
+Name, Name_1	Name, Name_1	engine	shop	omni_span	results	SELECT c.Name, p.Name FROM Customers c, Products p
+omni_span.Customers.Name | omni_span.Products.Name	~ | ~	engine	shop	omni_span	lineage	SELECT c.Name, p.Name FROM Customers c, Products p
+omni_span.Customers, omni_span.Products	omni_span.Customers, omni_span.Products	engine	shop	omni_span	tables	SELECT c.Name, p.Name FROM Customers c, Products p
+CustomerId, Name, Amount	CustomerId, Name, Amount	engine	shop	omni_span	results	SELECT CustomerId, Name, Amount FROM Customers JOIN Orders USING (CustomerId)
+omni_span.Customers.CustomerId omni_span.Orders.CustomerId | omni_span.Customers.Name | omni_span.Orders.Amount	~ | ~ | ~	engine	shop	omni_span	lineage	SELECT CustomerId, Name, Amount FROM Customers JOIN Orders USING (CustomerId)
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT CustomerId, Name, Amount FROM Customers JOIN Orders USING (CustomerId)
+CustomerId, Name, Email, Region, OrderId, Amount, Status, Items, Ship, Placed	CustomerId, Name, Email, Region, OrderId, Amount, Status, Items, Ship, Placed	engine	shop	omni_span	results	SELECT * FROM Customers JOIN Orders USING (CustomerId)
+omni_span.Customers.CustomerId omni_span.Orders.CustomerId | omni_span.Customers.Name | omni_span.Customers.Email | omni_span.Customers.Region | omni_span.Orders.OrderId | omni_span.Orders.Amount | omni_span.Orders.Status | omni_span.Orders.Items | omni_span.Orders.Ship | omni_span.Orders.Placed	~ | ~ | ~ | ~ | ~ | ~ | ~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM Customers JOIN Orders USING (CustomerId)
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT * FROM Customers JOIN Orders USING (CustomerId)
+CustomerId, OrderId, Amount, Status, Items, Ship, Placed, LineId, ProductId, Qty	CustomerId, OrderId, Amount, Status, Items, Ship, Placed, LineId, ProductId, Qty	engine	shop	omni_span	results	SELECT * FROM Orders JOIN LineItems USING (CustomerId, OrderId)
+omni_span.LineItems.CustomerId omni_span.Orders.CustomerId | omni_span.LineItems.OrderId omni_span.Orders.OrderId | omni_span.Orders.Amount | omni_span.Orders.Status | omni_span.Orders.Items | omni_span.Orders.Ship | omni_span.Orders.Placed | omni_span.LineItems.LineId | omni_span.LineItems.ProductId | omni_span.LineItems.Qty	~ | ~ | ~ | ~ | ~ | ~ | ~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM Orders JOIN LineItems USING (CustomerId, OrderId)
+omni_span.LineItems, omni_span.Orders	omni_span.LineItems, omni_span.Orders	engine	shop	omni_span	tables	SELECT * FROM Orders JOIN LineItems USING (CustomerId, OrderId)
+CustomerId	CustomerId	engine	shop	omni_span	results	SELECT CustomerId FROM Customers FULL JOIN Orders USING (CustomerId)
+omni_span.Customers.CustomerId omni_span.Orders.CustomerId	~	engine	shop	omni_span	lineage	SELECT CustomerId FROM Customers FULL JOIN Orders USING (CustomerId)
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT CustomerId FROM Customers FULL JOIN Orders USING (CustomerId)
+Name, manager	Name, manager	engine	shop	omni_span	results	SELECT e.Name, m.Name AS manager FROM Employees e LEFT JOIN Employees m ON e.ManagerId = m.EmpId
+omni_span.Employees.Name | omni_span.Employees.Name	~ | ~	engine	shop	omni_span	lineage	SELECT e.Name, m.Name AS manager FROM Employees e LEFT JOIN Employees m ON e.ManagerId = m.EmpId
+omni_span.Employees	omni_span.Employees	engine	shop	omni_span	tables	SELECT e.Name, m.Name AS manager FROM Employees e LEFT JOIN Employees m ON e.ManagerId = m.EmpId
+Qty, Price, Region	Qty, Price, Region	engine	shop	omni_span	results	SELECT l.Qty, p.Price, c.Region FROM LineItems l JOIN Products p ON l.ProductId = p.ProductId JOIN Customers c ON c.CustomerId = l.CustomerId
+omni_span.LineItems.Qty | omni_span.Products.Price | omni_span.Customers.Region	~ | ~ | ~	engine	shop	omni_span	lineage	SELECT l.Qty, p.Price, c.Region FROM LineItems l JOIN Products p ON l.ProductId = p.ProductId JOIN Customers c ON c.CustomerId = l.CustomerId
+omni_span.Customers, omni_span.LineItems, omni_span.Products	omni_span.Customers, omni_span.LineItems, omni_span.Products	engine	shop	omni_span	tables	SELECT l.Qty, p.Price, c.Region FROM LineItems l JOIN Products p ON l.ProductId = p.ProductId JOIN Customers c ON c.CustomerId = l.CustomerId
+OrderId	OrderId	engine	shop	omni_span	results	SELECT o.OrderId FROM Orders o JOIN LineItems l ON o.OrderId = l.OrderId AND o.CustomerId = l.CustomerId
+omni_span.Orders.OrderId	~	engine	shop	omni_span	lineage	SELECT o.OrderId FROM Orders o JOIN LineItems l ON o.OrderId = l.OrderId AND o.CustomerId = l.CustomerId
+omni_span.LineItems, omni_span.Orders	omni_span.LineItems, omni_span.Orders	engine	shop	omni_span	tables	SELECT o.OrderId FROM Orders o JOIN LineItems l ON o.OrderId = l.OrderId AND o.CustomerId = l.CustomerId
+Name	Name	engine	shop	omni_span	results	SELECT c.Name FROM Customers c JOIN (Orders o JOIN LineItems l USING (OrderId)) ON c.CustomerId = o.CustomerId
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT c.Name FROM Customers c JOIN (Orders o JOIN LineItems l USING (OrderId)) ON c.CustomerId = o.CustomerId
+omni_span.Customers, omni_span.LineItems, omni_span.Orders	omni_span.Customers, omni_span.LineItems, omni_span.Orders	engine	shop	omni_span	tables	SELECT c.Name FROM Customers c JOIN (Orders o JOIN LineItems l USING (OrderId)) ON c.CustomerId = o.CustomerId
+Name, Name_1	Name, Name_1	engine	shop	omni_span	results	SELECT a.Name, b.Name FROM Customers a JOIN Customers b ON a.Region = b.Region
+omni_span.Customers.Name | omni_span.Customers.Name	~ | ~	engine	shop	omni_span	lineage	SELECT a.Name, b.Name FROM Customers a JOIN Customers b ON a.Region = b.Region
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT a.Name, b.Name FROM Customers a JOIN Customers b ON a.Region = b.Region
+Name, Goal	Name, Goal	engine	shop	omni_span	results	SELECT Name, Goal FROM Customers JOIN Targets USING (Region)
+omni_span.Customers.Name | omni_span.Targets.Goal	~ | ~	engine	shop	omni_span	lineage	SELECT Name, Goal FROM Customers JOIN Targets USING (Region)
+omni_span.Customers, omni_span.Targets	omni_span.Customers, omni_span.Targets	engine	shop	omni_span	tables	SELECT Name, Goal FROM Customers JOIN Targets USING (Region)
+Name, Goal	Name, Goal	engine	shop	omni_span	results	SELECT c.Name, t.Goal FROM Customers c LEFT JOIN Targets t ON c.Region = t.Region WHERE t.Goal IS NULL
+omni_span.Customers.Name | omni_span.Targets.Goal	~ | ~	engine	shop	omni_span	lineage	SELECT c.Name, t.Goal FROM Customers c LEFT JOIN Targets t ON c.Region = t.Region WHERE t.Goal IS NULL
+omni_span.Customers, omni_span.Targets	omni_span.Customers, omni_span.Targets	engine	shop	omni_span	tables	SELECT c.Name, t.Goal FROM Customers c LEFT JOIN Targets t ON c.Region = t.Region WHERE t.Goal IS NULL
+Name, top	Name, top	engine	shop	omni_span	results	SELECT Name, (SELECT MAX(Amount) FROM Orders) AS top FROM Customers
+omni_span.Customers.Name | -	~ | ~	engine	shop	omni_span	lineage	SELECT Name, (SELECT MAX(Amount) FROM Orders) AS top FROM Customers
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT Name, (SELECT MAX(Amount) FROM Orders) AS top FROM Customers
+Name, top	Name, top	engine	shop	omni_span	results	SELECT Name, (SELECT MAX(o.Amount) FROM Orders o WHERE o.CustomerId = c.CustomerId) AS top FROM Customers c
+omni_span.Customers.Name | -	~ | ~	engine	shop	omni_span	lineage	SELECT Name, (SELECT MAX(o.Amount) FROM Orders o WHERE o.CustomerId = c.CustomerId) AS top FROM Customers c
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT Name, (SELECT MAX(o.Amount) FROM Orders o WHERE o.CustomerId = c.CustomerId) AS top FROM Customers c
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM Customers WHERE CustomerId IN (SELECT CustomerId FROM Orders)
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM Customers WHERE CustomerId IN (SELECT CustomerId FROM Orders)
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT Name FROM Customers WHERE CustomerId IN (SELECT CustomerId FROM Orders)
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM Customers c WHERE EXISTS (SELECT 1 FROM Orders o WHERE o.CustomerId = c.CustomerId)
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM Customers c WHERE EXISTS (SELECT 1 FROM Orders o WHERE o.CustomerId = c.CustomerId)
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT Name FROM Customers c WHERE EXISTS (SELECT 1 FROM Orders o WHERE o.CustomerId = c.CustomerId)
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM Customers c WHERE NOT EXISTS (SELECT 1 FROM Orders o WHERE o.CustomerId = c.CustomerId)
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM Customers c WHERE NOT EXISTS (SELECT 1 FROM Orders o WHERE o.CustomerId = c.CustomerId)
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT Name FROM Customers c WHERE NOT EXISTS (SELECT 1 FROM Orders o WHERE o.CustomerId = c.CustomerId)
+total	total	engine	shop	omni_span	results	SELECT t.total FROM (SELECT CustomerId, SUM(Amount) AS total FROM Orders GROUP BY CustomerId) t
+omni_span.Orders.Amount	~	engine	shop	omni_span	lineage	SELECT t.total FROM (SELECT CustomerId, SUM(Amount) AS total FROM Orders GROUP BY CustomerId) t
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT t.total FROM (SELECT CustomerId, SUM(Amount) AS total FROM Orders GROUP BY CustomerId) t
+x	x	engine	shop	omni_span	results	SELECT x FROM (SELECT Name AS x FROM Customers UNION ALL SELECT Status FROM Orders)
+omni_span.Customers.Name omni_span.Orders.Status	~	engine	shop	omni_span	lineage	SELECT x FROM (SELECT Name AS x FROM Customers UNION ALL SELECT Status FROM Orders)
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT x FROM (SELECT Name AS x FROM Customers UNION ALL SELECT Status FROM Orders)
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM Customers WHERE Region = (SELECT Region FROM Targets ORDER BY Goal DESC LIMIT 1)
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM Customers WHERE Region = (SELECT Region FROM Targets ORDER BY Goal DESC LIMIT 1)
+omni_span.Customers, omni_span.Targets	omni_span.Customers, omni_span.Targets	engine	shop	omni_span	tables	SELECT Name FROM Customers WHERE Region = (SELECT Region FROM Targets ORDER BY Goal DESC LIMIT 1)
+ids	ids	engine	shop	omni_span	results	SELECT ARRAY(SELECT OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId) AS ids FROM Customers c
+-	~	engine	shop	omni_span	lineage	SELECT ARRAY(SELECT OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId) AS ids FROM Customers c
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT ARRAY(SELECT OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId) AS ids FROM Customers c
+Name, orders	Name, orders	engine	shop	omni_span	results	SELECT Name, ARRAY(SELECT AS STRUCT o.OrderId, o.Amount FROM Orders o WHERE o.CustomerId = c.CustomerId) AS orders FROM Customers c
+omni_span.Customers.Name | -	~ | ~	engine	shop	omni_span	lineage	SELECT Name, ARRAY(SELECT AS STRUCT o.OrderId, o.Amount FROM Orders o WHERE o.CustomerId = c.CustomerId) AS orders FROM Customers c
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT Name, ARRAY(SELECT AS STRUCT o.OrderId, o.Amount FROM Orders o WHERE o.CustomerId = c.CustomerId) AS orders FROM Customers c
+n	n	engine	shop	omni_span	results	SELECT (SELECT COUNT(*) FROM LineItems) AS n
+-	~	engine	shop	omni_span	lineage	SELECT (SELECT COUNT(*) FROM LineItems) AS n
+omni_span.LineItems	omni_span.LineItems	engine	shop	omni_span	tables	SELECT (SELECT COUNT(*) FROM LineItems) AS n
+Name, Region	Name, Region	engine	shop	omni_span	results	SELECT * FROM (SELECT * FROM (SELECT Name, Region FROM Customers))
+omni_span.Customers.Name | omni_span.Customers.Region	~ | ~	engine	shop	omni_span	lineage	SELECT * FROM (SELECT * FROM (SELECT Name, Region FROM Customers))
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT * FROM (SELECT * FROM (SELECT Name, Region FROM Customers))
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM Customers WHERE Region IN (SELECT Region FROM Targets WHERE Goal > (SELECT AVG(Goal) FROM Targets))
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM Customers WHERE Region IN (SELECT Region FROM Targets WHERE Goal > (SELECT AVG(Goal) FROM Targets))
+omni_span.Customers, omni_span.Targets	omni_span.Customers, omni_span.Targets	engine	shop	omni_span	tables	SELECT Name FROM Customers WHERE Region IN (SELECT Region FROM Targets WHERE Goal > (SELECT AVG(Goal) FROM Targets))
+Name	error:invalidQuery	engine	shop	omni_span	results	SELECT Name FROM Customers WHERE CustomerId = ANY (SELECT CustomerId FROM Orders)
+omni_span.Customers.Name	error:invalidQuery	engine	shop	omni_span	lineage	SELECT Name FROM Customers WHERE CustomerId = ANY (SELECT CustomerId FROM Orders)
+omni_span.Customers, omni_span.Orders	error:invalidQuery	engine	shop	omni_span	tables	SELECT Name FROM Customers WHERE CustomerId = ANY (SELECT CustomerId FROM Orders)
+Name, n	Name, n	engine	shop	omni_span	results	SELECT c.Name, x.n FROM Customers c, (SELECT COUNT(*) AS n FROM Orders) x
+omni_span.Customers.Name | -	~ | ~	engine	shop	omni_span	lineage	SELECT c.Name, x.n FROM Customers c, (SELECT COUNT(*) AS n FROM Orders) x
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT c.Name, x.n FROM Customers c, (SELECT COUNT(*) AS n FROM Orders) x
+has_orders	has_orders	engine	shop	omni_span	results	SELECT EXISTS(SELECT 1 FROM Orders) AS has_orders
+-	~	engine	shop	omni_span	lineage	SELECT EXISTS(SELECT 1 FROM Orders) AS has_orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT EXISTS(SELECT 1 FROM Orders) AS has_orders
+CustomerId, Amount	CustomerId, Amount	engine	shop	omni_span	results	WITH big AS (SELECT CustomerId, Amount FROM Orders WHERE Amount > 100) SELECT * FROM big
+omni_span.Orders.CustomerId | omni_span.Orders.Amount	~ | ~	engine	shop	omni_span	lineage	WITH big AS (SELECT CustomerId, Amount FROM Orders WHERE Amount > 100) SELECT * FROM big
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	WITH big AS (SELECT CustomerId, Amount FROM Orders WHERE Amount > 100) SELECT * FROM big
+Name, Amount	Name, Amount	engine	shop	omni_span	results	WITH big AS (SELECT CustomerId, Amount FROM Orders) SELECT c.Name, b.Amount FROM Customers c JOIN big b USING (CustomerId)
+omni_span.Customers.Name | omni_span.Orders.Amount	~ | ~	engine	shop	omni_span	lineage	WITH big AS (SELECT CustomerId, Amount FROM Orders) SELECT c.Name, b.Amount FROM Customers c JOIN big b USING (CustomerId)
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	WITH big AS (SELECT CustomerId, Amount FROM Orders) SELECT c.Name, b.Amount FROM Customers c JOIN big b USING (CustomerId)
+Name	Name	engine	shop	omni_span	results	WITH a AS (SELECT Name FROM Customers), b AS (SELECT Name FROM a) SELECT Name FROM b
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	WITH a AS (SELECT Name FROM Customers), b AS (SELECT Name FROM a) SELECT Name FROM b
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	WITH a AS (SELECT Name FROM Customers), b AS (SELECT Name FROM a) SELECT Name FROM b
+Status	Status	engine	shop	omni_span	results	WITH Orders AS (SELECT Name AS Status FROM Customers) SELECT Status FROM Orders
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	WITH Orders AS (SELECT Name AS Status FROM Customers) SELECT Status FROM Orders
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	WITH Orders AS (SELECT Name AS Status FROM Customers) SELECT Status FROM Orders
+Region	Region	engine	shop	omni_span	results	WITH x AS (SELECT Region FROM Customers) SELECT Region FROM x UNION ALL SELECT Region FROM Targets
+omni_span.Customers.Region omni_span.Targets.Region	~	engine	shop	omni_span	lineage	WITH x AS (SELECT Region FROM Customers) SELECT Region FROM x UNION ALL SELECT Region FROM Targets
+omni_span.Customers, omni_span.Targets	omni_span.Customers, omni_span.Targets	engine	shop	omni_span	tables	WITH x AS (SELECT Region FROM Customers) SELECT Region FROM x UNION ALL SELECT Region FROM Targets
+EmpId	EmpId	engine	shop	omni_span	results	WITH RECURSIVE r AS (SELECT EmpId, ManagerId FROM Employees WHERE ManagerId IS NULL UNION ALL SELECT e.EmpId, e.ManagerId FROM Employees e JOIN r ON e.ManagerId = r.EmpId) SELECT EmpId FROM r
+omni_span.Employees.EmpId	~	engine	shop	omni_span	lineage	WITH RECURSIVE r AS (SELECT EmpId, ManagerId FROM Employees WHERE ManagerId IS NULL UNION ALL SELECT e.EmpId, e.ManagerId FROM Employees e JOIN r ON e.ManagerId = r.EmpId) SELECT EmpId FROM r
+omni_span.Employees	omni_span.Employees	engine	shop	omni_span	tables	WITH RECURSIVE r AS (SELECT EmpId, ManagerId FROM Employees WHERE ManagerId IS NULL UNION ALL SELECT e.EmpId, e.ManagerId FROM Employees e JOIN r ON e.ManagerId = r.EmpId) SELECT EmpId FROM r
+i	i	engine	shop	omni_span	results	WITH RECURSIVE n AS (SELECT 1 AS i UNION ALL SELECT i + 1 FROM n WHERE i < 3) SELECT i FROM n
+-	~	engine	shop	omni_span	lineage	WITH RECURSIVE n AS (SELECT 1 AS i UNION ALL SELECT i + 1 FROM n WHERE i < 3) SELECT i FROM n
+-	-	engine	shop	omni_span	tables	WITH RECURSIVE n AS (SELECT 1 AS i UNION ALL SELECT i + 1 FROM n WHERE i < 3) SELECT i FROM n
+Name, Price	Name, Price	engine	shop	omni_span	results	WITH t AS (SELECT * FROM Products) SELECT t.Name, t.Price FROM t
+omni_span.Products.Name | omni_span.Products.Price	~ | ~	engine	shop	omni_span	lineage	WITH t AS (SELECT * FROM Products) SELECT t.Name, t.Price FROM t
+omni_span.Products	omni_span.Products	engine	shop	omni_span	tables	WITH t AS (SELECT * FROM Products) SELECT t.Name, t.Price FROM t
+a	error:invalidQuery	engine	shop	omni_span	results	WITH t (a, b) AS (SELECT Name, Email FROM Customers) SELECT a FROM t
+omni_span.Customers.Name	error:invalidQuery	engine	shop	omni_span	lineage	WITH t (a, b) AS (SELECT Name, Email FROM Customers) SELECT a FROM t
+omni_span.Customers	error:invalidQuery	engine	shop	omni_span	tables	WITH t (a, b) AS (SELECT Name, Email FROM Customers) SELECT a FROM t
+one, Name	one, Name	engine	shop	omni_span	results	WITH t AS (SELECT 1 AS one) SELECT one, Name FROM t, Customers
+- | omni_span.Customers.Name	~ | ~	engine	shop	omni_span	lineage	WITH t AS (SELECT 1 AS one) SELECT one, Name FROM t, Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	WITH t AS (SELECT 1 AS one) SELECT one, Name FROM t, Customers
+Name, total	Name, total	engine	shop	omni_span	results	WITH s AS (SELECT CustomerId, SUM(Amount) AS total FROM Orders GROUP BY CustomerId) SELECT c.Name, s.total FROM s JOIN Customers c USING (CustomerId)
+omni_span.Customers.Name | omni_span.Orders.Amount	~ | ~	engine	shop	omni_span	lineage	WITH s AS (SELECT CustomerId, SUM(Amount) AS total FROM Orders GROUP BY CustomerId) SELECT c.Name, s.total FROM s JOIN Customers c USING (CustomerId)
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	WITH s AS (SELECT CustomerId, SUM(Amount) AS total FROM Orders GROUP BY CustomerId) SELECT c.Name, s.total FROM s JOIN Customers c USING (CustomerId)
+CustomerId, Name, Email, Region	CustomerId, Name, Email, Region	engine	shop	omni_span	results	WITH a AS (SELECT * FROM Customers) SELECT * FROM a WHERE Region = 'eu'
+omni_span.Customers.CustomerId | omni_span.Customers.Name | omni_span.Customers.Email | omni_span.Customers.Region	~ | ~ | ~ | ~	engine	shop	omni_span	lineage	WITH a AS (SELECT * FROM Customers) SELECT * FROM a WHERE Region = 'eu'
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	WITH a AS (SELECT * FROM Customers) SELECT * FROM a WHERE Region = 'eu'
+Name	Name	engine	shop	omni_span	results	WITH Customers AS (SELECT * FROM omni_span.Customers WHERE Region = 'eu') SELECT Name FROM Customers
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	WITH Customers AS (SELECT * FROM omni_span.Customers WHERE Region = 'eu') SELECT Name FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	WITH Customers AS (SELECT * FROM omni_span.Customers WHERE Region = 'eu') SELECT Name FROM Customers
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM Customers UNION ALL SELECT Name FROM Products
+omni_span.Customers.Name omni_span.Products.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM Customers UNION ALL SELECT Name FROM Products
+omni_span.Customers, omni_span.Products	omni_span.Customers, omni_span.Products	engine	shop	omni_span	tables	SELECT Name FROM Customers UNION ALL SELECT Name FROM Products
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM Customers UNION DISTINCT SELECT Name FROM Employees
+omni_span.Customers.Name omni_span.Employees.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM Customers UNION DISTINCT SELECT Name FROM Employees
+omni_span.Customers, omni_span.Employees	omni_span.Customers, omni_span.Employees	engine	shop	omni_span	tables	SELECT Name FROM Customers UNION DISTINCT SELECT Name FROM Employees
+CustomerId	CustomerId	engine	shop	omni_span	results	SELECT CustomerId FROM Customers INTERSECT DISTINCT SELECT CustomerId FROM Orders
+omni_span.Customers.CustomerId omni_span.Orders.CustomerId	~	engine	shop	omni_span	lineage	SELECT CustomerId FROM Customers INTERSECT DISTINCT SELECT CustomerId FROM Orders
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT CustomerId FROM Customers INTERSECT DISTINCT SELECT CustomerId FROM Orders
+CustomerId	CustomerId	engine	shop	omni_span	results	SELECT CustomerId FROM Customers EXCEPT DISTINCT SELECT CustomerId FROM Orders
+omni_span.Customers.CustomerId omni_span.Orders.CustomerId	~	engine	shop	omni_span	lineage	SELECT CustomerId FROM Customers EXCEPT DISTINCT SELECT CustomerId FROM Orders
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT CustomerId FROM Customers EXCEPT DISTINCT SELECT CustomerId FROM Orders
+Name, Email	Name, Email	engine	shop	omni_span	results	SELECT Name, Email FROM Customers UNION ALL SELECT Status, CAST(Amount AS STRING) FROM Orders
+omni_span.Customers.Name omni_span.Orders.Status | omni_span.Customers.Email omni_span.Orders.Amount	~ | ~	engine	shop	omni_span	lineage	SELECT Name, Email FROM Customers UNION ALL SELECT Status, CAST(Amount AS STRING) FROM Orders
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT Name, Email FROM Customers UNION ALL SELECT Status, CAST(Amount AS STRING) FROM Orders
+ProductId, Name	ProductId, Name	engine	shop	omni_span	results	SELECT ProductId, Name FROM Products UNION ALL SELECT ProductId, Name FROM Products
+omni_span.Products.ProductId | omni_span.Products.Name	~ | ~	engine	shop	omni_span	lineage	SELECT ProductId, Name FROM Products UNION ALL SELECT ProductId, Name FROM Products
+omni_span.Products	omni_span.Products	engine	shop	omni_span	tables	SELECT ProductId, Name FROM Products UNION ALL SELECT ProductId, Name FROM Products
+Name	Name	engine	shop	omni_span	results	(SELECT Name FROM Customers) UNION ALL (SELECT Name FROM Products ORDER BY Name LIMIT 1)
+omni_span.Customers.Name omni_span.Products.Name	~	engine	shop	omni_span	lineage	(SELECT Name FROM Customers) UNION ALL (SELECT Name FROM Products ORDER BY Name LIMIT 1)
+omni_span.Customers, omni_span.Products	omni_span.Customers, omni_span.Products	engine	shop	omni_span	tables	(SELECT Name FROM Customers) UNION ALL (SELECT Name FROM Products ORDER BY Name LIMIT 1)
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM Customers UNION ALL SELECT Name FROM Products UNION ALL SELECT Name FROM Employees
+omni_span.Customers.Name omni_span.Employees.Name omni_span.Products.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM Customers UNION ALL SELECT Name FROM Products UNION ALL SELECT Name FROM Employees
+omni_span.Customers, omni_span.Employees, omni_span.Products	omni_span.Customers, omni_span.Employees, omni_span.Products	engine	shop	omni_span	tables	SELECT Name FROM Customers UNION ALL SELECT Name FROM Products UNION ALL SELECT Name FROM Employees
+Region, Goal	Region, Goal	engine	shop	omni_span	results	SELECT * FROM Targets UNION ALL SELECT Region, Goal FROM Targets
+omni_span.Targets.Region | omni_span.Targets.Goal	~ | ~	engine	shop	omni_span	lineage	SELECT * FROM Targets UNION ALL SELECT Region, Goal FROM Targets
+omni_span.Targets	omni_span.Targets	engine	shop	omni_span	tables	SELECT * FROM Targets UNION ALL SELECT Region, Goal FROM Targets
+Name, Region	Name, Region	engine	shop	omni_span	results	SELECT Name, Region FROM Customers UNION ALL BY NAME SELECT Region, Name FROM Customers
+omni_span.Customers.Name | omni_span.Customers.Region	~ | ~	engine	shop	omni_span	lineage	SELECT Name, Region FROM Customers UNION ALL BY NAME SELECT Region, Name FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name, Region FROM Customers UNION ALL BY NAME SELECT Region, Name FROM Customers
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM Customers UNION ALL CORRESPONDING SELECT Name FROM Employees
+omni_span.Customers.Name omni_span.Employees.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM Customers UNION ALL CORRESPONDING SELECT Name FROM Employees
+omni_span.Customers, omni_span.Employees	omni_span.Customers, omni_span.Employees	engine	shop	omni_span	tables	SELECT Name FROM Customers UNION ALL CORRESPONDING SELECT Name FROM Employees
+a	a	engine	shop	omni_span	results	SELECT 1 AS a UNION ALL SELECT 2
+-	~	engine	shop	omni_span	lineage	SELECT 1 AS a UNION ALL SELECT 2
+-	-	engine	shop	omni_span	tables	SELECT 1 AS a UNION ALL SELECT 2
+error:omni	Name, Salary	engine	shop	omni_span	results	SELECT Name FROM Customers FULL UNION ALL BY NAME SELECT Name, Salary FROM Employees
+error:omni	~ | ~	engine	shop	omni_span	lineage	SELECT Name FROM Customers FULL UNION ALL BY NAME SELECT Name, Salary FROM Employees
+error:omni	omni_span.Customers, omni_span.Employees	engine	shop	omni_span	tables	SELECT Name FROM Customers FULL UNION ALL BY NAME SELECT Name, Salary FROM Employees
+error:omni	Name, Region	engine	shop	omni_span	results	SELECT Name, Region FROM Customers LEFT UNION ALL BY NAME SELECT Name FROM Employees
+error:omni	~ | ~	engine	shop	omni_span	lineage	SELECT Name, Region FROM Customers LEFT UNION ALL BY NAME SELECT Name FROM Employees
+error:omni	omni_span.Customers, omni_span.Employees	engine	shop	omni_span	tables	SELECT Name, Region FROM Customers LEFT UNION ALL BY NAME SELECT Name FROM Employees
+CustomerId, Name, OrderId, Amount	CustomerId, Name, OrderId, Amount	engine	shop	omni_span	results	SELECT * FROM CustomerOrders
+omni_span.CustomerOrders.CustomerId | omni_span.CustomerOrders.Name | omni_span.CustomerOrders.OrderId | omni_span.CustomerOrders.Amount	~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM CustomerOrders
+omni_span.CustomerOrders	omni_span.CustomerOrders, omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT * FROM CustomerOrders
+Name, Amount	Name, Amount	engine	shop	omni_span	results	SELECT Name, Amount FROM CustomerOrders WHERE OrderId > 1
+omni_span.CustomerOrders.Name | omni_span.CustomerOrders.Amount	~ | ~	engine	shop	omni_span	lineage	SELECT Name, Amount FROM CustomerOrders WHERE OrderId > 1
+omni_span.CustomerOrders	omni_span.CustomerOrders, omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT Name, Amount FROM CustomerOrders WHERE OrderId > 1
+CustomerId, Name, Amount	CustomerId, Name, Amount	engine	shop	omni_span	results	SELECT * FROM BigOrders
+omni_span.BigOrders.CustomerId | omni_span.BigOrders.Name | omni_span.BigOrders.Amount	~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM BigOrders
+omni_span.BigOrders	omni_span.BigOrders, omni_span.CustomerOrders, omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT * FROM BigOrders
+Name	Name	engine	shop	omni_span	results	SELECT b.Name FROM BigOrders b JOIN Customers c ON b.CustomerId = c.CustomerId
+omni_span.BigOrders.Name	~	engine	shop	omni_span	lineage	SELECT b.Name FROM BigOrders b JOIN Customers c ON b.CustomerId = c.CustomerId
+omni_span.BigOrders, omni_span.Customers	omni_span.BigOrders, omni_span.CustomerOrders, omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT b.Name FROM BigOrders b JOIN Customers c ON b.CustomerId = c.CustomerId
+Region, Goal	Region, Goal	engine	shop	omni_span	results	SELECT * FROM RegionGoals
+omni_span.RegionGoals.Region | omni_span.RegionGoals.Goal	~ | ~	engine	shop	omni_span	lineage	SELECT * FROM RegionGoals
+omni_span.RegionGoals	omni_span.Customers, omni_span.RegionGoals, omni_span.Targets	engine	shop	omni_span	tables	SELECT * FROM RegionGoals
+Goal, Name	Goal, Name	engine	shop	omni_span	results	SELECT g.Goal, c.Name FROM RegionGoals g JOIN Customers c ON c.Region = g.Region
+omni_span.RegionGoals.Goal | omni_span.Customers.Name	~ | ~	engine	shop	omni_span	lineage	SELECT g.Goal, c.Name FROM RegionGoals g JOIN Customers c ON c.Region = g.Region
+omni_span.Customers, omni_span.RegionGoals	omni_span.Customers, omni_span.RegionGoals, omni_span.Targets	engine	shop	omni_span	tables	SELECT g.Goal, c.Name FROM RegionGoals g JOIN Customers c ON c.Region = g.Region
+f0_	f0_	engine	shop	omni_span	results	SELECT COUNT(*) FROM CustomerOrders
+-	~	engine	shop	omni_span	lineage	SELECT COUNT(*) FROM CustomerOrders
+omni_span.CustomerOrders	omni_span.CustomerOrders, omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT COUNT(*) FROM CustomerOrders
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM omni_span.BigOrders
+omni_span.BigOrders.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM omni_span.BigOrders
+omni_span.BigOrders	omni_span.BigOrders, omni_span.CustomerOrders, omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT Name FROM omni_span.BigOrders
+Name	Name	engine	shop	omni_span	results	WITH v AS (SELECT * FROM CustomerOrders) SELECT Name FROM v
+omni_span.CustomerOrders.Name	~	engine	shop	omni_span	lineage	WITH v AS (SELECT * FROM CustomerOrders) SELECT Name FROM v
+omni_span.CustomerOrders	omni_span.CustomerOrders, omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	WITH v AS (SELECT * FROM CustomerOrders) SELECT Name FROM v
+-	error:invalidQuery	engine	shop	omni_span	results	SELECT * FROM OrdersOf(1)
+-	error:invalidQuery	engine	shop	omni_span	lineage	SELECT * FROM OrdersOf(1)
+-	error:invalidQuery	engine	shop	omni_span	tables	SELECT * FROM OrdersOf(1)
+OrderId	OrderId	engine	shop	omni_span	results	SELECT OrderId FROM omni_span.OrdersOf(2)
+-	~	engine	shop	omni_span	lineage	SELECT OrderId FROM omni_span.OrdersOf(2)
+-	omni_span.Orders	engine	shop	omni_span	tables	SELECT OrderId FROM omni_span.OrdersOf(2)
+Name, Amount	error:invalidQuery	engine	shop	omni_span	results	SELECT c.Name, f.Amount FROM Customers c, OrdersOf(c.CustomerId) f
+omni_span.Customers.Name | -	error:invalidQuery	engine	shop	omni_span	lineage	SELECT c.Name, f.Amount FROM Customers c, OrdersOf(c.CustomerId) f
+omni_span.Customers	error:invalidQuery	engine	shop	omni_span	tables	SELECT c.Name, f.Amount FROM Customers c, OrdersOf(c.CustomerId) f
+EventId	EventId	engine	shop	omni_span	results	SELECT EventId FROM `events_*`
+-	~	engine	shop	omni_span	lineage	SELECT EventId FROM `events_*`
+omni_span.events_*	omni_span.events_*	engine	shop	omni_span	tables	SELECT EventId FROM `events_*`
+-	EventId, Kind, Payload	engine	shop	omni_span	results	SELECT * FROM `events_*`
+-	~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM `events_*`
+omni_span.events_*	omni_span.events_*	engine	shop	omni_span	tables	SELECT * FROM `events_*`
+Kind	Kind	engine	shop	omni_span	results	SELECT Kind FROM `omni_span.events_*` WHERE _TABLE_SUFFIX = '2024'
+-	~	engine	shop	omni_span	lineage	SELECT Kind FROM `omni_span.events_*` WHERE _TABLE_SUFFIX = '2024'
+omni_span.events_*	omni_span.events_*	engine	shop	omni_span	tables	SELECT Kind FROM `omni_span.events_*` WHERE _TABLE_SUFFIX = '2024'
+year, Kind	year, Kind	engine	shop	omni_span	results	SELECT _TABLE_SUFFIX AS year, Kind FROM `events_*`
+- | -	~ | ~	engine	shop	omni_span	lineage	SELECT _TABLE_SUFFIX AS year, Kind FROM `events_*`
+omni_span.events_*	omni_span.events_*	engine	shop	omni_span	tables	SELECT _TABLE_SUFFIX AS year, Kind FROM `events_*`
+Payload	Payload	engine	shop	omni_span	results	SELECT e.Payload FROM `events_20*` AS e WHERE e._TABLE_SUFFIX BETWEEN '24' AND '25'
+-	~	engine	shop	omni_span	lineage	SELECT e.Payload FROM `events_20*` AS e WHERE e._TABLE_SUFFIX BETWEEN '24' AND '25'
+omni_span.events_20*	omni_span.events_20*	engine	shop	omni_span	tables	SELECT e.Payload FROM `events_20*` AS e WHERE e._TABLE_SUFFIX BETWEEN '24' AND '25'
+f0_	f0_	engine	shop	omni_span	results	SELECT COUNT(*) FROM `events_*` WHERE Kind = 'click'
+-	~	engine	shop	omni_span	lineage	SELECT COUNT(*) FROM `events_*` WHERE Kind = 'click'
+omni_span.events_*	omni_span.events_*	engine	shop	omni_span	tables	SELECT COUNT(*) FROM `events_*` WHERE Kind = 'click'
+EventId, Kind, Payload	EventId, Kind, Payload	engine	shop	omni_span	results	SELECT * FROM events_2024 UNION ALL SELECT * FROM events_2025
+omni_span.events_2024.EventId omni_span.events_2025.EventId | omni_span.events_2024.Kind omni_span.events_2025.Kind | omni_span.events_2024.Payload omni_span.events_2025.Payload	~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM events_2024 UNION ALL SELECT * FROM events_2025
+omni_span.events_2024, omni_span.events_2025	omni_span.events_2024, omni_span.events_2025	engine	shop	omni_span	tables	SELECT * FROM events_2024 UNION ALL SELECT * FROM events_2025
+EventId	EventId	engine	shop	omni_span	results	SELECT EventId FROM `events_2024`
+omni_span.events_2024.EventId	~	engine	shop	omni_span	lineage	SELECT EventId FROM `events_2024`
+omni_span.events_2024	omni_span.events_2024	engine	shop	omni_span	tables	SELECT EventId FROM `events_2024`
+Id, CamelCol	Id, CamelCol	engine	shop	omni_span	results	SELECT `Id`, `CamelCol` FROM `MixedCase`
+omni_span.MixedCase.Id | omni_span.MixedCase.CamelCol	~ | ~	engine	shop	omni_span	lineage	SELECT `Id`, `CamelCol` FROM `MixedCase`
+omni_span.MixedCase	omni_span.MixedCase	engine	shop	omni_span	tables	SELECT `Id`, `CamelCol` FROM `MixedCase`
+id, camelcol, LOWER_COL	id, camelcol, LOWER_COL	engine	shop	omni_span	results	SELECT id, camelcol, LOWER_COL FROM MixedCase
+omni_span.MixedCase.Id | omni_span.MixedCase.CamelCol | omni_span.MixedCase.lower_col	~ | ~ | ~	engine	shop	omni_span	lineage	SELECT id, camelcol, LOWER_COL FROM MixedCase
+omni_span.MixedCase	omni_span.MixedCase	engine	shop	omni_span	tables	SELECT id, camelcol, LOWER_COL FROM MixedCase
+camelCol	camelCol	engine	shop	omni_span	results	SELECT m.camelCol FROM MixedCase m
+omni_span.MixedCase.CamelCol	~	engine	shop	omni_span	lineage	SELECT m.camelCol FROM MixedCase m
+omni_span.MixedCase	omni_span.MixedCase	engine	shop	omni_span	tables	SELECT m.camelCol FROM MixedCase m
+Id, CamelCol, lower_col	Id, CamelCol, lower_col	engine	shop	omni_span	results	SELECT * FROM MixedCase
+omni_span.MixedCase.Id | omni_span.MixedCase.CamelCol | omni_span.MixedCase.lower_col	~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM MixedCase
+omni_span.MixedCase	omni_span.MixedCase	engine	shop	omni_span	tables	SELECT * FROM MixedCase
+Name	Name	engine	shop	omni_span	results	SELECT `Customers`.`Name` FROM `Customers`
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT `Customers`.`Name` FROM `Customers`
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT `Customers`.`Name` FROM `Customers`
+name	error:notFound	engine	shop	omni_span	results	SELECT name FROM customers
+omni_span.Customers.Name	error:notFound	engine	shop	omni_span	lineage	SELECT name FROM customers
+omni_span.customers	error:notFound	engine	shop	omni_span	tables	SELECT name FROM customers
+NAME	NAME	engine	shop	omni_span	results	SELECT NAME FROM Customers
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT NAME FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT NAME FROM Customers
+NAME, email	NAME, email	engine	shop	omni_span	results	SELECT c.NAME, C.email FROM Customers c
+omni_span.Customers.Name | omni_span.Customers.Email	~ | ~	engine	shop	omni_span	lineage	SELECT c.NAME, C.email FROM Customers c
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT c.NAME, C.email FROM Customers c
+Name	Name	engine	shop	omni_span	results	SELECT Orders.Name FROM Customers AS Orders
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Orders.Name FROM Customers AS Orders
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Orders.Name FROM Customers AS Orders
+Amount	Amount	engine	shop	omni_span	results	SELECT Customers.Amount FROM Orders AS Customers JOIN Customers AS c ON Customers.CustomerId = c.CustomerId
+omni_span.Orders.Amount	~	engine	shop	omni_span	lineage	SELECT Customers.Amount FROM Orders AS Customers JOIN Customers AS c ON Customers.CustomerId = c.CustomerId
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT Customers.Amount FROM Orders AS Customers JOIN Customers AS c ON Customers.CustomerId = c.CustomerId
+Name	Name	engine	shop	omni_span	results	SELECT Products.Name FROM (SELECT Name FROM Employees) AS Products
+omni_span.Employees.Name	~	engine	shop	omni_span	lineage	SELECT Products.Name FROM (SELECT Name FROM Employees) AS Products
+omni_span.Employees	omni_span.Employees	engine	shop	omni_span	tables	SELECT Products.Name FROM (SELECT Name FROM Employees) AS Products
+Name, rn	Name, rn	engine	shop	omni_span	results	SELECT Name, ROW_NUMBER() OVER (ORDER BY CustomerId) AS rn FROM Customers
+omni_span.Customers.Name | omni_span.Customers.CustomerId	~ | ~	engine	shop	omni_span	lineage	SELECT Name, ROW_NUMBER() OVER (ORDER BY CustomerId) AS rn FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name, ROW_NUMBER() OVER (ORDER BY CustomerId) AS rn FROM Customers
+OrderId, f0_	OrderId, f0_	engine	shop	omni_span	results	SELECT OrderId, SUM(Amount) OVER (PARTITION BY CustomerId) FROM Orders
+omni_span.Orders.OrderId | omni_span.Orders.Amount omni_span.Orders.CustomerId	~ | ~	engine	shop	omni_span	lineage	SELECT OrderId, SUM(Amount) OVER (PARTITION BY CustomerId) FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT OrderId, SUM(Amount) OVER (PARTITION BY CustomerId) FROM Orders
+Name, f0_	Name, f0_	engine	shop	omni_span	results	SELECT Name, RANK() OVER (PARTITION BY Region ORDER BY Name) FROM Customers
+omni_span.Customers.Name | omni_span.Customers.Name omni_span.Customers.Region	~ | ~	engine	shop	omni_span	lineage	SELECT Name, RANK() OVER (PARTITION BY Region ORDER BY Name) FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name, RANK() OVER (PARTITION BY Region ORDER BY Name) FROM Customers
+Name, prev	Name, prev	engine	shop	omni_span	results	SELECT Name, LAG(Name) OVER w AS prev FROM Customers WINDOW w AS (ORDER BY CustomerId)
+omni_span.Customers.Name | omni_span.Customers.Name	~ | ~	engine	shop	omni_span	lineage	SELECT Name, LAG(Name) OVER w AS prev FROM Customers WINDOW w AS (ORDER BY CustomerId)
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name, LAG(Name) OVER w AS prev FROM Customers WINDOW w AS (ORDER BY CustomerId)
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM Customers QUALIFY ROW_NUMBER() OVER (PARTITION BY Region ORDER BY Name) = 1
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM Customers QUALIFY ROW_NUMBER() OVER (PARTITION BY Region ORDER BY Name) = 1
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name FROM Customers QUALIFY ROW_NUMBER() OVER (PARTITION BY Region ORDER BY Name) = 1
+OrderId, Amount	OrderId, Amount	engine	shop	omni_span	results	SELECT OrderId, Amount FROM Orders WHERE TRUE QUALIFY RANK() OVER (ORDER BY Amount DESC) <= 3
+omni_span.Orders.OrderId | omni_span.Orders.Amount	~ | ~	engine	shop	omni_span	lineage	SELECT OrderId, Amount FROM Orders WHERE TRUE QUALIFY RANK() OVER (ORDER BY Amount DESC) <= 3
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT OrderId, Amount FROM Orders WHERE TRUE QUALIFY RANK() OVER (ORDER BY Amount DESC) <= 3
+first	first	engine	shop	omni_span	results	SELECT FIRST_VALUE(Name) OVER (PARTITION BY Region ORDER BY CustomerId) AS first FROM Customers
+omni_span.Customers.CustomerId omni_span.Customers.Name omni_span.Customers.Region	~	engine	shop	omni_span	lineage	SELECT FIRST_VALUE(Name) OVER (PARTITION BY Region ORDER BY CustomerId) AS first FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT FIRST_VALUE(Name) OVER (PARTITION BY Region ORDER BY CustomerId) AS first FROM Customers
+Region, n	Region, n	engine	shop	omni_span	results	SELECT Region, COUNT(*) AS n FROM Customers GROUP BY Region
+omni_span.Customers.Region | -	~ | ~	engine	shop	omni_span	lineage	SELECT Region, COUNT(*) AS n FROM Customers GROUP BY Region
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Region, COUNT(*) AS n FROM Customers GROUP BY Region
+CustomerId, f0_, f1_	CustomerId, f0_, f1_	engine	shop	omni_span	results	SELECT CustomerId, SUM(Amount), MAX(Status) FROM Orders GROUP BY CustomerId HAVING SUM(Amount) > 10
+omni_span.Orders.CustomerId | omni_span.Orders.Amount | omni_span.Orders.Status	~ | ~ | ~	engine	shop	omni_span	lineage	SELECT CustomerId, SUM(Amount), MAX(Status) FROM Orders GROUP BY CustomerId HAVING SUM(Amount) > 10
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT CustomerId, SUM(Amount), MAX(Status) FROM Orders GROUP BY CustomerId HAVING SUM(Amount) > 10
+f0_	f0_	engine	shop	omni_span	results	SELECT ARRAY_AGG(Name) FROM Customers
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT ARRAY_AGG(Name) FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT ARRAY_AGG(Name) FROM Customers
+statuses	statuses	engine	shop	omni_span	results	SELECT STRING_AGG(Status, ',') AS statuses FROM Orders
+omni_span.Orders.Status	~	engine	shop	omni_span	lineage	SELECT STRING_AGG(Status, ',') AS statuses FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT STRING_AGG(Status, ',') AS statuses FROM Orders
+f0_	f0_	engine	shop	omni_span	results	SELECT COUNT(DISTINCT Region) FROM Customers
+omni_span.Customers.Region	~	engine	shop	omni_span	lineage	SELECT COUNT(DISTINCT Region) FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT COUNT(DISTINCT Region) FROM Customers
+e	e	engine	shop	omni_span	results	SELECT ANY_VALUE(Email) AS e FROM Customers GROUP BY Region
+omni_span.Customers.Email	~	engine	shop	omni_span	lineage	SELECT ANY_VALUE(Email) AS e FROM Customers GROUP BY Region
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT ANY_VALUE(Email) AS e FROM Customers GROUP BY Region
+Region, f0_	Region, f0_	engine	shop	omni_span	results	SELECT Region, COUNT(*) FROM Customers GROUP BY 1
+omni_span.Customers.Region | -	~ | ~	engine	shop	omni_span	lineage	SELECT Region, COUNT(*) FROM Customers GROUP BY 1
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Region, COUNT(*) FROM Customers GROUP BY 1
+Region, Name, f0_	Region, Name, f0_	engine	shop	omni_span	results	SELECT Region, Name, COUNT(*) FROM Customers GROUP BY ROLLUP (Region, Name)
+omni_span.Customers.Region | omni_span.Customers.Name | -	~ | ~ | ~	engine	shop	omni_span	lineage	SELECT Region, Name, COUNT(*) FROM Customers GROUP BY ROLLUP (Region, Name)
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Region, Name, COUNT(*) FROM Customers GROUP BY ROLLUP (Region, Name)
+Region, f0_	Region, f0_	engine	shop	omni_span	results	SELECT Region, COUNT(*) FROM Customers GROUP BY ALL
+omni_span.Customers.Region | -	~ | ~	engine	shop	omni_span	lineage	SELECT Region, COUNT(*) FROM Customers GROUP BY ALL
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Region, COUNT(*) FROM Customers GROUP BY ALL
+top	top	engine	shop	omni_span	results	SELECT ARRAY_AGG(STRUCT(OrderId, Amount) ORDER BY Amount LIMIT 3) AS top FROM Orders
+omni_span.Orders.Amount omni_span.Orders.OrderId	~	engine	shop	omni_span	lineage	SELECT ARRAY_AGG(STRUCT(OrderId, Amount) ORDER BY Amount LIMIT 3) AS top FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT ARRAY_AGG(STRUCT(OrderId, Amount) ORDER BY Amount LIMIT 3) AS top FROM Orders
+f0_	f0_	engine	shop	omni_span	results	SELECT APPROX_COUNT_DISTINCT(Email) FROM Customers
+omni_span.Customers.Email	~	engine	shop	omni_span	lineage	SELECT APPROX_COUNT_DISTINCT(Email) FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT APPROX_COUNT_DISTINCT(Email) FROM Customers
+Region, f0_	Region, f0_	engine	shop	omni_span	results	SELECT Region, LOGICAL_OR(Email IS NULL) FROM Customers GROUP BY Region
+omni_span.Customers.Region | omni_span.Customers.Email	~ | ~	engine	shop	omni_span	lineage	SELECT Region, LOGICAL_OR(Email IS NULL) FROM Customers GROUP BY Region
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Region, LOGICAL_OR(Email IS NULL) FROM Customers GROUP BY Region
+avg_amount, f0_	avg_amount, f0_	engine	shop	omni_span	results	SELECT AVG(Amount) AS avg_amount, MIN(Placed) FROM Orders
+omni_span.Orders.Amount | omni_span.Orders.Placed	~ | ~	engine	shop	omni_span	lineage	SELECT AVG(Amount) AS avg_amount, MIN(Placed) FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT AVG(Amount) AS avg_amount, MIN(Placed) FROM Orders
+item	item	engine	shop	omni_span	results	SELECT item FROM Orders, UNNEST(Items) AS item
+omni_span.Orders.Items	~	engine	shop	omni_span	lineage	SELECT item FROM Orders, UNNEST(Items) AS item
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT item FROM Orders, UNNEST(Items) AS item
+OrderId, item	OrderId, item	engine	shop	omni_span	results	SELECT o.OrderId, item FROM Orders o CROSS JOIN UNNEST(o.Items) AS item
+omni_span.Orders.OrderId | omni_span.Orders.Items	~ | ~	engine	shop	omni_span	lineage	SELECT o.OrderId, item FROM Orders o CROSS JOIN UNNEST(o.Items) AS item
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT o.OrderId, item FROM Orders o CROSS JOIN UNNEST(o.Items) AS item
+item, off	item, off	engine	shop	omni_span	results	SELECT item, off FROM Orders o, UNNEST(o.Items) AS item WITH OFFSET AS off
+omni_span.Orders.Items | -	~ | ~	engine	shop	omni_span	lineage	SELECT item, off FROM Orders o, UNNEST(o.Items) AS item WITH OFFSET AS off
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT item, off FROM Orders o, UNNEST(o.Items) AS item WITH OFFSET AS off
+x	x	engine	shop	omni_span	results	SELECT x FROM UNNEST([1, 2, 3]) AS x
+-	~	engine	shop	omni_span	lineage	SELECT x FROM UNNEST([1, 2, 3]) AS x
+-	-	engine	shop	omni_span	tables	SELECT x FROM UNNEST([1, 2, 3]) AS x
+f0_	f0_	engine	shop	omni_span	results	SELECT * FROM UNNEST(['a', 'b'])
+-	~	engine	shop	omni_span	lineage	SELECT * FROM UNNEST(['a', 'b'])
+-	-	engine	shop	omni_span	tables	SELECT * FROM UNNEST(['a', 'b'])
+OrderId, n	OrderId, n	engine	shop	omni_span	results	SELECT o.OrderId, (SELECT COUNT(*) FROM UNNEST(o.Items)) AS n FROM Orders o
+omni_span.Orders.OrderId | -	~ | ~	engine	shop	omni_span	lineage	SELECT o.OrderId, (SELECT COUNT(*) FROM UNNEST(o.Items)) AS n FROM Orders o
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT o.OrderId, (SELECT COUNT(*) FROM UNNEST(o.Items)) AS n FROM Orders o
+first	first	engine	shop	omni_span	results	SELECT Items[SAFE_OFFSET(0)] AS first FROM Orders
+omni_span.Orders.Items	~	engine	shop	omni_span	lineage	SELECT Items[SAFE_OFFSET(0)] AS first FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT Items[SAFE_OFFSET(0)] AS first FROM Orders
+f0_	f0_	engine	shop	omni_span	results	SELECT ARRAY_LENGTH(Items) FROM Orders
+omni_span.Orders.Items	~	engine	shop	omni_span	lineage	SELECT ARRAY_LENGTH(Items) FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT ARRAY_LENGTH(Items) FROM Orders
+OrderId, i	OrderId, i	engine	shop	omni_span	results	SELECT o.OrderId, i FROM Orders o, o.Items AS i
+omni_span.Orders.OrderId | omni_span.Orders.Items	~ | ~	engine	shop	omni_span	lineage	SELECT o.OrderId, i FROM Orders o, o.Items AS i
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT o.OrderId, i FROM Orders o, o.Items AS i
+OrderId, i	OrderId, i	engine	shop	omni_span	results	SELECT o.OrderId, i FROM Orders o LEFT JOIN UNNEST(o.Items) AS i
+omni_span.Orders.OrderId | omni_span.Orders.Items	~ | ~	engine	shop	omni_span	lineage	SELECT o.OrderId, i FROM Orders o LEFT JOIN UNNEST(o.Items) AS i
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT o.OrderId, i FROM Orders o LEFT JOIN UNNEST(o.Items) AS i
+k, v	k, v	engine	shop	omni_span	results	SELECT t.k, t.v FROM Products, UNNEST(Tags) AS t
+omni_span.Products.Tags | omni_span.Products.Tags	~ | ~	engine	shop	omni_span	lineage	SELECT t.k, t.v FROM Products, UNNEST(Tags) AS t
+omni_span.Products	omni_span.Products	engine	shop	omni_span	tables	SELECT t.k, t.v FROM Products, UNNEST(Tags) AS t
+Name, k	Name, k	engine	shop	omni_span	results	SELECT p.Name, tag.k FROM Products p CROSS JOIN UNNEST(p.Tags) AS tag WHERE tag.v = 'x'
+omni_span.Products.Name | omni_span.Products.Tags	~ | ~	engine	shop	omni_span	lineage	SELECT p.Name, tag.k FROM Products p CROSS JOIN UNNEST(p.Tags) AS tag WHERE tag.v = 'x'
+omni_span.Products	omni_span.Products	engine	shop	omni_span	tables	SELECT p.Name, tag.k FROM Products p CROSS JOIN UNNEST(p.Tags) AS tag WHERE tag.v = 'x'
+ProductId, Name, Price, Tags, Tags_1	ProductId, Name, Price, Tags, k, v	engine	shop	omni_span	results	SELECT * FROM Products, UNNEST(Tags)
+omni_span.Products.ProductId | omni_span.Products.Name | omni_span.Products.Price | omni_span.Products.Tags | omni_span.Products.Tags	~ | ~ | ~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM Products, UNNEST(Tags)
+omni_span.Products	omni_span.Products	engine	shop	omni_span	tables	SELECT * FROM Products, UNNEST(Tags)
+Name, vals	Name, vals	engine	shop	omni_span	results	SELECT p.Name, (SELECT STRING_AGG(t.v) FROM UNNEST(p.Tags) t) AS vals FROM Products p
+omni_span.Products.Name | -	~ | ~	engine	shop	omni_span	lineage	SELECT p.Name, (SELECT STRING_AGG(t.v) FROM UNNEST(p.Tags) t) AS vals FROM Products p
+omni_span.Products	omni_span.Products	engine	shop	omni_span	tables	SELECT p.Name, (SELECT STRING_AGG(t.v) FROM UNNEST(p.Tags) t) AS vals FROM Products p
+f0_, k	f0_, k	engine	shop	omni_span	results	SELECT Items[OFFSET(0)], Tags[SAFE_ORDINAL(1)].k FROM Orders, Products
+omni_span.Orders.Items | omni_span.Products.Tags	~ | ~	engine	shop	omni_span	lineage	SELECT Items[OFFSET(0)], Tags[SAFE_ORDINAL(1)].k FROM Orders, Products
+omni_span.Orders, omni_span.Products	omni_span.Orders, omni_span.Products	engine	shop	omni_span	tables	SELECT Items[OFFSET(0)], Tags[SAFE_ORDINAL(1)].k FROM Orders, Products
+more	more	engine	shop	omni_span	results	SELECT ARRAY_CONCAT(Items, ['x']) AS more FROM Orders
+omni_span.Orders.Items	~	engine	shop	omni_span	lineage	SELECT ARRAY_CONCAT(Items, ['x']) AS more FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT ARRAY_CONCAT(Items, ['x']) AS more FROM Orders
+f0_	a, b	engine	shop	omni_span	results	SELECT * FROM UNNEST([STRUCT(1 AS a, 'x' AS b), (2, 'y')])
+-	~ | ~	engine	shop	omni_span	lineage	SELECT * FROM UNNEST([STRUCT(1 AS a, 'x' AS b), (2, 'y')])
+-	-	engine	shop	omni_span	tables	SELECT * FROM UNNEST([STRUCT(1 AS a, 'x' AS b), (2, 'y')])
+a, b	a, b	engine	shop	omni_span	results	SELECT a, b FROM UNNEST([STRUCT(1 AS a, 'x' AS b)])
+- | -	~ | ~	engine	shop	omni_span	lineage	SELECT a, b FROM UNNEST([STRUCT(1 AS a, 'x' AS b)])
+-	-	engine	shop	omni_span	tables	SELECT a, b FROM UNNEST([STRUCT(1 AS a, 'x' AS b)])
+x, y	x, y	engine	shop	omni_span	results	SELECT x, y FROM UNNEST([1, 2]) AS x, UNNEST([3]) AS y
+- | -	~ | ~	engine	shop	omni_span	lineage	SELECT x, y FROM UNNEST([1, 2]) AS x, UNNEST([3]) AS y
+-	-	engine	shop	omni_span	tables	SELECT x, y FROM UNNEST([1, 2]) AS x, UNNEST([3]) AS y
+item	item	engine	shop	omni_span	results	SELECT item FROM UNNEST((SELECT Items FROM Orders LIMIT 1)) AS item
+-	~	engine	shop	omni_span	lineage	SELECT item FROM UNNEST((SELECT Items FROM Orders LIMIT 1)) AS item
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT item FROM UNNEST((SELECT Items FROM Orders LIMIT 1)) AS item
+City, Zip	City, Zip	engine	shop	omni_span	results	SELECT Ship.City, Ship.Zip FROM Orders
+omni_span.Orders.Ship | omni_span.Orders.Ship	~ | ~	engine	shop	omni_span	lineage	SELECT Ship.City, Ship.Zip FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT Ship.City, Ship.Zip FROM Orders
+city	city	engine	shop	omni_span	results	SELECT o.Ship.City AS city FROM Orders o
+omni_span.Orders.Ship	~	engine	shop	omni_span	lineage	SELECT o.Ship.City AS city FROM Orders o
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT o.Ship.City AS city FROM Orders o
+Ship	Ship	engine	shop	omni_span	results	SELECT Ship FROM Orders
+omni_span.Orders.Ship	~	engine	shop	omni_span	lineage	SELECT Ship FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT Ship FROM Orders
+error:omni	City, Zip	engine	shop	omni_span	results	SELECT Ship.* FROM Orders
+error:omni	~ | ~	engine	shop	omni_span	lineage	SELECT Ship.* FROM Orders
+error:omni	omni_span.Orders	engine	shop	omni_span	tables	SELECT Ship.* FROM Orders
+error:omni	City, Zip, OrderId	engine	shop	omni_span	results	SELECT o.Ship.*, o.OrderId FROM Orders o
+error:omni	~ | ~ | ~	engine	shop	omni_span	lineage	SELECT o.Ship.*, o.OrderId FROM Orders o
+error:omni	omni_span.Orders	engine	shop	omni_span	tables	SELECT o.Ship.*, o.OrderId FROM Orders o
+a, b	a, b	engine	shop	omni_span	results	SELECT s.a, s.b FROM (SELECT STRUCT(CustomerId AS a, Name AS b) AS s FROM Customers)
+omni_span.Customers.CustomerId omni_span.Customers.Name | omni_span.Customers.CustomerId omni_span.Customers.Name	~ | ~	engine	shop	omni_span	lineage	SELECT s.a, s.b FROM (SELECT STRUCT(CustomerId AS a, Name AS b) AS s FROM Customers)
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT s.a, s.b FROM (SELECT STRUCT(CustomerId AS a, Name AS b) AS s FROM Customers)
+n	n	engine	shop	omni_span	results	SELECT STRUCT(CustomerId, Name).Name AS n FROM Customers
+omni_span.Customers.CustomerId omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT STRUCT(CustomerId, Name).Name AS n FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT STRUCT(CustomerId, Name).Name AS n FROM Customers
+x	x	engine	shop	omni_span	results	SELECT t.s.x FROM (SELECT STRUCT(Amount AS x) AS s FROM Orders) AS t
+omni_span.Orders.Amount	~	engine	shop	omni_span	lineage	SELECT t.s.x FROM (SELECT STRUCT(Amount AS x) AS s FROM Orders) AS t
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT t.s.x FROM (SELECT STRUCT(Amount AS x) AS s FROM Orders) AS t
+CustomerId	CustomerId	engine	shop	omni_span	results	SELECT v.CustomerId FROM (SELECT AS STRUCT CustomerId, Name FROM Customers) AS v
+omni_span.Customers.CustomerId	~	engine	shop	omni_span	lineage	SELECT v.CustomerId FROM (SELECT AS STRUCT CustomerId, Name FROM Customers) AS v
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT v.CustomerId FROM (SELECT AS STRUCT CustomerId, Name FROM Customers) AS v
+CustomerId, Name	CustomerId, Name	engine	shop	omni_span	results	SELECT AS STRUCT CustomerId, Name FROM Customers
+omni_span.Customers.CustomerId | omni_span.Customers.Name	~ | ~	engine	shop	omni_span	lineage	SELECT AS STRUCT CustomerId, Name FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT AS STRUCT CustomerId, Name FROM Customers
+f0_	id	engine	shop	omni_span	results	SELECT AS VALUE STRUCT(CustomerId AS id) FROM Customers
+omni_span.Customers.CustomerId	~	engine	shop	omni_span	lineage	SELECT AS VALUE STRUCT(CustomerId AS id) FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT AS VALUE STRUCT(CustomerId AS id) FROM Customers
+Name	error:invalidQuery	engine	shop	omni_span	results	SELECT AS VALUE Name FROM Customers
+omni_span.Customers.Name	error:invalidQuery	engine	shop	omni_span	lineage	SELECT AS VALUE Name FROM Customers
+omni_span.Customers	error:invalidQuery	engine	shop	omni_span	tables	SELECT AS VALUE Name FROM Customers
+OrderId	OrderId	engine	shop	omni_span	results	SELECT e.OrderId FROM Customers c, UNNEST(ARRAY(SELECT AS STRUCT o.OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId)) AS e
+-	~	engine	shop	omni_span	lineage	SELECT e.OrderId FROM Customers c, UNNEST(ARRAY(SELECT AS STRUCT o.OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId)) AS e
+omni_span.Customers, omni_span.Orders	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	SELECT e.OrderId FROM Customers c, UNNEST(ARRAY(SELECT AS STRUCT o.OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId)) AS e
+contact	contact	engine	shop	omni_span	results	SELECT STRUCT(Name, Email) AS contact FROM Customers
+omni_span.Customers.Email omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT STRUCT(Name, Email) AS contact FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT STRUCT(Name, Email) AS contact FROM Customers
+arr	arr	engine	shop	omni_span	results	SELECT [Name, Email] AS arr FROM Customers
+omni_span.Customers.Email omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT [Name, Email] AS arr FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT [Name, Email] AS arr FROM Customers
+s	s	engine	shop	omni_span	results	SELECT (SELECT AS STRUCT Name, Email) AS s FROM Customers
+-	~	engine	shop	omni_span	lineage	SELECT (SELECT AS STRUCT Name, Email) AS s FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT (SELECT AS STRUCT Name, Email) AS s FROM Customers
+c	c	engine	shop	omni_span	results	SELECT c FROM Customers c
+-	~	engine	shop	omni_span	lineage	SELECT c FROM Customers c
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT c FROM Customers c
+f0_	f0_	engine	shop	omni_span	results	SELECT TO_JSON_STRING(c) FROM Customers c
+-	~	engine	shop	omni_span	lineage	SELECT TO_JSON_STRING(c) FROM Customers c
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT TO_JSON_STRING(c) FROM Customers c
+City	City	engine	shop	omni_span	results	SELECT ANY_VALUE(Ship).City FROM Orders
+omni_span.Orders.Ship	~	engine	shop	omni_span	lineage	SELECT ANY_VALUE(Ship).City FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT ANY_VALUE(Ship).City FROM Orders
+Region, Quarter, Revenue	Region, Q1, Q2	engine	shop	omni_span	results	SELECT * FROM Sales PIVOT (SUM(Revenue) FOR Quarter IN ('Q1', 'Q2'))
+omni_span.Sales.Region | omni_span.Sales.Quarter | omni_span.Sales.Revenue	~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM Sales PIVOT (SUM(Revenue) FOR Quarter IN ('Q1', 'Q2'))
+omni_span.Sales	omni_span.Sales	engine	shop	omni_span	tables	SELECT * FROM Sales PIVOT (SUM(Revenue) FOR Quarter IN ('Q1', 'Q2'))
+Region, Q1	error:invalidQuery	engine	shop	omni_span	results	SELECT Region, Q1 FROM Sales PIVOT (SUM(Revenue) AS Q FOR Quarter IN ('Q1' AS Q1, 'Q2' AS Q2))
+omni_span.Sales.Region | -	error:invalidQuery	engine	shop	omni_span	lineage	SELECT Region, Q1 FROM Sales PIVOT (SUM(Revenue) AS Q FOR Quarter IN ('Q1' AS Q1, 'Q2' AS Q2))
+omni_span.Sales	error:invalidQuery	engine	shop	omni_span	tables	SELECT Region, Q1 FROM Sales PIVOT (SUM(Revenue) AS Q FOR Quarter IN ('Q1' AS Q1, 'Q2' AS Q2))
+Region, Quarter, Revenue	Region, Q1	engine	shop	omni_span	results	SELECT * FROM (SELECT Region, Quarter, Revenue FROM Sales) PIVOT (MAX(Revenue) FOR Quarter IN ('Q1'))
+omni_span.Sales.Region | omni_span.Sales.Quarter | omni_span.Sales.Revenue	~ | ~	engine	shop	omni_span	lineage	SELECT * FROM (SELECT Region, Quarter, Revenue FROM Sales) PIVOT (MAX(Revenue) FOR Quarter IN ('Q1'))
+omni_span.Sales	omni_span.Sales	engine	shop	omni_span	tables	SELECT * FROM (SELECT Region, Quarter, Revenue FROM Sales) PIVOT (MAX(Revenue) FOR Quarter IN ('Q1'))
+Region, Goal	Region, val, col	engine	shop	omni_span	results	SELECT * FROM Targets UNPIVOT (val FOR col IN (Goal))
+omni_span.Targets.Region | omni_span.Targets.Goal	~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM Targets UNPIVOT (val FOR col IN (Goal))
+omni_span.Targets	omni_span.Targets	engine	shop	omni_span	tables	SELECT * FROM Targets UNPIVOT (val FOR col IN (Goal))
+Region, val	Region, val	engine	shop	omni_span	results	SELECT Region, val FROM (SELECT Region, Revenue, Revenue * 2 AS Double FROM Sales) UNPIVOT (val FOR kind IN (Revenue, Double))
+omni_span.Sales.Region | -	~ | ~	engine	shop	omni_span	lineage	SELECT Region, val FROM (SELECT Region, Revenue, Revenue * 2 AS Double FROM Sales) UNPIVOT (val FOR kind IN (Revenue, Double))
+omni_span.Sales	omni_span.Sales	engine	shop	omni_span	tables	SELECT Region, val FROM (SELECT Region, Revenue, Revenue * 2 AS Double FROM Sales) UNPIVOT (val FOR kind IN (Revenue, Double))
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM Customers TABLESAMPLE SYSTEM (10 PERCENT)
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM Customers TABLESAMPLE SYSTEM (10 PERCENT)
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name FROM Customers TABLESAMPLE SYSTEM (10 PERCENT)
+Amount	Amount	engine	shop	omni_span	results	SELECT o.Amount FROM Orders o TABLESAMPLE SYSTEM (5 PERCENT)
+omni_span.Orders.Amount	~	engine	shop	omni_span	lineage	SELECT o.Amount FROM Orders o TABLESAMPLE SYSTEM (5 PERCENT)
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT o.Amount FROM Orders o TABLESAMPLE SYSTEM (5 PERCENT)
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM Customers FOR SYSTEM_TIME AS OF CURRENT_TIMESTAMP()
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM Customers FOR SYSTEM_TIME AS OF CURRENT_TIMESTAMP()
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name FROM Customers FOR SYSTEM_TIME AS OF CURRENT_TIMESTAMP()
+error:omni	error:invalidQuery	engine	shop	omni_span	results	SELECT c.Name FROM Customers FOR SYSTEM TIME AS OF CURRENT_TIMESTAMP() AS c
+error:omni	error:invalidQuery	engine	shop	omni_span	lineage	SELECT c.Name FROM Customers FOR SYSTEM TIME AS OF CURRENT_TIMESTAMP() AS c
+error:omni	error:invalidQuery	engine	shop	omni_span	tables	SELECT c.Name FROM Customers FOR SYSTEM TIME AS OF CURRENT_TIMESTAMP() AS c
+CustomerId, Name, Email, Region	CustomerId, Name, Email, Region	engine	shop	omni_span	results	FROM Customers
+omni_span.Customers.CustomerId | omni_span.Customers.Name | omni_span.Customers.Email | omni_span.Customers.Region	~ | ~ | ~ | ~	engine	shop	omni_span	lineage	FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	FROM Customers
+error:omni	Name	engine	shop	omni_span	results	FROM Customers |> SELECT Name
+error:omni	~	engine	shop	omni_span	lineage	FROM Customers |> SELECT Name
+error:omni	omni_span.Customers	engine	shop	omni_span	tables	FROM Customers |> SELECT Name
+error:omni	Name, Email	engine	shop	omni_span	results	FROM Customers |> WHERE Region = 'eu' |> SELECT Name, Email
+error:omni	~ | ~	engine	shop	omni_span	lineage	FROM Customers |> WHERE Region = 'eu' |> SELECT Name, Email
+error:omni	omni_span.Customers	engine	shop	omni_span	tables	FROM Customers |> WHERE Region = 'eu' |> SELECT Name, Email
+error:omni	CustomerId, total	engine	shop	omni_span	results	FROM Orders |> AGGREGATE SUM(Amount) AS total GROUP BY CustomerId
+error:omni	~ | ~	engine	shop	omni_span	lineage	FROM Orders |> AGGREGATE SUM(Amount) AS total GROUP BY CustomerId
+error:omni	omni_span.Orders	engine	shop	omni_span	tables	FROM Orders |> AGGREGATE SUM(Amount) AS total GROUP BY CustomerId
+error:omni	CustomerId, OrderId, Amount, Status, Items, Ship, Placed, double	engine	shop	omni_span	results	FROM Orders |> EXTEND Amount * 2 AS double
+error:omni	~ | ~ | ~ | ~ | ~ | ~ | ~ | ~	engine	shop	omni_span	lineage	FROM Orders |> EXTEND Amount * 2 AS double
+error:omni	omni_span.Orders	engine	shop	omni_span	tables	FROM Orders |> EXTEND Amount * 2 AS double
+error:omni	OrderId, double	engine	shop	omni_span	results	FROM Orders |> EXTEND Amount * 2 AS double |> SELECT OrderId, double
+error:omni	~ | ~	engine	shop	omni_span	lineage	FROM Orders |> EXTEND Amount * 2 AS double |> SELECT OrderId, double
+error:omni	omni_span.Orders	engine	shop	omni_span	tables	FROM Orders |> EXTEND Amount * 2 AS double |> SELECT OrderId, double
+error:omni	CustomerId, Name, Email, Region	engine	shop	omni_span	results	FROM Customers |> SET Name = UPPER(Name)
+error:omni	~ | ~ | ~ | ~	engine	shop	omni_span	lineage	FROM Customers |> SET Name = UPPER(Name)
+error:omni	omni_span.Customers	engine	shop	omni_span	tables	FROM Customers |> SET Name = UPPER(Name)
+error:omni	CustomerId, Name, Region	engine	shop	omni_span	results	FROM Customers |> DROP Email
+error:omni	~ | ~ | ~	engine	shop	omni_span	lineage	FROM Customers |> DROP Email
+error:omni	omni_span.Customers	engine	shop	omni_span	tables	FROM Customers |> DROP Email
+error:omni	CustomerId, full_name, Email, Region	engine	shop	omni_span	results	FROM Customers |> RENAME Name AS full_name
+error:omni	~ | ~ | ~ | ~	engine	shop	omni_span	lineage	FROM Customers |> RENAME Name AS full_name
+error:omni	omni_span.Customers	engine	shop	omni_span	tables	FROM Customers |> RENAME Name AS full_name
+error:omni	Name	engine	shop	omni_span	results	FROM Customers |> AS c |> SELECT c.Name
+error:omni	~	engine	shop	omni_span	lineage	FROM Customers |> AS c |> SELECT c.Name
+error:omni	omni_span.Customers	engine	shop	omni_span	tables	FROM Customers |> AS c |> SELECT c.Name
+error:omni	Name, Amount	engine	shop	omni_span	results	FROM Customers c |> JOIN Orders o ON c.CustomerId = o.CustomerId |> SELECT c.Name, o.Amount
+error:omni	~ | ~	engine	shop	omni_span	lineage	FROM Customers c |> JOIN Orders o ON c.CustomerId = o.CustomerId |> SELECT c.Name, o.Amount
+error:omni	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	FROM Customers c |> JOIN Orders o ON c.CustomerId = o.CustomerId |> SELECT c.Name, o.Amount
+error:omni	Name, Amount	engine	shop	omni_span	results	FROM Customers |> JOIN Orders USING (CustomerId) |> SELECT Name, Amount
+error:omni	~ | ~	engine	shop	omni_span	lineage	FROM Customers |> JOIN Orders USING (CustomerId) |> SELECT Name, Amount
+error:omni	omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	FROM Customers |> JOIN Orders USING (CustomerId) |> SELECT Name, Amount
+CustomerId, Name, Email, Region	CustomerId, Name, Email, Region	engine	shop	omni_span	results	FROM Customers |> ORDER BY Name |> LIMIT 3
+omni_span.Customers.CustomerId | omni_span.Customers.Name | omni_span.Customers.Email | omni_span.Customers.Region	~ | ~ | ~ | ~	engine	shop	omni_span	lineage	FROM Customers |> ORDER BY Name |> LIMIT 3
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	FROM Customers |> ORDER BY Name |> LIMIT 3
+error:omni	Name	engine	shop	omni_span	results	FROM Customers |> SELECT Name |> UNION ALL (SELECT Name FROM Products)
+error:omni	~	engine	shop	omni_span	lineage	FROM Customers |> SELECT Name |> UNION ALL (SELECT Name FROM Products)
+error:omni	omni_span.Customers, omni_span.Products	engine	shop	omni_span	tables	FROM Customers |> SELECT Name |> UNION ALL (SELECT Name FROM Products)
+error:omni	Status, n	engine	shop	omni_span	results	FROM Orders |> AGGREGATE COUNT(*) AS n GROUP BY Status |> WHERE n > 1
+error:omni	~ | ~	engine	shop	omni_span	lineage	FROM Orders |> AGGREGATE COUNT(*) AS n GROUP BY Status |> WHERE n > 1
+error:omni	omni_span.Orders	engine	shop	omni_span	tables	FROM Orders |> AGGREGATE COUNT(*) AS n GROUP BY Status |> WHERE n > 1
+error:omni	Name, Goal	engine	shop	omni_span	results	FROM Customers |> LEFT JOIN Targets USING (Region) |> SELECT Name, Goal
+error:omni	~ | ~	engine	shop	omni_span	lineage	FROM Customers |> LEFT JOIN Targets USING (Region) |> SELECT Name, Goal
+error:omni	omni_span.Customers, omni_span.Targets	engine	shop	omni_span	tables	FROM Customers |> LEFT JOIN Targets USING (Region) |> SELECT Name, Goal
+error:omni	OrderId, item	engine	shop	omni_span	results	FROM Orders |> CROSS JOIN UNNEST(Items) AS item |> SELECT OrderId, item
+error:omni	~ | ~	engine	shop	omni_span	lineage	FROM Orders |> CROSS JOIN UNNEST(Items) AS item |> SELECT OrderId, item
+error:omni	omni_span.Orders	engine	shop	omni_span	tables	FROM Orders |> CROSS JOIN UNNEST(Items) AS item |> SELECT OrderId, item
+error:omni	Region, Q1, Q2	engine	shop	omni_span	results	FROM Sales |> PIVOT (SUM(Revenue) FOR Quarter IN ('Q1', 'Q2'))
+error:omni	~ | ~ | ~	engine	shop	omni_span	lineage	FROM Sales |> PIVOT (SUM(Revenue) FOR Quarter IN ('Q1', 'Q2'))
+error:omni	omni_span.Sales	engine	shop	omni_span	tables	FROM Sales |> PIVOT (SUM(Revenue) FOR Quarter IN ('Q1', 'Q2'))
+error:omni	CustomerId, Name, Email, Region, rn	engine	shop	omni_span	results	FROM Customers |> WINDOW ROW_NUMBER() OVER (ORDER BY CustomerId) AS rn
+error:omni	~ | ~ | ~ | ~ | ~	engine	shop	omni_span	lineage	FROM Customers |> WINDOW ROW_NUMBER() OVER (ORDER BY CustomerId) AS rn
+error:omni	omni_span.Customers	engine	shop	omni_span	tables	FROM Customers |> WINDOW ROW_NUMBER() OVER (ORDER BY CustomerId) AS rn
+error:omni	Name, rn	engine	shop	omni_span	results	FROM Customers |> EXTEND ROW_NUMBER() OVER (ORDER BY CustomerId) AS rn |> SELECT Name, rn
+error:omni	~ | ~	engine	shop	omni_span	lineage	FROM Customers |> EXTEND ROW_NUMBER() OVER (ORDER BY CustomerId) AS rn |> SELECT Name, rn
+error:omni	omni_span.Customers	engine	shop	omni_span	tables	FROM Customers |> EXTEND ROW_NUMBER() OVER (ORDER BY CustomerId) AS rn |> SELECT Name, rn
+CustomerId, Name, Email, Region	CustomerId, Name, Email, Region	engine	shop	omni_span	results	FROM Customers |> DISTINCT
+omni_span.Customers.CustomerId | omni_span.Customers.Name | omni_span.Customers.Email | omni_span.Customers.Region	~ | ~ | ~ | ~	engine	shop	omni_span	lineage	FROM Customers |> DISTINCT
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	FROM Customers |> DISTINCT
+error:omni	Region	engine	shop	omni_span	results	FROM Customers |> SELECT Region |> DISTINCT
+error:omni	~	engine	shop	omni_span	lineage	FROM Customers |> SELECT Region |> DISTINCT
+error:omni	omni_span.Customers	engine	shop	omni_span	tables	FROM Customers |> SELECT Region |> DISTINCT
+error:omni	OrderId	engine	shop	omni_span	results	WITH t AS (SELECT * FROM Orders) FROM t |> SELECT OrderId
+error:omni	~	engine	shop	omni_span	lineage	WITH t AS (SELECT * FROM Orders) FROM t |> SELECT OrderId
+error:omni	omni_span.Orders	engine	shop	omni_span	tables	WITH t AS (SELECT * FROM Orders) FROM t |> SELECT OrderId
+CustomerId, Name, Email, Region	CustomerId, Name, Email, Region	engine	shop	omni_span	results	SELECT * FROM Customers |> WHERE Region = 'eu'
+omni_span.Customers.CustomerId | omni_span.Customers.Name | omni_span.Customers.Email | omni_span.Customers.Region	~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM Customers |> WHERE Region = 'eu'
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT * FROM Customers |> WHERE Region = 'eu'
+error:omni	Name	engine	shop	omni_span	results	SELECT Name, Email FROM Customers |> SELECT Name
+error:omni	~	engine	shop	omni_span	lineage	SELECT Name, Email FROM Customers |> SELECT Name
+error:omni	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name, Email FROM Customers |> SELECT Name
+error:omni	Name	engine	shop	omni_span	results	FROM Customers |> TABLESAMPLE SYSTEM (10 PERCENT) |> SELECT Name
+error:omni	~	engine	shop	omni_span	lineage	FROM Customers |> TABLESAMPLE SYSTEM (10 PERCENT) |> SELECT Name
+error:omni	omni_span.Customers	engine	shop	omni_span	tables	FROM Customers |> TABLESAMPLE SYSTEM (10 PERCENT) |> SELECT Name
+error:omni	Name	engine	shop	omni_span	results	FROM CustomerOrders |> SELECT Name
+error:omni	~	engine	shop	omni_span	lineage	FROM CustomerOrders |> SELECT Name
+error:omni	omni_span.CustomerOrders, omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	FROM CustomerOrders |> SELECT Name
+error:omni	Kind	engine	shop	omni_span	results	FROM `events_*` |> SELECT Kind
+error:omni	~	engine	shop	omni_span	lineage	FROM `events_*` |> SELECT Kind
+error:omni	omni_span.events_*	engine	shop	omni_span	tables	FROM `events_*` |> SELECT Kind
+error:omni	CustomerId, Name, Region	engine	shop	omni_span	results	FROM Customers |> SELECT * EXCEPT (Email)
+error:omni	~ | ~ | ~	engine	shop	omni_span	lineage	FROM Customers |> SELECT * EXCEPT (Email)
+error:omni	omni_span.Customers	engine	shop	omni_span	tables	FROM Customers |> SELECT * EXCEPT (Email)
+error:omni	Region, f0_	engine	shop	omni_span	results	FROM Customers |> AGGREGATE COUNT(*) GROUP BY Region
+error:omni	~ | ~	engine	shop	omni_span	lineage	FROM Customers |> AGGREGATE COUNT(*) GROUP BY Region
+error:omni	omni_span.Customers	engine	shop	omni_span	tables	FROM Customers |> AGGREGATE COUNT(*) GROUP BY Region
+error:omni	error:invalidQuery	engine	shop	omni_span	results	FROM Customers |> CALL OrdersOf(1)
+error:omni	error:invalidQuery	engine	shop	omni_span	lineage	FROM Customers |> CALL OrdersOf(1)
+error:omni	error:invalidQuery	engine	shop	omni_span	tables	FROM Customers |> CALL OrdersOf(1)
+table_name	table_name	engine	shop	omni_span	results	SELECT table_name FROM omni_span.INFORMATION_SCHEMA.TABLES
+-	~	engine	shop	omni_span	lineage	SELECT table_name FROM omni_span.INFORMATION_SCHEMA.TABLES
+omni_span.INFORMATION_SCHEMA.TABLES	omni_span.INFORMATION_SCHEMA.TABLES	engine	shop	omni_span	tables	SELECT table_name FROM omni_span.INFORMATION_SCHEMA.TABLES
+column_name, data_type	column_name, data_type	engine	shop	omni_span	results	SELECT column_name, data_type FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = 'Orders'
+- | -	~ | ~	engine	shop	omni_span	lineage	SELECT column_name, data_type FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = 'Orders'
+omni_span.INFORMATION_SCHEMA.COLUMNS	omni_span.INFORMATION_SCHEMA.COLUMNS	engine	shop	omni_span	tables	SELECT column_name, data_type FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = 'Orders'
+word	word	engine	shop	omni_span	results	SELECT word FROM `bigquery-public-data.samples.shakespeare`
+-	~	engine	shop	omni_span	lineage	SELECT word FROM `bigquery-public-data.samples.shakespeare`
+samples.shakespeare	samples.shakespeare	engine	shop	omni_span	tables	SELECT word FROM `bigquery-public-data.samples.shakespeare`
+word, corpus	word, corpus	engine	shop	omni_span	results	SELECT word, corpus FROM `bigquery-public-data`.samples.shakespeare LIMIT 1
+- | -	~ | ~	engine	shop	omni_span	lineage	SELECT word, corpus FROM `bigquery-public-data`.samples.shakespeare LIMIT 1
+samples.shakespeare	samples.shakespeare	engine	shop	omni_span	tables	SELECT word, corpus FROM `bigquery-public-data`.samples.shakespeare LIMIT 1
+word, Name	word, Name	engine	shop	omni_span	results	SELECT s.word, c.Name FROM `bigquery-public-data.samples.shakespeare` s, Customers c
+- | omni_span.Customers.Name	~ | ~	engine	shop	omni_span	lineage	SELECT s.word, c.Name FROM `bigquery-public-data.samples.shakespeare` s, Customers c
+omni_span.Customers, samples.shakespeare	omni_span.Customers, samples.shakespeare	engine	shop	omni_span	tables	SELECT s.word, c.Name FROM `bigquery-public-data.samples.shakespeare` s, Customers c
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM Customers WHERE Name LIKE 'a%' AND Email IS NOT NULL
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM Customers WHERE Name LIKE 'a%' AND Email IS NOT NULL
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name FROM Customers WHERE Name LIKE 'a%' AND Email IS NOT NULL
+half	half	engine	shop	omni_span	results	SELECT SAFE_DIVIDE(Amount, 2) AS half FROM Orders
+omni_span.Orders.Amount	~	engine	shop	omni_span	lineage	SELECT SAFE_DIVIDE(Amount, 2) AS half FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT SAFE_DIVIDE(Amount, 2) AS half FROM Orders
+CustomerId, Name, Email, Region	CustomerId, Name, Email, Region	engine	shop	omni_span	results	SELECT * FROM Customers WHERE CustomerId BETWEEN 1 AND 10
+omni_span.Customers.CustomerId | omni_span.Customers.Name | omni_span.Customers.Email | omni_span.Customers.Region	~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM Customers WHERE CustomerId BETWEEN 1 AND 10
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT * FROM Customers WHERE CustomerId BETWEEN 1 AND 10
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM Customers ORDER BY 1 DESC
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM Customers ORDER BY 1 DESC
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name FROM Customers ORDER BY 1 DESC
+email	email	engine	shop	omni_span	results	SELECT IFNULL(Email, 'none') AS email FROM Customers
+omni_span.Customers.Email	~	engine	shop	omni_span	lineage	SELECT IFNULL(Email, 'none') AS email FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT IFNULL(Email, 'none') AS email FROM Customers
+Name	Name	engine	shop	omni_span	results	SELECT Name FROM Customers WHERE STARTS_WITH(Email, 'x') LIMIT 1
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name FROM Customers WHERE STARTS_WITH(Email, 'x') LIMIT 1
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name FROM Customers WHERE STARTS_WITH(Email, 'x') LIMIT 1
+id, Name	id, Name	engine	shop	omni_span	results	SELECT GENERATE_UUID() AS id, Name FROM Customers
+- | omni_span.Customers.Name	~ | ~	engine	shop	omni_span	lineage	SELECT GENERATE_UUID() AS id, Name FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT GENERATE_UUID() AS id, Name FROM Customers
+clean	clean	engine	shop	omni_span	results	SELECT ARRAY(SELECT x FROM UNNEST(Items) AS x WHERE x != '') AS clean FROM Orders
+-	~	engine	shop	omni_span	lineage	SELECT ARRAY(SELECT x FROM UNNEST(Items) AS x WHERE x != '') AS clean FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT ARRAY(SELECT x FROM UNNEST(Items) AS x WHERE x != '') AS clean FROM Orders
+Name, goal	Name, goal	engine	shop	omni_span	results	SELECT Name, (SELECT Goal FROM Targets t WHERE t.Region = c.Region) AS goal FROM Customers c
+omni_span.Customers.Name | -	~ | ~	engine	shop	omni_span	lineage	SELECT Name, (SELECT Goal FROM Targets t WHERE t.Region = c.Region) AS goal FROM Customers c
+omni_span.Customers, omni_span.Targets	omni_span.Customers, omni_span.Targets	engine	shop	omni_span	tables	SELECT Name, (SELECT Goal FROM Targets t WHERE t.Region = c.Region) AS goal FROM Customers c
+month, f0_	month, f0_	engine	shop	omni_span	results	SELECT DATE_TRUNC(Placed, MONTH) AS month, SUM(Amount) FROM Orders GROUP BY month
+omni_span.Orders.Placed | omni_span.Orders.Amount	~ | ~	engine	shop	omni_span	lineage	SELECT DATE_TRUNC(Placed, MONTH) AS month, SUM(Amount) FROM Orders GROUP BY month
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT DATE_TRUNC(Placed, MONTH) AS month, SUM(Amount) FROM Orders GROUP BY month
+domain	domain	engine	shop	omni_span	results	SELECT REGEXP_EXTRACT(Email, r'@(.*)') AS domain FROM Customers
+omni_span.Customers.Email	~	engine	shop	omni_span	lineage	SELECT REGEXP_EXTRACT(Email, r'@(.*)') AS domain FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT REGEXP_EXTRACT(Email, r'@(.*)') AS domain FROM Customers
+addr	addr	engine	shop	omni_span	results	SELECT Name || ' <' || Email || '>' AS addr FROM Customers
+omni_span.Customers.Email omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT Name || ' <' || Email || '>' AS addr FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT Name || ' <' || Email || '>' AS addr FROM Customers
+Name	Name	engine	shop	omni_span	results	SELECT `Name` FROM Customers WHERE `Region` = 'eu'
+omni_span.Customers.Name	~	engine	shop	omni_span	lineage	SELECT `Name` FROM Customers WHERE `Region` = 'eu'
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT `Name` FROM Customers WHERE `Region` = 'eu'
+f0_	f0_	engine	shop	omni_span	results	SELECT 1 FROM Customers
+-	~	engine	shop	omni_span	lineage	SELECT 1 FROM Customers
+omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	SELECT 1 FROM Customers
+n	n	engine	shop	omni_span	results	SELECT NULL AS n FROM Orders
+-	~	engine	shop	omni_span	lineage	SELECT NULL AS n FROM Orders
+omni_span.Orders	omni_span.Orders	engine	shop	omni_span	tables	SELECT NULL AS n FROM Orders
+Nope	error:invalidQuery	engine	shop	omni_span	results	SELECT Nope FROM Customers
+-	error:invalidQuery	engine	shop	omni_span	lineage	SELECT Nope FROM Customers
+omni_span.Customers	error:invalidQuery	engine	shop	omni_span	tables	SELECT Nope FROM Customers
+Name	error:notFound	engine	shop	omni_span	results	SELECT Name FROM Missing
+-	error:notFound	engine	shop	omni_span	lineage	SELECT Name FROM Missing
+omni_span.Missing	error:notFound	engine	shop	omni_span	tables	SELECT Name FROM Missing
+Name	error:invalidQuery	engine	shop	omni_span	results	SELECT x.Name FROM Customers c
+-	error:invalidQuery	engine	shop	omni_span	lineage	SELECT x.Name FROM Customers c
+omni_span.Customers	error:invalidQuery	engine	shop	omni_span	tables	SELECT x.Name FROM Customers c
+Name	error:invalidQuery	engine	shop	omni_span	results	SELECT Name FROM Customers, Products
+omni_span.Customers.Name omni_span.Products.Name	error:invalidQuery	engine	shop	omni_span	lineage	SELECT Name FROM Customers, Products
+omni_span.Customers, omni_span.Products	error:invalidQuery	engine	shop	omni_span	tables	SELECT Name FROM Customers, Products
+Name, CustomerId, Email, Region, CustomerId_1, OrderId, Amount, Status, Items, Ship, Placed, ProductId, Price, Tags	Name, CustomerId, Email, Region, CustomerId_1, OrderId, Amount, Status, Items, Ship, Placed, ProductId, Price, Tags	engine	shop	omni_span	results	SELECT * FROM Customers JOIN Orders ON TRUE JOIN Products USING (Name)
+omni_span.Customers.Name omni_span.Products.Name | omni_span.Customers.CustomerId | omni_span.Customers.Email | omni_span.Customers.Region | omni_span.Orders.CustomerId | omni_span.Orders.OrderId | omni_span.Orders.Amount | omni_span.Orders.Status | omni_span.Orders.Items | omni_span.Orders.Ship | omni_span.Orders.Placed | omni_span.Products.ProductId | omni_span.Products.Price | omni_span.Products.Tags	~ | ~ | ~ | ~ | ~ | ~ | ~ | ~ | ~ | ~ | ~ | ~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM Customers JOIN Orders ON TRUE JOIN Products USING (Name)
+omni_span.Customers, omni_span.Orders, omni_span.Products	omni_span.Customers, omni_span.Orders, omni_span.Products	engine	shop	omni_span	tables	SELECT * FROM Customers JOIN Orders ON TRUE JOIN Products USING (Name)

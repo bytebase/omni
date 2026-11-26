@@ -352,6 +352,12 @@ func (p *Parser) parseLockTablesStmt(start int) (*nodes.LockTablesStmt, error) {
 		}
 		p.advance()
 	}
+	// lock: LOCK_SYM table_or_tables table_lock_list opt_lock_wait_timeout
+	// (sql_yacc.yy:17601).
+	var err error
+	if stmt.NoWait, stmt.HasWait, stmt.WaitSeconds, err = p.parseIndexLockWait(); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil

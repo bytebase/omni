@@ -28,6 +28,10 @@ var windowAcceptCorpus = []string{
 	"SELECT * FROM T WINDOW someWindow AS (PARTITION BY a), otherWindow AS (someWindow ORDER BY b)",
 	// a bare WINDOW (non-reserved) with nothing after is the table alias `t AS window`
 	"SELECT 1 FROM t WINDOW",
+	// LISTAGG takes filter? over? (SqlBase.g4:613); a bare FILTER is an alias
+	"SELECT LISTAGG(a) WITHIN GROUP (ORDER BY a) OVER (PARTITION BY a) FROM t",
+	"SELECT LISTAGG(a) WITHIN GROUP (ORDER BY a) OVER w FROM t WINDOW w AS ()",
+	"SELECT LISTAGG(a) WITHIN GROUP (ORDER BY a) FILTER FROM t",
 }
 
 // windowRejectCorpus is malformed WINDOW-clause input Trino 481 rejects.

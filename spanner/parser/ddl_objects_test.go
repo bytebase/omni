@@ -193,17 +193,18 @@ func TestCreateSchema(t *testing.T) {
 	}
 }
 
-func TestCreateSchema_IfNotExistsCollateOptions(t *testing.T) {
-	n := parseDDL(t, "CREATE SCHEMA IF NOT EXISTS mydataset DEFAULT COLLATE 'und:ci' OPTIONS (location = 'us')")
+func TestCreateSchema_IfNotExistsOptions(t *testing.T) {
+	n := parseDDL(t, "CREATE SCHEMA IF NOT EXISTS mydataset OPTIONS (location = 'us')")
 	s := n.(*ast.CreateSchemaStmt)
 	if !s.IfNotExists {
 		t.Error("IfNotExists = false, want true")
 	}
-	if s.DefaultCollate == "" {
-		t.Error("DefaultCollate empty, want und:ci")
-	}
 	if len(s.Options) != 1 {
 		t.Errorf("Options = %d, want 1", len(s.Options))
+	}
+	// Spanner's CREATE SCHEMA takes no DEFAULT COLLATE (compat.tsv).
+	if _, err := Parse("CREATE SCHEMA mydataset DEFAULT COLLATE 'und:ci'"); err == nil {
+		t.Error("CREATE SCHEMA ... DEFAULT COLLATE parsed, want a syntax error")
 	}
 }
 

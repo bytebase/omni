@@ -178,3 +178,18 @@ func TestDDLFormsMatchPG(t *testing.T) {
 		{"CREATE DOMAIN d int INITIALLY", false},
 	})
 }
+
+// TestOptWhereClauseMatchesPG pins OptWhereClause (gram.y:4371), WHERE '('
+// a_expr ')': an EXCLUDE constraint's predicate takes the parentheses, so a
+// bare expression, or one that goes on past them, is refused.
+func TestOptWhereClauseMatchesPG(t *testing.T) {
+	assertSyntaxMatchesPG(t, []syntaxCase{
+		{"ALTER TABLE t ADD EXCLUDE (a WITH =) WHERE (a > 0)", true},
+		{"ALTER TABLE t ADD EXCLUDE (a WITH =) WHERE a > 0", false},
+		{"ALTER TABLE t ADD EXCLUDE (a WITH =) WHERE (a) OR b", false},
+		{"CREATE TABLE t (a int, EXCLUDE USING gist (a WITH &&) WHERE (a IS NOT NULL) DEFERRABLE)", true},
+		{"CREATE TABLE t (a int, EXCLUDE USING gist (a WITH &&) WHERE a IS NOT NULL)", false},
+		{"ALTER PUBLICATION p ADD TABLE t WHERE (a > 0)", true},
+		{"ALTER PUBLICATION p ADD TABLE t WHERE a > 0", false},
+	})
+}

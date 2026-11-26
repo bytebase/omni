@@ -1149,6 +1149,8 @@ reject	reject	engine	createExternalLibraryFileOption/LeftParenthesis_CONTENT_Equ
 reject	reject	engine	createExternalLibraryFileOption/LeftParenthesis_CONTENT_EqualsSign_binaryOrString_(Comm~b52933d1!truncate	CREATE EXTERNAL LIBRARY a FROM(CONTENT = 0x00
 reject	reject	engine	createExternalLibraryFileOption/LeftParenthesis_CONTENT_EqualsSign_binaryOrString_(Comm~b52933d1!insert	CREATE EXTERNAL LIBRARY a FROM(CONTENT = 0x00) zzz WITH(LANGUAGE = 'a')
 reject	reject	engine	createExternalLibraryFileOption/LeftParenthesis_CONTENT_EqualsSign_binaryOrString_(Comm~b52933d1!swap	CREATE EXTERNAL LIBRARY a FROM(CONTINUE = 0x00) WITH(LANGUAGE = 'a')
+accept	accept	engine	createExternalLibraryFileOption/LeftParenthesis_CONTENT_EqualsSign_binaryOrString_(Comm~b52933d1+binaryOrString/stringLiteral	CREATE EXTERNAL LIBRARY a FROM(CONTENT = 'a') WITH(LANGUAGE = 'a')
+accept	accept	engine	createExternalLibraryFileOption/LeftParenthesis_CONTENT_EqualsSign_binaryOrString_(Comm~b52933d1+stringLiteral/UnicodeStringLiteral	CREATE EXTERNAL LIBRARY a FROM(CONTENT = N'a') WITH(LANGUAGE = 'a')
 accept	accept	engine	createExternalLibraryFileOption(Comma_PLATFORM_EqualsSign_identifier)*/%empty	CREATE EXTERNAL LIBRARY a FROM(CONTENT = 0x00) WITH(LANGUAGE = 'a')
 reject	reject	engine	createExternalLibraryFileOption(Comma_PLATFORM_EqualsSign_identifier)*/%empty!insert	CREATE EXTERNAL LIBRARY a FROM(CONTENT = 0x00 zzz) WITH(LANGUAGE = 'a')
 reject	reject	engine	createExternalLibraryFileOption(Comma_PLATFORM_EqualsSign_identifier)*/Comma_PLATFORM_EqualsSign_identifier_(Comma_PLATFORM_Eq~99c0d879	CREATE EXTERNAL LIBRARY a FROM(CONTENT = 0x00, PLATFORM = a) WITH(LANGUAGE = 'a')
@@ -1168,6 +1170,8 @@ reject	reject	engine	alterExternalLibraryFileOption/LeftParenthesis_CONTENT_Equa
 reject	reject	engine	alterExternalLibraryFileOption/LeftParenthesis_CONTENT_EqualsSign_binaryOrString_(Comm~b52933d1!truncate	ALTER EXTERNAL LIBRARY a SET(CONTENT = 0x00
 reject	reject	engine	alterExternalLibraryFileOption/LeftParenthesis_CONTENT_EqualsSign_binaryOrString_(Comm~b52933d1!insert	ALTER EXTERNAL LIBRARY a SET(CONTENT = 0x00) zzz WITH(LANGUAGE = 'a')
 reject	reject	engine	alterExternalLibraryFileOption/LeftParenthesis_CONTENT_EqualsSign_binaryOrString_(Comm~b52933d1!swap	ALTER EXTERNAL LIBRARY a SET(CONTINUE = 0x00) WITH(LANGUAGE = 'a')
+accept	accept	engine	alterExternalLibraryFileOption/LeftParenthesis_CONTENT_EqualsSign_binaryOrString_(Comm~b52933d1+binaryOrString/stringLiteral	ALTER EXTERNAL LIBRARY a SET(CONTENT = 'a') WITH(LANGUAGE = 'a')
+accept	accept	engine	alterExternalLibraryFileOption/LeftParenthesis_CONTENT_EqualsSign_binaryOrString_(Comm~b52933d1+stringLiteral/UnicodeStringLiteral	ALTER EXTERNAL LIBRARY a SET(CONTENT = N'a') WITH(LANGUAGE = 'a')
 accept	accept	engine	alterExternalLibraryFileOption(Comma_PLATFORM_EqualsSign_identifier)*/%empty	ALTER EXTERNAL LIBRARY a SET(CONTENT = 0x00) WITH(LANGUAGE = 'a')
 reject	reject	engine	alterExternalLibraryFileOption(Comma_PLATFORM_EqualsSign_identifier)*/%empty!insert	ALTER EXTERNAL LIBRARY a SET(CONTENT = 0x00 zzz) WITH(LANGUAGE = 'a')
 reject	reject	engine	alterExternalLibraryFileOption(Comma_PLATFORM_EqualsSign_identifier)*/Comma_PLATFORM_EqualsSign_identifier_(Comma_PLATFORM_Eq~99c0d879	ALTER EXTERNAL LIBRARY a SET(CONTENT = 0x00, PLATFORM = a) WITH(LANGUAGE = 'a')
@@ -1549,6 +1553,8 @@ reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c1
 reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/onFailureAuditOption	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = CONTINUE)
 reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/onFailureAuditOption!insert	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = CONTINUE zzz)
 reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/onFailureAuditOption!swap	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = CONTRACT)
+reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/onFailureAuditOption+onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/Shutdown	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = SHUTDOWN)
+reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/onFailureAuditOption+onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/FAIL_OPERATION	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = FAIL_OPERATION)
 reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/auditGuidAuditOption	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 'a')
 reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/auditGuidAuditOption!insert	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 'a' zzz)
 reject	reject	engine	auditCreateOption(queueDelayAuditOption|onFailureAudit~33c18951)/operatorAuditOption	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = ON)
@@ -2696,6 +2702,8 @@ reject	reject	engine	serverAuditActionGroup/Identifier	ALTER SERVER AUDIT SPECIF
 reject	reject	engine	serverAuditActionGroup/Identifier!truncate	ALTER SERVER AUDIT SPECIFICATION a ADD(
 reject	reject	engine	serverAuditActionGroup/Identifier!insert	ALTER SERVER AUDIT SPECIFICATION a ADD(a zzz)
 accept	accept	engine	auditActionSpecification/actionWithQual_(Comma_actionWithQual)*_securityTargetOb~8a5ff565	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC)
+accept	accept	engine	auditActionSpecification/actionWithQual_(Comma_actionWithQual)*_securityTargetOb~8a5ff565+principal/Null	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY NULL)
+accept	accept	engine	auditActionSpecification/actionWithQual_(Comma_actionWithQual)*_securityTargetOb~8a5ff565+principal/identifier	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY a)
 accept	accept	engine	auditActionSpecification(Comma_actionWithQual)*/%empty	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC)
 reject	reject	engine	auditActionSpecification(Comma_actionWithQual)*/%empty!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT zzz ON a BY PUBLIC)
 accept	accept	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT, SELECT ON a BY PUBLIC)
@@ -2717,6 +2725,8 @@ reject	reject	engine	auditActionSpecification(Comma_principal)*/Comma_principal_
 reject	reject	engine	auditActionSpecification(Comma_principal)*/Comma_principal_(Comma_principal)*!truncate	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC,
 reject	reject	engine	auditActionSpecification(Comma_principal)*/Comma_principal_(Comma_principal)*!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC, PUBLIC zzz)
 accept	accept	engine	auditActionSpecification(Comma_principal)*/Comma_principal_(Comma_principal)*!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC, PUSHDOWN)
+accept	accept	engine	auditActionSpecification(Comma_principal)*/Comma_principal_(Comma_principal)*+principal/Null	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC, NULL)
+accept	accept	engine	auditActionSpecification(Comma_principal)*/Comma_principal_(Comma_principal)*+principal/identifier	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC, a)
 accept	accept	engine	actionWithQual/Select	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC)
 accept	accept	engine	actionWithQual/Update	ALTER DATABASE AUDIT SPECIFICATION a ADD(UPDATE ON a BY PUBLIC)
 reject	reject	engine	actionWithQual/Update!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(UPDATE zzz ON a BY PUBLIC)
@@ -2878,7 +2888,9 @@ reject	reject	engine	backupMain/backupTransactionLog!drop-2	BACKUP LOG
 reject	reject	engine	backupMain/backupTransactionLog!insert	BACKUP LOG @a zzz
 reject	reject	engine	backupMain/backupTransactionLog!swap	BACKUP LOGIN @a
 accept	accept	engine	backupDatabase/Database_identifierOrVariable_backupFileListOpt	BACKUP DATABASE @a
+accept	accept	engine	backupDatabase/Database_identifierOrVariable_backupFileListOpt+identifierOrVariable/identifier	BACKUP DATABASE a
 accept	accept	engine	backupTransactionLog/LOG_identifierOrVariable	BACKUP LOG @a
+accept	accept	engine	backupTransactionLog/LOG_identifierOrVariable+identifierOrVariable/identifier	BACKUP LOG a
 accept	accept	engine	backupFileListOpt/(backupRestoreFile_(Comma_backupRestoreFile)*)?	BACKUP DATABASE @a
 accept	accept	engine	backupFileListOpt(backupRestoreFile_(Comma_backupRestoreFile)*)?/%empty	BACKUP DATABASE @a
 accept	accept	engine	backupFileListOpt(backupRestoreFile_(Comma_backupRestoreFile)*)?/backupRestoreFile_(Comma_backupRestoreFile)*	BACKUP DATABASE @a READ_WRITE_FILEGROUPS
@@ -2913,12 +2925,16 @@ reject	reject	engine	backupRestoreFile/Identifier_EqualsSign_(stringOrVariable|b
 reject	reject	engine	backupRestoreFile/Identifier_EqualsSign_(stringOrVariable|backupRestoreFi~90168e7d!insert	BACKUP DATABASE @a a = 'a' zzz
 accept	accept	engine	backupRestoreFile/READ_WRITE_FILEGROUPS	BACKUP DATABASE @a READ_WRITE_FILEGROUPS
 accept	accept	engine	backupRestoreFile(stringOrVariable|backupRestoreFileNameList)/stringOrVariable	BACKUP DATABASE @a FILE = 'a'
+accept	accept	engine	backupRestoreFile(stringOrVariable|backupRestoreFileNameList)/stringOrVariable+stringLiteral/UnicodeStringLiteral	BACKUP DATABASE @a FILE = N'a'
+accept	accept	engine	backupRestoreFile(stringOrVariable|backupRestoreFileNameList)/stringOrVariable+stringOrVariable/variable	BACKUP DATABASE @a FILE = @a
 accept	accept	engine	backupRestoreFile(stringOrVariable|backupRestoreFileNameList)/backupRestoreFileNameList	BACKUP DATABASE @a FILE =('a')
 reject	reject	engine	backupRestoreFile(stringOrVariable|backupRestoreFileNameList)/backupRestoreFileNameList!drop-1	BACKUP DATABASE @a FILE = 'a')
 reject	reject	engine	backupRestoreFile(stringOrVariable|backupRestoreFileNameList)/backupRestoreFileNameList!drop-2	BACKUP DATABASE @a FILE =()
 reject	reject	engine	backupRestoreFile(stringOrVariable|backupRestoreFileNameList)/backupRestoreFileNameList!drop-3	BACKUP DATABASE @a FILE =('a'
 reject	reject	engine	backupRestoreFile(stringOrVariable|backupRestoreFileNameList)/backupRestoreFileNameList!insert	BACKUP DATABASE @a FILE =('a') zzz
 accept	accept	engine	backupRestoreFileNameList/LeftParenthesis_stringOrVariable_(Comma_stringOrVariabl~4eb00288	BACKUP DATABASE @a FILE =('a')
+accept	accept	engine	backupRestoreFileNameList/LeftParenthesis_stringOrVariable_(Comma_stringOrVariabl~4eb00288+stringLiteral/UnicodeStringLiteral	BACKUP DATABASE @a FILE =(N'a')
+accept	accept	engine	backupRestoreFileNameList/LeftParenthesis_stringOrVariable_(Comma_stringOrVariabl~4eb00288+stringOrVariable/variable	BACKUP DATABASE @a FILE =(@a)
 accept	accept	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/%empty	BACKUP DATABASE @a FILE =('a')
 reject	reject	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/%empty!insert	BACKUP DATABASE @a FILE =('a' zzz)
 accept	accept	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/Comma_stringOrVariable_(Comma_stringOrVariable)*	BACKUP DATABASE @a FILE =('a', 'a')
@@ -2926,6 +2942,8 @@ reject	reject	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/Comma_st
 reject	reject	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/Comma_stringOrVariable_(Comma_stringOrVariable)*!drop-2	BACKUP DATABASE @a FILE =('a',)
 reject	reject	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/Comma_stringOrVariable_(Comma_stringOrVariable)*!truncate	BACKUP DATABASE @a FILE =('a',
 reject	reject	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/Comma_stringOrVariable_(Comma_stringOrVariable)*!insert	BACKUP DATABASE @a FILE =('a', 'a' zzz)
+accept	accept	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/Comma_stringOrVariable_(Comma_stringOrVariable)*+stringLiteral/UnicodeStringLiteral	BACKUP DATABASE @a FILE =('a', N'a')
+accept	accept	engine	backupRestoreFileNameList(Comma_stringOrVariable)*/Comma_stringOrVariable_(Comma_stringOrVariable)*+stringOrVariable/variable	BACKUP DATABASE @a FILE =('a', @a)
 accept	accept	engine	backupDevices/To_devList_(mirrorTo)*	BACKUP DATABASE @a TO @a
 accept	accept	engine	backupDevices(mirrorTo)*/%empty	BACKUP DATABASE @a TO @a
 accept	accept	engine	backupDevices(mirrorTo)*/mirrorTo_(mirrorTo)*	BACKUP DATABASE @a TO @a MIRROR TO @a
@@ -2942,11 +2960,14 @@ reject	reject	engine	devList(Comma_deviceInfo)*/Comma_deviceInfo_(Comma_deviceIn
 reject	reject	engine	devList(Comma_deviceInfo)*/Comma_deviceInfo_(Comma_deviceInfo)*!drop-2	RESTORE a FROM @a,
 reject	reject	engine	devList(Comma_deviceInfo)*/Comma_deviceInfo_(Comma_deviceInfo)*!insert	RESTORE a FROM @a, @a zzz
 reject	reject	engine	deviceInfo/identifierOrVariable	RESTORE a FROM @a
+reject	reject	engine	deviceInfo/identifierOrVariable+identifierOrVariable/identifier	RESTORE a FROM a
 reject	reject	engine	deviceInfo/Identifier_EqualsSign_stringOrVariable	RESTORE a FROM a = 'a'
 reject	reject	engine	deviceInfo/Identifier_EqualsSign_stringOrVariable!drop-1	RESTORE a FROM = 'a'
 reject	reject	engine	deviceInfo/Identifier_EqualsSign_stringOrVariable!drop-2	RESTORE a FROM a 'a'
 reject	reject	engine	deviceInfo/Identifier_EqualsSign_stringOrVariable!drop-3	RESTORE a FROM a =
 reject	reject	engine	deviceInfo/Identifier_EqualsSign_stringOrVariable!insert	RESTORE a FROM a = 'a' zzz
+reject	reject	engine	deviceInfo/Identifier_EqualsSign_stringOrVariable+stringLiteral/UnicodeStringLiteral	RESTORE a FROM a = N'a'
+reject	reject	engine	deviceInfo/Identifier_EqualsSign_stringOrVariable+stringOrVariable/variable	RESTORE a FROM a = @a
 reject	reject	engine	backupOptions/With_backupOption_(Comma_backupOption)*	BACKUP DATABASE @a WITH a
 reject	reject	engine	backupOptions(Comma_backupOption)*/%empty	BACKUP DATABASE @a WITH a
 reject	reject	engine	backupOptions(Comma_backupOption)*/Comma_backupOption_(Comma_backupOption)*	BACKUP DATABASE @a WITH a, a
@@ -2974,6 +2995,7 @@ reject	reject	engine	backupOption/Identifier_EqualsSign_(signedIntegerOrVariable
 reject	reject	engine	backupOption/Identifier_EqualsSign_(signedIntegerOrVariable|stringLiteral)!drop-3	BACKUP DATABASE @a WITH a =
 reject	reject	engine	backupOption/Identifier_EqualsSign_(signedIntegerOrVariable|stringLiteral)!insert	BACKUP DATABASE @a WITH a = 1 zzz
 reject	reject	engine	backupOption(signedIntegerOrVariable|stringLiteral)/signedIntegerOrVariable	BACKUP DATABASE @a WITH a = 1
+reject	reject	engine	backupOption(signedIntegerOrVariable|stringLiteral)/signedIntegerOrVariable+signedIntegerOrVariable/variable	BACKUP DATABASE @a WITH a = @a
 reject	reject	engine	backupOption(signedIntegerOrVariable|stringLiteral)/stringLiteral	BACKUP DATABASE @a WITH a = 'a'
 reject	reject	engine	backupOption(signedIntegerOrVariable|stringLiteral)/stringLiteral!insert	BACKUP DATABASE @a WITH a = 'a' zzz
 reject	reject	engine	backupOption(signedIntegerOrVariable|stringLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	BACKUP DATABASE @a WITH a = N'a'
@@ -2981,11 +3003,17 @@ reject	reject	engine	backupEncrytor/dekEncryptorType_EqualsSign_identifier	BACKU
 reject	reject	engine	backupEncrytor/dekEncryptorType_EqualsSign_identifier!truncate	BACKUP DATABASE @a WITH ENCRYPTION(ALGORITHM = a, SERVER CERTIFICATE =
 reject	reject	engine	backupEncrytor/dekEncryptorType_EqualsSign_identifier!insert	BACKUP DATABASE @a WITH ENCRYPTION(ALGORITHM = a, SERVER CERTIFICATE = a zzz)
 reject	reject	engine	backupEncrytor/dekEncryptorType_EqualsSign_identifier!swap	BACKUP DATABASE @a WITH ENCRYPTION(ALGORITHM = a, SERVICE CERTIFICATE = a)
+reject	reject	engine	backupEncrytor/dekEncryptorType_EqualsSign_identifier+dekEncryptorType((CERTIFICATE)|(ASYMMETRIC_Key))/ASYMMETRIC_Key	BACKUP DATABASE @a WITH ENCRYPTION(ALGORITHM = a, SERVER ASYMMETRIC KEY = a)
+reject	reject	engine	backupEncrytor/dekEncryptorType_EqualsSign_identifier+dekEncryptorType((CERTIFICATE)|(ASYMMETRIC_Key))/ASYMMETRIC_Key!drop-1	BACKUP DATABASE @a WITH ENCRYPTION(ALGORITHM = a, ASYMMETRIC KEY = a)
+reject	reject	engine	backupEncrytor/dekEncryptorType_EqualsSign_identifier+dekEncryptorType((CERTIFICATE)|(ASYMMETRIC_Key))/ASYMMETRIC_Key!drop-2	BACKUP DATABASE @a WITH ENCRYPTION(ALGORITHM = a, SERVER KEY = a)
+reject	reject	engine	backupEncrytor/dekEncryptorType_EqualsSign_identifier+dekEncryptorType((CERTIFICATE)|(ASYMMETRIC_Key))/ASYMMETRIC_Key!drop-3	BACKUP DATABASE @a WITH ENCRYPTION(ALGORITHM = a, SERVER ASYMMETRIC = a)
 accept	accept	engine	restoreMain/Database_identifierOrVariable_restoreFileListOpt	RESTORE DATABASE @a
+accept	accept	engine	restoreMain/Database_identifierOrVariable_restoreFileListOpt+identifierOrVariable/identifier	RESTORE DATABASE a
 accept	accept	engine	restoreMain/LOG_identifierOrVariable_restoreFileListOpt	RESTORE LOG @a
 reject	reject	engine	restoreMain/LOG_identifierOrVariable_restoreFileListOpt!drop-2	RESTORE LOG
 reject	reject	engine	restoreMain/LOG_identifierOrVariable_restoreFileListOpt!insert	RESTORE LOG @a zzz
 reject	reject	engine	restoreMain/LOG_identifierOrVariable_restoreFileListOpt!swap	RESTORE LOGIN @a
+accept	accept	engine	restoreMain/LOG_identifierOrVariable_restoreFileListOpt+identifierOrVariable/identifier	RESTORE LOG a
 reject	reject	engine	restoreOptions/With_restoreOptionsList	RESTORE DATABASE @a WITH a
 reject	reject	engine	restoreOptionsList/restoreOption_(Comma_restoreOption)*	RESTORE DATABASE @a WITH a
 reject	reject	engine	restoreOptionsList(Comma_restoreOption)*/%empty	RESTORE DATABASE @a WITH a
@@ -3023,13 +3051,24 @@ reject	reject	engine	restoreOption((stringOrVariable_afterClause)|signe~abf697ca
 reject	reject	engine	restoreOption((stringOrVariable_afterClause)|signe~abf697ca)/stringOrVariable_afterClause!drop-3	RESTORE DATABASE @a WITH a = 'a' AFTER
 reject	reject	engine	restoreOption((stringOrVariable_afterClause)|signe~abf697ca)/stringOrVariable_afterClause!insert	RESTORE DATABASE @a WITH a = 'a' AFTER 'a' zzz
 reject	reject	engine	restoreOption((stringOrVariable_afterClause)|signe~abf697ca)/stringOrVariable_afterClause!swap	RESTORE DATABASE @a WITH a = 'a' AGGREGATE 'a'
+reject	reject	engine	restoreOption((stringOrVariable_afterClause)|signe~abf697ca)/stringOrVariable_afterClause+stringLiteral/UnicodeStringLiteral	RESTORE DATABASE @a WITH a = N'a' AFTER 'a'
+reject	reject	engine	restoreOption((stringOrVariable_afterClause)|signe~abf697ca)/stringOrVariable_afterClause+stringOrVariable/variable	RESTORE DATABASE @a WITH a = @a AFTER 'a'
 reject	reject	engine	restoreOption((stringOrVariable_afterClause)|signe~abf697ca)/signedInteger	RESTORE DATABASE @a WITH a = 1
 reject	reject	engine	restoreOption((stringOrVariable_afterClause)|signe~abf697ca)/stringOrVariable	RESTORE DATABASE @a WITH a = 'a'
 reject	reject	engine	restoreOption((stringOrVariable_afterClause)|signe~abf697ca)/stringOrVariable!insert	RESTORE DATABASE @a WITH a = 'a' zzz
+reject	reject	engine	restoreOption((stringOrVariable_afterClause)|signe~abf697ca)/stringOrVariable+stringLiteral/UnicodeStringLiteral	RESTORE DATABASE @a WITH a = N'a'
+reject	reject	engine	restoreOption((stringOrVariable_afterClause)|signe~abf697ca)/stringOrVariable+stringOrVariable/variable	RESTORE DATABASE @a WITH a = @a
 reject	reject	engine	simpleRestoreOption/Identifier	RESTORE DATABASE @a WITH a
 accept	accept	engine	moveRestoreOption/MOVE_stringOrVariable_To_stringOrVariable	RESTORE DATABASE @a WITH MOVE 'a' TO 'a'
+accept	accept	engine	moveRestoreOption/MOVE_stringOrVariable_To_stringOrVariable+stringLiteral/UnicodeStringLiteral	RESTORE DATABASE @a WITH MOVE N'a' TO 'a'
+accept	accept	engine	moveRestoreOption/MOVE_stringOrVariable_To_stringOrVariable+stringOrVariable/variable	RESTORE DATABASE @a WITH MOVE @a TO 'a'
+accept	accept	engine	moveRestoreOption/MOVE_stringOrVariable_To_stringOrVariable+stringLiteral/UnicodeStringLiteral#2	RESTORE DATABASE @a WITH MOVE 'a' TO N'a'
+accept	accept	engine	moveRestoreOption/MOVE_stringOrVariable_To_stringOrVariable+stringOrVariable/variable#2	RESTORE DATABASE @a WITH MOVE 'a' TO @a
 accept	accept	engine	fileRestoreOption/File_EqualsSign_signedIntegerOrVariable	RESTORE DATABASE @a WITH FILE = 1
+accept	accept	engine	fileRestoreOption/File_EqualsSign_signedIntegerOrVariable+signedIntegerOrVariable/variable	RESTORE DATABASE @a WITH FILE = @a
 reject	reject	engine	afterClause/AFTER_stringOrVariable	RESTORE DATABASE @a WITH a = 'a' AFTER 'a'
+reject	reject	engine	afterClause/AFTER_stringOrVariable+stringLiteral/UnicodeStringLiteral	RESTORE DATABASE @a WITH a = 'a' AFTER N'a'
+reject	reject	engine	afterClause/AFTER_stringOrVariable+stringOrVariable/variable	RESTORE DATABASE @a WITH a = 'a' AFTER @a
 accept	accept	engine	restoreMasterKeyBody/MASTER_Key_From_File_EqualsSign_stringLiteral_DECRYPTIO~31d7ef20	RESTORE SERVICE MASTER KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a'
 reject	reject	engine	restoreMasterKeyBody/MASTER_Key_From_File_EqualsSign_stringLiteral_DECRYPTIO~31d7ef20!swap	RESTORE SERVICE MATCH KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a'
 accept	accept	engine	restoreMasterKeyBody/MASTER_Key_From_File_EqualsSign_stringLiteral_DECRYPTIO~31d7ef20+stringLiteral/UnicodeStringLiteral	RESTORE SERVICE MASTER KEY FROM FILE = N'a' DECRYPTION BY PASSWORD = 'a'
@@ -3056,6 +3095,8 @@ reject	reject	engine	bulkInsertStatement(bulkInsertOptions)?/bulkInsertOptions!s
 accept	accept	engine	bulkInsertFrom/integer	BULK INSERT a FROM 1
 accept	accept	engine	bulkInsertFrom/stringOrIdentifier	BULK INSERT a FROM 'a'
 reject	reject	engine	bulkInsertFrom/stringOrIdentifier!insert	BULK INSERT a FROM 'a' zzz
+accept	accept	engine	bulkInsertFrom/stringOrIdentifier+stringLiteral/UnicodeStringLiteral	BULK INSERT a FROM N'a'
+accept	accept	engine	bulkInsertFrom/stringOrIdentifier+stringOrIdentifier/identifier	BULK INSERT a FROM a
 reject	reject	engine	bulkInsertOptions/With_LeftParenthesis_bulkInsertOption_(Comma_bulkInsert~858ce849	BULK INSERT a FROM 1 WITH(a)
 reject	reject	engine	bulkInsertOptions(Comma_bulkInsertOption)*/%empty	BULK INSERT a FROM 1 WITH(a)
 reject	reject	engine	bulkInsertOptions(Comma_bulkInsertOption)*/%empty!insert	BULK INSERT a FROM 1 WITH(a zzz)
@@ -3098,6 +3139,7 @@ reject	reject	engine	simpleInsertBulkOption((EqualsSign_integerOrNumeric)|)/Equa
 reject	reject	engine	simpleInsertBulkOption((EqualsSign_integerOrNumeric)|)/EqualsSign_integerOrNumeric!drop-2	INSERT BULK a WITH(a =)
 reject	reject	engine	simpleInsertBulkOption((EqualsSign_integerOrNumeric)|)/EqualsSign_integerOrNumeric!truncate	INSERT BULK a WITH(a =
 reject	reject	engine	simpleInsertBulkOption((EqualsSign_integerOrNumeric)|)/EqualsSign_integerOrNumeric!insert	INSERT BULK a WITH(a = 1 zzz)
+reject	reject	engine	simpleInsertBulkOption((EqualsSign_integerOrNumeric)|)/EqualsSign_integerOrNumeric+integerOrNumeric/numeric	INSERT BULK a WITH(a = 1.5)
 reject	reject	engine	simpleInsertBulkOption((EqualsSign_integerOrNumeric)|)/%empty	INSERT BULK a WITH(a)
 reject	reject	engine	simpleBulkInsertOptionWithValue/Identifier_EqualsSign_(integerOrNumeric|stringLiteral|(~ea83429b	DELETE OPENROWSET(BULK 'a', a = 1)
 reject	reject	engine	simpleBulkInsertOptionWithValue/Identifier_EqualsSign_(integerOrNumeric|stringLiteral|(~ea83429b!drop-1	DELETE OPENROWSET(BULK 'a', = 1)
@@ -3106,6 +3148,7 @@ reject	reject	engine	simpleBulkInsertOptionWithValue/Identifier_EqualsSign_(inte
 reject	reject	engine	simpleBulkInsertOptionWithValue/Identifier_EqualsSign_(integerOrNumeric|stringLiteral|(~ea83429b!truncate	DELETE OPENROWSET(BULK 'a', a =
 reject	reject	engine	simpleBulkInsertOptionWithValue/Identifier_EqualsSign_(integerOrNumeric|stringLiteral|(~ea83429b!insert	DELETE OPENROWSET(BULK 'a', a = 1 zzz)
 reject	reject	engine	simpleBulkInsertOptionWithValue(integerOrNumeric|stringLiteral|(TRUE|FALSE))/integerOrNumeric	DELETE OPENROWSET(BULK 'a', a = 1)
+reject	reject	engine	simpleBulkInsertOptionWithValue(integerOrNumeric|stringLiteral|(TRUE|FALSE))/integerOrNumeric+integerOrNumeric/numeric	DELETE OPENROWSET(BULK 'a', a = 1.5)
 reject	reject	engine	simpleBulkInsertOptionWithValue(integerOrNumeric|stringLiteral|(TRUE|FALSE))/stringLiteral	DELETE OPENROWSET(BULK 'a', a = 'a')
 reject	reject	engine	simpleBulkInsertOptionWithValue(integerOrNumeric|stringLiteral|(TRUE|FALSE))/stringLiteral!insert	DELETE OPENROWSET(BULK 'a', a = 'a' zzz)
 reject	reject	engine	simpleBulkInsertOptionWithValue(integerOrNumeric|stringLiteral|(TRUE|FALSE))/stringLiteral+stringLiteral/UnicodeStringLiteral	DELETE OPENROWSET(BULK 'a', a = N'a')
@@ -3855,6 +3898,8 @@ accept	accept	engine	eventDeclarationSetParameter/identifier_EqualsSign_eventDec
 accept	accept	engine	eventDeclarationValue/Minus_integerOrRealOrNumeric	ALTER SERVER AUDIT a WHERE a = - 1
 reject	reject	engine	eventDeclarationValue/Minus_integerOrRealOrNumeric!drop-2	ALTER SERVER AUDIT a WHERE a = -
 reject	reject	engine	eventDeclarationValue/Minus_integerOrRealOrNumeric!insert	ALTER SERVER AUDIT a WHERE a = - 1 zzz
+accept	accept	engine	eventDeclarationValue/Minus_integerOrRealOrNumeric+integerOrRealOrNumeric/real	ALTER SERVER AUDIT a WHERE a = - 1E1
+accept	accept	engine	eventDeclarationValue/Minus_integerOrRealOrNumeric+integerOrRealOrNumeric/numeric	ALTER SERVER AUDIT a WHERE a = - 1.5
 accept	accept	engine	eventDeclarationValue/eventSessionExpressionParenthesis	ALTER SERVER AUDIT a WHERE a =(1)
 reject	reject	engine	eventDeclarationValue/eventSessionExpressionParenthesis!drop-1	ALTER SERVER AUDIT a WHERE a = 1)
 reject	reject	engine	eventDeclarationValue/eventSessionExpressionParenthesis!drop-2	ALTER SERVER AUDIT a WHERE a =()
@@ -3918,6 +3963,10 @@ accept	accept	engine	eventDeclarationComparisonPredicate/(comparisonOperator|Not
 accept	accept	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/comparisonOperator	ALTER SERVER AUDIT a WHERE a = 1
 reject	reject	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/comparisonOperator!truncate	ALTER SERVER AUDIT a WHERE a
 reject	reject	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/comparisonOperator!insert	ALTER SERVER AUDIT a WHERE a = zzz 1
+accept	accept	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/comparisonOperator+comparisonOperator/GreaterThan_(EqualsSign)?	ALTER SERVER AUDIT a WHERE a > 1
+accept	accept	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/comparisonOperator+comparisonOperator/LessThan_(EqualsSign|GreaterThan)?	ALTER SERVER AUDIT a WHERE a < 1
+accept	accept	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/comparisonOperator+comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)	ALTER SERVER AUDIT a WHERE a ! = 1
+reject	reject	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/comparisonOperator+comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)!drop-2	ALTER SERVER AUDIT a WHERE a ! 1
 accept	accept	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/Not_Like	ALTER SERVER AUDIT a WHERE a NOT LIKE 1
 accept	accept	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/Not_Like!drop-1	ALTER SERVER AUDIT a WHERE a LIKE 1
 reject	reject	engine	eventDeclarationComparisonPredicate(comparisonOperator|Not_Like)/Not_Like!drop-2	ALTER SERVER AUDIT a WHERE a NOT 1
@@ -4179,8 +4228,8 @@ reject	reject	engine	fulltextStoplistAction/dropFulltextStoplistAction	ALTER FUL
 reject	reject	engine	fulltextStoplistAction/dropFulltextStoplistAction!swap	ALTER FULLTEXT STOPLIST a DROP_INDEX ALL
 reject	reject	engine	languageTerm/LANGUAGE_(stringLiteral|integer|identifier|binary)	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a'
 reject	reject	engine	languageTerm/LANGUAGE_(stringLiteral|integer|identifier|binary)!swap	ALTER FULLTEXT STOPLIST a ADD 'a' LAST_NODE 'a'
+reject	reject	engine	languageTerm/LANGUAGE_(stringLiteral|integer|identifier|binary)+stringLiteral/UnicodeStringLiteral	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE N'a'
 reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/stringLiteral	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a'
-reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE N'a'
 reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/integer	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 1
 reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/integer!insert	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 1 zzz
 reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/identifier	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE a
@@ -4197,6 +4246,14 @@ reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm!insert	ALTER FULLTEXT STOPLIST a DROP 'a' LANGUAGE 'a' zzz
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm!swap	ALTER FULLTEXT STOPLIST a DROP 'a' LAST_NODE 'a'
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm+stringLiteral/UnicodeStringLiteral	ALTER FULLTEXT STOPLIST a DROP N'a' LANGUAGE 'a'
+reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm+stringLiteral/UnicodeStringLiteral	ALTER FULLTEXT STOPLIST a DROP 'a' LANGUAGE N'a'
+reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm+stringLiteral/UnicodeStringLiteral!drop-2	ALTER FULLTEXT STOPLIST a DROP 'a' N'a'
+reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm+languageTerm(stringLiteral|integer|identifier|binary)/integer	ALTER FULLTEXT STOPLIST a DROP 'a' LANGUAGE 1
+reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm+languageTerm(stringLiteral|integer|identifier|binary)/integer!drop-2	ALTER FULLTEXT STOPLIST a DROP 'a' 1
+reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm+languageTerm(stringLiteral|integer|identifier|binary)/identifier	ALTER FULLTEXT STOPLIST a DROP 'a' LANGUAGE a
+reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm+languageTerm(stringLiteral|integer|identifier|binary)/identifier!drop-2	ALTER FULLTEXT STOPLIST a DROP 'a' a
+reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm+languageTerm(stringLiteral|integer|identifier|binary)/binary	ALTER FULLTEXT STOPLIST a DROP 'a' LANGUAGE 0x00
+reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm+languageTerm(stringLiteral|integer|identifier|binary)/binary!drop-2	ALTER FULLTEXT STOPLIST a DROP 'a' 0x00
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/All_(languageTerm)?	ALTER FULLTEXT STOPLIST a DROP ALL
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/All_(languageTerm)?!swap	ALTER FULLTEXT STOPLIST a DROP ALLOW_CONNECTIONS
 reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/%empty	ALTER FULLTEXT STOPLIST a DROP ALL
@@ -4205,6 +4262,14 @@ reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm!drop
 reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm!drop-2	ALTER FULLTEXT STOPLIST a DROP ALL LANGUAGE
 reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm!insert	ALTER FULLTEXT STOPLIST a DROP ALL LANGUAGE 'a' zzz
 reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm!swap	ALTER FULLTEXT STOPLIST a DROP ALL LAST_NODE 'a'
+reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm+stringLiteral/UnicodeStringLiteral	ALTER FULLTEXT STOPLIST a DROP ALL LANGUAGE N'a'
+reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm+stringLiteral/UnicodeStringLiteral!drop-1	ALTER FULLTEXT STOPLIST a DROP ALL N'a'
+reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm+languageTerm(stringLiteral|integer|identifier|binary)/integer	ALTER FULLTEXT STOPLIST a DROP ALL LANGUAGE 1
+reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm+languageTerm(stringLiteral|integer|identifier|binary)/integer!drop-1	ALTER FULLTEXT STOPLIST a DROP ALL 1
+reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm+languageTerm(stringLiteral|integer|identifier|binary)/identifier	ALTER FULLTEXT STOPLIST a DROP ALL LANGUAGE a
+reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm+languageTerm(stringLiteral|integer|identifier|binary)/identifier!drop-1	ALTER FULLTEXT STOPLIST a DROP ALL a
+reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm+languageTerm(stringLiteral|integer|identifier|binary)/binary	ALTER FULLTEXT STOPLIST a DROP ALL LANGUAGE 0x00
+reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/languageTerm+languageTerm(stringLiteral|integer|identifier|binary)/binary!drop-1	ALTER FULLTEXT STOPLIST a DROP ALL 0x00
 reject	reject	engine	dropFulltextStoplistStatement/StopList_identifier_requiredSemicolon	DROP FULLTEXT STOPLIST a
 reject	reject	engine	dropFulltextStoplistStatement/StopList_identifier_requiredSemicolon!drop-1	DROP FULLTEXT a
 reject	reject	engine	dropFulltextStoplistStatement/StopList_identifier_requiredSemicolon!drop-2	DROP FULLTEXT STOPLIST
@@ -4453,6 +4518,8 @@ reject	reject	engine	passwordLoginSource/With_PASSWORD_EqualsSign_loginPassword_
 reject	reject	engine	passwordLoginSource/With_PASSWORD_EqualsSign_loginPassword_(createLoginPass~ee437d02!drop-4	CREATE LOGIN a WITH PASSWORD =
 reject	reject	engine	passwordLoginSource/With_PASSWORD_EqualsSign_loginPassword_(createLoginPass~ee437d02!insert	CREATE LOGIN a WITH PASSWORD = 0x00 zzz
 reject	reject	engine	passwordLoginSource/With_PASSWORD_EqualsSign_loginPassword_(createLoginPass~ee437d02!swap	CREATE LOGIN a WITHIN PASSWORD = 0x00
+accept	accept	engine	passwordLoginSource/With_PASSWORD_EqualsSign_loginPassword_(createLoginPass~ee437d02+loginPassword/stringLiteral	CREATE LOGIN a WITH PASSWORD = 'a'
+accept	accept	engine	passwordLoginSource/With_PASSWORD_EqualsSign_loginPassword_(createLoginPass~ee437d02+stringLiteral/UnicodeStringLiteral	CREATE LOGIN a WITH PASSWORD = N'a'
 reject	reject	engine	passwordLoginSource(createLoginPasswordOption)*/%empty	CREATE LOGIN a WITH PASSWORD = 0x00
 accept	accept	engine	passwordLoginSource(createLoginPasswordOption)*/createLoginPasswordOption_(createLoginPasswordOption)*	CREATE LOGIN a WITH PASSWORD = 0x00 HASHED
 reject	reject	engine	passwordLoginSource(createLoginPasswordOption)*/createLoginPasswordOption_(createLoginPasswordOption)*!insert	CREATE LOGIN a WITH PASSWORD = 0x00 HASHED zzz
@@ -4768,6 +4835,8 @@ reject	reject	engine	partitionTableOptionRange/Right!insert	CREATE TABLE a AS WI
 reject	reject	engine	partitionTableOptionRange/Right!swap	CREATE TABLE a AS WITH(PARTITION(a RANGE ROLE FOR VALUES()))
 accept	accept	engine	createPartitionScheme/SCHEME_identifier_As_PARTITION_identifier_(All)?_To_Lef~f560c8a8	CREATE PARTITION SCHEME a AS PARTITION a TO('a')
 reject	reject	engine	createPartitionScheme/SCHEME_identifier_As_PARTITION_identifier_(All)?_To_Lef~f560c8a8!swap	CREATE PARTITION SCOPED a AS PARTITION a TO('a')
+accept	accept	engine	createPartitionScheme/SCHEME_identifier_As_PARTITION_identifier_(All)?_To_Lef~f560c8a8+stringLiteral/UnicodeStringLiteral	CREATE PARTITION SCHEME a AS PARTITION a TO(N'a')
+accept	accept	engine	createPartitionScheme/SCHEME_identifier_As_PARTITION_identifier_(All)?_To_Lef~f560c8a8+stringOrIdentifier/identifier	CREATE PARTITION SCHEME a AS PARTITION a TO(a)
 accept	accept	engine	createPartitionScheme(All)?/%empty	CREATE PARTITION SCHEME a AS PARTITION a TO('a')
 reject	reject	engine	createPartitionScheme(All)?/%empty!insert	CREATE PARTITION SCHEME a AS PARTITION a zzz TO('a')
 accept	accept	engine	createPartitionScheme(All)?/All	CREATE PARTITION SCHEME a AS PARTITION a ALL TO('a')
@@ -4781,6 +4850,8 @@ reject	reject	engine	createPartitionScheme(Comma_stringOrIdentifier)*/Comma_stri
 reject	reject	engine	createPartitionScheme(Comma_stringOrIdentifier)*/Comma_stringOrIdentifier_(Comma_stringOrIdentifier)*!drop-2	CREATE PARTITION SCHEME a AS PARTITION a TO('a',)
 reject	reject	engine	createPartitionScheme(Comma_stringOrIdentifier)*/Comma_stringOrIdentifier_(Comma_stringOrIdentifier)*!truncate	CREATE PARTITION SCHEME a AS PARTITION a TO('a',
 reject	reject	engine	createPartitionScheme(Comma_stringOrIdentifier)*/Comma_stringOrIdentifier_(Comma_stringOrIdentifier)*!insert	CREATE PARTITION SCHEME a AS PARTITION a TO('a', 'a' zzz)
+accept	accept	engine	createPartitionScheme(Comma_stringOrIdentifier)*/Comma_stringOrIdentifier_(Comma_stringOrIdentifier)*+stringLiteral/UnicodeStringLiteral	CREATE PARTITION SCHEME a AS PARTITION a TO('a', N'a')
+accept	accept	engine	createPartitionScheme(Comma_stringOrIdentifier)*/Comma_stringOrIdentifier_(Comma_stringOrIdentifier)*+stringOrIdentifier/identifier	CREATE PARTITION SCHEME a AS PARTITION a TO('a', a)
 accept	accept	engine	bindingUserOption/User_EqualsSign_identifier	ALTER REMOTE SERVICE BINDING a WITH USER = a
 reject	reject	engine	bindingUserOption/User_EqualsSign_identifier!drop-1	ALTER REMOTE SERVICE BINDING a WITH = a
 reject	reject	engine	bindingUserOption/User_EqualsSign_identifier!drop-2	ALTER REMOTE SERVICE BINDING a WITH USER a
@@ -5663,6 +5734,8 @@ reject	reject	engine	alterPartitionSchemeStatement/SCHEME_identifier_NEXT_USED_(
 accept	accept	engine	alterPartitionSchemeStatement(stringOrIdentifier)?/%empty	ALTER PARTITION SCHEME a NEXT USED
 accept	accept	engine	alterPartitionSchemeStatement(stringOrIdentifier)?/stringOrIdentifier	ALTER PARTITION SCHEME a NEXT USED 'a'
 reject	reject	engine	alterPartitionSchemeStatement(stringOrIdentifier)?/stringOrIdentifier!insert	ALTER PARTITION SCHEME a NEXT USED 'a' zzz
+accept	accept	engine	alterPartitionSchemeStatement(stringOrIdentifier)?/stringOrIdentifier+stringLiteral/UnicodeStringLiteral	ALTER PARTITION SCHEME a NEXT USED N'a'
+accept	accept	engine	alterPartitionSchemeStatement(stringOrIdentifier)?/stringOrIdentifier+stringOrIdentifier/identifier	ALTER PARTITION SCHEME a NEXT USED a
 accept	accept	engine	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 reject	reject	engine	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)!drop-1	CREATE PROC a WITH AS 'a' AS
 reject	reject	engine	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)!drop-2	CREATE PROC a WITH EXEC 'a' AS
@@ -5858,6 +5931,8 @@ reject	reject	engine	literalAlterUserOption/nullLiteral	ALTER USER a WITH a = NU
 reject	reject	engine	literalAlterUserOption/nullLiteral!insert	ALTER USER a WITH a = NULL zzz
 reject	reject	engine	literalAlterUserOption/nullLiteral!swap	ALTER USER a WITH a = NULLIF
 reject	reject	engine	passwordAlterUserOption/loginPassword_(OLD_PASSWORD_EqualsSign_stringLiteral)?	ALTER USER a WITH a = 0x00
+reject	reject	engine	passwordAlterUserOption/loginPassword_(OLD_PASSWORD_EqualsSign_stringLiteral)?+loginPassword/stringLiteral	ALTER USER a WITH a = 'a'
+reject	reject	engine	passwordAlterUserOption/loginPassword_(OLD_PASSWORD_EqualsSign_stringLiteral)?+stringLiteral/UnicodeStringLiteral	ALTER USER a WITH a = N'a'
 reject	reject	engine	passwordAlterUserOption(OLD_PASSWORD_EqualsSign_stringLiteral)?/%empty	ALTER USER a WITH a = 0x00
 reject	reject	engine	passwordAlterUserOption(OLD_PASSWORD_EqualsSign_stringLiteral)?/OLD_PASSWORD_EqualsSign_stringLiteral	ALTER USER a WITH a = 0x00 OLD_PASSWORD = 'a'
 reject	reject	engine	passwordAlterUserOption(OLD_PASSWORD_EqualsSign_stringLiteral)?/OLD_PASSWORD_EqualsSign_stringLiteral!drop-1	ALTER USER a WITH a = 0x00 = 'a'
@@ -6220,11 +6295,15 @@ accept	accept	engine	updateStatisticsStatementWithOption/updateStatisticsSimpleO
 reject	reject	engine	updateStatisticsStatementWithOption/updateStatisticsSimpleOption!insert	UPDATE STATISTICS a WITH FULLSCAN zzz
 reject	reject	engine	updateStatisticsStatementWithOption/updateStatisticsSimpleOption!swap	UPDATE STATISTICS a WITH FULLTEXT
 accept	accept	engine	updateStatisticsLiteralOption/PAGECOUNT_EqualsSign_integerOrRealOrNumeric	UPDATE STATISTICS a WITH PAGECOUNT = 1
+reject	reject	engine	updateStatisticsLiteralOption/PAGECOUNT_EqualsSign_integerOrRealOrNumeric+integerOrRealOrNumeric/real	UPDATE STATISTICS a WITH PAGECOUNT = 1E1
+reject	reject	engine	updateStatisticsLiteralOption/PAGECOUNT_EqualsSign_integerOrRealOrNumeric+integerOrRealOrNumeric/numeric	UPDATE STATISTICS a WITH PAGECOUNT = 1.5
 accept	accept	engine	updateStatisticsLiteralOption/RowCount_EqualsSign_integerOrRealOrNumeric	UPDATE STATISTICS a WITH ROWCOUNT = 1
 reject	reject	engine	updateStatisticsLiteralOption/RowCount_EqualsSign_integerOrRealOrNumeric!drop-2	UPDATE STATISTICS a WITH ROWCOUNT 1
 reject	reject	engine	updateStatisticsLiteralOption/RowCount_EqualsSign_integerOrRealOrNumeric!drop-3	UPDATE STATISTICS a WITH ROWCOUNT =
 reject	reject	engine	updateStatisticsLiteralOption/RowCount_EqualsSign_integerOrRealOrNumeric!insert	UPDATE STATISTICS a WITH ROWCOUNT = 1 zzz
 reject	reject	engine	updateStatisticsLiteralOption/RowCount_EqualsSign_integerOrRealOrNumeric!swap	UPDATE STATISTICS a WITH ROWGUIDCOL = 1
+reject	reject	engine	updateStatisticsLiteralOption/RowCount_EqualsSign_integerOrRealOrNumeric+integerOrRealOrNumeric/real	UPDATE STATISTICS a WITH ROWCOUNT = 1E1
+reject	reject	engine	updateStatisticsLiteralOption/RowCount_EqualsSign_integerOrRealOrNumeric+integerOrRealOrNumeric/numeric	UPDATE STATISTICS a WITH ROWCOUNT = 1.5
 accept	accept	engine	updateStatisticsSimpleOption/FULLSCAN	UPDATE STATISTICS a WITH FULLSCAN
 accept	accept	engine	updateStatisticsSimpleOption/All	UPDATE STATISTICS a WITH ALL
 reject	reject	engine	updateStatisticsSimpleOption/All!insert	UPDATE STATISTICS a WITH ALL zzz
@@ -6318,6 +6397,7 @@ accept	accept	engine	setUserStatement/SetUser_(stringOrVariable_(With_NORESET)?)
 accept	accept	engine	setUserStatement(stringOrVariable_(With_NORESET)?)?/%empty	SETUSER
 accept	accept	engine	setUserStatement(stringOrVariable_(With_NORESET)?)?/stringOrVariable_(With_NORESET)?	SETUSER 'a'
 reject	reject	engine	setUserStatement(stringOrVariable_(With_NORESET)?)?/stringOrVariable_(With_NORESET)?!insert	SETUSER 'a' zzz
+accept	accept	engine	setUserStatement(stringOrVariable_(With_NORESET)?)?/stringOrVariable_(With_NORESET)?+stringLiteral/UnicodeStringLiteral	SETUSER N'a'
 accept	accept	engine	setUserStatement(With_NORESET)?/%empty	SETUSER 'a'
 accept	accept	engine	setUserStatement(With_NORESET)?/With_NORESET	SETUSER 'a' WITH NORESET
 reject	reject	engine	setUserStatement(With_NORESET)?/With_NORESET!drop-1	SETUSER 'a' NORESET
@@ -6454,6 +6534,8 @@ reject	reject	engine	securityStatementPrincipalList(Comma_principal)*/Comma_prin
 reject	reject	engine	securityStatementPrincipalList(Comma_principal)*/Comma_principal_(Comma_principal)*!drop-2	GRANT a TO PUBLIC,
 reject	reject	engine	securityStatementPrincipalList(Comma_principal)*/Comma_principal_(Comma_principal)*!insert	GRANT a TO PUBLIC, PUBLIC zzz
 reject	reject	engine	securityStatementPrincipalList(Comma_principal)*/Comma_principal_(Comma_principal)*!swap	GRANT a TO PUBLIC, PUSHDOWN
+reject	reject	engine	securityStatementPrincipalList(Comma_principal)*/Comma_principal_(Comma_principal)*+principal/Null	GRANT a TO PUBLIC, NULL
+reject	reject	engine	securityStatementPrincipalList(Comma_principal)*/Comma_principal_(Comma_principal)*+principal/identifier	GRANT a TO PUBLIC, a
 reject	reject	engine	permissionsList/permission_(Comma_permission)*	GRANT a TO PUBLIC
 reject	reject	engine	permissionsList(Comma_permission)*/%empty	GRANT a TO PUBLIC
 reject	reject	engine	permissionsList(Comma_permission)*/Comma_permission_(Comma_permission)*	GRANT a, a TO PUBLIC
@@ -6473,6 +6555,8 @@ reject	reject	engine	securityStatementAsClauseOpt(As_identifier)?/As_identifier!
 accept	accept	engine	printStatement/Print_expression	PRINT 1
 reject	reject	engine	waitForStatement/WaitFor_(Identifier_stringOrVariable|LeftPare~ae72bef0)	WAITFOR a 'a'
 reject	reject	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/Identifier_stringOrVariable	WAITFOR a 'a'
+reject	reject	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/Identifier_stringOrVariable+stringLiteral/UnicodeStringLiteral	WAITFOR a N'a'
+reject	reject	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/Identifier_stringOrVariable+stringOrVariable/variable	WAITFOR a @a
 accept	accept	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/LeftParenthesis_waitforInnerStatement_RightParenthesis_~884a013f	WAITFOR(RECEIVE * FROM a)
 reject	reject	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/LeftParenthesis_waitforInnerStatement_RightParenthesis_~884a013f!drop-1	WAITFOR RECEIVE * FROM a)
 reject	reject	engine	waitForStatement(Identifier_stringOrVariable|LeftPare~ae72bef0)/LeftParenthesis_waitforInnerStatement_RightParenthesis_~884a013f!drop-2	WAITFOR(* FROM a)
@@ -6489,6 +6573,7 @@ reject	reject	engine	waitForStatement(Comma_TIMEOUT_signedIntegerOrVariable)?/Co
 reject	reject	engine	waitForStatement(Comma_TIMEOUT_signedIntegerOrVariable)?/Comma_TIMEOUT_signedIntegerOrVariable!drop-3	WAITFOR(RECEIVE * FROM a), TIMEOUT
 reject	reject	engine	waitForStatement(Comma_TIMEOUT_signedIntegerOrVariable)?/Comma_TIMEOUT_signedIntegerOrVariable!insert	WAITFOR(RECEIVE * FROM a), TIMEOUT 1 zzz
 reject	reject	engine	waitForStatement(Comma_TIMEOUT_signedIntegerOrVariable)?/Comma_TIMEOUT_signedIntegerOrVariable!swap	WAITFOR(RECEIVE * FROM a), TIMER 1
+accept	accept	engine	waitForStatement(Comma_TIMEOUT_signedIntegerOrVariable)?/Comma_TIMEOUT_signedIntegerOrVariable+signedIntegerOrVariable/variable	WAITFOR(RECEIVE * FROM a), TIMEOUT @a
 accept	accept	engine	waitforInnerStatement/receiveStatement_RECEIVE	WAITFOR(RECEIVE * FROM a)
 reject	reject	engine	waitforInnerStatement/receiveStatement_RECEIVE!truncate	WAITFOR(RECEIVE * FROM
 reject	reject	engine	waitforInnerStatement/receiveStatement_RECEIVE!insert	WAITFOR(RECEIVE * FROM a zzz)
@@ -6503,6 +6588,9 @@ reject	reject	engine	waitforInnerStatement/getConversationGroupStatement!truncat
 reject	reject	engine	waitforInnerStatement/getConversationGroupStatement!insert	WAITFOR(GET CONVERSATION GROUP @a FROM a zzz)
 reject	reject	engine	waitforInnerStatement/getConversationGroupStatement!swap	WAITFOR(GLOBAL CONVERSATION GROUP @a FROM a)
 reject	reject	engine	readTextStatement/ReadText_column_binaryOrVariable_integerOrVariable_inte~80654d3f	READTEXT a 0x00 1 1
+reject	reject	engine	readTextStatement/ReadText_column_binaryOrVariable_integerOrVariable_inte~80654d3f+binaryOrVariable/variable	READTEXT a @a 1 1
+reject	reject	engine	readTextStatement/ReadText_column_binaryOrVariable_integerOrVariable_inte~80654d3f+integerOrVariable/variable	READTEXT a 0x00 @a 1
+reject	reject	engine	readTextStatement/ReadText_column_binaryOrVariable_integerOrVariable_inte~80654d3f+integerOrVariable/variable#2	READTEXT a 0x00 1 @a
 reject	reject	engine	readTextStatement(HoldLock)?/%empty	READTEXT a 0x00 1 1
 reject	reject	engine	readTextStatement(HoldLock)?/HoldLock	READTEXT a 0x00 1 1 HOLDLOCK
 reject	reject	engine	readTextStatement(HoldLock)?/HoldLock!insert	READTEXT a 0x00 1 1 HOLDLOCK zzz
@@ -6519,6 +6607,7 @@ reject	reject	engine	updateTextStatement(column_binaryOrVariable|writeString)?/c
 reject	reject	engine	updateTextStatement(column_binaryOrVariable|writeString)?/column_binaryOrVariable!drop-1	UPDATETEXT a 0x00 1 1 0x00
 reject	reject	engine	updateTextStatement(column_binaryOrVariable|writeString)?/column_binaryOrVariable!drop-2	UPDATETEXT a 0x00 1 1 a
 reject	reject	engine	updateTextStatement(column_binaryOrVariable|writeString)?/column_binaryOrVariable!insert	UPDATETEXT a 0x00 1 1 a 0x00 zzz
+reject	reject	engine	updateTextStatement(column_binaryOrVariable|writeString)?/column_binaryOrVariable+binaryOrVariable/variable	UPDATETEXT a 0x00 1 1 a @a
 reject	reject	engine	updateTextStatement(column_binaryOrVariable|writeString)?/writeString	UPDATETEXT a 0x00 1 1 NULL
 reject	reject	engine	updateTextStatement(column_binaryOrVariable|writeString)?/writeString!insert	UPDATETEXT a 0x00 1 1 NULL zzz
 reject	reject	engine	updateTextStatement(column_binaryOrVariable|writeString)?/writeString!swap	UPDATETEXT a 0x00 1 1 NULLIF
@@ -7416,7 +7505,10 @@ reject	reject	engine	beginTransactionStatement(With_MARK_(stringOrVariable)?)?/W
 accept	accept	engine	beginTransactionStatement(stringOrVariable)?/%empty	BEGIN TRAN WITH MARK
 accept	accept	engine	beginTransactionStatement(stringOrVariable)?/stringOrVariable	BEGIN TRAN WITH MARK 'a'
 reject	reject	engine	beginTransactionStatement(stringOrVariable)?/stringOrVariable!insert	BEGIN TRAN WITH MARK 'a' zzz
+accept	accept	engine	beginTransactionStatement(stringOrVariable)?/stringOrVariable+stringLiteral/UnicodeStringLiteral	BEGIN TRAN WITH MARK N'a'
+accept	accept	engine	beginTransactionStatement(stringOrVariable)?/stringOrVariable+stringOrVariable/variable	BEGIN TRAN WITH MARK @a
 accept	accept	engine	transactionName/identifierOrVariable	BEGIN TRAN @a
+accept	accept	engine	transactionName/identifierOrVariable+identifierOrVariable/identifier	BEGIN TRAN a
 accept	accept	engine	transactionName/weirdTransactionName	BEGIN TRAN 1 : a.a
 reject	reject	engine	transactionName/weirdTransactionName!drop-1	BEGIN TRAN : a.a
 reject	reject	engine	transactionName/weirdTransactionName!drop-2	BEGIN TRAN 1 a.a
@@ -7522,6 +7614,14 @@ reject	reject	engine	atomicBlockOption/isolationLevelIdentifierAtomicBlockOption
 reject	reject	engine	atomicBlockOption/isolationLevelIdentifierAtomicBlockOption!insert	BEGIN ATOMIC WITH(TRANSACTION ISOLATION LEVEL = SNAPSHOT zzz) SELECT 1 END
 reject	reject	engine	atomicBlockOption/isolationLevelIdentifierAtomicBlockOption!swap	BEGIN ATOMIC WITH(TRANSACTION_ID_COLUMN_NAME ISOLATION LEVEL = SNAPSHOT) SELECT 1 END
 reject	reject	engine	isolationLevelIdentifierAtomicBlockOption/Transaction_ISOLATION_LEVEL_EqualsSign_isolationLevel	BEGIN ATOMIC WITH(TRANSACTION ISOLATION LEVEL = SNAPSHOT) SELECT 1 END
+reject	reject	engine	isolationLevelIdentifierAtomicBlockOption/Transaction_ISOLATION_LEVEL_EqualsSign_isolationLevel+isolationLevel((Read_(COMMITTED|UNCOMMITTED))|(REPE~ebe9cc5a)/Read_(COMMITTED|UNCOMMITTED)	BEGIN ATOMIC WITH(TRANSACTION ISOLATION LEVEL = READ COMMITTED) SELECT 1 END
+reject	reject	engine	isolationLevelIdentifierAtomicBlockOption/Transaction_ISOLATION_LEVEL_EqualsSign_isolationLevel+isolationLevel((Read_(COMMITTED|UNCOMMITTED))|(REPE~ebe9cc5a)/Read_(COMMITTED|UNCOMMITTED)!drop-5	BEGIN ATOMIC WITH(TRANSACTION ISOLATION LEVEL = COMMITTED) SELECT 1 END
+reject	reject	engine	isolationLevelIdentifierAtomicBlockOption/Transaction_ISOLATION_LEVEL_EqualsSign_isolationLevel+isolationLevel((Read_(COMMITTED|UNCOMMITTED))|(REPE~ebe9cc5a)/Read_(COMMITTED|UNCOMMITTED)!drop-6	BEGIN ATOMIC WITH(TRANSACTION ISOLATION LEVEL = READ) SELECT 1 END
+reject	reject	engine	isolationLevelIdentifierAtomicBlockOption/Transaction_ISOLATION_LEVEL_EqualsSign_isolationLevel+isolationLevel(COMMITTED|UNCOMMITTED)/UNCOMMITTED	BEGIN ATOMIC WITH(TRANSACTION ISOLATION LEVEL = READ UNCOMMITTED) SELECT 1 END
+reject	reject	engine	isolationLevelIdentifierAtomicBlockOption/Transaction_ISOLATION_LEVEL_EqualsSign_isolationLevel+isolationLevel(COMMITTED|UNCOMMITTED)/UNCOMMITTED!drop-5	BEGIN ATOMIC WITH(TRANSACTION ISOLATION LEVEL = UNCOMMITTED) SELECT 1 END
+reject	reject	engine	isolationLevelIdentifierAtomicBlockOption/Transaction_ISOLATION_LEVEL_EqualsSign_isolationLevel+isolationLevel((Read_(COMMITTED|UNCOMMITTED))|(REPE~ebe9cc5a)/REPEATABLE_Read	BEGIN ATOMIC WITH(TRANSACTION ISOLATION LEVEL = REPEATABLE READ) SELECT 1 END
+reject	reject	engine	isolationLevelIdentifierAtomicBlockOption/Transaction_ISOLATION_LEVEL_EqualsSign_isolationLevel+isolationLevel((Read_(COMMITTED|UNCOMMITTED))|(REPE~ebe9cc5a)/REPEATABLE_Read!drop-6	BEGIN ATOMIC WITH(TRANSACTION ISOLATION LEVEL = REPEATABLE) SELECT 1 END
+reject	reject	engine	isolationLevelIdentifierAtomicBlockOption/Transaction_ISOLATION_LEVEL_EqualsSign_isolationLevel+isolationLevel(SNAPSHOT|SERIALIZABLE)/SERIALIZABLE	BEGIN ATOMIC WITH(TRANSACTION ISOLATION LEVEL = SERIALIZABLE) SELECT 1 END
 reject	reject	engine	breakStatement/Break	BREAK
 reject	reject	engine	continueStatement/Continue	CONTINUE
 accept	accept	engine	declareVariableElement/identifierVariable_(As)?_(scalarDataType|cursorDataType~b4a5144f	DECLARE @a a
@@ -7656,6 +7756,13 @@ reject	reject	engine	setOffsetsStatement(Comma_offsetItem)*/Comma_offsetItem_(Co
 reject	reject	engine	setOffsetsStatement(Comma_offsetItem)*/Comma_offsetItem_(Comma_offsetItem)*!truncate	SET OFFSETS SELECT,
 reject	reject	engine	setOffsetsStatement(Comma_offsetItem)*/Comma_offsetItem_(Comma_offsetItem)*!insert	SET OFFSETS SELECT, SELECT zzz ON
 reject	reject	engine	setOffsetsStatement(Comma_offsetItem)*/Comma_offsetItem_(Comma_offsetItem)*!swap	SET OFFSETS SELECT, SELECTIVE ON
+accept	accept	engine	setOffsetsStatement(Comma_offsetItem)*/Comma_offsetItem_(Comma_offsetItem)*+offsetItem/From	SET OFFSETS SELECT, FROM ON
+accept	accept	engine	setOffsetsStatement(Comma_offsetItem)*/Comma_offsetItem_(Comma_offsetItem)*+offsetItem/Order	SET OFFSETS SELECT, ORDER ON
+accept	accept	engine	setOffsetsStatement(Comma_offsetItem)*/Comma_offsetItem_(Comma_offsetItem)*+offsetItem/Compute	SET OFFSETS SELECT, COMPUTE ON
+accept	accept	engine	setOffsetsStatement(Comma_offsetItem)*/Comma_offsetItem_(Comma_offsetItem)*+offsetItem/Table	SET OFFSETS SELECT, TABLE ON
+accept	accept	engine	setOffsetsStatement(Comma_offsetItem)*/Comma_offsetItem_(Comma_offsetItem)*+offsetItem/(Procedure|Proc)	SET OFFSETS SELECT, PROCEDURE ON
+accept	accept	engine	setOffsetsStatement(Comma_offsetItem)*/Comma_offsetItem_(Comma_offsetItem)*+offsetItem/(Execute|Exec)	SET OFFSETS SELECT, EXECUTE ON
+accept	accept	engine	setOffsetsStatement(Comma_offsetItem)*/Comma_offsetItem_(Comma_offsetItem)*+offsetItem/(STATEMENT|PARAM)	SET OFFSETS SELECT, STATEMENT ON
 accept	accept	engine	offsetItem/Select	SET OFFSETS SELECT ON
 reject	reject	engine	offsetItem/Select!truncate	SET OFFSETS
 reject	reject	engine	offsetItem/Select!swap	SET OFFSETS SELECTIVE ON
@@ -7987,6 +8094,8 @@ accept	accept	engine	filterColumn/(specialColumn|multiPartIdentifier_(D~136ccc2d
 reject	reject	engine	filterColumn/(specialColumn|multiPartIdentifier_(D~136ccc2d)!truncate	ALTER TABLE a ADD INDEX a WHERE
 reject	reject	engine	filterColumn/(specialColumn|multiPartIdentifier_(D~136ccc2d)!insert	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL zzz IS NULL
 accept	accept	engine	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
+accept	accept	engine	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+accept	accept	engine	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
 accept	accept	engine	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?	ALTER TABLE a ADD INDEX a WHERE a IS NULL
 reject	reject	engine	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?!insert	ALTER TABLE a ADD INDEX a WHERE a zzz IS NULL
 accept	accept	engine	filterColumn(Dot_specialColumn)?/%empty	ALTER TABLE a ADD INDEX a WHERE a IS NULL
@@ -7996,10 +8105,16 @@ reject	reject	engine	filterColumn(Dot_specialColumn)?/Dot_specialColumn!drop-2	A
 reject	reject	engine	filterColumn(Dot_specialColumn)?/Dot_specialColumn!truncate	ALTER TABLE a ADD INDEX a WHERE a.
 reject	reject	engine	filterColumn(Dot_specialColumn)?/Dot_specialColumn!insert	ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL zzz IS NULL
 reject	reject	engine	filterColumn(Dot_specialColumn)?/Dot_specialColumn!swap	ALTER TABLE a ADD INDEX a WHERE a.IDENTITY_INSERT IS NULL
+accept	accept	engine	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/RowGuidColumn	ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+accept	accept	engine	filterColumn(Dot_specialColumn)?/Dot_specialColumn+specialColumn/systemColumn	ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
 accept	accept	engine	filterNullPredicate/booleanExpressionNullPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
 accept	accept	engine	filterDistinctPredicate/expression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
 accept	accept	engine	filterNullPredicateFromDistinctPredicate/Null	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM NULL
 accept	accept	engine	filterComparisonPredicate/comparisonOperator_expression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL = 1
+accept	accept	engine	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/GreaterThan_(EqualsSign)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+accept	accept	engine	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/LessThan_(EqualsSign|GreaterThan)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+accept	accept	engine	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
+reject	reject	engine	filterComparisonPredicate/comparisonOperator_expression+comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)!drop-2	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! 1
 accept	accept	engine	filterInPredicate/In_LeftParenthesis_expression_(Comma_expression)*_Right~05248e31	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1)
 accept	accept	engine	filterInPredicate(Comma_expression)*/%empty	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1)
 reject	reject	engine	filterInPredicate(Comma_expression)*/%empty!insert	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1 zzz)
@@ -8012,6 +8127,8 @@ accept	accept	engine	filterParenthesisExpression/LeftParenthesis_filterExpressio
 reject	reject	engine	filegroupOrPartitionScheme/stringOrIdentifier_(columnNameList)?	CREATE TABLE a AS ON 'a'
 reject	reject	engine	filegroupOrPartitionScheme/stringOrIdentifier_(columnNameList)?!drop-1	CREATE TABLE a AS ON
 reject	reject	engine	filegroupOrPartitionScheme/stringOrIdentifier_(columnNameList)?!insert	CREATE TABLE a AS ON 'a' zzz
+reject	reject	engine	filegroupOrPartitionScheme/stringOrIdentifier_(columnNameList)?+stringLiteral/UnicodeStringLiteral	CREATE TABLE a AS ON N'a'
+reject	reject	engine	filegroupOrPartitionScheme/stringOrIdentifier_(columnNameList)?+stringOrIdentifier/identifier	CREATE TABLE a AS ON a
 reject	reject	engine	filegroupOrPartitionScheme(columnNameList)?/%empty	CREATE TABLE a AS ON 'a'
 reject	reject	engine	filegroupOrPartitionScheme(columnNameList)?/columnNameList	CREATE TABLE a AS ON 'a'(a)
 reject	reject	engine	filegroupOrPartitionScheme(columnNameList)?/columnNameList!drop-1	CREATE TABLE a AS ON 'a' a)
@@ -8055,6 +8172,51 @@ reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comm
 reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*!truncate	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR =
 reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*!insert	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1 zzz)
 reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*!swap	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILTERING = 1)
+accept	accept	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDopOption_MAXDOP	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDopOption_MAXDOP!drop-3	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP 1)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDopOption_MAXDOP!drop-4	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP =)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/dataCompressionOption_DATA_COMPRESSION	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, DATA_COMPRESSION = a)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/dataCompressionOption_DATA_COMPRESSION!drop-2	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, = a)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/dataCompressionOption_DATA_COMPRESSION!drop-3	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, DATA_COMPRESSION a)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/dataCompressionOption_DATA_COMPRESSION!drop-4	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, DATA_COMPRESSION =)
+accept	accept	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/xmlCompressionOption_XML_COMPRESSION!drop-2	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, = ON)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/xmlCompressionOption_XML_COMPRESSION!drop-3	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION ON)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/xmlCompressionOption_XML_COMPRESSION!drop-4	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION =)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/bucketCountOption_BUCKET_COUNT	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, BUCKET_COUNT = 1)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/bucketCountOption_BUCKET_COUNT!drop-3	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, BUCKET_COUNT 1)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/bucketCountOption_BUCKET_COUNT!drop-4	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, BUCKET_COUNT =)
+accept	accept	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/onlineIndexOption_ONLINE!drop-3	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE ON)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/onlineIndexOption_ONLINE!drop-4	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE =)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/orderIndexOption	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ORDER(a))
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/orderIndexOption!drop-2	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1,(a))
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/orderIndexOption!drop-3	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ORDER a))
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/orderIndexOption!drop-4	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ORDER())
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/orderIndexOption!drop-5	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ORDER(a)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/compressionDelayOption_COMPRESSION_DELAY	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, COMPRESSION_DELAY = 1)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/compressionDelayOption_COMPRESSION_DELAY!drop-3	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, COMPRESSION_DELAY 1)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/compressionDelayOption_COMPRESSION_DELAY!drop-4	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, COMPRESSION_DELAY =)
+accept	accept	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY!drop-3	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY ON)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY!drop-4	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY =)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDurationOption_MAX_DURATION	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAX_DURATION = 1)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDurationOption_MAX_DURATION!drop-3	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAX_DURATION 1)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/maxDurationOption_MAX_DURATION!drop-4	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAX_DURATION =)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, ABORT_AFTER_WAIT = a))
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-2	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1,(MAX_DURATION = 1, ABORT_AFTER_WAIT = a))
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-3	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, WAIT_AT_LOW_PRIORITY MAX_DURATION = 1, ABORT_AFTER_WAIT = a))
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-4	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, WAIT_AT_LOW_PRIORITY(= 1, ABORT_AFTER_WAIT = a))
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-5	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, WAIT_AT_LOW_PRIORITY(MAX_DURATION 1, ABORT_AFTER_WAIT = a))
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-6	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, WAIT_AT_LOW_PRIORITY(MAX_DURATION =, ABORT_AFTER_WAIT = a))
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-7	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1 ABORT_AFTER_WAIT = a))
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-8	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, = a))
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-9	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, ABORT_AFTER_WAIT a))
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-10	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, ABORT_AFTER_WAIT =))
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-11	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, ABORT_AFTER_WAIT = a)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/indexStateOption	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, a = ON)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/indexStateOption!drop-3	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, a ON)
+reject	reject	engine	indexOptionList(Comma_indexOption)*/Comma_indexOption_(Comma_indexOption)*+indexOption/indexStateOption!drop-4	ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, a =)
 reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis	ALTER TABLE a ALTER INDEX a a WITH(FILLFACTOR = 1)
 reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis!drop-1	ALTER TABLE a ALTER INDEX a a WITH FILLFACTOR = 1)
 reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis!drop-2	ALTER TABLE a ALTER INDEX a a WITH(= 1)
@@ -8063,6 +8225,51 @@ reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_
 reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis!drop-5	ALTER TABLE a ALTER INDEX a a WITH(FILLFACTOR = 1
 reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis!insert	ALTER TABLE a ALTER INDEX a a WITH(FILLFACTOR = 1) zzz
 reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis!swap	ALTER TABLE a ALTER INDEX a a WITH(FILTERING = 1)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/maxDopOption_MAXDOP	ALTER TABLE a ALTER INDEX a a WITH(MAXDOP = 1)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/maxDopOption_MAXDOP!drop-3	ALTER TABLE a ALTER INDEX a a WITH(MAXDOP 1)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/maxDopOption_MAXDOP!drop-4	ALTER TABLE a ALTER INDEX a a WITH(MAXDOP =)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/dataCompressionOption_DATA_COMPRESSION	ALTER TABLE a ALTER INDEX a a WITH(DATA_COMPRESSION = a)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/dataCompressionOption_DATA_COMPRESSION!drop-2	ALTER TABLE a ALTER INDEX a a WITH(= a)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/dataCompressionOption_DATA_COMPRESSION!drop-3	ALTER TABLE a ALTER INDEX a a WITH(DATA_COMPRESSION a)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/dataCompressionOption_DATA_COMPRESSION!drop-4	ALTER TABLE a ALTER INDEX a a WITH(DATA_COMPRESSION =)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a ALTER INDEX a a WITH(XML_COMPRESSION = ON)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/xmlCompressionOption_XML_COMPRESSION!drop-2	ALTER TABLE a ALTER INDEX a a WITH(= ON)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/xmlCompressionOption_XML_COMPRESSION!drop-3	ALTER TABLE a ALTER INDEX a a WITH(XML_COMPRESSION ON)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/xmlCompressionOption_XML_COMPRESSION!drop-4	ALTER TABLE a ALTER INDEX a a WITH(XML_COMPRESSION =)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/bucketCountOption_BUCKET_COUNT	ALTER TABLE a ALTER INDEX a a WITH(BUCKET_COUNT = 1)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/bucketCountOption_BUCKET_COUNT!drop-3	ALTER TABLE a ALTER INDEX a a WITH(BUCKET_COUNT 1)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/bucketCountOption_BUCKET_COUNT!drop-4	ALTER TABLE a ALTER INDEX a a WITH(BUCKET_COUNT =)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/onlineIndexOption_ONLINE	ALTER TABLE a ALTER INDEX a a WITH(ONLINE = ON)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/onlineIndexOption_ONLINE!drop-3	ALTER TABLE a ALTER INDEX a a WITH(ONLINE ON)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/onlineIndexOption_ONLINE!drop-4	ALTER TABLE a ALTER INDEX a a WITH(ONLINE =)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/orderIndexOption	ALTER TABLE a ALTER INDEX a a WITH(ORDER(a))
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/orderIndexOption!drop-2	ALTER TABLE a ALTER INDEX a a WITH((a))
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/orderIndexOption!drop-3	ALTER TABLE a ALTER INDEX a a WITH(ORDER a))
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/orderIndexOption!drop-4	ALTER TABLE a ALTER INDEX a a WITH(ORDER())
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/orderIndexOption!drop-5	ALTER TABLE a ALTER INDEX a a WITH(ORDER(a)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/compressionDelayOption_COMPRESSION_DELAY	ALTER TABLE a ALTER INDEX a a WITH(COMPRESSION_DELAY = 1)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/compressionDelayOption_COMPRESSION_DELAY!drop-3	ALTER TABLE a ALTER INDEX a a WITH(COMPRESSION_DELAY 1)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/compressionDelayOption_COMPRESSION_DELAY!drop-4	ALTER TABLE a ALTER INDEX a a WITH(COMPRESSION_DELAY =)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a ALTER INDEX a a WITH(IGNORE_DUP_KEY = ON)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY!drop-3	ALTER TABLE a ALTER INDEX a a WITH(IGNORE_DUP_KEY ON)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY!drop-4	ALTER TABLE a ALTER INDEX a a WITH(IGNORE_DUP_KEY =)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/maxDurationOption_MAX_DURATION	ALTER TABLE a ALTER INDEX a a WITH(MAX_DURATION = 1)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/maxDurationOption_MAX_DURATION!drop-3	ALTER TABLE a ALTER INDEX a a WITH(MAX_DURATION 1)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/maxDurationOption_MAX_DURATION!drop-4	ALTER TABLE a ALTER INDEX a a WITH(MAX_DURATION =)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY	ALTER TABLE a ALTER INDEX a a WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, ABORT_AFTER_WAIT = a))
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-2	ALTER TABLE a ALTER INDEX a a WITH((MAX_DURATION = 1, ABORT_AFTER_WAIT = a))
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-3	ALTER TABLE a ALTER INDEX a a WITH(WAIT_AT_LOW_PRIORITY MAX_DURATION = 1, ABORT_AFTER_WAIT = a))
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-4	ALTER TABLE a ALTER INDEX a a WITH(WAIT_AT_LOW_PRIORITY(= 1, ABORT_AFTER_WAIT = a))
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-5	ALTER TABLE a ALTER INDEX a a WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION 1, ABORT_AFTER_WAIT = a))
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-6	ALTER TABLE a ALTER INDEX a a WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION =, ABORT_AFTER_WAIT = a))
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-7	ALTER TABLE a ALTER INDEX a a WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1 ABORT_AFTER_WAIT = a))
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-8	ALTER TABLE a ALTER INDEX a a WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, = a))
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-9	ALTER TABLE a ALTER INDEX a a WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, ABORT_AFTER_WAIT a))
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-10	ALTER TABLE a ALTER INDEX a a WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, ABORT_AFTER_WAIT =))
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-11	ALTER TABLE a ALTER INDEX a a WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, ABORT_AFTER_WAIT = a)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/indexStateOption	ALTER TABLE a ALTER INDEX a a WITH(a = ON)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/indexStateOption!drop-3	ALTER TABLE a ALTER INDEX a a WITH(a ON)
+reject	reject	engine	alterTableAlterIndexOptionList/LeftParenthesis_indexOption_RightParenthesis+indexOption/indexStateOption!drop-4	ALTER TABLE a ALTER INDEX a a WITH(a =)
 reject	reject	engine	lowPriorityLockWaitOption/WAIT_AT_LOW_PRIORITY_LeftParenthesis_MAX_DURATION_Equal~c0d7a0e8	ALTER TABLE a DROP a WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, ABORT_AFTER_WAIT = a))
 reject	reject	engine	lowPriorityLockWaitOption/WAIT_AT_LOW_PRIORITY_LeftParenthesis_MAX_DURATION_Equal~c0d7a0e8!drop-1	ALTER TABLE a DROP a WITH((MAX_DURATION = 1, ABORT_AFTER_WAIT = a))
 reject	reject	engine	lowPriorityLockWaitOption/WAIT_AT_LOW_PRIORITY_LeftParenthesis_MAX_DURATION_Equal~c0d7a0e8!drop-2	ALTER TABLE a DROP a WITH(WAIT_AT_LOW_PRIORITY MAX_DURATION = 1, ABORT_AFTER_WAIT = a))
@@ -8602,6 +8809,7 @@ reject	reject	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)
 reject	reject	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY!drop-5	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FIRST 1 ROW
 reject	reject	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY!insert	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FIRST 1 ROW ONLY zzz
 reject	reject	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY!swap	SELECT * ORDER BY 1 OFFSET 1 ROW FILE FIRST 1 ROW ONLY
+accept	accept	engine	offsetClause(Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY)?/Fetch_(FIRST|NEXT)_expression_(ROW|ROWS)_ONLY+offsetClause(ROW|ROWS)/ROWS	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FIRST 1 ROWS ONLY
 accept	accept	engine	offsetClause(FIRST|NEXT)/FIRST	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FIRST 1 ROW ONLY
 reject	reject	engine	offsetClause(FIRST|NEXT)/FIRST!truncate	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH
 reject	reject	engine	offsetClause(FIRST|NEXT)/FIRST!insert	SELECT * ORDER BY 1 OFFSET 1 ROW FETCH FIRST zzz 1 ROW ONLY
@@ -8665,6 +8873,8 @@ accept	accept	engine	outputClauseSelectColumn/expression_((As)?_(stringOrIdentif
 accept	accept	engine	outputClauseSelectColumn((As)?_(stringOrIdentifier))?/%empty	DELETE a OUTPUT 1
 accept	accept	engine	outputClauseSelectColumn((As)?_(stringOrIdentifier))?/(As)?_stringOrIdentifier	DELETE a OUTPUT 1 'a'
 reject	reject	engine	outputClauseSelectColumn((As)?_(stringOrIdentifier))?/(As)?_stringOrIdentifier!insert	DELETE a OUTPUT 1 'a' zzz
+accept	accept	engine	outputClauseSelectColumn((As)?_(stringOrIdentifier))?/(As)?_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	DELETE a OUTPUT 1 N'a'
+accept	accept	engine	outputClauseSelectColumn((As)?_(stringOrIdentifier))?/(As)?_stringOrIdentifier+stringOrIdentifier/identifier	DELETE a OUTPUT 1 a
 accept	accept	engine	outputClauseSelectColumn(As)?/%empty	DELETE a OUTPUT 1 'a'
 reject	reject	engine	outputClauseSelectColumn(As)?/%empty!insert	DELETE a OUTPUT 1 zzz 'a'
 accept	accept	engine	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
@@ -8675,9 +8885,12 @@ accept	accept	engine	selectColumn/stringOrIdentifier_EqualsSign_selectColumnExpr
 reject	reject	engine	selectColumn/stringOrIdentifier_EqualsSign_selectColumnExpression!drop-2	SELECT 'a' 1
 reject	reject	engine	selectColumn/stringOrIdentifier_EqualsSign_selectColumnExpression!drop-3	SELECT 'a' =
 reject	reject	engine	selectColumn/stringOrIdentifier_EqualsSign_selectColumnExpression!insert	SELECT 'a' = 1 zzz
+accept	accept	engine	selectColumn/stringOrIdentifier_EqualsSign_selectColumnExpression+stringLiteral/UnicodeStringLiteral	SELECT N'a' = 1
+accept	accept	engine	selectColumn/stringOrIdentifier_EqualsSign_selectColumnExpression+stringOrIdentifier/identifier	SELECT a = 1
 accept	accept	engine	selectColumn((As)?_(stringOrIdentifier))?/%empty	SELECT 1
 accept	accept	engine	selectColumn((As)?_(stringOrIdentifier))?/(As)?_stringOrIdentifier	SELECT 1 'a'
 reject	reject	engine	selectColumn((As)?_(stringOrIdentifier))?/(As)?_stringOrIdentifier!insert	SELECT 1 'a' zzz
+accept	accept	engine	selectColumn((As)?_(stringOrIdentifier))?/(As)?_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	SELECT 1 N'a'
 accept	accept	engine	selectColumn(As)?/%empty	SELECT 1 'a'
 reject	reject	engine	selectColumn(As)?/%empty!insert	SELECT 1 zzz 'a'
 accept	accept	engine	selectColumn(As)?/As	SELECT 1 AS 'a'
@@ -8760,6 +8973,7 @@ reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580
 reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/As_Of_stringLiteralOrVariable!drop-3	SELECT * FROM a FOR SYSTEM_TIME AS OF
 accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/As_Of_stringLiteralOrVariable!insert	SELECT * FROM a FOR SYSTEM_TIME AS OF 'a' zzz
 reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/As_Of_stringLiteralOrVariable!swap	SELECT * FROM a FOR SYSTEM_TIME ASC OF 'a'
+accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/As_Of_stringLiteralOrVariable+stringLiteral/UnicodeStringLiteral	SELECT * FROM a FOR SYSTEM_TIME AS OF N'a'
 accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/From_stringLiteralOrVariable_To_stringLiteralOrVariable	SELECT * FROM a FOR SYSTEM_TIME FROM 'a' TO 'a'
 reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/From_stringLiteralOrVariable_To_stringLiteralOrVariable!drop-1	SELECT * FROM a FOR SYSTEM_TIME 'a' TO 'a'
 reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/From_stringLiteralOrVariable_To_stringLiteralOrVariable!drop-2	SELECT * FROM a FOR SYSTEM_TIME FROM TO 'a'
@@ -8767,6 +8981,10 @@ reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580
 reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/From_stringLiteralOrVariable_To_stringLiteralOrVariable!drop-4	SELECT * FROM a FOR SYSTEM_TIME FROM 'a' TO
 accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/From_stringLiteralOrVariable_To_stringLiteralOrVariable!insert	SELECT * FROM a FOR SYSTEM_TIME FROM 'a' TO 'a' zzz
 reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/From_stringLiteralOrVariable_To_stringLiteralOrVariable!swap	SELECT * FROM a FOR SYSTEM_TIME FULL 'a' TO 'a'
+accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/From_stringLiteralOrVariable_To_stringLiteralOrVariable+stringLiteral/UnicodeStringLiteral	SELECT * FROM a FOR SYSTEM_TIME FROM N'a' TO 'a'
+accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/From_stringLiteralOrVariable_To_stringLiteralOrVariable+stringLiteralOrVariable/variable	SELECT * FROM a FOR SYSTEM_TIME FROM @a TO 'a'
+accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/From_stringLiteralOrVariable_To_stringLiteralOrVariable+stringLiteral/UnicodeStringLiteral#2	SELECT * FROM a FOR SYSTEM_TIME FROM 'a' TO N'a'
+accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/From_stringLiteralOrVariable_To_stringLiteralOrVariable+stringLiteralOrVariable/variable#2	SELECT * FROM a FOR SYSTEM_TIME FROM 'a' TO @a
 accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/Between_stringLiteralOrVariable_And_stringLiteralOrVariable	SELECT * FROM a FOR SYSTEM_TIME BETWEEN 'a' AND 'a'
 reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/Between_stringLiteralOrVariable_And_stringLiteralOrVariable!drop-1	SELECT * FROM a FOR SYSTEM_TIME 'a' AND 'a'
 reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/Between_stringLiteralOrVariable_And_stringLiteralOrVariable!drop-2	SELECT * FROM a FOR SYSTEM_TIME BETWEEN AND 'a'
@@ -8774,6 +8992,10 @@ reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580
 reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/Between_stringLiteralOrVariable_And_stringLiteralOrVariable!drop-4	SELECT * FROM a FOR SYSTEM_TIME BETWEEN 'a' AND
 accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/Between_stringLiteralOrVariable_And_stringLiteralOrVariable!insert	SELECT * FROM a FOR SYSTEM_TIME BETWEEN 'a' AND 'a' zzz
 reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/Between_stringLiteralOrVariable_And_stringLiteralOrVariable!swap	SELECT * FROM a FOR SYSTEM_TIME BINDING 'a' AND 'a'
+accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/Between_stringLiteralOrVariable_And_stringLiteralOrVariable+stringLiteral/UnicodeStringLiteral	SELECT * FROM a FOR SYSTEM_TIME BETWEEN N'a' AND 'a'
+accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/Between_stringLiteralOrVariable_And_stringLiteralOrVariable+stringLiteralOrVariable/variable	SELECT * FROM a FOR SYSTEM_TIME BETWEEN @a AND 'a'
+accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/Between_stringLiteralOrVariable_And_stringLiteralOrVariable+stringLiteral/UnicodeStringLiteral#2	SELECT * FROM a FOR SYSTEM_TIME BETWEEN 'a' AND N'a'
+accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/Between_stringLiteralOrVariable_And_stringLiteralOrVariable+stringLiteralOrVariable/variable#2	SELECT * FROM a FOR SYSTEM_TIME BETWEEN 'a' AND @a
 accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/CONTAINED_In_LeftParenthesis_stringLiteralOrVariable_Co~da37d4fc	SELECT * FROM a FOR SYSTEM_TIME CONTAINED IN('a', 'a')
 reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/CONTAINED_In_LeftParenthesis_stringLiteralOrVariable_Co~da37d4fc!drop-1	SELECT * FROM a FOR SYSTEM_TIME IN('a', 'a')
 reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/CONTAINED_In_LeftParenthesis_stringLiteralOrVariable_Co~da37d4fc!drop-2	SELECT * FROM a FOR SYSTEM_TIME CONTAINED('a', 'a')
@@ -8784,6 +9006,10 @@ reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580
 reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/CONTAINED_In_LeftParenthesis_stringLiteralOrVariable_Co~da37d4fc!drop-7	SELECT * FROM a FOR SYSTEM_TIME CONTAINED IN('a', 'a'
 accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/CONTAINED_In_LeftParenthesis_stringLiteralOrVariable_Co~da37d4fc!insert	SELECT * FROM a FOR SYSTEM_TIME CONTAINED IN('a', 'a') zzz
 reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/CONTAINED_In_LeftParenthesis_stringLiteralOrVariable_Co~da37d4fc!swap	SELECT * FROM a FOR SYSTEM_TIME CONTAINMENT IN('a', 'a')
+accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/CONTAINED_In_LeftParenthesis_stringLiteralOrVariable_Co~da37d4fc+stringLiteral/UnicodeStringLiteral	SELECT * FROM a FOR SYSTEM_TIME CONTAINED IN(N'a', 'a')
+accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/CONTAINED_In_LeftParenthesis_stringLiteralOrVariable_Co~da37d4fc+stringLiteralOrVariable/variable	SELECT * FROM a FOR SYSTEM_TIME CONTAINED IN(@a, 'a')
+accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/CONTAINED_In_LeftParenthesis_stringLiteralOrVariable_Co~da37d4fc+stringLiteral/UnicodeStringLiteral#2	SELECT * FROM a FOR SYSTEM_TIME CONTAINED IN('a', N'a')
+accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/CONTAINED_In_LeftParenthesis_stringLiteralOrVariable_Co~da37d4fc+stringLiteralOrVariable/variable#2	SELECT * FROM a FOR SYSTEM_TIME CONTAINED IN('a', @a)
 accept	accept	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/All	SELECT * FROM a FOR SYSTEM_TIME ALL
 reject	reject	engine	temporalClause(As_Of_stringLiteralOrVariable|From_s~b108580a)/All!swap	SELECT * FROM a FOR SYSTEM_TIME ALLOW_CONNECTIONS
 accept	accept	engine	selectTableReferenceWithOdbc/selectTableReference	SELECT * FROM @a
@@ -9186,6 +9412,7 @@ reject	reject	engine	changesChangeTableParams/(integerOrVariable|nullLiteral)_(C
 reject	reject	engine	changesChangeTableParams/(integerOrVariable|nullLiteral)_(Comma_FORCESEEK)?!truncate	SELECT * FROM CHANGETABLE(a a,
 reject	reject	engine	changesChangeTableParams/(integerOrVariable|nullLiteral)_(Comma_FORCESEEK)?!insert	SELECT * FROM CHANGETABLE(a a, 1 zzz) a
 reject	reject	engine	changesChangeTableParams(integerOrVariable|nullLiteral)/integerOrVariable	SELECT * FROM CHANGETABLE(a a, 1) a
+reject	reject	engine	changesChangeTableParams(integerOrVariable|nullLiteral)/integerOrVariable+integerOrVariable/variable	SELECT * FROM CHANGETABLE(a a, @a) a
 reject	reject	engine	changesChangeTableParams(integerOrVariable|nullLiteral)/nullLiteral	SELECT * FROM CHANGETABLE(a a, NULL) a
 reject	reject	engine	changesChangeTableParams(integerOrVariable|nullLiteral)/nullLiteral!insert	SELECT * FROM CHANGETABLE(a a, NULL zzz) a
 reject	reject	engine	changesChangeTableParams(integerOrVariable|nullLiteral)/nullLiteral!swap	SELECT * FROM CHANGETABLE(a a, NULLIF) a
@@ -9319,27 +9546,33 @@ reject	reject	engine	builtInFunctionTableReference(expressionWithDefault_(Comma_
 reject	reject	engine	builtInFunctionTableReference(expressionWithDefault_(Comma_express~d88b6686)?/%empty!insert	SELECT * FROM :: a(zzz)
 reject	reject	engine	builtInFunctionTableReference(expressionWithDefault_(Comma_express~d88b6686)?/expressionWithDefault_(Comma_expressionWithDefault)*	SELECT * FROM :: a(1)
 reject	reject	engine	builtInFunctionTableReference(expressionWithDefault_(Comma_express~d88b6686)?/expressionWithDefault_(Comma_expressionWithDefault)*!insert	SELECT * FROM :: a(1 zzz)
+reject	reject	engine	builtInFunctionTableReference(expressionWithDefault_(Comma_express~d88b6686)?/expressionWithDefault_(Comma_expressionWithDefault)*+expressionWithDefault/defaultLiteral	SELECT * FROM :: a(DEFAULT)
 reject	reject	engine	builtInFunctionTableReference(Comma_expressionWithDefault)*/%empty	SELECT * FROM :: a(1)
 reject	reject	engine	builtInFunctionTableReference(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*	SELECT * FROM :: a(1, 1)
 reject	reject	engine	builtInFunctionTableReference(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!drop-1	SELECT * FROM :: a(1 1)
 reject	reject	engine	builtInFunctionTableReference(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!drop-2	SELECT * FROM :: a(1,)
 reject	reject	engine	builtInFunctionTableReference(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!truncate	SELECT * FROM :: a(1,
 reject	reject	engine	builtInFunctionTableReference(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!insert	SELECT * FROM :: a(1, 1 zzz)
+reject	reject	engine	builtInFunctionTableReference(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*+expressionWithDefault/defaultLiteral	SELECT * FROM :: a(1, DEFAULT)
 accept	accept	engine	globalFunctionTableReference/identifier_LeftParenthesis_(expressionWithDefault_(Comm~d11d459f	SELECT * FROM a()
 accept	accept	engine	globalFunctionTableReference/identifier_LeftParenthesis_(expressionWithDefault_(Comm~d11d459f+simpleTableReferenceAliasOpt	SELECT * FROM a() a
 accept	accept	engine	globalFunctionTableReference(expressionWithDefault_(Comma_express~d88b6686)?/%empty	SELECT * FROM a()
 accept	accept	engine	globalFunctionTableReference(expressionWithDefault_(Comma_express~d88b6686)?/%empty!insert	SELECT * FROM a(zzz)
 accept	accept	engine	globalFunctionTableReference(expressionWithDefault_(Comma_express~d88b6686)?/expressionWithDefault_(Comma_expressionWithDefault)*	SELECT * FROM a(1)
 reject	reject	engine	globalFunctionTableReference(expressionWithDefault_(Comma_express~d88b6686)?/expressionWithDefault_(Comma_expressionWithDefault)*!insert	SELECT * FROM a(1 zzz)
+accept	accept	engine	globalFunctionTableReference(expressionWithDefault_(Comma_express~d88b6686)?/expressionWithDefault_(Comma_expressionWithDefault)*+expressionWithDefault/defaultLiteral	SELECT * FROM a(DEFAULT)
 accept	accept	engine	globalFunctionTableReference(Comma_expressionWithDefault)*/%empty	SELECT * FROM a(1)
 accept	accept	engine	globalFunctionTableReference(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*	SELECT * FROM a(1, 1)
 reject	reject	engine	globalFunctionTableReference(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!drop-1	SELECT * FROM a(1 1)
 reject	reject	engine	globalFunctionTableReference(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!drop-2	SELECT * FROM a(1,)
 reject	reject	engine	globalFunctionTableReference(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!truncate	SELECT * FROM a(1,
 reject	reject	engine	globalFunctionTableReference(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!insert	SELECT * FROM a(1, 1 zzz)
+accept	accept	engine	globalFunctionTableReference(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*+expressionWithDefault/defaultLiteral	SELECT * FROM a(1, DEFAULT)
 accept	accept	engine	variableTableReference/variable_simpleTableReferenceAliasOpt	SELECT * FROM @a
 accept	accept	engine	variableMethodCallTableReference/variable_Dot_identifier_parenthesizedOptExpressionWithD~fcdb9883	SELECT * FROM @a.a() a(a)
 accept	accept	engine	raiseErrorStatement/Raiserror_LeftParenthesis_signedIntegerOrStringOrVariab~9f1ee9af	RAISERROR(1, 1, 1)
+accept	accept	engine	raiseErrorStatement/Raiserror_LeftParenthesis_signedIntegerOrStringOrVariab~9f1ee9af+signedIntegerOrVariable/variable	RAISERROR(1, @a, 1)
+accept	accept	engine	raiseErrorStatement/Raiserror_LeftParenthesis_signedIntegerOrStringOrVariab~9f1ee9af+signedIntegerOrVariable/variable#2	RAISERROR(1, 1, @a)
 accept	accept	engine	raiseErrorStatement(Comma_possibleNegativeConstant)*/%empty	RAISERROR(1, 1, 1)
 reject	reject	engine	raiseErrorStatement(Comma_possibleNegativeConstant)*/%empty!insert	RAISERROR(1, 1, 1 zzz)
 accept	accept	engine	raiseErrorStatement(Comma_possibleNegativeConstant)*/Comma_possibleNegativeConstant_(Comma_possibleNegativeConstant)*	RAISERROR(1, 1, 1, 1)
@@ -9527,10 +9760,13 @@ reject	reject	engine	setClauseStartingWithVariable(multiPartIdentifier_assignmen
 reject	reject	engine	setClauseStartingWithVariable(multiPartIdentifier_assignmentWithOp~313f60c4)/multiPartIdentifier_assignmentWithOptOp_expressionWithDefault!drop-2	UPDATE a SET @a = a 1
 reject	reject	engine	setClauseStartingWithVariable(multiPartIdentifier_assignmentWithOp~313f60c4)/multiPartIdentifier_assignmentWithOptOp_expressionWithDefault!drop-3	UPDATE a SET @a = a =
 reject	reject	engine	setClauseStartingWithVariable(multiPartIdentifier_assignmentWithOp~313f60c4)/multiPartIdentifier_assignmentWithOptOp_expressionWithDefault!insert	UPDATE a SET @a = a = 1 zzz
+accept	accept	engine	setClauseStartingWithVariable(multiPartIdentifier_assignmentWithOp~313f60c4)/multiPartIdentifier_assignmentWithOptOp_expressionWithDefault+expressionWithDefault/defaultLiteral	UPDATE a SET @a = a = DEFAULT
 accept	accept	engine	setClauseStartingWithVariable(multiPartIdentifier_assignmentWithOp~313f60c4)/expression	UPDATE a SET @a = 1
 accept	accept	engine	setClauseColumnAssignment/assignmentWithOptOp_expressionWithDefault	UPDATE a SET a = 1
+accept	accept	engine	setClauseColumnAssignment/assignmentWithOptOp_expressionWithDefault+expressionWithDefault/defaultLiteral	UPDATE a SET a = DEFAULT
 reject	reject	engine	setClauseFunctionCall/parenthesizedOptExpressionWithDefaultList	UPDATE a SET a()
 accept	accept	engine	setClauseSubItemSystemColumn/systemColumn_assignmentWithOptOp_expressionWithDefault	UPDATE a SET $IDENTITY = 1
+accept	accept	engine	setClauseSubItemSystemColumn/systemColumn_assignmentWithOptOp_expressionWithDefault+expressionWithDefault/defaultLiteral	UPDATE a SET $IDENTITY = DEFAULT
 accept	accept	engine	executeInsertSource/executeSpecification	INSERT a EXECUTE a
 accept	accept	engine	selectInsertSource/queryExpression_(orderByClause_(offsetClause)?)?	INSERT a SELECT *
 accept	accept	engine	selectInsertSource(orderByClause_(offsetClause)?)?/%empty	INSERT a SELECT *
@@ -9686,6 +9922,8 @@ accept	accept	engine	simpleTableReferenceAliasOpt(simpleTableReferenceAlias)?/%e
 accept	accept	engine	simpleTableReferenceAliasOpt(simpleTableReferenceAlias)?/simpleTableReferenceAlias	SELECT * FROM @a a
 accept	accept	engine	fulltextTableReference/fullTextTable_LeftParenthesis_schemaObjectFourPartName_~1815b02c	SELECT * FROM CONTAINSTABLE(a, a, 'a')
 accept	accept	engine	fulltextTableReference/fullTextTable_LeftParenthesis_schemaObjectFourPartName_~1815b02c+simpleTableReferenceAliasOpt	SELECT * FROM CONTAINSTABLE(a, a, 'a') a
+accept	accept	engine	fulltextTableReference/fullTextTable_LeftParenthesis_schemaObjectFourPartName_~1815b02c+stringLiteral/UnicodeStringLiteral	SELECT * FROM CONTAINSTABLE(a, a, N'a')
+accept	accept	engine	fulltextTableReference/fullTextTable_LeftParenthesis_schemaObjectFourPartName_~1815b02c+stringOrVariable/variable	SELECT * FROM CONTAINSTABLE(a, a, @a)
 accept	accept	engine	fulltextTableReference(fulltextTableOptions)?/%empty	SELECT * FROM CONTAINSTABLE(a, a, 'a')
 reject	reject	engine	fulltextTableReference(fulltextTableOptions)?/%empty!insert	SELECT * FROM CONTAINSTABLE(a, a, 'a' zzz)
 accept	accept	engine	fulltextTableReference(fulltextTableOptions)?/fulltextTableOptions	SELECT * FROM CONTAINSTABLE(a, a, 'a', 1)
@@ -9743,12 +9981,14 @@ reject	reject	engine	fulltextTableOptions/Comma_languageExpression_(Comma_intege
 reject	reject	engine	fulltextTableOptions/Comma_languageExpression_(Comma_integerOrVariable)?!insert	SELECT * FROM CONTAINSTABLE(a, a, 'a', LANGUAGE 0x00 zzz)
 reject	reject	engine	fulltextTableOptions/Comma_languageExpression_(Comma_integerOrVariable)?!swap	SELECT * FROM CONTAINSTABLE(a, a, 'a', LAST_NODE 0x00)
 accept	accept	engine	fulltextTableOptions/Comma_integerOrVariable_(Comma_languageExpression)?	SELECT * FROM CONTAINSTABLE(a, a, 'a', 1)
+accept	accept	engine	fulltextTableOptions/Comma_integerOrVariable_(Comma_languageExpression)?+integerOrVariable/variable	SELECT * FROM CONTAINSTABLE(a, a, 'a', @a)
 accept	accept	engine	fulltextTableOptions(Comma_integerOrVariable)?/%empty	SELECT * FROM CONTAINSTABLE(a, a, 'a', LANGUAGE 0x00)
 accept	accept	engine	fulltextTableOptions(Comma_integerOrVariable)?/Comma_integerOrVariable	SELECT * FROM CONTAINSTABLE(a, a, 'a', LANGUAGE 0x00, 1)
 reject	reject	engine	fulltextTableOptions(Comma_integerOrVariable)?/Comma_integerOrVariable!drop-1	SELECT * FROM CONTAINSTABLE(a, a, 'a', LANGUAGE 0x00 1)
 reject	reject	engine	fulltextTableOptions(Comma_integerOrVariable)?/Comma_integerOrVariable!drop-2	SELECT * FROM CONTAINSTABLE(a, a, 'a', LANGUAGE 0x00,)
 reject	reject	engine	fulltextTableOptions(Comma_integerOrVariable)?/Comma_integerOrVariable!truncate	SELECT * FROM CONTAINSTABLE(a, a, 'a', LANGUAGE 0x00,
 reject	reject	engine	fulltextTableOptions(Comma_integerOrVariable)?/Comma_integerOrVariable!insert	SELECT * FROM CONTAINSTABLE(a, a, 'a', LANGUAGE 0x00, 1 zzz)
+accept	accept	engine	fulltextTableOptions(Comma_integerOrVariable)?/Comma_integerOrVariable+integerOrVariable/variable	SELECT * FROM CONTAINSTABLE(a, a, 'a', LANGUAGE 0x00, @a)
 accept	accept	engine	fulltextTableOptions(Comma_languageExpression)?/%empty	SELECT * FROM CONTAINSTABLE(a, a, 'a', 1)
 reject	reject	engine	fulltextTableOptions(Comma_languageExpression)?/Comma_languageExpression	SELECT * FROM CONTAINSTABLE(a, a, 'a', 1, LANGUAGE 0x00)
 reject	reject	engine	fulltextTableOptions(Comma_languageExpression)?/Comma_languageExpression!drop-1	SELECT * FROM CONTAINSTABLE(a, a, 'a', 1 LANGUAGE 0x00)
@@ -9820,12 +10060,15 @@ accept	accept	engine	openXmlWithClauseOpt((With_LeftParenthesis_openXmlSchemaI~2
 accept	accept	engine	openXmlParams/variable_Comma_stringOrVariable_(Comma_integerOrVariable)?	SELECT * FROM OPENXML(@a, 'a')
 reject	reject	engine	openXmlParams/variable_Comma_stringOrVariable_(Comma_integerOrVariable)?!truncate	SELECT * FROM OPENXML(@a,
 reject	reject	engine	openXmlParams/variable_Comma_stringOrVariable_(Comma_integerOrVariable)?!insert	SELECT * FROM OPENXML(@a, 'a' zzz)
+accept	accept	engine	openXmlParams/variable_Comma_stringOrVariable_(Comma_integerOrVariable)?+stringLiteral/UnicodeStringLiteral	SELECT * FROM OPENXML(@a, N'a')
+accept	accept	engine	openXmlParams/variable_Comma_stringOrVariable_(Comma_integerOrVariable)?+stringOrVariable/variable	SELECT * FROM OPENXML(@a, @a)
 accept	accept	engine	openXmlParams(Comma_integerOrVariable)?/%empty	SELECT * FROM OPENXML(@a, 'a')
 accept	accept	engine	openXmlParams(Comma_integerOrVariable)?/Comma_integerOrVariable	SELECT * FROM OPENXML(@a, 'a', 1)
 reject	reject	engine	openXmlParams(Comma_integerOrVariable)?/Comma_integerOrVariable!drop-1	SELECT * FROM OPENXML(@a, 'a' 1)
 reject	reject	engine	openXmlParams(Comma_integerOrVariable)?/Comma_integerOrVariable!drop-2	SELECT * FROM OPENXML(@a, 'a',)
 reject	reject	engine	openXmlParams(Comma_integerOrVariable)?/Comma_integerOrVariable!truncate	SELECT * FROM OPENXML(@a, 'a',
 reject	reject	engine	openXmlParams(Comma_integerOrVariable)?/Comma_integerOrVariable!insert	SELECT * FROM OPENXML(@a, 'a', 1 zzz)
+accept	accept	engine	openXmlParams(Comma_integerOrVariable)?/Comma_integerOrVariable+integerOrVariable/variable	SELECT * FROM OPENXML(@a, 'a', @a)
 accept	accept	engine	openXmlSchemaItemList/openXmlSchemaItem_(Comma_openXmlSchemaItem)*	SELECT * FROM OPENXML(@a, 'a') WITH(a a)
 reject	reject	engine	openXmlSchemaItemList/openXmlSchemaItem_(Comma_openXmlSchemaItem)*!truncate	SELECT * FROM OPENXML(@a, 'a') WITH(a
 reject	reject	engine	openXmlSchemaItemList/openXmlSchemaItem_(Comma_openXmlSchemaItem)*!insert	SELECT * FROM OPENXML(@a, 'a') WITH(a a zzz)
@@ -9839,6 +10082,8 @@ accept	accept	engine	openXmlSchemaItem/columnDefinitionBasic_(stringOrVariable)?
 accept	accept	engine	openXmlSchemaItem(stringOrVariable)?/%empty	SELECT * FROM OPENXML(@a, 'a') WITH(a a)
 accept	accept	engine	openXmlSchemaItem(stringOrVariable)?/stringOrVariable	SELECT * FROM OPENXML(@a, 'a') WITH(a a 'a')
 reject	reject	engine	openXmlSchemaItem(stringOrVariable)?/stringOrVariable!insert	SELECT * FROM OPENXML(@a, 'a') WITH(a a 'a' zzz)
+accept	accept	engine	openXmlSchemaItem(stringOrVariable)?/stringOrVariable+stringLiteral/UnicodeStringLiteral	SELECT * FROM OPENXML(@a, 'a') WITH(a a N'a')
+accept	accept	engine	openXmlSchemaItem(stringOrVariable)?/stringOrVariable+stringOrVariable/variable	SELECT * FROM OPENXML(@a, 'a') WITH(a a @a)
 accept	accept	engine	openJsonWithClauseOpt/With_LeftParenthesis_openJsonSchemaItemList_RightParenthesis	SELECT * FROM OPENJSON(1) WITH(a a)
 reject	reject	engine	openJsonWithClauseOpt/With_LeftParenthesis_openJsonSchemaItemList_RightParenthesis!drop-1	SELECT * FROM OPENJSON(1)(a a)
 reject	reject	engine	openJsonWithClauseOpt/With_LeftParenthesis_openJsonSchemaItemList_RightParenthesis!drop-2	SELECT * FROM OPENJSON(1) WITH a a)
@@ -10088,6 +10333,15 @@ reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/%empty	DELETE a WITH(FO
 reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/(Comma)?_tableHint_((Comma)?_tableHint)*	DELETE a WITH(FORCESEEK FORCESEEK)
 reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/(Comma)?_tableHint_((Comma)?_tableHint)*!insert	DELETE a WITH(FORCESEEK FORCESEEK zzz)
 reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/(Comma)?_tableHint_((Comma)?_tableHint)*!swap	DELETE a WITH(FORCESEEK FORCE_LAST_GOOD_PLAN)
+reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/(Comma)?_tableHint_((Comma)?_tableHint)*+tableHint/simpleTableHint	DELETE a WITH(FORCESEEK HOLDLOCK)
+reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/(Comma)?_tableHint_((Comma)?_tableHint)*+tableHint/indexTableHint	DELETE a WITH(FORCESEEK INDEX = a)
+reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/(Comma)?_tableHint_((Comma)?_tableHint)*+tableHint/indexTableHint!drop-1	DELETE a WITH(FORCESEEK = a)
+reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/(Comma)?_tableHint_((Comma)?_tableHint)*+tableHint/indexTableHint!drop-2	DELETE a WITH(FORCESEEK INDEX a)
+reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/(Comma)?_tableHint_((Comma)?_tableHint)*+tableHint/indexTableHint!drop-3	DELETE a WITH(FORCESEEK INDEX =)
+reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/(Comma)?_tableHint_((Comma)?_tableHint)*+tableHint/literalTableHint	DELETE a WITH(FORCESEEK SPATIAL_WINDOW_MAX_CELLS = 1)
+reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/(Comma)?_tableHint_((Comma)?_tableHint)*+tableHint/literalTableHint!drop-1	DELETE a WITH(FORCESEEK = 1)
+reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/(Comma)?_tableHint_((Comma)?_tableHint)*+tableHint/literalTableHint!drop-2	DELETE a WITH(FORCESEEK SPATIAL_WINDOW_MAX_CELLS 1)
+reject	reject	engine	tableHintsBody((Comma)?_tableHint)*/(Comma)?_tableHint_((Comma)?_tableHint)*+tableHint/literalTableHint!drop-3	DELETE a WITH(FORCESEEK SPATIAL_WINDOW_MAX_CELLS =)
 reject	reject	engine	tableHintsBody(Comma)?/%empty	DELETE a WITH(FORCESEEK FORCESEEK)
 reject	reject	engine	tableHintsBody(Comma)?/%empty!insert	DELETE a WITH(FORCESEEK zzz FORCESEEK)
 reject	reject	engine	tableHintsBody(Comma)?/Comma	DELETE a WITH(FORCESEEK, FORCESEEK)
@@ -10121,6 +10375,7 @@ reject	reject	engine	indexTableHint(EqualsSign_identifierOrInteger|LeftP~e47b5fe
 reject	reject	engine	indexTableHint(EqualsSign_identifierOrInteger|LeftP~e47b5fe7)/LeftParenthesis_identifierOrInteger_(Comma_identifierOr~e3fe456d!drop-3	DELETE a WITH(INDEX(a)
 reject	reject	engine	indexTableHint(EqualsSign_identifierOrInteger|LeftP~e47b5fe7)/LeftParenthesis_identifierOrInteger_(Comma_identifierOr~e3fe456d!truncate	DELETE a WITH(INDEX(a
 reject	reject	engine	indexTableHint(EqualsSign_identifierOrInteger|LeftP~e47b5fe7)/LeftParenthesis_identifierOrInteger_(Comma_identifierOr~e3fe456d!insert	DELETE a WITH(INDEX(a) zzz)
+reject	reject	engine	indexTableHint(EqualsSign_identifierOrInteger|LeftP~e47b5fe7)/LeftParenthesis_identifierOrInteger_(Comma_identifierOr~e3fe456d+identifierOrInteger/integer	DELETE a WITH(INDEX(1))
 reject	reject	engine	indexTableHint(Comma_identifierOrInteger)*/%empty	DELETE a WITH(INDEX(a))
 reject	reject	engine	indexTableHint(Comma_identifierOrInteger)*/%empty!insert	DELETE a WITH(INDEX(a zzz))
 reject	reject	engine	indexTableHint(Comma_identifierOrInteger)*/Comma_identifierOrInteger_(Comma_identifierOrInteger)*	DELETE a WITH(INDEX(a, a))
@@ -10128,8 +10383,18 @@ reject	reject	engine	indexTableHint(Comma_identifierOrInteger)*/Comma_identifier
 reject	reject	engine	indexTableHint(Comma_identifierOrInteger)*/Comma_identifierOrInteger_(Comma_identifierOrInteger)*!drop-2	DELETE a WITH(INDEX(a,))
 reject	reject	engine	indexTableHint(Comma_identifierOrInteger)*/Comma_identifierOrInteger_(Comma_identifierOrInteger)*!truncate	DELETE a WITH(INDEX(a,
 reject	reject	engine	indexTableHint(Comma_identifierOrInteger)*/Comma_identifierOrInteger_(Comma_identifierOrInteger)*!insert	DELETE a WITH(INDEX(a, a zzz))
+reject	reject	engine	indexTableHint(Comma_identifierOrInteger)*/Comma_identifierOrInteger_(Comma_identifierOrInteger)*+identifierOrInteger/integer	DELETE a WITH(INDEX(a, 1))
 accept	accept	engine	literalTableHint/SPATIAL_WINDOW_MAX_CELLS_EqualsSign_integer	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 accept	accept	engine	singleOldStyleTableHint/LeftParenthesis_tableHint_RightParenthesis	SELECT * FROM a(FORCESEEK)
+accept	accept	engine	singleOldStyleTableHint/LeftParenthesis_tableHint_RightParenthesis+tableHint/simpleTableHint	SELECT * FROM a(HOLDLOCK)
+reject	reject	engine	singleOldStyleTableHint/LeftParenthesis_tableHint_RightParenthesis+tableHint/indexTableHint	SELECT * FROM a(INDEX = a)
+reject	reject	engine	singleOldStyleTableHint/LeftParenthesis_tableHint_RightParenthesis+tableHint/indexTableHint!drop-2	SELECT * FROM a(= a)
+reject	reject	engine	singleOldStyleTableHint/LeftParenthesis_tableHint_RightParenthesis+tableHint/indexTableHint!drop-3	SELECT * FROM a(INDEX a)
+reject	reject	engine	singleOldStyleTableHint/LeftParenthesis_tableHint_RightParenthesis+tableHint/indexTableHint!drop-4	SELECT * FROM a(INDEX =)
+reject	reject	engine	singleOldStyleTableHint/LeftParenthesis_tableHint_RightParenthesis+tableHint/literalTableHint	SELECT * FROM a(SPATIAL_WINDOW_MAX_CELLS = 1)
+reject	reject	engine	singleOldStyleTableHint/LeftParenthesis_tableHint_RightParenthesis+tableHint/literalTableHint!drop-2	SELECT * FROM a(= 1)
+reject	reject	engine	singleOldStyleTableHint/LeftParenthesis_tableHint_RightParenthesis+tableHint/literalTableHint!drop-3	SELECT * FROM a(SPATIAL_WINDOW_MAX_CELLS 1)
+reject	reject	engine	singleOldStyleTableHint/LeftParenthesis_tableHint_RightParenthesis+tableHint/literalTableHint!drop-4	SELECT * FROM a(SPATIAL_WINDOW_MAX_CELLS =)
 accept	accept	engine	whereClause/Where_booleanExpressionWithFlags	SELECT * WHERE 1 = 1
 accept	accept	engine	dmlWhereClause/whereClause	DELETE a WHERE 1 = 1
 accept	accept	engine	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -10441,6 +10706,8 @@ reject	reject	engine	literalOptimizerHint/Identifier_EqualsSign_(integerOrRealOr
 reject	reject	engine	literalOptimizerHint/Identifier_EqualsSign_(integerOrRealOrNumeric|stringLiteral)!truncate	SELECT * OPTION(a =
 reject	reject	engine	literalOptimizerHint/Identifier_EqualsSign_(integerOrRealOrNumeric|stringLiteral)!insert	SELECT * OPTION(a = 1 zzz)
 reject	reject	engine	literalOptimizerHint(integerOrRealOrNumeric|stringLiteral)/integerOrRealOrNumeric	SELECT * OPTION(a = 1)
+reject	reject	engine	literalOptimizerHint(integerOrRealOrNumeric|stringLiteral)/integerOrRealOrNumeric+integerOrRealOrNumeric/real	SELECT * OPTION(a = 1E1)
+reject	reject	engine	literalOptimizerHint(integerOrRealOrNumeric|stringLiteral)/integerOrRealOrNumeric+integerOrRealOrNumeric/numeric	SELECT * OPTION(a = 1.5)
 reject	reject	engine	literalOptimizerHint(integerOrRealOrNumeric|stringLiteral)/stringLiteral	SELECT * OPTION(a = 'a')
 reject	reject	engine	literalOptimizerHint(integerOrRealOrNumeric|stringLiteral)/stringLiteral!insert	SELECT * OPTION(a = 'a' zzz)
 reject	reject	engine	literalOptimizerHint(integerOrRealOrNumeric|stringLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	SELECT * OPTION(a = N'a')
@@ -10591,6 +10858,8 @@ reject	reject	engine	workloadGroupParameter/Identifier_EqualsSign_(Identifier|in
 reject	reject	engine	workloadGroupParameter(Identifier|integerOrRealOrNumeric)/Identifier	ALTER WORKLOAD GROUP a WITH(a = a)
 reject	reject	engine	workloadGroupParameter(Identifier|integerOrRealOrNumeric)/integerOrRealOrNumeric	ALTER WORKLOAD GROUP a WITH(a = 1)
 reject	reject	engine	workloadGroupParameter(Identifier|integerOrRealOrNumeric)/integerOrRealOrNumeric!insert	ALTER WORKLOAD GROUP a WITH(a = 1 zzz)
+reject	reject	engine	workloadGroupParameter(Identifier|integerOrRealOrNumeric)/integerOrRealOrNumeric+integerOrRealOrNumeric/real	ALTER WORKLOAD GROUP a WITH(a = 1E1)
+reject	reject	engine	workloadGroupParameter(Identifier|integerOrRealOrNumeric)/integerOrRealOrNumeric+integerOrRealOrNumeric/numeric	ALTER WORKLOAD GROUP a WITH(a = 1.5)
 reject	reject	engine	withClassifierOptions/With_LeftParenthesis_workloadClassifierOption_(Comma_wo~f8c7d2ec	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
 reject	reject	engine	withClassifierOptions/With_LeftParenthesis_workloadClassifierOption_(Comma_wo~f8c7d2ec!drop-1	CREATE WORKLOAD CLASSIFIER a(WORKLOAD_GROUP = 'a')
 reject	reject	engine	withClassifierOptions/With_LeftParenthesis_workloadClassifierOption_(Comma_wo~f8c7d2ec!drop-2	CREATE WORKLOAD CLASSIFIER a WITH WORKLOAD_GROUP = 'a')
@@ -11047,6 +11316,51 @@ reject	reject	engine	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00
 reject	reject	engine	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption!insert	CREATE SPATIAL INDEX a ON a(a) WITH(FILLFACTOR = 1 zzz)
 accept	accept	engine	spatialIndexOption(boundingBoxSpatialIndexOption_BOUNDI~e00501b7)/spatialIndexRegularOption!swap	CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
 accept	accept	engine	spatialIndexRegularOption/indexOption	CREATE SPATIAL INDEX a ON a(a) WITH(FILLFACTOR = 1)
+accept	accept	engine	spatialIndexRegularOption/indexOption+indexOption/maxDopOption_MAXDOP	CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/maxDopOption_MAXDOP!drop-2	CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP 1)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/maxDopOption_MAXDOP!drop-3	CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP =)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/dataCompressionOption_DATA_COMPRESSION	CREATE SPATIAL INDEX a ON a(a) WITH(DATA_COMPRESSION = a)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/dataCompressionOption_DATA_COMPRESSION!drop-1	CREATE SPATIAL INDEX a ON a(a) WITH(= a)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/dataCompressionOption_DATA_COMPRESSION!drop-2	CREATE SPATIAL INDEX a ON a(a) WITH(DATA_COMPRESSION a)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/dataCompressionOption_DATA_COMPRESSION!drop-3	CREATE SPATIAL INDEX a ON a(a) WITH(DATA_COMPRESSION =)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/xmlCompressionOption_XML_COMPRESSION	CREATE SPATIAL INDEX a ON a(a) WITH(XML_COMPRESSION = ON)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/xmlCompressionOption_XML_COMPRESSION!drop-1	CREATE SPATIAL INDEX a ON a(a) WITH(= ON)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/xmlCompressionOption_XML_COMPRESSION!drop-2	CREATE SPATIAL INDEX a ON a(a) WITH(XML_COMPRESSION ON)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/xmlCompressionOption_XML_COMPRESSION!drop-3	CREATE SPATIAL INDEX a ON a(a) WITH(XML_COMPRESSION =)
+accept	accept	engine	spatialIndexRegularOption/indexOption+indexOption/bucketCountOption_BUCKET_COUNT	CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/bucketCountOption_BUCKET_COUNT!drop-2	CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT 1)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/bucketCountOption_BUCKET_COUNT!drop-3	CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT =)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/onlineIndexOption_ONLINE	CREATE SPATIAL INDEX a ON a(a) WITH(ONLINE = ON)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/onlineIndexOption_ONLINE!drop-2	CREATE SPATIAL INDEX a ON a(a) WITH(ONLINE ON)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/onlineIndexOption_ONLINE!drop-3	CREATE SPATIAL INDEX a ON a(a) WITH(ONLINE =)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/orderIndexOption	CREATE SPATIAL INDEX a ON a(a) WITH(ORDER(a))
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/orderIndexOption!drop-1	CREATE SPATIAL INDEX a ON a(a) WITH((a))
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/orderIndexOption!drop-2	CREATE SPATIAL INDEX a ON a(a) WITH(ORDER a))
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/orderIndexOption!drop-3	CREATE SPATIAL INDEX a ON a(a) WITH(ORDER())
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/orderIndexOption!drop-4	CREATE SPATIAL INDEX a ON a(a) WITH(ORDER(a)
+accept	accept	engine	spatialIndexRegularOption/indexOption+indexOption/compressionDelayOption_COMPRESSION_DELAY	CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/compressionDelayOption_COMPRESSION_DELAY!drop-2	CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY 1)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/compressionDelayOption_COMPRESSION_DELAY!drop-3	CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY =)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	CREATE SPATIAL INDEX a ON a(a) WITH(IGNORE_DUP_KEY = ON)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY!drop-2	CREATE SPATIAL INDEX a ON a(a) WITH(IGNORE_DUP_KEY ON)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY!drop-3	CREATE SPATIAL INDEX a ON a(a) WITH(IGNORE_DUP_KEY =)
+accept	accept	engine	spatialIndexRegularOption/indexOption+indexOption/maxDurationOption_MAX_DURATION	CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/maxDurationOption_MAX_DURATION!drop-2	CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION 1)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/maxDurationOption_MAX_DURATION!drop-3	CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION =)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY	CREATE SPATIAL INDEX a ON a(a) WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, ABORT_AFTER_WAIT = a))
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-1	CREATE SPATIAL INDEX a ON a(a) WITH((MAX_DURATION = 1, ABORT_AFTER_WAIT = a))
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-2	CREATE SPATIAL INDEX a ON a(a) WITH(WAIT_AT_LOW_PRIORITY MAX_DURATION = 1, ABORT_AFTER_WAIT = a))
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-3	CREATE SPATIAL INDEX a ON a(a) WITH(WAIT_AT_LOW_PRIORITY(= 1, ABORT_AFTER_WAIT = a))
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-4	CREATE SPATIAL INDEX a ON a(a) WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION 1, ABORT_AFTER_WAIT = a))
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-5	CREATE SPATIAL INDEX a ON a(a) WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION =, ABORT_AFTER_WAIT = a))
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-6	CREATE SPATIAL INDEX a ON a(a) WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1 ABORT_AFTER_WAIT = a))
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-7	CREATE SPATIAL INDEX a ON a(a) WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, = a))
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-8	CREATE SPATIAL INDEX a ON a(a) WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, ABORT_AFTER_WAIT a))
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-9	CREATE SPATIAL INDEX a ON a(a) WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, ABORT_AFTER_WAIT =))
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!drop-10	CREATE SPATIAL INDEX a ON a(a) WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, ABORT_AFTER_WAIT = a)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/indexStateOption	CREATE SPATIAL INDEX a ON a(a) WITH(a = ON)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/indexStateOption!drop-2	CREATE SPATIAL INDEX a ON a(a) WITH(a ON)
+reject	reject	engine	spatialIndexRegularOption/indexOption+indexOption/indexStateOption!drop-3	CREATE SPATIAL INDEX a ON a(a) WITH(a =)
 accept	accept	engine	boundingBoxParameter/LeftParenthesis_(boundingBoxParameterListByname|bound~a~75327336	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(1))
 accept	accept	engine	boundingBoxParameter(boundingBoxParameterListByname|bound~a4e579c4)/boundingBoxParameterListByname	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(a = 1))
 reject	reject	engine	boundingBoxParameter(boundingBoxParameterListByname|bound~a4e579c4)/boundingBoxParameterListByname!drop-1	CREATE SPATIAL INDEX a ON a(a) WITH(BOUNDING_BOX =(= 1))
@@ -11432,6 +11746,9 @@ reject	reject	engine	endConversationArgumentsOpt(|EqualsSign_integerOrVariable_D
 reject	reject	engine	endConversationArgumentsOpt(|EqualsSign_integerOrVariable_DESCRI~00645503)/EqualsSign_integerOrVariable_DESCRIPTION_EqualsSign_str~5796a21e!drop-5	END CONVERSATION 1 WITH a = 1 DESCRIPTION =
 reject	reject	engine	endConversationArgumentsOpt(|EqualsSign_integerOrVariable_DESCRI~00645503)/EqualsSign_integerOrVariable_DESCRIPTION_EqualsSign_str~5796a21e!insert	END CONVERSATION 1 WITH a = 1 DESCRIPTION = 'a' zzz
 reject	reject	engine	endConversationArgumentsOpt(|EqualsSign_integerOrVariable_DESCRI~00645503)/EqualsSign_integerOrVariable_DESCRIPTION_EqualsSign_str~5796a21e!swap	END CONVERSATION 1 WITH a = 1 DESIRED_STATE = 'a'
+reject	reject	engine	endConversationArgumentsOpt(|EqualsSign_integerOrVariable_DESCRI~00645503)/EqualsSign_integerOrVariable_DESCRIPTION_EqualsSign_str~5796a21e+integerOrVariable/variable	END CONVERSATION 1 WITH a = @a DESCRIPTION = 'a'
+reject	reject	engine	endConversationArgumentsOpt(|EqualsSign_integerOrVariable_DESCRI~00645503)/EqualsSign_integerOrVariable_DESCRIPTION_EqualsSign_str~5796a21e+stringLiteral/UnicodeStringLiteral	END CONVERSATION 1 WITH a = 1 DESCRIPTION = N'a'
+reject	reject	engine	endConversationArgumentsOpt(|EqualsSign_integerOrVariable_DESCRI~00645503)/EqualsSign_integerOrVariable_DESCRIPTION_EqualsSign_str~5796a21e+stringOrVariable/variable	END CONVERSATION 1 WITH a = 1 DESCRIPTION = @a
 accept	accept	engine	getConversationGroupStatement/GET_CONVERSATION_Group_variable_From_schemaObjectThreePartName	WAITFOR(GET CONVERSATION GROUP @a FROM a)
 accept	accept	engine	receiveSelectExpression/selectSetVariable	RECEIVE @a = 1 FROM a
 reject	reject	engine	receiveSelectExpression/selectSetVariable!drop-1	RECEIVE = 1 FROM a
@@ -11449,6 +11766,8 @@ accept	accept	engine	receiveColumnSelectExpression((As)?_stringOrIdentifier)?/%e
 accept	accept	engine	receiveColumnSelectExpression((As)?_stringOrIdentifier)?/(As)?_stringOrIdentifier	RECEIVE 1 'a' FROM a
 reject	reject	engine	receiveColumnSelectExpression((As)?_stringOrIdentifier)?/(As)?_stringOrIdentifier!truncate	RECEIVE 1
 reject	reject	engine	receiveColumnSelectExpression((As)?_stringOrIdentifier)?/(As)?_stringOrIdentifier!insert	RECEIVE 1 'a' zzz FROM a
+accept	accept	engine	receiveColumnSelectExpression((As)?_stringOrIdentifier)?/(As)?_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	RECEIVE 1 N'a' FROM a
+accept	accept	engine	receiveColumnSelectExpression((As)?_stringOrIdentifier)?/(As)?_stringOrIdentifier+stringOrIdentifier/identifier	RECEIVE 1 a FROM a
 accept	accept	engine	receiveColumnSelectExpression(As)?/%empty	RECEIVE 1 'a' FROM a
 reject	reject	engine	receiveColumnSelectExpression(As)?/%empty!insert	RECEIVE 1 zzz 'a' FROM a
 accept	accept	engine	receiveColumnSelectExpression(As)?/As	RECEIVE 1 AS 'a' FROM a
@@ -11456,6 +11775,9 @@ reject	reject	engine	receiveColumnSelectExpression(As)?/As!insert	RECEIVE 1 AS z
 reject	reject	engine	receiveColumnSelectExpression(As)?/As!swap	RECEIVE 1 ASC 'a' FROM a
 accept	accept	engine	beginConversationTimerStatement/Begin_CONVERSATION_TIMER_LeftParenthesis_expression_Rig~a918512e	BEGIN CONVERSATION TIMER(1) TIMEOUT = 1
 accept	accept	engine	beginDialogStatement/Begin_DIALOG_(CONVERSATION)?_variable_From_SERVICE_iden~54d22560	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a'
+accept	accept	engine	beginDialogStatement/Begin_DIALOG_(CONVERSATION)?_variable_From_SERVICE_iden~54d22560+identifierOrVariable/identifier	BEGIN DIALOG @a FROM SERVICE a TO SERVICE 'a'
+accept	accept	engine	beginDialogStatement/Begin_DIALOG_(CONVERSATION)?_variable_From_SERVICE_iden~54d22560+stringLiteral/UnicodeStringLiteral	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE N'a'
+accept	accept	engine	beginDialogStatement/Begin_DIALOG_(CONVERSATION)?_variable_From_SERVICE_iden~54d22560+stringOrVariable/variable	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE @a
 accept	accept	engine	beginDialogStatement(CONVERSATION)?/%empty	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a'
 reject	reject	engine	beginDialogStatement(CONVERSATION)?/%empty!insert	BEGIN DIALOG zzz @a FROM SERVICE @a TO SERVICE 'a'
 accept	accept	engine	beginDialogStatement(CONVERSATION)?/CONVERSATION	BEGIN DIALOG CONVERSATION @a FROM SERVICE @a TO SERVICE 'a'
@@ -11467,6 +11789,8 @@ accept	accept	engine	beginDialogStatement(Comma_stringOrVariable)?/Comma_stringO
 reject	reject	engine	beginDialogStatement(Comma_stringOrVariable)?/Comma_stringOrVariable!drop-1	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' 'a'
 reject	reject	engine	beginDialogStatement(Comma_stringOrVariable)?/Comma_stringOrVariable!drop-2	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a',
 reject	reject	engine	beginDialogStatement(Comma_stringOrVariable)?/Comma_stringOrVariable!insert	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a', 'a' zzz
+accept	accept	engine	beginDialogStatement(Comma_stringOrVariable)?/Comma_stringOrVariable+stringLiteral/UnicodeStringLiteral	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a', N'a'
+accept	accept	engine	beginDialogStatement(Comma_stringOrVariable)?/Comma_stringOrVariable+stringOrVariable/variable	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a', @a
 accept	accept	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/%empty	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a'
 accept	accept	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/On_CONTRACT_identifierOrVariable	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' ON CONTRACT @a
 reject	reject	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/On_CONTRACT_identifierOrVariable!drop-1	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' CONTRACT @a
@@ -11474,6 +11798,7 @@ reject	reject	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/On_
 reject	reject	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/On_CONTRACT_identifierOrVariable!drop-3	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' ON CONTRACT
 reject	reject	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/On_CONTRACT_identifierOrVariable!insert	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' ON CONTRACT @a zzz
 reject	reject	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/On_CONTRACT_identifierOrVariable!swap	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' ONLINE CONTRACT @a
+accept	accept	engine	beginDialogStatement(On_CONTRACT_identifierOrVariable)?/On_CONTRACT_identifierOrVariable+identifierOrVariable/identifier	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' ON CONTRACT a
 accept	accept	engine	beginDialogStatement(With_beginConversationArgument_(Comm~a257825c)?/%empty	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a'
 reject	reject	engine	beginDialogStatement(With_beginConversationArgument_(Comm~a257825c)?/With_beginConversationArgument_(Comma_beginConversation~6c2f25ce	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' WITH a = 1
 reject	reject	engine	beginDialogStatement(With_beginConversationArgument_(Comm~a257825c)?/With_beginConversationArgument_(Comma_beginConversation~6c2f25ce!drop-1	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' a = 1
@@ -11920,12 +12245,22 @@ reject	reject	engine	largeDataOnOpt(largeDataOn_(largeDataOn)?)?/largeDataOn_(la
 reject	reject	engine	largeDataOnOpt(largeDataOn_(largeDataOn)?)?/largeDataOn_(largeDataOn)?!drop-2	CREATE TABLE a AS TEXTIMAGE_ON
 reject	reject	engine	largeDataOnOpt(largeDataOn_(largeDataOn)?)?/largeDataOn_(largeDataOn)?!insert	CREATE TABLE a AS TEXTIMAGE_ON 'a' zzz
 reject	reject	engine	largeDataOnOpt(largeDataOn_(largeDataOn)?)?/largeDataOn_(largeDataOn)?!swap	CREATE TABLE a AS TEXTSIZE 'a'
+reject	reject	engine	largeDataOnOpt(largeDataOn_(largeDataOn)?)?/largeDataOn_(largeDataOn)?+stringLiteral/UnicodeStringLiteral	CREATE TABLE a AS TEXTIMAGE_ON N'a'
+reject	reject	engine	largeDataOnOpt(largeDataOn_(largeDataOn)?)?/largeDataOn_(largeDataOn)?+stringLiteral/UnicodeStringLiteral!drop-1	CREATE TABLE a AS N'a'
+reject	reject	engine	largeDataOnOpt(largeDataOn_(largeDataOn)?)?/largeDataOn_(largeDataOn)?+stringOrIdentifier/identifier	CREATE TABLE a AS TEXTIMAGE_ON a
+reject	reject	engine	largeDataOnOpt(largeDataOn_(largeDataOn)?)?/largeDataOn_(largeDataOn)?+stringOrIdentifier/identifier!drop-1	CREATE TABLE a AS a
 reject	reject	engine	largeDataOnOpt(largeDataOn)?/%empty	CREATE TABLE a AS TEXTIMAGE_ON 'a'
 reject	reject	engine	largeDataOnOpt(largeDataOn)?/largeDataOn	CREATE TABLE a AS TEXTIMAGE_ON 'a' TEXTIMAGE_ON 'a'
 reject	reject	engine	largeDataOnOpt(largeDataOn)?/largeDataOn!drop-1	CREATE TABLE a AS TEXTIMAGE_ON 'a' 'a'
 reject	reject	engine	largeDataOnOpt(largeDataOn)?/largeDataOn!drop-2	CREATE TABLE a AS TEXTIMAGE_ON 'a' TEXTIMAGE_ON
 reject	reject	engine	largeDataOnOpt(largeDataOn)?/largeDataOn!insert	CREATE TABLE a AS TEXTIMAGE_ON 'a' TEXTIMAGE_ON 'a' zzz
 reject	reject	engine	largeDataOnOpt(largeDataOn)?/largeDataOn!swap	CREATE TABLE a AS TEXTIMAGE_ON 'a' TEXTSIZE 'a'
+reject	reject	engine	largeDataOnOpt(largeDataOn)?/largeDataOn+largeDataOn(TEXTIMAGE_ON|FILESTREAM_ON)/FILESTREAM_ON	CREATE TABLE a AS TEXTIMAGE_ON 'a' FILESTREAM_ON 'a'
+reject	reject	engine	largeDataOnOpt(largeDataOn)?/largeDataOn+largeDataOn(TEXTIMAGE_ON|FILESTREAM_ON)/FILESTREAM_ON!drop-2	CREATE TABLE a AS TEXTIMAGE_ON 'a' FILESTREAM_ON
+reject	reject	engine	largeDataOnOpt(largeDataOn)?/largeDataOn+stringLiteral/UnicodeStringLiteral	CREATE TABLE a AS TEXTIMAGE_ON 'a' TEXTIMAGE_ON N'a'
+reject	reject	engine	largeDataOnOpt(largeDataOn)?/largeDataOn+stringLiteral/UnicodeStringLiteral!drop-1	CREATE TABLE a AS TEXTIMAGE_ON 'a' N'a'
+reject	reject	engine	largeDataOnOpt(largeDataOn)?/largeDataOn+stringOrIdentifier/identifier	CREATE TABLE a AS TEXTIMAGE_ON 'a' TEXTIMAGE_ON a
+reject	reject	engine	largeDataOnOpt(largeDataOn)?/largeDataOn+stringOrIdentifier/identifier!drop-1	CREATE TABLE a AS TEXTIMAGE_ON 'a' a
 reject	reject	engine	largeDataOn/(TEXTIMAGE_ON|FILESTREAM_ON)_stringOrIdentifier	CREATE TABLE a AS TEXTIMAGE_ON 'a'
 reject	reject	engine	largeDataOn(TEXTIMAGE_ON|FILESTREAM_ON)/TEXTIMAGE_ON	CREATE TABLE a AS TEXTIMAGE_ON 'a'
 reject	reject	engine	largeDataOn(TEXTIMAGE_ON|FILESTREAM_ON)/TEXTIMAGE_ON!insert	CREATE TABLE a AS TEXTIMAGE_ON zzz 'a'
@@ -12960,6 +13295,8 @@ reject	reject	engine	fileStreamOnOpt(fileStreamOn)?/fileStreamOn!drop-2	ALTER TA
 reject	reject	engine	fileStreamOnOpt(fileStreamOn)?/fileStreamOn!insert	ALTER TABLE a ADD a UNIQUE FILESTREAM_ON 'a' zzz
 reject	reject	engine	fileStreamOnOpt(fileStreamOn)?/fileStreamOn!swap	ALTER TABLE a ADD a UNIQUE FILETABLE 'a'
 reject	reject	engine	fileStreamOn/FILESTREAM_ON_stringOrIdentifier	ALTER TABLE a ADD a UNIQUE FILESTREAM_ON 'a'
+reject	reject	engine	fileStreamOn/FILESTREAM_ON_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a UNIQUE FILESTREAM_ON N'a'
+reject	reject	engine	fileStreamOn/FILESTREAM_ON_stringOrIdentifier+stringOrIdentifier/identifier	ALTER TABLE a ADD a UNIQUE FILESTREAM_ON a
 accept	accept	engine	computedColumnConstraintListOpt/(columnConstraint)*	ALTER TABLE a ADD a AS 1
 accept	accept	engine	computedColumnConstraintListOpt(columnConstraint)*/%empty	ALTER TABLE a ADD a AS 1
 reject	reject	engine	computedColumnConstraintListOpt(columnConstraint)*/columnConstraint_(columnConstraint)*	ALTER TABLE a ADD a AS 1 NULL
@@ -13181,7 +13518,7 @@ reject	reject	engine	uniqueConstraintIndexOptionsOpt(fillFactorOption_(sortedDat
 reject	reject	engine	uniqueConstraintIndexOptionsOpt(sortedDataOptions)?/%empty	ALTER TABLE a ADD a UNIQUE WITH FILLFACTOR = 1
 reject	reject	engine	uniqueConstraintIndexOptionsOpt(sortedDataOptions)?/sortedDataOptions	ALTER TABLE a ADD a UNIQUE WITH FILLFACTOR = 1 SORTED_DATA
 reject	reject	engine	uniqueConstraintIndexOptionsOpt(sortedDataOptions)?/sortedDataOptions!insert	ALTER TABLE a ADD a UNIQUE WITH FILLFACTOR = 1 SORTED_DATA zzz
-reject	reject	engine	uniqueConstraintIndexOptionsOpt(sortedDataOptions)?/sortedDataOptions!swap	ALTER TABLE a ADD a UNIQUE WITH FILLFACTOR = 1 SORTED_DATA_REORG
+reject	reject	engine	uniqueConstraintIndexOptionsOpt(sortedDataOptions)?/sortedDataOptions+sortedDataOptions(SORTED_DATA|SORTED_DATA_REORG)/SORTED_DATA_REORG	ALTER TABLE a ADD a UNIQUE WITH FILLFACTOR = 1 SORTED_DATA_REORG
 reject	reject	engine	uniqueConstraintIndexOptionsOpt(fillFactorOption)?/%empty	ALTER TABLE a ADD a UNIQUE WITH SORTED_DATA
 reject	reject	engine	uniqueConstraintIndexOptionsOpt(fillFactorOption)?/fillFactorOption	ALTER TABLE a ADD a UNIQUE WITH SORTED_DATA FILLFACTOR = 1
 reject	reject	engine	uniqueConstraintIndexOptionsOpt(fillFactorOption)?/fillFactorOption!drop-1	ALTER TABLE a ADD a UNIQUE WITH SORTED_DATA = 1
@@ -13247,6 +13584,14 @@ reject	reject	engine	foreignKeyConstraintCommonEnd(On_Update_deleteUpdateAction_
 reject	reject	engine	foreignKeyConstraintCommonEnd(On_Update_deleteUpdateAction_(On_Del~4ca3299a)?/On_Update_deleteUpdateAction_(On_Delete_deleteUpdateAction)?+foreignKeyConstraintCommonEnd(On_Delete_deleteUpdateAction)?!drop-4	ALTER TABLE a ADD a REFERENCES a ON UPDATE CASCADE DELETE CASCADE
 reject	reject	engine	foreignKeyConstraintCommonEnd(On_Update_deleteUpdateAction_(On_Del~4ca3299a)?/On_Update_deleteUpdateAction_(On_Delete_deleteUpdateAction)?+foreignKeyConstraintCommonEnd(On_Delete_deleteUpdateAction)?!drop-5	ALTER TABLE a ADD a REFERENCES a ON UPDATE CASCADE ON CASCADE
 reject	reject	engine	foreignKeyConstraintCommonEnd(On_Update_deleteUpdateAction_(On_Del~4ca3299a)?/On_Update_deleteUpdateAction_(On_Delete_deleteUpdateAction)?+foreignKeyConstraintCommonEnd(On_Delete_deleteUpdateAction)?!drop-6	ALTER TABLE a ADD a REFERENCES a ON UPDATE CASCADE ON DELETE
+reject	reject	engine	foreignKeyConstraintCommonEnd(On_Update_deleteUpdateAction_(On_Del~4ca3299a)?/On_Update_deleteUpdateAction_(On_Delete_deleteUpdateAction)?+deleteUpdateAction/NO_ACTION	ALTER TABLE a ADD a REFERENCES a ON UPDATE NO ACTION
+reject	reject	engine	foreignKeyConstraintCommonEnd(On_Update_deleteUpdateAction_(On_Del~4ca3299a)?/On_Update_deleteUpdateAction_(On_Delete_deleteUpdateAction)?+deleteUpdateAction/NO_ACTION!drop-3	ALTER TABLE a ADD a REFERENCES a ON UPDATE ACTION
+reject	reject	engine	foreignKeyConstraintCommonEnd(On_Update_deleteUpdateAction_(On_Del~4ca3299a)?/On_Update_deleteUpdateAction_(On_Delete_deleteUpdateAction)?+deleteUpdateAction/NO_ACTION!drop-4	ALTER TABLE a ADD a REFERENCES a ON UPDATE NO
+reject	reject	engine	foreignKeyConstraintCommonEnd(On_Update_deleteUpdateAction_(On_Del~4ca3299a)?/On_Update_deleteUpdateAction_(On_Delete_deleteUpdateAction)?+deleteUpdateAction/Set_(Null|Default)	ALTER TABLE a ADD a REFERENCES a ON UPDATE SET NULL
+reject	reject	engine	foreignKeyConstraintCommonEnd(On_Update_deleteUpdateAction_(On_Del~4ca3299a)?/On_Update_deleteUpdateAction_(On_Delete_deleteUpdateAction)?+deleteUpdateAction/Set_(Null|Default)!drop-3	ALTER TABLE a ADD a REFERENCES a ON UPDATE NULL
+reject	reject	engine	foreignKeyConstraintCommonEnd(On_Update_deleteUpdateAction_(On_Del~4ca3299a)?/On_Update_deleteUpdateAction_(On_Delete_deleteUpdateAction)?+deleteUpdateAction/Set_(Null|Default)!drop-4	ALTER TABLE a ADD a REFERENCES a ON UPDATE SET
+reject	reject	engine	foreignKeyConstraintCommonEnd(On_Update_deleteUpdateAction_(On_Del~4ca3299a)?/On_Update_deleteUpdateAction_(On_Delete_deleteUpdateAction)?+deleteUpdateAction(Null|Default)/Default	ALTER TABLE a ADD a REFERENCES a ON UPDATE SET DEFAULT
+reject	reject	engine	foreignKeyConstraintCommonEnd(On_Update_deleteUpdateAction_(On_Del~4ca3299a)?/On_Update_deleteUpdateAction_(On_Delete_deleteUpdateAction)?+deleteUpdateAction(Null|Default)/Default!drop-3	ALTER TABLE a ADD a REFERENCES a ON UPDATE DEFAULT
 reject	reject	engine	foreignKeyConstraintCommonEnd(Not_ENFORCED)?/%empty	ALTER TABLE a ADD a REFERENCES a
 reject	reject	engine	foreignKeyConstraintCommonEnd(Not_ENFORCED)?/Not_ENFORCED	ALTER TABLE a ADD a REFERENCES a NOT ENFORCED
 reject	reject	engine	foreignKeyConstraintCommonEnd(Not_ENFORCED)?/Not_ENFORCED!drop-1	ALTER TABLE a ADD a REFERENCES a ENFORCED
@@ -13283,6 +13628,14 @@ reject	reject	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On
 reject	reject	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction!drop-3	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE
 reject	reject	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction!insert	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE zzz
 reject	reject	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction!swap	ALTER TABLE a ADD CONNECTION(a TO a) ONLINE DELETE CASCADE
+accept	accept	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/NO_ACTION	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+reject	reject	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/NO_ACTION!drop-3	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE ACTION
+reject	reject	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/NO_ACTION!drop-4	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO
+reject	reject	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/Set_(Null|Default)	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE SET NULL
+reject	reject	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/Set_(Null|Default)!drop-3	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NULL
+reject	reject	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction/Set_(Null|Default)!drop-4	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE SET
+reject	reject	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction(Null|Default)/Default	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE SET DEFAULT
+reject	reject	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction+deleteUpdateAction(Null|Default)/Default!drop-3	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE DEFAULT
 accept	accept	engine	graphConnectionFromNodeToNodeList/LeftParenthesis_graphConnectionFromToNodeItem_(Comma_gr~6bff6da5	ALTER TABLE a ADD CONNECTION(a TO a)
 reject	reject	engine	graphConnectionFromNodeToNodeList/LeftParenthesis_graphConnectionFromToNodeItem_(Comma_gr~6bff6da5!swap	ALTER TABLE a ADD CONNECTION(a TOP a)
 accept	accept	engine	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/%empty	ALTER TABLE a ADD CONNECTION(a TO a)
@@ -13722,6 +14075,8 @@ reject	reject	engine	graphSingleMatchPattern((Minus_LeftParenthesis_identifier_R
 accept	accept	engine	tsEqualCall/TSEqual_LeftParenthesis_expression_Comma_expression_Rig~0664de87	IF TSEQUAL(1, 1) SELECT 1
 reject	reject	engine	updateCall/Update_LeftParenthesis_identifier_RightParenthesis	IF UPDATE(a) SELECT 1
 accept	accept	engine	fulltextPredicate/(Contains|FreeText)_LeftParenthesis_(fulltextColumn|Lef~fe78f13a	IF CONTAINS(*, 'a') SELECT 1
+accept	accept	engine	fulltextPredicate/(Contains|FreeText)_LeftParenthesis_(fulltextColumn|Lef~fe78f13a+stringLiteral/UnicodeStringLiteral	IF CONTAINS(*, N'a') SELECT 1
+accept	accept	engine	fulltextPredicate/(Contains|FreeText)_LeftParenthesis_(fulltextColumn|Lef~fe78f13a+stringOrVariable/variable	IF CONTAINS(*, @a) SELECT 1
 accept	accept	engine	fulltextPredicate(Contains|FreeText)/Contains	IF CONTAINS(*, 'a') SELECT 1
 reject	reject	engine	fulltextPredicate(Contains|FreeText)/Contains!truncate	IF
 reject	reject	engine	fulltextPredicate(Contains|FreeText)/Contains!insert	IF CONTAINS zzz(*, 'a') SELECT 1
@@ -14271,6 +14626,7 @@ reject	reject	engine	windowFrameDelimiter/UNBOUNDED_(PRECEDING|FOLLOWING)!drop-2
 reject	reject	engine	windowFrameDelimiter/UNBOUNDED_(PRECEDING|FOLLOWING)!truncate	SELECT a() OVER(ROWS UNBOUNDED
 reject	reject	engine	windowFrameDelimiter/UNBOUNDED_(PRECEDING|FOLLOWING)!insert	SELECT a() OVER(ROWS UNBOUNDED PRECEDING zzz)
 reject	reject	engine	windowFrameDelimiter/UNBOUNDED_(PRECEDING|FOLLOWING)!swap	SELECT a() OVER(ROWS UNCHECKED PRECEDING)
+reject	reject	engine	windowFrameDelimiter/UNBOUNDED_(PRECEDING|FOLLOWING)+windowFrameDelimiter(PRECEDING|FOLLOWING)/FOLLOWING	SELECT a() OVER(ROWS UNBOUNDED FOLLOWING)
 reject	reject	engine	windowFrameDelimiter(PRECEDING|FOLLOWING)/PRECEDING	SELECT a() OVER(ROWS 1 PRECEDING)
 reject	reject	engine	windowFrameDelimiter(PRECEDING|FOLLOWING)/FOLLOWING	SELECT a() OVER(ROWS 1 FOLLOWING)
 reject	reject	engine	windowFrameDelimiter(PRECEDING|FOLLOWING)/FOLLOWING!insert	SELECT a() OVER(ROWS 1 FOLLOWING zzz)
@@ -14327,6 +14683,9 @@ reject	reject	engine	jsonArrayBuiltInFunctionCall(jsonNullClauseFunction|)/jsonN
 reject	reject	engine	jsonArrayBuiltInFunctionCall(jsonNullClauseFunction|)/jsonNullClauseFunction!truncate	SELECT JSON_ARRAY(NULL ON
 reject	reject	engine	jsonArrayBuiltInFunctionCall(jsonNullClauseFunction|)/jsonNullClauseFunction!insert	SELECT JSON_ARRAY(NULL ON NULL zzz)
 reject	reject	engine	jsonArrayBuiltInFunctionCall(jsonNullClauseFunction|)/jsonNullClauseFunction!swap	SELECT JSON_ARRAY(NULLIF ON NULL)
+accept	accept	engine	jsonArrayBuiltInFunctionCall(jsonNullClauseFunction|)/jsonNullClauseFunction+jsonNullClauseFunction(Null_On_Null|ABSENT_On_Null)/ABSENT_On_Null	SELECT JSON_ARRAY(ABSENT ON NULL)
+reject	reject	engine	jsonArrayBuiltInFunctionCall(jsonNullClauseFunction|)/jsonNullClauseFunction+jsonNullClauseFunction(Null_On_Null|ABSENT_On_Null)/ABSENT_On_Null!drop-2	SELECT JSON_ARRAY(ABSENT NULL)
+reject	reject	engine	jsonArrayBuiltInFunctionCall(jsonNullClauseFunction|)/jsonNullClauseFunction+jsonNullClauseFunction(Null_On_Null|ABSENT_On_Null)/ABSENT_On_Null!drop-3	SELECT JSON_ARRAY(ABSENT ON)
 accept	accept	engine	jsonArrayBuiltInFunctionCall(jsonNullClauseFunction|)/%empty	SELECT JSON_ARRAY()
 accept	accept	engine	jsonObjectBuiltInFunctionCall/(jsonObjectExpressionList|)_RightParenthesis	SELECT JSON_OBJECT()
 accept	accept	engine	jsonObjectBuiltInFunctionCall(jsonObjectExpressionList|)/jsonObjectExpressionList	SELECT JSON_OBJECT()
@@ -14405,6 +14764,7 @@ reject	reject	engine	expressionWithDefaultList(Comma_expressionWithDefault)*/Com
 reject	reject	engine	expressionWithDefaultList(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!drop-2	SELECT a(1,)
 reject	reject	engine	expressionWithDefaultList(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!truncate	SELECT a(1,
 reject	reject	engine	expressionWithDefaultList(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!insert	SELECT a(1, 1 zzz)
+reject	reject	engine	expressionWithDefaultList(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*+expressionWithDefault/defaultLiteral	SELECT a(1, DEFAULT)
 accept	accept	engine	parenthesizedOptExpressionWithDefaultList/LeftParenthesis_(expressionWithDefaultList)?_RightParenthesis	DELETE a()
 accept	accept	engine	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/%empty	DELETE a()
 reject	reject	engine	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/%empty!insert	DELETE a(zzz)
@@ -14493,6 +14853,8 @@ reject	reject	engine	column(multiPartIdentifier_(Dot_specialColu~c599fb58)/multi
 reject	reject	engine	column(multiPartIdentifier_(Dot_specialColu~c599fb58)/specialColumn	WRITETEXT IDENTITYCOL 0x00 NULL
 reject	reject	engine	column(multiPartIdentifier_(Dot_specialColu~c599fb58)/specialColumn!insert	WRITETEXT IDENTITYCOL zzz 0x00 NULL
 reject	reject	engine	column(multiPartIdentifier_(Dot_specialColu~c599fb58)/specialColumn!swap	WRITETEXT IDENTITY_INSERT 0x00 NULL
+reject	reject	engine	column(multiPartIdentifier_(Dot_specialColu~c599fb58)/specialColumn+specialColumn/RowGuidColumn	WRITETEXT ROWGUIDCOL 0x00 NULL
+reject	reject	engine	column(multiPartIdentifier_(Dot_specialColu~c599fb58)/specialColumn+specialColumn/systemColumn	WRITETEXT $IDENTITY 0x00 NULL
 reject	reject	engine	column(Dot_specialColumn)?/%empty	WRITETEXT a 0x00 NULL
 accept	accept	engine	column(Dot_specialColumn)?/Dot_specialColumn	WRITETEXT a.IDENTITYCOL 0x00 NULL
 reject	reject	engine	column(Dot_specialColumn)?/Dot_specialColumn!drop-1	WRITETEXT a IDENTITYCOL 0x00 NULL
@@ -14500,6 +14862,8 @@ reject	reject	engine	column(Dot_specialColumn)?/Dot_specialColumn!drop-2	WRITETE
 reject	reject	engine	column(Dot_specialColumn)?/Dot_specialColumn!truncate	WRITETEXT a.
 reject	reject	engine	column(Dot_specialColumn)?/Dot_specialColumn!insert	WRITETEXT a.IDENTITYCOL zzz 0x00 NULL
 reject	reject	engine	column(Dot_specialColumn)?/Dot_specialColumn!swap	WRITETEXT a.IDENTITY_INSERT 0x00 NULL
+accept	accept	engine	column(Dot_specialColumn)?/Dot_specialColumn+specialColumn/RowGuidColumn	WRITETEXT a.ROWGUIDCOL 0x00 NULL
+accept	accept	engine	column(Dot_specialColumn)?/Dot_specialColumn+specialColumn/systemColumn	WRITETEXT a.$IDENTITY 0x00 NULL
 accept	accept	engine	partitionFunctionCall/(identifier_Dot)?_DollarPartition_Dot_identifier_LeftPa~b7fd2c74	SELECT $PARTITION.a(1)
 accept	accept	engine	partitionFunctionCall(identifier_Dot)?/%empty	SELECT $PARTITION.a(1)
 reject	reject	engine	partitionFunctionCall(identifier_Dot)?/%empty!insert	SELECT zzz $PARTITION.a(1)
@@ -14524,6 +14888,8 @@ reject	reject	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/D
 reject	reject	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/Dot_specialColumn!drop-2	SELECT a.
 accept	accept	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/Dot_specialColumn!insert	SELECT a.IDENTITYCOL zzz
 reject	reject	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/Dot_specialColumn!swap	SELECT a.IDENTITY_INSERT
+accept	accept	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/Dot_specialColumn+specialColumn/RowGuidColumn	SELECT a.ROWGUIDCOL
+accept	accept	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/Dot_specialColumn+specialColumn/systemColumn	SELECT a.$IDENTITY
 reject	reject	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/userFunctionCall	SELECT a()
 accept	accept	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/%empty	SELECT a
 accept	accept	engine	starColumn/(multiPartIdentifier_Dot_Star|Star)	IF CONTAINS(*, 'a') SELECT 1
@@ -14569,6 +14935,8 @@ reject	reject	engine	signedIntegerOrStringOrVariable/signedInteger!truncate	RAIS
 reject	reject	engine	signedIntegerOrStringOrVariable/signedInteger!insert	RAISERROR(1 zzz, 1, 1)
 accept	accept	engine	signedIntegerOrStringOrVariable/stringOrVariable	RAISERROR('a', 1, 1)
 reject	reject	engine	signedIntegerOrStringOrVariable/stringOrVariable!insert	RAISERROR('a' zzz, 1, 1)
+accept	accept	engine	signedIntegerOrStringOrVariable/stringOrVariable+stringLiteral/UnicodeStringLiteral	RAISERROR(N'a', 1, 1)
+accept	accept	engine	signedIntegerOrStringOrVariable/stringOrVariable+stringOrVariable/variable	RAISERROR(@a, 1, 1)
 reject	reject	engine	signedIntegerOrVariableOrNull/signedIntegerOrVariable	UPDATETEXT a 0x00 1 1
 reject	reject	engine	signedIntegerOrVariableOrNull/nullLiteral	UPDATETEXT a 0x00 NULL 1
 reject	reject	engine	signedIntegerOrVariableOrNull/nullLiteral!insert	UPDATETEXT a 0x00 NULL zzz 1
@@ -14584,6 +14952,8 @@ reject	reject	engine	signedInteger(Minus)?/%empty!insert	KILL zzz 1
 accept	accept	engine	signedInteger(Minus)?/Minus	KILL - 1
 reject	reject	engine	signedInteger(Minus)?/Minus!insert	KILL - zzz 1
 accept	accept	engine	signedIntegerOrReal/(Minus)?_integerOrRealOrNumeric	COPY INTO a(a DEFAULT 1) FROM 'a'
+accept	accept	engine	signedIntegerOrReal/(Minus)?_integerOrRealOrNumeric+integerOrRealOrNumeric/real	COPY INTO a(a DEFAULT 1E1) FROM 'a'
+accept	accept	engine	signedIntegerOrReal/(Minus)?_integerOrRealOrNumeric+integerOrRealOrNumeric/numeric	COPY INTO a(a DEFAULT 1.5) FROM 'a'
 accept	accept	engine	signedIntegerOrReal(Minus)?/%empty	COPY INTO a(a DEFAULT 1) FROM 'a'
 reject	reject	engine	signedIntegerOrReal(Minus)?/%empty!insert	COPY INTO a(a DEFAULT zzz 1) FROM 'a'
 accept	accept	engine	signedIntegerOrReal(Minus)?/Minus	COPY INTO a(a DEFAULT - 1) FROM 'a'
@@ -14592,7 +14962,6 @@ accept	accept	engine	identifierOrVariable/variable	OPEN @a
 accept	accept	engine	identifierOrVariable/identifier	OPEN a
 reject	reject	engine	identifierOrVariable/identifier!insert	OPEN a zzz
 accept	accept	engine	stringOrVariable/stringLiteral	SETUSER 'a'
-accept	accept	engine	stringOrVariable/stringLiteral+stringLiteral/UnicodeStringLiteral	SETUSER N'a'
 accept	accept	engine	stringOrVariable/variable	SETUSER @a
 reject	reject	engine	stringOrVariable/variable!insert	SETUSER @a zzz
 accept	accept	engine	stringOrGlobalVariableOrVariable/stringLiteral	EXECUTE('a')
@@ -14630,7 +14999,6 @@ reject	reject	engine	identifierOrInteger/identifier	DELETE a WITH(INDEX = a)
 reject	reject	engine	identifierOrInteger/integer	DELETE a WITH(INDEX = 1)
 reject	reject	engine	identifierOrInteger/integer!insert	DELETE a WITH(INDEX = 1 zzz)
 accept	accept	engine	stringOrIdentifier/stringLiteral	SELECT 1 'a'
-accept	accept	engine	stringOrIdentifier/stringLiteral+stringLiteral/UnicodeStringLiteral	SELECT 1 N'a'
 accept	accept	engine	stringOrIdentifier/identifier	SELECT 1 a
 reject	reject	engine	stringOrIdentifier/identifier!insert	SELECT 1 a zzz
 reject	reject	engine	stringOrSignedIntegerOrIdentifier/stringLiteral	ALTER DATABASE SCOPED CONFIGURATION SET a = 'a'
@@ -14709,7 +15077,6 @@ accept	accept	engine	stringLiteral/AsciiStringLiteral	a 'a'
 accept	accept	engine	stringLiteral/UnicodeStringLiteral	a N'a'
 reject	reject	engine	stringLiteral/UnicodeStringLiteral!insert	a N'a' zzz
 accept	accept	engine	stringLiteralOrVariable/stringLiteral	SELECT * FROM a FOR SYSTEM_TIME AS OF 'a'
-accept	accept	engine	stringLiteralOrVariable/stringLiteral+stringLiteral/UnicodeStringLiteral	SELECT * FROM a FOR SYSTEM_TIME AS OF N'a'
 accept	accept	engine	stringLiteralOrVariable/variable	SELECT * FROM a FOR SYSTEM_TIME AS OF @a
 accept	accept	engine	stringLiteralOrVariable/variable!insert	SELECT * FROM a FOR SYSTEM_TIME AS OF @a zzz
 accept	accept	engine	binary/HexLiteral	a 0x00
@@ -14725,8 +15092,8 @@ accept	accept	engine	defaultLiteral/Default	a DEFAULT
 accept	accept	engine	onOffOptionValue/optionOnOff	ALTER SERVER CONFIGURATION SET SOFTNUMA ON
 accept	accept	engine	onOffOptionValue/optionOnOff+optionOnOff/Off	ALTER SERVER CONFIGURATION SET SOFTNUMA OFF
 reject	reject	engine	stringOrDefaultLiteralOptionValue/(stringLiteral|defaultLiteral)	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 'a'
+reject	reject	engine	stringOrDefaultLiteralOptionValue/(stringLiteral|defaultLiteral)+stringLiteral/UnicodeStringLiteral	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = N'a'
 reject	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/stringLiteral	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 'a'
-reject	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = N'a'
 reject	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/defaultLiteral	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = DEFAULT
 reject	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/defaultLiteral!insert	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = DEFAULT zzz
 reject	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/defaultLiteral!swap	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = DEFAULT_DATABASE
@@ -15303,6 +15670,8 @@ reject	reject	engine	receiveStatement_RECEIVE(Where_(CONVERSATION_GROUP_ID|CONVE
 reject	reject	engine	receiveStatement_RECEIVE(Where_(CONVERSATION_GROUP_ID|CONVERS~099d8827)?/Where_(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)_Equal~6e0ea101!drop-4	RECEIVE * FROM a WHERE CONVERSATION_GROUP_ID =
 reject	reject	engine	receiveStatement_RECEIVE(Where_(CONVERSATION_GROUP_ID|CONVERS~099d8827)?/Where_(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)_Equal~6e0ea101!insert	RECEIVE * FROM a WHERE CONVERSATION_GROUP_ID = 'a' zzz
 reject	reject	engine	receiveStatement_RECEIVE(Where_(CONVERSATION_GROUP_ID|CONVERS~099d8827)?/Where_(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)_Equal~6e0ea101!swap	RECEIVE * FROM a WHILE CONVERSATION_GROUP_ID = 'a'
+accept	accept	engine	receiveStatement_RECEIVE(Where_(CONVERSATION_GROUP_ID|CONVERS~099d8827)?/Where_(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)_Equal~6e0ea101+stringLiteral/UnicodeStringLiteral	RECEIVE * FROM a WHERE CONVERSATION_GROUP_ID = N'a'
+accept	accept	engine	receiveStatement_RECEIVE(Where_(CONVERSATION_GROUP_ID|CONVERS~099d8827)?/Where_(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)_Equal~6e0ea101+stringOrVariable/variable	RECEIVE * FROM a WHERE CONVERSATION_GROUP_ID = @a
 accept	accept	engine	receiveStatement_RECEIVE(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)/CONVERSATION_GROUP_ID	RECEIVE * FROM a WHERE CONVERSATION_GROUP_ID = 'a'
 reject	reject	engine	receiveStatement_RECEIVE(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)/CONVERSATION_GROUP_ID!truncate	RECEIVE * FROM a WHERE
 reject	reject	engine	receiveStatement_RECEIVE(CONVERSATION_GROUP_ID|CONVERSATION_HANDLE)/CONVERSATION_GROUP_ID!insert	RECEIVE * FROM a WHERE CONVERSATION_GROUP_ID zzz = 'a'
@@ -15330,6 +15699,7 @@ reject	reject	engine	sendStatement_SEND(MESSAGE_TYPE_identifierOrVariable)?/MESS
 reject	reject	engine	sendStatement_SEND(MESSAGE_TYPE_identifierOrVariable)?/MESSAGE_TYPE_identifierOrVariable!drop-3	SEND ON CONVERSATION 1 MESSAGE TYPE
 reject	reject	engine	sendStatement_SEND(MESSAGE_TYPE_identifierOrVariable)?/MESSAGE_TYPE_identifierOrVariable!insert	SEND ON CONVERSATION 1 MESSAGE TYPE @a zzz
 reject	reject	engine	sendStatement_SEND(MESSAGE_TYPE_identifierOrVariable)?/MESSAGE_TYPE_identifierOrVariable!swap	SEND ON CONVERSATION 1 MESSAGE_FORWARDING TYPE @a
+accept	accept	engine	sendStatement_SEND(MESSAGE_TYPE_identifierOrVariable)?/MESSAGE_TYPE_identifierOrVariable+identifierOrVariable/identifier	SEND ON CONVERSATION 1 MESSAGE TYPE a
 accept	accept	engine	sendStatement_SEND(LeftParenthesis_expression_RightParenthesis)?/%empty	SEND ON CONVERSATION 1
 accept	accept	engine	sendStatement_SEND(LeftParenthesis_expression_RightParenthesis)?/LeftParenthesis_expression_RightParenthesis	SEND ON CONVERSATION 1(1)
 reject	reject	engine	sendStatement_SEND(LeftParenthesis_expression_RightParenthesis)?/LeftParenthesis_expression_RightParenthesis!drop-1	SEND ON CONVERSATION 1 1)
@@ -15345,6 +15715,10 @@ reject	reject	engine	throwStatement_THROW(integerOrVariable_Comma_stringOrVari~4
 reject	reject	engine	throwStatement_THROW(integerOrVariable_Comma_stringOrVari~48ab0945)?/integerOrVariable_Comma_stringOrVariable_Comma_integerOrVariable!drop-4	THROW 1, 'a' 1
 reject	reject	engine	throwStatement_THROW(integerOrVariable_Comma_stringOrVari~48ab0945)?/integerOrVariable_Comma_stringOrVariable_Comma_integerOrVariable!drop-5	THROW 1, 'a',
 reject	reject	engine	throwStatement_THROW(integerOrVariable_Comma_stringOrVari~48ab0945)?/integerOrVariable_Comma_stringOrVariable_Comma_integerOrVariable!insert	THROW 1, 'a', 1 zzz
+accept	accept	engine	throwStatement_THROW(integerOrVariable_Comma_stringOrVari~48ab0945)?/integerOrVariable_Comma_stringOrVariable_Comma_integerOrVariable+integerOrVariable/variable	THROW @a, 'a', 1
+accept	accept	engine	throwStatement_THROW(integerOrVariable_Comma_stringOrVari~48ab0945)?/integerOrVariable_Comma_stringOrVariable_Comma_integerOrVariable+stringLiteral/UnicodeStringLiteral	THROW 1, N'a', 1
+accept	accept	engine	throwStatement_THROW(integerOrVariable_Comma_stringOrVari~48ab0945)?/integerOrVariable_Comma_stringOrVariable_Comma_integerOrVariable+stringOrVariable/variable	THROW 1, @a, 1
+accept	accept	engine	throwStatement_THROW(integerOrVariable_Comma_stringOrVari~48ab0945)?/integerOrVariable_Comma_stringOrVariable_Comma_integerOrVariable+integerOrVariable/variable#2	THROW 1, 'a', @a
 reject	reject	engine	renameEntityStatement_RENAME/RENAME_securityStatementPermission_(DoubleColon)?_schem~988326ea	RENAME a a TO a
 reject	reject	engine	renameEntityStatement_RENAME(DoubleColon)?/%empty	RENAME a a TO a
 reject	reject	engine	renameEntityStatement_RENAME(DoubleColon)?/%empty!insert	RENAME a zzz a TO a
@@ -15645,6 +16019,8 @@ reject	reject	engine	createQueueStatement_QUEUE(On_stringOrIdentifier)?/On_strin
 reject	reject	engine	createQueueStatement_QUEUE(On_stringOrIdentifier)?/On_stringOrIdentifier!drop-2	CREATE QUEUE a ON
 reject	reject	engine	createQueueStatement_QUEUE(On_stringOrIdentifier)?/On_stringOrIdentifier!insert	CREATE QUEUE a ON 'a' zzz
 reject	reject	engine	createQueueStatement_QUEUE(On_stringOrIdentifier)?/On_stringOrIdentifier!swap	CREATE QUEUE a ONLINE 'a'
+accept	accept	engine	createQueueStatement_QUEUE(On_stringOrIdentifier)?/On_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE QUEUE a ON N'a'
+accept	accept	engine	createQueueStatement_QUEUE(On_stringOrIdentifier)?/On_stringOrIdentifier+stringOrIdentifier/identifier	CREATE QUEUE a ON a
 accept	accept	engine	createRemoteServiceBindingStatement_REMOTE/REMOTE_SERVICE_BINDING_identifier_authorizationOpt_To_S~ce1dc16f	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER = a
 accept	accept	engine	createRemoteServiceBindingStatement_REMOTE/REMOTE_SERVICE_BINDING_identifier_authorizationOpt_To_S~ce1dc16f+authorizationOpt	CREATE REMOTE SERVICE BINDING a AUTHORIZATION a TO SERVICE 'a' WITH USER = a
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE/REMOTE_SERVICE_BINDING_identifier_authorizationOpt_To_S~ce1dc16f+authorizationOpt!drop-5	CREATE REMOTE SERVICE BINDING a a TO SERVICE 'a' WITH USER = a
@@ -15720,6 +16096,8 @@ reject	reject	engine	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?
 reject	reject	engine	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier!drop-2	CREATE SPATIAL INDEX a ON a(a) ON
 reject	reject	engine	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier!insert	CREATE SPATIAL INDEX a ON a(a) ON 'a' zzz
 reject	reject	engine	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier!swap	CREATE SPATIAL INDEX a ON a(a) ONLINE 'a'
+accept	accept	engine	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE SPATIAL INDEX a ON a(a) ON N'a'
+accept	accept	engine	createSpatialIndexStatement_SPATIAL(On_stringOrIdentifier)?/On_stringOrIdentifier+stringOrIdentifier/identifier	CREATE SPATIAL INDEX a ON a(a) ON a
 accept	accept	engine	createSymmetricKeyStatement_SYMMETRIC/SYMMETRIC_Key_identifier_authorizationOpt_((With_keySpe~7138445e	CREATE SYMMETRIC KEY a FROM PROVIDER a
 accept	accept	engine	createSymmetricKeyStatement_SYMMETRIC/SYMMETRIC_Key_identifier_authorizationOpt_((With_keySpe~7138445e+authorizationOpt	CREATE SYMMETRIC KEY a AUTHORIZATION a FROM PROVIDER a
 reject	reject	engine	createSymmetricKeyStatement_SYMMETRIC/SYMMETRIC_Key_identifier_authorizationOpt_((With_keySpe~7138445e+authorizationOpt!drop-4	CREATE SYMMETRIC KEY a a FROM PROVIDER a
@@ -16380,6 +16758,7 @@ reject	reject	engine	wsdlPayloadOption_WSDL(NONE|defaultLiteral|stringLiteral)/s
 reject	reject	engine	wsdlPayloadOption_WSDL(NONE|defaultLiteral|stringLiteral)/stringLiteral!insert	ALTER ENDPOINT a FOR DATA_MIRRORING(WSDL = 'a' zzz)
 reject	reject	engine	wsdlPayloadOption_WSDL(NONE|defaultLiteral|stringLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER ENDPOINT a FOR DATA_MIRRORING(WSDL = N'a')
 reject	reject	engine	sessionsPayloadOption_SESSIONS/SESSIONS_EqualsSign_enabledDisabled	ALTER ENDPOINT a FOR DATA_MIRRORING(SESSIONS = ENABLED)
+reject	reject	engine	sessionsPayloadOption_SESSIONS/SESSIONS_EqualsSign_enabledDisabled+enabledDisabled(ENABLED|DISABLED)/DISABLED	ALTER ENDPOINT a FOR DATA_MIRRORING(SESSIONS = DISABLED)
 reject	reject	engine	loginTypePayloadOption_LOGIN_TYPE/LOGIN_TYPE_EqualsSign_(WINDOWS|MIXED)	ALTER ENDPOINT a FOR DATA_MIRRORING(LOGIN_TYPE = WINDOWS)
 reject	reject	engine	loginTypePayloadOption_LOGIN_TYPE(WINDOWS|MIXED)/WINDOWS	ALTER ENDPOINT a FOR DATA_MIRRORING(LOGIN_TYPE = WINDOWS)
 reject	reject	engine	loginTypePayloadOption_LOGIN_TYPE(WINDOWS|MIXED)/WINDOWS!swap	ALTER ENDPOINT a FOR DATA_MIRRORING(LOGIN_TYPE = WITH)
@@ -16427,8 +16806,15 @@ reject	reject	engine	encryptionPayloadOption_ENCRYPTION(identifier|(identifier_i
 reject	reject	engine	encryptionPayloadOption_ENCRYPTION(identifier|(identifier_identifier))/identifier_identifier!truncate	ALTER ENDPOINT a FOR DATA_MIRRORING(ENCRYPTION = a a a
 reject	reject	engine	encryptionPayloadOption_ENCRYPTION(identifier|(identifier_identifier))/identifier_identifier!insert	ALTER ENDPOINT a FOR DATA_MIRRORING(ENCRYPTION = a a a a zzz)
 reject	reject	engine	messageForwardingPayloadOption_MESSAGE_FORWARDING/MESSAGE_FORWARDING_EqualsSign_enabledDisabled	ALTER ENDPOINT a FOR DATA_MIRRORING(MESSAGE_FORWARDING = ENABLED)
+reject	reject	engine	messageForwardingPayloadOption_MESSAGE_FORWARDING/MESSAGE_FORWARDING_EqualsSign_enabledDisabled+enabledDisabled(ENABLED|DISABLED)/DISABLED	ALTER ENDPOINT a FOR DATA_MIRRORING(MESSAGE_FORWARDING = DISABLED)
 reject	reject	engine	messageForwardSizePayloadOption_MESSAGE_FORWARD_SIZE/MESSAGE_FORWARD_SIZE_EqualsSign_integer	ALTER ENDPOINT a FOR DATA_MIRRORING(MESSAGE_FORWARD_SIZE = 1)
 reject	reject	engine	createEventNotificationStatement_NOTIFICATION/NOTIFICATION_identifier_eventNotificationObjectScope_(W~e5580776	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION/NOTIFICATION_identifier_eventNotificationObjectScope_(W~e5580776+eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/QUEUE_schemaObjectThreePartName	CREATE EVENT NOTIFICATION a ON QUEUE a FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION/NOTIFICATION_identifier_eventNotificationObjectScope_(W~e5580776+eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/QUEUE_schemaObjectThreePartName!drop-3	CREATE EVENT NOTIFICATION a QUEUE a FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION/NOTIFICATION_identifier_eventNotificationObjectScope_(W~e5580776+eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/QUEUE_schemaObjectThreePartName!drop-4	CREATE EVENT NOTIFICATION a ON a FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION/NOTIFICATION_identifier_eventNotificationObjectScope_(W~e5580776+eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/QUEUE_schemaObjectThreePartName!drop-5	CREATE EVENT NOTIFICATION a ON QUEUE FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION/NOTIFICATION_identifier_eventNotificationObjectScope_(W~e5580776+eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/SERVER	CREATE EVENT NOTIFICATION a ON SERVER FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION/NOTIFICATION_identifier_eventNotificationObjectScope_(W~e5580776+eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)/SERVER!drop-3	CREATE EVENT NOTIFICATION a SERVER FOR a TO SERVICE 'a', 'a'
 reject	reject	engine	createEventNotificationStatement_NOTIFICATION/NOTIFICATION_identifier_eventNotificationObjectScope_(W~e5580776+stringLiteral/UnicodeStringLiteral	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE N'a', 'a'
 reject	reject	engine	createEventNotificationStatement_NOTIFICATION/NOTIFICATION_identifier_eventNotificationObjectScope_(W~e5580776+stringLiteral/UnicodeStringLiteral#2	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', N'a'
 reject	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/%empty	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a'
@@ -16453,6 +16839,8 @@ reject	reject	engine	createEventSessionStatement_SESSION/SESSION_identifier_even
 reject	reject	engine	createEventSessionStatement_SESSION/SESSION_identifier_eventSessionScope_eventDeclarationLi~1fe6929e+optSessionOptionList!drop-13	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a WITH(TRACK_CAUSALITY ON)
 reject	reject	engine	createEventSessionStatement_SESSION/SESSION_identifier_eventSessionScope_eventDeclarationLi~1fe6929e+optSessionOptionList!drop-14	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a WITH(TRACK_CAUSALITY =)
 reject	reject	engine	createEventSessionStatement_SESSION/SESSION_identifier_eventSessionScope_eventDeclarationLi~1fe6929e+optSessionOptionList!drop-15	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a WITH(TRACK_CAUSALITY = ON
+accept	accept	engine	createEventSessionStatement_SESSION/SESSION_identifier_eventSessionScope_eventDeclarationLi~1fe6929e+eventSessionScope(Database|SERVER)/SERVER	CREATE EVENT SESSION a ON SERVER ADD EVENT a.a
+reject	reject	engine	createEventSessionStatement_SESSION/SESSION_identifier_eventSessionScope_eventDeclarationLi~1fe6929e+eventSessionScope(Database|SERVER)/SERVER!drop-3	CREATE EVENT SESSION a SERVER ADD EVENT a.a
 accept	accept	engine	createEventSessionStatement_SESSION(targetDeclarationList)?/%empty	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a
 accept	accept	engine	createEventSessionStatement_SESSION(targetDeclarationList)?/targetDeclarationList	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a ADD TARGET a.a
 reject	reject	engine	createEventSessionStatement_SESSION(targetDeclarationList)?/targetDeclarationList!drop-1	CREATE EVENT SESSION a ON DATABASE ADD EVENT a.a TARGET a.a
@@ -17238,6 +17626,8 @@ reject	reject	engine	onlineIndexOption_ONLINE(LeftParenthesis_lowPriorityLockWai
 reject	reject	engine	onlineIndexOption_ONLINE(LeftParenthesis_lowPriorityLockWaitO~5c21059a)?/LeftParenthesis_lowPriorityLockWaitOption_RightParenthesis!swap	ALTER TABLE a REBUILD WITH(ONLINE = ON(WAIT_STATS_CAPTURE_MODE(MAX_DURATION = 1, ABORT_AFTER_WAIT = a)))
 accept	accept	engine	dropIndexMoveToOption_MOVE/MOVE_To_filegroupOrPartitionScheme	DROP INDEX a ON a WITH(MOVE TO 'a')
 accept	accept	engine	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier	DROP INDEX a ON a WITH(FILESTREAM_ON 'a')
+accept	accept	engine	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+accept	accept	engine	fileStreamOn_FILESTREAM_ON/FILESTREAM_ON_stringOrIdentifier+stringOrIdentifier/identifier	DROP INDEX a ON a WITH(FILESTREAM_ON a)
 accept	accept	engine	dropIndexFileStreamOnOption_FILESTREAM_ON/fileStreamOn_FILESTREAM_ON	DROP INDEX a ON a WITH(FILESTREAM_ON 'a')
 reject	reject	engine	dataCompressionOption_DATA_COMPRESSION/DATA_COMPRESSION_EqualsSign_Identifier_(On_PARTITIONS_L~e7ed881e	CREATE TABLE a AS WITH(DATA_COMPRESSION = a)
 reject	reject	engine	dataCompressionOption_DATA_COMPRESSION(On_PARTITIONS_LeftParenthesis_compre~3c820d1b)?/%empty	CREATE TABLE a AS WITH(DATA_COMPRESSION = a)
@@ -17352,6 +17742,7 @@ reject	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Co
 reject	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*!insert	WITH XMLNAMESPACES(DEFAULT 'a', DEFAULT 'a' zzz) SELECT *
 reject	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*!swap	WITH XMLNAMESPACES(DEFAULT 'a', DEFAULT_DATABASE 'a') SELECT *
 accept	accept	engine	ctContext_CHANGE_TRACKING_CONTEXT/CHANGE_TRACKING_CONTEXT_LeftParenthesis_binaryOrVariabl~a39ca77e	WITH CHANGE_TRACKING_CONTEXT(0x00) SELECT *
+accept	accept	engine	ctContext_CHANGE_TRACKING_CONTEXT/CHANGE_TRACKING_CONTEXT_LeftParenthesis_binaryOrVariabl~a39ca77e+binaryOrVariable/variable	WITH CHANGE_TRACKING_CONTEXT(@a) SELECT *
 reject	reject	engine	xmlForClause_XML/XML_xmlForClauseMode_(Comma_xmlParam)*	SELECT * FOR XML a
 reject	reject	engine	xmlForClause_XML(Comma_xmlParam)*/%empty	SELECT * FOR XML a
 reject	reject	engine	xmlForClause_XML(Comma_xmlParam)*/Comma_xmlParam_(Comma_xmlParam)*	SELECT * FOR XML a, a
@@ -17404,6 +17795,7 @@ reject	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrIn
 reject	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrInteger_~32e464d7)?/LeftParenthesis_identifierOrInteger_LeftParenthesis_ide~e344bc51!drop-5	DELETE a WITH(FORCESEEK(a(a))
 reject	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrInteger_~32e464d7)?/LeftParenthesis_identifierOrInteger_LeftParenthesis_ide~e344bc51!truncate	DELETE a WITH(FORCESEEK(a(a)
 reject	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrInteger_~32e464d7)?/LeftParenthesis_identifierOrInteger_LeftParenthesis_ide~e344bc51!insert	DELETE a WITH(FORCESEEK(a(a)) zzz)
+reject	reject	engine	forceSeekTableHint_FORCESEEK(LeftParenthesis_identifierOrInteger_~32e464d7)?/LeftParenthesis_identifierOrInteger_LeftParenthesis_ide~e344bc51+identifierOrInteger/integer	DELETE a WITH(FORCESEEK(1(a)))
 reject	reject	engine	forceSeekTableHint_FORCESEEK(Comma_identifierColumnReferenceExpression)*/%empty	DELETE a WITH(FORCESEEK(a(a)))
 reject	reject	engine	forceSeekTableHint_FORCESEEK(Comma_identifierColumnReferenceExpression)*/%empty!insert	DELETE a WITH(FORCESEEK(a(a zzz)))
 reject	reject	engine	forceSeekTableHint_FORCESEEK(Comma_identifierColumnReferenceExpression)*/Comma_identifierColumnReferenceExpression_(Comma_identi~056d1a56	DELETE a WITH(FORCESEEK(a(a, a)))
@@ -17708,7 +18100,9 @@ reject	reject	engine	externalTableRejectTypeOption_REJECT_TYPE(VALUE|PERCENTAGE)
 reject	reject	engine	externalTableRejectTypeOption_REJECT_TYPE(VALUE|PERCENTAGE)/PERCENTAGE!swap	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = PERIOD) AS SELECT *
 accept	accept	engine	externalTableDistributionOption_DISTRIBUTION/DISTRIBUTION_EqualsSign_externalTableDistributionPolicy	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATED) AS SELECT *
 accept	accept	engine	externalTableNumericLiteralOption_REJECT_SAMPLE_VALUE/REJECT_SAMPLE_VALUE_EqualsSign_integerOrNumeric	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE = 1) AS SELECT *
+accept	accept	engine	externalTableNumericLiteralOption_REJECT_SAMPLE_VALUE/REJECT_SAMPLE_VALUE_EqualsSign_integerOrNumeric+integerOrNumeric/numeric	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE = 1.5) AS SELECT *
 accept	accept	engine	externalTableNumericLiteralOption_REJECT_VALUE/REJECT_VALUE_EqualsSign_integerOrNumeric	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE = 1) AS SELECT *
+accept	accept	engine	externalTableNumericLiteralOption_REJECT_VALUE/REJECT_VALUE_EqualsSign_integerOrNumeric+integerOrNumeric/numeric	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE = 1.5) AS SELECT *
 accept	accept	engine	externalTableReplicatedDistributionPolicy_REPLICATED/REPLICATED	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATED) AS SELECT *
 accept	accept	engine	externalTableRoundRobinDistributionPolicy_ROUND_ROBIN/ROUND_ROBIN	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = ROUND_ROBIN) AS SELECT *
 accept	accept	engine	externalTableShardedDistributionPolicy_SHARDED/SHARDED_LeftParenthesis_identifier_RightParenthesis	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = SHARDED(a)) AS SELECT *
@@ -17741,6 +18135,8 @@ accept	accept	engine	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)
 reject	reject	engine	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table!insert	ALTER TABLE a SET(LOCK_ESCALATION = TABLE zzz)
 reject	reject	engine	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table!swap	ALTER TABLE a SET(LOCK_ESCALATION = TABLESAMPLE)
 accept	accept	engine	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier	ALTER TABLE a SET(FILESTREAM_ON = 'a')
+accept	accept	engine	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILESTREAM_ON = N'a')
+accept	accept	engine	fileStreamOnTableOption_FILESTREAM_ON/FILESTREAM_ON_EqualsSign_stringOrIdentifier+stringOrIdentifier/identifier	ALTER TABLE a SET(FILESTREAM_ON = a)
 reject	reject	engine	remoteDataArchiveAlterTableOption_REMOTE_DATA_ARCHIVE/REMOTE_DATA_ARCHIVE_EqualsSign_remoteDtatArchiveTableOn~229be9f6	ALTER TABLE a SET(REMOTE_DATA_ARCHIVE = OFF(a = a))
 reject	reject	engine	generatedAlwaysClauseInAlter_GENERATED/GENERATED_ALWAYS_As_Identifier_((START)|(End))	ALTER TABLE a ALTER COLUMN a a GENERATED ALWAYS AS a START
 reject	reject	engine	generatedAlwaysClauseInAlter_GENERATED((START)|(End))/START	ALTER TABLE a ALTER COLUMN a a GENERATED ALWAYS AS a START

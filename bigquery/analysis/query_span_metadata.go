@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/bigquery/ast"
@@ -117,7 +118,7 @@ func (q *querySpanResolver) getQuerySpan(statement string) (*ResolvedQuerySpan, 
 		return nil, err
 	}
 
-	results := q.expandColumnInfos(rawSpan.Results, fullSourceColumns, aliasMap)
+	results := nameResults(q.expandColumnInfos(rawSpan.Results, fullSourceColumns, aliasMap))
 
 	span := &ResolvedQuerySpan{
 		Type:          queryType,
@@ -133,6 +134,50 @@ func (q *querySpanResolver) getQuerySpan(statement string) (*ResolvedQuerySpan, 
 		span.NotFoundError = notFound
 	}
 	return span, nil
+}
+
+// nameResults names a query's output columns as BigQuery names the fields of
+// its result: a named column keeps its name, an anonymous one takes the first
+// f<k>_ (k from 0) no column is named, and a repeat of an earlier name takes the
+// first <name>_<k> (k from 1) no column is named. Names compare without case.
+func nameResults(results []ResolvedQuerySpanResult) []ResolvedQuerySpanResult {
+	taken := map[string]bool{}
+	for _, r := range results {
+		taken[strings.ToLower(r.Name)] = true
+	}
+	seen := map[string]bool{}
+	// Each stem's counter only moves forward: every suffix below it is taken,
+	// by a written name or by one this pass gave out.
+	counters := map[string]int{}
+	next := func(stem, key string, first int) string {
+		k, ok := counters[key]
+		if !ok {
+			k = first
+		}
+		for ; ; k++ {
+			name := stem + strconv.Itoa(k)
+			if key == "" {
+				name += "_"
+			}
+			if !taken[strings.ToLower(name)] {
+				taken[strings.ToLower(name)] = true
+				counters[key] = k + 1
+				return name
+			}
+		}
+	}
+	for i, r := range results {
+		key := strings.ToLower(r.Name)
+		switch {
+		case r.Name == "":
+			results[i].Name = next("f", "", 0)
+		case seen[key]:
+			results[i].Name = next(r.Name+"_", key, 1)
+		default:
+			seen[key] = true
+		}
+	}
+	return results
 }
 
 // singleNonEmptyStatement splits the input and returns its single non-empty
@@ -214,9 +259,7 @@ func (q *querySpanResolver) addTableResources(out ColumnSet, span *QuerySpan, vi
 	if span == nil {
 		return
 	}
-	refs := span.AccessTables
-	refs = append(slices.Clone(refs), span.CTEReferences...)
-	for _, t := range refs {
+	for _, t := range span.AccessTables {
 		r := ColumnResource{Database: q.resourceDatabase(t.Database), Schema: t.Schema, Table: t.Table}
 		out[r] = true
 	}
@@ -379,9 +422,9 @@ func (q *querySpanResolver) buildSetOpMergeResults(m *SetOpMergeInfo, fullSource
 			}
 		}
 		if i < len(right) {
-			// Spanner names the column after the left arm even when it is
-			// anonymous ("").
-			if i >= len(left) || (name == "") {
+			// GoogleSQL names the column after the left arm even when it is
+			// anonymous.
+			if i >= len(left) {
 				name = right[i].Name
 			}
 			for sc := range right[i].SourceColumns {
@@ -609,18 +652,14 @@ func applyStarModifiers(expanded []ResolvedQuerySpanResult, r ColumnInfo, fullSo
 // column (the legacy first-select-name rule); otherwise the concrete arm's name
 // is kept. The merged column is never a plain field.
 //
-// Naming: a concrete-arm output name is uppercased (the legacy expression-name
-// rendering, both engines). A LEFT-star-derived name is uppercased under the
-// BigQuery model but keeps the star column's metadata case under the spanner
-// model (the legacy spanner first-arm rule passed the PhysicalTable field name
-// through unchanged).
+// Naming: a concrete arm's output name is kept as written, and a LEFT-star
+// derived one keeps the star column's metadata case, as BigQuery names them.
 func (q *querySpanResolver) buildStarMergeResult(r ColumnInfo, fullSourceColumns ColumnSet, aliasMap map[string][]string) ResolvedQuerySpanResult {
 	sourceColumns := ColumnSet{}
 	for _, ref := range r.SourceColumns {
 		addMatchingColumns(sourceColumns, fullSourceColumns, ref.Column, ref.Table, aliasMap)
 	}
 	name := r.Name
-	name = strings.ToUpper(name)
 	// A StarMerge always carries a bare single-base-table star (a
 	// USING-coalesced or otherwise multi-segment star arm defers to SetOpMerge
 	// instead), so there are no except columns to apply here.
@@ -631,9 +670,6 @@ func (q *querySpanResolver) buildStarMergeResult(r ColumnInfo, fullSourceColumns
 		}
 		if r.StarMerge.LeftStar {
 			name = starCols[idx].Name
-			if q.opts.UppercaseStarMergeName {
-				name = strings.ToUpper(name)
-			}
 		}
 	}
 	return ResolvedQuerySpanResult{
@@ -643,20 +679,11 @@ func (q *querySpanResolver) buildStarMergeResult(r ColumnInfo, fullSourceColumns
 	}
 }
 
-// resultName renders an explicit select-item's output column name. Spanner
-// keeps the walker's name, which is GoogleSQL's. BigQuery matches the legacy
-// extractors (extractTableSourceFromSelect): the name is UPPER-CASED,
-// and for an expression that has no written name of its own the walker leaves
-// Name empty — in that case the legacy code used the name of the single bare
-// column the expression's DFS surfaced (e.g. `ID+1` → "ID"), which is the
-// walker's first source column. A name-less expression with no column reference
-// (a literal, or an opaque scalar subquery) stays "".
+// resultName renders an explicit select-item's output column name: the
+// walker's name, which is GoogleSQL's (testdata/span.tsv). An anonymous one
+// stays "" here; nameResults names it as BigQuery does.
 func (q *querySpanResolver) resultName(r ColumnInfo) string {
-	name := r.Name
-	if name == "" && len(r.SourceColumns) > 0 {
-		name = r.SourceColumns[0].Column
-	}
-	return strings.ToUpper(name)
+	return r.Name
 }
 
 // addMatchingColumns adds every column in fullSourceColumns whose name matches

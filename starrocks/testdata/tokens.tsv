@@ -77,23 +77,39 @@ charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)	(every alternative)	StarRocks.g4:425
 keyDesc	(every alternative)	StarRocks.g4:432 a key clause
 keyDesc(AGGREGATE|UNIQUE|PRIMARY|DUPLICATE)	(every alternative)	StarRocks.g4:433 AGGREGATE, UNIQUE, PRIMARY or DUPLICATE
 columnNullable	(every alternative)	StarRocks.g4:440 NULL or NOT NULL
+showColumnStatement(FROM|IN)	(every alternative)	StarRocks.g4:542 FROM or IN, for the table and the database
+showIndexStatement(FROM|IN)	(every alternative)	StarRocks.g4:574 FROM or IN, for the table and the database
+dictionaryColumnDesc	(every alternative)	StarRocks.g4:863 a KEY or VALUE column
 timeUnit	(every alternative)	StarRocks.g4:1136 DAYS, HOURS or MINUTES
 brokerDesc	(every alternative)	StarRocks.g4:1477 WITH BROKER, named or not
 authOption	(every alternative)	StarRocks.g4:1722 IDENTIFIED BY or WITH
 privObjectType	(every alternative)	StarRocks.g4:1753 a privilege object type
 privObjectTypePlural	(every alternative)	StarRocks.g4:1758 a plural privilege object type
+setVar(identifierOrString|DEFAULT)	(every alternative)	StarRocks.g4:1952 a charset or collation, or DEFAULT
 transaction_access_mode	(every alternative)	StarRocks.g4:1970 READ ONLY or WRITE
 setExprOrDefault	(every alternative)	StarRocks.g4:1986 DEFAULT, ON, ALL or an expression
 periodType	(every alternative)	StarRocks.g4:2109 SYSTEM_TIME, TIMESTAMP or VERSION
+sortItem	(every alternative)	StarRocks.g4:2131 a sort key
+sortItem(ASC|DESC)?	(every alternative)	StarRocks.g4:2132 ASC or DESC
 limitElement	(every alternative)	StarRocks.g4:2135 LIMIT n [OFFSET m] or LIMIT m, n
 setQuantifier	(every alternative)	StarRocks.g4:2167 DISTINCT or ALL
 joinCriteria	(every alternative)	StarRocks.g4:2258 ON or USING
+expressionOrDefault	(every alternative)	StarRocks.g4:2328 an expression or DEFAULT
 frameBound	(every alternative)	StarRocks.g4:2555 a window frame bound
+backupRestoreObjectDesc(FUNCTION|FUNCTIONS)	(every alternative)	StarRocks.g4:2566 FUNCTION or FUNCTIONS
+backupRestoreObjectDesc(TABLE|TABLES)	(every alternative)	StarRocks.g4:2567 TABLE or TABLES
+backupRestoreObjectDesc(VIEW|VIEWS)	(every alternative)	StarRocks.g4:2568 VIEW or VIEWS
 explainDesc	(every alternative)	StarRocks.g4:2580 an EXPLAIN keyword and level
 explainDesc(DESC|DESCRIBE|EXPLAIN)	(every alternative)	StarRocks.g4:2581 DESC, DESCRIBE or EXPLAIN
 explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?	(every alternative)	StarRocks.g4:2581 LOGICAL, ANALYZE, VERBOSE, COSTS or SCHEDULER
 distributionDesc	(every alternative)	StarRocks.g4:2681 DISTRIBUTED BY HASH or RANDOM
 refreshSchemeDesc	(every alternative)	StarRocks.g4:2687 a refresh scheme
 varType	(every alternative)	StarRocks.g4:2727 GLOBAL, LOCAL, SESSION or VERBOSE
+string	(every alternative)	StarRocks.g4:2746 single- or double-quoted text
+comparisonOperator	(every alternative)	StarRocks.g4:2756 a comparison operator
+booleanValue	(every alternative)	StarRocks.g4:2760 TRUE or FALSE
+unitIdentifier	(every alternative)	StarRocks.g4:2776 a time unit
+type	(every alternative)	StarRocks.g4:2784 a base, decimal, array, struct or map type
+identifierOrString	(every alternative)	StarRocks.g4:2877 a name or a string
 identifierOrStringOrStar	(every alternative)	StarRocks.g4:2886 *, a name or a string
 number	(every alternative)	StarRocks.g4:2906 a decimal, double or integer

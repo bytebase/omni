@@ -980,3 +980,14 @@ func TestWalkThroughMariaDBForeignKeysAndChecks(t *testing.T) {
 	noFinding(t, "ALTER TABLE nk ADD KEY (a);\nALTER TABLE nk ADD FOREIGN KEY (a) REFERENCES nk;", shop)
 	noFinding(t, "ALTER TABLE nk ADD z INT, ADD KEY (z), ADD FOREIGN KEY (a) REFERENCES nk (z);", shop)
 }
+
+// TestWalkThroughMariaDBViewCalls pins that a view's unqualified call of a
+// lexer word no builtin has needs a stored function of the current
+// database (1630), while any other name may be a loadable function's.
+func TestWalkThroughMariaDBViewCalls(t *testing.T) {
+	shop := review.Target{Schema: walkSchema()}
+	oneFinding(t, "CREATE VIEW w AS SELECT definer(1);", 0, "Function `definer` doesn't exist.", shop)
+	oneFinding(t, "CREATE VIEW w AS SELECT 1 FROM r WHERE id IN (SELECT system());", 0, "Function `system` doesn't exist.", shop)
+	noFinding(t, "CREATE FUNCTION definer(x INT) RETURNS INT RETURN x;\nCREATE VIEW w AS SELECT definer(1);", shop)
+	noFinding(t, "CREATE VIEW w AS SELECT mk(1), q.definer(1), `definer`(1), substring('a', 1), now();", shop)
+}

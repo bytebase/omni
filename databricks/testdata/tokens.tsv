@@ -52,3 +52,63 @@ dataType	(every alternative)	SqlBaseParser.g4:1299 ARRAY, MAP, STRUCT, an interv
 frameBound	(every alternative)	SqlBaseParser.g4:1453 UNBOUNDED, CURRENT ROW or an expression, PRECEDING or FOLLOWING
 stringLit	(every alternative)	SqlBaseParser.g4:1540 a single- or double-quoted string
 comment	(every alternative)	SqlBaseParser.g4:1545 a string or NULL
+# More choices and optional clauses tried at every site that names them (wave
+# 21): keyword choices inside statements, operator and unit lists, and the
+# optional groups reached at several alternatives.
+statement(TABLE|VIEW)	(every alternative)	SqlBaseParser.g4:237 TABLE or VIEW in ALTER ... PROPERTIES and RENAME
+statement(DESC|DESCRIBE)	(every alternative)	SqlBaseParser.g4:314 DESC or DESCRIBE
+statement(COLUMN|COLUMNS)	(every alternative)	SqlBaseParser.g4:223 ALTER TABLE ADD or DROP COLUMN or COLUMNS
+statement(DBPROPERTIES|PROPERTIES)	(every alternative)	SqlBaseParser.g4:194 a namespace's DBPROPERTIES or PROPERTIES
+statement(FROM|IN)	(every alternative)	SqlBaseParser.g4:203 FROM or IN in a SHOW
+frameBound(PRECEDING|FOLLOWING)	(every alternative)	SqlBaseParser.g4:1454 PRECEDING or FOLLOWING
+predicate(LIKE|ILIKE)	(every alternative)	SqlBaseParser.g4:1120 LIKE or ILIKE
+primaryExpression(datetimeUnit|stringLit)	(every alternative)	SqlBaseParser.g4:1158 TIMESTAMPADD's and TIMESTAMPDIFF's unit, a word or a string
+insertInto((BY_NAME)|identifierList)?	(every alternative)	SqlBaseParser.g4:491 BY NAME or a column list
+shiftOperator	(every alternative)	SqlBaseParser.g4:1144 <<, >> or >>>
+comparisonOperator	(every alternative)	SqlBaseParser.g4:1214 =, <>, !=, <, <=, >, >= or <=>
+unitInMultiUnits	(every alternative)	SqlBaseParser.g4:1255 an interval unit, singular or plural
+quotedIdentifier	(every alternative)	SqlBaseParser.g4:1501 a backquoted or double-quoted name
+functionName	(every alternative)	SqlBaseParser.g4:1463 a name, IDENTIFIER(...), FILTER, LEFT or RIGHT
+conditionValue	(every alternative)	SqlBaseParser.g4:92 SQLSTATE, SQLEXCEPTION, NOT FOUND or a condition name
+sequenceGeneratorStartOrStep	(every alternative)	SqlBaseParser.g4:1370 an integer or a bigint
+transformArgument	(every alternative)	SqlBaseParser.g4:1085 a column or a constant
+partitionField	(every alternative)	SqlBaseParser.g4:1074 a transform or a column with its type
+groupByClause	(every alternative)	SqlBaseParser.g4:813 grouping analytics or an expression
+groupingElement	(every alternative)	SqlBaseParser.g4:823 grouping analytics or a grouping set
+functionTableArgument	(every alternative)	SqlBaseParser.g4:1013 a table argument or an expression
+queryPrimary	(every alternative)	SqlBaseParser.g4:672 SELECT, FROM ..., TABLE, VALUES or a parenthesized query
+hintStatement	(every alternative)	SqlBaseParser.g4:790 a hint with or without parameters
+partitionVal	(every alternative)	SqlBaseParser.g4:506 a partition column, with a value or DEFAULT
+number(MINUS)?	(every site)	SqlBaseParser.g4:1510 a negative number
+sequenceGeneratorStartOrStep(MINUS)?	(every site)	SqlBaseParser.g4:1371 a negative START WITH or INCREMENT BY
+statement(LIKE?_stringLit)?	(every site)	SqlBaseParser.g4:204 a SHOW's pattern
+statement(LIKE)?	(every site)	SqlBaseParser.g4:204 LIKE before a SHOW's pattern
+statement(EXTENDED)?	(every site)	SqlBaseParser.g4:314 DESCRIBE ... EXTENDED
+statement(OPTIONS_propertyList)?	(every site)	SqlBaseParser.g4:281 OPTIONS (...)
+statement(AS?_query)?	(every site)	SqlBaseParser.g4:207 CREATE TABLE ... AS query
+statement(AS)?	(every site)	SqlBaseParser.g4:207 AS before a query
+statement(GLOBAL)?	(every site)	SqlBaseParser.g4:270 GLOBAL TEMPORARY VIEW
+statement(COLUMN)?	(every site)	SqlBaseParser.g4:244 ALTER COLUMN or CHANGE COLUMN
+statement(identifier)?	(every site)	SqlBaseParser.g4:309 SHOW's function kind
+statement(tableProvider)?	(every site)	SqlBaseParser.g4:205 USING provider
+statement(LEFT_PAREN_colDefinitionList_RIGHT_PAREN)?	(every site)	SqlBaseParser.g4:205 a column list
+relationPrimary(sample)?	(every site)	SqlBaseParser.g4:971 TABLESAMPLE
+queryTerm(setQuantifier)?	(every site)	SqlBaseParser.g4:664 a set operation's DISTINCT or ALL
+transformClause(setQuantifier)?	(every site)	SqlBaseParser.g4:719 TRANSFORM's DISTINCT or ALL
+joinType(OUTER)?	(every site)	SqlBaseParser.g4:921 OUTER after LEFT, RIGHT or FULL
+joinType(LEFT)?	(every site)	SqlBaseParser.g4:922 LEFT SEMI and LEFT ANTI
+joinRelation(LATERAL)?	(every site)	SqlBaseParser.g4:914 a LATERAL join
+temporalClause(FOR)?	(every site)	SqlBaseParser.g4:800 FOR before VERSION or TIMESTAMP AS OF
+primaryExpression(IGNORE_NULLS)?	(every site)	SqlBaseParser.g4:1166 IGNORE NULLS
+primaryExpression(exceptClause)?	(every site)	SqlBaseParser.g4:1171 a star's EXCEPT
+primaryExpression(ELSE_expression)?	(every site)	SqlBaseParser.g4:1160 a CASE's ELSE
+caseStatement(ELSE_compoundBody)?	(every site)	SqlBaseParser.g4:131 a CASE statement's ELSE
+insertInto(LOCAL)?	(every site)	SqlBaseParser.g4:494 INSERT OVERWRITE LOCAL DIRECTORY
+dmlStatementNoWith(whereClause)?	(every site)	SqlBaseParser.g4:625 DELETE's and UPDATE's WHERE
+querySpecification(whereClause)?	(every site)	SqlBaseParser.g4:705 WHERE
+querySpecification(aggregationClause)?	(every site)	SqlBaseParser.g4:706 GROUP BY
+querySpecification(havingClause)?	(every site)	SqlBaseParser.g4:707 HAVING
+querySpecification(windowClause)?	(every site)	SqlBaseParser.g4:708 WINDOW
+fromStatementBody(whereClause)?	(every site)	SqlBaseParser.g4:690 a FROM statement's WHERE
+functionTableSubqueryArgument(tableArgumentPartitioning)?	(every site)	SqlBaseParser.g4:987 a table argument's PARTITION BY
+operatorPipeRightSide(windowClause)?	(every site)	SqlBaseParser.g4:1556 a pipe SELECT's WINDOW

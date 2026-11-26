@@ -199,6 +199,9 @@ func (p *Parser) parseAlterType() (*ast.TypeName, error) {
 		if err != nil {
 			return nil, err
 		}
+		if err := checkMapKey(key); err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(int(',')); err != nil {
 			return nil, err
 		}

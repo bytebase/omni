@@ -3680,6 +3680,9 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 			w.walkExpr(ob.Expr, curEnv, ctes)
 		}
 		w.walkExpr(e.Filter, curEnv, ctes)
+		if e.Over != nil {
+			w.walkWindowParts(e.Over.PartitionBy, e.Over.OrderBy, e.Over.Frame, curEnv, ctes)
+		}
 		return "varchar"
 	case *trinoparser.LambdaExpr:
 		return w.walkLambda(e, curEnv, ctes, nil)

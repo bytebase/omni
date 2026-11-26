@@ -557,7 +557,8 @@ func Terminate() {
 // It is also the Renamer of the names Oracle makes up, which differ on
 // every run: a constraint's or an index's SYS_C, a materialized view's
 // constraint's SYS_C_SNAP$_, a LOB segment's and its
-// index's SYS_LOB and SYS_IL, an identity column's sequence ISEQ$$_.
+// index's SYS_LOB and SYS_IL, a nested table's SETID index SYS_FK, an
+// identity column's sequence ISEQ$$_.
 type Codec struct{}
 
 func (Codec) EncodeError(err error) (string, bool) {
@@ -579,7 +580,7 @@ func (Codec) DecodeError(text string) error {
 	return oe
 }
 
-var madeUp = regexp.MustCompile(`SYS_C\d{6,}|SYS_C_SNAP\$_\d+|SYS_(?:LOB|IL)\d{10}C\d{5}\$\$|ISEQ\$\$_\d+`)
+var madeUp = regexp.MustCompile(`SYS_C\d{6,}|SYS_C_SNAP\$_\d+|SYS_(?:LOB|IL)\d{10}C\d{5}\$\$|SYS_FK\d{10}N\d{5}\$|ISEQ\$\$_\d+`)
 
 // MadeUp matches a name Oracle made up.
 func (Codec) MadeUp() *regexp.Regexp { return madeUp }
@@ -594,6 +595,8 @@ func (Codec) StandIn(name string, n int) string {
 		return fmt.Sprintf("SYS_C9%06d", n)
 	case strings.HasPrefix(name, "ISEQ$$_"):
 		return fmt.Sprintf("ISEQ$$_9%06d", n)
+	case strings.HasPrefix(name, "SYS_FK"):
+		return fmt.Sprintf("SYS_FK9%09dN00001$", n)
 	}
 	return fmt.Sprintf("%s9%09dC00001$$", strings.TrimRight(name[:7], "0123456789"), n)
 }
