@@ -1067,6 +1067,9 @@ func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) error {
 			return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", tableName)
 		}
 	}
+	if dup := dupCreateTableIndexName(n); dup != "" {
+		return mssqlErr(ErrDupTargetInAlter, "Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named '%s' in this context.", dup)
+	}
 	if !c.lenientMetadataLoad && n.IsFileTable {
 		return mssqlErr(ErrFileTableNotSupported, "Default FILESTREAM filegroup is not available.")
 	}
@@ -1141,6 +1144,60 @@ func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) error {
 		}
 	}
 	return nil
+}
+
+// dupCreateTableIndexName returns a name CREATE TABLE gives two of its
+// indexes, or "": its columns' and the table's INDEX clauses and its PRIMARY
+// KEY and UNIQUE constraints, whose indexes share the name. SQL Server
+// refuses a INT INDEX ix, b INT INDEX ix and a INT CONSTRAINT ix PRIMARY KEY
+// INDEX ix with 8168 (measured, simulate.tsv). Names compare without case.
+func dupCreateTableIndexName(n *ast.CreateTableStmt) string {
+	seen := map[string]bool{}
+	add := func(name string) bool {
+		if name == "" {
+			return false
+		}
+		key := strings.ToLower(name)
+		if seen[key] {
+			return true
+		}
+		seen[key] = true
+		return false
+	}
+	check := func(list *ast.List) string {
+		if list == nil {
+			return ""
+		}
+		for _, item := range list.Items {
+			switch v := item.(type) {
+			case *ast.InlineIndexDef:
+				if add(v.Name) {
+					return v.Name
+				}
+			case *ast.ConstraintDef:
+				if (v.Type == ast.ConstraintPrimaryKey || v.Type == ast.ConstraintUnique) && add(v.Name) {
+					return v.Name
+				}
+			}
+		}
+		return ""
+	}
+	if n.Columns != nil {
+		for _, item := range n.Columns.Items {
+			if col, ok := item.(*ast.ColumnDef); ok {
+				if dup := check(col.Constraints); dup != "" {
+					return dup
+				}
+				if dup := check(col.Indexes); dup != "" {
+					return dup
+				}
+			}
+		}
+	}
+	if dup := check(n.Constraints); dup != "" {
+		return dup
+	}
+	return check(n.Indexes)
 }
 
 // --- CREATE / ALTER INDEX ---

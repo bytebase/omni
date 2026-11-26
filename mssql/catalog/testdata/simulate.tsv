@@ -344,6 +344,12 @@ ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX i
 ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
 ok	10791	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
 4902	4902	engine	one_table@missing	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+8168	8168	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+8168	8168	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+8168	8168	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+8168	8168	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+8168	8168	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+8168	8168	engine	one_table@missing	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
 ok:b08530f8a202	ok:b08530f8a202	engine	one_table@table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	one_table@table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	one_table@table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -688,6 +694,12 @@ ok:730f4651e371	ok:730f4651e371	engine	one_table@table	issue:BYT-10538	CREATE PR
 2714	10791	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
 2714	10791	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
 10785	10791	engine	one_table@table	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+2714	8168	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+2714	8168	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+2714	8168	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+2714	8168	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+2714	8168	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+2714	8168	engine	one_table@table	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
 ok:700d834f3ec9	ok:700d834f3ec9	engine	one_table@column	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	one_table@column	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	one_table@column	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1032,6 +1044,12 @@ ok:5a3c7b96933c	ok:5a3c7b96933c	engine	one_table@column	issue:BYT-10538	CREATE P
 2714	10791	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
 2714	10791	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
 10785	10791	engine	one_table@column	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+2714	8168	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+2714	8168	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+2714	8168	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+2714	8168	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+2714	8168	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+2714	8168	engine	one_table@column	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
 ok:5855584afb6a	ok:5855584afb6a	engine	one_table@index	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	one_table@index	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	one_table@index	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1376,6 +1394,12 @@ ok:4188ae53864e	ok:4188ae53864e	engine	one_table@index	issue:BYT-10538	CREATE PR
 2714	10791	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
 2714	10791	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
 10785	10791	engine	one_table@index	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+2714	8168	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+2714	8168	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+2714	8168	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+2714	8168	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+2714	8168	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+2714	8168	engine	one_table@index	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
 ok:35bdc4532691	ok:35bdc4532691	engine	objects@view	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@view	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@view	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1720,6 +1744,12 @@ ok:7587435d20b6	ok:7587435d20b6	engine	objects@view	issue:BYT-10538	CREATE PROCE
 2714	10791	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
 2714	10791	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
 4909	4909	engine	objects@view	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+2714	8168	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+2714	8168	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+2714	8168	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+2714	8168	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+2714	8168	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+2714	8168	engine	objects@view	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
 ok:a39909444bda	ok:a39909444bda	engine	objects@fk	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@fk	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@fk	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2064,6 +2094,12 @@ ok:1f440221322f	ok:1f440221322f	engine	objects@fk	issue:BYT-10538	ALTER TABLE a 
 2714	10791	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
 2714	10791	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
 10785	10791	engine	objects@fk	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+2714	8168	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+2714	8168	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+2714	8168	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+2714	8168	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+2714	8168	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+2714	8168	engine	objects@fk	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
 2714	2714	engine	objects@schema	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@schema	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@schema	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2408,6 +2444,12 @@ ok:2ea4d31c8efa	ok:2ea4d31c8efa	engine	objects@schema	issue:BYT-10538	CREATE PRO
 2714	10791	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
 2714	10791	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
 10785	10791	engine	objects@schema	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+2714	8168	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+2714	8168	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+2714	8168	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+2714	8168	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+2714	8168	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+2714	8168	engine	objects@schema	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
 ok:ca6ffa04f178	ok:ca6ffa04f178	engine	objects@sequence	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@sequence	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@sequence	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2752,6 +2794,12 @@ ok:256e3a7a886a	ok:256e3a7a886a	engine	objects@sequence	issue:BYT-10538	CREATE P
 2714	10791	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
 2714	10791	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
 4909	4909	engine	objects@sequence	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+2714	8168	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+2714	8168	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+2714	8168	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+2714	8168	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+2714	8168	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+2714	8168	engine	objects@sequence	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
 ok:9f5b0a656ba7	ok:9f5b0a656ba7	engine	objects@synonym	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@synonym	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@synonym	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3096,6 +3144,12 @@ ok:82bd413c8066	ok:82bd413c8066	engine	objects@synonym	issue:BYT-10538	CREATE PR
 2714	10791	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
 2714	10791	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
 4909	4909	engine	objects@synonym	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+2714	8168	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+2714	8168	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+2714	8168	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+2714	8168	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+2714	8168	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+2714	8168	engine	objects@synonym	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
 ok:2b3aebfef9a1	ok:2b3aebfef9a1	engine	objects@procedure	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@procedure	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@procedure	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3440,6 +3494,12 @@ ok:23074fe32789	ok:23074fe32789	engine	objects@procedure	issue:BYT-10538	CREATE 
 2714	10791	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
 2714	10791	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
 4909	4909	engine	objects@procedure	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+2714	8168	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+2714	8168	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+2714	8168	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+2714	8168	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+2714	8168	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+2714	8168	engine	objects@procedure	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
 ok:e8852332e164	ok:e8852332e164	engine	objects@function	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@function	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@function	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3784,6 +3844,12 @@ ok:6893604530d9	ok:6893604530d9	engine	objects@function	issue:BYT-10538	CREATE P
 2714	10791	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
 2714	10791	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
 4909	4909	engine	objects@function	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+2714	8168	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+2714	8168	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+2714	8168	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+2714	8168	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+2714	8168	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+2714	8168	engine	objects@function	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
 ok:67933fa12252	ok:67933fa12252	engine	objects@trigger	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@trigger	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@trigger	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -4128,3 +4194,9 @@ ok:a35aff99dd83	ok:a35aff99dd83	engine	objects@trigger	issue:BYT-10538	CREATE PR
 2714	10791	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH WITH (BUCKET_COUNT = 8, DATA_COMPRESSION = PAGE));
 2714	10791	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix HASH (a) WITH (BUCKET_COUNT = 8));
 4909	4909	engine	objects@trigger	issue:BYT-10538	ALTER TABLE a ADD INDEX ix HASH (a) WITH (BUCKET_COUNT = 8);
+2714	8168	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+2714	8168	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+2714	8168	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+2714	8168	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+2714	8168	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+2714	8168	engine	objects@trigger	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);

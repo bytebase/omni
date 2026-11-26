@@ -18821,3 +18821,9 @@ reject	reject	engine	issue:BYT-10538	UPDATE a SET a.m(1) WITHIN GROUP (ORDER BY 
 accept	accept	engine	issue:BYT-10538	UPDATE a SET a.m((SELECT 1));
 reject	reject	engine	issue:BYT-10538	UPDATE a SET a.WRITE(DISTINCT N'x', 0, 1);
 reject	reject	engine	issue:BYT-10538	UPDATE a SET a.WRITE(N'x', 0, 1) OVER ();
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+accept	accept	engine	issue:BYT-10538	CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);

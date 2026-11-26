@@ -5246,6 +5246,80 @@
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
 > exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'IX_A' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'a', table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
@@ -10009,6 +10083,80 @@
 < error
 | 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
 | 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'IX_A' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'a', table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -14947,6 +15095,80 @@
 < ok 0 -
 > exec
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'IX_A' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'a', table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
@@ -19854,6 +20076,80 @@
 < error
 | 10791 1 16 1 Hash indexes are permitted only in memory optimized tables.
 | 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'IX_A' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'a', table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -24907,6 +25203,92 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'IX_A' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'a', table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -30912,6 +31294,86 @@
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
 > exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'IX_A' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'a', table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
 | CREATE SCHEMA [a];
 < ok 0 -
 > exec
@@ -36635,6 +37097,92 @@
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
 > exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'IX_A' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'a', table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
 | CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
@@ -41243,6 +41791,80 @@
 < ok 0 -
 > exec
 | CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'IX_A' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'a', table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
@@ -45581,6 +46203,80 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'IX_A' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'a', table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -50725,6 +51421,92 @@
 | CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'IX_A' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'a', table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
@@ -55756,6 +56538,92 @@
 | CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'IX_A' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'a', table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
@@ -60744,3 +61612,89 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, b INT INDEX IX_A);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'IX_A' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 8148 0 16 1 More than one column INDEX clause specified for column 'a', table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT INDEX ix_a, INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT, INDEX ix_a (a), INDEX ix_a (a));
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TABLE a (a INT CONSTRAINT ix_a PRIMARY KEY INDEX ix_a);
+|
+< error
+| 8168 1 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'ix_a' in this context. Duplicate names are not allowed.
+| 10793 0 16 1 Both an index and a PRIMARY KEY constraint have been defined inline, with the definition of column 'a', table 'a'. Defining both an index and a PRIMARY KEY constraint inline with the column definition is not allowed.
