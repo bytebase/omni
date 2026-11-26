@@ -12,6 +12,25 @@
 # where their own alternative's row reaches (see grammar.EverySite).
 opt_if_not_exists	(every site)	IF NOT EXISTS
 opt_if_exists	(every site)	IF EXISTS
+opt_replace	(every site)	sql_parser_mysql_mode.y:10189 OR REPLACE
+opt_temporary	(every site)	sql_parser_mysql_mode.y:10712 TEMPORARY
+opt_equal_mark	(every site)	sql_parser_mysql_mode.y:8436 = before an option's value
+opt_default_mark	(every site)	sql_parser_mysql_mode.y:8441 DEFAULT before a database or table option
+opt_comma	(every site)	sql_parser_mysql_mode.y:7736 a comma between options
+opt_all	(every site)	sql_parser_mysql_mode.y:2661 ALL
+opt_index_using_algorithm	(every site)	sql_parser_mysql_mode.y:10690 USING BTREE or USING HASH
+opt_index_name	(every site)	sql_parser_mysql_mode.y:10362 an index name
+opt_constraint_name	(every site)	sql_parser_mysql_mode.y:10399 CONSTRAINT and a name
+opt_key_or_index	(every site)	sql_parser_mysql_mode.y:14753 KEY or INDEX
+opt_show_condition	(every site)	sql_parser_mysql_mode.y:16548 LIKE or WHERE after SHOW
+opt_from_or_in_database_clause	(every site)	sql_parser_mysql_mode.y:16538 FROM or IN a database after SHOW
+opt_binary	(every site)	sql_parser_mysql_mode.y:7390 BINARY after a character type
+opt_charset	(every site)	sql_parser_mysql_mode.y:7494 CHARACTER SET after a type
+opt_zerofill_i	(every site)	sql_parser_mysql_mode.y:7385 ZEROFILL
+opt_as	(every site)	sql_parser_mysql_mode.y:13929 AS
+opt_ignore	(every site)	sql_parser_mysql_mode.y:11198 IGNORE
+opt_set	(every site)	sql_parser_mysql_mode.y:20108 SET
+opt_work	(every site)	sql_parser_mysql_mode.y:17756 WORK
 
 # Keyword choices tried in each of their forms at every site that names
 # them, and not only where the rule's own alternatives are reached (see
