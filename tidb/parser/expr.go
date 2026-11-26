@@ -1788,17 +1788,17 @@ func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, e
 		fc.OrderBy = orderBy
 	}
 
-	// SEPARATOR
+	// SEPARATOR stringLit: one string, never a hex or bit literal, an
+	// expression or adjacent strings.
+	//
+	// Ref: parser.y:8678.
 	if p.cur.Type == kwSEPARATOR {
 		p.advance()
-		sep, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		if sep == nil {
+		if p.cur.Type != tokSCONST {
 			return nil, p.syntaxErrorAtCur()
 		}
-		fc.Separator = sep
+		tok := p.advance()
+		fc.Separator = &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Str}
 	}
 
 	if _, err := p.expect(')'); err != nil {
