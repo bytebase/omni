@@ -28,6 +28,9 @@ type Catalog struct {
 	// pending is the table ALTER TABLE is changing, whose columns a foreign
 	// key it adds names.
 	pending *metadatapb.TableMetadata
+	// creating is the schema of the table CREATE TABLE is declaring, whose
+	// keys pending holds; empty otherwise.
+	creating string
 }
 
 // New returns the catalog of an empty database.
@@ -417,6 +420,11 @@ func (c *Catalog) alterSchema(n *tree.AlterSchema) error {
 	if c.l.schemas[to] != nil {
 		return refuse(codeDuplicateSchema, "schema %q already exists", to)
 	}
+	if len(s.Functions) > 0 {
+		// A routine's stored definition names its schema, which the
+		// catalog does not rewrite.
+		return &Error{Message: fmt.Sprintf("renaming schema %q, which holds routines, is not supported", s.Name)}
+	}
 	for _, other := range c.l.meta.Schemas {
 		for _, deps := range viewDependencies(other) {
 			if slices.ContainsFunc(deps, func(d *metadatapb.DependencyColumn) bool { return d.Schema == s.Name }) {
@@ -575,7 +583,7 @@ func (c *Catalog) createTable(n *tree.CreateTable) error {
 			if err := c.checkType(d.Type); err != nil {
 				return err
 			}
-			if err := c.checkSequences(d.DefaultExpr.Expr); err != nil {
+			if err := c.checkDefault(d.DefaultExpr.Expr, "CREATE TABLE"); err != nil {
 				return err
 			}
 		}
@@ -599,16 +607,29 @@ func (c *Catalog) createTable(n *tree.CreateTable) error {
 	if err := uniqueConstraintNames(name, n.Defs); err != nil {
 		return err
 	}
-	// The new table's columns, for the foreign keys it declares.
+	// The new table's columns and keys, for the foreign keys it declares,
+	// its own among them.
 	pending := &metadatapb.TableMetadata{Name: name}
 	for _, def := range n.Defs {
-		if d, ok := def.(*tree.ColumnTableDef); ok {
+		switch d := def.(type) {
+		case *tree.ColumnTableDef:
 			typ, _ := sdlType(d.Type)
 			pending.Columns = append(pending.Columns, &metadatapb.ColumnMetadata{Name: string(d.Name), Type: typ})
+			if d.PrimaryKey.IsPrimaryKey || d.Unique.IsUnique {
+				pending.Indexes = append(pending.Indexes, &metadatapb.IndexMetadata{Unique: true, Primary: d.PrimaryKey.IsPrimaryKey, Expressions: []string{string(d.Name)}})
+			}
+		case *tree.UniqueConstraintTableDef:
+			if d.Predicate == nil {
+				key := &metadatapb.IndexMetadata{Unique: true, Primary: d.PrimaryKey}
+				for _, elem := range d.Columns {
+					key.Expressions = append(key.Expressions, string(elem.Column))
+				}
+				pending.Indexes = append(pending.Indexes, key)
+			}
 		}
 	}
-	c.pending = pending
-	defer func() { c.pending = nil }()
+	c.pending, c.creating = pending, s.Name
+	defer func() { c.pending, c.creating = nil, "" }()
 	for _, def := range n.Defs {
 		if err := c.checkTableDef(name, columns, def); err != nil {
 			return err
@@ -649,6 +670,20 @@ func (c *Catalog) checkTableDef(table string, columns map[string]bool, def tree.
 		return c.checkForeignKey(table, columns, d)
 	}
 	return nil
+}
+
+// checkDefault refuses a default that reads a column or calls nextval on a
+// sequence the catalog does not hold.
+func (c *Catalog) checkDefault(expr tree.Expr, in string) error {
+	if expr == nil {
+		return nil
+	}
+	reads := false
+	tree.WalkExprConst(&columnCollector{visit: func(string) { reads = true }}, expr)
+	if reads {
+		return refuse("42601", "variable sub-expressions are not allowed in DEFAULT (in %s)", in)
+	}
+	return c.checkSequences(expr)
 }
 
 // checkSequences refuses a default that calls nextval on a sequence the
@@ -707,13 +742,15 @@ func (c *Catalog) checkForeignKey(table string, columns map[string]bool, d *tree
 			return refuse(codeUndefinedColumn, "column %q does not exist", col)
 		}
 	}
-	if schemaOf(&d.Table) == "public" && string(d.Table.ObjectName) == table && c.l.schemas["public"] != nil && schemaTable(c.l.schemas["public"], table) == nil {
+	var referenced *metadatapb.TableMetadata
+	if c.creating != "" && schemaOf(&d.Table) == c.creating && string(d.Table.ObjectName) == table {
 		// A table's foreign key to itself, in its CREATE TABLE.
-		return nil
-	}
-	referenced, err := c.table(&d.Table)
-	if err != nil {
-		return err
+		referenced = c.pending
+	} else {
+		var err error
+		if referenced, err = c.table(&d.Table); err != nil {
+			return err
+		}
 	}
 	refColumns := map[string]bool{}
 	for _, column := range referenced.Columns {
@@ -1942,7 +1979,7 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 		if err := c.checkType(def.Type); err != nil {
 			return err
 		}
-		if err := c.checkSequences(def.DefaultExpr.Expr); err != nil {
+		if err := c.checkDefault(def.DefaultExpr.Expr, "ADD COLUMN"); err != nil {
 			return err
 		}
 		columns[string(def.Name)] = true
@@ -1996,7 +2033,7 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 		if err != nil {
 			return err
 		}
-		if err := c.checkSequences(cmd.Default); err != nil {
+		if err := c.checkDefault(cmd.Default, "SET DEFAULT"); err != nil {
 			return err
 		}
 		col.Default = ""

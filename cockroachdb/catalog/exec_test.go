@@ -63,6 +63,11 @@ func TestExecRefusals(t *testing.T) {
 		{"CREATE TYPE mood AS ENUM ('sad'); CREATE FUNCTION f(x mood) RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$; DROP TYPE mood", "2BP01"},
 		{"CREATE SEQUENCE sq INCREMENT BY 0", "22023"},
 		{"CREATE SEQUENCE sq; ALTER SEQUENCE sq INCREMENT BY 0", "22023"},
+		{"CREATE TABLE t (a INT8, b INT8 DEFAULT a)", "42601"},
+		{"CREATE TABLE t (a INT8); ALTER TABLE t ADD COLUMN b INT8 DEFAULT a", "42601"},
+		{"CREATE TABLE t (a INT8); ALTER TABLE t ALTER COLUMN a SET DEFAULT a", "42601"},
+		{"CREATE TABLE t (id INT8 PRIMARY KEY, parent INT8 REFERENCES t (missing))", "42703"},
+		{"CREATE TABLE t (id INT8 PRIMARY KEY, u INT8, parent INT8 REFERENCES t (u))", "23503"},
 		{"CREATE TABLE p (id INT8 PRIMARY KEY, u INT8); CREATE UNIQUE INDEX ux ON p (u); ALTER TABLE p ADD COLUMN parent INT8 REFERENCES p (u); DROP INDEX p@ux", "2BP01"},
 		{"CREATE SCHEMA s; CREATE TYPE s.t AS ENUM ('a'); CREATE TABLE public.t (a INT8); ALTER TABLE public.t SET SCHEMA s", "42P07"},
 		{"CREATE SCHEMA s; CREATE TYPE s.m AS ENUM ('a'); CREATE TABLE t (m s.m); DROP SCHEMA s CASCADE", "0A000"},
@@ -175,9 +180,17 @@ func TestExecRefusesUnmodeledForms(t *testing.T) {
 		"CREATE TABLE t (a INT8, b INT8 AS (a * 2) STORED); ALTER TABLE t ALTER COLUMN a TYPE STRING USING a::STRING",
 		"CREATE TABLE p (id INT8 PRIMARY KEY, u INT8, x INT8); CREATE UNIQUE INDEX ux ON p (u) STORING (x); CREATE TABLE c (u INT8 REFERENCES p (u)); ALTER TABLE p DROP COLUMN x",
 		"CREATE TYPE mood AS ENUM ('sad'); CREATE FUNCTION f(x mood) RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$; ALTER TYPE mood RENAME TO feeling",
+		"CREATE SCHEMA s; CREATE FUNCTION s.f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$; ALTER SCHEMA s RENAME TO s2",
 	} {
 		_, err := execLast(t, script)
 		require.Error(t, err, script)
 		require.Empty(t, code(err), script)
 	}
+}
+
+func TestExecSelfReference(t *testing.T) {
+	_, err := execLast(t, "CREATE TABLE t (id INT8 PRIMARY KEY, parent INT8 REFERENCES t (id))")
+	require.NoError(t, err)
+	_, err = execLast(t, "CREATE TABLE t (id INT8 PRIMARY KEY, parent INT8 REFERENCES t)")
+	require.NoError(t, err)
 }
